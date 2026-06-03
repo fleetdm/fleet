@@ -1930,10 +1930,15 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
-			require.JSONEq(t, fmt.Sprintf(`{"enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
+			require.JSONEq(t, fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`, targetHostID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
 		}
 	}
 	require.True(t, found)
+
+	// The unenroll activity must also show on the host details page activity timeline.
+	s.lastHostActivityMatches(targetHostID, "mdm_unenrolled",
+		fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`,
+			targetHostID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 }
 
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
@@ -3974,7 +3979,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 
 	// Load secret(s)
 	secretValue := "*abc123*"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_VALUE",
@@ -3982,7 +3987,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// call with enrolled host UUID
@@ -5918,7 +5923,7 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 		for _, gp := range gotProfs {
 			idents = append(idents, gp.Identifier)
 		}
-		require.Equal(t, len(wantProfs), len(gotProfs), "apple host uuid: %s, profiles: %v", h.UUID, idents)
+		require.Len(t, gotProfs, len(wantProfs), "apple host uuid: %s, profiles: %v - want %v", h.UUID, idents, wantProfs)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
@@ -9149,7 +9154,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	secretValue := "abcd1234"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_DATA",
@@ -9157,7 +9162,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	cmdOneUUID := uuid.New().String()
@@ -18670,11 +18675,21 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.Equal(t, "315360000s", issuedCommand.Duration, "android commands must use the long duration to mirror Apple/Windows queue semantics")
 	require.NotEmpty(t, issuedToDeviceName)
 
-	// wipe_ref must be written so device_status flips to "wiping"
+	// Per #41683 the transient work-profile-wipe status is suppressed for BYO Android at the API layer, so the host must NOT surface
+	// a pending wipe. The host simply transitions to "Off" once it removes its work profile.
 	var byoResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byoHostID), nil, http.StatusOK, &byoResp)
 	require.NotNil(t, byoResp.Host.MDM.PendingAction)
-	require.Equal(t, "wipe", *byoResp.Host.MDM.PendingAction, "BYO unenroll must write wipe_ref so device_status reflects 'wiping' until the AMAPI ack")
+	require.Empty(t, *byoResp.Host.MDM.PendingAction, "BYO Android unenroll must not surface a pending action")
+	require.NotNil(t, byoResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *byoResp.Host.MDM.DeviceStatus, "BYO Android unenroll must not surface a wipe device_status")
+
+	// The wipe_ref is still written under the hood (suppression is presentation-only), so the work-profile wipe runs.
+	byoHost, err := s.ds.Host(ctx, byoHostID)
+	require.NoError(t, err)
+	byoLockWipe, err := s.ds.GetHostLockWipeStatus(ctx, byoHost)
+	require.NoError(t, err)
+	require.True(t, byoLockWipe.IsPendingWipe(), "BYO unenroll must still write wipe_ref so the work-profile wipe runs")
 
 	// Reset between sub-cases.
 	didCallAMAPIDelete = false
@@ -22990,20 +23005,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), fleet.GetCarveRequest{}, http.StatusForbidden, &fleet.GetCarveResponse{})
 
 	// Attempt to search hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusOK, &searchTargetsResponse{})
+	}, http.StatusOK, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusOK, &countTargetsResponse{})
+	}, http.StatusOK, &fleet.CountTargetsResponse{})
 
 	checkDownloadResponse := func(t *testing.T, r *http.Response, expectedFilename string) {
 		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
@@ -23341,20 +23356,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to search hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusOK, &searchTargetsResponse{})
+	}, http.StatusOK, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusOK, &countTargetsResponse{})
+	}, http.StatusOK, &fleet.CountTargetsResponse{})
 
 	// Attempt to download installer from t1, should allow.
 	tokenResp = getSoftwareInstallerTokenResponse{}

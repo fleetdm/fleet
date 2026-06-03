@@ -159,6 +159,14 @@ func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	return result, err
 }
 
+// softwareScopeKey marks the JSON object/array container whose contents are
+// the values of TeamSpec.Software — i.e. SoftwarePackageSpec /
+// TeamSpecAppStoreApp / MaintainedAppSpec items. The literal `setup_experience`
+// install flag on those items collides with the `macos_setup`↔`setup_experience`
+// rename on the MDM section, so renames are skipped under this subtree. See
+// https://github.com/fleetdm/fleet/issues/44970.
+const softwareScopeKey = "software"
+
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
@@ -168,6 +176,24 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	// Stack of per-object-scope key sets for conflict detection.
 	// Pushed on '{', popped on '}'.
 	var keyScopes []map[string]bool
+
+	// Track whether we are currently inside the `software` subtree.
+	// pendingKey is the most-recent object key whose value has not yet been
+	// read; openContainer/closeContainer maintain softwareDepth by checking
+	// whether the container being opened lives under `software`.
+	pendingKey := ""
+	softwareDepth := 0
+	openContainer := func() {
+		if softwareDepth > 0 || pendingKey == softwareScopeKey {
+			softwareDepth++
+		}
+		pendingKey = ""
+	}
+	closeContainer := func() {
+		if softwareDepth > 0 {
+			softwareDepth--
+		}
+	}
 
 	for {
 		tok, err := dec.ReadToken()
@@ -183,6 +209,7 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 		switch kind {
 		case '{':
 			keyScopes = append(keyScopes, make(map[string]bool))
+			openContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}
@@ -191,6 +218,19 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 			if len(keyScopes) > 0 {
 				keyScopes = keyScopes[:len(keyScopes)-1]
 			}
+			closeContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return err
+			}
+
+		case '[':
+			openContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return err
+			}
+
+		case ']':
+			closeContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}
@@ -213,6 +253,18 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 			if isKey {
 				keyName := tok.String()
 
+				// Inside the `software` subtree, all inner keys are literal —
+				// most notably each item's `setup_experience` is a bool
+				// install flag, not the renamed `macos_setup` container. Pass
+				// them through untouched.
+				if softwareDepth > 0 {
+					pendingKey = keyName
+					if err := enc.WriteToken(tok); err != nil {
+						return err
+					}
+					continue
+				}
+
 				// Use OldKey as the canonical key for scope tracking.
 				// Both OldKey (pass-through) and NewKey (rewrite) resolve
 				// to the same canonical key for conflict detection.
@@ -233,6 +285,7 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 						scope[canonicalKey] = true
 					}
 
+					pendingKey = keyName
 					// Write the key as-is (old name, which the struct expects).
 					if err := enc.WriteToken(tok); err != nil {
 						return err
@@ -251,25 +304,29 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 						scope[canonicalKey] = true
 					}
 
+					pendingKey = canonicalKey
 					// Write the rewritten (old) key.
 					if err := enc.WriteToken(jsontext.String(canonicalKey)); err != nil {
 						return err
 					}
 				} else {
 					// Not an aliased key — pass through unchanged.
+					pendingKey = keyName
 					if err := enc.WriteToken(tok); err != nil {
 						return err
 					}
 				}
 			} else {
 				// String value — pass through unchanged.
+				pendingKey = ""
 				if err := enc.WriteToken(tok); err != nil {
 					return err
 				}
 			}
 
 		default:
-			// All other tokens: [, ], numbers, bools, null — pass through.
+			// All other tokens: numbers, bools, null — scalar values.
+			pendingKey = ""
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}

@@ -181,6 +181,7 @@ type GitOpsControls struct {
 	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
+	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
@@ -203,7 +204,7 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
