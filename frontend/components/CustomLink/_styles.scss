@@ -92,16 +92,8 @@
   }
 
   &--flash-message-link {
-    // Flash message backgrounds are themed (light in light mode, dark in dark
-    // mode), so use themed colors instead of static white.
-    .external-link-icon__outline {
-      stroke: $core-fleet-black;
-    }
-
-    .external-link-icon__arrow {
-      stroke: $core-fleet-black;
-    }
-
+    // Override the default hover colors (white arrow stroke, dark outline fill)
+    // which assume a dark background — flash messages use a light background.
     &:hover {
       color: $ui-fleet-black-75-over;
 
