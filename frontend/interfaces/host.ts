@@ -50,6 +50,7 @@ export default PropTypes.shape({
   computer_name: PropTypes.string,
   primary_ip: PropTypes.string,
   primary_mac: PropTypes.string,
+  supervised: PropTypes.bool,
   distributed_interval: PropTypes.number,
   config_tls_refresh: PropTypes.number,
   logger_tls_period: PropTypes.number,
@@ -342,6 +343,7 @@ export interface IHost {
   public_ip: string;
   primary_ip: string;
   primary_mac: string;
+  supervised: boolean | null;
   distributed_interval: number;
   config_tls_refresh: number;
   logger_tls_period: number;

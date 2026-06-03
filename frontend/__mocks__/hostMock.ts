@@ -94,6 +94,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   public_ip: "",
   primary_ip: "172.23.0.3",
   primary_mac: "02:42:ac:17:00:03",
+  supervised: true,
   distributed_interval: 10,
   config_tls_refresh: 10,
   logger_tls_period: 10,

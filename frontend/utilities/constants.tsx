@@ -459,6 +459,7 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  "supervised",
 ];
 
 export const HOST_OSQUERY_DATA = [

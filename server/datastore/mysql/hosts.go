@@ -843,6 +843,7 @@ SELECT
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   h.last_restarted_at,
   h.timezone,
+  h.supervised,
   (
     SELECT
       additional
@@ -1136,7 +1137,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.last_restarted_at,
     h.timezone,
     hoi.version AS orbit_version,
-    hoi.desktop_version AS fleet_desktop_version
+    hoi.desktop_version AS fleet_desktop_version,
+	h.supervised
 	`
 
 	sql += hostMDMSelect
@@ -5658,7 +5660,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			orbit_node_key = ?,
 			refetch_critical_queries_until = ?,
 			last_restarted_at = COALESCE(?, last_restarted_at),
-			timezone = ?
+			timezone = ?,
+			supervised = ?
 		WHERE id = ?
 	`
 
@@ -5706,6 +5709,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.RefetchCriticalQueriesUntil,
 				lastRestartedAt,
 				host.TimeZone,
+				host.Supervised,
 				host.ID,
 			)
 			if err != nil {

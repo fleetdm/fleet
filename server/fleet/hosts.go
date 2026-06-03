@@ -379,7 +379,8 @@ type Host struct {
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
 	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
 	// CSV not exported to not break automations.
-	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
+	TimeZone   *string `json:"timezone" db:"timezone" csv:"-"`
+	Supervised *bool   `json:"supervised" db:"supervised" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
@@ -625,7 +626,7 @@ type MDMHostData struct {
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
-	// It is a pointer to a slice so that when set, it gets marhsaled even
+	// It is a pointer to a slice so that when set, it gets marshaled even
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
 	Profiles *[]HostMDMProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
