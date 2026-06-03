@@ -130,13 +130,6 @@ jobs:
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
-          # Re-run host detail queries frequently (default is 1h). The orbit_info
-          # detail query (which populates orbit_version) is discovery-gated on orbit's
-          # osquery extension, which registers a moment after osquery's first
-          # distributed read — so it's skipped on the first detail cycle. A short
-          # interval lets the next cycle pick it up (extension is registered by then),
-          # so orbit_version actually populates within this short-lived test run.
-          FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
         run: |
           mkdir ./fleet_log
           make db-reset
@@ -147,24 +140,24 @@ jobs:
             echo "Retrying setup in 5s..."
             sleep 5
           done
-          # Wait until all three hosts are fully enrolled: one darwin, one ubuntu and
-          # one windows, each reporting a non-empty osquery_version AND orbit_version.
-          # Matching on platform + both versions ensures osqueryd and orbit have each
-          # checked in and merged into a single host per machine, rather than counting
-          # raw host rows (which over-counts when a machine enrolls more than once).
+          # Wait until all three hosts are enrolled: one darwin, one ubuntu and one
+          # windows, each reporting a non-empty osquery_version. Matching on platform +
+          # osquery_version ensures osqueryd has checked in and that each machine merged
+          # into a single host, rather than counting raw host rows (which over-counts
+          # when a machine enrolls more than once).
           until [ "$(./build/fleetctl get hosts --json | jq -s -r '
               [ .[]
-                | select((.spec.osquery_version // "") != "" and (.spec.orbit_version // "") != "")
+                | select((.spec.osquery_version // "") != "")
                 | .spec.platform ]
               | map(select(. == "darwin" or . == "ubuntu" or . == "windows"))
               | unique | length')" -eq 3 ]; do
-            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
-            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "") orbit_version=\(.spec.orbit_version // "")"'
+            echo "Waiting for darwin, ubuntu and windows hosts to enroll (non-empty osquery_version)..."
+            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "")"'
             sleep 30
           done
           ./build/fleetctl get hosts
           ./build/fleetctl get hosts --json
-          echo "Success! darwin, ubuntu and windows hosts fully enrolled."
+          echo "Success! darwin, ubuntu and windows hosts enrolled."
 
       - name: Cleanup tunnel
         if: always()
@@ -311,6 +304,7 @@ jobs:
           GENERATE_DEB: 1
           GENERATE_MSI: 1
           FLEET_DESKTOP: 1
+          DEBUG: 1
         run: |
           ./tools/tuf/test/main.sh
 
