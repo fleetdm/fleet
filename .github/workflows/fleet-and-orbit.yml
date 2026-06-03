@@ -151,20 +151,21 @@ jobs:
           # distinct hosts AND have reported both osquery_version and orbit_version.
           #
           # osquery_version is on the host list, but orbit_version comes from
-          # host_orbit_info, which ListHosts ("fleetctl get hosts") does NOT join — only
-          # the per-host detail endpoint ("fleetctl get hosts <identifier>") returns it.
-          # So we read osquery_version from the list and look up orbit_version per host
-          # via its detail.
+          # host_orbit_info, which is ONLY joined by the by-id host detail query
+          # (GET /api/v1/fleet/hosts/{id}). Neither `fleetctl get hosts` (list) nor
+          # `get hosts <identifier>` (HostByIdentifier) surface it. So we read
+          # osquery_version + id from the list and look up orbit_version per host via
+          # `fleetctl api` against the by-id detail endpoint.
           count_ready_platforms() {
-            local hosts platform hostname ov ready=0
+            local hosts platform id ov ready=0
             hosts=$(./build/fleetctl get hosts --json || true)
             for platform in darwin ubuntu windows; do
-              hostname=$(printf '%s' "$hosts" | jq -s -r --arg p "$platform" \
-                '[.[] | select(.spec.platform == $p and (.spec.osquery_version // "") != "") | .spec.hostname][0] // ""')
-              if [ -z "$hostname" ]; then
+              id=$(printf '%s' "$hosts" | jq -s -r --arg p "$platform" \
+                '[.[] | select(.spec.platform == $p and (.spec.osquery_version // "") != "") | .spec.id][0] // ""')
+              if [ -z "$id" ]; then
                 continue
               fi
-              ov=$(./build/fleetctl get hosts --json "$hostname" 2>/dev/null | jq -s -r '(.[0].spec.orbit_version) // ""' || true)
+              ov=$(./build/fleetctl api "/api/v1/fleet/hosts/$id" 2>/dev/null | jq -r '.host.orbit_version // ""' || true)
               if [ -n "$ov" ]; then
                 ready=$((ready + 1))
               fi
@@ -173,7 +174,7 @@ jobs:
           }
           until [ "$(count_ready_platforms)" -eq 3 ]; do
             echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
-            ./build/fleetctl get hosts --json | jq -s -r '.[] | "  list: platform=\(.spec.platform // "?") hostname=\(.spec.hostname // "?") osquery_version=\(.spec.osquery_version // "")"'
+            ./build/fleetctl get hosts --json | jq -s -r '.[] | "  list: id=\(.spec.id) platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "")"'
             sleep 30
           done
           ./build/fleetctl get hosts
