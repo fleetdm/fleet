@@ -130,6 +130,10 @@ jobs:
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
+          # TEMP (debug): re-run detail queries frequently so the discovery-gated
+          # orbit_info query gets repeated chances to populate orbit_version. Remove
+          # together with the orbit_version wait gate below once debugging is done.
+          FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
         run: |
           mkdir ./fleet_log
           make db-reset
@@ -145,14 +149,19 @@ jobs:
           # osquery_version ensures osqueryd has checked in and that each machine merged
           # into a single host, rather than counting raw host rows (which over-counts
           # when a machine enrolls more than once).
+          #
+          # TEMP (debug): also require a non-empty orbit_version to investigate why the
+          # orbit_info detail query isn't ingesting. Revert this select() back to
+          # osquery_version-only (and drop FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL above)
+          # once done.
           until [ "$(./build/fleetctl get hosts --json | jq -s -r '
               [ .[]
-                | select((.spec.osquery_version // "") != "")
+                | select((.spec.osquery_version // "") != "" and (.spec.orbit_version // "") != "")
                 | .spec.platform ]
               | map(select(. == "darwin" or . == "ubuntu" or . == "windows"))
               | unique | length')" -eq 3 ]; do
-            echo "Waiting for darwin, ubuntu and windows hosts to enroll (non-empty osquery_version)..."
-            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "")"'
+            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
+            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "") orbit_version=\(.spec.orbit_version // "")"'
             sleep 30
           done
           ./build/fleetctl get hosts
