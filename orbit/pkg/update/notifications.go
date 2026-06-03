@@ -287,7 +287,7 @@ type windowsMDMSyncConfigReceiver struct {
 	// for tests, to mock the sync trigger. If nil, uses TriggerWindowsMDMSync.
 	execSyncFn execSyncFunc
 
-	// ensures only one sync runs at a time and protects lastRun.
+	// Held for the duration of the async sync goroutine so only one sync runs at a time; also protects lastRun.
 	mu      sync.Mutex
 	lastRun time.Time
 }
@@ -297,7 +297,7 @@ func ApplyWindowsMDMSyncFetcherMiddleware(frequency time.Duration) fleet.OrbitCo
 }
 
 // Run starts an on-demand Windows MDM sync when the server sets WindowsMDMSyncRequest, so queued commands are delivered promptly even when
-// the device's OMA-DM poll schedule has been relaxed.
+// the device's OMA-DM poll schedule has been relaxed. It returns immediately; the sync itself runs in the background (see attemptSync).
 func (w *windowsMDMSyncConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	if cfg.Notifications.WindowsMDMSyncRequest {
 		w.attemptSync()
@@ -306,29 +306,35 @@ func (w *windowsMDMSyncConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 }
 
 func (w *windowsMDMSyncConfigReceiver) attemptSync() {
-	if w.mu.TryLock() {
+	// TryLock keeps a single sync in flight: if one is already running, drop this attempt instead of piling up sessions.
+	if !w.mu.TryLock() {
+		return
+	}
+
+	// do not attempt a sync if the last run is not at least Frequency ago.
+	if time.Since(w.lastRun) <= w.Frequency {
+		log.Debug().Msg("skipped on-demand Windows MDM sync, last run was too recent")
+		w.mu.Unlock()
+		return
+	}
+
+	fn := w.execSyncFn
+	if fn == nil {
+		fn = TriggerWindowsMDMSync
+	}
+
+	// Run the sync in the background so deviceenroller latency never gates the config-receiver loop
+	go func() {
 		defer w.mu.Unlock()
-
-		// do not attempt a sync if the last run is not at least Frequency ago.
-		if time.Since(w.lastRun) <= w.Frequency {
-			log.Debug().Msg("skipped on-demand Windows MDM sync, last run was too recent")
-			return
-		}
-
-		fn := w.execSyncFn
-		if fn == nil {
-			fn = TriggerWindowsMDMSync
-		}
 		if err := fn(); err != nil {
 			// lastRun is intentionally not updated on failure, so the next config poll retries while the command is still queued (matches the
 			// enrollment receiver's behavior).
 			log.Info().Err(err).Msg("triggering on-demand Windows MDM sync failed")
 			return
 		}
-
 		w.lastRun = time.Now()
 		log.Info().Msg("triggered on-demand Windows MDM sync")
-	}
+	}()
 }
 
 type runScriptsConfigReceiver struct {

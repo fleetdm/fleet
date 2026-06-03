@@ -830,49 +830,70 @@ func TestWindowsMDMSync(t *testing.T) {
 		return &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{WindowsMDMSyncRequest: req}}
 	}
 
+	// The sync runs in a background goroutine that holds w.mu until it finishes. waitIdle blocks until that goroutine has released the
+	// lock, so afterwards the test can read the call counter, lastRun, and the shared log buffer without racing the goroutine's writes.
+	waitIdle := func(t *testing.T, r *windowsMDMSyncConfigReceiver) {
+		t.Helper()
+		require.Eventually(t, func() bool {
+			if r.mu.TryLock() {
+				r.mu.Unlock()
+				return true
+			}
+			return false
+		}, 2*time.Second, time.Millisecond)
+	}
+
 	t.Run("no sync request does not trigger", func(t *testing.T) {
 		logBuf.Reset()
-		var calls int
-		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls.Add(1); return nil }}
 		require.NoError(t, r.Run(syncCfg(false)))
-		require.Equal(t, 0, calls)
+		waitIdle(t, r)
+		require.Equal(t, int32(0), calls.Load())
 	})
 
 	t.Run("sync request triggers once", func(t *testing.T) {
 		logBuf.Reset()
-		var calls int
-		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls.Add(1); return nil }}
 		require.NoError(t, r.Run(syncCfg(true)))
-		require.Equal(t, 1, calls)
+		waitIdle(t, r)
+		require.Equal(t, int32(1), calls.Load())
 		require.Contains(t, logBuf.String(), "triggered on-demand Windows MDM sync")
 	})
 
 	t.Run("second run within frequency is throttled", func(t *testing.T) {
 		logBuf.Reset()
-		var calls int
-		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls.Add(1); return nil }}
 		require.NoError(t, r.Run(syncCfg(true)))
+		waitIdle(t, r)
 		require.NoError(t, r.Run(syncCfg(true)))
-		require.Equal(t, 1, calls, "second run within Frequency should be throttled")
+		waitIdle(t, r)
+		require.Equal(t, int32(1), calls.Load(), "second run within Frequency should be throttled")
 	})
 
 	t.Run("not throttled once frequency elapsed", func(t *testing.T) {
 		logBuf.Reset()
-		var calls int
-		r := &windowsMDMSyncConfigReceiver{Frequency: 0, execSyncFn: func() error { calls++; return nil }}
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: 0, execSyncFn: func() error { calls.Add(1); return nil }}
 		require.NoError(t, r.Run(syncCfg(true)))
+		waitIdle(t, r)
 		time.Sleep(time.Millisecond)
 		require.NoError(t, r.Run(syncCfg(true)))
-		require.Equal(t, 2, calls)
+		waitIdle(t, r)
+		require.Equal(t, int32(2), calls.Load())
 	})
 
 	t.Run("failure does not set lastRun and retries on next run", func(t *testing.T) {
 		logBuf.Reset()
-		var calls int
-		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return io.ErrUnexpectedEOF }}
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls.Add(1); return io.ErrUnexpectedEOF }}
 		require.NoError(t, r.Run(syncCfg(true)))
+		waitIdle(t, r)
 		require.NoError(t, r.Run(syncCfg(true)))
-		require.Equal(t, 2, calls, "failed sync should not be throttled on the next run")
+		waitIdle(t, r)
+		require.Equal(t, int32(2), calls.Load(), "failed sync should not be throttled on the next run")
 		require.Contains(t, logBuf.String(), "triggering on-demand Windows MDM sync failed")
 		require.True(t, r.lastRun.IsZero(), "lastRun must remain unset after failures")
 	})

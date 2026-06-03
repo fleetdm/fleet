@@ -2020,7 +2020,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 
 	if requestAuthState == RequestAuthStateTrusted {
 		// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd can be woken on demand, so we can stop
-		// the aggressive 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
+		// the aggressive default 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
 		// session.
 		if enrolledDevice.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationNone {
 			if err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice); err != nil {
