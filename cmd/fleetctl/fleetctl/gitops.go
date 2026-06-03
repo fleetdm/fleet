@@ -507,7 +507,7 @@ func gitopsCommand() *cli.Command {
 					if hasMissingABMTeam {
 						if mdm, ok := config.OrgSettings["mdm"]; ok {
 							if mdmMap, ok := mdm.(map[string]any); ok {
-								if appleBM, ok := mdmMap["apple_business_manager"]; ok {
+								if appleBM, ok := mdmMap["apple_business"]; ok {
 									if bmSettings, ok := appleBM.([]any); ok {
 										originalABMConfig = bmSettings
 									}
@@ -515,7 +515,7 @@ func gitopsCommand() *cli.Command {
 
 								// If team is not found, we need to remove the AppleBMDefaultTeam from
 								// the global config, and then apply it after teams are processed
-								mdmMap["apple_business_manager"] = nil
+								mdmMap["apple_business"] = nil
 								mdmMap["apple_bm_default_team"] = ""
 							}
 						}
@@ -662,7 +662,7 @@ func gitopsCommand() *cli.Command {
 							if usesLegacyABMConfig {
 								return fmt.Errorf("apple_bm_default_team %s cannot be deleted", team.Name)
 							}
-							return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
+							return fmt.Errorf("apple_business team %s cannot be deleted", team.Name)
 						}
 						if slices.Contains(vppTeams, team.Name) {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
@@ -851,24 +851,19 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("configuration profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", filepath.Base(setting.Path))
-
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
 				}
+				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
+					return nil, fmt.Errorf("Couldn't edit configuration profiles. For profile '%s', only one of \"labels_include_all\" or \"labels_include_any\" can be included.", filepath.Base(setting.Path))
+				}
 				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
 					labels = setting.LabelsIncludeAll
 				}
-				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
+				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
-
+				labels = append(labels, setting.LabelsExcludeAny...)
 				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}
@@ -1005,7 +1000,10 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
 		if mdmMap, ok := mdm.(map[string]any); ok {
 			appleBMDT, hasLegacyConfig := mdmMap["apple_bm_default_team"]
-			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
+			// After ApplyDeprecatedKeyMappings runs, any legacy
+			// "apple_business_manager" key has already been migrated to
+			// "apple_business", so we only look up the new name here.
+			appleBM, hasNewConfig := mdmMap["apple_business"]
 
 			if hasLegacyConfig && hasNewConfig {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
@@ -1130,13 +1128,13 @@ func applyABMTokenAssignmentIfNeeded(
 				continue
 			}
 			if _, ok := knownTeams[norm.NFC.String(abmTeam)]; !ok {
-				return fmt.Errorf("apple_business_manager team %q not found in team configs", abmTeam)
+				return fmt.Errorf("apple_business team %q not found in team configs", abmTeam)
 			}
 		}
 
 		appConfigUpdate = map[string]map[string]any{
 			"mdm": {
-				"apple_business_manager": originalMDMConfig,
+				"apple_business": originalMDMConfig,
 			},
 		}
 	}

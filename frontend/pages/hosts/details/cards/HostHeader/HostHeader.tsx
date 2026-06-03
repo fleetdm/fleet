@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import classnames from "classnames";
 
-import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -159,12 +159,6 @@ const HostHeader = ({
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
-    if (
-      isLinuxLike(platform) &&
-      (hostMdmDeviceStatus === "wiping" || hostMdmDeviceStatus === "wiped")
-    )
-      return null;
-
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
     const title = tag.title;
