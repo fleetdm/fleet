@@ -607,6 +607,8 @@ type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleI
 
 type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error)
 
+type InstallerAvailableForInstallForTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error)
+
 type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
 
 type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
@@ -2929,6 +2931,9 @@ type DataStore struct {
 
 	GetSoftwareTitlesForInstallAllFunc        GetSoftwareTitlesForInstallAllFunc
 	GetSoftwareTitlesForInstallAllFuncInvoked bool
+
+	InstallerAvailableForInstallForTeamAndTitleIDFunc        InstallerAvailableForInstallForTeamAndTitleIDFunc
+	InstallerAvailableForInstallForTeamAndTitleIDFuncInvoked bool
 
 	AssociateMDMInstallToVerificationUUIDFunc        AssociateMDMInstallToVerificationUUIDFunc
 	AssociateMDMInstallToVerificationUUIDFuncInvoked bool
@@ -7144,6 +7149,13 @@ func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fl
 	s.GetSoftwareTitlesForInstallAllFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID)
+}
+
+func (s *DataStore) InstallerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (uint, *fleet.VPPAppID, uint, error) {
+	s.mu.Lock()
+	s.InstallerAvailableForInstallForTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallerAvailableForInstallForTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) AssociateMDMInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error {

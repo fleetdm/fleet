@@ -835,6 +835,8 @@ type Datastore interface {
 	// scoped to a category.
 	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
 
+	InstallerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *VPPAppID, inHouseID uint, err error)
+
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
 	// It will attempt to update both VPP and in-house app installs (only one will succeed since the command UUIDs are unique).
