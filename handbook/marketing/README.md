@@ -174,7 +174,7 @@ The CMO is the DRI for deploying Fleet's outward-facing content. The content sch
   - Release date: The date by which the content will be complete and finalized.
   - DRI: Person(s) responsible for the project management of this content.
   - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
-2. Attend a 30m meeting with Fleet's Content Specialist and CEO to review and settle the proposed content.
+2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
 
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
