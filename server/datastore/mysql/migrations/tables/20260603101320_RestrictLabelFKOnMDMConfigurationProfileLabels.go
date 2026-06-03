@@ -36,12 +36,11 @@ func Up_20260603101320(tx *sql.Tx) error {
 	if len(cpConstraints) != 1 {
 		return errors.New("mdm_configuration_profile_labels foreign key to labels not found")
 	}
-	if _, err := tx.Exec(fmt.Sprintf(`
-		ALTER TABLE mdm_configuration_profile_labels
-		DROP FOREIGN KEY %s,
-		ADD CONSTRAINT mdm_configuration_profile_labels_ibfk_label FOREIGN KEY (label_id) REFERENCES labels (id) ON DELETE RESTRICT
-	`, cpConstraints[0])); err != nil {
-		return fmt.Errorf("altering mdm_configuration_profile_labels label_id foreign key: %w", err)
+	if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE mdm_configuration_profile_labels DROP FOREIGN KEY %s`, cpConstraints[0])); err != nil {
+		return fmt.Errorf("dropping mdm_configuration_profile_labels label_id foreign key: %w", err)
+	}
+	if _, err := tx.Exec(`ALTER TABLE mdm_configuration_profile_labels ADD CONSTRAINT mdm_configuration_profile_labels_ibfk_label FOREIGN KEY (label_id) REFERENCES labels (id) ON DELETE RESTRICT`); err != nil {
+		return fmt.Errorf("adding mdm_configuration_profile_labels RESTRICT foreign key: %w", err)
 	}
 
 	// mdm_declaration_labels
@@ -52,12 +51,11 @@ func Up_20260603101320(tx *sql.Tx) error {
 	if len(declConstraints) != 1 {
 		return errors.New("mdm_declaration_labels foreign key to labels not found")
 	}
-	if _, err := tx.Exec(fmt.Sprintf(`
-		ALTER TABLE mdm_declaration_labels
-		DROP FOREIGN KEY %s,
-		ADD CONSTRAINT mdm_declaration_labels_ibfk_label FOREIGN KEY (label_id) REFERENCES labels (id) ON DELETE RESTRICT
-	`, declConstraints[0])); err != nil {
-		return fmt.Errorf("altering mdm_declaration_labels label_id foreign key: %w", err)
+	if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE mdm_declaration_labels DROP FOREIGN KEY %s`, declConstraints[0])); err != nil {
+		return fmt.Errorf("dropping mdm_declaration_labels label_id foreign key: %w", err)
+	}
+	if _, err := tx.Exec(`ALTER TABLE mdm_declaration_labels ADD CONSTRAINT mdm_declaration_labels_ibfk_label FOREIGN KEY (label_id) REFERENCES labels (id) ON DELETE RESTRICT`); err != nil {
+		return fmt.Errorf("adding mdm_declaration_labels RESTRICT foreign key: %w", err)
 	}
 
 	return nil
