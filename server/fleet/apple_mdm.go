@@ -881,6 +881,22 @@ type MDMAppleDeclaration struct {
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 }
 
+// ComputeToken reproduces the value MySQL produced for the
+// mdm_apple_declarations.token generated column:
+//
+//	unhex(md5(concat(raw_json, ifnull(secrets_updated_at, ''))))
+func (d *MDMAppleDeclaration) ComputeToken() []byte {
+	var suffix string
+	if d.SecretsUpdatedAt != nil {
+		suffix = d.SecretsUpdatedAt.UTC().Round(time.Microsecond).Format("2006-01-02 15:04:05.000000")
+	}
+	buf := make([]byte, 0, len(d.RawJSON)+len(suffix))
+	buf = append(buf, d.RawJSON...)
+	buf = append(buf, suffix...)
+	sum := md5.Sum(buf) //nolint:gosec
+	return sum[:]
+}
+
 // EffectiveDDMToken computes the per-declaration token that incorporates both
 // the static content hash and the host-specific variables_updated_at timestamp.
 // When variablesUpdatedAt is nil (declaration has no Fleet variables), the

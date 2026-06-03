@@ -603,8 +603,8 @@ func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json, uploaded_at)
-(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json, checksum, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -620,7 +620,11 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.RawJSON, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		checksum, err := md5ChecksumFromJSON(cp.RawJSON)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "computing android profile checksum")
+		}
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.RawJSON, checksum, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -1799,16 +1803,22 @@ WHERE
 		team_id,
 		name,
 		raw_json,
+		checksum,
 		uploaded_at
-	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
+	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
 		raw_json = VALUES(raw_json),
 		name = VALUES(name),
+		checksum = VALUES(checksum),
 		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
 `
 	for _, p := range profiles {
+		checksum, err := md5ChecksumFromJSON(p.RawJSON)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "computing android profile checksum")
+		}
 		var res sql.Result
-		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON); err != nil {
+		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON, checksum); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "insert or update profile")
 		}
 

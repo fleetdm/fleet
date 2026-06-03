@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons, not security
 	"database/sql"
 	"fmt"
 
@@ -68,11 +69,12 @@ func Up_20240725152735(tx *sql.Tx) error {
 			return fmt.Errorf("adding new key to profile with ID %d: %w", prof.ID, err)
 		}
 
+		newChecksum := md5.Sum(newProf) // nolint:gosec
 		if _, err = txx.Exec(`
 			UPDATE mdm_apple_configuration_profiles
-			SET mobileconfig = ?, checksum = UNHEX(MD5(mobileconfig))
+			SET mobileconfig = ?, checksum = ?
 			WHERE profile_id = ?
-		`, newProf, prof.ID); err != nil {
+		`, newProf, newChecksum[:], prof.ID); err != nil {
 			return fmt.Errorf("setting ForceEnableInSetupAssistant in FileVault profile with ID %d: %w", prof.ID, err)
 		}
 	}

@@ -2,9 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5" //nolint:gosec
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -696,15 +694,6 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	return res, nil
-}
-
-func md5ChecksumScriptContent(s string) string {
-	return md5ChecksumBytes([]byte(s))
-}
-
-func md5ChecksumBytes(b []byte) string {
-	rawChecksum := md5.Sum(b) //nolint:gosec
-	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
 func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContext, contentID uint) error {

@@ -2323,7 +2323,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 	}
 	if len(missing) > 0 {
 		pdStmt, pdArgs, pdErr := sqlx.In(`
-			SELECT profile_uuid, syncml, UNHEX(MD5(syncml)) AS checksum
+			SELECT profile_uuid, syncml
 			FROM mdm_windows_configuration_profiles_pending_delete WHERE profile_uuid IN (?)`, missing)
 		if pdErr != nil {
 			return nil, ctxerr.Wrap(ctx, pdErr, "building in statement for pending-delete contents")
@@ -2331,7 +2331,6 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 		var pending []struct {
 			ProfileUUID string `db:"profile_uuid"`
 			SyncML      []byte `db:"syncml"`
-			Checksum    []byte `db:"checksum"`
 		}
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &pending, pdStmt, pdArgs...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "running pending-delete contents query")
@@ -2339,7 +2338,7 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 		for _, p := range pending {
 			results[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
 				SyncML:   p.SyncML,
-				Checksum: p.Checksum,
+				Checksum: md5Checksum(p.SyncML),
 			}
 		}
 	}
@@ -2413,8 +2412,8 @@ func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
-(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, checksum, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -2430,7 +2429,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, md5Checksum(cp.SyncML), cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -2519,8 +2518,8 @@ func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp 
 	profileUUID := fleet.MDMWindowsProfileUUIDPrefix + uuid.New().String()
 	stmt := `
 INSERT INTO
-	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
-(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, checksum, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -2531,7 +2530,8 @@ INSERT INTO
 )
 ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(syncml = VALUES(syncml), uploaded_at, CURRENT_TIMESTAMP()),
-	syncml = VALUES(syncml)
+	syncml = VALUES(syncml),
+	checksum = VALUES(checksum)
 `
 
 	var teamID uint
@@ -2539,7 +2539,7 @@ ON DUPLICATE KEY UPDATE
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, md5Checksum(cp.SyncML), cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 	if err != nil {
 		switch {
 		case IsDuplicate(err):
@@ -2623,15 +2623,16 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
-    profile_uuid, team_id, name, syncml, uploaded_at
+    profile_uuid, team_id, name, syncml, checksum, uploaded_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
+  ( CONCAT('` + fleet.MDMWindowsProfileUUIDPrefix + `', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
-  syncml = VALUES(syncml)
+  syncml = VALUES(syncml),
+  checksum = VALUES(checksum)
 `
 
 	// use a profile team id of 0 if no-team
@@ -2880,7 +2881,7 @@ ON DUPLICATE KEY UPDATE
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name,
-			p.SyncML); err != nil {
+			p.SyncML, md5Checksum(p.SyncML)); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)

@@ -10,9 +10,9 @@ func init() {
 }
 
 func Up_20260528213326(tx *sql.Tx) error {
-	_, err := tx.Exec(
-		`ALTER TABLE mdm_android_configuration_profiles
-			ADD COLUMN checksum BINARY(16) AS (UNHEX(MD5(CAST(raw_json AS CHAR)))) STORED;
+	_, err := tx.Exec(`
+		ALTER TABLE mdm_android_configuration_profiles
+			ADD COLUMN checksum BINARY(16);
 
 		ALTER TABLE host_mdm_android_profiles
 			ADD COLUMN checksum BINARY(16) NOT NULL DEFAULT 0;

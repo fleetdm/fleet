@@ -1600,8 +1600,8 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	// Manually insert a global policy with null resolution.
 	res, err := ds.writer(context.Background()).ExecContext(
 		context.Background(),
-		fmt.Sprintf(`INSERT INTO policies (name, query, description, checksum) VALUES (?, ?, ?, %s)`, policiesChecksumComputedColumn()),
-		q.Name+"2", q.Query, q.Description+"2",
+		`INSERT INTO policies (name, query, description, checksum) VALUES (?, ?, ?, ?)`,
+		q.Name+"2", q.Query, q.Description+"2", fleet.PolicyChecksum(nil, q.Name+"2"),
 	)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
@@ -3278,11 +3278,8 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 		hosts[i] = h
 	}
 
-	createPolStmt := fmt.Sprintf(
-		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum) VALUES (?, ?, '', ?, ?, ?, ?, %s)`,
-		policiesChecksumComputedColumn(),
-	)
-	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum) VALUES (?, ?, '', ?, ?, ?, ?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then, fleet.PolicyChecksum(nil, "test_pol"))
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	pol, err := ds.Policy(ctx, uint(id)) //nolint:gosec // dismiss G115
@@ -3376,10 +3373,8 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	}
 
 	// create some policies, using direct insert statements to control the timestamps
-	createPolStmt := fmt.Sprintf(
-		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum)
-                    VALUES (?, ?, '', ?, ?, ?, ?, %s)`, policiesChecksumComputedColumn(),
-	)
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum)
+                    VALUES (?, ?, '', ?, ?, ?, ?, ?)`
 
 	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -3388,7 +3383,7 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	may2020 := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
 	pols := make([]*fleet.Policy, 3)
 	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
-		res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
+		res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt, fleet.PolicyChecksum(nil, "p"+strconv.Itoa(i+1)))
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
 		pol, err := ds.Policy(ctx, uint(id)) //nolint:gosec // dismiss G115
@@ -8647,4 +8642,40 @@ func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, 0, count, "deleted policy membership row must not exist")
+}
+
+// TestPoliciesChecksumMatchesSQL pins the Go policies.checksum against the
+// previous SQL expression unhex(md5(concat_ws(char(0), coalesce(team_id, ''), name))),
+// the value backing the idx_policies_checksum unique index.
+func TestPoliciesChecksumMatchesSQL(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	requireLegacySQLMD5(t, ds)
+	ctx := t.Context()
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `CREATE TEMPORARY TABLE policy_checksum_probe (team_id INT UNSIGNED NULL, name VARCHAR(255))`)
+	require.NoError(t, err)
+
+	cases := []struct {
+		teamID *uint
+		name   string
+	}{
+		{nil, "Require disk encryption"},
+		{new(uint(1)), "Require disk encryption"},
+		{new(uint(42)), "policy with unicode 日本語"},
+		{new(uint(4294967295)), ""},
+		{nil, ""},
+	}
+	for _, c := range cases {
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM policy_checksum_probe`)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO policy_checksum_probe (team_id, name) VALUES (?, ?)`, c.teamID, c.name)
+		require.NoError(t, err)
+
+		// Temp tables are session-scoped, so read on the same (primary) connection
+		// that created them rather than the replica reader.
+		var sqlVal []byte
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &sqlVal,
+			`SELECT UNHEX(MD5(CONCAT_WS(CHAR(0), COALESCE(team_id, ''), name))) FROM policy_checksum_probe`))
+		require.Equal(t, sqlVal, fleet.PolicyChecksum(c.teamID, c.name))
+	}
 }

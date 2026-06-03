@@ -1,11 +1,8 @@
 package tables
 
 import (
-	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,48 +12,25 @@ func TestUp_20260528213326(t *testing.T) {
 	rawJSON := `{"openNetworkConfiguration":{"Type":"WiFi"}}`
 	profileUUID := "g_test-profile-1"
 
-	// Insert a config profile
+	// Insert a config profile before the checksum column exists.
 	_, err := db.Exec(`
 		INSERT INTO mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json)
 		VALUES (?, 0, 'TestProfile', ?)`, profileUUID, rawJSON)
 	require.NoError(t, err)
 
-	// Insert a host profile referencing the config profile
-	_, err = db.Exec(`
-		INSERT INTO host_mdm_android_profiles (host_uuid, status, operation_type, profile_uuid, profile_name)
-		VALUES (?, 'verified', 'install', ?, 'TestProfile')`, "host-uuid-1", profileUUID)
-	require.NoError(t, err)
-
-	// Insert a host profile with a missing config profile (orphan)
-	_, err = db.Exec(`
-		INSERT INTO host_mdm_android_profiles (host_uuid, status, operation_type, profile_uuid, profile_name)
-		VALUES (?, 'pending', 'install', ?, 'MissingProfile')`, "host-uuid-2", "g_missing")
-	require.NoError(t, err)
-
-	// Apply migration
+	// Apply migration.
 	applyNext(t, db)
 
-	// Verify config profile checksum matches MD5 of raw_json
+	// The checksum column is added as a plain BINARY(16) with no backfill (the
+	// original generated column auto-populated released deployments; a fresh install
+	// replays this against an empty table). So a row that predates the column has a
+	// NULL checksum until the application writes it (or a later migration recomputes
+	// it).
 	var checksum []byte
-	err = db.QueryRow(`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID).Scan(&checksum)
-	require.NoError(t, err)
-	// MySQL's CAST(json AS CHAR) normalizes JSON, so compute expected checksum from what MySQL stores
-	var storedJSON string
-	err = db.QueryRow(`SELECT CAST(raw_json AS CHAR) FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID).Scan(&storedJSON)
-	require.NoError(t, err)
-	expectedChecksum := md5.Sum([]byte(storedJSON)) // nolint:gosec // used only to hash for efficient comparisons
-	assert.Equal(t, fmt.Sprintf("%x", expectedChecksum), fmt.Sprintf("%x", checksum))
+	require.NoError(t, db.QueryRow(`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID).Scan(&checksum))
+	require.Nil(t, checksum)
 
-	// Verify host profile checksum was backfilled from config profile
-	err = db.QueryRow(`SELECT checksum FROM host_mdm_android_profiles WHERE host_uuid = ?`, "host-uuid-1").Scan(&checksum)
+	// The column is plain (writable) — this would fail on a generated column.
+	_, err = db.Exec(`UPDATE mdm_android_configuration_profiles SET checksum = ? WHERE profile_uuid = ?`, []byte("0123456789abcdef"), profileUUID)
 	require.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%x", expectedChecksum), fmt.Sprintf("%x", checksum))
-
-	// Verify orphan host profile got default checksum (COALESCE returns 0,
-	// which MySQL stores as 0x30 followed by zeros in BINARY(16))
-	var orphanChecksum []byte
-	err = db.QueryRow(`SELECT checksum FROM host_mdm_android_profiles WHERE host_uuid = ?`, "host-uuid-2").Scan(&orphanChecksum)
-	require.NoError(t, err)
-	// Orphan checksum should NOT equal the real profile's checksum
-	assert.NotEqual(t, fmt.Sprintf("%x", expectedChecksum), fmt.Sprintf("%x", orphanChecksum))
 }

@@ -114,11 +114,9 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := db.ExecContext(ctx,
-		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
-			policiesChecksumComputedColumn(),
-		),
+		`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		fleet.PolicyChecksum(nil, nameUnicode),
 	)
 	switch {
 	case err == nil:
@@ -299,18 +297,6 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 	return nil
 }
 
-func policiesChecksumComputedColumn() string {
-	// concatenate with separator \x00
-	return ` UNHEX(
-		MD5(
-			CONCAT_WS(CHAR(0),
-				COALESCE(team_id, ''),
-				name
-			)
-		)
-	) `
-}
-
 func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	return policyDB(ctx, ds.reader(ctx), id, nil)
 }
@@ -402,11 +388,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
 			conditional_access_enabled = ?, continuous_automations_enabled = ?,
-			checksum = ` + policiesChecksumComputedColumn() + `
+			checksum = ?
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, fleet.PolicyChecksum(p.TeamID, p.Name), p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -1360,18 +1346,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	}
 
 	res, err := db.ExecContext(ctx,
-		fmt.Sprintf(
-			`INSERT INTO policies (
+		`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
 				type, patch_software_title_id, continuous_automations_enabled
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)`,
-			policiesChecksumComputedColumn(),
-		),
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled,
+		args.ConditionalAccessEnabled, fleet.PolicyChecksum(&teamID, nameUnicode), args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1646,8 +1629,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		// Reset on retry so we don't accumulate duplicate cleanup entries.
 		pendingCleanups = pendingCleanups[:0]
 
-		query := fmt.Sprintf(
-			`
+		const query = `
 		INSERT INTO policies (
 			name,
 			query,
@@ -1666,7 +1648,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			type,
 			patch_software_title_id,
 			continuous_automations_enabled
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1682,8 +1664,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			type = VALUES(type),
 			patch_software_title_id = VALUES(patch_software_title_id),
 			continuous_automations_enabled = VALUES(continuous_automations_enabled)
-		`, policiesChecksumComputedColumn(),
-		)
+		`
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
 			for _, spec := range teamPolicySpecs {
 				var softwareInstallerID *uint
@@ -1747,6 +1728,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
+					fleet.PolicyChecksum(teamID, spec.Name),
 					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled,
 				)
 				if err != nil {
@@ -1840,7 +1822,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 				if shouldUpdatePatchPolicyName {
-					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ?, checksum = `+policiesChecksumComputedColumn()+` WHERE id = ?`, spec.Name, policyID); err != nil {
+					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ?, checksum = ? WHERE id = ?`, spec.Name, fleet.PolicyChecksum(teamID, spec.Name), policyID); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting name for patch policy")
 					}
 				}

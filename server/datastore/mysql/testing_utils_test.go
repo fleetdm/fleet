@@ -3,7 +3,6 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/md5" // nolint:gosec // this is test code
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -564,10 +563,9 @@ func printDumpTable(t *testing.T, cols []string, rows [][]string) {
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
 	syncML := generateDummyWindowsProfile(uuid)
-	checksum := md5.Sum(syncML) // nolint:gosec // this is a test package
 	return fleet.MDMWindowsProfileContents{
 		SyncML:   syncML,
-		Checksum: checksum[:],
+		Checksum: md5Checksum(syncML),
 	}
 }
 
@@ -580,8 +578,8 @@ func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) strin
 	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);`
-		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof)
+		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(t.Context(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof, md5Checksum(prof))
 		return err
 	})
 	return profUUID
@@ -957,4 +955,16 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	activities, _, err := svc.ListActivities(ctx, opts)
 	require.NoError(t, err)
 	return activities
+}
+
+// requireLegacySQLMD5 skips the test when the database does not provide the SQL
+// MD5() function (removed by default in MySQL 9.6/9.7). Ground-truth tests that
+// compare Go helpers against SQL MD5() only apply to MySQL versions that still
+// have it (8.0, <=9.5). The production code never calls SQL MD5().
+func requireLegacySQLMD5(t *testing.T, ds *Datastore) {
+	t.Helper()
+	var v string
+	if err := sqlx.GetContext(t.Context(), ds.writer(t.Context()), &v, `SELECT MD5('fleet')`); err != nil {
+		t.Skipf("SQL MD5() not available on this MySQL version, skipping ground-truth comparison: %v", err)
+	}
 }
