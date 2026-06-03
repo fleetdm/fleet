@@ -401,8 +401,8 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		stdlogfmt.New(),
 	)
 	mdmConfig := config.MDMConfig{
-		AppleSCEPCert: "./testdata/server.pem",
-		AppleSCEPKey:  "./testdata/server.key",
+		AppleSCEPCert: "../../service/testdata/server.pem",
+		AppleSCEPKey:  "../../service/testdata/server.key",
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
@@ -547,7 +547,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		return res, nil
 	}
 	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
 		return &cert, "", err
 	}
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
@@ -556,9 +556,9 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
 	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		certPEM, err := os.ReadFile("./testdata/server.pem")
+		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
 		require.NoError(t, err)
-		keyPEM, err := os.ReadFile("./testdata/server.key")
+		keyPEM, err := os.ReadFile("../../service/testdata/server.key")
 		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert: {Value: certPEM},

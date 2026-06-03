@@ -1076,7 +1076,7 @@ OR
 
 	// TODO: this could be optimized to avoid querying for platform when
 	// profileIDs or profileUUIDs are provided.
-	if len(hosts) == 0 {
+	if len(hosts) == 0 && len(androidProfUUIDs) > 0 {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
 			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")

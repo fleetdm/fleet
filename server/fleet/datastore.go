@@ -1564,8 +1564,8 @@ type Datastore interface {
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
 	//
-	// This reconciles Android profiles
-	// synchronously. Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
+	// This reconciles Android profiles synchronously.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
 	// profile manager crons processes bounded host-window batches
 	// using a persisted cursor (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched), so large host
 	// populations may require multiple 30s ticks to converge.

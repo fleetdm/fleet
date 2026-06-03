@@ -6224,9 +6224,14 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h, true)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			h.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, "decl-1", uuid.NewString(), "decl-1", "System")
+		for i := 0; i < 10; i++ {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), ?, ?, ?, ?)`,
+				h.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fmt.Sprintf("decl-%d", i), uuid.NewString(), fmt.Sprintf("decl-%d", i), "System")
+			if err != nil {
+				return err
+			}
+		}
 		return err
 	})
 
