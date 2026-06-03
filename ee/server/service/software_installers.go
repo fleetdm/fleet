@@ -2593,12 +2593,17 @@ func (svc *Service) softwareBatchUpload(
 	ctx := context.Background()
 
 	defer func(start time.Time) {
-		// Write the deleted-packages list before the status key so a client polling
-		// the result never sees a completed batch without it. A write failure fails
-		// the batch: deletion warnings must never be silently missing.
+		// The deleted-packages list was already persisted before any datastore
+		// mutation; re-set it here to refresh its TTL so the client has the full
+		// window to read it even after a long-running batch. Best-effort only: at
+		// this point the batch may have already committed, so a Redis failure must
+		// not mark it as failed.
 		if batchErr == nil && deletedPackagesJSON != "" {
 			if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
-				batchErr = fmt.Errorf("recording software packages pending deletion: %w", err)
+				svc.logger.WarnContext(ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
+					"request_uuid", requestUUID,
+					"err", err,
+				)
 			}
 		}
 		status := batchSetCompleted
@@ -3213,6 +3218,14 @@ func (svc *Service) softwareBatchUpload(
 			return
 		}
 		deletedPackagesJSON = string(deletedJSON)
+		// Persist before any datastore mutation: a failure here fails the batch
+		// while it is still safe to retry (nothing has been applied or deleted),
+		// so deletion warnings are never silently missing. The defer refreshes
+		// this key's TTL on completion for long-running batches.
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
+			batchErr = fmt.Errorf("recording software packages pending deletion: %w", err)
+			return
+		}
 	}
 
 	if dryRun {
