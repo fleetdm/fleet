@@ -1263,8 +1263,9 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval = 1 * time.Hour
+		name                          = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval               = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1315,20 +1316,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				// Loop until the backlog is drained. CleanupExpiredHosts processes a
-				// bounded batch per call; if it returns a non-empty result there may
-				// be more expired hosts waiting. The context deadline bounds the loop
-				// if the backlog is very large — the next cron run picks up the rest.
-				for {
-					deleted, err := svc.CleanupExpiredHosts(ctx)
-					if err != nil {
-						return err
-					}
-					if len(deleted) == 0 {
-						break
-					}
-				}
-				return nil
+				return cleanupExpiredHostsCronJob(ctx, svc, logger, expiredHostsCleanupMaxRunTime)
 			},
 		),
 		schedule.WithJob(
@@ -1542,6 +1530,35 @@ func newCleanupsAndAggregationSchedule(
 	)
 
 	return s, nil
+}
+
+func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *slog.Logger, maxRunTime time.Duration) error {
+	deadline := time.Now().Add(maxRunTime)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		remainingRunTime := time.Until(deadline)
+		if remainingRunTime <= 0 {
+			logger.InfoContext(ctx, "expired hosts cleanup reached runtime limit", "max_run_time", maxRunTime)
+			return nil
+		}
+
+		// svc.CleanupExpiredHosts processes one bounded batch. Keep calling it
+		// while it reports deleted hosts, but cap the expired_hosts loop so a
+		// large backlog cannot monopolize the cleanups schedule. Each service
+		// call gets a child context with the remaining job budget.
+		cleanupCtx, cancel := context.WithTimeout(ctx, remainingRunTime)
+		deleted, err := svc.CleanupExpiredHosts(cleanupCtx)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if len(deleted) == 0 {
+			return nil
+		}
+	}
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
