@@ -927,18 +927,44 @@ function NewRunPanel({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "baseline",
+          alignItems: "center",
+          gap: 12,
         }}
       >
-        <div className="section-title" style={{ margin: 0 }}>
-          New run {!canStart && <span style={{ color: "var(--ui-error)" }}>· disabled</span>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="section-title" style={{ margin: 0 }}>
+            New run {!canStart && <span style={{ color: "var(--ui-error)" }}>· disabled</span>}
+          </div>
+          <span
+            className="dim mono"
+            style={{ fontSize: "var(--fs-xxx-small)" }}
+          >
+            go run ./agent.go
+          </span>
         </div>
-        <span
-          className="dim mono"
-          style={{ fontSize: "var(--fs-xxx-small)" }}
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 10 }}
         >
-          go run ./agent.go
-        </span>
+          <span
+            className="dim"
+            style={{ fontSize: "var(--fs-xxx-small)", whiteSpace: "nowrap" }}
+          >
+            {activeCount} / {MAX_PERF_RUNS} slots ·{" "}
+            {MAX_PERF_RUNS - activeCount === 0 ? (
+              <span style={{ color: "var(--ui-error)" }}>FULL</span>
+            ) : (
+              `${MAX_PERF_RUNS - activeCount} free`
+            )}
+          </span>
+          <button
+            className="primary"
+            onClick={start}
+            disabled={startDisabled}
+            style={{ padding: "6px 16px" }}
+          >
+            ▶ Start run
+          </button>
+        </div>
       </div>
 
       <Field label="Name">
@@ -1208,38 +1234,6 @@ function NewRunPanel({
       />
 
       <CommandPreview args={previewArgs} />
-
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: 10,
-          borderTop: "1px solid var(--app-border)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span
-          className="dim"
-          style={{ fontSize: "var(--fs-xxx-small)" }}
-        >
-          {activeCount} / {MAX_PERF_RUNS} slots used ·{" "}
-          {MAX_PERF_RUNS - activeCount === 0 ? (
-            <span style={{ color: "var(--ui-error)" }}>FULL</span>
-          ) : (
-            `${MAX_PERF_RUNS - activeCount} free`
-          )}
-        </span>
-        <button
-          className="primary"
-          onClick={start}
-          disabled={startDisabled}
-          style={{ padding: "6px 16px" }}
-        >
-          ▶ Start run
-        </button>
-      </div>
     </div>
   );
 }
