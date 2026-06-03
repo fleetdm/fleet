@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "16.0.19929.20062",
+      "version": "16.0.19929.20090",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft 365 %' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft 365 %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '16.0.19929.20062') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft 365 %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '16.0.19929.20090') < 0);"
       },
       "installer_url": "https://officecdn.microsoft.com/pr/wsus/setup.exe",
       "install_script_ref": "533c456c",
       "uninstall_script_ref": "86950a4e",
-      "sha256": "6cd73bc9ec16e9dd1eb07493c464a0537f82d5096bae20f04c41cf5486ce9b88",
+      "sha256": "22fc10ddbab93122fcae58cf5d8fef9724c3a7375c29c9c340d2de5682fab49c",
       "default_categories": [
         "Productivity"
       ]
