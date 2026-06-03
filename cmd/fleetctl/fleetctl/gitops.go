@@ -855,7 +855,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 					labels = setting.LabelsIncludeAny
 				}
 				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
-					return nil, fmt.Errorf("configuration profile '%s' cannot use both `labels_include_all` and `labels_include_any`; please choose one.", filepath.Base(setting.Path))
+					return nil, fmt.Errorf("Couldn't edit configuration profiles. For profile '%s', only one of \"labels_include_all\" or \"labels_include_any\" can be included.", filepath.Base(setting.Path))
 				}
 				if len(setting.LabelsIncludeAll) > 0 {
 					labels = setting.LabelsIncludeAll
