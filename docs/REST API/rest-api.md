@@ -11128,7 +11128,7 @@ Returns information about the specified software. By default, `versions` are sor
       "patch_policy": null,
       "fleet_id": 310
     },
-    "packages_count": 1,
+    "packages_count": 2,
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
