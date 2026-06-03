@@ -72,6 +72,19 @@ func TestParseSoftwareLastOpenedAtRowValue(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, lastOpenedAt)
 
+	// Some macOS apps return last_opened_at=315532800.0 (1980-01-01 UTC, the
+	// DOS/FAT epoch) for apps that were never opened. This predates macOS, so
+	// it should be treated as "never" rather than a date decades in the past.
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("315532800.0")
+	require.NoError(t, err)
+	require.Zero(t, lastOpenedAt)
+
+	// Any timestamp before 2001-01-01 UTC (roughly when macOS was released) is
+	// treated as "never".
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("978307199")
+	require.NoError(t, err)
+	require.Zero(t, lastOpenedAt)
+
 	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("foobar")
 	require.Error(t, err)
 	require.Zero(t, lastOpenedAt)
