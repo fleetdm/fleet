@@ -196,9 +196,9 @@ ALB_DEFS=(
 RDS_WRITER_EXT_DEFS=(
   ".rds_writer_extended.buffer_cache_hit_ratio.Average|RDS Cache Hit Ratio|%|1|3|false||"
   ".rds_writer_extended.freeable_memory.Average|RDS Freeable Memory|bytes|15|30|false||"
-  ".rds_writer_extended.select_latency.Average|RDS Select Latency|s|50|100|false||"
-  ".rds_writer_extended.insert_latency.Average|RDS Insert Latency|s|50|100|false||"
-  ".rds_writer_extended.dml_latency.Average|RDS DML Latency|s|50|100|false||"
+  ".rds_writer_extended.select_latency.Average|RDS Select Latency|ms|50|100|false||"
+  ".rds_writer_extended.insert_latency.Average|RDS Insert Latency|ms|50|100|false||"
+  ".rds_writer_extended.dml_latency.Average|RDS DML Latency|ms|50|100|false||"
   ".rds_writer_extended.iops_utilization.utilization_pct|IOPS Utilization|%|15|30|false|lt|80"
 )
 
@@ -257,6 +257,7 @@ fmt_val() {
     %)  printf "%.1f%%" "$val" ;;
     s)  printf "%.3fs" "$val" ;;
     ms) printf "%.1fms" "$val" ;;
+    min) printf "%.1fmin" "$val" ;;
     *)  printf "%.1f" "$val" ;;
   esac
 }

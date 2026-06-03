@@ -60,6 +60,14 @@ if [[ -z "$WORKSPACE" ]]; then
   usage 1
 fi
 
+# The workspace name is interpolated into output file paths, so constrain it to a
+# conservative slug. This rejects path separators / "../" (no writes outside runs/)
+# and matches the Terraform workspace naming conventions documented in the README.
+if [[ ! "$WORKSPACE" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+  echo "Error: --workspace must match ^[A-Za-z0-9][A-Za-z0-9_-]*$ (letters, digits, '-', '_'). Got: '$WORKSPACE'" >&2
+  exit 1
+fi
+
 if [[ -n "$CATEGORY" ]]; then
   case "$CATEGORY" in
     baseline|migration|mdm) ;;
@@ -151,7 +159,7 @@ done
 if [[ -z "$ECS_CLUSTER" ]]; then
   echo "Warning: Could not find ECS cluster for workspace '$WORKSPACE'. Trying tag-based discovery..." >&2
   ECS_CLUSTER=$(aws ecs list-clusters --region "$REGION" --output json \
-    | jq -r ".clusterArns[] | select(contains(\"$WORKSPACE\"))" \
+    | jq -r --arg ws "$WORKSPACE" '.clusterArns[] | select(contains($ws))' \
     | head -1 | xargs -I{} basename {})
 fi
 
@@ -252,7 +260,7 @@ fi
 ALB_ARN_SUFFIX=""
 ALB_TG_ARN_SUFFIX=""
 ALB_ARN=$(aws elbv2 describe-load-balancers --region "$REGION" --output json 2>/dev/null \
-  | jq -r ".LoadBalancers[] | select(.LoadBalancerName | contains(\"$WORKSPACE\")) | .LoadBalancerArn" \
+  | jq -r --arg ws "$WORKSPACE" '.LoadBalancers[] | select(.LoadBalancerName | contains($ws)) | .LoadBalancerArn' \
   | head -1)
 if [[ -n "$ALB_ARN" ]]; then
   # Extract the suffix after "app/" for CloudWatch dimensions
@@ -285,7 +293,7 @@ if [[ -z "$FLEET_LOG_GROUP" ]]; then
   # Broad search: find log groups containing the workspace name and "fleet",
   # excluding Container Insights groups (which are metrics, not application logs).
   FLEET_LOG_GROUP=$(aws logs describe-log-groups --region "$REGION" --output json 2>/dev/null \
-    | jq -r ".logGroups[].logGroupName | select(contains(\"$WORKSPACE\")) | select(contains(\"fleet\")) | select(contains(\"containerinsights\") | not)" \
+    | jq -r --arg ws "$WORKSPACE" '.logGroups[].logGroupName | select(contains($ws)) | select(contains("fleet")) | select(contains("containerinsights") | not)' \
     | head -1)
 fi
 echo "  Fleet Log Group: ${FLEET_LOG_GROUP:-<not found>}"
@@ -320,6 +328,7 @@ get_metric() {
 # Returns JSON object with the metric values and data_coverage info.
 # Uses the full interval as one period for the aggregate, plus 5-min periods
 # to count actual data points for coverage reporting.
+# Note: data_coverage is a 0-1 ratio (1.0 == full coverage), not a percentage.
 collect_metric() {
   local ns="$1" metric="$2" dims="$3"
   shift 3
@@ -357,7 +366,8 @@ collect_ecs_utilization() {
   util_raw=$(get_metric "ECS/ContainerInsights" "$util_metric" "$dims" 300 Sum)
   resv_raw=$(get_metric "ECS/ContainerInsights" "$resv_metric" "$dims" 300 Sum)
 
-  # Compute utilization percentage per 5-min period, then derive avg/min/max
+  # Compute utilization percentage per 5-min period, then derive avg/min/max.
+  # As above, data_coverage is a 0-1 ratio (1.0 == full coverage), not a percentage.
   jq -n \
     --argjson util "$util_raw" \
     --argjson resv "$resv_raw" \
@@ -976,7 +986,7 @@ if [[ -n "$RDS_WRITER_INSTANCE" ]]; then
     "Name=DBClusterIdentifier,Value=$RDS_CLUSTER_ID" \
     Average Maximum)
 
-  # SelectLatency: Average latency (seconds) of SELECT queries on the writer.
+  # SelectLatency: Average latency (milliseconds) of SELECT queries on the writer.
   # Rising values indicate query performance degradation, possibly due to
   # missing indexes, growing table sizes, or lock contention.
   echo "  RDS Writer: SelectLatency..."
@@ -984,7 +994,7 @@ if [[ -n "$RDS_WRITER_INSTANCE" ]]; then
     "Name=DBInstanceIdentifier,Value=$RDS_WRITER_INSTANCE" \
     Average Maximum)
 
-  # InsertLatency: Average latency (seconds) of INSERT queries on the writer.
+  # InsertLatency: Average latency (milliseconds) of INSERT queries on the writer.
   # Fleet's workload is insert-heavy (host checkins, software inventory).
   # Rising values may indicate index bloat or lock contention.
   echo "  RDS Writer: InsertLatency..."
@@ -992,7 +1002,7 @@ if [[ -n "$RDS_WRITER_INSTANCE" ]]; then
     "Name=DBInstanceIdentifier,Value=$RDS_WRITER_INSTANCE" \
     Average Maximum)
 
-  # DMLLatency: Average latency (seconds) of all DML operations (INSERT,
+  # DMLLatency: Average latency (milliseconds) of all DML operations (INSERT,
   # UPDATE, DELETE). Provides a single overall write-path health indicator.
   echo "  RDS Writer: DMLLatency..."
   rds_w_dml_lat=$(collect_metric "AWS/RDS" "DMLLatency" \
@@ -1346,7 +1356,7 @@ if jq -e '.rds_writer_extended.freeable_memory' "$OUTPUT" >/dev/null 2>&1; then
   rds_iops_pct=$(jq -r '.rds_writer_extended.iops_utilization.utilization_pct // "N/A"' "$OUTPUT")
   printf "RDS Writer:    FreeMem=%s  CacheHit=%s%%  Disk=%s  Threads=%s  IOPS=%s%%\n" \
     "$rds_freemem" "$rds_cache" "$rds_disk" "$rds_threads" "$rds_iops_pct"
-  printf "               SelectLat=%ss  InsertLat=%ss\n" "$rds_sel_lat" "$rds_ins_lat"
+  printf "               SelectLat=%sms  InsertLat=%sms\n" "$rds_sel_lat" "$rds_ins_lat"
 fi
 
 for reader_label in $(jq -r '.rds_readers_extended[].instance // empty' "$OUTPUT" 2>/dev/null); do
@@ -1358,7 +1368,7 @@ for reader_label in $(jq -r '.rds_readers_extended[].instance // empty' "$OUTPUT
   riops_pct=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .iops_utilization.utilization_pct // "N/A"' "$OUTPUT")
   printf "RDS %s: FreeMem=%s  CacheHit=%s%%  ReplicaLag=%sms  Threads=%s  IOPS=%s%%\n" \
     "$reader_label" "$rfreemem" "$rcache" "$rlag" "$rthreads" "$riops_pct"
-  printf "               SelectLat=%ss\n" "$rsel_lat"
+  printf "               SelectLat=%sms\n" "$rsel_lat"
 done
 
 if jq -e '.redis_extended[0].curr_connections' "$OUTPUT" >/dev/null 2>&1; then
