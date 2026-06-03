@@ -147,6 +147,19 @@ jobs:
             echo "Retrying setup in 5s..."
             sleep 5
           done
+          # Disable software inventory so the heavy software_* detail queries don't run
+          # — notably software_macos_executable_sha256, which walks macOS app bundles and
+          # makes each macOS detail cycle take minutes (delaying orbit_version). This test
+          # only checks enrollment + versions; osquery_info and orbit_info are NOT part of
+          # software inventory, so osquery_version and orbit_version still populate.
+          echo '---
+          apiVersion: v1
+          kind: config
+          spec:
+            features:
+              enable_software_inventory: false
+          ' > config.yml
+          ./build/fleetctl apply -f config.yml
           # Wait until all three platforms (darwin, ubuntu, windows) are enrolled as
           # distinct hosts AND have reported both osquery_version and orbit_version.
           #
@@ -156,25 +169,30 @@ jobs:
           # `get hosts <identifier>` (HostByIdentifier) surface it. So we read
           # osquery_version + id from the list and look up orbit_version per host via
           # `fleetctl api` against the by-id detail endpoint.
-          count_ready_platforms() {
-            local hosts platform id ov ready=0
+          while :; do
             hosts=$(./build/fleetctl get hosts --json || true)
-            for platform in darwin ubuntu windows; do
-              id=$(printf '%s' "$hosts" | jq -s -r --arg p "$platform" \
-                '[.[] | select(.spec.platform == $p and (.spec.osquery_version // "") != "") | .spec.id][0] // ""')
-              if [ -z "$id" ]; then
-                continue
-              fi
+            ready=0
+            counted=""
+            echo "Enrollment status:"
+            while IFS=$'\t' read -r id platform osq; do
+              [ -n "$id" ] || continue
+              # orbit_version is only returned by the by-id detail endpoint.
               ov=$(./build/fleetctl api "/api/v1/fleet/hosts/$id" 2>/dev/null | jq -r '.host.orbit_version // ""' || true)
-              if [ -n "$ov" ]; then
+              echo "  id=$id platform=$platform osquery_version=${osq:-<none>} orbit_version=${ov:-<none>}"
+              case "$platform" in
+                darwin|ubuntu|windows) ;;
+                *) continue ;;
+              esac
+              # count each expected platform once, only when both versions are present
+              if [ -n "$osq" ] && [ -n "$ov" ] && [[ " $counted " != *" $platform "* ]]; then
+                counted="$counted $platform"
                 ready=$((ready + 1))
               fi
-            done
-            echo "$ready"
-          }
-          until [ "$(count_ready_platforms)" -eq 3 ]; do
-            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
-            ./build/fleetctl get hosts --json | jq -s -r '.[] | "  list: id=\(.spec.id) platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "")"'
+            done < <(printf '%s' "$hosts" | jq -s -r '.[] | "\(.spec.id // "")\t\(.spec.platform // "?")\t\(.spec.osquery_version // "")"')
+            if [ "$ready" -eq 3 ]; then
+              break
+            fi
+            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll ($ready/3 with osquery_version + orbit_version)..."
             sleep 30
           done
           ./build/fleetctl get hosts
