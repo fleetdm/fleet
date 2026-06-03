@@ -5,18 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 // IDPOptions configures the IDP seeder. DSN points at a Fleet MySQL instance;
-// like vulns and activities, this seeder writes directly to MySQL because
-// mdm_idp_accounts and host_mdm_idp_accounts are populated by the MDM
-// enrollment flow rather than any public API.
+// like vulns and activities, this seeder writes directly to MySQL because the
+// IDP-linkage tables (mdm_idp_accounts, host_mdm_idp_accounts, scim_users,
+// host_scim_user) are normally populated by the MDM enrollment and SCIM sync
+// flows rather than any public API.
 type IDPOptions struct {
-	DSN        string
-	UserCount  int // how many seeded users get an mdm_idp_accounts row
-	HostCount  int // how many hosts get a host_mdm_idp_accounts assignment
+	DSN       string
+	UserCount int // how many seeded users get an mdm_idp_accounts row
+	HostCount int // how many hosts get a host_mdm_idp_accounts assignment
 }
 
 // idpUser is the subset of the GET /users response we care about.
@@ -33,18 +35,27 @@ type idpHost struct {
 	Hostname string `json:"hostname"`
 }
 
-// IDP creates mdm_idp_accounts rows for the most-recently-created seeded
-// users and assigns them to existing hosts. Users are fetched via the Fleet
-// API (most-recent first, so dibble-created users come up before the bootstrap
-// admin), hosts are fetched via the Fleet API, and the IDP tables are written
-// directly via the supplied MySQL DSN.
+// IDP seeds IDP linkage for the most-recently-created Fleet users so they
+// surface on host detail pages. Users and hosts are fetched via the Fleet
+// API (users most-recent first, so dibble-created users come up before the
+// bootstrap admin); the IDP tables are written directly via the supplied
+// MySQL DSN.
 //
-// Assignment is round-robin: host[i] gets account[i % len(accounts)] so the
-// host count can exceed the account count and the extras still pick up a
-// real IDP record.
+// Two layers are written per user:
+//   - mdm_idp_accounts (UUID-keyed) + host_mdm_idp_accounts (host UUID →
+//     account UUID). Used by the MDM enrollment flow.
+//   - scim_users (numeric id) + host_scim_user (numeric host id → scim user
+//     id). This is what the host details "User" card reads: GetEndUsers in
+//     server/fleet/hosts.go prefers SCIM and only falls back to host_emails
+//     for the username field, never populating IdpFullName from the legacy
+//     mdm_idp_accounts table.
 //
-// Idempotent: an account that already exists (matched by email) is reused
-// rather than re-inserted; host assignments use INSERT IGNORE.
+// Assignment is round-robin: host[i] gets seeded_user[i % len(users)] so the
+// host count can exceed the user count and the extras still pick up real
+// IDP records. Idempotent: existing rows matched by their unique key (email
+// for mdm_idp_accounts, user_name for scim_users, host_uuid/host_id for the
+// linkage tables) are reused rather than re-inserted; linkage inserts use
+// INSERT IGNORE.
 func IDP(ctx context.Context, c Client, log Logger, opt IDPOptions) Result {
 	res := Result{Entity: "idp"}
 	if opt.UserCount <= 0 {
@@ -86,44 +97,74 @@ func IDP(ctx context.Context, c Client, log Logger, opt IDPOptions) Result {
 		return res
 	}
 
-	// 1. Upsert mdm_idp_accounts for each user, collecting the resulting UUIDs.
+	// 1. Upsert mdm_idp_accounts + scim_users for each user. The two writes
+	// are independent so a failure in one does not block the other.
 	accountUUIDs := make([]string, 0, len(users))
+	scimUserIDs := make([]uint, 0, len(users))
 	for _, u := range users {
 		accUUID, created, err := upsertIDPAccount(ctx, db, u)
 		if err != nil {
 			res.Errors = append(res.Errors, fmt.Errorf("upsert idp account for %s: %w", u.Email, err))
+		} else {
+			accountUUIDs = append(accountUUIDs, accUUID)
+			if created {
+				res.Created++
+				log.Printf("idp account %s <%s>", u.Name, u.Email)
+			} else {
+				res.Skipped++
+			}
+		}
+
+		scimID, created, err := upsertSCIMUser(ctx, db, u)
+		if err != nil {
+			res.Errors = append(res.Errors, fmt.Errorf("upsert scim user for %s: %w", u.Email, err))
 			continue
 		}
-		accountUUIDs = append(accountUUIDs, accUUID)
+		scimUserIDs = append(scimUserIDs, scimID)
 		if created {
 			res.Created++
-			log.Printf("idp account %s <%s>", u.Name, u.Email)
+			log.Printf("scim user %s <%s>", u.Name, u.Email)
 		} else {
 			res.Skipped++
 		}
 	}
 
-	if len(accountUUIDs) == 0 {
-		res.Errors = append(res.Errors, errors.New("no idp accounts created or found"))
+	if len(accountUUIDs) == 0 && len(scimUserIDs) == 0 {
+		res.Errors = append(res.Errors, errors.New("no idp or scim users created or found"))
 		return res
 	}
 
-	// 2. Assign hosts (round-robin) to the accounts.
+	// 2. Assign hosts (round-robin) to both linkage tables.
 	if len(hosts) == 0 && opt.HostCount > 0 {
 		log.Printf("idp: no hosts found — run osquery-perf to enroll some first")
 	}
 	for i, h := range hosts {
-		accUUID := accountUUIDs[i%len(accountUUIDs)]
-		assigned, err := assignHostToIDPAccount(ctx, db, h.UUID, accUUID)
-		if err != nil {
-			res.Errors = append(res.Errors, fmt.Errorf("assign host %s: %w", h.UUID, err))
-			continue
+		if len(accountUUIDs) > 0 {
+			accUUID := accountUUIDs[i%len(accountUUIDs)]
+			assigned, err := assignHostToIDPAccount(ctx, db, h.UUID, accUUID)
+			if err != nil {
+				res.Errors = append(res.Errors, fmt.Errorf("assign host %s to idp account: %w", h.UUID, err))
+			} else if assigned {
+				res.Created++
+				log.Printf("idp host %s (%s) → account %s", h.Hostname, h.UUID, accUUID)
+			} else {
+				res.Skipped++
+			}
 		}
-		if assigned {
-			res.Created++
-			log.Printf("idp host %s (%s) → %s", h.Hostname, h.UUID, accUUID)
-		} else {
-			res.Skipped++
+
+		if len(scimUserIDs) > 0 {
+			scimID := scimUserIDs[i%len(scimUserIDs)]
+			assigned, err := assignHostToSCIMUser(ctx, db, h.ID, scimID)
+			if err != nil {
+				res.Errors = append(res.Errors, fmt.Errorf("assign host %d to scim user: %w", h.ID, err))
+				continue
+			}
+			if assigned {
+				res.Created++
+				log.Printf("scim host %s (id=%d) → scim_user_id=%d", h.Hostname, h.ID, scimID)
+			} else {
+				res.Skipped++
+			}
 		}
 	}
 
@@ -201,4 +242,63 @@ func assignHostToIDPAccount(ctx context.Context, db *sql.DB, hostUUID, accountUU
 		return false, err
 	}
 	return n > 0, nil
+}
+
+// upsertSCIMUser returns the scim_users.id for the given user, matched by
+// user_name (UNIQUE). user_name is set to the user's email so the seeded row
+// lines up with what the SCIM sync would produce. given_name / family_name
+// come from splitting the user's full name on the first space — what
+// ScimUser.DisplayName() concatenates back together for the "Full name (IdP)"
+// field on the host details card.
+func upsertSCIMUser(ctx context.Context, db *sql.DB, u idpUser) (id uint, created bool, err error) {
+	if err := db.QueryRowContext(ctx,
+		`SELECT id FROM scim_users WHERE user_name = ?`, u.Email,
+	).Scan(&id); err == nil {
+		return id, false, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return 0, false, err
+	}
+
+	given, family := splitFullName(u.Name)
+	r, err := db.ExecContext(ctx,
+		`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, 1)`,
+		u.Email, given, family,
+	)
+	if err != nil {
+		return 0, false, err
+	}
+	lastID, err := r.LastInsertId()
+	if err != nil {
+		return 0, false, err
+	}
+	return uint(lastID), true, nil
+}
+
+// assignHostToSCIMUser inserts a host_scim_user row, returning assigned=true
+// when the row was created. host_scim_user.host_id is the PRIMARY KEY, so an
+// existing mapping for this host is preserved (INSERT IGNORE).
+func assignHostToSCIMUser(ctx context.Context, db *sql.DB, hostID, scimUserID uint) (assigned bool, err error) {
+	r, err := db.ExecContext(ctx,
+		`INSERT IGNORE INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		hostID, scimUserID,
+	)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// splitFullName breaks a single-string name into SCIM's given/family parts.
+// Single-word names go entirely into given_name so DisplayName() still
+// renders them.
+func splitFullName(full string) (given, family string) {
+	full = strings.TrimSpace(full)
+	if i := strings.IndexByte(full, ' '); i > 0 {
+		return full[:i], strings.TrimSpace(full[i+1:])
+	}
+	return full, ""
 }
