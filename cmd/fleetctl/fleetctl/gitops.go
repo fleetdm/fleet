@@ -851,24 +851,19 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("configuration profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", filepath.Base(setting.Path))
-
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
 				}
+				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
+					return nil, fmt.Errorf("Couldn't edit configuration profiles. For profile '%s', only one of \"labels_include_all\" or \"labels_include_any\" can be included.", filepath.Base(setting.Path))
+				}
 				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
 					labels = setting.LabelsIncludeAll
 				}
-				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
+				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
-
+				labels = append(labels, setting.LabelsExcludeAny...)
 				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}

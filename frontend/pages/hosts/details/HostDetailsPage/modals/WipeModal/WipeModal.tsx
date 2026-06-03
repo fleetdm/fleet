@@ -72,17 +72,17 @@ const WipeModal = ({
           </p>
         )}
         {isLinuxHost && (
-          <p>
-            <b>Important!</b> Ensure you have read our{" "}
-            <CustomLink
-              url="https://fleetdm.com/guides/lock-wipe-hosts"
-              text="guide"
-              newTab
-            />{" "}
-            on what data is attempted to be erased and consider the consequences
-            of our script for your specific Linux host&apos;s setup before
-            wiping.
-          </p>
+          <>
+            <p>
+              This will run a script to erase content from this host.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/linux-wipe"
+                text="Learn more"
+                newTab
+              />{" "}
+            </p>
+            <p>To use the host again, you will have to do an OS reinstall.</p>
+          </>
         )}
         <div className={`${baseClass}__confirm-message`}>
           <span>

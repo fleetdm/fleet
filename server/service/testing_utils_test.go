@@ -435,7 +435,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
-	// code and surface it to apiendpoints.Init for catalog validation only.
+	// code and surface it to apiendpoints.Validate for catalog validation only.
 	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
@@ -577,7 +577,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
-	if err := apiendpoints.Init(apiHandler, extraInitFeatureRoutes...); err != nil {
+	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
 		t.Fatalf("error initializing API endpoints: %v", err)
 	}
 	rootMux.Handle("/api/", apiHandler)

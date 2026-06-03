@@ -353,7 +353,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMConfigProfileResponse{Err: err}, nil
 	}
 	// providing an empty set of labels since this endpoint is only maintained for backwards compat
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, nil, fleet.LabelsIncludeAll)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, nil, fleet.LabelsIncludeAll, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -362,7 +362,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -437,20 +437,20 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	cp.Mobileconfig = data
 	cp.SecretsUpdatedAt = secretsUpdatedAt
 
-	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
+	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAll:
-		cp.LabelsIncludeAll = labelMap
+		cp.LabelsIncludeAll = includeLabels
 	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
-	case fleet.LabelsExcludeAny:
-		cp.LabelsExcludeAny = labelMap
-	default:
-		// TODO what happens if mode is not set?s
+		cp.LabelsIncludeAny = includeLabels
 	}
+	cp.LabelsExcludeAny = excludeLabels
 
 	// Convert profile variable names to FleetVarName type
 	varNames := make([]fleet.FleetVarName, 0, len(profileVars))
@@ -857,7 +857,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -890,7 +890,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		teamName = tm.Name
 	}
 
-	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels, teamID)
+	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	validatedIncludeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, err
 	}
@@ -933,13 +936,12 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
-		d.LabelsIncludeAny = validatedLabels
-	case fleet.LabelsExcludeAny:
-		d.LabelsExcludeAny = validatedLabels
+		d.LabelsIncludeAny = validatedIncludeLabels
 	default:
 		// default to include all
-		d.LabelsIncludeAll = validatedLabels
+		d.LabelsIncludeAll = validatedIncludeLabels
 	}
+	d.LabelsExcludeAny = excludeLabels
 
 	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
@@ -1244,19 +1246,6 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 		}
 	}
 	return profLabels, nil
-}
-
-func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
-	}
-
-	var declLabels []fleet.ConfigurationProfileLabel
-	for _, label := range labelMap {
-		declLabels = append(declLabels, label)
-	}
-	return declLabels, nil
 }
 
 type listMDMAppleConfigProfilesRequest struct {
