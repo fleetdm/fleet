@@ -681,7 +681,7 @@ module.exports.routes = {
   },
 
   'GET /lp/apple-mdm-a': {
-    action: 'landing-pages/view-apple-mdm-a',
+    action: 'landing-pages/view-apple-mdm',
     locals: {
       hideHeaderLinks: true,
       disableChatbotAndIndexing: true,

@@ -20,6 +20,13 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
+
+
+    let showLandingPageVariantForVisitorsComingFromAds = false;
+    // If a user is visiting this page at from the /lp/apple-mdm-a route, we'll show a slightly different version of this landing page.
+    if(this.req.url === '/lp/apple-mdm-a') {
+      showLandingPageVariantForVisitorsComingFromAds = true;
+    }
     // Get testimonials for the <scrollable-tweets> component.
     let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
 
@@ -55,7 +62,8 @@ module.exports = {
 
     // Respond with view.
     return {
-      testimonialsForScrollableTweets
+      testimonialsForScrollableTweets,
+      showLandingPageVariantForVisitorsComingFromAds
     };
 
   }

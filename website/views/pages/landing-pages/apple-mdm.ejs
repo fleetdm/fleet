@@ -6,14 +6,24 @@
           <div purpose="page-hero-content">
             <div purpose="page-hero-headings">
               <h4>Apple Device Management</h4>
-              <h1>Open source Apple MDM for modern IT and security teams</h1>
+              <% if(!showLandingPageVariantForVisitorsComingFromAds) {%>
+                <h1>Open source Apple MDM for modern IT and security teams</h1>
+              <% } else { %>
+                <h1>Open source MDM for Mac, iPhone, and iPad. Apple device management for modern IT teams</h1>
+              <% } %>
             </div>
             <div purpose="page-hero-text">
-              <p>Enroll, configure, and secure Mac, iPhone, and iPad at enterprise scale. Manage Apple alongside Windows, Linux, Android, and ChromeOS in one place.</p>
+              <% if(!showLandingPageVariantForVisitorsComingFromAds) {%>
+                <p>Enroll, configure, and secure Mac, iPhone, and iPad at enterprise scale. Manage Apple alongside Windows, Linux, Android, and ChromeOS in one place.</p>
+              <% } else { %>
+                <p>The open source MDM built for Mac admins who want GitOps, not ClickOps.</p>
+              <% } %>
             </div>
             <div purpose="button-row">
               <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+              <% if(!showLandingPageVariantForVisitorsComingFromAds) {%>
               <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+              <% } %>
             </div>
           </div>
           <a purpose="hero-quote" href="https://www.linkedin.com/in/jckwhet/" target="_blank" no-icon>
@@ -93,7 +103,11 @@
           </div>
         </div>
       </div>
-
+      <% if(showLandingPageVariantForVisitorsComingFromAds) {%>
+      <div purpose="mid-page-cta-section">
+        <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+      </div>
+      <% } %>
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h2>Built for Apple-first teams</h2>
@@ -206,15 +220,14 @@
         <h2>Modern, open source MDM for every Mac</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
-          <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+          <% if(!showLandingPageVariantForVisitorsComingFromAds) {%>
+            <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+          <% } %>
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
-  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
