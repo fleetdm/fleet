@@ -34,6 +34,7 @@ var (
 	hostIssuesInsertBatchSize                = 10000
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
 	hostsDeleteBatchSize                     = 5000
+	cleanupExpiredHostsBatchSize             = 5000
 )
 
 var (
@@ -3756,37 +3757,54 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	hostIDToExpiryWindow := make(map[uint]int)
 	// Process hosts using global expiry
 	if ac.HostExpirySettings.HostExpiryEnabled {
-		sqlQuery := findHostsSql + " AND (team_id IS NULL"
-		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
-		if len(teamsUsingGlobalExpiry) > 0 {
-			sqlQuery += " OR team_id IN (?)"
-			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
+		remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
+		if remainingBatchSize > 0 {
+			sqlQuery := findHostsSql + " AND (team_id IS NULL"
+			args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
+			if len(teamsUsingGlobalExpiry) > 0 {
+				sqlQuery += " OR team_id IN (?)"
+				sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
+				}
 			}
+			sqlQuery += ") LIMIT ?"
+			args = append(args, remainingBatchSize)
+			var globalIDs []uint
+			err = ds.writer(ctx).SelectContext(
+				ctx,
+				&globalIDs,
+				sqlQuery,
+				args...,
+			)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
+			}
+			for _, id := range globalIDs {
+				hostIDToExpiryWindow[id] = ac.HostExpirySettings.HostExpiryWindow
+			}
+			allIdsToDelete = append(allIdsToDelete, globalIDs...)
 		}
-		sqlQuery += ")"
-		var globalIDs []uint
-		err = ds.writer(ctx).SelectContext(
-			ctx,
-			&globalIDs,
-			sqlQuery,
-			args...,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
-		}
-		for _, id := range globalIDs {
-			hostIDToExpiryWindow[id] = ac.HostExpirySettings.HostExpiryWindow
-		}
-		allIdsToDelete = append(allIdsToDelete, globalIDs...)
 	}
 
 	// Process hosts using team expiry
-	for teamId, expiry := range teamsUsingCustomExpiry {
+	customExpiryTeamIDs := make([]uint, 0, len(teamsUsingCustomExpiry))
+	for teamID := range teamsUsingCustomExpiry {
+		customExpiryTeamIDs = append(customExpiryTeamIDs, teamID)
+	}
+	sort.Slice(customExpiryTeamIDs, func(i, j int) bool {
+		return customExpiryTeamIDs[i] < customExpiryTeamIDs[j]
+	})
+	for _, teamId := range customExpiryTeamIDs {
+		remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
+		if remainingBatchSize <= 0 {
+			break
+		}
+
+		expiry := teamsUsingCustomExpiry[teamId]
 		var ids []uint
-		sqlQuery := findHostsSql + " AND team_id = ?"
-		args := []interface{}{expiry, teamId}
+		sqlQuery := findHostsSql + " AND team_id = ? LIMIT ?"
+		args := []interface{}{expiry, teamId, remainingBatchSize}
 		err = ds.writer(ctx).SelectContext(
 			ctx,
 			&ids,
