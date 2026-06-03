@@ -2241,7 +2241,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 				byStatus["unexpected_nil_status"] = append(byStatus["unexpected_nil_status"], host.HardwareSerial)
 			} else {
 				byStatus[*host.EnrollmentStatus] = append(byStatus[*host.EnrollmentStatus], host.HardwareSerial)
-				if *host.EnrollmentStatus == "Pending" {
+				if *host.EnrollmentStatus == fleet.MDMEnrollmentStatusPending {
 					pendingHostIDs = append(pendingHostIDs, host.ID)
 				}
 			}
