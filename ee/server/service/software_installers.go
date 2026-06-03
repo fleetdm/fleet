@@ -3410,17 +3410,18 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 }
 
 func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
-
-	titles, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
+	// get available self-service titles sorted by name
+	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
 
 	platform := host.FleetPlatform()
 
+	// queue each software install individually
 	var queuedCount uint
 	for _, title := range titles {
-		// log errors rathen than return early
+		// log errors rather than return early
 		queueErr := func() error {
 			switch {
 			case title.IsAppStoreApp():
@@ -3503,13 +3504,8 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 		}
 	}
 
-	var categoryName *string
-	if categoryID != nil {
-		cat, err := svc.ds.SoftwareCategory(ctx, *categoryID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting software category for activity")
-		}
-		categoryName = &cat.Name
+	if queuedCount == 0 {
+		return nil
 	}
 
 	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledAllSelfServiceSoftware{
