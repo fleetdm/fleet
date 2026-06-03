@@ -21,6 +21,20 @@ const baseProfile: IMdmProfile = {
 };
 
 describe("ProfileLabelsModal", () => {
+  it("renders the profile name in the description", () => {
+    render(
+      <ProfileLabelsModal
+        profile={{
+          ...baseProfile,
+          labels_include_any: [{ name: "Label A" }],
+        }}
+        setModalData={noop as any}
+      />
+    );
+
+    expect(screen.getByText("Test Profile")).toBeInTheDocument();
+  });
+
   it("renders null when profile is null", () => {
     const { container } = render(
       <ProfileLabelsModal profile={null} setModalData={noop as any} />

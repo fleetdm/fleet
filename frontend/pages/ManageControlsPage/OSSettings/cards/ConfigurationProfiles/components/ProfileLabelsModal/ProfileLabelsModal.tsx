@@ -55,6 +55,7 @@ const ProfileLabelsModal = ({
   }
 
   const {
+    name,
     labels_include_all,
     labels_include_any,
     labels_exclude_any,
@@ -79,7 +80,7 @@ const ProfileLabelsModal = ({
       <>
         {allLabels.some((label) => label.broken) && <BrokenLabelWarning />}
         <p className={`${baseClass}__description`}>
-          <b>My includes/excludes </b>profile only applies to hosts that:
+          <b>{name} </b>profile only applies to hosts that:
         </p>
         {!!includeLabels?.length && (
           <>
