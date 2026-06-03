@@ -1,7 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -148,6 +148,6 @@ export const generateTableConfig = (
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

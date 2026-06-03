@@ -105,9 +105,12 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(fieldName + " not found in " + t.Name())
 	}
 
-	// Prefer the renameto tag (new canonical name) if it exists.
+	// Prefer the renameto tag (new canonical name) if it exists, stripping any
+	// options like ",inline".
 	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
-		return renameTo
+		if name, _, _ := strings.Cut(renameTo, ","); name != "" {
+			return name
+		}
 	}
 
 	tag := field.Tag.Get("json")
