@@ -5,7 +5,7 @@ candidate branch renumbers migration files that may already have run in an
 existing database.
 
 The normal target is the RC branch that contains the final, renumbered migration
-filenames, such as `rc-minor-fleet-v4.86.1` or `rc-patch-fleet-v4.73.2`. The
+filenames, such as `rc-minor-fleet-v4.86.0` or `rc-patch-fleet-v4.73.2`. The
 tool compares that branch to `main`, finds migration file renames in
 `server/datastore/mysql/migrations/tables` and
 `server/datastore/mysql/migrations/data`, and generates SQL for the matching
@@ -43,14 +43,14 @@ go build -o build/migration-cleanup ./tools/migration-cleanup
 SQL generation is the default mode and does not connect to MySQL.
 
 ```sh
-go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.1
+go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.0
 ```
 
 Write the SQL to a file:
 
 ```sh
 go run ./tools/migration-cleanup \
-  -b rc-minor-fleet-v4.86.1 \
+  -b rc-minor-fleet-v4.86.0 \
   -o migration-cleanup.sql
 ```
 
@@ -59,7 +59,7 @@ Use `-c` when running the tool from a different working tree:
 ```sh
 go run ./tools/migration-cleanup \
   -c /path/to/fleet \
-  -b rc-minor-fleet-v4.86.1
+  -b rc-minor-fleet-v4.86.0
 ```
 
 If the branch only exists on the remote, pass the plain branch name. The tool
@@ -73,7 +73,7 @@ the final state would be valid. It does not execute the generated SQL.
 
 ```sh
 go run ./tools/migration-cleanup \
-  -b rc-minor-fleet-v4.86.1 \
+  -b rc-minor-fleet-v4.86.0 \
   --dry-run \
   --db-host 127.0.0.1 \
   --db-user fleet \
@@ -85,7 +85,7 @@ You can also use Fleet MySQL config flags or a Fleet config file:
 
 ```sh
 go run ./tools/migration-cleanup \
-  -b rc-minor-fleet-v4.86.1 \
+  -b rc-minor-fleet-v4.86.0 \
   --dry-run \
   --config fleet.yml
 ```
@@ -96,7 +96,7 @@ Apply runs the same generated SQL in a transaction.
 
 ```sh
 go run ./tools/migration-cleanup \
-  -b rc-minor-fleet-v4.86.1 \
+  -b rc-minor-fleet-v4.86.0 \
   --apply \
   --db-host 127.0.0.1 \
   --db-user fleet \
@@ -106,7 +106,7 @@ go run ./tools/migration-cleanup \
 
 `--dry-run` and `--apply` are mutually exclusive.
 
-## Example: rc-minor-fleet-v4.86.1
+## Example: rc-minor-fleet-v4.86.0
 
 This was the move-up renumber case tested against a local MySQL database that
 had already run the pre-renumber 4.86 RC migrations. Running the latest RC
@@ -116,7 +116,7 @@ been applied under its old version ID.
 Generate SQL:
 
 ```sh
-go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.1
+go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.0
 ```
 
 Detected renumbers:
