@@ -3870,6 +3870,11 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 			}
 		}
 
+		// not installed by fleet
+		if len(s.InstalledVersions) > 0 {
+			continue
+		}
+
 		if categoryID != nil && !slices.Contains(categoriesByTitle[s.ID], *categoryName) {
 			continue
 		}
