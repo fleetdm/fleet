@@ -2456,7 +2456,7 @@
       "slug": "virtualbuddy/darwin",
       "platform": "darwin",
       "unique_identifier": "codes.rambo.VirtualBuddy",
-      "description": "VirtualBuddy can virtualize macOS 12 and later on Apple Silicon."
+      "description": "VirtualBuddy is an app that can virtualize macOS 12 and later on Apple Silicon."
     },
     {
       "name": "Viscosity",
