@@ -515,6 +515,9 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ## Activities
 
++ [List activities](#list-activities)
++ [List policy automation activities](#list-policy-automation-activities)
+
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
@@ -606,6 +609,75 @@ Returns a list of the activities that have been performed in Fleet. For a compre
   }
 }
 
+```
+
+### List policy automation activities
+
+`GET /api/v1/fleet/policies/:id/automation_activities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The policy ID. |
+| status   | string | path | Optional filter by automation status. Either "success" or "error" |
+| query   | string | path | Search query to filter by. Can search by host's name. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/policies/12/automation_activities?query=Anna's%20MacBook`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2025-02-20T10:09:48.551757Z",
+      "id": 123,
+      "type": "ran_script",
+      "actor_full_name": "Fleet",
+      "actor_email": "",
+      "fleet_initiated": true,
+      "details": {
+        "status": "installed",
+        "host_id": 934,
+        "policy_name": "macOS - 1Password installed",
+        "install_uuid": "2fddb3d3-d553-4334-89a3-235da50d0ee7",
+        "self_service": false,
+        "software_title": "1Password.app",
+        "software_package": "1Password.pkg",
+        "host_display_name": "Anna's MacBook Pro"
+      }
+    },
+    {
+      "created_at": "2025-02-20T10:09:48.551757Z",
+      "id": 123,
+      "type": "ran_automation_calendar_event",
+      "actor_full_name": "Fleet",
+      "actor_email": "",
+      "fleet_initiated": true,
+      "details": {
+        "error": "error message",
+        "host_id": 934,
+        "policy_id": 123,
+        "policy_name": "macOS - 1Password installed",
+        "host_display_name": "Anna's MacBook Pro"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
 ```
 
 ---
