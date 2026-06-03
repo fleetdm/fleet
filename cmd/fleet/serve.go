@@ -252,11 +252,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
+	// initDatastore returns nil only when initFatal did not terminate (e.g.,
+	// swapped out in tests); bail out before dereferencing.
+	if mds == nil {
+		return
+	}
 	var ds fleet.Datastore = mds
 
 	migrationStatus, err := ds.MigrationStatus(cmd.Context())
 	if err != nil {
 		initFatal(err, "retrieving migration status")
+	}
+	if migrationStatus == nil {
+		return
 	}
 	if evalMigrationStatus(migrationStatus, dev_mode.IsEnabled, config.Upgrades.AllowMissingMigrations) {
 		os.Exit(1)
