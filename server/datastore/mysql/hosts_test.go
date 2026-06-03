@@ -13630,6 +13630,45 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	require.Equal(t, string(android.MDMAndroidCommandStatusError), status.LockMDMCommandResult.Status)
 	require.False(t, status.IsLocked())
 	require.False(t, status.IsPendingLock())
+
+	// Pending clear-passcode: IsPendingClearPasscode = true, device_status = clear_passcode
+	// pending action so the UI hides Lock / Unenroll / Wipe / Clear passcode.
+	cpHost := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	cpUUID := uuid.NewString()
+	require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, cpHost, &android.MDMAndroidCommand{
+		CommandUUID:   cpUUID,
+		HostUUID:      cpHost.UUID,
+		OperationName: "enterprises/E/devices/" + cpHost.UUID + "/operations/clear-passcode",
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	cpStatus, err := ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.NotNil(t, cpStatus.ClearPasscodeMDMCommand)
+	require.Equal(t, cpUUID, cpStatus.ClearPasscodeMDMCommand.CommandUUID)
+	require.Nil(t, cpStatus.ClearPasscodeMDMCommandResult)
+	require.True(t, cpStatus.IsPendingClearPasscode())
+	require.Equal(t, fleet.PendingActionClearPasscode, cpStatus.PendingAction())
+
+	// After Pub/Sub ack: result populated, IsPendingClearPasscode = false, PendingAction = none.
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cpUUID,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.NotNil(t, cpStatus.ClearPasscodeMDMCommandResult)
+	require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged),
+		cpStatus.ClearPasscodeMDMCommandResult.Status)
+	require.False(t, cpStatus.IsPendingClearPasscode())
+	require.Equal(t, fleet.PendingActionNone, cpStatus.PendingAction())
+
+	// ClearHostMDMActions drops the row entirely (used by the Android re-enrollment path so
+	// stale lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed in).
+	require.NoError(t, ds.ClearHostMDMActions(ctx, cpHost.ID))
+	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
+	require.NoError(t, err)
+	require.Nil(t, cpStatus.ClearPasscodeMDMCommand)
+	require.Equal(t, fleet.DeviceStatusUnlocked, cpStatus.DeviceStatus())
+	require.Equal(t, fleet.PendingActionNone, cpStatus.PendingAction())
 }
 
 // testGetHostsLockWipeStatusBatchAndroidMultiHost exercises GetHostsLockWipeStatusBatch with

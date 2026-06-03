@@ -32,9 +32,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -88,6 +90,7 @@ func TestMDMApple(t *testing.T) {
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
+		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
@@ -303,8 +306,12 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
-	// break the profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	// simulate a broken label by nullifying its id in the join table
+	// (direct DeleteLabel is now blocked when referenced by a profile)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE apple_profile_uuid = ? AND label_id = ?`, labelProf.ProfileUUID, lbl.ID)
+		return err
+	})
 
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
@@ -5030,6 +5037,66 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	checkHostMDMProfileStatuses()
 }
 
+// TestMDMAppleFileVaultSummary_NullDecryptableKey is a regression test for the
+// SQL aggregate gap surfaced while investigating
+// https://github.com/fleetdm/fleet/issues/45369. When a host has a key row in
+// host_disk_encryption_keys with decryptable=NULL (the host reported its key but
+// the decryption-verifier hasn't run yet) and the FileVault profile is verifying
+// or verified, PopulateOSSettingsAndMacOSSettings (server/fleet/hosts.go) classifies
+// the host as Verifying. The previous subqueryFileVaultVerifying only matched the
+// Verified-status case, so dashboard aggregates miscounted a Verifying-status host
+// in this state.
+func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
+	require.NoError(t, err)
+
+	// Two hosts: one with profile in Verifying status, one in Verified. Both have
+	// a key row with NULL decryptable. Both should be classified as Verifying.
+	verifyingHost := test.NewHost(t, ds, "fv-verifying.local", "1.1.1.1", "fv-verifying-key", "fv-verifying-uuid", time.Now())
+	verifiedHost := test.NewHost(t, ds, "fv-verified.local", "1.1.1.2", "fv-verified-key", "fv-verified-uuid", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifyingHost)
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifiedHost)
+
+	upsertHostCPs([]*fleet.Host{verifyingHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{verifiedHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	// Key rows exist, decryptability has not been confirmed (nil → NULL).
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifyingHost, "key-a", "", nil)
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifiedHost, "key-b", "", nil)
+	require.NoError(t, err)
+
+	summary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	assert.Equal(t, uint(2), summary.Verifying, "both hosts must count as verifying")
+	assert.Equal(t, uint(0), summary.ActionRequired)
+	assert.Equal(t, uint(0), summary.Verified)
+	assert.Equal(t, uint(0), summary.Enforcing)
+	assert.Equal(t, uint(0), summary.Failed)
+
+	gotVerifying, err := ds.ListHosts(ctx,
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+		fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying},
+	)
+	require.NoError(t, err)
+	assert.Len(t, gotVerifying, 2)
+
+	// Host-details classification agrees for both hosts.
+	for _, h := range []*fleet.Host{verifyingHost, verifiedHost} {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		mdmData := fleet.MDMHostData{}
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+		require.NotNil(t, mdmData.MacOSSettings)
+		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
+		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
+			"host %s details must report verifying", h.Hostname)
+	}
+}
+
 func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -6476,6 +6543,8 @@ func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 
 func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
+
 	toks, err := ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
 	require.NoError(t, err)
 	require.Empty(t, toks.DeclarationsToken)
@@ -6486,11 +6555,8 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
 	}, nil)
 	require.NoError(t, err)
-	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
 	require.NoError(t, err)
@@ -6507,11 +6573,8 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host1, true)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -6519,17 +6582,13 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotZero(t, toks.Timestamp)
 	oldTok := toks.DeclarationsToken
 
-	decl2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+	_, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-2",
 		Name:       "decl-2",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-2"}`),
 	}, nil)
 	require.NoError(t, err)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -6540,17 +6599,53 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration) // This is false because we delete references in `host_mdm_apple_declarations` for declarations that aren't sent to the host
-	assert.False(t, updates.WindowsConfigProfile)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
 	require.NotEmpty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
 	require.NotEqual(t, oldTok, toks.DeclarationsToken)
+}
+
+func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	suDecl := func(name, identifier string) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: identifier,
+			Name:       name,
+			RawJSON: json.RawMessage(fmt.Sprintf(`{
+				"Type": %q,
+				"Identifier": %q,
+				"Payload": {"TargetOSVersion": "14.0", "TargetLocalDateTime": "2025-01-01T12:00:00"}
+			}`, apple_mdm.DeclarationTypeSoftwareUpdate, identifier)),
+		}
+	}
+
+	// The first OS-update declaration is created and tracked.
+	_, err := ds.NewMDMAppleDeclaration(ctx, suDecl("su1", "com.fleet.su1"), nil)
+	require.NoError(t, err)
+
+	configured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, configured)
+
+	// A second OS-update declaration for the same team is allowed.
+	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil)
+	require.NoError(t, err)
+
+	// The allowed declaration must have been persisted.
+	var persistedCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &persistedCount,
+			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE team_id = 0 AND identifier = ?`, "com.fleet.su2")
+	})
+	require.Equal(t, 1, persistedCount)
+
+	// A non OS-update declaration is unaffected by the existing tracked one.
+	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil)
+	require.NoError(t, err)
 }
 
 func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
@@ -6710,6 +6805,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 
 func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
 
 	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-1",
@@ -6729,8 +6825,8 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, true)
 
-	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	// verify the correct state of the declaration for the host
 	profs, err := ds.GetHostMDMAppleProfiles(ctx, host.UUID)
@@ -7498,6 +7594,16 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, h)
 
+	// GetAllMDMConfigAssetsByNameIncludingDeleted returns soft-deleted rows,
+	// newest first, with decrypted values. Both ca_cert rows ("a", then its
+	// replacement "c") are now soft-deleted.
+	deleted, err := ds.GetAllMDMConfigAssetsByNameIncludingDeleted(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert})
+	require.NoError(t, err)
+	require.Len(t, deleted, 2)
+	require.Equal(t, fleet.MDMAssetCACert, deleted[0].Name)
+	require.Equal(t, []byte("c"), deleted[0].Value)
+	require.Equal(t, []byte("a"), deleted[1].Value)
+
 	// Verify that they're still in the DB. Values should be encrypted.
 
 	type assetRow struct {
@@ -7842,6 +7948,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
 
 	// Add the Fleetd configuration and  profile that are only for macOS.
 	params := mobileconfig.FleetdProfileOptions{
@@ -7907,11 +8014,12 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
 
-	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
-	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	mockKV := new(mock.AdvancedKVStore)
+	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return make(map[string]*string), nil
+	}
+	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0))
 
 	profiles, err := ds.GetHostMDMAppleProfiles(ctx, "iOS0_UUID")
 	require.NoError(t, err)

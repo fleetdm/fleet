@@ -1720,3 +1720,151 @@ func TestGetESPCommands(t *testing.T) {
 			"must not transition state while waiting for orbit init")
 	})
 }
+
+func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const enrollmentID = uint(7)
+
+	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed
+	// Replace on the Poll node with the expected interval.
+	assertEnqueuedInterval := func(t *testing.T, cmd *fleet.MDMWindowsCommand, interval string) {
+		t.Helper()
+		require.NotNil(t, cmd, "a poll command should have been enqueued")
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, cmd.TargetLocURI)
+		assert.NotEmpty(t, cmd.CommandUUID)
+		parsed, err := fleet.UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, parsed, 1)
+		assert.Equal(t, fleet.CmdReplace, parsed[0].XMLName.Local)
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, parsed[0].GetTargetURI())
+		assert.Equal(t, interval, parsed[0].GetTargetData())
+	}
+
+	// The reconcile relaxes the poll iff the host's persisted fleetd_sync_capable differs from its current poll_schedule_relaxed: it enqueues
+	// a Replace carrying the relaxed (480m) or fast (1m) interval and records the new intended state. The not-capable+fast case also covers
+	// the unlinked / never-reported-capable enrollment (fleetd_sync_capable defaults to false).
+	for _, c := range []struct {
+		name         string
+		syncCapable  bool
+		relaxed      bool
+		wantEnqueue  bool
+		wantInterval string // only checked when wantEnqueue
+	}{
+		{"capable host on fast poll is relaxed", true, false, true, windowsMDMRelaxedPollIntervalMinutes},
+		{"capable host already relaxed is a no-op", true, true, false, ""},
+		{"not-capable host marked relaxed is restored to fast", false, true, true, windowsMDMFastPollIntervalMinutes},
+		{"not-capable host already on fast poll is a no-op", false, false, false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var enqueued *fleet.MDMWindowsCommand
+			var intendedRelaxed *bool
+			ds := new(mock.Store)
+			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
+				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+			) error {
+				assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
+				assert.Equal(t, enrollmentID, id)
+				enqueued, intendedRelaxed = cmd, &relaxed
+				return nil
+			}
+			svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				ID: enrollmentID, MDMDeviceID: deviceID, PollScheduleRelaxed: c.relaxed, FleetdSyncCapable: c.syncCapable,
+			}
+			require.NoError(t, svc.reconcileWindowsMDMPollSchedule(t.Context(), device))
+
+			require.Equal(t, c.wantEnqueue, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
+			if c.wantEnqueue {
+				assertEnqueuedInterval(t, enqueued, c.wantInterval)
+				require.NotNil(t, intendedRelaxed)
+				// The recorded intended state always equals the capability (relax iff capable).
+				assert.Equal(t, c.syncCapable, *intendedRelaxed)
+			}
+		})
+	}
+}
+
+// TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows
+// automatic enrollment, including the v2 (client ID / GUID `aud`) path added for issue #46388 and the unchanged v1
+// (server-URL `aud`) path.
+func TestHasAuthorizedAzureAudience(t *testing.T) {
+	const (
+		serverHost = "fleet.example.com"
+		clientID   = "11111111-1111-1111-1111-111111111111"
+		clientID2  = "22222222-2222-2222-2222-222222222222"
+		serverURL  = "https://fleet.example.com"
+	)
+	for _, tc := range []struct {
+		name      string
+		audiences []string
+		clientIDs []string
+		want      bool
+	}{
+		// v1 (server URL) path - unchanged behavior, no client IDs configured.
+		{"v1 server URL, no client IDs", []string{serverURL}, nil, true},
+		{"v1 server URL with path", []string{serverURL + "/some/path"}, nil, true},
+		{"v1 host case-insensitive (RFC 3986)", []string{"https://Fleet.Example.COM"}, nil, true},
+		{"v1 same host different port is rejected", []string{"https://fleet.example.com:8443"}, nil, false},
+		{"v1 different host", []string{"https://evil.example.com"}, nil, false},
+
+		// v2 (client ID) path.
+		{"v2 client ID match", []string{clientID}, []string{clientID}, true},
+		{"v2 matches second configured client ID", []string{clientID2}, []string{clientID, clientID2}, true},
+		{"v2 client ID, case-insensitive aud", []string{strings.ToUpper(clientID)}, []string{clientID}, true},
+		{"v2 client ID with surrounding whitespace", []string{"  " + clientID + "  "}, []string{clientID}, true},
+		{"v2 client ID not in allowlist", []string{"99999999-9999-9999-9999-999999999999"}, []string{clientID}, false},
+
+		// Backward compatibility: a v2-style GUID aud with no client IDs configured is not authorized.
+		{"GUID aud, no client IDs configured", []string{clientID}, nil, false},
+
+		// Mixed / multiple audiences: any one match wins.
+		{"multiple auds, client ID wins", []string{"urn:something", clientID}, []string{clientID}, true},
+		{"multiple auds, server URL wins", []string{"urn:something", serverURL}, []string{clientID}, true},
+		{"multiple auds, none match", []string{"urn:something", "https://other.example.com"}, []string{clientID}, false},
+
+		// Degenerate inputs.
+		{"empty audiences", nil, []string{clientID}, false},
+		{"empty everything", nil, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureAudience(tc.audiences, serverHost, tc.clientIDs))
+		})
+	}
+
+	// A GUID aud must not match a misconfigured (empty) serverHost - GUIDs parse to a URL with an empty host.
+	t.Run("empty serverHost does not match GUID aud", func(t *testing.T) {
+		assert.False(t, hasAuthorizedAzureAudience([]string{clientID}, "", nil))
+	})
+}
+
+// TestHasAuthorizedAzureTenant covers the tenant-matching logic that authorizes Entra-issued tokens by the `tid`
+// claim. The comparison is case-insensitive: the GUID validator accepts upper-case tenant IDs, and
+// Entra emits `tid` lower-cased, so a tenant ID stored with upper-case hex must still authorize enrollment.
+func TestHasAuthorizedAzureTenant(t *testing.T) {
+	const (
+		tenantA = "1a86b496-e2a4-43ef-ba00-20004e29b13b"
+		tenantB = "6dca58c4-c817-4730-831b-f3348931df05"
+	)
+	for _, tc := range []struct {
+		name      string
+		tenantIDs []string
+		token     string
+		want      bool
+	}{
+		{"exact match", []string{tenantA}, tenantA, true},
+		{"matches second configured", []string{tenantA, tenantB}, tenantB, true},
+		{"configured upper, token lower", []string{strings.ToUpper(tenantB)}, tenantB, true},
+		{"configured lower, token upper", []string{tenantB}, strings.ToUpper(tenantB), true},
+		{"surrounding whitespace", []string{"  " + tenantA + "  "}, tenantA, true},
+		{"not configured", []string{tenantA}, tenantB, false},
+		{"empty configured", nil, tenantA, false},
+		{"empty token", []string{tenantA}, "", false},
+		{"empty token with whitespace", []string{tenantA}, "   ", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureTenant(tc.tenantIDs, tc.token))
+		})
+	}
+}

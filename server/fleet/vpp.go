@@ -321,3 +321,15 @@ func findUnsupportedFleetVar(v any) (string, bool) {
 	}
 	return "", false
 }
+
+// VPPInstallReleaseInfo carries the per-install data the cancel path needs to
+// decide whether (and how) to release a previously-reserved VPP license seat
+// for a canceled install. AssociatedEventID is set only when this install was
+// the one that called AssociateAssets; HasOtherActiveInstall is true when
+// another non-canceled, non-failed install for the same (host, adam_id) is
+// still in flight and would still need the seat.
+type VPPInstallReleaseInfo struct {
+	AdamID                string
+	AssociatedEventID     string
+	HasOtherActiveInstall bool
+}

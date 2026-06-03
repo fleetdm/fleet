@@ -2662,7 +2662,8 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 // NOTE If onlyProfileUUIDs is provided (not nil), only profiles with
 // those UUIDs will be update instead of rebuilding all pending
 // profiles for hosts
-func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
+// TODO(MHJ): Marked for deletion
+func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB( //nolint:unused // Will be cleaned up in a follow up PR.
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
@@ -3921,6 +3922,17 @@ func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*
 }
 
 func subqueryFileVaultVerifying() (string, []interface{}) {
+	// A host is "verifying" when the FileVault profile is verifying or verified and
+	// a key row exists with decryptability not yet confirmed (decryptable IS NULL),
+	// or when the profile is verifying and the key is decryptable. The previous
+	// version only matched the verified-status branch, missing the equivalent
+	// verifying-status case that PopulateOSSettingsAndMacOSSettings (server/fleet/
+	// hosts.go) reports as Verifying. See https://github.com/fleetdm/fleet/issues/45369.
+	//
+	// Note: hdek.host_id IS NOT NULL distinguishes "row exists with NULL decryptable"
+	// from "no key row at all" — the latter is intentionally not matched here because
+	// raw_decryptable is mapped to -1 for missing rows (see server/datastore/mysql/
+	// hosts.go), and the Go logic classifies that as Action Required.
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3929,15 +3941,16 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND hmap.operation_type = ?
                 AND (
-		  (hmap.status = ? AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
+		  (hmap.status IN (?, ?) AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
 		  OR
 		  (hmap.status = ? AND hdek.decryptable = 1)
 		)`
 	args := []interface{}{
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerified,
-		fleet.MDMDeliveryVerifying,
+		mobileconfig.FleetFileVaultPayloadIdentifier, // profile_identifier
+		fleet.MDMOperationTypeInstall,                // operation_type
+		fleet.MDMDeliveryVerifying,                   // branch 1: status IN
+		fleet.MDMDeliveryVerified,                    // branch 1: status IN
+		fleet.MDMDeliveryVerifying,                   // branch 2: status =
 	}
 	return sql, args
 }
@@ -5552,7 +5565,14 @@ INSERT INTO mdm_apple_declarations (
 	)
 )`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
+	// An OS-update declaration is tracked as the team's OS-update profile within
+	// the insert transaction so it rolls back together on failure.
+	isSoftwareUpdate := false
+	if rawDecl, err := fleet.GetRawDeclarationValues(declaration.RawJSON); err == nil {
+		isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
+	}
+
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
@@ -5579,10 +5599,10 @@ ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5651,6 +5671,12 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			{ProfileUUID: declUUID, FleetVariables: usesFleetVars},
 		}, "darwin", true); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
+		}
+
+		if isSoftwareUpdate {
+			if err := trackAppleUpdateConfigProfileDB(ctx, tx, tmID, declUUID); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -6543,6 +6569,41 @@ WHERE
 	}
 
 	return assetMap, nil
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+    name, value, HEX(md5_checksum) as md5_checksum
+FROM
+   mdm_config_assets
+WHERE
+    name IN (?)
+ORDER BY id DESC`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name including deleted")
+	}
+
+	for i, asset := range res {
+		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
+		}
+		res[i].Value = decryptedVal
+	}
+
+	return res, nil
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
@@ -8529,5 +8590,30 @@ func (ds *Datastore) clearHostActivitiesForAppleMDMReset(ctx context.Context, tx
 		return ctxerr.Wrap(ctx, err, "deactivate nano enrollment queue for mdm reset", "host_uuid", hostUUID)
 	}
 
+	return nil
+}
+
+func (ds *Datastore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	const stmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+    	INNER JOIN mdm_apple_declarations mad ON mad.declaration_uuid = mcpus.apple_declaration_uuid
+	WHERE mad.team_id = ?`
+
+	var configured bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &configured, stmt, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if apple update config profile is configured")
+	}
+
+	return configured, nil
+}
+
+// trackAppleUpdateConfigProfileDB records declUUID as the team's OS-update
+// declaration within the caller's transaction
+func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, declUUID string) error {
+	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
+		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
+	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting software update profile")
+	}
 	return nil
 }
