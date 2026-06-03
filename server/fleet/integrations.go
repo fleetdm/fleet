@@ -468,11 +468,36 @@ type GoogleCalendarIntegration struct {
 	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
 }
 
+// DefaultGoogleWorkspaceCustomerID is the value used by the Google Admin SDK
+// Directory API to refer to the account associated with the impersonated admin.
+const DefaultGoogleWorkspaceCustomerID = "my_customer"
+
+// GoogleWorkspaceIntegration configures syncing IdP host vitals (users and
+// groups) directly from Google Workspace via the Admin SDK Directory API, using
+// a service account with domain-wide delegation. The synced users/groups are
+// written into the SCIM tables, so the rest of the IdP host vitals stack works
+// unchanged.
+type GoogleWorkspaceIntegration struct {
+	// Domain is the primary Google Workspace domain (e.g. "example.com").
+	Domain string `json:"domain"`
+	// CustomerID is the Directory API customer to list users/groups for.
+	// Defaults to DefaultGoogleWorkspaceCustomerID ("my_customer") when blank.
+	CustomerID string `json:"customer_id"`
+	// AdminEmail is the Google Workspace super-admin to impersonate via
+	// domain-wide delegation (the JWT "Subject"). The Directory API requires
+	// impersonating an admin with directory read access.
+	AdminEmail string `json:"admin_email"`
+	// ApiKey holds the service account JSON (client_email + private_key). It
+	// reuses GoogleCalendarApiKey for its masking/preserve-on-PATCH behavior.
+	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration           `json:"jira"`
-	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	Jira            []*JiraIntegration            `json:"jira"`
+	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
+	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
+	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
@@ -589,6 +614,59 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		intg.Domain = strings.TrimSpace(intg.Domain)
 		if intg.Domain == "" {
 			invalid.Append("integrations.google_calendar.domain", "domain is required")
+		}
+	}
+}
+
+// ValidateGoogleWorkspaceIntegrations validates the Google Workspace IdP
+// integrations. It mirrors ValidateGoogleCalendarIntegrations but additionally
+// requires the super-admin email to impersonate, and defaults the customer ID.
+func ValidateGoogleWorkspaceIntegrations(intgs []*GoogleWorkspaceIntegration, invalid *InvalidArgumentError) {
+	if len(intgs) > 1 {
+		invalid.Append("integrations.google_workspace", "integrating with >1 Google Workspace service account is not yet supported.")
+	}
+	for _, intg := range intgs {
+		if email, ok := intg.ApiKey.Values[GoogleCalendarEmail]; !ok {
+			invalid.Append(
+				fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarEmail),
+				fmt.Sprintf("%s is required", GoogleCalendarEmail),
+			)
+		} else {
+			email = strings.TrimSpace(email)
+			intg.ApiKey.Values[GoogleCalendarEmail] = email
+			if email == "" {
+				invalid.Append(
+					fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarEmail),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarEmail),
+				)
+			}
+		}
+		if privateKey, ok := intg.ApiKey.Values[GoogleCalendarPrivateKey]; !ok {
+			invalid.Append(
+				fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarPrivateKey),
+				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
+			)
+		} else {
+			privateKey = strings.TrimSpace(privateKey)
+			intg.ApiKey.Values[GoogleCalendarPrivateKey] = privateKey
+			if privateKey == "" {
+				invalid.Append(
+					fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarPrivateKey),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarPrivateKey),
+				)
+			}
+		}
+		intg.Domain = strings.TrimSpace(intg.Domain)
+		if intg.Domain == "" {
+			invalid.Append("integrations.google_workspace.domain", "domain is required")
+		}
+		intg.AdminEmail = strings.TrimSpace(intg.AdminEmail)
+		if intg.AdminEmail == "" {
+			invalid.Append("integrations.google_workspace.admin_email", "admin_email is required")
+		}
+		intg.CustomerID = strings.TrimSpace(intg.CustomerID)
+		if intg.CustomerID == "" {
+			intg.CustomerID = DefaultGoogleWorkspaceCustomerID
 		}
 	}
 }

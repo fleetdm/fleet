@@ -116,9 +116,40 @@ It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To 
 
 ## Google Workspace
 
-Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
+Fleet can sync users and groups directly from Google Workspace using a [service account](https://cloud.google.com/iam/docs/service-account-overview) with [domain-wide delegation](https://support.google.com/a/answer/162106), so you don't need SCIM or a third-party bridge. This is the recommended approach.
 
-### Prerequisites
+> Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. If you prefer not to use the native integration, you can instead export users to [authentik](https://goauthentik.io/), which then pushes users to Fleet's SCIM endpoint (documented after the native integration below).
+
+### Native integration (recommended)
+
+#### Prerequisites
+
+- A Google Workspace (or Cloud Identity) account where you are a super-admin.
+- A Google Cloud project with the **Admin SDK API** enabled.
+
+#### Connect
+
+1. In the Google Cloud console, create a **service account** and generate a JSON key.
+2. Enable **domain-wide delegation** for the service account. In the Google Admin console, go to **Security > Access and data control > API controls > Domain-wide delegation**, and authorize the service account's client ID with these read-only scopes:
+   - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+   - `https://www.googleapis.com/auth/admin.directory.group.readonly`
+3. In Fleet, configure the integration under `integrations.google_workspace` (via the `PATCH /api/v1/fleet/config` endpoint or GitOps) with:
+   - `domain`: your primary Google Workspace domain (e.g. `example.com`).
+   - `admin_email`: a Google Workspace super-admin to impersonate.
+   - `api_key_json`: the full service account JSON key.
+   - `customer_id` (optional): defaults to `my_customer`.
+
+Fleet syncs users and groups on a schedule (every 5 minutes by default, configurable via the `google_workspace.periodicity` server setting). A user's primary email becomes their SCIM `userName`, and their organization department and group memberships populate the `end_user_idp_department` and `end_user_idp_group` host vitals.
+
+> Notes and limitations:
+> - The Google Workspace integration is authoritative over the IdP users/groups in Fleet. Don't use it at the same time as pushing IdP data via the SCIM API (e.g. from Okta or Entra), or one source will delete the other's data.
+> - Nested groups (a group that is a member of another group) are not expanded.
+
+### authentik bridge (alternative)
+
+If you can't use the native integration, you can export users to [authentik](https://goauthentik.io/), which then adds users to Fleet.
+
+#### Prerequisites
 
 - [Install](https://docs.goauthentik.io/docs/install-config/install/aws) and run authentik
 - Google Workspace Business Plus plan (or one of the plans listed in [Google Secure LDAP](https://support.google.com/a/answer/9048516?hl=en&ref_topic=9048334&sjid=5482490660946222035-EU) article)

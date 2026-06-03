@@ -624,6 +624,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Handle Google Workspace API key preservation/replacement (same pattern as
+	// Google Calendar above).
+	if newAppConfig.Integrations.GoogleWorkspace != nil {
+		for i, newGW := range newAppConfig.Integrations.GoogleWorkspace {
+			if i < len(appConfig.Integrations.GoogleWorkspace) {
+				if newGW.ApiKey.IsEmpty() || newGW.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleWorkspace) > i {
+						appConfig.Integrations.GoogleWorkspace[i].ApiKey = oldAppConfig.Integrations.GoogleWorkspace[i].ApiKey
+					}
+				} else {
+					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
+				}
+			}
+		}
+	}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -824,6 +840,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
+	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -950,6 +967,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// If google_calendar is null, we keep the existing setting.
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
+	}
+	// If google_workspace is null, we keep the existing setting.
+	if newAppConfig.Integrations.GoogleWorkspace == nil {
+		appConfig.Integrations.GoogleWorkspace = oldAppConfig.Integrations.GoogleWorkspace
 	}
 
 	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
@@ -1112,6 +1133,27 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
+		}
+	}
+
+	oldHasGW := len(oldAppConfig.Integrations.GoogleWorkspace) > 0
+	newHasGW := len(appConfig.Integrations.GoogleWorkspace) > 0
+	switch {
+	case newHasGW && !oldHasGW:
+		act := fleet.ActivityTypeEnabledGoogleWorkspaceIntegration{Domain: appConfig.Integrations.GoogleWorkspace[0].Domain}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled google workspace integration")
+		}
+	case !newHasGW && oldHasGW:
+		act := fleet.ActivityTypeDisabledGoogleWorkspaceIntegration{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled google workspace integration")
+		}
+	case newHasGW && oldHasGW &&
+		appConfig.Integrations.GoogleWorkspace[0].Domain != oldAppConfig.Integrations.GoogleWorkspace[0].Domain:
+		act := fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: appConfig.Integrations.GoogleWorkspace[0].Domain}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited google workspace integration")
 		}
 	}
 

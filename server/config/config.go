@@ -796,6 +796,7 @@ type FleetConfig struct {
 	Prometheus                 PrometheusConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
+	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
@@ -983,6 +984,12 @@ func (c *CalendarConfig) AlwaysReloadEvent() bool {
 
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
+}
+
+// GoogleWorkspaceConfig configures the Google Workspace IdP host vitals sync.
+type GoogleWorkspaceConfig struct {
+	// Periodicity is how often to sync users/groups from Google Workspace.
+	Periodicity time.Duration
 }
 
 type x509KeyPairConfig struct {
@@ -1783,6 +1790,12 @@ func (man Manager) addConfigs() {
 		"How much time to wait between processing calendar integration.",
 	)
 
+	// Google Workspace IdP host vitals integration
+	man.addConfigDuration(
+		"google_workspace.periodicity", 5*time.Minute,
+		"How much time to wait between syncing users and groups from Google Workspace.",
+	)
+
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 
@@ -2113,6 +2126,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		GoogleWorkspace: GoogleWorkspaceConfig{
+			Periodicity: man.getConfigDuration("google_workspace.periodicity"),
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),

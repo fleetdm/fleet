@@ -2298,6 +2298,42 @@ Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
+## enabled_google_workspace_integration
+
+Generated when the Google Workspace IdP host vitals integration is enabled.
+
+This activity contains the following field:
+- "domain": the Google Workspace domain.
+
+#### Example
+
+```json
+{
+	"domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when the Google Workspace IdP host vitals integration is edited while enabled.
+
+This activity contains the following field:
+- "domain": the Google Workspace domain, post-edit.
+
+#### Example
+
+```json
+{
+	"domain": "example.com"
+}
+```
+
+## disabled_google_workspace_integration
+
+Generated when the Google Workspace IdP host vitals integration is disabled.
+
+This activity does not contain any detail fields.
+
 ## canceled_run_script
 
 Generated when upcoming activity `ran_script` is canceled.

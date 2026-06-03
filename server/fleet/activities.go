@@ -85,6 +85,28 @@ func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
 	return "disabled_activity_automations"
 }
 
+type ActivityTypeEnabledGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeEnabledGoogleWorkspaceIntegration) ActivityName() string {
+	return "enabled_google_workspace_integration"
+}
+
+type ActivityTypeEditedGoogleWorkspaceIntegration struct {
+	Domain string `json:"domain"`
+}
+
+func (a ActivityTypeEditedGoogleWorkspaceIntegration) ActivityName() string {
+	return "edited_google_workspace_integration"
+}
+
+type ActivityTypeDisabledGoogleWorkspaceIntegration struct{}
+
+func (a ActivityTypeDisabledGoogleWorkspaceIntegration) ActivityName() string {
+	return "disabled_google_workspace_integration"
+}
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`

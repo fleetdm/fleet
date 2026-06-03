@@ -946,6 +946,18 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				}
 			}
 		}
+		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+			for _, intg := range googleWorkspace.([]any) {
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
+					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+						Filename: "default.yml",
+						Key:      "integrations.google_workspace.api_key_json",
+					})
+				}
+			}
+		}
 		if jira, ok := result["jira"]; ok && jira != nil {
 			for _, intg := range jira.([]interface{}) {
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")

@@ -340,6 +340,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		}
 		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger, deps.activitySvc)
 	})
+
+	deps.register("failed to register google workspace schedule", func() (fleet.CronSchedule, error) {
+		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, deps.config.GoogleWorkspace, deps.logger)
+	})
 }
 
 // registerMiscCrons covers the host vitals label membership schedule and the
