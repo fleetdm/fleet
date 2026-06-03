@@ -1,4 +1,3 @@
-# Audit-ready every day, part 2: Continuous compliance in practice
 
 *How Fleet's continuous evidence architecture maps to your framework, your workflow, and your team*
 
