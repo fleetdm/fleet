@@ -6,10 +6,15 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
-import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
+import {
+  IPolicy,
+  IStoredPolicyResponse,
+  OtherAutomationType,
+} from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
 import {
   API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   APP_CONTEXT_NO_TEAM_SUMMARY,
@@ -33,7 +38,11 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import PolicyAutomations from "pages/policies/edit/components/PolicyAutomations";
+import {
+  PatchAutomationCta,
+  PolicyAutomationsList,
+} from "pages/policies/components";
+import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -169,27 +178,21 @@ const PolicyDetailsPage = ({
     ["team", policyTeamId],
     () => teamsAPI.load(policyTeamId as number),
     {
-      enabled: !!policyTeamId && policyTeamId > 0,
+      enabled: policyTeamId != null && policyTeamId >= API_NO_TEAM_ID,
       refetchOnWindowFocus: false,
     }
   );
 
   const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
-  let currentAutomatedPolicies: number[] = [];
-  if (teamData?.team) {
-    const {
-      webhook_settings: { failing_policies_webhook: webhook },
-      integrations,
-    } = teamData.team;
-    const isIntegrationEnabled =
-      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
-      false;
-    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-      currentAutomatedPolicies = webhook?.policy_ids || [];
-    }
-  }
+  const {
+    state: ticketOrWebhookState,
+    policyIds: currentAutomatedPolicies,
+  } = getTicketOrWebhookInfo(
+    storedPolicy?.team_id == null ? config ?? undefined : teamData?.team
+  );
+  const otherAutomationType: OtherAutomationType | undefined =
+    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
 
   useEffect(() => {
     if (storedPolicy?.name) {
@@ -436,13 +439,19 @@ const PolicyDetailsPage = ({
             {renderPlatforms()}
             {renderLabels()}
             {storedPolicy && (
-              <PolicyAutomations
-                storedPolicy={storedPolicy}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-                canEditPolicy={canEditPolicy}
-                onAddAutomation={onAddPatchAutomation}
-                isAddingAutomation={isAddingAutomation}
-              />
+              <>
+                <PatchAutomationCta
+                  storedPolicy={storedPolicy}
+                  canEditPolicy={canEditPolicy}
+                  onAddAutomation={onAddPatchAutomation}
+                  isAddingAutomation={isAddingAutomation}
+                />
+                <PolicyAutomationsList
+                  storedPolicy={storedPolicy}
+                  currentAutomatedPolicies={currentAutomatedPolicies}
+                  otherAutomationType={otherAutomationType}
+                />
+              </>
             )}
           </>
         )}

@@ -198,6 +198,9 @@ func (r *profileReconciler) sendHostProfiles(
 				ProfileUUID:   prof.ProfileUUID,
 				ProfileName:   prof.ProfileName,
 				Detail:        prof.Detail,
+				// Checksum intentionally omitted: withheld profiles were not
+				// actually sent, so they must retain a zero checksum to trigger
+				// re-send once the blocking certificate is verified.
 			}
 		}
 	}
@@ -235,6 +238,7 @@ func (r *profileReconciler) sendHostProfiles(
 				OperationType: fleet.MDMOperationTypeInstall,
 				ProfileUUID:   prof.ProfileUUID,
 				ProfileName:   prof.ProfileName,
+				Checksum:      prof.Checksum,
 				Detail:        detail,
 			}
 		}
@@ -245,6 +249,7 @@ func (r *profileReconciler) sendHostProfiles(
 				OperationType: fleet.MDMOperationTypeRemove,
 				ProfileUUID:   prof.ProfileUUID,
 				ProfileName:   prof.ProfileName,
+				Checksum:      prof.Checksum,
 				Detail:        detail,
 			}
 		}
@@ -292,6 +297,7 @@ func (r *profileReconciler) sendHostProfiles(
 			OperationType:    fleet.MDMOperationTypeInstall,
 			ProfileUUID:      prof.ProfileUUID,
 			ProfileName:      prof.ProfileName,
+			Checksum:         prof.Checksum,
 			RequestFailCount: setFailCount,
 		}
 	}
@@ -313,6 +319,7 @@ func (r *profileReconciler) sendHostProfiles(
 			OperationType:    fleet.MDMOperationTypeRemove,
 			ProfileUUID:      prof.ProfileUUID,
 			ProfileName:      prof.ProfileName,
+			Checksum:         prof.Checksum,
 			RequestFailCount: setFailCount,
 		}
 	}

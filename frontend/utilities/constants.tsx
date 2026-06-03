@@ -372,7 +372,7 @@ export const MDM_STATUS_TOOLTIP: Record<
   ),
   "On (personal)": (
     <span>
-      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
+      MDM was turned on by signing in with Managed Apple Account on iOS/iPadOS,
       or by creating a work profile on Android. End users can turn MDM off.
     </span>
   ),

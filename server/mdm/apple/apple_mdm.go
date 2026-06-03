@@ -63,6 +63,8 @@ const (
 	DEPSyncLimit = 200
 
 	VPPLicenseNotFound = 9610
+
+	DeclarationTypeSoftwareUpdate = "com.apple.configuration.softwareupdate.enforcement.specific"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {

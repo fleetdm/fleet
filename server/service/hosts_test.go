@@ -2716,6 +2716,9 @@ func TestHostEncryptionKey(t *testing.T) {
 					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
 				}, nil
 			}
+			ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+				return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
+			}
 
 			t.Run("allowed users", func(t *testing.T) {
 				for _, u := range tt.allowedUsers {
@@ -2777,6 +2780,9 @@ func TestHostEncryptionKey(t *testing.T) {
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
 			}, nil
 		}
+		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
+		}
 		_, err = svc.HostEncryptionKey(ctx, 1)
 		require.ErrorIs(t, err, keyErr)
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
@@ -2834,6 +2840,9 @@ func TestHostEncryptionKey(t *testing.T) {
 						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
 					}, nil
+				}
+				ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+					return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
 				}
 
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
@@ -2948,6 +2957,9 @@ func TestHostEncryptionKey(t *testing.T) {
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
 			}, nil
+		}
+		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
 		}
 
 		_, err := svc.HostEncryptionKey(ctx, 1)
@@ -3481,6 +3493,71 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
+}
+
+// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is hidden only for the unenroll-driven
+// work-profile wipe on Android BYOD (personal) hosts.
+func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
+	newHost := func(platform string, enrollment *string, deviceStatus fleet.DeviceStatus, pending fleet.PendingDeviceAction) *fleet.Host {
+		return &fleet.Host{
+			Platform: platform,
+			MDM: fleet.MDMHostData{
+				EnrollmentStatus: enrollment,
+				DeviceStatus:     new(string(deviceStatus)),
+				PendingAction:    new(string(pending)),
+			},
+		}
+	}
+
+	cases := []struct {
+		name         string
+		platform     string
+		enrollment   *string
+		deviceStatus fleet.DeviceStatus
+		pending      fleet.PendingDeviceAction
+		wantSuppress bool
+	}{
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			host := newHost(tt.platform, tt.enrollment, tt.deviceStatus, tt.pending)
+			suppressAndroidBYODWipeStatus(host)
+			if tt.wantSuppress {
+				require.Equal(t, string(fleet.DeviceStatusUnlocked), *host.MDM.DeviceStatus)
+				require.Equal(t, string(fleet.PendingActionNone), *host.MDM.PendingAction)
+			} else {
+				require.Equal(t, string(tt.deviceStatus), *host.MDM.DeviceStatus)
+				require.Equal(t, string(tt.pending), *host.MDM.PendingAction)
+			}
+		})
+	}
+}
+
+// TestWipeHostFreeTierAndroidBYORejected verifies the core (Fleet Free) WipeHost rejects BYO (personally-owned)
+// Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
+// free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
+// TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
+func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
+	ds := new(mock.Store)
+	// Default newTestService license is Fleet Free.
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	const hostID = 1
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
+
+	err := svc.WipeHost(ctx, hostID, nil)
+	var badRequest *fleet.BadRequestError
+	require.ErrorAs(t, err, &badRequest)
 }
 
 func TestBulkOperationFilterValidation(t *testing.T) {

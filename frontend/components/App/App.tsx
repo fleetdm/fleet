@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
 
+import PATHS from "router/paths";
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
@@ -210,7 +211,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
-        window.location.href = "/login";
+        window.location.href = PATHS.LOGIN;
       }
     }
     return true;

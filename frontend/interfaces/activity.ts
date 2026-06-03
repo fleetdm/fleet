@@ -166,6 +166,8 @@ export enum ActivityType {
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  AddedMicrosoftEntraClientId = "added_microsoft_entra_client_id",
+  DeletedMicrosoftEntraClientId = "deleted_microsoft_entra_client_id",
   ClearedPasscode = "cleared_passcode",
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
@@ -189,6 +191,7 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.WipedHost
   | ActivityType.FailedWipe
+  | ActivityType.MdmUnenrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
@@ -311,6 +314,15 @@ export interface IActivityDetails {
   teams?: ITeamSummary[];
   triggered_by?: string;
   from_setup_experience?: boolean;
+  from_auto_update?: boolean;
+  /**
+   * Set on a failed install activity (`installed_app_store_app` /
+   * `installed_software`) when Fleet failed the install before reaching the
+   * device — currently, the managed app configuration references a Fleet
+   * variable that can't be resolved for this host. Empty for device-reported
+   * failures, which surface their reason through the MDM command error chain.
+   */
+  failure_reason?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -318,6 +330,7 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  client_id?: string;
   certificate_name?: string;
   certificate_template_id?: number;
   detail?: string;
@@ -329,6 +342,17 @@ export interface IActivityDetails {
   dataset?: string;
 }
 
+/**
+ * IActivityDetails plus the activity-envelope actor fields the
+ * install-details modal needs to render the actor-driven failure copy
+ * ("Fleet failed to install…" vs "<Admin> failed to install…"). Used by
+ * activity-feed entry points that stash a clicked activity into modal state.
+ */
+export type IActivityDetailsWithActor = IActivityDetails & {
+  actor_full_name?: string;
+  fleet_initiated?: boolean;
+};
+
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
 export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
@@ -337,6 +361,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
+  added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_software: "Added software",
@@ -372,6 +397,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
+  deleted_microsoft_entra_client_id: "Deleted Microsoft Entra client ID",
   deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
   deleted_org_logo: "Deleted organization logo",

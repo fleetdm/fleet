@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -13,8 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
@@ -611,9 +614,63 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set android profiles")
 		}
 
+		// Track the team's OS-update (software update) profile/declaration within
+		// this transaction so the tracking row commits atomically with the batch.
+		// Batch replaces profiles, so a removed OS-update profile clears its
+		// tracking row via ON DELETE CASCADE.
+		if err := batchTrackUpdateConfigProfilesDB(ctx, tx, tmID, winProfiles, macDeclarations); err != nil {
+			return ctxerr.Wrap(ctx, err, "tracking software update profiles")
+		}
+
 		return nil
 	})
 	return updates, err
+}
+
+// batchTrackUpdateConfigProfilesDB records any OS-update (software update) Windows
+// profile or Apple declaration in the batch as the team's OS-update profile. The
+// caller (BatchSetMDMProfiles) enforces at most one of each per team, and the
+// inserts are idempotent, so this safely re-applies an unchanged profile.
+func batchTrackUpdateConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, tmID *uint, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+
+	for _, p := range winProfiles {
+		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			continue
+		}
+		var profileUUID string
+		if err := sqlx.GetContext(ctx, tx, &profileUUID,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, teamID, p.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows profile uuid")
+		}
+		const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+			ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
+		if _, err := tx.ExecContext(ctx, stmt, profileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert windows update config profile")
+		}
+	}
+
+	for _, d := range macDeclarations {
+		rawDecl, err := fleet.GetRawDeclarationValues(d.RawJSON)
+		if err != nil || rawDecl.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
+			continue
+		}
+		var declUUID string
+		if err := sqlx.GetContext(ctx, tx, &declUUID,
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?`, teamID, d.Identifier); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting apple declaration uuid")
+		}
+		const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
+			ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
+		if _, err := tx.ExecContext(ctx, stmt, declUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert apple update config profile")
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -850,10 +907,26 @@ ORDER BY
 	return labels, nil
 }
 
+// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+// (including verified/failed, not just pending) and, for Apple, soft-disables nano_enrollments so the Apple profile
+// reconciler does not recreate pending rows after MDM is re-enabled. Called when MDM is toggled off globally.
+//
+// The platform argument is a platform family. Passing any of "darwin", "ios", or "ipados" cleans up all three Apple
+// platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
+//
+// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The Apple host_mdm upsert path
+// (upsertMDMAppleHostMDMInfoDB) only updates enrolled on duplicate-key, so clearing those columns here would leave them
+// blank for iOS/iPadOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
 func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
+			// The Apple reconciler filters on nano_enrollments.enabled = 1, so this prevents pending rows from being recreated when
+			// Apple MDM is re-enabled with a new APNS cert.
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
+				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
 			}
@@ -871,6 +944,7 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 	})
 }
 
+// TODO(MHJ): Document the oddity this now only handles Android
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
@@ -901,6 +975,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// batchSetMDMWindowsProfilesDB, which is the transactional source of
 	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
 	// get Apple-parity synchronous reconciliation here.
+	// TODO(MHJ): Marked for deletion
 	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
@@ -919,6 +994,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // reconciliation is NOT performed here; the resolved Windows host UUIDs are
 // returned so the caller can optionally reconcile them (only the test path
 // does so; production relies on the mdm_windows_profile_manager cron).
+// TODO(MHJ): Major cleanup required here
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -1092,7 +1168,7 @@ OR
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
-			appleHosts = append(appleHosts, h.UUID)
+			appleHosts = append(appleHosts, h.UUID) //nolint:staticcheck // Will be cleaned up in follow-up PR
 		case "windows":
 			if collectWinHosts {
 				winHosts = append(winHosts, h.UUID)
@@ -1107,33 +1183,9 @@ OR
 		}
 	}
 
-	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
 		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-	// TODO(roberto): this method currently sets the state of all
-	// declarations for all hosts. I don't see an immediate concern
-	// (and my hunch is that we could even do the same for
-	// profiles) but this could be optimized to use only a provided
-	// set of host uuids.
-	//
-	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
-	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
-	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
-	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
 
 	return updates, winHosts, nil

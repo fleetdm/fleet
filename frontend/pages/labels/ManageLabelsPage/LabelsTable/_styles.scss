@@ -6,4 +6,13 @@
     font-weight: initial;
     font-size: $x-small;
   }
+
+  .data-table-block .data-table__wrapper {
+    overflow-x: auto;
+  }
+
+  .name__cell,
+  .description__cell {
+    min-width: $col-md;
+  }
 }

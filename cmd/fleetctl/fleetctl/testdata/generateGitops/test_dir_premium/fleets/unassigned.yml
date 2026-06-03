@@ -24,6 +24,8 @@ controls:
   - path: ../lib/unassigned/scripts/Script Z.ps1
   setup_experience: 'TODO: update with your setup_experience configuration'
   windows_enabled_and_configured: true
+  windows_entra_client_ids:
+  - 7c1de9aa-9b2c-4d3e-8f10-2233445566aa
   windows_entra_tenant_ids:
   - 5b84b6dd-d257-415e-b8b4-0240666ba4d4
   - 9d30f55f-d117-4574-acf0-ff593e3e06e3
@@ -36,6 +38,7 @@ name: Unassigned
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -46,6 +49,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
@@ -56,6 +60,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
   install_software:

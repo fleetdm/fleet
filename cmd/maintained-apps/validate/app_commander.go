@@ -100,7 +100,7 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 		return false
 	}
 	if existance {
-		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was found after uninstall", ac.Version))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("App still present after uninstall (expected no match for version '%s' in programs)", ac.Version))
 		return false
 	}
 
