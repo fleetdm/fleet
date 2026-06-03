@@ -1025,15 +1025,12 @@ func (a *agent) runOrbitLoop() {
 
 	// Simulated Windows MDM hosts advertise CapabilityWindowsMDMSync, like real Windows fleetd, so the server relaxes
 	// their DMClient poll schedule (via a Replace on the poll node) and wakes them on demand via WindowsMDMSyncRequest
-	// instead of relying on frequent polling. On a real (non-Windows) host this capability is GOOS-gated; here we set it
-	// explicitly for the agents simulating Windows so the server-side feature is exercised under load.
+	// instead of relying on frequent polling. Real fleetd adds this at construction (GetOrbitClientCapabilities gates it
+	// on GOOS=windows); osquery-perf simulates Windows on a non-Windows GOOS, so we add it here. Mutating the map directly
+	// is safe: GetOrbitClientCapabilities returns a fresh per-client map (not shared), and this runs during setup before
+	// the first request or any concurrent goroutine, so there is no copy needed.
 	if a.winMDMClient != nil {
-		// Copy before adding: BaseClient documents that ClientCapabilities shouldn't be modified after construction, so
-		// we swap in a fresh map rather than mutating the one NewOrbitClient built.
-		caps := fleet.CapabilityMap{}
-		caps.Copy(orbitClient.ClientCapabilities)
-		caps[fleet.CapabilityWindowsMDMSync] = struct{}{}
-		orbitClient.ClientCapabilities = caps
+		orbitClient.ClientCapabilities[fleet.CapabilityWindowsMDMSync] = struct{}{}
 	}
 
 	deviceClient, err := fleetclient.NewDeviceClient(a.serverAddress, true, "", nil, "")
@@ -1146,8 +1143,7 @@ func (a *agent) runOrbitLoop() {
 			}
 			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
 				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
-				// session now. Mirror fleetd's on-demand wake: signal the MDM loop to run a session promptly instead of
-				// waiting for the next scheduled poll. Non-blocking: if a wake is already pending, this one coalesces.
+				// session now.
 				select {
 				case a.winMDMWake <- struct{}{}:
 				default:
@@ -1565,10 +1561,18 @@ func (a *agent) runWindowsMDMLoop() {
 	for {
 		onDemand := false
 		select {
-		case <-ticker.C:
 		case <-a.winMDMWake:
 			// The server asked us (via WindowsMDMSyncRequest) to start a session now, without waiting for the poll.
 			onDemand = true
+		case <-ticker.C:
+			// A wake may have arrived at almost the same time as this tick; select picks at random when both are ready,
+			// which could miscount a wake-triggered session as poll-triggered. Drain any buffered wake first so the
+			// on-demand metric is deterministic (and a coincident tick+wake collapses into a single on-demand session).
+			select {
+			case <-a.winMDMWake:
+				onDemand = true
+			default:
+			}
 		}
 
 		// If the server relaxed (or restored) our DMClient poll schedule via a Replace on the poll node, match it so our
