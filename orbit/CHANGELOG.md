@@ -6,10 +6,10 @@
 
 * Updated orbit to rotate desktop token ("identifier" file) even if Fleet Desktop is disabled.
 
-* Improved validation around file paths in Orbit. 
+* Improved validation around file paths in Orbit.
 
 * Fixed Fleet Desktop tray icon in KDE:
-  * Fixed the tray icon appearing oversized in KDE Plasma on Linux installs when hosts have kde-plasma-desktop installed alongside another windows manager.
+  * Fixed the tray icon appearing oversized in KDE Plasma on Linux installs when hosts have kde-plasma-desktop installed alongside another window manager.
   * Used the color version of the icon on KDE to improve UX on light/dark themes.
 
 * Updated go to 1.26.3.
