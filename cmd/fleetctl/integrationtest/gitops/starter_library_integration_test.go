@@ -5,13 +5,14 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,7 @@ func (s *starterLibraryIntegrationTestSuite) SetupSuite() {
 		Pool:        redisPool,
 	}
 
-	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	users, server := svctest.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL)
 	s.Server = server
 	s.Users = users
@@ -76,7 +77,7 @@ func (s *starterLibraryIntegrationTestSuite) TestApplyStarterLibraryFree() {
 		token,
 		logger,
 		func(args []string) error {
-			_, err := fleetctl.RunAppNoChecks(args)
+			_, err := fleetctltest.RunAppNoChecks(args)
 			return err
 		},
 	)

@@ -1,0 +1,10 @@
+{
+  "name": "TextExpander",
+  "slug": "textexpander/windows",
+  "package_identifier": "TextExpander.TextExpander",
+  "unique_identifier": "TextExpander",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

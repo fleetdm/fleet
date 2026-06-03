@@ -37,6 +37,8 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
 	AutomaticInstall  bool
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -53,6 +55,8 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
+	Configuration []byte
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -134,6 +138,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	uninstallScriptMultipart, ok := r.MultipartForm.Value["uninstall_script"]
 	if ok && len(uninstallScriptMultipart) > 0 {
 		decoded.UninstallScript = &uninstallScriptMultipart[0]
+	}
+
+	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
+		decoded.Configuration = []byte(cfg[0])
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -250,6 +258,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
+		Configuration:     req.Configuration,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -358,6 +367,10 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PostInstallScript = val[0]
 	}
 
+	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
+		decoded.Configuration = []byte(cfg[0])
+	}
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -459,6 +472,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
+		Configuration:     req.Configuration,
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
@@ -780,7 +794,7 @@ func getDeviceSoftwareUninstallResultsEndpoint(ctx context.Context, request inte
 	req := request.(*getDeviceSoftwareUninstallResultsRequest)
 	scriptResult, err := svc.GetSelfServiceUninstallScriptResult(ctx, host, req.ExecutionID)
 	if err != nil {
-		return getScriptResultResponse{Err: err}, nil
+		return fleet.GetScriptResultResponse{Err: err}, nil
 	}
 
 	return setUpGetScriptResultResponse(scriptResult), nil

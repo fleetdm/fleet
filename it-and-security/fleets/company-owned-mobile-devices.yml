@@ -2,8 +2,8 @@ name: 📱🏢 Employee-issued mobile devices
 settings:
   features:
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 90
   secrets:
     - secret: $DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET
   integrations:
@@ -17,13 +17,13 @@ controls:
   ipados_updates:
     deadline: "2025-06-01"
     minimum_version: "18.5"
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
-  macos_setup:
+  setup_experience:
     enable_end_user_authentication: true
   scripts:
 policies:

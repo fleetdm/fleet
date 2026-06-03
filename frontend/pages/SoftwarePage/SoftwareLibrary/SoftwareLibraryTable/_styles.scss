@@ -1,0 +1,86 @@
+.software-library-table {
+  // Override the grid container to a simple flex layout
+  // to avoid an empty grid column gap.
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  .top-shift-header {
+    align-items: center;
+  }
+
+  .form-field--slider {
+    white-space: nowrap;
+  }
+
+  .table-container {
+    &__search-input,
+    &__search {
+      width: 100%; // Search bar across entire table
+
+      .input-icon-field__input {
+        min-width: 213px;
+        height: 36px;
+      }
+
+      @media (min-width: $table-controls-break) {
+        width: auto;
+
+        .input-icon-field__input {
+          width: 310px;
+        }
+      }
+    }
+
+    &__data-table-block {
+      .data-table-block {
+        .data-table__table {
+          thead {
+            .name__header {
+              width: $col-md;
+            }
+          }
+
+          tbody {
+            .name__cell {
+              max-width: $col-md;
+
+              .children-wrapper {
+                overflow: initial;
+              }
+
+              .software-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+            }
+
+            @media (min-width: $break-sm) {
+              .name__cell {
+                max-width: $col-lg;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // needed to handle overflow of the table data on small screens
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
+    }
+  }
+
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+}

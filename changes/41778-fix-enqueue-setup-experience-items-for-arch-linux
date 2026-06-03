@@ -1,1 +1,0 @@
-- Fixed an issue where setup experience items (software to install) were not enqueued for Linux distributions that did not report a "platform-like" value, e.g. Arch Linux and Omarchy.

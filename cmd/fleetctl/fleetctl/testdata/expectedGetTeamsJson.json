@@ -7,7 +7,11 @@
       "description": "team1 description",
       "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 42,
       "host_expiry_settings": {
@@ -49,7 +53,9 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
+          "enable_create_local_admin_account": null,
           "enable_end_user_authentication": false,
+          "end_user_local_account_type": null,
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -85,7 +91,11 @@
       "description": "team1 description",
       "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 42,
       "host_expiry_settings": {
@@ -122,7 +132,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
+          "enable_managed_local_account": null,
           "enable_release_device_manually": false,
+          "end_user_local_account_type": null,
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
@@ -184,7 +196,11 @@
           "foo": "bar"
         },
         "enable_host_users": false,
-        "enable_software_inventory": false
+        "enable_software_inventory": false,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 43,
       "host_expiry_settings": {
@@ -226,7 +242,9 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
+          "enable_create_local_admin_account": null,
           "enable_end_user_authentication": false,
+          "end_user_local_account_type": null,
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -277,7 +295,11 @@
           "foo": "bar"
         },
         "enable_host_users": false,
-        "enable_software_inventory": false
+        "enable_software_inventory": false,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 43,
       "host_expiry_settings": {
@@ -314,7 +336,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
+          "enable_managed_local_account": null,
           "enable_release_device_manually": false,
+          "end_user_local_account_type": null,
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,

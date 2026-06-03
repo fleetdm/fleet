@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/cryptobyte"
+	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
 func TestGetPublicKeyAlgorithmFromOID(t *testing.T) {
@@ -198,4 +200,267 @@ var csrBase64Array = [...]string{
 	"MIIDHDCCAgQCAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaBZMFcGCSqGSIb3DQEJDjFKMEgwCQYDVR0TBAIwADALBgNVHQ8EBAMCBeAwLgYDVR0RBCcwJYERZ29waGVyQGdvbGFuZy5vcmeCEHRlc3QuZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAB6VPMRrchvNW61Tokyq3ZvO6/NoGIbuwUn54q6l5VZW0Ep5Nq8juhegSSnaJ0jrovmUgKDN9vEo2KxuAtwG6udS6Ami3zP+hRd4k9Q8djJPb78nrjzWiindLK5Fps9U5mMoi1ER8ViveyAOTfnZt/jsKUaRsscY2FzE9t9/o5moE6LTcHUS4Ap1eheR+J72WOnQYn3cifYaemsA9MJuLko+kQ6xseqttbh9zjqd9fiCSh/LNkzos9c+mg2yMADitaZinAh+HZi50ooEbjaT3erNq9O6RqwJlgD00g6MQdoz9bTAryCUhCQfkIaepmQ7BxS0pqWNW3MMwfDwx/Snz6g=",
 	// Both [ v3_req ] and [ req_attributes ]
 	"MIIDaTCCAlECAQAwfjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEUMBIGA1UEAwwLQ29tbW9uIE5hbWUxITAfBgkqhkiG9w0BCQEWEnRlc3RAZW1haWwuYWRkcmVzczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK1GY4YFx2ujlZEOJxQVYmsjUnLsd5nFVnNpLE4cV+77sgv9NPNlB8uhn3MXt5leD34rm/2BisCHOifPucYlSrszo2beuKhvwn4+2FxDmWtBEMu/QA16L5IvoOfYZm/gJTsPwKDqvaR0tTU67a9OtxwNTBMI56YKtmwd/o8d3hYv9cg+9ZGAZ/gKONcg/OWYx/XRh6bd0g8DMbCikpWgXKDsvvK1Nk+VtkDO1JxuBaj4Lz/p/MifTfnHoqHxWOWl4EaTs4Ychxsv34/rSj1KD1tJqorIv5Xv2aqv4sjxfbrYzX4kvS5SC1goIovLnhj5UjmQ3Qy8u65eow/LLWw+YFcCAwEAAaCBpTAgBgkqhkiG9w0BCQcxEwwRaWdub3JlZCBjaGFsbGVuZ2UwKAYJKoZIhvcNAQkCMRsMGWlnbm9yZWQgdW5zdHJ1Y3R1cmVkIG5hbWUwVwYJKoZIhvcNAQkOMUowSDAJBgNVHRMEAjAAMAsGA1UdDwQEAwIF4DAuBgNVHREEJzAlgRFnb3BoZXJAZ29sYW5nLm9yZ4IQdGVzdC5leGFtcGxlLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEAgxe2N5O48EMsYE7o0rZBB0wi3Ov5/yYfnmmVI22Y3sP6VXbLDW0+UWIeSccOhzUCcZ/G4qcrfhhx6gTZTeA01nP7TdTJURvWAH5iFqj9sQ0qnLq6nEcVHij3sG6M5+BxAIVClQBk6lTCzgphc835Fjj6qSLuJ20XHdL5UfUbiJxx299CHgyBRL+hBUIPfz8p+ZgamyAuDLfnj54zzcRVyLlrmMLNPZNll1Q70RxoU6uWvLH8wB8vQe3Q/guSGubLyLRTUQVPh+dw1L4t8MKFWfX/48jwRM4gIRHFHPeAAE9D9YAoqdIvj/iFm/eQ++7DP8MDwOZWsXeB6jjwHuLmkQ==",
+}
+
+// TestDomainToReverseLabels covers the domain reverse-labels helper used by
+// SAN URI validation. The function rejects domains with trailing dots or
+// empty middle labels.
+func TestDomainToReverseLabels(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		domain string
+		want   []string
+		ok     bool
+	}{
+		{"three-label domain", "foo.example.com", []string{"com", "example", "foo"}, true},
+		{"two-label domain", "example.com", []string{"com", "example"}, true},
+		{"single label", "example", []string{"example"}, true},
+		{"empty string yields no labels", "", nil, true},
+		{"trailing dot is rejected", "foo.example.com.", nil, false},
+		{"consecutive dots produce empty middle label", "foo..bar", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := domainToReverseLabels(tc.domain)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestParseBase128Int pins the boundary and error cases of the base-128
+// integer parser used inside parseTagAndLength. ASN.1 length-and-tag parsing
+// bugs are a long-standing CVE class, so this function's guards deserve
+// explicit coverage.
+func TestParseBase128Int(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		bytes      []byte
+		offset     int
+		wantRet    int
+		wantOffset int
+		errType    string // "" = no error, "syntax", "structural"
+	}{
+		{
+			name:       "single-byte minimum",
+			bytes:      []byte{0x05},
+			wantRet:    5,
+			wantOffset: 1,
+		},
+		{
+			name:       "single-byte maximum without continuation",
+			bytes:      []byte{0x7f},
+			wantRet:    127,
+			wantOffset: 1,
+		},
+		{
+			name:       "multi-byte minimum above single-byte range",
+			bytes:      []byte{0x81, 0x00},
+			wantRet:    128,
+			wantOffset: 2,
+		},
+		{
+			name:    "non-minimal encoding rejected when leading byte is 0x80",
+			bytes:   []byte{0x80, 0x01},
+			errType: "syntax",
+		},
+		{
+			name:    "truncated when continuation bit set but no more bytes",
+			bytes:   []byte{0x81},
+			errType: "syntax",
+		},
+		{
+			name:    "rejected when integer exceeds five-byte limit",
+			bytes:   []byte{0x81, 0x81, 0x81, 0x81, 0x81, 0x01},
+			errType: "structural",
+		},
+		{
+			name:    "rejected when value exceeds MaxInt32",
+			bytes:   []byte{0xff, 0xff, 0xff, 0xff, 0x7f},
+			errType: "structural",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ret, offset, err := parseBase128Int(tc.bytes, tc.offset)
+			switch tc.errType {
+			case "syntax":
+				var se asn1.SyntaxError
+				require.ErrorAs(t, err, &se, "expected asn1.SyntaxError")
+			case "structural":
+				var se asn1.StructuralError
+				require.ErrorAs(t, err, &se, "expected asn1.StructuralError")
+			default:
+				require.NoError(t, err)
+				require.Equal(t, tc.wantRet, ret)
+				require.Equal(t, tc.wantOffset, offset)
+			}
+		})
+	}
+}
+
+// TestParseTagAndLength pins the boundary and error cases of the ASN.1 tag
+// and length parser. The DER-encoding rules around long-form length, minimal
+// encoding, and indefinite-length rejection have all historically been
+// sources of parser bugs.
+func TestParseTagAndLength(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		bytes      []byte
+		offset     int
+		wantTag    int
+		wantClass  int
+		wantLen    int
+		wantOffset int
+		errType    string
+	}{
+		{
+			name:       "short tag and short length",
+			bytes:      []byte{0x30, 0x05}, // SEQUENCE (tag 16), length 5
+			wantTag:    0x10,
+			wantClass:  0, // universal
+			wantLen:    5,
+			wantOffset: 2,
+		},
+		{
+			name:       "long-form length encodes 256",
+			bytes:      []byte{0x04, 0x82, 0x01, 0x00}, // OCTET STRING, length 256 in two bytes
+			wantTag:    0x04,
+			wantClass:  0,
+			wantLen:    256,
+			wantOffset: 4,
+		},
+		{
+			name:    "indefinite length rejected",
+			bytes:   []byte{0x30, 0x80}, // SEQUENCE with indefinite length marker
+			errType: "syntax",
+		},
+		{
+			name:    "non-minimal length rejected (short value in long form)",
+			bytes:   []byte{0x04, 0x81, 0x05}, // long-form encoding of 5
+			errType: "structural",
+		},
+		{
+			name:    "length too large to shift safely",
+			bytes:   []byte{0x04, 0x84, 0x80, 0x00, 0x00, 0x00}, // 4 bytes of length, overflows after shift
+			errType: "structural",
+		},
+		{
+			name:    "truncated length bytes",
+			bytes:   []byte{0x04, 0x82, 0x01}, // long-form says 2 bytes follow, only 1 present
+			errType: "syntax",
+		},
+		{
+			name:    "non-minimal tag rejected",
+			bytes:   []byte{0x1f, 0x05, 0x00}, // long-form tag header but value < 31
+			errType: "syntax",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ret, offset, err := parseTagAndLength(tc.bytes, tc.offset)
+			switch tc.errType {
+			case "syntax":
+				var se asn1.SyntaxError
+				require.ErrorAs(t, err, &se, "expected asn1.SyntaxError")
+			case "structural":
+				var se asn1.StructuralError
+				require.ErrorAs(t, err, &se, "expected asn1.StructuralError")
+			default:
+				require.NoError(t, err)
+				require.Equal(t, tc.wantTag, ret.tag)
+				require.Equal(t, tc.wantClass, ret.class)
+				require.Equal(t, tc.wantLen, ret.length)
+				require.Equal(t, tc.wantOffset, offset)
+			}
+		})
+	}
+}
+
+// TestParseSANExtension covers Subject Alternative Name parsing for each
+// name type that wstep_csr supports (DNS, email, URI, IP) plus the error
+// path for malformed IP length. SAN parser bugs are a notable CVE class.
+func TestParseSANExtension(t *testing.T) {
+	// buildSAN encodes a single SAN extension SEQUENCE containing one entry
+	// with the given context-specific tag and bytes.
+	buildSAN := func(t *testing.T, contextTag byte, payload []byte) []byte {
+		t.Helper()
+		var b cryptobyte.Builder
+		b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+			b.AddASN1(cryptobyte_asn1.Tag(contextTag).ContextSpecific(), func(b *cryptobyte.Builder) {
+				b.AddBytes(payload)
+			})
+		})
+		out, err := b.Bytes()
+		require.NoError(t, err)
+		return out
+	}
+
+	t.Run("DNS name", func(t *testing.T) {
+		der := buildSAN(t, nameTypeDNS, []byte("test.example.com"))
+		dns, emails, ips, uris, err := parseSANExtension(der)
+		require.NoError(t, err)
+		require.Equal(t, []string{"test.example.com"}, dns)
+		require.Empty(t, emails)
+		require.Empty(t, ips)
+		require.Empty(t, uris)
+	})
+
+	t.Run("email address", func(t *testing.T) {
+		der := buildSAN(t, nameTypeEmail, []byte("gopher@golang.org"))
+		dns, emails, ips, uris, err := parseSANExtension(der)
+		require.NoError(t, err)
+		require.Empty(t, dns)
+		require.Equal(t, []string{"gopher@golang.org"}, emails)
+		require.Empty(t, ips)
+		require.Empty(t, uris)
+	})
+
+	t.Run("IPv4 address", func(t *testing.T) {
+		ipv4 := net.IPv4(127, 0, 0, 1).To4()
+		der := buildSAN(t, nameTypeIP, ipv4)
+		dns, emails, ips, uris, err := parseSANExtension(der)
+		require.NoError(t, err)
+		require.Empty(t, dns)
+		require.Empty(t, emails)
+		require.Len(t, ips, 1)
+		require.True(t, ips[0].Equal(ipv4))
+		require.Empty(t, uris)
+	})
+
+	t.Run("IPv6 address", func(t *testing.T) {
+		ipv6 := net.ParseIP("2001:db8::1")
+		der := buildSAN(t, nameTypeIP, ipv6)
+		dns, emails, ips, uris, err := parseSANExtension(der)
+		require.NoError(t, err)
+		require.Empty(t, dns)
+		require.Empty(t, emails)
+		require.Len(t, ips, 1)
+		require.True(t, ips[0].Equal(ipv6))
+		require.Empty(t, uris)
+	})
+
+	t.Run("URI", func(t *testing.T) {
+		der := buildSAN(t, nameTypeURI, []byte("https://example.com/path"))
+		dns, emails, ips, uris, err := parseSANExtension(der)
+		require.NoError(t, err)
+		require.Empty(t, dns)
+		require.Empty(t, emails)
+		require.Empty(t, ips)
+		require.Len(t, uris, 1)
+		require.Equal(t, "https://example.com/path", uris[0].String())
+	})
+
+	t.Run("invalid IP length is rejected", func(t *testing.T) {
+		// 5 bytes is neither IPv4 (4) nor IPv6 (16).
+		der := buildSAN(t, nameTypeIP, []byte{1, 2, 3, 4, 5})
+		_, _, _, _, err := parseSANExtension(der)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot parse IP address")
+	})
+
+	t.Run("non-IA5 DNS name is rejected", func(t *testing.T) {
+		// 0x80 is outside the ASCII range that IA5String allows.
+		der := buildSAN(t, nameTypeDNS, []byte{'a', 0x80, 'b'})
+		_, _, _, _, err := parseSANExtension(der)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "malformed")
+	})
 }

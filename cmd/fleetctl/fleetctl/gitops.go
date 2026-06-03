@@ -256,7 +256,7 @@ func gitopsCommand() *cli.Command {
 			// Log a deprecation warning if the user is still using no-team.yml
 			if noTeamPresent && noTeamFilename == "no-team.yml" {
 				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
+					logf("[!] no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'.\n")
 				}
 			}
 
@@ -342,6 +342,27 @@ func gitopsCommand() *cli.Command {
 				return fmt.Errorf("global config must be provided alongside %s", noTeamFilename)
 			}
 
+			// Fail fast if two YAML files in this run resolve to the same
+			// team name under MySQL's utf8mb4_unicode_ci collation.
+			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
+			for _, cf := range configs {
+				if cf.IsGlobalConfig || cf.Config.TeamName == nil {
+					continue
+				}
+				name := strings.TrimSpace(*cf.Config.TeamName)
+				key := norm.NFC.String(strings.ToLower(name))
+				if key == "" {
+					continue
+				}
+				if prev, ok := seenTeamNames[key]; ok {
+					return fmt.Errorf(
+						"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Fleet names must differ by more than letter case.",
+						prev, cf.Filename,
+					)
+				}
+				seenTeamNames[key] = cf.Filename
+			}
+
 			labelMoves, err := computeLabelMoves(labelChanges)
 			if err != nil {
 				return err
@@ -376,6 +397,9 @@ func gitopsCommand() *cli.Command {
 					for _, query := range config.Queries {
 						if len(query.LabelsIncludeAny) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
+						}
+						if len(query.LabelsIncludeAll) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
 						}
 					}
 				}
@@ -827,25 +851,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
-
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
 				}
+				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
+					return nil, fmt.Errorf("Couldn't edit configuration profiles. For profile '%s', only one of \"labels_include_all\" or \"labels_include_any\" can be included.", filepath.Base(setting.Path))
+				}
 				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
 					labels = setting.LabelsIncludeAll
 				}
-				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
+				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
-
-				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
+				labels = append(labels, setting.LabelsExcludeAny...)
+				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}
 	}
@@ -912,23 +931,31 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}
 
-	// Get query label usage
+	// Get query label usage.
 	for _, query := range config.Queries {
-		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
+		if len(query.LabelsIncludeAny) > 0 && len(query.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Query '%s' has multiple label keys; please choose one of `labels_include_any` or `labels_include_all`.", query.Name)
+		}
+		labels := slices.Concat(query.LabelsIncludeAny, query.LabelsIncludeAll)
+		updateLabelUsage(labels, query.Name, "Query", result)
 	}
 
-	// Get policy label usage
+	// Get policy label usage.
 	for _, policy := range config.Policies {
-		var labels []string
+		nonEmptyScopes := 0
 		if len(policy.LabelsIncludeAny) > 0 {
-			labels = policy.LabelsIncludeAny
+			nonEmptyScopes++
+		}
+		if len(policy.LabelsIncludeAll) > 0 {
+			nonEmptyScopes++
 		}
 		if len(policy.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name)
-			}
-			labels = policy.LabelsExcludeAny
+			nonEmptyScopes++
 		}
+		if nonEmptyScopes > 1 {
+			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
+		}
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 
@@ -1037,6 +1064,26 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 	return abmTeams, missingTeam, usesLegacyConfig, nil
 }
 
+// knownTeamNamesForTokenAssignment returns the set of team names that count as
+// "existing" when validating deferred ABM/VPP token assignments. A team is known
+// if it already exists in Fleet (returned by ListTeams, which by this point
+// includes any teams created earlier in this gitops run) or if it was processed
+// during this run (teamNames).
+func knownTeamNamesForTokenAssignment(teamNames []string, fleetClient *service.Client) (map[string]struct{}, error) {
+	teams, err := fleetClient.ListTeams("")
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]struct{}, len(teams)+len(teamNames))
+	for _, tm := range teams {
+		known[norm.NFC.String(tm.Name)] = struct{}{}
+	}
+	for _, name := range teamNames {
+		known[norm.NFC.String(name)] = struct{}{}
+	}
+	return known, nil
+}
+
 func applyABMTokenAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
@@ -1054,11 +1101,18 @@ func applyABMTokenAssignmentIfNeeded(
 		return errors.New("using legacy config without any ABM teams defined")
 	}
 
+	knownTeams, err := knownTeamNamesForTokenAssignment(teamNames, fleetClient)
+	if err != nil {
+		return err
+	}
+
 	var appConfigUpdate map[string]map[string]any
 	if usesLegacyConfig {
 		appleBMDefaultTeam := abmTeamNames[0]
-		if !slices.Contains(teamNames, appleBMDefaultTeam) {
-			return fmt.Errorf("apple_bm_default_team team %q not found in team configs", appleBMDefaultTeam)
+		if !fleet.IsReservedTeamName(appleBMDefaultTeam) {
+			if _, ok := knownTeams[norm.NFC.String(appleBMDefaultTeam)]; !ok {
+				return fmt.Errorf("apple_bm_default_team team %q not found in team configs", appleBMDefaultTeam)
+			}
 		}
 		appConfigUpdate = map[string]map[string]any{
 			"mdm": {
@@ -1067,7 +1121,10 @@ func applyABMTokenAssignmentIfNeeded(
 		}
 	} else {
 		for _, abmTeam := range abmTeamNames {
-			if !slices.Contains(teamNames, abmTeam) {
+			if fleet.IsReservedTeamName(abmTeam) {
+				continue
+			}
+			if _, ok := knownTeams[norm.NFC.String(abmTeam)]; !ok {
 				return fmt.Errorf("apple_business_manager team %q not found in team configs", abmTeam)
 			}
 		}
@@ -1139,14 +1196,20 @@ func applyVPPTokenAssignmentIfNeeded(
 	flDryRun bool,
 	fleetClient *service.Client,
 ) error {
-	var appConfigUpdate map[string]map[string]any
+	knownTeams, err := knownTeamNamesForTokenAssignment(teamNames, fleetClient)
+	if err != nil {
+		return err
+	}
 	for _, vppTeam := range vppTeamNames {
-		if !fleet.IsReservedTeamName(vppTeam) && !slices.Contains(teamNames, vppTeam) {
+		if fleet.IsReservedTeamName(vppTeam) {
+			continue
+		}
+		if _, ok := knownTeams[norm.NFC.String(vppTeam)]; !ok {
 			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
 		}
 	}
 
-	appConfigUpdate = map[string]map[string]any{
+	appConfigUpdate := map[string]map[string]any{
 		"mdm": {
 			"volume_purchasing_program": originalVPPConfig,
 		},

@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math/big"
@@ -22,7 +23,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -1385,11 +1386,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1456,7 +1457,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
@@ -1472,7 +1472,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 
@@ -1487,7 +1486,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll, nil)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1543,6 +1542,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	testCases := []struct {
 		name     string
@@ -1552,6 +1554,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		teamName *string
 		profiles []fleet.MDMProfileBatchPayload
 		wantErr  string
+		dryRun   bool
 	}{
 		{
 			"global admin",
@@ -1561,6 +1564,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"global admin, team",
@@ -1570,6 +1574,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"global maintainer",
@@ -1579,6 +1584,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"global maintainer, team",
@@ -1588,6 +1594,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"global observer",
@@ -1597,6 +1604,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team admin, DOES belong to team",
@@ -1606,6 +1614,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"team admin, DOES belong to team by name",
@@ -1615,6 +1624,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.String("team"),
 			nil,
 			"",
+			false,
 		},
 		{
 			"team admin, DOES NOT belong to team",
@@ -1624,6 +1634,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team admin, DOES NOT belong to team by name",
@@ -1633,6 +1644,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.String("team"),
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team maintainer, DOES belong to team",
@@ -1642,6 +1654,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			"",
+			false,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -1651,6 +1664,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team observer, DOES belong to team",
@@ -1660,6 +1674,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team observer, DOES NOT belong to team",
@@ -1669,6 +1684,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"user no roles",
@@ -1678,6 +1694,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			authz.ForbiddenErrorMessage,
+			false,
 		},
 		{
 			"team id with free license",
@@ -1687,6 +1704,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			ErrMissingLicense.Error(),
+			false,
 		},
 		{
 			"team name with free license",
@@ -1696,6 +1714,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.String("team"),
 			nil,
 			ErrMissingLicense.Error(),
+			false,
 		},
 		{
 			"team id and name specified",
@@ -1705,6 +1724,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.String("team"),
 			nil,
 			"cannot specify both team_id and team_name",
+			false,
 		},
 		{
 			"duplicate macOS profile name",
@@ -1717,6 +1737,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 			},
 			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
+			false,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -1730,6 +1751,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N3", Contents: mobileconfigForTest("N3", "I1")},
 			},
 			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
+			false,
 		},
 		{
 			"only macOS",
@@ -1744,6 +1766,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N4", Contents: declBytesForTest("D1", "d1content")},
 			},
 			``,
+			false,
 		},
 		{
 			"mixed profiles",
@@ -1762,6 +1785,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N8", Contents: androidConfigProfileForTest(t, "A2", nil).RawJSON},
 			},
 			``,
+			false,
 		},
 		{
 			"only windows",
@@ -1775,6 +1799,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N3", Contents: syncMLForTest("./zab")},
 			},
 			``,
+			false,
 		},
 		{
 			"unsupported payload type",
@@ -1820,6 +1845,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				},
 			},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
+			false,
 		},
 		{
 			"unsupported Apple config profile Fleet variable",
@@ -1831,6 +1857,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N4", Contents: mobileconfigForTest("N4", "I${FLEET_VAR_BOZO}1")},
 			},
 			"Fleet variable",
+			false,
 		},
 		{
 			"unsupported Apple declaration Fleet variable",
@@ -1842,6 +1869,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N4", Contents: declBytesForTest("D1", "d1content ${FLEET_VAR_BOZO}")},
 			},
 			"Fleet variable",
+			false,
 		},
 		{
 			"unsupported Windows Fleet variable",
@@ -1853,6 +1881,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: syncMLForTest("./foo/$FLEET_VAR_BOZO/bar")},
 			},
 			"Fleet variable",
+			false,
 		},
 		{
 			"fleet variable in android config is ignored",
@@ -1864,6 +1893,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
 			},
 			"",
+			false,
 		},
 		{
 			"fleet variable in android config is ignored",
@@ -1875,6 +1905,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
 			},
 			"",
+			false,
 		},
 		{
 			"duplicate android config profile names",
@@ -1887,6 +1918,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "A2", nil).RawJSON},
 			},
 			"duplicate json by name",
+			false,
 		},
 		{
 			"premium-only android profile without premium license",
@@ -1898,6 +1930,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "systemUpdate", Contents: json.RawMessage([]byte(`{"systemUpdate": {"type": "AUTOMATIC"}}`))},
 			},
 			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
+			false,
 		},
 		{
 			"premium-only android profile with premium license",
@@ -1909,6 +1942,19 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "systemUpdate", Contents: json.RawMessage([]byte(`{"systemUpdate": {"type": "AUTOMATIC"}}`))},
 			},
 			"",
+			false,
+		},
+		{
+			"profiles have variable validation on dry-run",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I${FLEET_VAR_BOZO}1")},
+			},
+			"Fleet variable",
+			true,
 		},
 	}
 
@@ -1924,7 +1970,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, nil, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -1935,6 +1981,55 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
 		})
 	}
+}
+
+func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		for _, cp := range cps {
+			if cp.Name == "conflicting" {
+				return errors.New("conflicting scopes")
+			}
+		}
+		return nil
+	}
+
+	profiles := []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "conflicting", Contents: mobileconfigForTest("conflicting", "I2")},
+	}
+
+	// Test dry-run
+	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "conflicting scopes")
+
+	// Test actual run
+	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "conflicting scopes")
 }
 
 func TestValidateProfiles(t *testing.T) {
@@ -2503,6 +2598,9 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	profiles := []fleet.MDMProfileBatchPayload{
 		// macOS
@@ -2610,6 +2708,174 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestBatchSetMDMProfilesOSUpdates exercises the OS-updates handling in
+// BatchSetMDMProfiles for both platforms: rejecting more than one OS updates
+// profile per team, rejecting when OS updates are already configured via Fleet
+// settings, and recording the profile in the update-settings tracking table on a
+// valid run.
+func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
+	var teamID *uint
+
+	// appleOSUpdate is a DDM declaration of the software-update enforcement type;
+	// windowsOSUpdate is a syncML profile under the Windows Update policy path.
+	// Both are detected by the batch path as OS updates profiles.
+	appleOSUpdate := func(name, ident string) fleet.MDMProfileBatchPayload {
+		return fleet.MDMProfileBatchPayload{Name: name, Contents: declarationForTestWithType(ident, apple_mdm.DeclarationTypeSoftwareUpdate)}
+	}
+	windowsOSUpdate := func(name, leaf string) fleet.MDMProfileBatchPayload {
+		return fleet.MDMProfileBatchPayload{Name: name, Contents: syncMLForTest("./Device" + syncml.FleetOSUpdateTargetLocURI + leaf)}
+	}
+
+	appleConfigured := &fleet.TeamMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("14.0"), Deadline: optjson.SetString("2025-01-01")}}
+	windowsConfigured := &fleet.TeamMDM{WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(7), GracePeriodDays: optjson.SetInt(2)}}
+
+	cases := []struct {
+		name        string
+		profiles    []fleet.MDMProfileBatchPayload
+		teamConfig  *fleet.TeamMDM // OS updates already configured for the team; nil means none
+		dryRun      bool
+		wantErr     string
+		wantApple   bool // Apple declaration recorded in the tracking table
+		wantWindows bool // Windows profile recorded in the tracking table
+		freeTier    bool // if false, OS update profile should fail
+	}{
+		{
+			name:      "Allows more than one Apple OS update declaration",
+			profiles:  []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleOSUpdate("apple-os-2", "os-update-2")},
+			wantApple: true,
+		},
+		{
+			name:        "Allows more than one Windows OS update profile",
+			profiles:    []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install"), windowsOSUpdate("win-os-2", "/Pause")},
+			wantWindows: true,
+		},
+		{
+			name:       "rejects Apple OS update declaration when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:       "rejects Windows OS update profile when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			teamConfig: windowsConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:      "valid run records the Apple OS update declaration",
+			profiles:  []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			wantApple: true,
+		},
+		{
+			name:        "valid run records the Windows OS update profile",
+			profiles:    []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			wantWindows: true,
+		},
+		{
+			name: "valid run records OS update profiles for both platforms",
+			profiles: []fleet.MDMProfileBatchPayload{
+				appleOSUpdate("apple-os-1", "os-update-1"),
+				windowsOSUpdate("win-os-1", "/Install"),
+				// An unrelated profile should not affect detection.
+				{Name: "other-apple", Contents: declarationForTest("other-decl")},
+			},
+			wantApple:   true,
+			wantWindows: true,
+		},
+		{
+			name:     "dry run does not record OS update profiles",
+			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), windowsOSUpdate("win-os-1", "/Install")},
+			dryRun:   true,
+		},
+		{
+			name:     "rejects Apple OS updates declaration in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+		{
+			name:     "rejects Windows OS updates profile in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			teamID = new(uint(1))
+			if c.freeTier {
+				license.Tier = fleet.TierFree
+				teamID = nil
+			}
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team1"}, nil
+			}
+			ds.TeamMDMConfigFunc = func(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
+				if c.teamConfig != nil {
+					return c.teamConfig, nil
+				}
+				return &fleet.TeamMDM{}, nil
+			}
+			ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+				return document, nil, nil
+			}
+			ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+			ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				return &fleet.GroupedCertificateAuthorities{}, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			// Tracking of OS update profiles now happens atomically inside
+			// BatchSetMDMProfiles; the service only forwards the profiles.
+			var gotAppleOSUpdate, gotWindowsOSUpdate bool
+			ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+				for _, d := range macDeclarations {
+					if bytes.Contains(d.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+						gotAppleOSUpdate = true
+					}
+				}
+				for _, p := range winProfiles {
+					if bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+						gotWindowsOSUpdate = true
+					}
+				}
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
+
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+				// Rejected before persisting anything.
+				assert.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			// The batch set itself only runs outside of dry run.
+			assert.Equal(t, !c.dryRun, ds.BatchSetMDMProfilesFuncInvoked)
+			if !c.dryRun {
+				assert.Equal(t, c.wantApple, gotAppleOSUpdate)
+				assert.Equal(t, c.wantWindows, gotWindowsOSUpdate)
+			}
+		})
+	}
+}
+
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
@@ -2646,7 +2912,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	ctx = license.NewContext(ctx, lic)
 
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
@@ -2847,7 +3113,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
@@ -2858,4 +3124,455 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	var svcImpl *Service
+	switch v := svc.(type) {
+	case validationMiddleware:
+		svcImpl = v.Service.(*Service)
+	case *Service:
+		svcImpl = v
+	}
+
+	testHostUUID := "test-host-uuid"
+	testHostID := uint(42)
+	testDeviceID := "test-device-id"
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID: testDeviceID,
+		HostUUID:    testHostUUID,
+	}
+
+	// MDMWindowsSaveResponse returns a WipeFailed result.
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		return &fleet.MDMWindowsSaveResponseResult{
+			WipeFailed: &fleet.MDMWindowsWipeResult{
+				HostUUID: testHostUUID,
+			},
+		}, nil
+	}
+
+	// Stub for the resending flow (no 418 commands in our test).
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+		return nil, nil
+	}
+
+	// HostByIdentifier returns a test host.
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		require.Equal(t, testHostUUID, identifier)
+		return &fleet.Host{
+			ID:           testHostID,
+			ComputerName: "DESKTOP-TEST",
+			UUID:         testHostUUID,
+		}, nil
+	}
+
+	// Track activity creation.
+	var createdActivity activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		assert.Nil(t, user, "wipe_failed_host activity should have nil user")
+		createdActivity = activity
+		return nil
+	}
+
+	// Build a minimal valid SyncML message with a <Status> entry so that
+	// NewEnrichedSyncML produces a non-empty CmdRefUUIDs and HasCommands()
+	// returns true, which is needed for saveResponse to call MDMWindowsSaveResponse.
+	fakeCmdUUID := uuid.NewString()
+	rawSyncML := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+		<SyncHdr>
+			<VerDTD>1.2</VerDTD>
+			<VerProto>DM/1.2</VerProto>
+			<SessionID>1</SessionID>
+			<MsgID>1</MsgID>
+			<Source><LocURI>%s</LocURI></Source>
+		</SyncHdr>
+		<SyncBody>
+			<Status>
+				<CmdID>1</CmdID>
+				<MsgRef>1</MsgRef>
+				<CmdRef>%s</CmdRef>
+				<Cmd>Exec</Cmd>
+				<Data>500</Data>
+			</Status>
+			<Final/>
+		</SyncBody>
+	</SyncML>`, testDeviceID, fakeCmdUUID)
+
+	reqMsg := &fleet.SyncML{}
+	require.NoError(t, xml.Unmarshal([]byte(rawSyncML), reqMsg))
+	reqMsg.Raw = []byte(rawSyncML)
+
+	_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+	require.NoError(t, err)
+
+	// Verify the activity was created.
+	require.NotNil(t, createdActivity)
+	wipeFailed, ok := createdActivity.(fleet.ActivityTypeWipeFailedHost)
+	require.True(t, ok, "expected ActivityTypeWipeFailedHost, got %T", createdActivity)
+	assert.Equal(t, testHostID, wipeFailed.HostID)
+	assert.Equal(t, "DESKTOP-TEST", wipeFailed.HostDisplayName)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+	t.Run("no activity when WipeFailed is nil", func(t *testing.T) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return nil, nil
+		}
+		opts.ActivityMock.NewActivityFuncInvoked = false
+
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("activity skipped when host lookup fails", func(t *testing.T) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return &fleet.MDMWindowsSaveResponseResult{
+				WipeFailed: &fleet.MDMWindowsWipeResult{
+					HostUUID: testHostUUID,
+				},
+			}, nil
+		}
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, errors.New("host not found")
+		}
+		opts.ActivityMock.NewActivityFuncInvoked = false
+
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		// Activity should NOT be created since host lookup failed.
+		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+}
+
+func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
+	ds := new(mock.Store)
+	cfg := config.TestConfig()
+	cfg.Server.VPPVerifyTimeout = 30 * time.Second // non-default to distinguish from frontend fallback of 600s
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	testHost := &fleet.Host{ID: 1, UUID: "host-uuid-1", Hostname: "test-host"}
+	const testCommandUUID = "cmd-uuid-1"
+
+	t.Run("populates metadata with timeout and install status", func(t *testing.T) {
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{
+				{HostUUID: hostUUID, CommandUUID: commandUUID, RequestType: "InstallApplication"},
+			}, nil
+		}
+		ds.GetVPPAppInstallStatusByCommandUUIDFunc = func(ctx context.Context, commandUUID string) (bool, error) {
+			return true, nil
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NotNil(t, results[0].ResultsMetadata)
+		require.Equal(t, true, results[0].ResultsMetadata["software_installed"])
+		require.Equal(t, 30, results[0].ResultsMetadata["vpp_verify_timeout_seconds"])
+		require.Equal(t, testHost.Hostname, results[0].Hostname)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.True(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+
+	t.Run("returns results without metadata on install status error", func(t *testing.T) {
+		ds.GetVPPCommandResultsFuncInvoked = false
+		ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = false
+
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{
+				{HostUUID: hostUUID, CommandUUID: commandUUID, RequestType: "InstallApplication"},
+			}, nil
+		}
+		ds.GetVPPAppInstallStatusByCommandUUIDFunc = func(ctx context.Context, commandUUID string) (bool, error) {
+			return false, errors.New("db error")
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.Nil(t, results[0].ResultsMetadata)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.True(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+
+	t.Run("skips install status check on empty results", func(t *testing.T) {
+		ds.GetVPPCommandResultsFuncInvoked = false
+		ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = false
+
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{}, nil
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Empty(t, results)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.False(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+}
+
+// TestProcessIncomingMDMCmdsDevDetailLinkage exercises the OMA-DM DevDetail-based linkage path that closes the race
+// where mdm_windows_enrollments.host_uuid stays empty after a Windows BYOD enrollment (Settings > Access work or
+// school > Connect). BYOD is an Azure/automatic enrollment under the hood: the WSTEP RST carries only
+// a UPN, so the row is inserted unlinked and host_uuid is backfilled later. The same root cause (and this fix) also
+// covers Entra-join and Autopilot/OOBE enrollments; BYOD is the headline because fleetd is already running, so the host
+// row exists and linkage resolves in one round-trip instead of waiting for the osquery cycle.
+//
+// The primary linkage mechanism is implemented in processIncomingMDMCmds: when an enrollment row has empty host_uuid,
+// the server (a) parses any incoming Results for ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber and links the host, then
+// (b) injects a Get for the same URI into the outgoing response so the device replies on the next round-trip.
+func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
+	const (
+		testDeviceID      = "test-device-id"
+		testSerial        = "ABC123XYZ"
+		testHostUUID      = "host-uuid-from-osquery"
+		testHostID   uint = 99
+		// CmdRef value is never asserted; a constant keeps the generated SyncML deterministic.
+		resultsCmdRef = "results-cmdref"
+	)
+
+	// buildReqMsg builds a minimal valid SyncML request. extraBody (if non-empty) is inserted into <SyncBody>; use it to
+	// inject a <Results> with the device's reply to our DevDetail Get.
+	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+		t.Helper()
+		raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Source><LocURI>%s</LocURI></Source>
+			</SyncHdr>
+			<SyncBody>
+				%s
+				<Final/>
+			</SyncBody>
+		</SyncML>`, testDeviceID, extraBody)
+		reqMsg := &fleet.SyncML{}
+		require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
+		reqMsg.Raw = []byte(raw)
+		return reqMsg
+	}
+
+	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
+	newSvc := func(t *testing.T) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		var svcImpl *Service
+		switch v := svc.(type) {
+		case validationMiddleware:
+			svcImpl = v.Service.(*Service)
+		case *Service:
+			svcImpl = v
+		}
+		require.NotNil(t, svcImpl, "could not extract *Service from %T", svc)
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, _ fleet.EnrichedSyncML, _ []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return nil, nil
+		}
+		ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+			return nil, nil
+		}
+		return svcImpl, ds, ctx
+	}
+
+	// hasGetForDevDetailSerial reports whether responseCmds contains a Get for the SMBIOS serial number URI.
+	hasGetForDevDetailSerial := func(cmds []*fleet.SyncMLCmd) bool {
+		for _, c := range cmds {
+			if c.XMLName.Local != fleet.CmdGet || len(c.Items) == 0 || c.Items[0].Target == nil {
+				continue
+			}
+			if *c.Items[0].Target == devDetailSMBIOSSerialNumberURI {
+				return true
+			}
+		}
+		return false
+	}
+
+	// resultsBody builds a <Results> command (the device's reply to our DevDetail Get) with one <Item> per
+	// (LocURI, Data) pair.
+	resultsBody := func(items ...[2]string) string {
+		var b strings.Builder
+		b.WriteString("<Results><CmdID>r1</CmdID><MsgRef>1</MsgRef><CmdRef>" + resultsCmdRef + "</CmdRef>")
+		for _, it := range items {
+			b.WriteString(fmt.Sprintf("<Item><Source><LocURI>%s</LocURI></Source><Data>%s</Data></Item>", it[0], it[1]))
+		}
+		b.WriteString("</Results>")
+		return b.String()
+	}
+	// serialResults is the common single-item reply carrying just the SMBIOS serial.
+	serialResults := func(serial string) string {
+		return resultsBody([2]string{devDetailSMBIOSSerialNumberURI, serial})
+	}
+
+	// stubLink wires the datastore funcs the linkage path calls when a host matches the reported serial. updated
+	// controls UpdateMDMWindowsEnrollmentsHostUUID's return: true models the first link; false models the row already
+	// holding this host_uuid (the WHERE host_uuid <> ? guard short-circuited). The enroll user is non-UPN so
+	// LinkWindowsHostMDMEnrollment skips the post-link UPN/SCIM bookkeeping (and, when updated==false, returns before
+	// MDMWindowsGetEnrolledDeviceWithDeviceID is consulted at all).
+	stubLink := func(t *testing.T, ds *mock.Store, updated bool) {
+		t.Helper()
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, serial string) (*fleet.HostLite, error) {
+			assert.Equal(t, testSerial, serial)
+			return &fleet.HostLite{ID: testHostID, UUID: testHostUUID}, nil
+		}
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, testDeviceID, mdmDeviceID)
+			return updated, nil
+		}
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMEnrollUserID: ""}, nil
+		}
+	}
+
+	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		reqMsg := buildReqMsg(t, "")
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds), "expected a Get for SMBIOSSerialNumber on an unlinked enrollment")
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "no Results present yet, so no host lookup expected")
+		// The injected Get must use a stable fleet-internal CmdID so MDMWindowsSaveResponse can suppress the
+		// "unmatched Windows MDM commands" warning when the device replies on the next session.
+		var foundInternalCmdID bool
+		for _, c := range cmds {
+			if c.XMLName.Local == fleet.CmdGet && len(c.Items) > 0 && c.Items[0].Target != nil &&
+				*c.Items[0].Target == devDetailSMBIOSSerialNumberURI {
+				assert.True(t, fleet.IsFleetInternalCmdID(c.CmdID.Value),
+					"CmdID %q must use the fleet-internal sentinel prefix", c.CmdID.Value)
+				foundInternalCmdID = true
+			}
+		}
+		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
+	})
+
+	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: testHostUUID}
+		reqMsg := buildReqMsg(t, "")
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "linked enrollment must not inject a DevDetail Get")
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	})
+
+	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		stubLink(t, ds, true)
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+	})
+
+	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		// Production returns a fleet NotFound (not sql.ErrNoRows) when no Windows host matches the serial: the host
+		// hasn't enrolled in osquery yet, or the serial is ambiguous. This is the common, non-error retry path.
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return nil, &notFoundError{}
+		}
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Empty(t, enrolledDevice.HostUUID, "no link means HostUUID stays empty")
+		assert.True(t, hasGetForDevDetailSerial(cmds), "without a host match, the Get is reinjected for the next session")
+	})
+
+	t.Run("serial lookup fails with an unexpected error: non-fatal, Get reinjected", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		// A non-NotFound error (e.g. a real DB failure) is logged and handled, but linkage stays non-fatal: the
+		// management session must not fail and the Get must be reinjected so a later session retries.
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return nil, errors.New("db unavailable")
+		}
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err, "a serial-lookup error must not fail the management session")
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Empty(t, enrolledDevice.HostUUID)
+		assert.True(t, hasGetForDevDetailSerial(cmds), "after a lookup error, the Get is reinjected for the next session")
+	})
+
+	t.Run("Results carries the URI but an empty serial: no lookup, Get reinjected", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+
+		// Whitespace-only Data trims to empty, so there is no usable serial and no host lookup should happen.
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults("   ")), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "empty serial must not trigger a host lookup")
+		assert.Empty(t, enrolledDevice.HostUUID)
+		assert.True(t, hasGetForDevDetailSerial(cmds), "no usable serial means the Get is reinjected")
+	})
+
+	t.Run("placeholder serial: no lookup, no mislink, Get reinjected", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		// Reproduce the staggered-mislink trap: an unrelated host already carries this junk placeholder serial, so a
+		// naive lookup would return exactly one match and link THIS enrollment to the wrong host. The placeholder guard
+		// must stop the lookup from ever running; these devices link via the osquery MDMDeviceID backstop instead.
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 12345, UUID: "some-other-hosts-uuid"}, nil
+		}
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults("To Be Filled By O.E.M.")), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "placeholder serial must not trigger a host lookup")
+		assert.Empty(t, enrolledDevice.HostUUID, "must not link to an unrelated host that shares a placeholder serial")
+		assert.True(t, hasGetForDevDetailSerial(cmds), "placeholder serial defers linkage; the Get is reinjected")
+	})
+
+	t.Run("SMBIOSSerialNumber Item is not the first one: still found", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		stubLink(t, ds, true)
+
+		// The serial is the second Item in the Results command, not the first. A naive Items[0]-only scan misses it.
+		body := resultsBody(
+			[2]string{"./DevDetail/Ext/Microsoft/DeviceName", "DESKTOP-OTHER"},
+			[2]string{devDetailSMBIOSSerialNumberURI, testSerial},
+		)
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, body), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID)
+		assert.False(t, hasGetForDevDetailSerial(cmds))
+	})
+
+	t.Run("link already applied by another path: HostUUID still refreshed in-memory", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		// updated=false simulates the row already holding host_uuid=testHostUUID (the WHERE host_uuid <> ? guard
+		// short-circuited). In-memory state must still be refreshed so no redundant Get is sent.
+		stubLink(t, ds, false)
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "even updated=false must refresh in-memory HostUUID")
+		assert.False(t, hasGetForDevDetailSerial(cmds), "in-memory HostUUID is now set; no redundant Get")
+	})
 }

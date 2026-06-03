@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   push_latest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-4core
     environment: Docker Hub
     permissions:
       contents: write

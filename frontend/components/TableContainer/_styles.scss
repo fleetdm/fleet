@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: $gap-table-elements;
 
-  // Container is responsive design used when customFilters is rendered
+  // Container is responsive design used when customControl is rendered
   .container {
     display: grid;
     grid-template-columns: 1fr auto; /* First column takes all remaining space */
@@ -34,6 +34,10 @@
   .top-shift-header {
     grid-column: 1 / -1; /* Span across all columns */
     grid-row: 1; /* Place in the first row */
+
+    .table-container__search {
+      flex: 1; // Fill remaining width when stacked
+    }
 
     .Select-multi-value-wrapper {
       height: 36px; // Fixes height issues
@@ -136,7 +140,7 @@
 
   &__results-count {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
@@ -145,8 +149,8 @@
     gap: $gap-table-elements;
 
     > span {
-      line-height: 36px; // Match other header components' height but still align text baseline
       min-width: fit-content;
+      line-height: 1; // Normalize line-height so different font sizes share a consistent center
     }
 
     .count-error {
@@ -197,6 +201,18 @@
       left: 12px;
       font-size: $medium;
       color: $core-fleet-black;
+    }
+  }
+
+  // Tooltip wrapper around search input needs full width so the input can
+  // expand to fill the available space (applies to both stacked and non-stacked layouts).
+  &__search {
+    .component__tooltip-wrapper {
+      width: 100%;
+
+      &__element {
+        width: 100%;
+      }
     }
   }
 

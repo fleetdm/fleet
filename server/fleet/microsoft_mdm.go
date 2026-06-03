@@ -869,6 +869,22 @@ func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
 }
 
+// MDMWindowsSaveResponseResult contains information about significant events
+// detected while processing a Windows MDM response. The service layer uses
+// this to create activities and fire webhooks.
+type MDMWindowsSaveResponseResult struct {
+	// WipeFailed is non-nil when a wipe command was processed and the status
+	// code indicates failure (not 2xx).
+	WipeFailed *MDMWindowsWipeResult
+	// WipeSucceeded is non-nil when a wipe command was processed and the
+	// status code indicates success (2xx).
+	WipeSucceeded *MDMWindowsWipeResult
+}
+
+type MDMWindowsWipeResult struct {
+	HostUUID string
+}
+
 ///////////////////////////////////////////////////////////////
 // Microsoft MS-MDM message
 // MS-MDM is a client-to-server protocol that consists of a SOAP-based Web service.
@@ -995,6 +1011,19 @@ const (
 	CmdResults = "Results" // Protocol Command verb Results
 	CmdStatus  = "Status"  // Protocol Command verb Status
 )
+
+// FleetInternalCmdIDPrefix marks Fleet-injected SyncML commands that are sent inline in a management response but never
+// persisted to windows_mdm_commands. The device's <Status>/<Results> for these commands will reference a CmdID that
+// won't match any row in windows_mdm_commands. MDMWindowsSaveResponse uses this prefix to skip them before warning
+// about "unmatched Windows MDM commands". Example: the DevDetail/SMBIOSSerialNumber Get used to link unlinked Windows
+// MDM enrollments (see server/service/microsoft_mdm.go).
+const FleetInternalCmdIDPrefix = "fleet-internal-"
+
+// IsFleetInternalCmdID reports whether a SyncML CmdID was injected by Fleet itself and is intentionally absent from
+// windows_mdm_commands.
+func IsFleetInternalCmdID(cmdID string) bool {
+	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
+}
 
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
 type ProtoCmdOperation struct {

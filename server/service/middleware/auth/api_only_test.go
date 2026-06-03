@@ -125,10 +125,15 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.True(t, *called)
 	})
 
-	t.Run("api-only user, endpoint not in catalog", func(t *testing.T) {
+	t.Run("api-only user with restrictions, endpoint not in catalog", func(t *testing.T) {
 		next, called := newNext()
 		ctx := ctxWithMethod("GET", muxTemplate("fleet/secret_admin_endpoint"))
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{APIOnly: true}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly: true,
+			// Non-empty restrictions force the middleware to run; the route
+			// is not in the catalog, so the catalog check rejects it.
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
@@ -137,12 +142,15 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.ErrorAs(t, err, &permErr)
 	})
 
-	t.Run("api-only user, missing route template in context is rejected", func(t *testing.T) {
+	t.Run("api-only user with restrictions, missing route template in context is rejected", func(t *testing.T) {
 		next, called := newNext()
 		// routeTemplateKey deliberately not set (simulates RouteTemplateRequestFunc failure).
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "GET")
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{APIOnly: true}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly:      true,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
@@ -151,11 +159,14 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.ErrorAs(t, err, &permErr)
 	})
 
-	t.Run("api-only user, missing method and template are both rejected", func(t *testing.T) {
+	t.Run("api-only user with restrictions, missing method and template are both rejected", func(t *testing.T) {
 		next, called := newNext()
 		// Neither method nor template set — empty fingerprint never matches catalog.
 		ctx := context.Background()
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{APIOnly: true}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly:      true,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
@@ -165,12 +176,13 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 	})
 
 	t.Run("api-only user, method normalization is case-insensitive", func(t *testing.T) {
-		// Lower-case method must normalize to the same fingerprint as upper-case.
+		// Lower-case method must normalize to the same fingerprint as upper-case
+		// when matching against the catalog and the user's allow-list.
 		next, called := newNext()
 		ctx := ctxWithMethod("get", muxTemplate("fleet/hosts")) // lower-case
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 			APIOnly:      true,
-			APIEndpoints: nil,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
 		}})
 
 		_, err := newEndpoint(next)(ctx, nil)
@@ -178,7 +190,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.True(t, *called)
 	})
 
-	t.Run("api-only user, rejection marks authz context as checked", func(t *testing.T) {
+	t.Run("api-only user with restrictions, rejection marks authz context as checked", func(t *testing.T) {
 		// Ensures authzcheck middleware does not emit a spurious "Missing
 		// authorization check" log when we deny an api_only user.
 		next, called := newNext()
@@ -186,7 +198,10 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		ctx := authzctx.NewContext(context.Background(), ac)
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "GET")
 		ctx = eu.WithRouteTemplate(ctx, muxTemplate("fleet/secret_admin_endpoint"))
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{APIOnly: true}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly:      true,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)

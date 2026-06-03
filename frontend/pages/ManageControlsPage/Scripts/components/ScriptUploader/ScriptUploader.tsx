@@ -2,6 +2,7 @@ import React from "react";
 
 import FileUploader, { ISupportedGraphicNames } from "components/FileUploader";
 import { getFileDetails } from "utilities/file/fileUtils";
+import { SCRIPT_UPLOADER_TEXT } from "../../helpers";
 
 const baseClass = "script-uploader";
 
@@ -46,7 +47,7 @@ const ScriptPackageUploader = ({
     <FileUploader
       className={baseClass}
       graphicName={graphicName}
-      message="Shell (.sh) or Python (.py) for macOS and Linux, or PowerShell (.ps1) for Windows"
+      message={SCRIPT_UPLOADER_TEXT}
       title="Upload script"
       accept=".sh,.py,.ps1"
       onFileUpload={onFileSelect}

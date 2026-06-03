@@ -442,11 +442,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
+		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
@@ -581,7 +582,14 @@ func ingestKubequeryInfo(ctx context.Context, logger *slog.Logger, host *fleet.H
 	return nil
 }
 
-const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+// usesMacOSDiskEncryptionQuery probes whether FileVault is enabled on a macOS host.
+// It deliberately does not filter on `user_uuid` — that column reports the SecureToken
+// holder and can be empty for a short period after ADE setup completes, even when
+// FileVault is on and the recovery key has been escrowed. Gating on user_uuid here
+// previously caused the host to appear unencrypted (and the recovery key to remain
+// un-escrowed) until the user logged out/in to settle SecureToken propagation. See
+// https://github.com/fleetdm/fleet/issues/45369.
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1`
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
@@ -979,20 +987,17 @@ func generateSQLForAllExists(subqueries ...string) string {
 	return sql
 }
 
+// Usernames starting with an underscore are excluded (macOS system accounts),
+// with the managed local admin (_fleetadmin) allowlisted so the ingest layer
+// can capture its UUID for MDM rotation. The ingest layer is responsible for
+// excluding _fleetadmin from host_users — see directIngestUsers.
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '` + fleet.ManagedLocalAccountUsername + `') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
-}
-
-var windowsUpdateHistory = DetailQuery{
-	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
-	Platforms:        []string{"windows"},
-	Discovery:        discoveryTable("windows_update_history"),
-	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 // macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
@@ -2079,42 +2084,6 @@ func generateBatteryHealth(ctx context.Context, row map[string]string, logger *s
 	return batteryStatusGood, count, nil
 }
 
-func directIngestWindowsUpdateHistory(
-	ctx context.Context,
-	logger *slog.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
-	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
-	// Since each antivirus update will have the same KB ID, but different 'dates', to
-	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
-	// date' update in each group.
-
-	uniq := make(map[uint]fleet.WindowsUpdate)
-	for _, row := range rows {
-		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
-		if err != nil {
-			// If the update failed to parse then we log a debug error and ignore it.
-			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
-			logger.DebugContext(ctx, "directIngestWindowsUpdateHistory skipped", "err", err)
-			continue
-		}
-
-		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
-			uniq[u.KBID] = u
-		}
-	}
-
-	var updates []fleet.WindowsUpdate
-	for _, v := range uniq {
-		updates = append(updates, v)
-	}
-
-	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
-}
-
 func directIngestEntraIDDetails(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -2553,6 +2522,7 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
 		}
 	}
+	var managedLocalAccountUUID string
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -2572,6 +2542,12 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		groupname := row["groupname"]
 		shell := row["shell"]
 		uuid := row["uuid"]
+		// _fleetadmin is allowlisted in usersQueryStr only so we can capture its uuid for
+		// MDM rotation. Do not persist it in host_users.
+		if host.Platform == "darwin" && username == fleet.ManagedLocalAccountUsername {
+			managedLocalAccountUUID = uuid
+			continue
+		}
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -2589,6 +2565,9 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			}
 		}
 	}
+	if host.Platform == "darwin" && managedLocalAccountUUID != "" {
+		captureManagedLocalAccountUUID(ctx, logger, host, ds, managedLocalAccountUUID)
+	}
 	if len(users) == 0 {
 		return nil
 	}
@@ -2596,6 +2575,29 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "update host users")
 	}
 	return nil
+}
+
+// captureManagedLocalAccountUUID persists the osquery-reported UUID for the
+// managed local admin account when a row exists and the stored value is NULL
+// or differs from the latest reported UUID. Errors are logged and swallowed
+// so host-detail ingestion is not blocked by this secondary concern.
+func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
+	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
+	if err != nil {
+		logger.ErrorContext(ctx, "get managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+		return
+	}
+	if existing != nil && *existing == accountUUID {
+		return
+	}
+	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {
+		logger.ErrorContext(ctx, "set managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+	}
 }
 
 func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -3041,58 +3043,71 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
-	}
-	if updated {
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
-		}
-		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
-			// it taking two full refreshes to show this
-			if device.MDMNotInOOBE {
-				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
-				}
-			}
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	return err
+}
 
-			mapping := []*fleet.HostDeviceMapping{
-				{
-					HostID: host.ID,
-					Email:  device.MDMEnrollUserID,
-					Source: fleet.DeviceMappingMDMIdpAccounts,
-				},
-			}
-			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
-			}
-			// Check if the user is a valid SCIM user to manage the join table
-			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
-			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
-			}
-			if err == nil && scimUser != nil {
-				// User exists in SCIM, create/update the mapping for additional attributes
-				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-					// Log the error but don't fail the request since the main IDP mapping succeeded
-					logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
-				}
-			} else {
-				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-					// Log the error but don't fail the request
-					logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
-				}
-			}
+// LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
+// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
+// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+//
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
+// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
+// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
+// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// rather than infer it from the boolean alone.
+func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if !updated {
+		return false, nil
+	}
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
+	if err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return updated, nil
+	}
+	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
+	// reflect this state.
+	if device.MDMNotInOOBE {
+		if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+			return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 		}
 	}
-	return nil
+	mapping := []*fleet.HostDeviceMapping{
+		{
+			HostID: hostID,
+			Email:  device.MDMEnrollUserID,
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}
+	if err := ds.ReplaceHostDeviceMapping(ctx, hostID, mapping, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+	}
+	// Check if the user is a valid SCIM user to manage the join table.
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+	if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+		return updated, ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+	}
+	if err == nil && scimUser != nil {
+		// User exists in SCIM, create/update the mapping for additional attributes (idp_full_name, idp_groups, etc.).
+		if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			// Log the error but don't fail the linkage since the main IDP mapping succeeded.
+			logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+		}
+	} else {
+		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host.
+		if err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+		}
+	}
+	return updated, nil
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -3378,10 +3393,6 @@ func GetDetailQueries(
 		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
-	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
-		generatedMap["windows_update_history"] = windowsUpdateHistory
-	}
-
 	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
@@ -3540,7 +3551,7 @@ func directIngestHostCertificatesDarwin(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func directIngestHostCertificatesWindows(
@@ -3638,7 +3649,7 @@ func directIngestHostCertificatesWindows(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery)
 }
 
 func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {

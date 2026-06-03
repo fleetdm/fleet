@@ -1,0 +1,9 @@
+- name: macOS - Application firewall enabled
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  critical: false
+  description: |-
+    Verifies the macOS Application Layer Firewall is on (global_state 1 = enabled, 2 = enabled blocking all inbound).
+  resolution: |-
+    Firewall should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin

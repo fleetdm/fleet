@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInitAssets(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds, []string{"mdm_config_assets"}...)
+	ds := mysqltest.CreateMySQLDS(t)
+	defer mysqltest.TruncateTables(t, ds, []string{"mdm_config_assets"}...)
 
 	ctx := t.Context()
 

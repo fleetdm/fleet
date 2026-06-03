@@ -1,0 +1,228 @@
+{
+  "title": "Fleet host cache",
+  "description": "Observability for the Redis-backed host lookup cache fronting LoadHostByNodeKey and LoadHostByOrbitNodeKey. Shows hit rate, lookup volume by result, error volume by operation, and invalidation volume by write-path reason.",
+  "tags": ["redis", "cache", "host-cache"],
+  "layout": [
+    { "i": "row-overview",  "x": 0, "y": 0, "w": 12, "h": 1 },
+    { "i": "hit-rate",      "x": 0, "y": 1, "w": 4,  "h": 4 },
+    { "i": "lookups",       "x": 4, "y": 1, "w": 8,  "h": 4 },
+    { "i": "errors",        "x": 0, "y": 5, "w": 6,  "h": 4 },
+    { "i": "invalidations", "x": 6, "y": 5, "w": 6,  "h": 4 }
+  ],
+  "widgets": [
+    {
+      "id": "row-overview",
+      "panelTypes": "row",
+      "title": "Host cache overview",
+      "query": { "queryType": "builder", "promql": [], "clickhouse_sql": [], "builder": { "queryData": [], "queryFormulas": [] } },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "thresholds": [],
+      "contextLinks": { "linksData": [] }
+    },
+    {
+      "id": "hit-rate",
+      "panelTypes": "graph",
+      "title": "Hit rate",
+      "description": "A/B where A = rate of hits + negative_hits (both Redis-served, both avoid MySQL), B = rate of all lookups. Target: >= 80% at steady state once the cache warms. Watch for drops during invalidation storms (mass team transfers, re-enrollments).",
+      "yAxisUnit": "percentunit",
+      "legendPosition": "bottom",
+      "query": {
+        "queryType": "builder",
+        "promql": [],
+        "clickhouse_sql": [],
+        "builder": {
+          "queryData": [
+            {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "expression": "A",
+              "disabled": true,
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "fleet.host_cache.lookups",
+                  "temporality": "Cumulative",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ],
+              "filter": { "expression": "result IN ['hit', 'negative_hit']" },
+              "groupBy": [],
+              "orderBy": [],
+              "selectColumns": [],
+              "functions": []
+            },
+            {
+              "queryName": "B",
+              "dataSource": "metrics",
+              "expression": "B",
+              "disabled": true,
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "fleet.host_cache.lookups",
+                  "temporality": "Cumulative",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ],
+              "filter": { "expression": "" },
+              "groupBy": [],
+              "orderBy": [],
+              "selectColumns": [],
+              "functions": []
+            }
+          ],
+          "queryFormulas": [
+            {
+              "queryName": "F1",
+              "expression": "A / B",
+              "legend": "hit rate"
+            }
+          ]
+        }
+      },
+      "thresholds": [
+        { "index": "1", "keyIndex": 0, "thresholdColor": "Orange", "thresholdFormat": "Line", "thresholdOperator": "<", "thresholdUnit": "percentunit", "thresholdValue": 0.8 }
+      ],
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "contextLinks": { "linksData": [] }
+    },
+    {
+      "id": "lookups",
+      "panelTypes": "graph",
+      "title": "Lookups/sec by result",
+      "description": "Stacked area of cache reads split by outcome. hit = served from Redis; negative_hit = cached NotFound; miss = fell through to MySQL.",
+      "yAxisUnit": "cps",
+      "isStacked": true,
+      "legendPosition": "bottom",
+      "query": {
+        "queryType": "builder",
+        "promql": [],
+        "clickhouse_sql": [],
+        "builder": {
+          "queryData": [
+            {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "expression": "A",
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "fleet.host_cache.lookups",
+                  "temporality": "Cumulative",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ],
+              "filter": { "expression": "" },
+              "groupBy": [
+                { "key": "result", "dataType": "string", "type": "tag" }
+              ],
+              "legend": "{{result}}",
+              "orderBy": [],
+              "selectColumns": [],
+              "functions": []
+            }
+          ],
+          "queryFormulas": []
+        }
+      },
+      "thresholds": [],
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "contextLinks": { "linksData": [] }
+    },
+    {
+      "id": "errors",
+      "panelTypes": "graph",
+      "title": "Errors/sec by op",
+      "description": "Redis / JSON errors on the cache path, labeled by operation (get | set | del). Should be flat-zero in steady state; spikes indicate Redis flake or poisoned cache entries.",
+      "yAxisUnit": "cps",
+      "legendPosition": "bottom",
+      "query": {
+        "queryType": "builder",
+        "promql": [],
+        "clickhouse_sql": [],
+        "builder": {
+          "queryData": [
+            {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "expression": "A",
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "fleet.host_cache.errors",
+                  "temporality": "Cumulative",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ],
+              "filter": { "expression": "" },
+              "groupBy": [
+                { "key": "op", "dataType": "string", "type": "tag" }
+              ],
+              "legend": "{{op}}",
+              "orderBy": [],
+              "selectColumns": [],
+              "functions": []
+            }
+          ],
+          "queryFormulas": []
+        }
+      },
+      "thresholds": [],
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "contextLinks": { "linksData": [] }
+    },
+    {
+      "id": "invalidations",
+      "panelTypes": "graph",
+      "title": "Invalidations/sec by reason",
+      "description": "Cache invalidations on write paths. update = UpdateHost/SerialUpdateHost/osquery intervals/refetch; enroll = NewHost/EnrollOsquery/EnrollOrbit; team = AddHostsToTeam; delete = DeleteHost*/CleanupExpiredHosts/CleanupIncomingHosts; cert = UpdateHostIdentityCertHostIDBySerial.",
+      "yAxisUnit": "cps",
+      "isStacked": true,
+      "legendPosition": "bottom",
+      "query": {
+        "queryType": "builder",
+        "promql": [],
+        "clickhouse_sql": [],
+        "builder": {
+          "queryData": [
+            {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "expression": "A",
+              "stepInterval": 60,
+              "aggregations": [
+                {
+                  "metricName": "fleet.host_cache.invalidations",
+                  "temporality": "Cumulative",
+                  "timeAggregation": "rate",
+                  "spaceAggregation": "sum"
+                }
+              ],
+              "filter": { "expression": "" },
+              "groupBy": [
+                { "key": "reason", "dataType": "string", "type": "tag" }
+              ],
+              "legend": "{{reason}}",
+              "orderBy": [],
+              "selectColumns": [],
+              "functions": []
+            }
+          ],
+          "queryFormulas": []
+        }
+      },
+      "thresholds": [],
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "contextLinks": { "linksData": [] }
+    }
+  ]
+}

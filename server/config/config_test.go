@@ -331,6 +331,58 @@ osquery:
 	}
 }
 
+func TestConfigSESSenderDomain(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    string
+	}{
+		{
+			desc: "default empty",
+			want: "",
+		},
+		{
+			desc: "yaml configured",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			want: "notifications.example.com",
+		},
+		{
+			desc: "env var overrides yaml",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			envVars: []string{"FLEET_SES_SENDER_DOMAIN=mailer.example.com"},
+			want:    "mailer.example.com",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			if c.yaml != "" {
+				man.viper.SetConfigType("yaml")
+				require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+			}
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			loadedCfg := man.LoadConfig()
+			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
+		})
+	}
+}
+
 func TestToTLSConfig(t *testing.T) {
 	dir := t.TempDir()
 	caFile, certFile, keyFile, garbageFile := filepath.Join(dir, "ca"),
@@ -867,4 +919,150 @@ func TestConditionalAccessConfigValidate(t *testing.T) {
 			require.Equal(t, tt.expectErr, called)
 		})
 	}
+}
+
+func TestLoggingConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OTEL logs with tracing is valid", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: true}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("OTEL logs without tracing is rejected", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: false}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestOsqueryConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uuid is allowed", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("unknown value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "serial"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("empty value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("direct key only is valid", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("private_key and private_key_arn both set is rejected", func(t *testing.T) {
+		cfg := ServerConfig{
+			PrivateKey:          strings.Repeat("x", 32),
+			PrivateKeySecretArn: "test-secret-arn-placeholder",
+		}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidatePrivateKeyLength(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty key passes (no key configured)", func(t *testing.T) {
+		cfg := ServerConfig{}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("32-byte key passes", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("under-32-byte key is rejected", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 16)}
+		called := false
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigURLPrefix(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty prefix is normalized to empty and passes validation", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: ""}
+		cfg.NormalizeURLPrefix()
+		require.Empty(t, cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("missing leading slash is normalized and passes", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "fleet"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("trailing slash is normalized away", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid character is rejected after normalization", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet space"}
+		cfg.NormalizeURLPrefix()
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("bare slash is rejected (preserved through normalization)", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/", cfg.URLPrefix)
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
+	t.Parallel()
+
+	t.Run("both APNs and SCEP set is valid", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert", AppleSCEPCert: "scep.cert"}
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) {
+			t.Fatalf("unexpected error: %v", err)
+		})
+	})
+
+	t.Run("SCEP set without APNs is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleSCEPCert: "scep.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("APNs set without SCEP is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
 }

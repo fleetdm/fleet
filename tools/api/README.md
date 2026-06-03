@@ -32,7 +32,7 @@ export FLEET_ENV_PATH=./path/to/env/file/fleet_env
   }
 }
 
-# list queries
+# list reports (formerly "queries")
 ./tools/api/fleet/queries/list
 {
   "queries": []
@@ -65,7 +65,7 @@ export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 # get scheduled queries in a pack
 ./tools/api/fleet/packs/scheduled 2 | jq '.scheduled[]|{"name": .name, "schedule_id": .id, "query_id": .query_id}'
 
-# run a live queries on hosts (queries with id=1 and id=2 on hosts with id=3 and id=4)
+# run a live report (formerly "live query") on hosts (queries with id=1 and id=2 on hosts with id=3 and id=4)
 ./tools/api/fleet/queries/run "[1,2]" "[3,4]"
 ```
 

@@ -1,0 +1,270 @@
+// Package scheduletest provides test helpers (no-op and mock implementations
+// of the schedule package's Locker and CronStatsStore interfaces) for use by
+// tests that exercise the cron schedule.
+//
+// It imports the "testing" package and must therefore only ever be imported
+// from test code; importing it from production code would pull "testing"
+// into the resulting binary.
+package scheduletest
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+// NopLocker is a no-op Locker implementation that always succeeds.
+type NopLocker struct{}
+
+func (NopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (NopLocker) Unlock(context.Context, string, string) error {
+	return nil
+}
+
+// NopStatsStore is a no-op CronStatsStore implementation.
+type NopStatsStore struct{}
+
+func (NopStatsStore) GetLatestCronStats(_ context.Context, _ string) ([]fleet.CronStats, error) {
+	return []fleet.CronStats{}, nil
+}
+
+func (NopStatsStore) InsertCronStats(_ context.Context, _ fleet.CronStatsType, _ string, _ string, _ fleet.CronStatsStatus) (int, error) {
+	return 0, nil
+}
+
+func (NopStatsStore) UpdateCronStats(_ context.Context, _ int, _ fleet.CronStatsStatus, _ *fleet.CronScheduleErrors) error {
+	return nil
+}
+
+func (NopStatsStore) ClaimCronStats(_ context.Context, _ int, _ string, _ fleet.CronStatsStatus) error {
+	return nil
+}
+
+// SetupMockLocker returns a *MockLock pre-populated with the given name,
+// owner, and expiration.
+func SetupMockLocker(name string, owner string, expiresAt time.Time) *MockLock {
+	return &MockLock{name: name, owner: owner, expiresAt: expiresAt}
+}
+
+// MockLock is an in-memory Locker that records lock/unlock activity and can
+// optionally signal those events through channels (see AddChannels).
+type MockLock struct {
+	mu sync.Mutex
+
+	name      string
+	owner     string
+	expiresAt time.Time
+
+	Locked    chan struct{}
+	LockCount int
+
+	Unlocked    chan struct{}
+	UnlockCount int
+}
+
+func (ml *MockLock) Lock(_ context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	if name != ml.name {
+		return false, errors.New("name doesn't match")
+	}
+
+	now := time.Now()
+	if ml.owner == owner || now.After(ml.expiresAt) {
+		ml.owner = owner
+		ml.expiresAt = now.Add(expiration)
+		ml.LockCount++
+		if ml.Locked != nil {
+			ml.Locked <- struct{}{}
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (ml *MockLock) Unlock(_ context.Context, name string, owner string) error {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	if name != ml.name {
+		return errors.New("name doesn't match")
+	}
+	if owner != ml.owner {
+		return errors.New("owner doesn't match")
+	}
+	ml.UnlockCount++
+	if ml.Unlocked != nil {
+		ml.Unlocked <- struct{}{}
+	}
+	ml.expiresAt = time.Now()
+	return nil
+}
+
+func (ml *MockLock) GetLockCount() int {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	return ml.LockCount
+}
+
+func (ml *MockLock) GetExpiration() time.Time {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	return ml.expiresAt
+}
+
+// AddChannels initializes the named signaling channels on the MockLock. The
+// known channel names are "locked" and "unlocked".
+func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	for _, n := range chanNames {
+		switch n {
+		case "locked":
+			ml.Locked = make(chan struct{})
+		case "unlocked":
+			ml.Unlocked = make(chan struct{})
+		default:
+			t.Errorf("unrecognized channel name")
+			t.FailNow()
+		}
+	}
+
+	return nil
+}
+
+// MockStatsStore is an in-memory CronStatsStore that records calls and can
+// optionally signal them through channels (see AddChannels).
+type MockStatsStore struct {
+	sync.Mutex
+	stats map[int]fleet.CronStats
+
+	GetStatsCalled    chan struct{}
+	InsertStatsCalled chan struct{}
+	UpdateStatsCalled chan struct{}
+}
+
+func (m *MockStatsStore) GetLatestCronStats(_ context.Context, name string) ([]fleet.CronStats, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	if m.GetStatsCalled != nil {
+		m.GetStatsCalled <- struct{}{}
+	}
+
+	latest := make(map[fleet.CronStatsType]fleet.CronStats)
+	for _, s := range m.stats {
+		if s.Name != name {
+			continue
+		}
+		curr := latest[s.StatsType]
+		if s.CreatedAt.Before(curr.CreatedAt) {
+			continue
+		}
+		latest[s.StatsType] = s
+	}
+
+	res := []fleet.CronStats{}
+	if s, ok := latest[fleet.CronStatsTypeScheduled]; ok {
+		res = append(res, s)
+	}
+	if s, ok := latest[fleet.CronStatsTypeTriggered]; ok {
+		res = append(res, s)
+	}
+
+	return res, nil
+}
+
+func (m *MockStatsStore) InsertCronStats(_ context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	if m.InsertStatsCalled != nil {
+		m.InsertStatsCalled <- struct{}{}
+	}
+
+	id := len(m.stats) + 1
+	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(1 * time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
+
+	return id, nil
+}
+
+func (m *MockStatsStore) UpdateCronStats(_ context.Context, id int, status fleet.CronStatsStatus, _ *fleet.CronScheduleErrors) error {
+	m.Lock()
+	defer m.Unlock()
+
+	if m.UpdateStatsCalled != nil {
+		m.UpdateStatsCalled <- struct{}{}
+	}
+
+	s, ok := m.stats[id]
+	if !ok {
+		return errors.New("update failed, id not found")
+	}
+	s.Status = status
+	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
+	m.stats[id] = s
+
+	return nil
+}
+
+func (m *MockStatsStore) ClaimCronStats(_ context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+	m.Lock()
+	defer m.Unlock()
+
+	s, ok := m.stats[id]
+	if !ok {
+		return errors.New("claim failed, id not found")
+	}
+	s.Status = status
+	s.Instance = instance
+	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
+	m.stats[id] = s
+
+	return nil
+}
+
+// AddChannels initializes the named signaling channels on the MockStatsStore.
+// The known channel names are "GetStatsCalled", "InsertStatsCalled", and
+// "UpdateStatsCalled".
+func (m *MockStatsStore) AddChannels(t *testing.T, chanNames ...string) error {
+	m.Lock()
+	defer m.Unlock()
+	for _, n := range chanNames {
+		switch n {
+		case "GetStatsCalled":
+			m.GetStatsCalled = make(chan struct{})
+		case "InsertStatsCalled":
+			m.InsertStatsCalled = make(chan struct{})
+		case "UpdateStatsCalled":
+			m.UpdateStatsCalled = make(chan struct{})
+		default:
+			t.Errorf("unrecognized channel name")
+			t.FailNow()
+		}
+	}
+	return nil
+}
+
+// SetUpMockStatsStore returns a *MockStatsStore pre-seeded with the given
+// initial stats.
+func SetUpMockStatsStore(_ string, initialStats ...fleet.CronStats) *MockStatsStore {
+	stats := make(map[int]fleet.CronStats)
+	for _, s := range initialStats {
+		stats[s.ID] = s
+	}
+	store := MockStatsStore{stats: stats}
+
+	return &store
+}

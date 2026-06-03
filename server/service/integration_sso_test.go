@@ -21,7 +21,7 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -366,7 +366,7 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	// trick the user into one with SSO enabled (we could create that user but it
 	// won't have a password nor an API token to use for the request, so we mock
 	// it in the DB)
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
 			"UPDATE users SET sso_enabled = 1, admin_forced_password_reset = 1 WHERE id = ?",

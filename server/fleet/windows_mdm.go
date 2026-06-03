@@ -60,11 +60,20 @@ type windowsProfileValidator struct {
 	// can be empty if not within a top-level element.
 	currentTopLevelElement string
 
+	// Tracks whether we have encountered at least one valid SyncML top-level element (Replace, Add, Exec, or Atomic). Used
+	// to reject inputs that parse as XML but contain no supported elements, such as plain text or comment-only files.
+	sawValidTopLevel bool
+
+	// Tracks whether the profile content references a Fleet secret variable. When true, the body may be a bare placeholder
+	// that expands into real SyncML at apply time, so we skip the top-level structural check.
+	containsServerSecret bool
+
+	// Tracks whether the currently-open <LocURI> element has seen any non-whitespace character data. Reset when the LocURI
+	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
+	locURIHasContent bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
-
-	// Whether to enable validation for custom OS updates loc URIs.
-	enableCustomOSUpdates bool
 }
 
 var validTopLevelElements = map[string]struct{}{
@@ -74,14 +83,14 @@ var validTopLevelElements = map[string]struct{}{
 	"Atomic":  {},
 }
 
-// ValidateUserProvided ensures that the SyncML content in the profile is valid
-// for Windows.
+// ValidateUserProvided ensures that the SyncML content in the profile is valid for Windows.
 //
-// It checks that all top-level elements are <Replace> and none of the <LocURI>
-// elements within <Target> are reserved URIs.
+// It checks that the file contains at least one supported top-level element (<Replace>, <Add>, <Exec>, or <Atomic>),
+// that each <LocURI> follows the OMA-DM addressing rules (must start with "./" and must not contain "../" path
+// traversal sequences), and that none of the <LocURI> elements within <Target> are reserved Fleet-managed URIs.
 //
-// It also performs basic checks for XML well-formedness as defined in the [W3C
-// Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
+// It also performs basic checks for XML well-formedness as defined in the [W3C Recommendation section 2.8][1], as
+// required by the [MS-MDM spec][2].
 //
 // Note that we only need to check for well-formedness, but validation is not required.
 //
@@ -89,7 +98,7 @@ var validTopLevelElements = map[string]struct{}{
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -98,20 +107,23 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
+	validator := newWindowsProfileValidator(m.SyncML)
+	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
+	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
+	// acceptable.
+	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte(ServerSecretPrefix))
 	return validator.validate()
 }
 
-func newWindowsProfileValidator(syncML []byte, enableCustomOSUpdates bool) *windowsProfileValidator {
+func newWindowsProfileValidator(syncML []byte) *windowsProfileValidator {
 	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
 	return &windowsProfileValidator{
-		scepValidator:         newWindowsSCEPProfileValidator(),
-		decoder:               dec,
-		enableCustomOSUpdates: enableCustomOSUpdates,
+		scepValidator: newWindowsSCEPProfileValidator(),
+		decoder:       dec,
 	}
 }
 
@@ -130,6 +142,12 @@ func (v *windowsProfileValidator) validate() error {
 		}
 	}
 
+	// If the profile references a Fleet secret variable, the body may be (or contain) a placeholder that expands into the
+	// real SyncML at apply time, so skip the structural top-level element check here.
+	if !v.sawValidTopLevel && !v.containsServerSecret {
+		return errors.New("The file should include valid SyncML XML with at least one supported element.")
+	}
+
 	return v.scepValidator.finalizeValidation()
 }
 
@@ -144,7 +162,7 @@ func (v *windowsProfileValidator) processToken(tok xml.Token) error {
 	case xml.StartElement:
 		return v.handleStartElement(t)
 	case xml.EndElement:
-		v.handleEndElement(t)
+		return v.handleEndElement(t)
 	case xml.CharData:
 		return v.handleCharData(t)
 
@@ -176,6 +194,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 		}
 
 		v.currentTopLevelElement = elementName
+		v.sawValidTopLevel = true
 		if v.isAtomicProfile == nil {
 			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
 			v.isAtomicProfile = ptr.Bool(false)
@@ -188,7 +207,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 	return nil
 }
 
-func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) {
+func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 	elementName := el.Name.Local
 
 	if elementName == v.currentTopLevelElement {
@@ -196,7 +215,16 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) {
 		v.currentTopLevelElement = ""
 	}
 
+	// An empty <LocURI></LocURI> produces no CharData token, so we catch it here when the close tag fires before any
+	// content. Whitespace-only content is rejected in validateLocURIFormat.
+	if elementName == "LocURI" && !v.locURIHasContent {
+		v.currentElement = ""
+		return errors.New("<LocURI> can't be empty.")
+	}
+
 	v.currentElement = ""
+	v.locURIHasContent = false
+	return nil
 }
 
 func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
@@ -206,18 +234,48 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	}
 
 	locURI := string(el)
-
-	if v.isInExec() {
-		if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
-			return err
-		}
-	} else {
-		if err := v.scepValidator.validateLocURI(locURI); err != nil {
-			return err
-		}
+	if strings.TrimSpace(locURI) != "" {
+		v.locURIHasContent = true
 	}
 
-	return validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates)
+	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
+	// specific message.
+	if err := validateFleetProvidedLocURI(locURI); err != nil {
+		return err
+	}
+
+	if err := validateLocURIFormat(locURI); err != nil {
+		return err
+	}
+
+	if v.isInExec() {
+		return v.scepValidator.validateExecLocURI(locURI)
+	}
+	return v.scepValidator.validateLocURI(locURI)
+}
+
+// validateLocURIFormat rejects LocURI values that real Windows MDM devices reject with status 400 (empirically verified
+// against Windows 11 25H2), plus a defensive ".." segment check:
+//
+//  1. Empty value (no legitimate use in Add/Replace/Atomic/Exec; device returns 400).
+//  2. Leading "/" (Microsoft's OMA DM protocol support page explicitly states "LocURI can't start with /"; device
+//     returns 400).
+//  3. ".." path traversal segment (security; spec-silent, kept on principle).
+//
+// All other forms are accepted, including device-permissive "Device/Vendor/MSFT/..." (no "./") and "./Vendor/MSFT/..."
+// (implicit device-targeted) variants.
+func validateLocURIFormat(locURI string) error {
+	trimmed := strings.TrimSpace(locURI)
+	if trimmed == "" {
+		return errors.New("<LocURI> can't be empty.")
+	}
+	if strings.HasPrefix(trimmed, "/") && !strings.HasPrefix(trimmed, "./") {
+		return errors.New("<LocURI> can't start with \"/\".")
+	}
+	if slices.Contains(strings.Split(strings.TrimPrefix(trimmed, "./"), "/"), "..") {
+		return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
+	}
+	return nil
 }
 
 func (v *windowsProfileValidator) isAtTopLevel() bool {
@@ -239,16 +297,12 @@ func (v *windowsProfileValidator) isInExec() bool {
 
 var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
-	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
+func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
-				continue
-			}
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
@@ -468,7 +522,10 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return errors.New("SCEP profiles must include exactly one <Exec> element.")
 	}
 
-	// Verify that we do not have any non-scep loc URIs present
+	// Verify that we do not have any non-SCEP LocURIs present. This
+	// constraint also means SCEP profiles are always SCEP-only, which the
+	// ESP (EnrollmentStatusTracking) relies on to track them under
+	// Certificates instead of Security policies.
 	if v.totalLocURIs != len(v.foundLocURIs) {
 		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
 	}

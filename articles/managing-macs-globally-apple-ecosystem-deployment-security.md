@@ -4,7 +4,7 @@ This guide covers why global Mac management requires specialized approaches and 
 
 ## What is Apple ecosystem management for global deployments?
 
-Apple's deployment ecosystem operates differently than Windows. Where Windows relies on Active Directory and Group Policy for configuration, Mac management integrates Apple Business Manager for device registration, the Push Notification service for device management communication, configuration profiles for device and user settings, and the MDM (Mobile Device Management) protocol for remote administration. These components work together through Apple's cloud infrastructure.
+Apple's deployment ecosystem operates differently than Windows. Where Windows relies on Active Directory and Group Policy for configuration, Mac management integrates Apple Business for device registration, the Push Notification service for device management communication, configuration profiles for device and user settings, and the MDM (Mobile Device Management) protocol for remote administration. These components work together through Apple's cloud infrastructure.
 
 When you're managing hundreds to thousands of Mac devices across geographic regions, this architecture requires specific capabilities like automated enrollment systems that provision devices without physical access, federated identity management that connects devices to organizational accounts, standardized configuration deployment that maintains consistency, and continuous compliance monitoring that catches drift before audits. 
 
@@ -18,7 +18,7 @@ Organizations managing Mac devices across enterprise environments face several c
 
 * **Supporting employee choice and productivity:** Knowledge workers increasingly expect macOS as an option for development, design, and productivity workflows.  
 * **Meeting security and compliance requirements:** Operating across multiple regions means facing overlapping regulatory requirements including GDPR, HIPAA, PCI-DSS, and jurisdiction-specific data residency rules.  
-* **Reducing management costs:** Zero-touch deployment through Apple Business Manager and Automated Device Enrollment can significantly reduce hands-on provisioning time.  
+* **Reducing management costs:** Zero-touch deployment through Apple Business and Automated Device Enrollment can significantly reduce hands-on provisioning time.  
 * **Enabling distributed and remote workforces:** Devices ship directly to employee homes across multiple countries and may never connect to corporate network infrastructure.
 
 These capabilities work together through Apple's ecosystem rather than traditional Windows-based infrastructure, requiring specialized solutions that understand both Apple's architecture and enterprise requirements.
@@ -27,21 +27,21 @@ These capabilities work together through Apple's ecosystem rather than tradition
 
 Enterprise Mac management operates through several interconnected technical components that work together to provide control across your global device fleet.
 
-### Apple Business Manager
+### Apple Business
 
-Apple Business Manager (ABM) serves as the device registry to prove institutional ownership for automated enrollment and app distribution in enterprise deployments. When you purchase Mac devices through Apple or authorized resellers who participate in the Device Enrollment Program, device serial numbers automatically register to your organizational Apple Business Manager account.
+Apple Business (AB) serves as the device registry to prove institutional ownership for automated enrollment and app distribution in enterprise deployments. When you purchase Mac devices through Apple or authorized resellers who participate in the Device Enrollment Program, device serial numbers automatically register to your organizational Apple Business account.
 
-You assign devices in Apple Business Manager to specific MDM servers. This assignment tells Apple's activation servers which MDM server should manage each device. The system supports multiple tokens for organizations with different business units or for managed service providers supporting multiple clients. 
+You assign devices in Apple Business to specific MDM servers. This assignment tells Apple's activation servers which MDM server should manage each device. The system supports multiple tokens for organizations with different business units or for managed service providers supporting multiple clients. 
 
 The practical usability of multiple tokens depends on your device management solution. Some solutions support multiple tokens but with interface limitations. Verify your device management solution vendor's multi-token capabilities before planning segmentation around multiple tokens.
 
 ### Automated Device Enrollment (ADE)
 
-Automated Device Enrollment provisions devices globally without your IT team physically touching them. When a user powers on a device for the first time, it contacts Apple's activation servers during Setup Assistant, which recognize the device serial number, confirm its Apple Business Manager registration, and automatically downloads the assigned enrollment profile. 
+Automated Device Enrollment provisions devices globally without your IT team physically touching them. When a user powers on a device for the first time, it contacts Apple's activation servers during Setup Assistant, which recognize the device serial number, confirm its Apple Business registration, and automatically downloads the assigned enrollment profile. 
 
 This wireless enrollment process means you can drop-ship devices directly to users anywhere in the world, with devices arriving at the desktop fully configured with required security settings and applications.
 
-Supervision mode provides the highest level of management capabilities for ADE-enrolled devices. Unlike manually enrolled devices where users can remove MDM profiles, ADE-enrolled supervised Macs can enforce mandatory, immutable enrollment that persists across OS reinstallations because the device remains registered in Apple Business Manager. 
+Supervision mode provides the highest level of management capabilities for ADE-enrolled devices. Unlike manually enrolled devices where users can remove MDM profiles, ADE-enrolled supervised Macs can enforce mandatory, immutable enrollment that persists across OS reinstallations because the device remains registered in Apple Business. 
 
 Your security policies remain enforced even if a user attempts to wipe and reinstall macOS. (Note: Manually supervised devices via Apple Configurator typically do not retain supervision after factory reset, though behavior can vary by workflow and macOS version.)
 
@@ -69,7 +69,7 @@ Beyond the foundational Apple technologies, several operational components work 
 
 ### Zero-touch deployment workflows
 
-Zero-touch deployment represents the complete process from device purchase to productive end user without IT physically touching equipment. The workflow starts when you purchase devices through Apple Business Manager from participating suppliers, who automatically register serial numbers to your organization. You assign devices to users, and when users power on the device for the first time, it contacts Apple's activation servers and automatically downloads the enrollment profile, establishing supervised mode wirelessly.
+Zero-touch deployment represents the complete process from device purchase to productive end user without IT physically touching equipment. The workflow starts when you purchase devices through Apple Business from participating suppliers, who automatically register serial numbers to your organization. You assign devices to users, and when users power on the device for the first time, it contacts Apple's activation servers and automatically downloads the enrollment profile, establishing supervised mode wirelessly.
 
 Enrollment can trigger app installation, scripts, and configurations that install during Setup Assistant, before the user sees the desktop. Users receive fully configured devices ready for work without IT intervention. This capability matters when you're deploying devices at scale to employees in regions without local IT support.
 
@@ -81,7 +81,7 @@ Platform SSO on macOS Sequoia and later typically uses Secure Enclave-backed aut
 
 ### Software distribution and updates
 
-Managing application installation and updates across global Mac fleets works better when using automated workflows that don't depend on users visiting App Store manually. Your MDM solution should manage application distribution through volume purchasing and automatic deployment. Apple Business Manager includes Apps and Books, which lets you purchase app licenses in bulk and assign them to device serial numbers rather than individual user accounts.
+Managing application installation and updates across global Mac fleets works better when using automated workflows that don't depend on users visiting App Store manually. Your MDM solution should manage application distribution through volume purchasing and automatic deployment. Apple Business includes Apps and Books, which lets you purchase app licenses in bulk and assign them to device serial numbers rather than individual user accounts.
 
 Declarative Device Management provides automatic software update controls that install macOS updates during user-defined time windows. Devices check for updates independently, download them when network connectivity permits, and install them according to policies rather than waiting for MDM commands. This asynchronous behavior works better than traditional command-based updates for globally distributed fleets.
 
@@ -127,15 +127,15 @@ What distinguishes multi-platform device management with osquery integration is 
 
 ## Scaling Mac management with confidence
 
-Managing Mac fleets across global regions requires architecture that handles Apple Business Manager enrollment, Declarative Device Management, and configuration verification beyond simple MDM command acknowledgment. Organizations need solutions that integrate with Apple's cloud infrastructure while supporting Windows and Linux devices from the same console.
+Managing Mac fleets across global regions requires architecture that handles Apple Business enrollment, Declarative Device Management, and configuration verification beyond simple MDM command acknowledgment. Organizations need solutions that integrate with Apple's cloud infrastructure while supporting Windows and Linux devices from the same console.
 
 With Fleet, your team can manage Mac fleets alongside Windows and Linux devices from a single open-source solution, with osquery-based verification that confirms configurations actually exist on devices. [Schedule a demo](https://fleetdm.com/try-fleet/device-management) to see how Fleet fits your global device management strategy.
 
 ## Frequently asked questions
 
-### What's the difference between MDM and Apple Business Manager?
+### What's the difference between MDM and Apple Business?
 
-Apple Business Manager is Apple's portal for automatically assigning devices to device management solutions during enrollment, linking device serial numbers to your organization and enabling Automated Device Enrollment (ADE). Device management is the management function plus the Apple MDM protocol and server software that configures and controls devices after they're enrolled. Both are needed: Apple Business Manager for zero-touch automated enrollment, and a device management solution to manage devices after enrollment.
+Apple Business is Apple's portal for automatically assigning devices to device management solutions during enrollment, linking device serial numbers to your organization and enabling Automated Device Enrollment (ADE). Device management is the management function plus the Apple MDM protocol and server software that configures and controls devices after they're enrolled. Both are needed: Apple Business for zero-touch automated enrollment, and a device management solution to manage devices after enrollment.
 
 ### How many Macs can one admin realistically manage?
 

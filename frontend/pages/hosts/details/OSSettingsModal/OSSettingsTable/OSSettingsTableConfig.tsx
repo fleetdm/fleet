@@ -7,6 +7,7 @@ import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
+  isEnrolledInMdm,
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
   MdmDDMProfileStatus,
@@ -188,6 +189,7 @@ const makeDarwinRows = ({
   profiles,
   apple_settings,
   os_settings,
+  enrollment_status,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
@@ -201,7 +203,10 @@ const makeDarwinRows = ({
     }
   }
 
-  if (os_settings?.recovery_lock_password?.status) {
+  if (
+    isEnrolledInMdm(enrollment_status) &&
+    os_settings?.recovery_lock_password?.status
+  ) {
     rows = [
       ...rows,
       generateRecoveryLockPasswordSetting(

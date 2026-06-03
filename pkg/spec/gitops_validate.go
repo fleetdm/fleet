@@ -139,6 +139,7 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 	reflect.TypeFor[GitOpsOrgSettings](): {
 		"certificate_authorities": reflect.TypeFor[fleet.GroupedCertificateAuthorities](),
 		"mdm":                     reflect.TypeFor[GitOpsMDM](),
+		"org_info":                reflect.TypeFor[GitOpsOrgInfo](),
 	},
 }
 

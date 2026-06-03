@@ -1,8 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { IScript } from "interfaces/script";
 import React from "react";
+import scriptAPI from "services/entities/scripts";
 import ScriptListItem from "./ScriptListItem";
+
+jest.mock("services/entities/scripts", () => ({
+  __esModule: true,
+  default: { downloadScript: jest.fn() },
+}));
 
 const MAC_SCRIPT: IScript = {
   id: 1,
@@ -115,5 +121,53 @@ describe("ScriptListItem", () => {
     expect(onEdit).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onClickScript).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  describe("with GitOps mode enabled", () => {
+    const renderWithGitOps = () => {
+      const customRender = createCustomRenderer({
+        context: {
+          app: {
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://github.com/fleetdm/fleet",
+              },
+            },
+          },
+        },
+      });
+
+      return customRender(
+        <ScriptListItem
+          script={MAC_SCRIPT}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onClickScript={onClickScript}
+        />
+      );
+    };
+
+    it("does not call onEdit, onDelete, or onClickScript when clicking the disabled pencil/trash", async () => {
+      const { user } = renderWithGitOps();
+
+      await user.click(screen.getByTestId("pencil-icon"));
+      await user.click(screen.getByTestId("trash-icon"));
+
+      expect(onEdit).not.toHaveBeenCalled();
+      expect(onDelete).not.toHaveBeenCalled();
+      expect(onClickScript).not.toHaveBeenCalled();
+    });
+
+    it("still calls download when the download button is clicked", async () => {
+      (scriptAPI.downloadScript as jest.Mock).mockResolvedValue("script body");
+
+      const { user } = renderWithGitOps();
+
+      await user.click(screen.getByTestId("download-icon"));
+
+      expect(scriptAPI.downloadScript).toHaveBeenCalledWith(MAC_SCRIPT.id);
+      expect(onClickScript).not.toHaveBeenCalled();
+    });
   });
 });

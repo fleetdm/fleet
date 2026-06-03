@@ -14,7 +14,7 @@ import (
 func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
-	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
+	sb.AddVariable("TMPDIR", `$(dirname "$(realpath "$INSTALLER_PATH")")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
 	sb.Extract(app.InstallerFormat)
@@ -367,10 +367,12 @@ func (s *scriptBuilder) Extract(format string) {
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
+		// Pipe yes into hdiutil to auto-accept license agreements on licensed DMGs (Homebrew
+		// behavior). Harmless when the DMG has no license prompt.
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"`)
+hdiutil detach "$MOUNT_POINT" || true`)
 
 	case "zip":
 		s.Write("# extract contents")
@@ -437,7 +439,7 @@ func (s *scriptBuilder) Symlink(source, target string) {
 // correct order.
 func (s *scriptBuilder) String() string {
 	var script strings.Builder
-	script.WriteString("#!/bin/sh\n\n")
+	script.WriteString("#!/bin/bash\n\n")
 
 	if len(s.variables) > 0 {
 		// write variables, order them alphabetically to produce deterministic
@@ -680,6 +682,31 @@ const trashFunc = `trash() {
   fi
 
   local trash="/Users/$logged_in_user/.Trash"
+
+  # If the target contains glob characters, expand it and move each match.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
+    local matched=false
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
+      matched=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      # The per-match counter keeps matches that share a basename from
+      # overwriting each other in the trash.
+      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+    done < <(compgen -G "$target_file" 2>/dev/null)
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
   local file_name="$(basename "${target_file}")"
 
   if [[ -e "$target_file" ]]; then

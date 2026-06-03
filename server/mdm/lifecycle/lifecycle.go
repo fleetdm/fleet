@@ -58,7 +58,7 @@ type HostLifecycle struct {
 // NewActivityFunc is the signature type of the service-layer function that can
 // create activities and handle the webhook notification and all other
 // mechanisms required when creating an activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error
+type NewActivityFunc = fleet.NewActivityFunc
 
 // New creates a new HostLifecycle struct
 func New(ds fleet.Datastore, logger *slog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {

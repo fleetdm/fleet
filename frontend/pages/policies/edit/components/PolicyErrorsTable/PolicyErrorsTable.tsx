@@ -2,6 +2,7 @@ import React from "react";
 import { noop } from "lodash";
 
 import TableContainer from "components/TableContainer";
+import EmptyState from "components/EmptyState";
 import { ICampaignError } from "interfaces/campaign";
 import {
   generateTableHeaders,
@@ -42,11 +43,7 @@ const PolicyErrorsTable = ({
           iconSvg: "trash",
           variant: "inverse",
         }}
-        emptyComponent={() => (
-          <div className="no-hosts__inner">
-            <p>No hosts are online.</p>
-          </div>
-        )}
+        emptyComponent={() => <EmptyState header="No hosts are online" />}
         onQueryChange={noop}
         disableCount
       />

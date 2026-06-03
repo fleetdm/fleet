@@ -44,7 +44,7 @@ type failingPolicyArgs struct {
 	PolicyName     string                `json:"policy_name"`
 	PolicyCritical bool                  `json:"policy_critical"`
 	Hosts          []fleet.PolicySetHost `json:"hosts"`
-	TeamID         *uint                 `json:"team_id,omitempty"`
+	TeamID         *uint                 `json:"team_id,omitempty"` //nolint:apiparamcheck // these are written to the db, changing likely requires migration
 }
 
 // vulnArgs are the args common to all integrations that can process

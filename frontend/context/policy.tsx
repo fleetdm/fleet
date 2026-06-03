@@ -29,6 +29,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryPlatform?: CommaSeparatedPlatformString | null;
   lastEditedQueryLabelsIncludeAny?: ILabelPolicy[];
   lastEditedQueryLabelsExcludeAny?: ILabelPolicy[];
+  lastEditedQueryLabelsIncludeAll?: ILabelPolicy[];
   defaultPolicy?: boolean;
 }
 
@@ -60,6 +61,7 @@ type InitialStateType = {
   lastEditedQueryCritical: boolean;
   lastEditedQueryPlatform: CommaSeparatedPlatformString | null;
   lastEditedQueryLabelsIncludeAny: ILabelPolicy[];
+  lastEditedQueryLabelsIncludeAll: ILabelPolicy[];
   lastEditedQueryLabelsExcludeAny: ILabelPolicy[];
   defaultPolicy: boolean;
   setLastEditedQueryId: (value: number | null) => void;
@@ -72,6 +74,7 @@ type InitialStateType = {
     value: CommaSeparatedPlatformString | null
   ) => void;
   setLastEditedQueryLabelsIncludeAny: (value: ILabelPolicy[]) => void;
+  setLastEditedQueryLabelsIncludeAll: (value: ILabelPolicy[]) => void;
   setLastEditedQueryLabelsExcludeAny: (value: ILabelPolicy[]) => void;
   setDefaultPolicy: (value: boolean) => void;
   policyTeamId: number;
@@ -95,6 +98,7 @@ const initialState = {
   lastEditedQueryCritical: false,
   lastEditedQueryPlatform: null,
   lastEditedQueryLabelsIncludeAny: [],
+  lastEditedQueryLabelsIncludeAll: [],
   lastEditedQueryLabelsExcludeAny: [],
   defaultPolicy: false,
   setLastEditedQueryId: () => null,
@@ -105,6 +109,7 @@ const initialState = {
   setLastEditedQueryCritical: () => null,
   setLastEditedQueryPlatform: () => null,
   setLastEditedQueryLabelsIncludeAny: () => null,
+  setLastEditedQueryLabelsIncludeAll: () => null,
   setLastEditedQueryLabelsExcludeAny: () => null,
   setDefaultPolicy: () => null,
   policyTeamId: 0,
@@ -162,6 +167,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
           typeof action.lastEditedQueryLabelsIncludeAny === "undefined"
             ? state.lastEditedQueryLabelsIncludeAny
             : action.lastEditedQueryLabelsIncludeAny,
+        lastEditedQueryLabelsIncludeAll:
+          typeof action.lastEditedQueryLabelsIncludeAll === "undefined"
+            ? state.lastEditedQueryLabelsIncludeAll
+            : action.lastEditedQueryLabelsIncludeAll,
         lastEditedQueryLabelsExcludeAny:
           typeof action.lastEditedQueryLabelsExcludeAny === "undefined"
             ? state.lastEditedQueryLabelsExcludeAny
@@ -256,6 +265,15 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     },
     []
   );
+  const setLastEditedQueryLabelsIncludeAll = useCallback(
+    (lastEditedQueryLabelsIncludeAll: ILabelPolicy[]) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryLabelsIncludeAll,
+      });
+    },
+    []
+  );
   const setLastEditedQueryLabelsExcludeAny = useCallback(
     (lastEditedQueryLabelsExcludeAny: ILabelPolicy[]) => {
       dispatch({
@@ -286,6 +304,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       lastEditedQueryCritical: state.lastEditedQueryCritical,
       lastEditedQueryPlatform: state.lastEditedQueryPlatform,
       lastEditedQueryLabelsIncludeAny: state.lastEditedQueryLabelsIncludeAny,
+      lastEditedQueryLabelsIncludeAll: state.lastEditedQueryLabelsIncludeAll,
       lastEditedQueryLabelsExcludeAny: state.lastEditedQueryLabelsExcludeAny,
       defaultPolicy: state.defaultPolicy,
       setLastEditedQueryId,
@@ -296,6 +315,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       setLastEditedQueryCritical,
       setLastEditedQueryPlatform,
       setLastEditedQueryLabelsIncludeAny,
+      setLastEditedQueryLabelsIncludeAll,
       setLastEditedQueryLabelsExcludeAny,
       setDefaultPolicy,
       policyTeamId: state.policyTeamId,
@@ -312,6 +332,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       setLastEditedQueryName,
       setLastEditedQueryPlatform,
       setLastEditedQueryLabelsIncludeAny,
+      setLastEditedQueryLabelsIncludeAll,
       setLastEditedQueryLabelsExcludeAny,
       setLastEditedQueryResolution,
       setPolicyTeamId,
@@ -324,6 +345,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       state.lastEditedQueryName,
       state.lastEditedQueryPlatform,
       state.lastEditedQueryLabelsIncludeAny,
+      state.lastEditedQueryLabelsIncludeAll,
       state.lastEditedQueryLabelsExcludeAny,
       state.lastEditedQueryResolution,
       state.policyTeamId,

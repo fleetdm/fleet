@@ -79,6 +79,7 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
       type,
       patch_software_title_id,
@@ -96,6 +97,7 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
       type,
       patch_software_title_id,
@@ -114,9 +116,11 @@ export default {
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
     } = data;
     const { TEAMS } = endpoints;
@@ -131,9 +135,11 @@ export default {
       critical,
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
     });
   },

@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import {
   createMockSoftwarePackage,
@@ -61,7 +61,7 @@ describe("EditIconModal", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(MOCK_PROPS.onExit).toHaveBeenCalled();
+    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalledTimes(1));
   });
 
   // Note: Rely on QA Wolf for E2e testing of file upload, preview, save, and remove icon
@@ -100,7 +100,7 @@ describe("EditIconModal", () => {
     it("only edits the display name when icon is not changed", async () => {
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
-        .mockResolvedValue({} as any);
+        .mockResolvedValue({});
       const deleteSoftwareIconSpy = jest.spyOn(
         softwareAPI,
         "deleteSoftwareIcon"
@@ -129,7 +129,7 @@ describe("EditIconModal", () => {
     it("only edits the display name when removing a custom name", async () => {
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
-        .mockResolvedValue({} as any);
+        .mockResolvedValue({});
 
       const MODIFIED_PROPS = {
         ...MOCK_PROPS,

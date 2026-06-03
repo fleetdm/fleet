@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.18.1</string>
+      <key>PayloadType</key>
+      <string>com.apple.applicationaccess</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.18.1.check</string>
+      <key>PayloadUUID</key>
+      <string>7A972390-83FE-4540-91C5-1B179E308649</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>forceOnDeviceOnlyDictation</key>
+      <true/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.18.1 - Ensure On-Device Dictation Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure On-Device Dictation Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.18.1</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>B86BE9BA-B11C-4FEB-B38A-CC68133036A5</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

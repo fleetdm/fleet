@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 1.2</string>
+      <key>PayloadType</key>
+      <string>com.apple.SoftwareUpdate</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-1.2.check</string>
+      <key>PayloadUUID</key>
+      <string>A68D427C-F98D-45AD-9ADA-D394E5047E39</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>AutomaticDownload</key>
+      <true/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 1.2 - Ensure Download New Updates When Available Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Download New Updates When Available Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-1.2</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>27E58EAC-63D7-4585-A6A8-383A1C70554B</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

@@ -198,7 +198,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
 				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
 				DEPProfileErrorFilter:             new(true),
-				DEPAssignProfileResponseFilter:    ptr.T(fleet.DEPAssignProfileResponseFailed),
+				DEPAssignProfileResponseFilter:    new(fleet.DEPAssignProfileResponseFailed),
 			},
 		},
 		"all params defined (deprecated)": {
@@ -307,6 +307,43 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in issues order key when disable_failing_policies is set": {
 			url:          "/foo?disable_failing_policies=true&order_key=issues",
 			errorMessage: "Invalid order_key",
+		},
+		"error in failing_policies_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=failing_policies_count",
+			errorMessage: "Invalid order_key (failing_policies_count cannot be ordered when they are disabled)",
+		},
+		"error in critical_vulnerabilities_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=critical_vulnerabilities_count",
+			errorMessage: "Invalid order_key (critical_vulnerabilities_count cannot be ordered when they are disabled)",
+		},
+		"error in total_issues_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=total_issues_count",
+			errorMessage: "Invalid order_key (total_issues_count cannot be ordered when they are disabled)",
+		},
+		"failing_policies_count order key allowed when disable_issues is not set": {
+			url: "/foo?order_key=failing_policies_count",
+			hostListOptions: fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: "failing_policies_count",
+				},
+			},
+		},
+		"error in device_mapping order key when device_mapping is not enabled": {
+			url:          "/foo?order_key=device_mapping",
+			errorMessage: "Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+		},
+		"error in device_mapping order key when device_mapping is explicitly false": {
+			url:          "/foo?device_mapping=false&order_key=device_mapping",
+			errorMessage: "Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+		},
+		"device_mapping order key allowed when device_mapping is enabled": {
+			url: "/foo?device_mapping=true&order_key=device_mapping",
+			hostListOptions: fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: "device_mapping",
+				},
+				DeviceMapping: true,
+			},
 		},
 		"error in device_mapping": {
 			url:          "/foo?device_mapping=foo",

@@ -73,13 +73,14 @@ const createTestProps = (
 });
 
 describe("SelfServiceCard", () => {
-  it("renders loading spinner when isLoading is true", () => {
+  it("renders loading spinner when isLoading is true", async () => {
     const props = createTestProps({ isLoading: true });
     const render = createCustomRenderer();
 
     render(<SelfServiceCard {...props} />);
 
-    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    // Spinner has a built-in anti-flash delay, so wait for it to appear.
+    expect(await screen.findByTestId("spinner")).toBeInTheDocument();
   });
 
   it("renders error state when isError is true", () => {
@@ -88,7 +89,7 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    expect(screen.getByText("Error loading software.")).toBeInTheDocument();
+    expect(screen.getByText("Error loading software")).toBeInTheDocument();
   });
 
   it("renders empty state when isEmpty is true", () => {

@@ -234,9 +234,25 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **User experience impacts**
 
-* Laptops lock after 20 minutes of inactivity. To voluntarily pause this, a [hot corner](https://support.apple.com/en-mo/guide/mac-help/mchlp3000/mac) can be configured to disable the screen saver. This is useful if you are, for example, watching an online meeting without moving the mouse and want to be sure the laptop will not lock.
+* Laptops lock after 15 minutes of inactivity. On macOS, once the screen saver has started or the display has slept, there is a one-minute grace period before a password is required to unlock; after that minute, a password is required.
+* On macOS, for a **temporary** stretch when you need the display to stay awake (for example watching a meeting without moving the mouse), you can set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners**. While the pointer rests in that corner, the screen saver will not start; normal timeout applies again when you move the pointer away. This is a self-service workaround for short-term needs only — always lock the machine when you step away.
 * Forgotten passwords can be fixed via MDM instead of relying on potentially dangerous hints.
 * Guest accounts are not available.
+
+**Windows hosts**
+
+The same 15-minute inactivity lock is enforced on Fleet-managed Windows hosts via the `LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit` CSP (the MDM equivalent of the GPO "Interactive logon: Machine inactivity limit"). Compliance is verified by the `Windows - Interactive logon screen lock timeout configured` Fleet policy, which requires the timeout to be 15 minutes or less.
+
+**Requesting an exception**
+
+Before requesting a host-wide screen lock **exception** on macOS, use a hot corner set to **Disable Screen Saver** (see above) when you only need a brief break from automatic lock. Label exceptions remove MDM enforcement from the device and require security approval with a business justification and expiration date; prefer hot corners for ordinary short-term situations (presentations, demos, long-running local jobs).
+
+In rare cases (e.g., a kiosk, a host driving a conference room display, or temporary troubleshooting) a host may need to be excluded from the screen lock profile and policy. We use static manual labels for this:
+
+* macOS hosts: [`macOS screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml)
+* Windows hosts: [`Windows screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml)
+
+Each label is referenced by `labels_exclude_any` on both the policy and the configuration profile, so adding a host's Fleet ID to the label removes the profile and excuses the host from the policy in a single change. See the [Exclude a host from a screen lock policy](https://fleetdm.com/handbook/it#exclude-a-host-from-a-screen-lock-policy) procedure in the IT handbook for the approval and rollout steps.
 
 
 #### iCloud
@@ -336,128 +352,6 @@ We configure Chrome on company-owned devices with a basic policy.
 
 The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
 is kept up to date.
-
-
-### Hardware security keys
-
-We strongly recommend using hardware security keys. Fleet configures privileged user accounts with a policy that enforces the use of hardware security keys. This prevents credential theft better than other methods of 2FA/2-SV. If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
-keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
-for help in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to get one if you do not have a company card.
-
-
-#### Are they YubiKeys or security keys?
-
-We use YubiKeys, a hardware security key brand that supports the FIDO U2F protocol. You can use
-both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
-security keys.
-
-
-#### Who has to use security keys and why?
-
-Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
-
-Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
-phishing, we will make them **mandatory for everyone** soon. 
-
-See the [Google Workspace security
-section](https://fleetdm.com/handbook/it/security#2-step-verification) for more
-information on the security of different types of 2FA.
-
-
-#### Goals
-
-Our goals with security keys are to
-
-1. eliminate the risk of credential phishing.
-2. maintain the best user experience possible.
-3. make sure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
-4. make sure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
-
-
-#### Setting up security keys on Google
-
-We recommend setting up **three** security keys on your Google account for redundancy purposes: two
-YubiKeys and your phone as the third key.
-
-If you get a warning during this process about your keyboard not being identified, this is due to
-YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
-identified" warning.
-
-1. Set up your first YubiKey by following [Google's
-   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
-   you enroll the key by following [this
-   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
-   When it comes to naming your keys, that is a name only used so you can identify which key was
-   registered. You can name them Key1 and Key2.
-2. Repeat the process with your 2nd YubiKey. 
-3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
-
-
-#### Optional: getting rid of keyboard warnings
-
-1. Install YubiKey manager. You can do this from the **Managed Software Center** on managed Macs.
-   On other platforms, download it [from the official
-   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
-2. Open the YubiKey manager with one of your keys connected.
-3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
-5. Unplug your key and connect your 2nd one to repeat the process.
-
-
-#### Optional: setting up security keys on GitHub
-
-1. Configure your two security keys to [access
-   GitHub](https://github.com/settings/two_factor_authentication/configure).
-2. If you use a Mac, feel free to add it as a security key on GitHub. This brings most of the
-   advantages of the hardware security key but allows you to log in by simply touching Touch ID as
-   your second factor.
-
-
-## FAQ
-
-1. Can I use my Fleet YubiKeys with personal accounts?
-
-**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
-cryptocurrency trading sites, and many more support FIDO U2F authentication, the standard used by
-security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
-can.
-
-2. Can I use my phone as a security key?
-
-**Answer**: Yes. Google [provides
-instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
-and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
-to access Google applications from your phone. 
-Since it requires Bluetooth, this option is also less reliable than the USB-C security key.
-
-3. Can I leave my YubiKey connected to my laptop?
-
-**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
-attackers to phish our credentials remotely, not as any type of local security improvement. That
-being said, keeping it separate from the laptop when traveling means they are unlikely to be
-lost or stolen simultaneously.
-
-4. I've lost one of my keys, what do I do?
-
-**Answer**: Post in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) channel ASAP so we can disable the key. If you find it later, no
-worries, just enroll it again!
-
-5. I lost all of my keys, and I'm locked out! What do I do?
-
-**Answer**: Post in the `#help-login` channel, or contact your manager if you find yourself locked out of Slack. You will be provided a way to log back in and make your phone your security key until you
-receive new ones.
-
-6. Can I use security keys to log in from any device?
-
-**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android, iPhone, and iPad Pro with USB-C port. If some application or device does
-not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
-security keys to generate a temporary code for the device that does not.
-
-7. Will I need my YubiKey every time I want to check my email?
-
-**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
-mobile, you'd need the keys to set up the app only.
 
 
 ## GitHub security
@@ -628,7 +522,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type six digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | These are harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
+| Okta Verify with FastPass                                                     | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) phishing-resistant authentication tied to your enrolled device. Configure Okta Verify with FastPass as soon as you've enrolled your device.                                                                |
 
 
 ##### 2-Step verification in Google Workspace
@@ -2093,15 +1987,15 @@ The GitHub Deployment page contains a link pointing to a vacant Vercel domain. A
 
 This was resolved during the penetration test period as identified in the penetration test report.
 
-#### 3 - Observers can access ABM keys
+#### 3 - Observers can access AB keys
 
 | Type                | Latacora Severity |
 | ------------------- | ----------------- |
 | Access Controls     | Medium risk       |
 
-According to the User Permissions table, an Observer should not be able to “View Apple business manager (BM) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
+According to the User Permissions table, an Observer should not be able to “View Apple Business (AB) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
 
-This endpoint always returns a new key pair used during ABM/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an ABM instance.
+This endpoint always returns a new key pair used during AB/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an AB instance.
 
 #### 4 - Observers can Access Any Software 
 
