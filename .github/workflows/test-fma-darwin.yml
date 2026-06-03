@@ -66,6 +66,18 @@ jobs:
             sudo rm -rf "$app"
           done
 
+      # Icon Composer ships bundled inside Xcode, and GitHub macOS runners
+      # come with Xcode pre-installed. Only runs when icon-composer/darwin is being
+      # validated in this PR.
+      - name: Remove pre-installed Xcode mac
+        run: |
+          ls /Applications | grep -i "Xcode" || true
+          find /Applications -maxdepth 1 -iname "Xcode*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+
       # Fleet Desktop's installer refuses to run unless the
       # com.fleetdm.fleetd.config managed preferences profile is present
       # (it's normally delivered via MDM). CI runners aren't MDM-enrolled,
