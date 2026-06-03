@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -402,19 +401,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	dirty := make(map[string]bool)
 
 	if payload.Categories != nil {
-		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, ctxerr.Wrap(ctx, err, "filtering software installer categories")
 		}
-
-		if len(catIDs) != len(payload.Categories) {
-			return nil, &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-			}
-		}
-
+		payload.Categories = categories
 		payload.CategoryIDs = catIDs
 		dirty["Categories"] = true
 	}
@@ -2714,19 +2705,11 @@ func (svc *Service) softwareBatchUpload(
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
-			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, tmID, p.Categories)
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
 			}
-
-			if len(catIDs) != len(p.Categories) {
-				return &fleet.BadRequestError{
-					Message:     "some or all of the categories provided don't exist",
-					InternalErr: fmt.Errorf("categories provided: %v", p.Categories),
-				}
-			}
-
+			installer.Categories = categories
 			installer.CategoryIDs = catIDs
 
 			// check if we already have the installer based on the SHA256 and URL

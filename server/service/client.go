@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2489,6 +2490,9 @@ func (c *Client) DoGitOps(
 			for _, teamID := range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
+			if err := c.doSelfServiceCategories(incoming, dryRun); err != nil {
+				return err
+			}
 			if incoming.Labels == nil || len(incoming.Labels) > 0 {
 				return c.doGitOpsLabels(incoming, logFn, dryRun)
 			}
@@ -2817,6 +2821,10 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 
+	if err := c.doSelfServiceCategories(config, dryRun); err != nil {
+		return nil, nil, err
+	}
+
 	format := applyingTeamFormat
 	if dryRun {
 		format = dryRunAppliedTeamFormat
@@ -2899,6 +2907,50 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		logFn("[+] would've applied webhook settings for unassigned hosts\n")
 	}
 
+	return nil
+}
+
+func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error {
+	if !config.Software.SelfServiceCategories.Set {
+		return nil
+	}
+	var teamID uint
+	if config.TeamID != nil {
+		teamID = *config.TeamID
+	}
+
+	existing, err := c.ListSelfServiceCategories(teamID)
+	if err != nil {
+		return fmt.Errorf("listing existing self-service categories: %w", err)
+	}
+	payloads := config.Software.SelfServiceCategories.Value
+
+	var toInsert []string
+	for _, name := range payloads {
+		if !slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
+			toInsert = append(toInsert, name)
+		}
+	}
+	var toDelete []fleet.SoftwareCategory
+	for _, cat := range existing {
+		if !slices.ContainsFunc(payloads, func(p string) bool { return strings.EqualFold(p, cat.Name) }) {
+			toDelete = append(toDelete, cat)
+		}
+	}
+
+	if dryRun {
+		return nil
+	}
+	for _, name := range toInsert {
+		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
+			return fmt.Errorf("adding self-service category %q: %w", name, err)
+		}
+	}
+	for _, cat := range toDelete {
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+	}
 	return nil
 }
 

@@ -125,6 +125,7 @@ func TestSoftware(t *testing.T) {
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
+		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -12320,4 +12321,67 @@ func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
 	result, err = ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, nil)
 	require.NoError(t, err)
 	require.Empty(t, result)
+}
+
+func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-2"})
+	require.NoError(t, err)
+
+	// Teams auto-seed the 6 default emoji-prefixed categories. Pick the two we need.
+	seeded, err := ds.ListSoftwareCategories(ctx, team1.ID)
+	require.NoError(t, err)
+	var emojiProductivity, emojiSecurity fleet.SoftwareCategory
+	for _, c := range seeded {
+		switch c.Name {
+		case "💻 Productivity":
+			emojiProductivity = c
+		case "🔐 Security":
+			emojiSecurity = c
+		}
+	}
+	require.NotZero(t, emojiProductivity.ID)
+	require.NotZero(t, emojiSecurity.ID)
+
+	customCat, err := ds.NewSoftwareCategory(ctx, team1.ID, "MyCustom")
+	require.NoError(t, err)
+
+	// Lookups against the seeded + custom state: each input maps to whatever row
+	// resolves, with translation fallback for legacy plain names.
+	lookups := []struct {
+		desc string
+		in   []string
+		want map[string]uint
+	}{
+		{"empty input returns empty map", nil, map[string]uint{}},
+		{"plain legacy reference resolves to emoji-prefixed row", []string{"Productivity"}, map[string]uint{"Productivity": emojiProductivity.ID}},
+		{"emoji reference resolves literally", []string{"🔐 Security"}, map[string]uint{"🔐 Security": emojiSecurity.ID}},
+		{"non-legacy reference resolves literally", []string{"MyCustom"}, map[string]uint{"MyCustom": customCat.ID}},
+		{"unknown name is omitted from result", []string{"NotOnAnyTeam"}, map[string]uint{}},
+		{"mixed hits and misses across forms", []string{"Productivity", "🔐 Security", "MyCustom", "NotFound"}, map[string]uint{
+			"Productivity": emojiProductivity.ID,
+			"🔐 Security":   emojiSecurity.ID,
+			"MyCustom":     customCat.ID,
+		}},
+	}
+	for _, tc := range lookups {
+		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, tc.in)
+		require.NoError(t, err, tc.desc)
+		assert.Equal(t, tc.want, got, tc.desc)
+	}
+
+	// Literal plain row wins over translation when both rows exist on the team.
+	plainProductivity, err := ds.NewSoftwareCategory(ctx, team1.ID, "Productivity")
+	require.NoError(t, err)
+	got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]uint{"Productivity": plainProductivity.ID}, got)
+
+	// Other teams' rows are not visible.
+	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }

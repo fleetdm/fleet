@@ -20821,9 +20821,15 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		SelfService:   ptr.Bool(true),
 	}
 
-	// Non-existent category, should fail
+	// Non-existent category is silently dropped
 	updatePayload.Categories = []string{"not_found"}
-	s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "some or all of the categories provided don't exist")
+	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Empty(t, getDeviceSw.Software[0].SoftwarePackage.Categories)
 
 	// Set some real categories
 	updatePayload.Categories = []string{cat1.Name, cat2.Name, cat2.Name} // duplicate category shouldn't fail

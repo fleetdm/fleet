@@ -1321,33 +1321,33 @@ allow {
 # Software categories (used as self-service categories in the UI)
 ##
 
-# Global admins, maintainers, technicians, observer_plus and observers can read self-service categories.
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories.
 allow {
   object.type == "software_category"
-  subject.global_role == [admin, maintainer, technician, observer_plus, observer][_]
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
 
-# Team admins, maintainers, technicians, observer_plus and observers can read self-service categories on their fleet.
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories on their fleet.
 allow {
   object.type == "software_category"
   object.team_id != 0
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
 
-# Global admins and maintainers can write self-service categories.
+# Global admins, maintainers, and gitops can write self-service categories.
 allow {
   object.type == "software_category"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins and maintainers can write self-service categories on their fleet.
+# Team admins, maintainers, and gitops can write self-service categories on their fleet.
 allow {
   object.type == "software_category"
   object.team_id != 0
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

@@ -66,7 +66,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
-		ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 			return nil, nil
 		}
 
@@ -316,7 +316,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 			CountryCode: "us",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, _ uint, _ []string) ([]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
 	}
 

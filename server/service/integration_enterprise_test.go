@@ -22265,7 +22265,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	})
 	require.NoError(t, err)
 
-	// do a request with an invalid category
+	// a request with an invalid category silently drops the unknown name
 	pkgURL := installerServer.URL + "/non-fma.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
@@ -22273,8 +22273,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
-	errMsg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
-	require.Equal(t, "some or all of the categories provided don't exist", errMsg)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
 
 	testCases := []struct {
 		desc                 string

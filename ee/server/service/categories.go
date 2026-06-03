@@ -5,16 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-// TODO(JK): the GitOps role is currently denied on every software_category
-// action. Revisit when GitOps support for self-service categories lands —
-// gitops will likely need read+write to manage fleet category lists from YAML.
 
 func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
 	if teamID == nil {
@@ -42,13 +38,9 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 
 func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
+	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name is required")
-	}
-	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
+		return nil, ctxerr.Wrap(ctx, err, "validating new software category")
 	}
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
@@ -90,13 +82,9 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 
 func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
+	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name is required")
-	}
-	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
+		return nil, ctxerr.Wrap(ctx, err, "validating updated software category")
 	}
 
 	// we need to load the category first to scope authz to its team_id
@@ -169,6 +157,26 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")
 	}
 	return nil
+}
+
+func (svc *Service) removeDuplicateOrMissingCategories(ctx context.Context, teamID uint, names []string) ([]string, []uint, error) {
+	names = server.RemoveDuplicatesFromSlice(names)
+	categories := []string{}
+	ids := []uint{}
+	if len(names) == 0 {
+		return categories, ids, nil
+	}
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, teamID, names)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting software category name to id map")
+	}
+	for _, name := range names {
+		if id, ok := categoryMap[name]; ok {
+			categories = append(categories, name)
+			ids = append(ids, id)
+		}
+	}
+	return categories, ids, nil
 }
 
 func (svc *Service) teamNameForActivity(ctx context.Context, teamID uint) (*string, error) {
