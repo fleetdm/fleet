@@ -24,7 +24,7 @@
   }
 
   &--multiline dd {
-    white-space: normal;
+    white-space: pre-wrap;
     overflow: visible;
     overflow-wrap: anywhere;
   }
