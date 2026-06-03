@@ -1796,15 +1796,13 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 		// In GitOps (overwrite=true), strict validation only fires when EUA is
-		// being enabled at the global/no-team level in this same request.
+		// being enabled at the global/no-team level in this same request, because
+		// we can't tell if teams are changing their EUA settings in the same GitOps run.
+		// We rely on client-side validation in GitOps to catch cases of teams keeping EUA enabled
+		// while the global/no-team setting is disabled/cleared in the same run.
 		//
-		// We deliberately do NOT widen this to "any team has EUA enabled in
-		// stored state": ApplyAppConfig runs before ApplyTeams in a gitops run,
-		// so stored team state is stale here — a run that disables a team's EUA
-		// and degrades the IdP in one shot would false-reject. The cross-file
-		// invariant (a team that keeps EUA while the global IdP is degraded) is
-		// enforced client-side in validateGitOpsGroupEUA, which can see the
-		// whole plan. See issue #43371.
+		// TODO: look into blocking the case of a user-created API call that clears required EUA
+		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}

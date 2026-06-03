@@ -362,7 +362,7 @@ func gitopsCommand() *cli.Command {
 			// Without this check, a partial gitops run can enable EUA on a
 			// team while leaving the IdP unconfigured — locking ADE
 			// enrollment for that team's hosts. See issue #43371.
-			if err := validateGitOpsGroupEUA(configs, appConfig, fleetClient.ListTeams); err != nil {
+			if err := validateGitOpsGroupEUA(configs, appConfig, fleetClient.ListTeams, flDeleteOtherTeams); err != nil {
 				return err
 			}
 
@@ -735,7 +735,7 @@ type ConfigFile struct {
 
 // Verify that if any fleet has EUA enabled after this GitOps run, then the IdP for EUA will be fully configured
 // after this run. This checks all fleets whether they're being modified in this run or not.
-func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig, listTeams func(query string) ([]fleet.Team, error)) error {
+func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig, listTeams func(query string) ([]fleet.Team, error), deleteOtherTeams bool) error {
 	// Compute the effective post-apply IdP state. Start from stored state; if a
 	// global file is in this run, its incoming org_settings override stored
 	// state (overwrite mode), so an empty/incomplete/missing block leaves the
@@ -794,7 +794,18 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	// Then any stored team NOT present in this run that still has EUA enabled —
 	// the case where a global-only run degrades the IdP while a team keeps EUA
 	// on (issue #43371). Teams are premium-only, so skip the lookup otherwise.
-	if appCfg.License.IsPremium() {
+	//
+	// With --delete-other-fleets, teams omitted from the run are deleted rather
+	// than preserved, so they can't lock anyone out post-apply; consulting their
+	// stored EUA state would be a false positive.
+	//
+	// Note there is an edge case here where a fleet has EUA enabled but not
+	// supplied in a --delete-other-fleets GitOps run, but the fleet CAN'T
+	// be deleted due to its being in ABM or VPP. This could lead to EUA being
+	// degraded (since that API call happens first) while EUA is still enabled
+	// on that fleet. This would be better handled by detecting un-deletable
+	// fleets early when --delete-other-fleets is used.
+	if appCfg.License.IsPremium() && !deleteOtherTeams {
 		teams, err := listTeams("")
 		if err != nil {
 			return fmt.Errorf("listing fleets to validate end user authentication: %w", err)
