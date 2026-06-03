@@ -1315,9 +1315,20 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				// Call service method to handle activity creation
-				_, err := svc.CleanupExpiredHosts(ctx)
-				return err
+				// Loop until the backlog is drained. CleanupExpiredHosts processes a
+				// bounded batch per call; if it returns a non-empty result there may
+				// be more expired hosts waiting. The context deadline bounds the loop
+				// if the backlog is very large — the next cron run picks up the rest.
+				for {
+					deleted, err := svc.CleanupExpiredHosts(ctx)
+					if err != nil {
+						return err
+					}
+					if len(deleted) == 0 {
+						break
+					}
+				}
+				return nil
 			},
 		),
 		schedule.WithJob(
