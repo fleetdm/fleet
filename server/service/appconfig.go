@@ -739,6 +739,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.MacOSUpdates.Configured() || appConfig.MDM.IOSUpdates.Configured() || appConfig.MDM.IPadOSUpdates.Configured() {
+		// Verify that we don't have a custom OS updates declaration
+		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+		}
+		if hasProfile {
+			return nil, &fleet.BadRequestError{
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+			}
+		}
+	}
+
+	if appConfig.MDM.WindowsUpdates.Configured() {
+		// Verify that we don't have a custom Windows updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom Windows updates profile")
+		}
+		if hasProfile {
+			return nil, &fleet.BadRequestError{
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+			}
+		}
+	}
+
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
@@ -1654,30 +1680,7 @@ func (svc *Service) validateMDM(
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
-	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
-		for i, prof := range customSettings {
-			count := 0
-			for _, b := range []bool{
-				len(prof.Labels) > 0,
-				len(prof.LabelsIncludeAll) > 0,
-				len(prof.LabelsIncludeAny) > 0,
-				len(prof.LabelsExcludeAny) > 0,
-			} {
-				if b {
-					count++
-				}
-			}
-			if count > 1 {
-				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
-			}
-			if len(prof.Labels) > 0 {
-				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
-				customSettings[i].Labels = nil
-			}
-		}
-	}
-	checkCustomSettings("macos", mdm.MacOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
 
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
@@ -1687,7 +1690,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
 
 	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
 	if !oldMdm.AndroidEnabledAndConfigured {
@@ -1698,7 +1701,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("android", mdm.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&

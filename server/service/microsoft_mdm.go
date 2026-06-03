@@ -34,6 +34,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
@@ -42,6 +43,9 @@ import (
 )
 
 const maxRequestLogSize = 10240
+
+// devDetailSMBIOSSerialNumberURI is the OMA-DM LocURI for the device's SMBIOS serial number.
+const devDetailSMBIOSSerialNumberURI = "./DevDetail/Ext/Microsoft/SMBIOSSerialNumber"
 
 type SoapRequestContainer struct {
 	Data   *fleet.SoapRequest
@@ -1536,10 +1540,6 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 		return isPresent, nil
 	}
 
-	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
-	// host table. This new check should look into command results table and extract the value of
-	// ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber for the given DeviceID and use that for hosts
-	// table lookup
 	return true, nil
 }
 
@@ -1735,6 +1735,69 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 	return nil
 }
 
+// tryLinkUnlinkedEnrollmentFromDevDetail scans an incoming SyncML message for a Results command answering an earlier
+// Get for ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber, and if found, looks up the host by hardware_serial and links
+// the enrollment to it. Returns true if a linkage was established.
+//
+// Any error is non-fatal: this is the primary linkage path but osquery direct-ingest still runs as a backstop, and the
+// Get is reinjected on every subsequent session until linkage succeeds.
+func (svc *Service) tryLinkUnlinkedEnrollmentFromDevDetail(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) bool {
+	if reqMsg == nil {
+		return false
+	}
+	// A SyncML Results command can carry multiple Items; the device may include the SMBIOSSerialNumber alongside other
+	// DevDetail values in a single response. Scan every item in every Results command, not just Items[0], or a serial
+	// returned in a later position is missed and the Get gets reinjected forever.
+	var serial string
+scan:
+	for _, op := range reqMsg.GetOrderedCmds() {
+		if op.Verb != mdm_types.CmdResults {
+			continue
+		}
+		for _, item := range op.Cmd.Items {
+			if item.Source == nil || *item.Source != devDetailSMBIOSSerialNumberURI {
+				continue
+			}
+			if item.Data == nil {
+				continue
+			}
+			candidate := strings.TrimSpace(item.Data.Content)
+			// Skip empty or well-known placeholder serials (whitebox/consumer BIOS defaults, un-sysprepped VM
+			// templates). Such devices fall back to the osquery directIngestMDMDeviceIDWindows backstop, which links by
+			// the unique MDMDeviceID instead.
+			if fleet.IsPlaceholderHardwareSerial(candidate) {
+				continue
+			}
+			serial = candidate
+			break scan
+		}
+	}
+	if serial == "" {
+		return false
+	}
+	// Require the primary DB: the hosts row may have been inserted seconds ago by osquery enroll, just before this
+	// first SyncML management session arrived. A replica-lag read would return a false NotFound and delay linkage to a
+	// later session, defeating the point of this path.
+	host, err := svc.ds.WindowsHostLiteByHardwareSerial(ctxdb.RequirePrimary(ctx, true), serial)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by serial failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+		}
+		// NotFound means the host hasn't enrolled in osquery yet (hosts row not created yet); we'll retry next session.
+		return false
+	}
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	// Always refresh in-memory HostUUID after a successful link attempt.
+	enrolledDevice.HostUUID = host.UUID
+	return updated
+}
+
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device.
 // enrolledDevice is the enrollment resolved upstream by isTrustedRequest and
@@ -1842,6 +1905,14 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
+	// If this enrollment isn't linked yet, try to link it using a DevDetail/SMBIOSSerialNumber Result the device may
+	// have included in this message (in response to a Get we sent during a previous session). If the link succeeds,
+	// enrolledDevice.HostUUID is updated in memory so downstream callers (ESP coordination, saveResponse, etc.) in this
+	// same request see the linked state instead of waiting for the next session.
+	if enrolledDevice.HostUUID == "" {
+		svc.tryLinkUnlinkedEnrollmentFromDevDetail(ctx, enrolledDevice, reqMsg)
+	}
+
 	// List of CmdRef that need to be re-issued as <Replace> commands
 	// However it's a list of nested Command IDs, and not something we can use directly for command_uuid in windows_mdm_commands
 	alreadyExistsCmdIDs := []string{}
@@ -1881,6 +1952,20 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	err = saveResponse(topLevelExists)
 	if err != nil {
 		return nil, err
+	}
+
+	// If this enrollment is still unlinked after processing the incoming message, ask the device for its SMBIOS serial
+	// on the next round-trip. This is the primary linkage mechanism: it lets the server populate
+	// mdm_windows_enrollments.host_uuid in one SyncML round-trip instead of waiting for osquery's distributed-read
+	// cycle (~10s) to backfill via directIngestMDMDeviceIDWindows. The Get is idempotent and reinjected each session
+	// until linkage succeeds; osquery direct-ingest remains as a backstop for hosts that never reply to DevDetail.
+	//
+	// The Get uses a stable fleet-internal CmdID instead of a fresh UUID so that MDMWindowsSaveResponse can recognize
+	// and skip it when checking for "unmatched Windows MDM commands".
+	if enrolledDevice.HostUUID == "" {
+		get := newSyncMLCmdGet(devDetailSMBIOSSerialNumberURI)
+		get.CmdID = mdm_types.CmdID{Value: fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"}
+		responseCmds = append(responseCmds, get)
 	}
 
 	return responseCmds, nil
@@ -2895,10 +2980,10 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return err
 	}
 
-	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device here.
-	// Note that we currently do the Enrollment->Host mapping during the next
-	// refetch of the host
+	// For Azure (automatic) enrollments, hostUUID is empty here because the WSTEP RequestSecurityToken does not carry
+	// any identifier that maps to hosts.uuid. The enrollment row is inserted unlinked; processIncomingMDMCmds asks the
+	// device for its SMBIOS serial number on the first management session and links the row when the device replies.
+	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
@@ -3292,6 +3377,14 @@ func newSyncMLCmdNode(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
 	cmdFormat := "node"
 	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, nil)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdGet creates a SyncML Get command targeting the given OMA-DM LocURI. Get commands have no data, format, or
+// type on the request; the device fills those in on the corresponding Results response.
+func newSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
+	verb := fleet.CmdGet
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&verb, nil, item)
 }
 
 // newSyncMLCmdInt creates a new SyncML command with text data

@@ -251,6 +251,7 @@ import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
 import VirtualBox from "./VirtualBox";
+import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
@@ -544,6 +545,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   twingate: Twingate,
   utm: Utm,
   virtualbox: VirtualBox,
+  virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,

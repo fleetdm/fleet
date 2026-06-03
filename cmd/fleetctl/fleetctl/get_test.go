@@ -2842,6 +2842,12 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "fleets", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
