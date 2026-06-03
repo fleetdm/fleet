@@ -29,10 +29,6 @@ Reports that are typically not eligible:
 - Self-XSS requiring significant user interaction
 - Issues solely affecting outdated browsers
 
-### Rewards
-
-The VDP recognizes valid, in-scope reports with swag and platform credits across Critical/High/Medium/Low tiers. Researchers are credited in security advisories at their request.
-
 ### PGP Key
 
 To encrypt vulnerability reports before sending them, please use this [PGP key](https://keys.openpgp.org/vks/v1/by-fingerprint/82F2AF19547E462A4605D53801B2575E46766EBE).
