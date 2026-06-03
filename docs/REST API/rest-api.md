@@ -8455,9 +8455,7 @@ _Available in Fleet Premium_
       "conditional_access_enabled": false,
       "install_software": {
         "name": "Adobe Acrobat",
-        "software_title_id": 1234,
-        "installer_id": 23,
-        "installer_name": "AdobeAcrobat-v24.1.pkg"
+        "software_title_id": 1234
       }
     }
   ],
@@ -8714,9 +8712,7 @@ _Available in Fleet Premium_
     },
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
-      "installer_id": 23,
-      "installer_name": "AdobeAcrobat-v24.1.pkg"
+      "software_title_id": 1234
     },
     "run_script": {
       "name": "Enable gatekeeper",
@@ -8878,9 +8874,7 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
-      "installer_id": 23,
-      "installer_name": "AdobeAcrobat-v24.1.pkg"
+      "software_title_id": 1234
     },
     "run_script": {
       "name": "Enable gatekeeper",
@@ -9053,7 +9047,6 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
-| installer_id            | integer | body | _Available in Fleet Premium_. ID of the specific package (installer) to install if the policy fails. Only applicable when `software_title_id` is specified and the software title has more than one package. If not specified, defaults to the most recently added package (`uploaded_at`). Set to `null` to revert to the default (most recent package). |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
@@ -9109,9 +9102,7 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234,
-      "installer_id": 23,
-      "installer_name": "AdobeAcrobat-v24.1.pkg"
+      "software_title_id": 1234
     },
     "run_script": {
       "name": "Enable gatekeeper",
@@ -11062,58 +11053,80 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Google Chrome.app",
-    "display_name": "Google Chrome",
-    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+    "name": "Google Chrome",
     "display_name": "",
+    "self_service": false,
+    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "com.google.Chrome",
+    "packages": [
+      {
+        "team_id": 310,
+        "name": "GoogleChrome.pkg",
+        "icon_url": null,
+        "version": "149.0.7827.54",
+        "platform": "darwin",
+        "uploaded_at": "2026-06-03T18:45:09.826096Z",
+        "installer_id": 36783,
+        "install_script": "#!/bin/bash\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local console_user=\"$2\"\n  local timeout_duration=10\n\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n ...",
+        "pre_install_query": "",
+        "post_install_script": "",
+        "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+        "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
+        "status": {
+          "installed": 3,
+          "pending_install": 10,
+          "failed_install": 1,
+          "pending_uninstall": 0,
+          "failed_uninstall": 0
+        },
+        "url": "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg",
+        "fleet_maintained_app_id": null,
+        "fleet_maintained_versions": null,
+        "automatic_install_policies": null,
+        "labels_include_any": null,
+        "labels_exclude_any": null,
+        "labels_include_all": null,
+        "categories": [
+          "Browsers"
+        ],
+        "display_name": "",
+        "patch_policy": null,
+        "fleet_id": 310
+      },
+    ],
     "software_package": {
+      "team_id": 310,
+      "title_id": 12,
       "name": "GoogleChrome.pkg",
-      "version": "143.0.7499.193",
-      "categories": ["Productivity"],
+      "icon_url": null,
+      "version": "148.0.7778.179",
       "platform": "darwin",
-      "fleet_maintained_app_id": 42,
-      "fleet_maintained_versions": [
-        {
-          "id": 1,
-          "version": "143.0.7499.193"
-        },
-        {
-          "id": 2,
-          "version": "142.0.7444.176"
-        },
-      ],
-      "installer_id": 23,
-      "team_id": 3,
-      "uploaded_at": "2024-04-01T14:22:58Z",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
-      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-      "uninstall_script": "/Library/CS/falconctl uninstall",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
-          "type": "dynamic"
-        }
-      ],
+      "uploaded_at": "2026-07-12T18:45:09.826096Z",
+      "installer_id": 36799,
+      "install_script": "#!/bin/bash\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local console_user=\"$2\"\n  local timeout_duration=10\n\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n ...",
+      "pre_install_query": "",
+      "post_install_script": "",
+      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
       "status": {
-        "installed": 3,
-        "pending_install": 1,
-        "failed_install": 0,
+        "installed": 250,
+        "pending_install": 0,
+        "failed_install": 10,
         "pending_uninstall": 2,
-        "failed_uninstall": 1
-      }
+        "failed_uninstall": 0
+      },
+      "url": "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg",
+      "fleet_maintained_app_id": null,
+      "fleet_maintained_versions": null,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "categories": [
+        "Browsers"
+      ],
+      "patch_policy": null,
+      "fleet_id": 310
     },
     "packages_count": 1,
     "app_store_app": null,
