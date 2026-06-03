@@ -104,14 +104,9 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
-// SetMDMWindowsEnrollmentPollScheduleRelaxed records the intended DMClient poll schedule for the given Windows MDM enrollment (relaxed vs
-// the aggressive default). The management session re-enqueues a poll Replace only when the desired schedule differs from this, so it is
-// written once per intended change; delivery and acknowledgment of the Replace itself are handled by the standard Windows MDM command
-// queue.
-func (ds *Datastore) SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error {
-	return ds.setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx, ds.writer(ctx), enrollmentID, relaxed)
-}
-
+// setMDMWindowsEnrollmentPollScheduleRelaxedDB records the intended DMClient poll schedule for the given Windows MDM enrollment (relaxed vs
+// the aggressive default), written within the caller's transaction. The management session re-enqueues a poll Replace only when the desired
+// schedule differs from this, so it is written once per intended change; delivery/acknowledgment of the Replace is handled by the command queue.
 func (ds *Datastore) setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx context.Context, tx sqlx.ExtContext, enrollmentID uint, relaxed bool) error {
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET poll_schedule_relaxed = ? WHERE id = ?`, relaxed, enrollmentID); err != nil {

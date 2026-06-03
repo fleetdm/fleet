@@ -1974,7 +1974,7 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 }
 
 func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Background()
 	d := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
@@ -1989,67 +1989,49 @@ func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
 	enrollmentID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
 
-	// New enrollment defaults to not-relaxed (the intended schedule is the aggressive default).
-	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.False(t, got.PollScheduleRelaxed)
+	// reload reads the enrollment the way the management session does (by device id); reloadState reads it the way GetOrbitConfig does (by
+	// host UUID). Both must observe the persisted columns.
+	reload := func() *fleet.MDMWindowsEnrolledDevice {
+		got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+		require.NoError(t, err)
+		return got
+	}
+	reloadState := func() *fleet.MDMWindowsHostConfigState {
+		state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+		require.NoError(t, err)
+		return state
+	}
 
-	// Record the intended schedule as relaxed, then read it back.
-	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, true))
-	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.True(t, got.PollScheduleRelaxed)
+	// New enrollment defaults to the aggressive (not-relaxed) schedule and not-sync-capable.
+	require.False(t, reload().PollScheduleRelaxed)
 
-	// Restore the intended schedule to the aggressive default.
-	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, false))
-	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.False(t, got.PollScheduleRelaxed)
-
-	// MDMWindowsEnqueuePollScheduleCommand enqueues the Replace and records the intended schedule in one transaction: the queued poll command
-	// is delivered to the device, the intended-state flag flips, and the poll command itself is excluded from has_pending_commands (so it never
-	// triggers a wake on its own).
+	// MDMWindowsEnqueuePollScheduleCommand records the intended (relaxed) schedule and queues the Replace in one transaction; the poll command
+	// is excluded from has_pending_commands so tuning the poll never triggers a wake on its own.
 	pollCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  uuid.NewString(),
 		RawCommand:   []byte("<Replace></Replace>"),
 		TargetLocURI: syncml.DMClientPollIntervalLocURI,
 	}
 	require.NoError(t, ds.MDMWindowsEnqueuePollScheduleCommand(ctx, d.MDMDeviceID, enrollmentID, pollCmd, true))
-
-	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.True(t, got.PollScheduleRelaxed, "intended schedule should be recorded as relaxed")
+	require.True(t, reload().PollScheduleRelaxed, "intended schedule should be recorded as relaxed")
 
 	pending, err := ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	require.NoError(t, err)
 	require.Len(t, pending, 1, "the poll Replace should be queued for delivery")
 	require.Equal(t, pollCmd.CommandUUID, pending[0].CommandUUID)
+	require.False(t, reloadState().HasPendingCommands, "internal poll Replace must not set has_pending_commands")
 
-	// The poll Replace is internal and must not, by itself, mark the host as having pending commands.
-	state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	require.False(t, state.HasPendingCommands, "internal poll Replace must not set has_pending_commands")
-
-	// fleetd_sync_capable round-trip: default false, set true/false via the orbit-config setter, read back via both the config-state getter
-	// (used by GetOrbitConfig) and the enrolled-device getter (used by the management session's reconcile).
-	require.False(t, state.FleetdSyncCapable, "default should be not-capable")
-	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.False(t, got.FleetdSyncCapable)
+	// fleetd_sync_capable round-trip: default false; the orbit-config setter flips it; both the config-state getter (GetOrbitConfig) and the
+	// enrolled-device getter (the management session's reconcile) must observe the persisted value.
+	require.False(t, reloadState().FleetdSyncCapable, "default should be not-capable")
+	require.False(t, reload().FleetdSyncCapable)
 
 	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, true))
-	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
-	require.NoError(t, err)
-	require.True(t, state.FleetdSyncCapable)
-	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
-	require.NoError(t, err)
-	require.True(t, got.FleetdSyncCapable, "management session must see the persisted capability")
+	require.True(t, reloadState().FleetdSyncCapable)
+	require.True(t, reload().FleetdSyncCapable, "management session must see the persisted capability")
 
 	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, false))
-	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
-	require.NoError(t, err)
-	require.False(t, state.FleetdSyncCapable)
+	require.False(t, reloadState().FleetdSyncCapable)
 }
 
 func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
@@ -2071,7 +2053,6 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 		HostUUID:               uuid.NewString(),
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
-	enrollmentID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
 
 	// enrolled, no commands -> awaiting None, no pending commands
 	state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
@@ -2086,24 +2067,7 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
 	require.NoError(t, err)
 	require.True(t, state.HasPendingCommands)
-
-	// record a result for the command (ack) -> no longer pending
-	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, []byte("<SyncML></SyncML>"))
-	require.NoError(t, err)
-	responseID, err := res.LastInsertId()
-	require.NoError(t, err)
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`,
-		enrollmentID, cmd.CommandUUID, []byte("<Status></Status>"), responseID, "200")
-	require.NoError(t, err)
-	// has_pending_commands is denormalized and refreshed on ack inside MDMWindowsSaveResponse; this test records the
-	// result directly, so recompute the flag the same way that path does.
-	require.NoError(t, ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, ds.writer(ctx), []uint{enrollmentID}))
-
-	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
-	require.NoError(t, err)
-	require.False(t, state.HasPendingCommands, "an acknowledged command must not count as pending")
+	// (The ack -> not-pending transition, including the recompute-on-ack wiring inside MDMWindowsSaveResponse, is covered by testSaveResponse.)
 
 	// awaiting_configuration is reflected in the combined read
 	_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, d.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationNone, fleet.WindowsMDMAwaitingConfigurationPending)
@@ -3745,6 +3709,15 @@ func testSaveResponse(t *testing.T, ds *Datastore) {
 		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID, enrolledDevice3.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 
+	// has_pending_commands is a denormalized flag: queuing a non-poll command marks it, and MDMWindowsSaveResponse must recompute it to false
+	// when the command is acked. hasPending reads it through the same getter the orbit-config check-in uses.
+	hasPending := func(d *fleet.MDMWindowsEnrolledDevice) bool {
+		st, err := ds.GetMDMWindowsHostConfigState(context.Background(), d.HostUUID)
+		require.NoError(t, err)
+		return st.HasPendingCommands
+	}
+	require.True(t, hasPending(enrolledDevice1), "queuing a non-poll command should mark the enrollment as having pending commands")
+
 	// We only found a batch update method, so we are using a single statement here to insert host profile, for simplicity.
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
 		_, err := t.ExecContext(context.Background(), `
@@ -3758,6 +3731,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// Do test
 	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
 	require.NoError(t, err)
+	require.False(t, hasPending(enrolledDevice1), "MDMWindowsSaveResponse must recompute has_pending_commands to false after the ack")
 
 	// Verify results
 	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")

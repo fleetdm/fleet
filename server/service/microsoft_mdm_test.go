@@ -1724,45 +1724,10 @@ func TestGetESPCommands(t *testing.T) {
 func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 	t.Parallel()
 	const deviceID = "test-device-id"
-	const hostUUID = "test-host-uuid"
 	const enrollmentID = uint(7)
 
-	type captures struct {
-		enqueued        *fleet.MDMWindowsCommand
-		intendedRelaxed *bool
-	}
-
-	// newSvc returns a mock-backed Service that captures the enqueued poll command and the intended-schedule write so tests can assert them.
-	// The reconcile reads the capability straight off the enrolled-device row (fleetd_sync_capable), so no host-resolution mocks are needed.
-	newSvc := func(t *testing.T, caps *captures) *Service {
-		ds := new(mock.Store)
-		ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
-			ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
-		) error {
-			assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
-			assert.Equal(t, enrollmentID, id)
-			if caps != nil {
-				caps.enqueued = cmd
-				caps.intendedRelaxed = &relaxed
-			}
-			return nil
-		}
-		return &Service{ds: ds, logger: testutils.TestLogger(t)}
-	}
-
-	// newDevice builds an enrollment with the given intended schedule (poll_schedule_relaxed) and persisted sync capability (fleetd_sync_capable).
-	newDevice := func(relaxed, syncCapable bool) *fleet.MDMWindowsEnrolledDevice {
-		return &fleet.MDMWindowsEnrolledDevice{
-			ID:                  enrollmentID,
-			MDMDeviceID:         deviceID,
-			HostUUID:            hostUUID,
-			PollScheduleRelaxed: relaxed,
-			FleetdSyncCapable:   syncCapable,
-		}
-	}
-
-	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed Replace
-	// on the Poll node with the expected interval.
+	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed
+	// Replace on the Poll node with the expected interval.
 	assertEnqueuedInterval := func(t *testing.T, cmd *fleet.MDMWindowsCommand, interval string) {
 		t.Helper()
 		require.NotNil(t, cmd, "a poll command should have been enqueued")
@@ -1776,48 +1741,49 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		assert.Equal(t, interval, parsed[0].GetTargetData())
 	}
 
-	t.Run("capable host on fast poll enqueues relax and records intended", func(t *testing.T) {
-		var caps captures
-		svc := newSvc(t, &caps)
+	// The reconcile relaxes the poll iff the host's persisted fleetd_sync_capable differs from its current poll_schedule_relaxed: it enqueues
+	// a Replace carrying the relaxed (480m) or fast (1m) interval and records the new intended state. The not-capable+fast case also covers
+	// the unlinked / never-reported-capable enrollment (fleetd_sync_capable defaults to false).
+	for _, c := range []struct {
+		name         string
+		syncCapable  bool
+		relaxed      bool
+		wantEnqueue  bool
+		wantInterval string // only checked when wantEnqueue
+	}{
+		{"capable host on fast poll is relaxed", true, false, true, windowsMDMRelaxedPollIntervalMinutes},
+		{"capable host already relaxed is a no-op", true, true, false, ""},
+		{"not-capable host marked relaxed is restored to fast", false, true, true, windowsMDMFastPollIntervalMinutes},
+		{"not-capable host already on fast poll is a no-op", false, false, false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var enqueued *fleet.MDMWindowsCommand
+			var intendedRelaxed *bool
+			ds := new(mock.Store)
+			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
+				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+			) error {
+				assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
+				assert.Equal(t, enrollmentID, id)
+				enqueued, intendedRelaxed = cmd, &relaxed
+				return nil
+			}
+			svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
 
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false, true))
-		require.NoError(t, err)
-		assertEnqueuedInterval(t, caps.enqueued, windowsMDMRelaxedPollIntervalMinutes)
-		require.NotNil(t, caps.intendedRelaxed)
-		assert.True(t, *caps.intendedRelaxed, "intended schedule should be recorded as relaxed")
-	})
+			device := &fleet.MDMWindowsEnrolledDevice{
+				ID: enrollmentID, MDMDeviceID: deviceID, PollScheduleRelaxed: c.relaxed, FleetdSyncCapable: c.syncCapable,
+			}
+			require.NoError(t, svc.reconcileWindowsMDMPollSchedule(t.Context(), device))
 
-	t.Run("capable host already relaxed is a no-op", func(t *testing.T) {
-		svc := newSvc(t, nil)
-		ds := svc.ds.(*mock.Store)
-
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true, true))
-		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked, "no enqueue when intended already matches desired")
-	})
-
-	t.Run("not-capable host that intends relaxed is restored to fast", func(t *testing.T) {
-		var caps captures
-		// A host whose fleetd no longer advertises the sync capability (so fleetd_sync_capable is false) but is still marked relaxed must be
-		// put back on the fast poll, so its commands still get delivered without a wake.
-		svc := newSvc(t, &caps)
-
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true, false))
-		require.NoError(t, err)
-		assertEnqueuedInterval(t, caps.enqueued, windowsMDMFastPollIntervalMinutes)
-		require.NotNil(t, caps.intendedRelaxed)
-		assert.False(t, *caps.intendedRelaxed, "intended schedule should be recorded as fast")
-	})
-
-	t.Run("not-capable host already on fast poll is a no-op", func(t *testing.T) {
-		// Covers the unlinked / never-reported-capable case too: such an enrollment has fleetd_sync_capable=false and stays on the fast poll.
-		svc := newSvc(t, nil)
-		ds := svc.ds.(*mock.Store)
-
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false, false))
-		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
-	})
+			require.Equal(t, c.wantEnqueue, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
+			if c.wantEnqueue {
+				assertEnqueuedInterval(t, enqueued, c.wantInterval)
+				require.NotNil(t, intendedRelaxed)
+				// The recorded intended state always equals the capability (relax iff capable).
+				assert.Equal(t, c.syncCapable, *intendedRelaxed)
+			}
+		})
+	}
 }
 
 // TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows

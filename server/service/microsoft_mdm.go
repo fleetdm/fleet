@@ -2093,12 +2093,11 @@ func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
 
 // reconcileWindowsMDMPollSchedule relaxes (or restores) the device's DMClient poll schedule based on whether its fleetd can be woken on
 // demand. Capable hosts get a relaxed poll, so steady-state command delivery is driven by the on-demand wake instead of frequent polling
-// (the server-load reduction this feature targets); non-capable hosts stay on the fast poll.
+// (the server-load reduction); non-capable hosts stay on the fast poll.
 //
-// It enqueues the poll Replace through the standard Windows MDM command queue rather than tracking acknowledgment itself: the queue
-// re-delivers the command on every session until the device acks it, and stops once a result is recorded, so a dropped or rejected Replace
-// cannot strand a host on the wrong interval. poll_schedule_relaxed records only the INTENDED schedule, so a command is enqueued exactly
-// once per intended change (and excluded from the pending-command/wake signal, so tuning the poll does not itself request a wake).
+// It enqueues the poll Replace through the standard Windows MDM command queue. poll_schedule_relaxed records only the
+// INTENDED schedule, so a command is enqueued exactly once per intended change (and excluded from the
+// pending-command/wake signal, so tuning the poll does not itself request a wake).
 func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
 	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
 	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
@@ -2113,8 +2112,7 @@ func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
 	}
-	// Enqueue the Replace and record the intended schedule atomically so a transient failure between the two writes cannot leave the queued
-	// command without its matching intended-state flag, which would otherwise make the next management session enqueue a duplicate Replace.
+	// Enqueue the Replace and record the intended schedule atomically.
 	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
 	}

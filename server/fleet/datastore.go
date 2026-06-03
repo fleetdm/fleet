@@ -2108,11 +2108,6 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
-	// SetMDMWindowsEnrollmentPollScheduleRelaxed records the intended DMClient poll schedule for the given Windows MDM enrollment (relaxed vs
-	// the aggressive default). Delivery/acknowledgment of the poll Replace itself is handled by the Windows MDM command queue; this is written
-	// once per intended change.
-	SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error
-
 	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
 	// enrollment.
 	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
