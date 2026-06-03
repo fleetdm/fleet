@@ -871,3 +871,64 @@ func ReconcileProfilesForEnrollingHost(
 		appConfig, certProfilesLimit, toInstall, toRemove,
 	)
 }
+
+// PendingProfilesForHost returns the (toInstall, toRemove) deltas for a
+// single host, including user-scoped profiles.
+func PendingProfilesForHost(
+	ctx context.Context,
+	ds fleet.Datastore,
+	hostUUID string,
+) (toInstall, toRemove []*fleet.MDMAppleProfilePayload, err error) {
+	host, err := ds.GetAppleMDMHostForReconcile(ctx, hostUUID)
+	if err != nil || host == nil {
+		return nil, nil, err
+	}
+
+	profs, err := ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	profilesWithBrokenLabel := make(map[string]struct{})
+	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 2)
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range profs {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMAppleProfilesByUUIDs(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	toInstall, toRemove = ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+	)
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
+	return toInstall, toRemove, nil
+}
