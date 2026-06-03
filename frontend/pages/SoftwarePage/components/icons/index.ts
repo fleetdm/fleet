@@ -6,6 +6,7 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
@@ -46,6 +47,7 @@ import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -168,7 +170,6 @@ import LuLu from "./LuLu";
 import Maccy from "./Maccy";
 import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
-import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
@@ -215,6 +216,7 @@ import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
+import SfSymbols from "./SfSymbols";
 import Shottr from "./Shottr";
 import Signal from "./Signal";
 import Sketch from "./Sketch";
@@ -251,6 +253,7 @@ import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
 import VirtualBox from "./VirtualBox";
+import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
@@ -301,6 +304,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon chime": AmazonChime,
   "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
+  "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
@@ -441,7 +445,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "logi options+": Logioptionsplus,
   loom: Loom,
   lulu: LuLu,
-  messenger: Messenger,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft onenote": MicrosoftOneNote,
@@ -501,11 +504,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rider: Rider,
   "royal tsx": RoyalTsx,
   rubymine: RubyMine,
+  rustdesk: RustDesk,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
   secretive: Secretive,
   "sequel ace": SequelAce,
+  "sf symbols": SfSymbols,
   shottr: Shottr,
   signal: Signal,
   sketch: Sketch,
@@ -544,6 +549,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   twingate: Twingate,
   utm: Utm,
   virtualbox: VirtualBox,
+  virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,

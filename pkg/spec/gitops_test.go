@@ -326,6 +326,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
+				_, ok = gitops.Controls.WindowsEntraClientIDs.([]any)
+				assert.True(t, ok, "windows_entra_client_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
@@ -814,7 +816,7 @@ reports:
 `
 	_, err = gitOpsFromString(t, config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "environment variable \"NOT_DEFINED\" not set")
+	require.Contains(t, err.Error(), `environment variable "NOT_DEFINED" not set; if you intended the literal string $NOT_DEFINED then please escape it as \$NOT_DEFINED.`)
 }
 
 func TestMixingGlobalAndTeamConfig(t *testing.T) {

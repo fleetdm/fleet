@@ -2175,6 +2175,10 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsEntraTenantIDs == nil {
 			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
 		}
+		mdmAppConfig["windows_entra_client_ids"] = incoming.Controls.WindowsEntraClientIDs
+		if incoming.Controls.WindowsEntraClientIDs == nil {
+			mdmAppConfig["windows_entra_client_ids"] = []any{}
+		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {

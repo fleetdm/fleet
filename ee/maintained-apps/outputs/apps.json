@@ -58,11 +58,18 @@
       "description": "Abstract is a collaborative design tool with support for Sketch files."
     },
     {
-      "name": "Adobe Acrobat Pro DC",
+      "name": "Adobe Acrobat Pro",
       "slug": "adobe-acrobat-pro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.Acrobat.Pro",
-      "description": "Adobe Acrobat Pro DC is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+      "description": "Adobe Acrobat Pro is a professional PDF editor for creating, editing, converting, and managing PDF documents."
+    },
+    {
+      "name": "Adobe Acrobat Pro",
+      "slug": "adobe-acrobat-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe Acrobat DC (64-bit)",
+      "description": "Adobe Acrobat Pro is a professional PDF editor for creating, editing, converting, and managing PDF documents."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -147,6 +154,20 @@
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
+    },
+    {
+      "name": "Amazon WorkSpaces",
+      "slug": "amazon-workspaces/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazon.workspaces",
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+    },
+    {
+      "name": "Amazon WorkSpaces",
+      "slug": "amazon-workspaces/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon WorkSpaces",
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
     },
     {
       "name": "Android Studio",
@@ -1465,13 +1486,6 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
-      "name": "Messenger",
-      "slug": "messenger/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.facebook.archon.developerID",
-      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
-    },
-    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -2032,6 +2046,13 @@
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
+      "name": "RustDesk",
+      "slug": "rustdesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.carriez.rustdesk",
+      "description": "RustDesk is an Open source virtual/remote desktop application."
+    },
+    {
       "name": "RustRover",
       "slug": "rustrover/darwin",
       "platform": "darwin",
@@ -2065,6 +2086,13 @@
       "platform": "darwin",
       "unique_identifier": "com.sequelace.SequelAce",
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
+    },
+    {
+      "name": "SF Symbols",
+      "slug": "sf-symbols/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apple.SFSymbols",
+      "description": "SF Symbols is an app that provides consistent, highly configurable symbols for apps."
     },
     {
       "name": "Shottr",
@@ -2431,6 +2459,13 @@
       "description": "VirtualBox is a virtualiser for x86-64 hardware."
     },
     {
+      "name": "VirtualBuddy",
+      "slug": "virtualbuddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "codes.rambo.VirtualBuddy",
+      "description": "VirtualBuddy is an app that can virtualize macOS 12 and later on Apple Silicon."
+    },
+    {
       "name": "Viscosity",
       "slug": "viscosity/darwin",
       "platform": "darwin",
@@ -2631,6 +2666,13 @@
       "slug": "zed/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
+      "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zed",
+      "slug": "zed/windows",
+      "platform": "windows",
+      "unique_identifier": "Zed",
       "description": "Zed is a multiplayer code editor."
     },
     {

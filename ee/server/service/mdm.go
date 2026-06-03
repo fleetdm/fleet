@@ -1419,7 +1419,6 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 
 func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice, updates fleet.AppleOSUpdateSettings) error {
 	const (
-		softwareUpdateType        = `com.apple.configuration.softwareupdate.enforcement.specific`
 		softwareUpdateIdentSuffix = `-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
 	)
 	var (
@@ -1461,9 +1460,9 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, updates.Deadline.Value))
 
-	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, apple_mdm.DeclarationTypeSoftwareUpdate, softwareUpdateIdentifier)
 
 	// Associate the profile with the built-in label to ensure that the profile is applied to the targeted devices.
 	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName}, fleet.TeamFilter{}) // built-in labels are global
