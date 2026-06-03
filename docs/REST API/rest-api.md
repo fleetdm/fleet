@@ -11176,6 +11176,7 @@ Returns information about the specified software. By default, `versions` are sor
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
+    "packages": null,
     "auto_update_enabled": true,
     "auto_update_window_start": "00:00",
     "auto_update_window_end": "02:00",
@@ -11237,6 +11238,7 @@ Returns information about the specified software. By default, `versions` are sor
     "application_id": "us.zoom.videomeetings",
     "counts_updated_at": "2025-08-29T10:23:48Z",
     "software_package": null,
+    "packages": null,
     "app_store_app": {
       "app_store_id": "us.zoom.videomeetings",
       "platform": "android",
@@ -11284,18 +11286,49 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "MyCustomApp",
+    "self_service": true,
+    "packages": [
+      {
+        "name": "MyCustomApp-1.13.ipa",
+        "platform": "ios",
+        "fleet_maintained_id": null,
+        "version": "1.13",
+        "automatic_install_policies": null,
+        "categories": null,
+        "uploaded_at": "2026-08-15T00:55:03.96954Z",
+        "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+        "title_id": 12,
+        "team_id": 3,
+        "fleet_id": 3,
+        "status": {
+          "installed": 0,
+          "pending_install": 0,
+          "failed_install": 0,
+          "pending_uninstall": 0,
+          "failed_uninstall": 0
+        },
+        "installer_id": 332,
+        "install_script": null,
+        "uninstall_script": null,
+        "post_install_script": null,
+        "pre_install_query": null,
+        "labels_include_any": null,
+        "labels_include_all": null,
+        "labels_exclude_any": null,
+      }
+    ]
     "software_package": {
       "name": "MyCustomApp-1.12.ipa",
       "platform": "ios",
       "fleet_maintained_id": null,
       "version": "1.12",
-      "self_service": false,
       "automatic_install_policies": null,
       "categories": null,
       "uploaded_at": "2025-08-15T00:55:03.96954Z",
       "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
       "title_id": 12,
       "team_id": 3,
+      "fleet_id": 3,
       "status": {
         "installed": 0,
         "pending_install": 0,
@@ -11540,13 +11573,9 @@ POST /api/v1/fleet/software/package
 
 ```
 fleet_id="1"
-self_service="true"
 install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
-pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
 post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
 software="FalconSensor-6.44.pkg"
-labels_exclude_any="Engineering"
-labels_exclude_any="QA"
 ```
 
 ##### Default response
@@ -11555,33 +11584,74 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "software_package": {
-    "title_id": 123,
-    "name": "FalconSensor-6.44.pkg",
-    "icon_url": null,
-    "categories": null,
-    "display_name": "",
-    "version": "6.44",
-    "platform": "darwin",
-    "fleet_maintained_app_id": 42,
-    "installer_id": 23,
-    "team_id": 3,
-    "uploaded_at": "2024-04-01T14:22:58Z",
-    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
-    "url": "",
-    "automatic_install_policies": null,
-    "labels_include_any": null,
-    "labels_exclude_any": null,
-    "status": {
-      "installed": 0,
-      "pending": 0,
-      "failed": 0
+  "packages": [
+    {
+      "team_id": 310,
+      "name": "FalconSensor-6.44.pkg.pkg",
+      "icon_url": null,
+      "version": "6.44",
+      "platform": "darwin",
+      "uploaded_at": "2026-07-12T18:45:09.826096Z",
+      "installer_id": 36799,
+      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "pre_install_query": "",
+      "post_install_script": "",
+      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "url": "https://example.com/falcon-sensor/download",
+      "fleet_maintained_app_id": null,
+      "fleet_maintained_versions": null,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "categories": [
+        "Browsers"
+      ],
+      "patch_policy": null,
+      "fleet_id": 310
     }
-  }
+  ]
+  "software_package": {
+      "team_id": 310,
+      "name": "FalconSensor-6.44.pkg.pkg",
+      "icon_url": null,
+      "version": "6.44",
+      "platform": "darwin",
+      "uploaded_at": "2026-07-12T18:45:09.826096Z",
+      "installer_id": 36799,
+      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "pre_install_query": "",
+      "post_install_script": "",
+      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "url": "https://example.com/falcon-sensor/download",
+      "fleet_maintained_app_id": null,
+      "fleet_maintained_versions": null,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "categories": [
+        "Browsers"
+      ],
+      "patch_policy": null,
+      "fleet_id": 310
+    }
 }
 ```
 
@@ -11604,7 +11674,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| installer_id | integer | body | The ID of the package (installer) to update. Required when the software title has multiple packages. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
