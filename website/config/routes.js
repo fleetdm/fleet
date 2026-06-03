@@ -431,6 +431,8 @@ module.exports.routes = {
     }
   },
 
+  'GET /visibility-and-reporting': { action: 'view-visibility-and-reporting' },
+
   'GET /software-management': {
     action: 'view-software-management',
     locals: {

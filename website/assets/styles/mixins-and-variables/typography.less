@@ -34,7 +34,7 @@
   line-height: 150%;
   text-transform: uppercase;
   color: @core-fleet-black-75;
-  margin-bottom: 8px;
+  margin-bottom: 0px;
 }
 .title-s() {
   font-size: 16px;
@@ -55,4 +55,16 @@
   font-size: 48px;
   line-height: 120%;
   font-weight: 800;
+}
+.page-heading() {
+  .title-xl();
+  @media (max-width: 575px) {
+    font-size: 32px;
+  }
+}
+.section-heading() {
+  .title-l();
+  @media (max-width: 575px) {
+    font-size: 24px;
+  }
 }
