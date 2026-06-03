@@ -39,3 +39,21 @@ export const UsedInsideDataSet: Story = {
     ),
   ],
 };
+
+// Demonstrates fixedPositionStrategy: use this when the truncated text lives
+// inside an `overflow: hidden` ancestor. With the default `absolute`
+// positioning, the tooltip can be misplaced or clipped; with
+// `fixedPositionStrategy`, it positions relative to the viewport and renders
+// reliably.
+export const FixedPositioningInsideOverflowHidden: Story = {
+  args: { fixedPositionStrategy: true },
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: "300px", overflow: "hidden", padding: "16px" }}>
+        <div style={{ maxWidth: "200px", overflow: "hidden" }}>
+          <Story />
+        </div>
+      </div>
+    ),
+  ],
+};
