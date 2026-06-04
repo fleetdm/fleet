@@ -1,4 +1,7 @@
-import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
+import {
+  IDeviceSoftwareWithUiStatus,
+  SoftwareCategory,
+} from "interfaces/software";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
@@ -160,10 +163,10 @@ describe("hasInProgressInstallAllItems", () => {
 
 describe("filterSoftwareByCustomCategory", () => {
   const browsersPackage = createMockHostSoftwarePackage({
-    categories: ["🌎 Browsers"],
+    categories: (["🌎 Browsers"] as unknown) as SoftwareCategory[],
   });
   const securityPackage = createMockHostSoftwarePackage({
-    categories: ["🔐 Security"],
+    categories: (["🔐 Security"] as unknown) as SoftwareCategory[],
   });
 
   const browser = makeItem("uninstalled", {
@@ -207,7 +210,7 @@ describe("filterSoftwareByCustomCategory", () => {
 
   it("matches case-insensitively", () => {
     const utilitiesPackage = createMockHostSoftwarePackage({
-      categories: ["🛠️ Utilities"],
+      categories: (["🛠️ Utilities"] as unknown) as SoftwareCategory[],
     });
     const item = makeItem("uninstalled", {
       name: "ohai",
