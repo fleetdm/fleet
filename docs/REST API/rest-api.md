@@ -5069,13 +5069,22 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
       "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
+        "automatic_install_policies": null,
         "platform": "darwin",
         "version": "125.12.0.3",
         "self_service": true,
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
-        }
+        },
+        "last_uninstall": {
+          "uninstall_uuid": "1bbf1084-f861-42df-9359-c27c8682a874",
+          "uninstalled_at": "2024-05-15T15:23:57Z"
+        },
+        "package_url": null,
+        "categories": [
+          "Security"
+        ]
       },
       "app_store_app": null,
       "source": "apps",
@@ -5150,30 +5159,6 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
           "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
         }
       ]
-    },
-    {
-      "id": 12,
-      "name": "MyCustomApp",
-      "software_package": {
-        "name": "MyCustomApp-1.12.ipa",
-        "platform": "ios",
-        "version": "1.12",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null
-      },
-      "app_store_app": null,
-      "versions_count": 1,
-      "source": "ios_apps",
-      "hosts_count": 48,
-      "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": null
-        }
-      ],
     }
   ],
   "meta": {
@@ -11256,59 +11241,47 @@ Returns information about the specified software. By default, `versions` are sor
 {
   "software_title": {
     "id": 12,
-    "name": "Google Chrome.app",
-    "display_name": "Google Chrome",
-    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
+    "name": "Google Chrome",
     "display_name": "",
+    "self_service": false,
+    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "com.google.Chrome",
-    "software_package": {
-      "name": "GoogleChrome.pkg",
-      "version": "143.0.7499.193",
-      "categories": ["Productivity"],
-      "platform": "darwin",
-      "fleet_maintained_app_id": 42,
-      "fleet_maintained_versions": [
-        {
-          "id": 1,
-          "version": "143.0.7499.193"
+    "packages": [
+      {
+        "team_id": 310,
+        "name": "GoogleChrome.pkg",
+        "icon_url": null,
+        "version": "149.0.7827.54",
+        "platform": "darwin",
+        "uploaded_at": "2026-06-03T18:45:09.826096Z",
+        "installer_id": 36783,
+        "install_script": "#!/bin/bash\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local console_user=\"$2\"\n  local timeout_duration=10\n\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n ...",
+        "pre_install_query": "",
+        "post_install_script": "",
+        "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+        "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
+        "status": {
+          "installed": 3,
+          "pending_install": 10,
+          "failed_install": 1,
+          "pending_uninstall": 0,
+          "failed_uninstall": 0
         },
-        {
-          "id": 2,
-          "version": "142.0.7444.176"
-        },
-      ],
-      "installer_id": 23,
-      "team_id": 3,
-      "uploaded_at": "2024-04-01T14:22:58Z",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
-      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-      "uninstall_script": "/Library/CS/falconctl uninstall",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
-          "type": "dynamic"
-        }
-      ],
-      "status": {
-        "installed": 3,
-        "pending_install": 1,
-        "failed_install": 0,
-        "pending_uninstall": 2,
-        "failed_uninstall": 1
-      }
-    },
+        "url": "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg",
+        "fleet_maintained_app_id": null,
+        "fleet_maintained_versions": null,
+        "automatic_install_policies": null,
+        "labels_include_any": null,
+        "labels_exclude_any": null,
+        "labels_include_all": null,
+        "categories": [
+          "Browsers"
+        ],
+        "display_name": "",
+        "patch_policy": null,
+        "fleet_id": 310
+      },
+    ],
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
@@ -11339,6 +11312,8 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+> Install, pending, and failed counts in `software_title.packages.status` are combined across policy automations, setup experience, and manual installs.
+
 #### Example (app store app)
 
 `GET /api/v1/fleet/software/titles/15?fleet_id=3`
@@ -11357,6 +11332,7 @@ Returns information about the specified software. By default, `versions` are sor
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
+    "packages": null,
     "auto_update_enabled": true,
     "auto_update_window_start": "00:00",
     "auto_update_window_end": "02:00",
@@ -11418,6 +11394,7 @@ Returns information about the specified software. By default, `versions` are sor
     "application_id": "us.zoom.videomeetings",
     "counts_updated_at": "2025-08-29T10:23:48Z",
     "software_package": null,
+    "packages": null,
     "app_store_app": {
       "app_store_id": "us.zoom.videomeetings",
       "platform": "android",
@@ -11465,34 +11442,37 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "MyCustomApp",
-    "software_package": {
-      "name": "MyCustomApp-1.12.ipa",
-      "platform": "ios",
-      "fleet_maintained_id": null,
-      "version": "1.12",
-      "self_service": false,
-      "automatic_install_policies": null,
-      "categories": null,
-      "uploaded_at": "2025-08-15T00:55:03.96954Z",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "title_id": 12,
-      "team_id": 3,
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      },
-      "installer_id": 332,
-      "install_script": null,
-      "uninstall_script": null,
-      "post_install_script": null,
-      "pre_install_query": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-    },
+    "self_service": true,
+    "packages": [
+      {
+        "name": "MyCustomApp-1.13.ipa",
+        "platform": "ios",
+        "fleet_maintained_id": null,
+        "version": "1.13",
+        "automatic_install_policies": null,
+        "categories": null,
+        "uploaded_at": "2026-08-15T00:55:03.96954Z",
+        "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
+        "title_id": 12,
+        "team_id": 3,
+        "fleet_id": 3,
+        "status": {
+          "installed": 0,
+          "pending_install": 0,
+          "failed_install": 0,
+          "pending_uninstall": 0,
+          "failed_uninstall": 0
+        },
+        "installer_id": 332,
+        "install_script": null,
+        "uninstall_script": null,
+        "post_install_script": null,
+        "pre_install_query": null,
+        "labels_include_any": null,
+        "labels_include_all": null,
+        "labels_exclude_any": null,
+      }
+    ],
     "app_store_app": null,
     "versions_count": 1,
     "source": "ios_apps",
@@ -11721,13 +11701,9 @@ POST /api/v1/fleet/software/package
 
 ```
 fleet_id="1"
-self_service="true"
 install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
-pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
 post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
 software="FalconSensor-6.44.pkg"
-labels_exclude_any="Engineering"
-labels_exclude_any="QA"
 ```
 
 ##### Default response
@@ -11736,33 +11712,41 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "software_package": {
-    "title_id": 123,
-    "name": "FalconSensor-6.44.pkg",
-    "icon_url": null,
-    "categories": null,
-    "display_name": "",
-    "version": "6.44",
-    "platform": "darwin",
-    "fleet_maintained_app_id": 42,
-    "installer_id": 23,
-    "team_id": 3,
-    "uploaded_at": "2024-04-01T14:22:58Z",
-    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
-    "url": "",
-    "automatic_install_policies": null,
-    "labels_include_any": null,
-    "labels_exclude_any": null,
-    "status": {
-      "installed": 0,
-      "pending": 0,
-      "failed": 0
+  "packages": [
+    {
+      "team_id": 310,
+      "name": "FalconSensor-6.44.pkg.pkg",
+      "icon_url": null,
+      "version": "6.44",
+      "platform": "darwin",
+      "uploaded_at": "2026-07-12T18:45:09.826096Z",
+      "installer_id": 36799,
+      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "pre_install_query": "",
+      "post_install_script": "",
+      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
+      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      },
+      "url": "https://example.com/falcon-sensor/download",
+      "fleet_maintained_app_id": null,
+      "fleet_maintained_versions": null,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "categories": [
+        "Browsers"
+      ],
+      "patch_policy": null,
+      "fleet_id": 310
     }
-  }
+  ]
 }
 ```
 
@@ -11810,6 +11794,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 ##### Request body
 
 ```http
+installer_id="23"
 fleet_id="1"
 software="FalconSensor-6.44.pkg"
 self_service="true"
@@ -11849,6 +11834,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
   }
 }
 ```
+
 
 ### Update software icon
 
