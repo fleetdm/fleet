@@ -847,7 +847,6 @@ const ManagePolicyPage = ({
   if (canEditAutomationsSettings) {
     automationsButton = (
       <AutomationsButton
-        className={`${baseClass}__automations-button`}
         onClick={toggleAutomationsModal}
         disabled={!hasPoliciesToAutomate}
       />
