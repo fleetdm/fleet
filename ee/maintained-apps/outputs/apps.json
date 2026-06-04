@@ -2361,6 +2361,13 @@
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host is a lightweight TeamViewer client for setting up unattended remote access to a device."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -2578,10 +2585,24 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
+      "name": "VNC Server",
+      "slug": "vnc-server/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Server",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
+      "description": "VNC Viewer is a remote desktop application focusing on security."
+    },
+    {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {

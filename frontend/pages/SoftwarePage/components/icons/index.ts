@@ -567,6 +567,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
+  "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
