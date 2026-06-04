@@ -11,7 +11,6 @@ export const generateLabelKey = (
   target: string,
   includeMode: "any" | "all",
   includeLabels: Record<string, boolean>,
-  excludeMode: "any" | "all",
   excludeLabels: Record<string, boolean>
 ) => {
   if (target !== "Custom") {
@@ -27,9 +26,7 @@ export const generateLabelKey = (
     ] = includeNames;
   }
   if (excludeNames.length) {
-    result[
-      excludeMode === "all" ? "labelsExcludeAll" : "labelsExcludeAny"
-    ] = excludeNames;
+    result.labelsExcludeAny = excludeNames;
   }
   return result;
 };

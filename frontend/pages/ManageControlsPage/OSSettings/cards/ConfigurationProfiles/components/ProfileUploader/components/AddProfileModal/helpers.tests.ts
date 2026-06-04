@@ -18,44 +18,34 @@ describe("listNamesFromSelectedLabels", () => {
 
 describe("generateLabelKey", () => {
   it("returns empty object when target is not Custom", () => {
-    expect(
-      generateLabelKey("All hosts", "any", { foo: true }, "any", {})
-    ).toEqual({});
+    expect(generateLabelKey("All hosts", "any", { foo: true }, {})).toEqual({});
   });
 
   it("returns labelsIncludeAny when include mode is any", () => {
     expect(
-      generateLabelKey("Custom", "any", { foo: true, bar: true }, "any", {})
+      generateLabelKey("Custom", "any", { foo: true, bar: true }, {})
     ).toEqual({ labelsIncludeAny: ["foo", "bar"] });
   });
 
   it("returns labelsIncludeAll when include mode is all", () => {
-    expect(
-      generateLabelKey("Custom", "all", { foo: true }, "any", {})
-    ).toEqual({ labelsIncludeAll: ["foo"] });
+    expect(generateLabelKey("Custom", "all", { foo: true }, {})).toEqual({
+      labelsIncludeAll: ["foo"],
+    });
   });
 
-  it("returns labelsExcludeAny when exclude mode is any", () => {
-    expect(
-      generateLabelKey("Custom", "any", {}, "any", { bar: true })
-    ).toEqual({ labelsExcludeAny: ["bar"] });
-  });
-
-  it("returns labelsExcludeAll when exclude mode is all", () => {
-    expect(
-      generateLabelKey("Custom", "any", {}, "all", { bar: true })
-    ).toEqual({ labelsExcludeAll: ["bar"] });
+  it("returns labelsExcludeAny when exclude labels are selected", () => {
+    expect(generateLabelKey("Custom", "any", {}, { bar: true })).toEqual({
+      labelsExcludeAny: ["bar"],
+    });
   });
 
   it("returns both include and exclude keys when both have selections", () => {
     expect(
-      generateLabelKey("Custom", "any", { foo: true }, "all", { bar: true })
-    ).toEqual({ labelsIncludeAny: ["foo"], labelsExcludeAll: ["bar"] });
+      generateLabelKey("Custom", "any", { foo: true }, { bar: true })
+    ).toEqual({ labelsIncludeAny: ["foo"], labelsExcludeAny: ["bar"] });
   });
 
   it("omits keys for empty selections", () => {
-    expect(
-      generateLabelKey("Custom", "all", { foo: false }, "any", {})
-    ).toEqual({});
+    expect(generateLabelKey("Custom", "all", { foo: false }, {})).toEqual({});
   });
 });

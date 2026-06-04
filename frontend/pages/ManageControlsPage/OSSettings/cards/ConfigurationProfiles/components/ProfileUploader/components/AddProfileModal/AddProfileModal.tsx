@@ -176,7 +176,6 @@ const AddProfileModal = ({
         selectedTargetType,
         selectedIncludeMode,
         selectedIncludeLabels,
-        "any",
         selectedExcludeLabels
       );
       await mdmAPI.uploadProfile({
@@ -347,8 +346,8 @@ const AddProfileModal = ({
               name="include-mode"
               tooltip={
                 <>
-                  Profile will be applied to hosts that{" "}
-                  <b>have any</b> of these labels.
+                  Profile will be applied to hosts that <b>have any</b> of these
+                  labels.
                 </>
               }
               onChange={(val: string) =>
@@ -364,8 +363,8 @@ const AddProfileModal = ({
               name="include-mode"
               tooltip={
                 <>
-                  Profile will be applied to hosts that{" "}
-                  <b>have all</b> of these labels.
+                  Profile will be applied to hosts that <b>have all</b> of these
+                  labels.
                 </>
               }
               onChange={(val: string) =>
