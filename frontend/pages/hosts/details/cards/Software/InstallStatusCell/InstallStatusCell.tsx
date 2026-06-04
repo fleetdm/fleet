@@ -377,8 +377,9 @@ const getEmptyCellTooltip = (
     <>
       {softwareName ? <b>{softwareName}</b> : "Software"} can be{" "}
       {isScriptPackage ? "run" : "installed"} on the host.
-      <br /> Select <b>Actions &gt; {isScriptPackage ? "Run" : "Install"}</b> to{" "}
-      {isScriptPackage ? "run" : "install"}.
+      <br /> Select <b>
+        Actions &gt; {isScriptPackage ? "Run" : "Install"}
+      </b> to {isScriptPackage ? "run" : "install"}.
     </>
   );
 };

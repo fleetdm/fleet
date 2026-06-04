@@ -763,8 +763,7 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be/i)).toBeInTheDocument();
-      expect(screen.getByText(/run/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be run on the host/i)).toBeInTheDocument();
     });
 
     // Not clickable
