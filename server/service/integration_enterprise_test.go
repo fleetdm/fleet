@@ -32491,3 +32491,57 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceInstallDoubleEnqueue() {
 
 	require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
 }
+
+func (s *integrationEnterpriseTestSuite) TestDeviceSelfServiceCategories() {
+	t := s.T()
+	ctx := context.Background()
+
+	getCats := func(token string, expectedStatus int) []fleet.SoftwareCategory {
+		resp := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/self_service_categories", token), nil, expectedStatus)
+		defer resp.Body.Close()
+		if expectedStatus != http.StatusOK {
+			return nil
+		}
+		var out getDeviceSelfServiceCategoriesResponse
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
+		return out.SelfServiceCategories
+	}
+	names := func(cats []fleet.SoftwareCategory) []string {
+		out := make([]string, 0, len(cats))
+		for _, c := range cats {
+			out = append(out, c.Name)
+		}
+		return out
+	}
+
+	// bad device token -> 401
+	getCats("not-a-real-token", http.StatusUnauthorized)
+
+	// a team host sees its own fleet's categories, scoped away from another fleet's.
+	// (every fleet also has the default seeded categories, so assert on unique markers.)
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-team"})
+	require.NoError(t, err)
+	teamCatName := t.Name() + "-team-cat"
+	_, err = s.ds.NewSoftwareCategory(ctx, team.ID, teamCatName)
+	require.NoError(t, err)
+	noTeamCatName := t.Name() + "-noteam-cat"
+	_, err = s.ds.NewSoftwareCategory(ctx, 0, noTeamCatName)
+	require.NoError(t, err)
+
+	teamHost := createOrbitEnrolledHost(t, "ubuntu", "ssc-team", s.ds)
+	teamToken := "ssc-team-tok" //nolint:gosec // G101: test value only
+	createDeviceTokenForHost(t, s.ds, teamHost.ID, teamToken)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	teamCats := names(getCats(teamToken, http.StatusOK))
+	require.Contains(t, teamCats, teamCatName)
+	require.NotContains(t, teamCats, noTeamCatName)
+
+	// a no-team host sees the no-team category, not the team's
+	noTeamHost := createOrbitEnrolledHost(t, "ubuntu", "ssc-noteam", s.ds)
+	noTeamToken := "ssc-noteam-tok" //nolint:gosec // G101: test value only
+	createDeviceTokenForHost(t, s.ds, noTeamHost.ID, noTeamToken)
+	noTeamCats := names(getCats(noTeamToken, http.StatusOK))
+	require.Contains(t, noTeamCats, noTeamCatName)
+	require.NotContains(t, noTeamCats, teamCatName)
+}

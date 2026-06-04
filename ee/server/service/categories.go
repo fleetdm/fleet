@@ -40,6 +40,18 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 	return categories, nil
 }
 
+func (svc *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list self-service software categories for host")
+	}
+	return categories, nil
+}
+
 func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
