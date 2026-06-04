@@ -9,6 +9,17 @@ $paths = @(
 )
 
 $ExpectedExitCodes = @(0, 1641, 3010, 1223)
+$timeoutSeconds = 180
+
+function Test-StillInstalled {
+  foreach ($p in $paths) {
+    $m = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+      $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
+    }
+    if ($m) { return $true }
+  }
+  return $false
+}
 
 $entry = $null
 foreach ($p in $paths) {
@@ -23,7 +34,16 @@ if (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstall
   Exit 0
 }
 
-Stop-Process -Name "DockManager" -Force -ErrorAction SilentlyContinue
+# Stop the Dock Manager service and processes first. The Inno uninstaller
+# relaunches itself to a temp copy and the parent waits on it; that temp
+# uninstaller blocks indefinitely waiting on the running service/app under the
+# SYSTEM context, so we shut them down before uninstalling.
+Get-Service -ErrorAction SilentlyContinue | Where-Object {
+  $_.Name -like "*DockMgr*" -or $_.Name -like "*DockManager*" -or $_.DisplayName -like "*Dock Manager*"
+} | Stop-Service -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "dockmgr" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "dockmgr.svc" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "dockmgr.schd" -Force -ErrorAction SilentlyContinue
 
 $uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
 
@@ -47,18 +67,32 @@ Write-Host "Uninstall command: $exePath"
 Write-Host "Uninstall args: $existingArgs"
 
 try {
-    $processOptions = @{
-        FilePath = $exePath
-        ArgumentList = $existingArgs
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
+    $process = Start-Process -FilePath $exePath -ArgumentList $existingArgs -NoNewWindow -PassThru
+
+    # The Inno uninstaller removes its registry entry when it completes. Poll for
+    # that instead of blocking on the process, which relaunches to a temp copy.
+    $elapsed = 0
+    while ($elapsed -lt $timeoutSeconds) {
+        if (-not (Test-StillInstalled)) { break }
+        Start-Sleep -Seconds 3
+        $elapsed += 3
     }
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    Write-Host "Uninstall exit code: $exitCode"
-    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
-    Exit $exitCode
+
+    if (Test-StillInstalled) {
+        # Still present after the timeout: stop any lingering uninstaller processes.
+        Stop-Process -Name "unins000" -Force -ErrorAction SilentlyContinue
+        if (-not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (-not (Test-StillInstalled)) {
+        Write-Host "Dock Manager uninstalled successfully."
+        Exit 0
+    }
+
+    Write-Host "Dock Manager still present after uninstall attempt."
+    Exit 1
 } catch {
     Write-Host "Error running uninstaller: $_"
     Exit 1
