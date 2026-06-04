@@ -9,7 +9,10 @@ $paths = @(
 )
 
 $ExpectedExitCodes = @(0, 1641, 3010, 1223)
-$timeoutSeconds = 180
+# Give the uninstaller close to the full validation window; with the components
+# stopped it completes well under this, but it legitimately needs more than a
+# couple of minutes.
+$timeoutSeconds = 300
 
 function Test-StillInstalled {
   foreach ($p in $paths) {
@@ -29,62 +32,62 @@ foreach ($p in $paths) {
   if ($items) { $entry = $items | Select-Object -First 1; break }
 }
 
-if (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {
+if (-not $entry -or -not $entry.UninstallString) {
   Write-Host "Uninstall entry not found"
   Exit 0
 }
 
-# Stop the Dock Manager service and processes first. The Inno uninstaller
-# relaunches itself to a temp copy and the parent waits on it; that temp
-# uninstaller blocks indefinitely waiting on the running service/app under the
-# SYSTEM context, so we shut them down before uninstalling.
-Get-Service -ErrorAction SilentlyContinue | Where-Object {
-  $_.Name -like "*DockMgr*" -or $_.Name -like "*DockManager*" -or $_.DisplayName -like "*Dock Manager*"
-} | Stop-Service -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "dockmgr" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "dockmgr.svc" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "dockmgr.schd" -Force -ErrorAction SilentlyContinue
-
-$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
-
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
+# Close the Dock Manager components first (the service plus the dockmgr,
+# dockmgr.schd and dockmgr.svc processes). The Inno uninstaller relaunches to a
+# temp copy and the parent waits on it, and that temp uninstaller blocks waiting
+# on the running service/app under the SYSTEM context. Uses only built-in
+# PowerShell cmdlets (no external toolkit required).
+Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {
+  $_.PathName -like '*dockmgr*' -or $_.PathName -like '*Dock Manager*'
+} | ForEach-Object { Stop-Service -Name $_.Name -Force -ErrorAction SilentlyContinue }
+foreach ($n in @('dockmgr', 'dockmgr.schd', 'dockmgr.svc')) {
+  Stop-Process -Name $n -Force -ErrorAction SilentlyContinue
 }
 
-if ($existingArgs -notmatch '(?i)/VERYSILENT') { $existingArgs = ("$existingArgs /VERYSILENT").Trim() }
-if ($existingArgs -notmatch '(?i)/SUPPRESSMSGBOXES') { $existingArgs = ("$existingArgs /SUPPRESSMSGBOXES").Trim() }
-if ($existingArgs -notmatch '(?i)/NORESTART') { $existingArgs = ("$existingArgs /NORESTART").Trim() }
+# Inno's UninstallString is the bare unins000.exe path (quoted, no args). Run it
+# with /VERYSILENT /NORESTART (not /SILENT, which renders a progress window that
+# stalls in the SYSTEM/session-0 context).
+$uninstPath = ($entry.UninstallString -replace '"', '').Trim()
 
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $existingArgs"
+if (-not (Test-Path -LiteralPath $uninstPath)) {
+  Write-Host "Uninstaller not found at: $uninstPath"
+  Exit 1
+}
+
+Write-Host "Uninstall command: $uninstPath"
+Write-Host "Uninstall args: /VERYSILENT /NORESTART"
 
 try {
-    $process = Start-Process -FilePath $exePath -ArgumentList $existingArgs -NoNewWindow -PassThru
+    Start-Process -FilePath $uninstPath -ArgumentList "/VERYSILENT /NORESTART" | Out-Null
 
-    # The Inno uninstaller removes its registry entry when it completes. Poll for
-    # that instead of blocking on the process, which relaunches to a temp copy.
+    # The original unins000.exe relaunches to a temp copy and may return before the
+    # actual removal finishes, so poll the registry (the true completion signal)
+    # rather than waiting on a single process. The uninstaller removes its entry
+    # when it completes.
     $elapsed = 0
     while ($elapsed -lt $timeoutSeconds) {
         if (-not (Test-StillInstalled)) { break }
-        Start-Sleep -Seconds 3
-        $elapsed += 3
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+    }
+    Start-Sleep -Seconds 5
+
+    if (-not (Test-StillInstalled)) {
+        Write-Host "Dock Manager uninstalled successfully."
+        Exit 0
     }
 
-    if (Test-StillInstalled) {
-        # Still present after the timeout: stop any lingering uninstaller processes.
-        Stop-Process -Name "unins000" -Force -ErrorAction SilentlyContinue
-        if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        }
-    }
+    # Still present after the timeout: stop any lingering uninstaller (original
+    # plus the temp _iu*.tmp copy) and re-check.
+    Stop-Process -Name "unins000" -Force -ErrorAction SilentlyContinue
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "_iu*" } |
+      Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 5
 
     if (-not (Test-StillInstalled)) {
         Write-Host "Dock Manager uninstalled successfully."
