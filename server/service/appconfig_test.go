@@ -2416,7 +2416,7 @@ func TestDiffStringSlices(t *testing.T) {
 // appconfig.
 func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	ds := new(mock.Store)
-	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
