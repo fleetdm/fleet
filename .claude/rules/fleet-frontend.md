@@ -73,8 +73,11 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 - Use `renderMultiFlash()` for batch operations
 
 ## XSS Prevention
-- ALWAYS sanitize user-generated HTML with `DOMPurify.sanitize(html, options)` before `dangerouslySetInnerHTML`
-- Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+- ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
+  - `DOMPurify.sanitize(html, options)` — arbitrary HTML. Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+  - `syntaxHighlight(value)` from `frontend/utilities/helpers.tsx` — JSON/code previews. Input must be a value to JSON-serialize (object/array/primitive), not a pre-built string of user content
+  - `ClickableUrls` from `frontend/components/ClickableUrls/` — plain text that may contain URLs, rendered as clickable links
+- See `frontend/docs/patterns.md#security-considerations` for full guidance, including frontend pitfalls common in AI-assisted code
 
 ## String Utilities
 Use helpers from `frontend/utilities/strings/stringUtils.ts`:
