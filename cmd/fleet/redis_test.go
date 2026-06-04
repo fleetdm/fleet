@@ -55,9 +55,9 @@ func TestValidateRedisConfig(t *testing.T) {
 
 func TestBuildRedisPoolConfigStripsScheme(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		input  string
-		want   string
+		name  string
+		input string
+		want  string
 	}{
 		{name: "scheme stripped", input: "redis://example.com:6379", want: "example.com:6379"},
 		{name: "no scheme passes through", input: "example.com:6379", want: "example.com:6379"},
