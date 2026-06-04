@@ -3356,13 +3356,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 
 	switch {
 	case *result == batchSetCompleted:
-		if dryRun {
-			deletedPackages, err := getDeletedPackages()
-			if err != nil {
-				return "", "", nil, nil, err
-			}
-			return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, nil
-		} // this will fall through to retrieving software packages if not a dry run.
+		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
 		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
@@ -3389,19 +3383,24 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	// but adding it here so we don't need to worry about a special case endpoint.
 	//
 	// We use fleet.ActionWrite because this method is the counterpart of the POST
-	// /api/latest/fleet/software/batch.
+	// /api/latest/fleet/software/batch. This applies to dry runs too, since the
+	// deleted-packages list exposes team-scoped software data.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
 		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
-	}
-
-	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
-	if err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
 	deletedPackages, err := getDeletedPackages()
 	if err != nil {
 		return "", "", nil, nil, err
+	}
+
+	if dryRun {
+		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, nil
+	}
+
+	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
+	if err != nil {
+		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
 	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, nil
