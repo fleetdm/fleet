@@ -170,7 +170,7 @@ Perform a quick visual scan of the UI and confirm:
 
 </table>
 
-### MDM (Apple & Cross-Platform)
+### MDM
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
@@ -248,21 +248,6 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
-<td>
-
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
 <td>Token & Certificate Renewals</td>
 <td>APNs cert and ABM token renewal workflow.</td>
 <td>
@@ -315,7 +300,7 @@ Perform a quick visual scan of the UI and confirm:
 
 </table>
 
-### MDM (Windows)
+### Power to PC
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
@@ -566,6 +551,21 @@ Perform a quick visual scan of the UI and confirm:
     1. DigiCert
     2. NDES
     3. SmallStep
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Android</td>
+<td>Verify enrollment, profiles, & software installs.</td>
+<td>
+
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify certificate delivery.
+5. Verify `Unenroll`.
 
 </td>
 <td>pass/fail</td>
