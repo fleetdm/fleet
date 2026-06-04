@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -13,8 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
@@ -61,24 +64,29 @@ END AS platform
 // These subqueries are only used for the all-hosts listing; host-scoped
 // requests go through listMDMCommandsByHostIdentifier instead.
 func getMDMCommandsSubqueries() (appleStmt, windowsStmt string) {
+	// Apple branch joins the underlying nano_* tables directly instead of
+	// going through the nano_view_queue VIEW. The view bakes
+	// "ORDER BY q.priority DESC, q.created_at" into its definition, which
+	// MySQL re-materializes on every query — defeating the outer LIMIT and
+	// forcing a full join + sort regardless of page size. The host-scoped
+	// path (see listMDMCommandsByHostIdentifier) already bypasses the view
+	// for the same reason.
 	appleStmt = `
 SELECT
-    nvq.id as host_uuid,
-    nvq.command_uuid,
-    COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
-    COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
-    nvq.request_type as request_type,
+    q.id AS host_uuid,
+    c.command_uuid,
+    COALESCE(NULLIF(r.status, ''), 'Pending') AS status,
+    COALESCE(r.updated_at, q.created_at) AS updated_at,
+    c.request_type,
     h.hostname,
     h.team_id,
-    nvq.name
-FROM
-    nano_view_queue nvq
-INNER JOIN
-    hosts h
-ON
-    nvq.id = h.uuid
-WHERE
-   nvq.active = 1
+    c.name
+FROM nano_enrollment_queue q
+    INNER JOIN nano_commands c ON q.command_uuid = c.command_uuid
+    INNER JOIN hosts h ON h.uuid = q.id
+    LEFT JOIN nano_command_results r
+        ON r.command_uuid = q.command_uuid AND r.id = q.id
+WHERE q.active = 1
 `
 
 	// The Windows sub-statement is itself a UNION ALL of two branches: one
@@ -606,9 +614,63 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set android profiles")
 		}
 
+		// Track the team's OS-update (software update) profile/declaration within
+		// this transaction so the tracking row commits atomically with the batch.
+		// Batch replaces profiles, so a removed OS-update profile clears its
+		// tracking row via ON DELETE CASCADE.
+		if err := batchTrackUpdateConfigProfilesDB(ctx, tx, tmID, winProfiles, macDeclarations); err != nil {
+			return ctxerr.Wrap(ctx, err, "tracking software update profiles")
+		}
+
 		return nil
 	})
 	return updates, err
+}
+
+// batchTrackUpdateConfigProfilesDB records any OS-update (software update) Windows
+// profile or Apple declaration in the batch as the team's OS-update profile. The
+// caller (BatchSetMDMProfiles) enforces at most one of each per team, and the
+// inserts are idempotent, so this safely re-applies an unchanged profile.
+func batchTrackUpdateConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, tmID *uint, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+
+	for _, p := range winProfiles {
+		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			continue
+		}
+		var profileUUID string
+		if err := sqlx.GetContext(ctx, tx, &profileUUID,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, teamID, p.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows profile uuid")
+		}
+		const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+			ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
+		if _, err := tx.ExecContext(ctx, stmt, profileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert windows update config profile")
+		}
+	}
+
+	for _, d := range macDeclarations {
+		rawDecl, err := fleet.GetRawDeclarationValues(d.RawJSON)
+		if err != nil || rawDecl.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
+			continue
+		}
+		var declUUID string
+		if err := sqlx.GetContext(ctx, tx, &declUUID,
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?`, teamID, d.Identifier); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting apple declaration uuid")
+		}
+		const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
+			ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
+		if _, err := tx.ExecContext(ctx, stmt, declUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert apple update config profile")
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -845,10 +907,26 @@ ORDER BY
 	return labels, nil
 }
 
+// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+// (including verified/failed, not just pending) and, for Apple, soft-disables nano_enrollments so the Apple profile
+// reconciler does not recreate pending rows after MDM is re-enabled. Called when MDM is toggled off globally.
+//
+// The platform argument is a platform family. Passing any of "darwin", "ios", or "ipados" cleans up all three Apple
+// platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
+//
+// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The Apple host_mdm upsert path
+// (upsertMDMAppleHostMDMInfoDB) only updates enrolled on duplicate-key, so clearing those columns here would leave them
+// blank for iOS/iPadOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
 func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
+			// The Apple reconciler filters on nano_enrollments.enabled = 1, so this prevents pending rows from being recreated when
+			// Apple MDM is re-enabled with a new APNS cert.
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
+				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
 			}
@@ -866,6 +944,7 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 	})
 }
 
+// TODO(MHJ): Document the oddity this now only handles Android
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
@@ -896,6 +975,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// batchSetMDMWindowsProfilesDB, which is the transactional source of
 	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
 	// get Apple-parity synchronous reconciliation here.
+	// TODO(MHJ): Marked for deletion
 	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
@@ -914,6 +994,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // reconciliation is NOT performed here; the resolved Windows host UUIDs are
 // returned so the caller can optionally reconcile them (only the test path
 // does so; production relies on the mdm_windows_profile_manager cron).
+// TODO(MHJ): Major cleanup required here
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -1087,7 +1168,7 @@ OR
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
-			appleHosts = append(appleHosts, h.UUID)
+			appleHosts = append(appleHosts, h.UUID) //nolint:staticcheck // Will be cleaned up in follow-up PR
 		case "windows":
 			if collectWinHosts {
 				winHosts = append(winHosts, h.UUID)
@@ -1102,33 +1183,9 @@ OR
 		}
 	}
 
-	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
 		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-	// TODO(roberto): this method currently sets the state of all
-	// declarations for all hosts. I don't see an immediate concern
-	// (and my hunch is that we could even do the same for
-	// profiles) but this could be optimized to use only a provided
-	// set of host uuids.
-	//
-	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
-	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
-	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
-	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
 
 	return updates, winHosts, nil
@@ -1679,6 +1736,32 @@ WHERE
 		return dest, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry count for host %s command uuid %s", host.UUID, cmdUUID))
 	}
 
+	return dest, nil
+}
+
+func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	const stmt = `
+SELECT
+	h.id              AS host_id,
+	h.platform        AS platform,
+	hmap.profile_uuid AS profile_uuid,
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+FROM host_mdm_apple_profiles hmap
+	JOIN hosts h
+		ON h.uuid = hmap.host_uuid
+	JOIN mdm_apple_configuration_profiles mac
+		ON mac.profile_uuid = hmap.profile_uuid
+WHERE hmap.command_uuid = ?
+	AND hmap.host_uuid    = ?`
+
+	var dest fleet.ProfileACMECommandResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
 	return dest, nil
 }
 
@@ -3046,7 +3129,15 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	totalHostCertsToRenew := 0
+	// Iteration set: every renewable CA type plus a NULL "non-proxied" bucket.
+	// Non-proxied (NULL-type) rows come from cert ingestion (no Fleet-side
+	// proxy step → no known CA type) and need their own renewal pass.
 	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
+	typeMatchers := make([]sql.NullString, 0, len(hostCertTypesToRenew)+1)
+	for _, t := range hostCertTypesToRenew {
+		typeMatchers = append(typeMatchers, sql.NullString{String: string(t), Valid: true})
+	}
+	typeMatchers = append(typeMatchers, sql.NullString{Valid: false})
 	// Map is used to take advantage of Go map iteration order randomization so that
 	// if a customer is issuing certs across multiple platforms we will not bias renewals
 	// toward a specific platform
@@ -3054,7 +3145,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		"apple":   "host_mdm_apple_profiles",
 		"windows": "host_mdm_windows_profiles",
 	}
-	for _, hostCertType := range hostCertTypesToRenew {
+	for _, typeMatcher := range typeMatchers {
+		hostCertType := typeMatcher.String
+		if !typeMatcher.Valid {
+			hostCertType = "non_proxied"
+		}
 		// Limit to 1000 renewals per CA type per run across all platforms
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
@@ -3075,12 +3170,14 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				NotValidAfter  time.Time `db:"not_valid_after"`
 				ValidityPeriod int       `db:"validity_period"`
 			}{}
-			// Fetch all MDM Managed certificates of the given type that aren't already queued for
-			// resend(hmap.status=null) and which
+			// Fetch all MDM Managed certificates of the given type (or NULL for
+			// non-proxied) that aren't already queued for resend (hmap.status=null) and which
 			// * Have a validity period > 30 days and are expiring in the next 30 days
 			// * Have a validity period <= 30 days and are within half the validity period of expiration
 			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-			// we don't actually need them for the update logic.
+			// we don't actually need them for the update logic. The `<=>` operator
+			// is null-safe equal: matches non-NULL values like `=` and matches NULL
+			// when both sides are NULL.
 			err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
 	SELECT
 		hmmc.host_uuid,
@@ -3093,12 +3190,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		`+table+` hp
 		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
 	WHERE
-		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
+		hmmc.type <=> ? AND hp.status IS NOT NULL AND hp.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
+	LIMIT ?`, typeMatcher, fleet.MDMOperationTypeInstall, limit)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}

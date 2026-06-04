@@ -760,7 +760,8 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
 | fleet_id      | string  | body | _Available in Fleet Premium_. The ID of the fleet to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
-| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a ",". For example: "CN=john@example.com, O=Acme Inc.".    |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields with a comma (`,`). For example: "CN=john@example.com,O=Acme Inc.".    |
+| subject_alternative_name       | string | body | The certificate's subject alternative name (SAN). Separate SAN fields with a comma (`,`). Each field is a key-value pair. See [supported keys](https://fleetdm.com/docs/configuration/yaml-files#android-settings-certificates). Example: `DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME`.    |
 
 #### Example
 
@@ -774,7 +775,8 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
-  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
@@ -787,7 +789,8 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "certificate_authority_id": 1,
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
@@ -936,7 +939,7 @@ List certificate added to Fleet. Currently, they can only be added via GitOps.
 
 | Name      | Type    | In   | Description                                                    |
 | ----------| ------- | ---- | -------------------------------------------------------------- |
-| fleet      | string  | query | _Available in Fleet Premium_. The fleet ID to filter profiles. |
+| fleet_id   | integer | query | _Available in Fleet Premium_. The fleet ID to filter certificate templates. If not specified, this defaults to "Unassigned". |
 | page      | integer | query | Page number of the results to fetch.                          |
 | per_page  | integer | query | Results per page.                                             |
 | order_key | string  | query | What to order results by. Allowed field is `id`. |
@@ -992,6 +995,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
       "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
       "created_at": "2025-11-04T00:00:00Z",
     },
     {
@@ -1021,7 +1025,7 @@ Get details of the certificate added to Fleet.
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
 | id   | integer | path | **Required**. The ID of the certificate. |
-| host_id   | integer | query | ID of the host. If included, variables in `subject_name` will be replaced with host's values. |
+| host_id   | integer | query | ID of the host. If included, variables in `subject_name`, and `subject_alternative_name` will be replaced with host's values. |
 
 #### Request headers
 
@@ -1070,7 +1074,8 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
   "created_at": "2025-11-04T00:00:00Z",
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_name": "CN=marko@example.com, O=Fleet Inc",
+  "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
@@ -1447,10 +1452,12 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Update configuration](#update-configuration)
+- [Update organization logo](#update-organization-logo)
+- [Delete organization logo](#delete-organization-logo)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Update global enroll secrets](#update-global-enroll-secrets)
-- [Get fleet enroll secrets](#get-fleet-enroll-secrets)
-- [Update fleet enroll secrets](#update-fleet-enroll-secrets)
+- [Get fleet-level enroll secrets](#get-fleet-level-enroll-secrets)
+- [Update fleet-level enroll secrets](#update-fleet-level-enroll-secrets)
 - [Get version](#get-version)
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
@@ -1506,7 +1513,10 @@ None.
 {
   "org_info": {
     "org_name": "fleet",
+    "org_logo_url_dark_mode": "",
+    "org_logo_url_light_mode": "",
     "org_logo_url": "",
+    "org_logo_url_light_background": "",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -1558,7 +1568,8 @@ None.
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 0
+    "activity_expiry_window": 0,
+    "preserve_host_activity_on_reenrollment": false,
   },
   "features": {
     "enable_host_users": true,
@@ -1569,9 +1580,10 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "windows_entra_tenant_ids": [
-      {
-        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
-      },
+      "fec37e96-3615-4e37-8fac-445d5328af3c"
+    ],
+    "windows_entra_client_ids": [
+      "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
@@ -1846,6 +1858,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "org_info": {
     "org_name": "Fleet Device Management",
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_mode": "https://fleetdm.com/logo-light.png",
     "org_logo_url": "https://fleetdm.com/logo.png",
     "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
@@ -1899,7 +1913,8 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 0
+    "activity_expiry_window": 0,
+    "preserve_host_activity_on_reenrollment": false,
   },
   "features": {
     "enable_host_users": true,
@@ -1916,6 +1931,9 @@ Modifies the Fleet's configuration with the supplied information.
     "windows_enabled_and_configured": false,
     "windows_entra_tenant_ids": [
       "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
+    ],
+    "windows_entra_client_ids": [
+      "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
@@ -2116,9 +2134,11 @@ Modifies the Fleet's configuration with the supplied information.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
 | org_name                          | string  | The organization name.                                                              |
-| org_logo_url                      | string  | The URL for the organization logo.                                                  |
-| org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
+| org_logo_url_dark_mode                      | string  | The URL for the organization logo displayed on top of dark backgrounds. |
+| org_logo_url_light_mode     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
 | contact_url                       | string  | A URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that can be used by end users to contact the organization.                    |
+
+> `org_logo_url` and `org_logo_url_light_background` are deprecated. They are maintained for backwards compatibility. Please use `org_logo_url_dark_mode` and `org_logo_url_light_mode` instead.
 
 <br/>
 
@@ -2128,6 +2148,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "org_info": {
     "org_name": "Fleet Device Management",
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_mode": "https://fleetdm.com/logo-light.png",
     "org_logo_url": "https://fleetdm.com/logo.png",
     "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
@@ -2267,6 +2289,7 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.    |
 | activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.                                                     |
+| preserve_host_activity_on_reenrollment | boolean | When enabled, preserves host activities after a wipe and re-enrollment. Currently only supported for company-owned (AB) Apple hosts. **Delete activities > Max activity age** still applies. (Default: `false`) |
 
 <br/>
 
@@ -2276,7 +2299,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "activity_expiry_settings": {
     "activity_expiry_enabled": true,
-    "activity_expiry_window": 90
+    "activity_expiry_window": 90,
+    "preserve_host_activity_on_reenrollment": true,
   }
 }
 ```
@@ -2538,6 +2562,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
+| windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
@@ -2634,10 +2659,11 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| enable_end_user_authentication    | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication). |
 | enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
 | end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 | lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on macOS hosts that automatically enroll. |
 
 <br/>
 
@@ -2814,6 +2840,57 @@ None.
 }
 ```
 
+### Update organization logo
+
+Upload a custom logo to display in the top navigation, setup experience window, and MDM migration dialog.
+
+> You need to send a request of type `multipart/form-data`.
+
+`PUT /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| logo        | file    | body | The logo image to upload. For best results, use a square logo at least 150px x 150px. |
+| mode        | string  | query | Either `"light"` for the logo displayed in light mode, `"dark" for the logo displayed in dark mode`, or "all" to replace both light and dark mode logos. (Default: `"all"`.)|
+
+#### Example
+
+`PUT /api/v1/fleet/logo?mode=light`
+
+##### Request body
+
+```http
+icon="fleet-logo-150x150.png"
+```
+
+##### Default response
+
+`Status: 204`
+
+### Delete organization logo
+
+Delete a custom logo added via [Update organization logo](#update-organization-logo). This will revert to using the Fleet logo.
+
+`DELETE /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| logo        | file    | body | The logo image to upload. For best results, use a square logo at least 150px x 150px. |
+| mode        | string  | query | Either `"light"` for the logo displayed in light mode, `"dark" for the logo displayed in dark mode`, or "all" to replace both light and dark mode logos. (Default: `"all"`.)|
+
+#### Example
+
+`DELETE /api/v1/fleet/logo?mode=light`
+
+##### Default response
+
+`Status: 204`
+
+
 ### Update global enroll secrets
 
 Replaces all existing global enroll secrets.
@@ -2878,7 +2955,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get fleet enroll secrets
+### Get fleet-level enroll secrets
 
 Returns the fleet's enroll secrets.
 
@@ -2910,7 +2987,7 @@ None.
 ```
 
 
-### Update fleet enroll secrets
+### Update fleet-level enroll secrets
 
 Replaces all existing enroll secrets for a fleet.
 
@@ -3104,7 +3181,7 @@ the `software` table.
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet. |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -3411,7 +3488,7 @@ Response payload with the `munki_issue_id` filter provided:
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.   |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -4219,7 +4296,10 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
-    "org_logo_url": "https://example.com/logo.jpg",
+    "org_logo_url_dark_mode": "https://example.com/logo.png",
+    "org_logo_url_light_mode": "https://example.com/logo-light.png",
+    "org_logo_url": "https://example.com/logo.png",
+    "org_logo_url_light_background": "https://example.com/logo-light.png",
     "conditional_access_bypassed": false,
     "license": {
       "tier": "free",
@@ -4690,6 +4770,33 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 }
 ```
 
+### Get host's device page URL
+
+Retrieves the end user url for the host's **My device** page.
+
+`GET /api/v1/fleet/hosts/:id/device_url`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/device_url`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_url": "example.com/device/device_id"
+}
+```
+
 ---
 
 ### Get host's mobile device management (MDM) information
@@ -4963,6 +5070,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "bundle_identifier": "com.google.Chrome",
       "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
@@ -4997,27 +5105,169 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
       ]
     },
     {
-      "id": 134,
-      "name": "Falcon.app",
+      "id": 147,
+      "name": "Logic Pro",
+      "bundle_identifier": "com.apple.logic10",
+      "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "1091189122",
+        "platform": "darwin",
+        "version": "2.04",
+        "self_service": false,
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "source": "apps",
+      "status": "installed",
+      "installed_versions": [
+        {
+          "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234"],
+          "installed_paths": ["/Applications/Logic Pro.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Logic Pro.app",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": null,
+              "executable_path": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 150,
+      "name": "GitHub Copilot",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "jetbrains_plugins",
+      "extension_for": "goland",
+      "installed_versions": [
+        {
+          "version": "1.2.3",
+          "vulnerabilities": [],
+          "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's software by Fleet Desktop token
+
+`GET /api/v1/fleet/device/:token/software`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
+| self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
+| vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `"name"`. Default is `"name"`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+
+On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
+
+On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
+
+Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+#### Example
+
+`GET /api/v1/fleet/device/:token/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 3,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "bundle_identifier": "com.google.Chrome"
       "icon_url": null,
       "software_package": {
-        "name": "FalconSensor-6.44.pkg",
+        "name": "GoogleChrome.pkg",
         "platform": "darwin",
-        "self_service": false,
-        "last_install": null,
-        "last_uninstall": {
-          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
-          "uninstalled_at": "2024-05-15T15:23:57Z"
+        "version": "125.12.0.3",
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
         }
       },
       "app_store_app": null,
-      "source": "",
-      "status": "pending_uninstall",
-      "installed_versions": [],
+      "source": "apps",
+      "status": "failed_install",
+      "installed_versions": [
+        {
+          "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
+              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
+              "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 147,
       "name": "Logic Pro",
+      "bundle_identifier": "com.apple.logic10"
       "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
       "software_package": null,
       "app_store_app": {
@@ -5126,7 +5376,7 @@ requested by a web browser.
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
@@ -5244,6 +5494,8 @@ Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM t
 
 Retrieves the certificates installed on a host.
 
+For macOS hosts, certificates from MDM-delivered profiles containing an ACME payload are retrieved via the MDM `CertificateList` command on each profile install and re-install (not on a recurring cadence). Hardware-bound ACME certificates that aren't visible to osquery first appear in the response after the host installs or re-installs the delivering profile.
+
 `GET /api/v1/fleet/hosts/:id/certificates`
 
 #### Parameters
@@ -5347,7 +5599,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online.
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
@@ -5416,9 +5668,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -5790,7 +6042,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
-## Bypass host's conditional access
+### Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
@@ -5800,7 +6052,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token        | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 
 #### Example 
@@ -5811,19 +6063,19 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-## Clear iOS/iPadOS host passcode
+### Clear host passcode
 
 _Available in Fleet Premium._
 
-Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
+Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its unlock token during MDM check-in.
 
 `POST /api/v1/fleet/hosts/:id/clear_passcode`
 
 #### Parameters
 
-| Name        | Type   | In   | Description                                                                                    |
-| ----------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
-| id          | number | path | **Required.** The Fleet host ID of the ADE-enrolled iOS/iPadOS host to clear the passcode for. |
+| Name        | Type   | In   | Description                                                                         |
+| ----------- | ------ | ---- | ----------------------------------------------------------------------------------- |
+| id          | number | path | **Required.** The Fleet host ID of the ADE-enrolled host to clear the passcode for. |
 
 
 #### Example 
@@ -5842,9 +6094,31 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 }
 ```
 
-## Get host's managed account password
+### Rotate host's managed local account password
 
-Retrieves the managed account password for a host.
+_Available in Fleet Premium_
+
+Rotates the managed local account password for a host.
+
+`POST /api/v1/fleet/hosts/:id/managed_account_password/rotate`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | path  | The host ID to rotate the managed local account password for.                                      |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/managed_account_password/rotate`
+
+##### Default response
+
+`204`
+
+### Get host's managed account password
+
+Retrieves the managed account password for a macOS host.
 
 The host will only return a password if its managed account password status is "Verified".
 
@@ -6294,7 +6568,7 @@ Returns a list of the hosts that belong to the specified label.
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
-| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business Manager (ABM) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
@@ -6455,7 +6729,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
-Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+`labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
@@ -6731,7 +7005,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 | display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 
-For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
+For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
 #### Example
 
@@ -6947,6 +7221,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 - [Update custom MDM setup enrollment profile](#update-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Get Fleet default MDM setup enrollment profile](#get-fleet-default-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile)
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
@@ -7043,6 +7318,44 @@ Gets the custom MDM setup enrollment profile for a fleet or "Unassigned".
 }
 ```
 
+### Get Fleet default MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the Fleet default MDM setup enrollment profile. This is the profile Fleet registers with Apple for devices in fleets that do not have a custom MDM setup enrollment profile uploaded.
+
+`GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+The default profile is a single profile per Fleet instance. It is shared across all fleets and all Apple Business Manager (ABM) tokens and cannot be scoped by `fleet_id`.
+
+If the default profile has not yet been stored (for example, on a new Fleet instance that has not completed its first automatic enrollment registration), Fleet returns the in-code defaults that will be registered on first use, and `updated_at` is `null`.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "updated_at": "2026-04-04T00:00:00Z",
+  "enrollment_profile": {
+    "profile_name": "Fleet default enrollment profile",
+    "is_supervised": true,
+    "is_mdm_removable": false,
+    "skip_setup_items": []
+  }
+}
+```
+
+> NOTE: The `ConfigurationWebURL` and `URL` values are automatically populated by Fleet at registration time and are not included in this response.
+
 ### Delete custom MDM setup enrollment profile
 
 _Available in Fleet Premium_
@@ -7072,7 +7385,7 @@ Deletes the custom MDM setup enrollment profile assigned to a fleet or "Unassign
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific fleet in Fleet and turn on MDM features.
 
-If the fleet has [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
@@ -7860,11 +8173,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
 | page                      | integer | query | Page number of the results to fetch.                                      |
 | per_page                  | integer | query | Results per page. Default is `10`.                                        |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -7877,7 +8190,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/commands?per_page=5`
+`GET /api/v1/fleet/commands?host_identifier=A1B2C3D4-E5F6-7890-1234-567890ABCDEF&per_page=5`
 
 ##### Default response
 
@@ -7885,27 +8198,31 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "count": null,
   "results": [
     {
-      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
-      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "a3650ec9-6dd0-40e9-b5d8-feffe9939461",
       "status": "Acknowledged",
       "command_status": "ran",
-      "updated_at": "2023-04-04:00:00Z",
-      "request_type": "ProfileList",
+      "updated_at": "2026-03-20T19:45:27Z",
+      "request_type": "DeclarativeManagement",
       "name": null,
-      "hostname": "mycomputer"
+      "hostname": "Mac-mini.local"
     },
     {
-      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
-      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
-      "status": "200",
-      "command_status": "ran",
-      "updated_at": "2023-05-04:00:00Z",
-      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "97ceaa39-eadc-4953-98a8-2ffe72ab120d",
+      "status": "Error",
+      "command_status": "failed",
+      "updated_at": "2026-03-24T21:37:32Z",
+      "request_type": "InstallProfile",
       "name": null,
-      "hostname": "myhost"
+      "hostname": "Mac-mini.local"
     }
   ]
 }
@@ -7916,7 +8233,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
+- [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 - [Get Android Enterprise](#get-android-enterprise)
@@ -7946,11 +8263,11 @@ None.
 }
 ```
 
-### List Apple Business Manager (ABM) tokens
+### List Apple Business (AB) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm_tokens`
+`GET /api/v1/fleet/ab_tokens`
 
 #### Parameters
 
@@ -7958,14 +8275,14 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm_tokens`
+`GET /api/v1/fleet/ab_tokens`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-"abm_tokens": [
+"ab_tokens": [
   {
     "id": 1,
     "apple_id": "apple@example.com",
@@ -7998,6 +8315,48 @@ None.
       "id": 3
     }
   }
+],
+"abm_tokens": [
+  {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_team": {
+      "name": "💻 Workstations",
+      "id": 1
+    },
+    "macos_fleet": {
+      "name": "💻 Workstations",
+      "id": 1
+    },
+    "ios_team": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
+    "ios_fleet": {
+      "name": "📱🏢 Company-owned iPhones",
+      "id": 2
+    },
+    "ipados_team": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    },
+    "ipados_fleet": {
+      "name": "🔳🏢 Company-owned iPads",
+      "id": 3
+    },
+    "byod_team": {
+      "name": "📱 BYOD iPhones",
+      "id": 4
+    },
+    "byod_fleet": {
+      "name": "📱 BYOD iPhones",
+      "id": 4
+    }
+  }
 ]
 ```
 
@@ -8025,6 +8384,7 @@ None.
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
+    "country_code": "us",
     "renew_date": "2023-11-29T00:00:00Z",
     "fleets": [
       {
@@ -11439,7 +11799,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
-| categories        | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
@@ -11661,7 +12021,7 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 
 _Available in Fleet Premium._
 
-Add Apple App Store or Google Play store app. Apple apps must be added in Apple Business Manager (ABM) before adding them to Fleet.
+Add Apple App Store or Google Play store app. Apple apps must be added in Apple Business (AB) before adding them to Fleet.
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -11677,7 +12037,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
+| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -11704,7 +12064,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ```json
 {
-  "software_title_id": 123
+  "software_title_id": 123,
+  "name": "Xcode"
 }
 ```
 
@@ -11714,7 +12075,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ```json
 {
-  "software_title_id": 456
+  "software_title_id": 456,
+  "name": "Slack"
 }
 ```
 
@@ -11736,14 +12098,14 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
-| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
+| configuration | object | body | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -12039,8 +12401,6 @@ Body: <blob>
 
 ### Install software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
@@ -12179,6 +12539,163 @@ Deletes software that's available for install. This won't uninstall the software
 #### Example
 
 `DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
+
+##### Default response
+
+`Status: 204`
+
+## Self-service categories
+
+_Available in Fleet Premium_
+
+Self-service categories let IT admins group self-service software on each fleet so end users can browse and install software by category on the **My device > Self-service** page.
+
+When a new fleet is created, Fleet seeds it with the following default categories that can be renamed or deleted: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**.
+
+- [List self-service categories](#list-self-service-categories)
+- [Add self-service category](#add-self-service-category)
+- [Update self-service category](#update-self-service-category)
+- [Delete self-service category](#delete-self-service-category)
+
+### List self-service categories
+
+Lists all self-service categories on the specified fleet.
+
+`GET /api/v1/fleet/software/self_service_categories`
+
+#### Parameters
+
+| Name     | Type    | In    | Description                                                                                                       |
+| -------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| fleet_id | integer | query | **Required**. The fleet ID. Use `0` to list categories for "Unassigned" hosts.                                    |
+
+#### Example
+
+`GET /api/v1/fleet/software/self_service_categories?fleet_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "self_service_categories": [
+    {
+      "id": 12,
+      "name": "🌎 Browsers",
+      "fleet_id": 3,
+      "created_at": "2026-05-01T14:22:58Z",
+      "updated_at": "2026-05-01T14:22:58Z"
+    },
+    {
+      "id": 13,
+      "name": "🧰 Developer tools",
+      "fleet_id": 3,
+      "created_at": "2026-05-01T14:22:58Z",
+      "updated_at": "2026-05-01T14:22:58Z"
+    }
+  ]
+}
+```
+
+### Add self-service category
+
+Creates a new self-service category on the specified fleet. Only global and fleet admins and maintainers can call this endpoint.
+
+`POST /api/v1/fleet/software/self_service_categories`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| fleet_id | integer | body | **Required**. The fleet ID. Use `0` to add the category to "Unassigned" hosts.                                                                                                                                                                                                            |
+| name     | string  | body | **Required**. The category name. Must be unique within the fleet (case-insensitive) and at most 255 characters. Emojis are supported and are part of the name (e.g. `"🌎 Browsers"`).                                                                                                       |
+
+#### Example
+
+`POST /api/v1/fleet/software/self_service_categories`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 3,
+  "name": "💼 Engineering"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "self_service_category": {
+    "id": 42,
+    "name": "💼 Engineering",
+    "fleet_id": 3,
+    "created_at": "2026-05-12T18:45:00Z",
+    "updated_at": "2026-05-12T18:45:00Z"
+  }
+}
+```
+
+### Update self-service category
+
+Renames an existing self-service category. Only global and fleet admins and maintainers can call this endpoint.
+
+`PATCH /api/v1/fleet/software/self_service_categories/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                                                                                                                |
+| ---- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id   | integer | path | **Required**. The self-service category ID.                                                                                                                |
+| name | string  | body | **Required**. The new category name. Must be unique within the fleet (case-insensitive) and at most 255 characters. Emojis are supported and are part of the name. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/self_service_categories/42`
+
+##### Request body
+
+```json
+{
+  "name": "💼 Engineering tools"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "self_service_category": {
+    "id": 42,
+    "name": "💼 Engineering tools",
+    "fleet_id": 3,
+    "created_at": "2026-05-12T18:45:00Z",
+    "updated_at": "2026-05-12T19:01:00Z"
+  }
+}
+```
+
+### Delete self-service category
+
+Deletes the specified self-service category. Software assigned to the deleted category is removed from that category but otherwise unaffected. Only global and fleet admins and maintainers can call this endpoint.
+
+`DELETE /api/v1/fleet/software/self_service_categories/:id`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                  |
+| ---- | ------- | ---- | -------------------------------------------- |
+| id   | integer | path | **Required**. The self-service category ID.  |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/self_service_categories/42`
 
 ##### Default response
 
@@ -12478,7 +12995,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Create fleet](#create-fleet)
 - [Update fleet](#update-fleet)
 - [Add users to fleet](#add-users-to-fleet)
-- [Update fleet's agent options](#update-fleets-agent-options)
+- [Update fleet-level agent options](#update-fleets-agent-options)
 - [Delete fleet](#delete-fleet)
 
 ### List fleets
@@ -13139,8 +13656,9 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+| enable_end_user_authentication  | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info  | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| enable_managed_local_account      | boolean | Whether to enforce creating managed local accounts on eligible hosts. |
 
 <br/>
 
@@ -13382,7 +13900,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Update fleet's agent options
+### Update fleet-level agent options
 
 _Available in Fleet Premium_
 

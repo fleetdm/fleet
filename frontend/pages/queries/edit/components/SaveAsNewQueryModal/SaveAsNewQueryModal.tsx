@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 
-import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
+import { ICreateQueryFormData } from "interfaces/schedulable_query";
 
 import queryAPI from "services/entities/queries";
 import { NotificationContext } from "context/notification";
@@ -33,7 +33,7 @@ const baseClass = "save-as-new-query-modal";
 interface ISaveAsNewQueryModal {
   router: InjectedRouter;
   location: Location;
-  initialQueryData: ICreateQueryRequestBody;
+  initialQueryData: ICreateQueryFormData;
   hostId?: number;
   onExit: () => void;
 }

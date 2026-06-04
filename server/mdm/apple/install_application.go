@@ -17,7 +17,38 @@ import (
 // (for example, the host is not linked to an end-user IDP account).
 // Callers should treat this as a non-retryable failure for the host —
 // retrying without first changing host state will keep failing.
+//
+// Substitute returns a *UnresolvableAppConfigVarError wrapping this sentinel,
+// so callers can:
+//   - check with errors.Is(err, ErrUnresolvableAppConfigVar), and
+//   - extract the user-facing detail with errors.As(err, &typed) → typed.Detail.
 var ErrUnresolvableAppConfigVar = errors.New("apple_mdm: unresolvable Fleet variable in managed app configuration")
+
+// UnresolvableAppConfigVarError carries the unresolved variable name and a
+// user-facing detail message. Detail matches the wording configuration-profile
+// delivery uses for the same variable so admins see consistent copy across
+// surfaces.
+type UnresolvableAppConfigVarError struct {
+	// FleetVar is the variable name without the $FLEET_VAR_ prefix
+	// (e.g. "HOST_END_USER_IDP_DEPARTMENT").
+	FleetVar string
+	// Detail is the user-facing reason. May be empty for variables that don't
+	// have a specific message (the generic sentinel applies).
+	Detail string
+}
+
+func (e *UnresolvableAppConfigVarError) Error() string {
+	if e.Detail != "" {
+		return e.Detail
+	}
+	return fmt.Sprintf("apple_mdm: unresolvable Fleet variable $FLEET_VAR_%s", e.FleetVar)
+}
+
+// Is lets `errors.Is(err, ErrUnresolvableAppConfigVar)` keep working for
+// callers that just want the sentinel check.
+func (e *UnresolvableAppConfigVarError) Is(target error) bool {
+	return target == ErrUnresolvableAppConfigVar
+}
 
 // AppConfigSubstitutionHost carries the host context needed to substitute the
 // host-scoped $FLEET_VAR_* tokens supported in iOS / iPadOS managed app
@@ -72,7 +103,17 @@ func SubstituteFleetVarsInAppConfig(
 				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
 			}
 			if len(emails) == 0 {
-				return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
+				// The shared HostEndUserEmailIDPVariableReplacementFailedError
+				// embeds a "[Learn more](…)" markdown link for the
+				// configuration-profile surface, which has a frontend formatter
+				// for it. The install-details modal renders failure_reason
+				// inside a plain monospace block with no markdown processing,
+				// so we surface a plain-text reason mirroring the other IdP
+				// variables here.
+				return nil, &UnresolvableAppConfigVarError{
+					FleetVar: name,
+					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
+				}
 			}
 			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])
 		case fleet.FleetVarHostEndUserIDPUsername,
@@ -80,18 +121,19 @@ func SubstituteFleetVarsInAppConfig(
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPFullname:
+			// onError in the profile processor writes a per-host failure
+			// record; here we just capture the per-variable detail string so
+			// we can surface it through UnresolvableAppConfigVarError.
+			var detail string
 			replaced, ok, err := profiles.ReplaceHostEndUserIDPVariables(
 				ctx, ds, name, contents, host.UUID, idpUUIDCache,
-				// onError is only used by the profile processor to write a
-				// per-host failure record; for app config we surface the
-				// failure to the caller via ErrUnresolvableAppConfigVar.
-				func(string) error { return nil },
+				func(d string) error { detail = d; return nil },
 			)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "substitute host idp variable in app config")
 			}
 			if !ok {
-				return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
+				return nil, &UnresolvableAppConfigVarError{FleetVar: name, Detail: detail}
 			}
 			contents = replaced
 		default:
@@ -99,7 +141,7 @@ func SubstituteFleetVarsInAppConfig(
 			// write time, so an unknown variable here means the validator and
 			// this switch have drifted. Treat it as unresolvable rather than
 			// silently leaving the literal token in the device-bound XML.
-			return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
+			return nil, &UnresolvableAppConfigVarError{FleetVar: name}
 		}
 	}
 

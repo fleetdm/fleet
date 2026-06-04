@@ -4,11 +4,11 @@
 
 _Available in Fleet Premium._
 
-Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
+Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/guides/fleet-variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
 
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
-Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
+Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during these enrollment scenarios:
 - Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 - Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 

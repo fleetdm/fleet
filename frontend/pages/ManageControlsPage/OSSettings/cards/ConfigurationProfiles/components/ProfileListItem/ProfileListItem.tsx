@@ -25,6 +25,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
+    <Icon name="filter" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
@@ -125,16 +126,20 @@ const ProfileListItem = ({
     FileSaver.saveAs(file);
   };
 
-  const labels = labels_include_all || labels_include_any || labels_exclude_any;
+  const labels = [
+    ...(labels_include_all ?? []),
+    ...(labels_include_any ?? []),
+    ...(labels_exclude_any ?? []),
+  ];
 
   const renderLabelInfo = () => {
-    if (!isPremium || labels === undefined || labels.length === 0) {
+    if (!isPremium || labels.length === 0) {
       return null;
     }
 
     return (
       <div className={`${subClass}__labels`}>
-        {labels?.some((label) => label.broken) && <Icon name="warning" />}
+        {labels.some((label) => label.broken) && <Icon name="warning" />}
         <LabelCount className={subClass} count={labels.length} />
       </div>
     );
@@ -166,7 +171,7 @@ const ProfileListItem = ({
           >
             <Icon name="info" size="medium" />
           </Button>
-          {isPremium && labels !== undefined && labels.length && (
+          {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
               variant="icon"

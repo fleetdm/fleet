@@ -21,16 +21,21 @@ export type ITokenTeam = {
   name: string;
 };
 
-export interface IMdmAbmToken {
+export type ITokenFleet = {
+  fleet_id: number;
+  name: string;
+};
+
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: ITokenTeam;
-  ios_team: ITokenTeam;
-  ipados_team: ITokenTeam;
+  macos_fleet: ITokenFleet;
+  ios_fleet: ITokenFleet;
+  ipados_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
@@ -257,7 +262,7 @@ export type RecoveryLockPasswordStatus =
   | "removing_enforcement"
   | "failed";
 
-export interface IMdmSSOReponse {
+export interface IMdmSSOResponse {
   url: string;
 }
 
@@ -279,6 +284,12 @@ export enum BootstrapPackageStatus {
   INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
+}
+
+export enum EndUserLocalAccountType {
+  ADMIN = "admin",
+  STANDARD = "standard",
+  NONE = "none",
 }
 
 export const isEnrolledInMdm = (
@@ -319,4 +330,14 @@ export const isAutomaticDeviceEnrollment = (
     enrollmentStatus === "On (company-owned)" ||
     enrollmentStatus === "On (automatic)"
   );
+};
+
+/** Android BYO (work profile, personally-owned) enrollment. */
+export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (personal)";
+};
+
+/** Android COBO (company-owned, fully managed) enrollment. */
+export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (automatic)";
 };

@@ -1,0 +1,1 @@
+- Fixed stale pending MDM profiles reappearing after globally toggling Apple or Windows MDM off and back on.

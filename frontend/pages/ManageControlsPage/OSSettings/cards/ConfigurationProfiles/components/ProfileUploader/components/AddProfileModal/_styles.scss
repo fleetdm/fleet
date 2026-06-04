@@ -72,11 +72,19 @@
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
+    gap: $pad-small;
     padding-top: $pad-medium;
   }
 
   &__target {
     margin: $pad-large 0;
+
+    .react-tabs__tab-panel {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-medium;
+      padding-top: 0;
+    }
   }
 
   &__custom-label-chooser {
@@ -94,9 +102,49 @@
     align-items: center;
     gap: $pad-small;
     justify-content: center;
+    text-align: center;
 
     span {
       color: $ui-fleet-black-75;
+    }
+
+    &--title {
+      font-size: $small;
+      font-weight: $bold;
+      color: $core-fleet-black !important;
+    }
+
+    &--description {
+      font-size: $xx-small;
+      margin-top: -$pad-xsmall;
+    }
+
+    .button {
+      margin-top: $pad-small;
+    }
+  }
+
+  &__selected-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-xsmall;
+  }
+
+  &__selected-badge {
+    display: flex;
+    align-items: center;
+    gap: $pad-xxsmall;
+    padding: $pad-xxsmall $pad-small;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    font-size: $xx-small;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+
+    &:hover {
+      background-color: $ui-fleet-black-10;
+      border-color: $ui-fleet-black-25;
     }
   }
 

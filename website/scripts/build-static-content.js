@@ -508,7 +508,7 @@ module.exports = {
                   let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
                   // If the relative link goes to the image is in the website's assets folder (`website/assets/`) we'll modify the relative link
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
-                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
+                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g) ? referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0] : undefined;
                   if(isWebsiteAsset) {
                     if(!isWebsiteAsset.match(/\d+x\d+@2x.+/)){
                       throw new Error(`Failed compiling markdown content. An article page references an image (${isWebsiteAsset}) that does not follow the website's image naming conventions. Please update the filename and reference to the image in "${path.join(topLvlRepoPath, pageSourcePath)}" to include the CSS dimensions of the image (pixel dimensions * 0.5 postfixed with "@2x" e.g., a 400x600 pixel image should be postfixed with "-200x300@2x.png") and try running this script again. Read more about the website's image naming conventions here: https://fleetdm.com/handbook/company/communications#export-an-image-for-fleetdm-com`);
@@ -1139,7 +1139,7 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
-        let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Configuration', 'Devices', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Configuration', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
           if(feature.name) {// Compatibility check

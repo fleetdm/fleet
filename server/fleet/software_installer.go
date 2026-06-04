@@ -185,6 +185,32 @@ func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilena
 func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
 func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
 
+// SoftwareTitleIdentifier identifies a software title using the same matching
+// semantics as the software batch-set deletion: titles match on
+// (unique_identifier, source), where unique_identifier is the bundle
+// identifier when present and the title name otherwise.
+type SoftwareTitleIdentifier struct {
+	// UniqueIdentifier is the title's bundle identifier when present,
+	// otherwise its name (mirrors software_titles.unique_identifier).
+	UniqueIdentifier string
+	// Source is the title's source (e.g. "apps", "programs").
+	Source string
+}
+
+// DeletedSoftwarePackage describes a software package that a batch-set
+// operation will delete (or, on a dry run, would delete) because its title
+// matches no incoming payload.
+type DeletedSoftwarePackage struct {
+	// TeamID is the ID of the team. A value of nil means it is scoped to
+	// hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID uint `json:"title_id" db:"title_id"`
+	// DisplayName is the team's display-name override for the title when
+	// set, otherwise the software title name.
+	DisplayName string `json:"display_name" db:"display_name"`
+}
+
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
@@ -735,6 +761,7 @@ func IsScriptPackage(ext string) bool {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
@@ -1192,6 +1219,25 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+// PreflightInstallFailedError signals that Fleet failed an install before
+// reaching the device (e.g. an unresolvable Fleet variable in the managed app
+// configuration). The corresponding failed-install activity has already been
+// emitted by the time this is returned.
+//
+// Admin/self-service/policy/auto-update entry points treat the pre-flight
+// failure as success at the API layer (the activity records the outcome), so
+// the install service returns nil there. The setup-experience drivers
+// (ee/server/service/setup_experience.go, server/worker/apple_mdm.go) branch
+// only on err != nil to transition a step out of Running — without an error
+// signal they'd stash the install's command UUID and wait indefinitely for an
+// MDM command result that will never arrive. For ForSetupExperience=true the
+// install service returns this error so those drivers transition to Failure.
+type PreflightInstallFailedError struct {
+	Reason string
+}
+
+func (e *PreflightInstallFailedError) Error() string { return e.Reason }
 
 const (
 	BatchDownloadMaxRetries = 3

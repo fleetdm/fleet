@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -37,6 +38,10 @@ import (
 // sharing a 10,000-row batch) is 40,002, still well under 65,535. The value
 // also matches the batch sizes used elsewhere in Fleet for host-table bulk ops.
 const windowsMDMProfileDeleteBatchSize = 10000
+
+// windowsMDMCommandQueueBatchSize is the number of enrollments/hosts to process per batch when enqueuing Windows MDM commands, resolving
+// their enrollment IDs, and recomputing the denormalized has_pending_commands flag for the affected enrollments.
+const windowsMDMCommandQueueBatchSize = 10000
 
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var unused string
@@ -82,6 +87,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
+		poll_schedule_relaxed,
+		fleetd_sync_capable,
 		created_at,
 		updated_at,
 		host_uuid
@@ -95,6 +102,45 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
 	}
 	return &winMDMDevice, nil
+}
+
+// setMDMWindowsEnrollmentPollScheduleRelaxedDB records the intended DMClient poll schedule for the given Windows MDM enrollment (relaxed vs
+// the aggressive default), written within the caller's transaction. The management session re-enqueues a poll Replace only when the desired
+// schedule differs from this, so it is written once per intended change; delivery/acknowledgment of the Replace is handled by the command queue.
+func (ds *Datastore) setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx context.Context, tx sqlx.ExtContext, enrollmentID uint, relaxed bool) error {
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET poll_schedule_relaxed = ? WHERE id = ?`, relaxed, enrollmentID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment poll schedule relaxed")
+	}
+	return nil
+}
+
+// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+// enrollment in a single transaction.
+func (ds *Datastore) MDMWindowsEnqueuePollScheduleCommand(
+	ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceID}, cmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+		}
+		if err := ds.setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx, tx, enrollmentID, relaxed); err != nil {
+			return ctxerr.Wrap(ctx, err, "record windows MDM poll schedule intended")
+		}
+		return nil
+	})
+}
+
+// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
+// enrollment. The orbit-config endpoint calls it on-change (the live capability header is only present on that request), so the OMA-DM
+// management session, which has no such header, can gate poll relaxation on the stored value.
+func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET fleetd_sync_capable = ? WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+		capable, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment fleetd sync capable")
+	}
+	return nil
 }
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
@@ -176,6 +222,31 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 	return &winMDMDevice, nil
 }
 
+// WindowsHostLiteByHardwareSerial looks up a Windows host by its hardware_serial. If multiple Windows hosts share the
+// same serial (e.g. VM gold images that did not regenerate SMBIOS), the caller cannot pick safely so we return NotFound.
+//
+// The read honors ctxdb.RequirePrimary: a caller linking a just-enrolled host (whose hosts row may have been inserted
+// seconds ago) must pass a primary-required context, otherwise replica lag can return a false NotFound.
+func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error) {
+	if hardwareSerial == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage("empty hardware serial"))
+	}
+	const stmt = `
+		SELECT ` + hostLiteColumns + `
+		FROM hosts h
+		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+		WHERE h.hardware_serial = ? AND h.platform = 'windows'
+		LIMIT 2`
+	var hosts []*fleet.HostLite
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, hardwareSerial); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select windows host by hardware serial")
+	}
+	if len(hosts) != 1 {
+		return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(hardwareSerial))
+	}
+	return hosts[0], nil
+}
+
 // HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 // installers with install_during_setup=TRUE are configured for the given team. teamID=0 means "no team /
 // global", matching the value EnqueueSetupExperienceItems passes in for hosts on no team.
@@ -195,23 +266,125 @@ SELECT EXISTS (
 	return hasItems, nil
 }
 
-// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting_configuration value for the Windows MDM
-// enrollment of the host with the given UUID. Reader-backed; callers that need primary-routed semantics must wrap
-// the context with ctxdb.RequirePrimary.
-func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-	const stmt = `SELECT awaiting_configuration
+// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on each orbit config check-in for a connected Windows host: the
+// Autopilot ESP awaiting-configuration value and whether the host's most recent enrollment has queued, unacknowledged commands. This is a
+// single indexed row read; has_pending_commands is a denormalized flag maintained in the enqueue/ack transactions (set directly on a
+// non-poll enqueue, recomputed via EXISTS on acknowledgment), so the hot polling path never recomputes an EXISTS across the command queue.
+// Internal poll-schedule Replaces are excluded from the flag, so tuning the poll cadence does not itself request an on-demand wake. Reader-backed;
+// wrap the context with ctxdb.RequirePrimary for primary-routed reads.
+func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+	const stmt = `
+		SELECT
+			awaiting_configuration,
+			has_pending_commands,
+			fleetd_sync_capable
 		FROM mdm_windows_enrollments
 		WHERE host_uuid = ?
 		ORDER BY created_at DESC, id DESC
 		LIMIT 1`
-	var awaiting fleet.WindowsMDMAwaitingConfiguration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmt, hostUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get MDMWindowsAwaitingConfigurationByHostUUID")
+	var row struct {
+		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands    bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable     bool                                  `db:"fleetd_sync_capable"`
 	}
-	return awaiting, nil
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
+	}
+	return &fleet.MDMWindowsHostConfigState{
+		AwaitingConfiguration: row.AwaitingConfiguration,
+		HasPendingCommands:    row.HasPendingCommands,
+		FleetdSyncCapable:     row.FleetdSyncCapable,
+	}, nil
+}
+
+// windowsMDMHasPendingCommandsExpr computes whether an enrollment (aliased e) has queued, unacknowledged commands other than internal
+// poll-schedule Replaces. It backs the denormalized mdm_windows_enrollments.has_pending_commands flag. The single ? placeholder is the
+// poll-schedule LocURI to exclude.
+const windowsMDMHasPendingCommandsExpr = `EXISTS (
+	SELECT 1
+	FROM windows_mdm_command_queue q
+	JOIN windows_mdm_commands c ON c.command_uuid = q.command_uuid
+	WHERE q.enrollment_id = e.id
+		AND c.target_loc_uri <> ?
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results r
+			WHERE r.enrollment_id = q.enrollment_id AND r.command_uuid = q.command_uuid
+		)
+)`
+
+// recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs refreshes the has_pending_commands flag for the given enrollments by evaluating the
+// full EXISTS. Call it inside the transaction that may have cleared an enrollment's last pending command (acknowledgment) so the flag can
+// flip back to false. The enqueue paths do NOT use this: inserting a non-poll command can only set the flag true, so they call the cheaper
+// markMDMWindowsHasPendingCommandsBy* helpers instead of recomputing the EXISTS.
+func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint) error {
+	if len(enrollmentIDs) == 0 {
+		return nil
+	}
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(
+			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
+			syncml.DMClientPollIntervalLocURI, batch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by enrollment ids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by enrollment ids")
+		}
+		return nil
+	})
+}
+
+// markMDMWindowsHasPendingCommandsByEnrollmentIDs sets has_pending_commands = 1 for the given enrollments without recomputing the EXISTS.
+// The enqueue paths use it because inserting a non-poll command means a pending command now exists by construction; only the acknowledgment
+// path, which can clear the last pending command, needs the full recompute.
+func (ds *Datastore) markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint) error {
+	if len(enrollmentIDs) == 0 {
+		return nil
+	}
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1 WHERE id IN (?)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by enrollment ids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by enrollment ids")
+		}
+		return nil
+	})
+}
+
+// markMDMWindowsHasPendingCommandsByHostUUIDs is markMDMWindowsHasPendingCommandsByEnrollmentIDs keyed by host UUID, for the
+// profile-delivery enqueue path that inserts queue rows by host UUID rather than enrollment id. It flags only the latest enrollment per
+// host UUID, mirroring the queue insert in MDMWindowsEnqueueCommandAndUpsertHostProfiles (SELECT MAX(mwe.id) ... GROUP BY host_uuid): the
+// command lands on that one enrollment, so only it must be flagged. Flagging every enrollment row for the UUID would strand stale
+// re-enrollment rows at has_pending_commands=1, since the recompute-on-ack only ever runs against the responding (latest) enrollment.
+func (ds *Datastore) markMDMWindowsHasPendingCommandsByHostUUIDs(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
+		// The derived table is required because MySQL forbids referencing the UPDATE target table directly in a subquery.
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1
+			WHERE id IN (
+				SELECT id FROM (
+					SELECT MAX(id) AS id FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid
+				) latest
+			)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by host uuids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by host uuids")
+		}
+		return nil
+	})
 }
 
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the
@@ -491,6 +664,13 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 					}
 					return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
 				}
+
+				// A non-poll insert means a pending command now exists, so set the flag directly in this same transaction.
+				if cmd.TargetLocURI != syncml.DMClientPollIntervalLocURI {
+					if err := ds.markMDMWindowsHasPendingCommandsByHostUUIDs(ctx, tx, queueHostUUIDs); err != nil {
+						return err
+					}
+				}
 			}
 
 			// Should never happen
@@ -642,7 +822,7 @@ func (ds *Datastore) mdmWindowsInsertCommandForEnrollmentIDsDB(ctx context.Conte
 	}
 
 	// Batch insert into command queue.
-	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMProfileDeleteBatchSize, func(batch []uint) error {
+	if err := common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
 		valuesPart := strings.Repeat("(?, ?),", len(batch))
 		valuesPart = strings.TrimSuffix(valuesPart, ",")
 
@@ -656,14 +836,21 @@ func (ds *Datastore) mdmWindowsInsertCommandForEnrollmentIDsDB(ctx context.Conte
 			return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	if cmd.TargetLocURI == syncml.DMClientPollIntervalLocURI {
+		return nil
+	}
+	return ds.markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, enrollmentIDs)
 }
 
 // getEnrollmentIDsByHostUUIDDB fetches enrollment IDs for a list of host UUIDs
 // using an indexed batch query. Returns the most recent enrollment per host.
 func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) ([]uint, error) {
 	var allIDs []uint
-	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
 			`SELECT MAX(id) FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid`,
 			batch)
@@ -805,9 +992,19 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		}
 
 		if len(matchingCmds) == 0 {
-			if len(commandIDsBeingResent) == 0 {
+			// Suppress the warning when the only CmdRefs in the message are Fleet-internal commands that are
+			// intentionally absent from windows_mdm_commands (e.g. the DevDetail/SMBIOSSerialNumber Get used for
+			// unlinked-enrollment linkage). Without this filter, an unlinked Windows enrollment with no other pending
+			// commands warns on every session until linkage completes.
+			externalCmdRefs := make([]string, 0, len(enrichedSyncML.CmdRefUUIDs))
+			for _, u := range enrichedSyncML.CmdRefUUIDs {
+				if !fleet.IsFleetInternalCmdID(u) {
+					externalCmdRefs = append(externalCmdRefs, u)
+				}
+			}
+			if len(commandIDsBeingResent) == 0 && len(externalCmdRefs) > 0 {
 				// Only log if not resending commands as we then can expect no matching commands
-				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
+				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(externalCmdRefs, ","), "mdm_device_id",
 					enrolledDevice.MDMDeviceID)
 			}
 			return nil
@@ -933,6 +1130,12 @@ ON DUPLICATE KEY UPDATE
 					}
 				}
 			}
+		}
+
+		// Acknowledgments may have drained this enrollment's pending commands; refresh the denormalized flag in
+		// this same transaction so the orbit-config hot path reflects it on the next check-in.
+		if err := ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, []uint{enrolledDevice.ID}); err != nil {
+			return err
 		}
 
 		return nil
@@ -2248,6 +2451,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 	WHERE
 		h.platform = 'windows' AND
 		NOT EXISTS (
@@ -2278,6 +2483,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 			LEFT OUTER JOIN label_membership lm
@@ -2320,6 +2527,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1 AND mcpl.require_all = 0
 			LEFT OUTER JOIN labels lbl
@@ -2356,6 +2565,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
 			LEFT OUTER JOIN label_membership lm
@@ -2628,11 +2839,11 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- only target hosts that still have a valid Windows MDM enrollment;
-		-- orphaned host_mdm_windows_profiles rows (where the enrollment was
-		-- deleted) cannot receive MDM commands and must be skipped.
+		-- skip hosts not confirmed enrolled in Fleet's Windows MDM
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON h.uuid = mwe.host_uuid
+				JOIN host_mdm hmdm ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			WHERE mwe.host_uuid = hmwp.host_uuid
 		) AND
 		-- exclude remove operations with non-NULL status (already processed;
@@ -3012,6 +3223,14 @@ INSERT INTO
 			}
 			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
+			}
+		}
+
+		// An OS-update profile is tracked as the team's OS-update profile within
+		// this transaction so it rolls back together on failure.
+		if bytes.Contains(cp.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			if err := trackWindowsUpdateConfigProfileDB(ctx, tx, teamID, profileUUID); err != nil {
+				return err
 			}
 		}
 
@@ -3649,6 +3868,31 @@ INNER JOIN (
 	if exhausted {
 		ds.logger.WarnContext(ctx, "cleanup windows mdm command queue did not finish, remaining rows will be cleaned on next run",
 			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return nil
+}
+
+func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	const stmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+    	INNER JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = mcpus.windows_profile_uuid
+	WHERE mwcp.team_id = ?`
+
+	var configured bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &configured, stmt, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if windows update config profile is configured")
+	}
+
+	return configured, nil
+}
+
+// trackWindowsUpdateConfigProfileDB records profileUUID as the team's OS-update
+// profile within the caller's transaction
+func trackWindowsUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, profileUUID string) error {
+	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
+	if _, err := tx.ExecContext(ctx, insertStmt, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting software update profile")
 	}
 	return nil
 }

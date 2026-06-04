@@ -25,7 +25,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -36,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	_ "github.com/go-sql-driver/mysql"
@@ -188,30 +188,36 @@ func collectUptime(api *apiClient, db *sql.DB) error {
 	now := time.Now().UTC()
 	bucketStart := now.Truncate(time.Hour)
 	validTo := bucketStart.Add(time.Hour)
-	newBlob := chart.HostIDsToBlob(hostIDs)
+	merged := chart.NewBitmap(hostIDs)
 
 	// OR with existing in-bucket bitmap (accumulate semantic).
-	var existing []byte
+	var existingBytes []byte
+	var existingEncoding uint8
 	err = db.QueryRow(
-		`SELECT host_bitmap FROM host_scd_data
+		`SELECT host_bitmap, encoding_type FROM host_scd_data
 		 WHERE dataset = 'uptime' AND entity_id = '' AND valid_from = ?`,
 		bucketStart,
-	).Scan(&existing)
+	).Scan(&existingBytes, &existingEncoding)
 	if err == nil {
-		newBlob = chart.BlobOR(existing, newBlob)
+		existing, decErr := chart.DecodeBitmap(chart.Blob{Bytes: existingBytes, Encoding: existingEncoding})
+		if decErr != nil {
+			return fmt.Errorf("decode existing uptime bitmap: %w", decErr)
+		}
+		merged = chart.BlobOR(merged, existing)
 	}
 
+	blob := chart.BitmapToBlob(merged)
 	_, err = db.Exec(
-		`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
-		 VALUES ('uptime', '', ?, ?, ?)
-		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
-		newBlob, bucketStart, validTo,
+		`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from, valid_to)
+		 VALUES ('uptime', '', ?, ?, ?, ?)
+		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`,
+		blob.Bytes, blob.Encoding, bucketStart, validTo,
 	)
 	if err != nil {
 		return fmt.Errorf("write uptime SCD row: %w", err)
 	}
 
-	log.Printf("  wrote uptime row: %d hosts, valid_from %s", chart.BlobPopcount(newBlob), bucketStart)
+	log.Printf("  wrote uptime row: %d hosts, valid_from %s", chart.BlobPopcount(merged), bucketStart)
 	return nil
 }
 
@@ -246,9 +252,9 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
 
 	// Build the desired entity->bitmap map for the current hourly bucket.
-	entityBitmaps := make(map[string][]byte, len(cveHosts))
+	entityBitmaps := make(map[string]*roaring.Bitmap, len(cveHosts))
 	for cve, hosts := range cveHosts {
-		entityBitmaps[cve] = chart.HostIDsToBlob(hosts)
+		entityBitmaps[cve] = chart.NewBitmap(hosts)
 	}
 
 	// Snapshot rows are keyed to 1h boundaries (not 24h) so that row transitions
@@ -267,9 +273,9 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 
 // reconcileSnapshot mirrors Datastore.recordSnapshot in
 // server/chart/internal/mysql/data.go.
-func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]byte, bucketStart time.Time) error {
+func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string]*roaring.Bitmap, bucketStart time.Time) error {
 	rows, err := db.Query(
-		`SELECT entity_id, host_bitmap, valid_from
+		`SELECT entity_id, host_bitmap, encoding_type, valid_from
 		 FROM host_scd_data
 		 WHERE dataset = ? AND valid_to = ?`,
 		dataset, scdOpenSentinel)
@@ -277,42 +283,45 @@ func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]by
 		return fmt.Errorf("fetch open SCD rows: %w", err)
 	}
 	defer rows.Close()
-	type openRow struct {
-		bitmap    []byte
+	type openEntry struct {
+		bitmap    *roaring.Bitmap
 		validFrom time.Time
 	}
-	openByEntity := make(map[string]openRow)
+	openByEntity := make(map[string]openEntry)
 	for rows.Next() {
 		var entityID string
-		var bitmap []byte
+		var bitmapBytes []byte
+		var encoding uint8
 		var validFrom time.Time
-		if err := rows.Scan(&entityID, &bitmap, &validFrom); err != nil {
+		if err := rows.Scan(&entityID, &bitmapBytes, &encoding, &validFrom); err != nil {
 			return fmt.Errorf("scan open SCD row: %w", err)
 		}
-		openByEntity[entityID] = openRow{bitmap: bitmap, validFrom: validFrom}
+		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: bitmapBytes, Encoding: encoding})
+		if err != nil {
+			return fmt.Errorf("decode open bitmap for %q: %w", entityID, err)
+		}
+		openByEntity[entityID] = openEntry{bitmap: rb, validFrom: validFrom}
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate open SCD rows: %w", err)
 	}
 
 	var toClose []string
-	var toUpsert []struct {
+	type upsertRow struct {
 		entityID string
-		bitmap   []byte
+		blob     chart.Blob
 	}
+	var toUpsert []upsertRow
 
 	for entityID, bitmap := range entityBitmaps {
 		existing, hasOpen := openByEntity[entityID]
-		if hasOpen && bytes.Equal(existing.bitmap, bitmap) {
+		if hasOpen && existing.bitmap.Equals(bitmap) {
 			continue
 		}
 		if hasOpen && existing.validFrom.Before(bucketStart) {
 			toClose = append(toClose, entityID)
 		}
-		toUpsert = append(toUpsert, struct {
-			entityID string
-			bitmap   []byte
-		}{entityID, bitmap})
+		toUpsert = append(toUpsert, upsertRow{entityID: entityID, blob: chart.BitmapToBlob(bitmap)})
 	}
 
 	for entityID := range openByEntity {
@@ -343,15 +352,15 @@ func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]by
 		batch := toUpsert[i:end]
 
 		placeholders := make([]string, len(batch))
-		args := make([]any, 0, len(batch)*4)
+		args := make([]any, 0, len(batch)*5)
 		for j, r := range batch {
-			placeholders[j] = "(?, ?, ?, ?)"
-			args = append(args, dataset, r.entityID, r.bitmap, bucketStart)
+			placeholders[j] = "(?, ?, ?, ?, ?)"
+			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart)
 		}
-		// Concatenating hardcoded "(?,?,?,?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from) VALUES ` + //nolint:gosec // G202
+		// Concatenating hardcoded "(?,?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from) VALUES ` + //nolint:gosec // G202
 			strings.Join(placeholders, ", ") +
-			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
 		if _, err := db.Exec(stmt, args...); err != nil {
 			return fmt.Errorf("upsert rows: %w", err)
 		}

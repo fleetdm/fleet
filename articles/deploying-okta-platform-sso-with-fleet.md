@@ -36,8 +36,6 @@ First, you'll need to set up the Platform Single Sign-on app in your Okta Admin 
 8. On the **Assignments** tab, assign the app to individual users or groups who will use Desktop Password Sync
 9. Click **Save**
 
-Next, download Okta Verify for macOS from the Admin Console (**Settings** → **Downloads**). Don't download the Okta Verify package from the Apple App Store, as it lacks the necessary MDM integration features.
-
 ## Set Up Device Access SCEP Certificates (macOS 14+ Only)
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
@@ -195,6 +193,18 @@ WHERE issuer LIKE '%/DC=com/DC=okta%'
 ---
 
 ## Install Okta Verify via Fleet
+
+Don't download the Okta Verify package from the Apple App Store, as it lacks the necessary MDM integration features.
+
+There are two ways to deploy Okta Verify with Fleet: the [Fleet-maintained app](https://fleetdm.com/software-catalog/okta-verify-darwin), or a custom package. We recommend the Fleet-maintained app, as it's [updated automatically](https://fleetdm.com/guides/fleet-maintained-apps#update-app) with GitOps.
+
+### Fleet-maintained app
+
+Learn how to deploy Fleet-maintained apps with [our guide](https://fleetdm.com/guides/fleet-maintained-apps). It's easy to keep the app up-to-date this way by using a [patch policy](https://fleetdm.com/guides/fleet-maintained-apps#keep-apps-up-to-date-with-patch-policies) as well.
+
+### Custom package
+
+Download Okta Verify for macOS from the Okta Admin Console (**Settings** → **Downloads**).
 
 On your Fleet server, select the fleet you want to deploy Platform SSO to. Navigate to **Software** → **Add software** → **Custom package** → **Choose file**.
 

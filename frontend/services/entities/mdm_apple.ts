@@ -27,11 +27,11 @@ export interface IGetVppTokensResponse {
   vpp_tokens: IMdmVppToken[];
 }
 
-export interface IUploadVppTokenReponse {
+export interface IUploadVppTokenResponse {
   vpp_token: IMdmVppToken;
 }
 
-export type IRenewVppTokenResponse = IUploadVppTokenReponse;
+export type IRenewVppTokenResponse = IUploadVppTokenResponse;
 
 export default {
   getAppleAPNInfo: () => {
@@ -73,7 +73,7 @@ export default {
     return sendRequest("GET", MDM_VPP_TOKENS);
   },
 
-  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+  uploadVppToken: (token: File): Promise<IUploadVppTokenResponse> => {
     const { MDM_VPP_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);

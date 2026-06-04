@@ -27,9 +27,13 @@ describe("HistoricalDataTeamControls", () => {
   it("renders the section heading and both checkboxes", () => {
     renderControls();
     expect(screen.getByText("Activity & data retention")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeInTheDocument();
     expect(
-      screen.getByLabelText(/Disable vulnerabilities/i)
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
     ).toBeInTheDocument();
   });
 
@@ -38,23 +42,39 @@ describe("HistoricalDataTeamControls", () => {
       disableHostsActive: true,
       disableVulnerabilities: false,
     });
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).toBeChecked();
+    expect(
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
+    ).not.toBeChecked();
   });
 
   it("locks the hosts-active checkbox when global is disabled", () => {
     renderControls({ globalHostsActiveDisabled: true });
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeDisabled();
+    expect(
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).toBeDisabled();
     // The vulnerabilities checkbox stays interactive
     expect(
-      screen.getByLabelText(/Disable vulnerabilities/i)
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
     ).not.toBeDisabled();
   });
 
   it("locks the vulnerabilities checkbox when global is disabled", () => {
     renderControls({ globalVulnerabilitiesDisabled: true });
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).toBeDisabled();
-    expect(screen.getByLabelText(/Disable hosts online/i)).not.toBeDisabled();
+    expect(
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
+    ).toBeDisabled();
+    expect(
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).not.toBeDisabled();
   });
 
   it("preserves the team's stored value while locked", () => {
@@ -62,7 +82,9 @@ describe("HistoricalDataTeamControls", () => {
       disableHostsActive: true,
       globalHostsActiveDisabled: true,
     });
-    const checkbox = screen.getByLabelText(/Disable hosts online/i);
+    const checkbox = screen.getByLabelText(
+      /Disable hosts online historical reporting/i
+    );
     expect(checkbox).toBeChecked();
     expect(checkbox).toBeDisabled();
   });

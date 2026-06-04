@@ -35,6 +35,10 @@ const (
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 
 	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -75,7 +79,8 @@ const (
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
@@ -94,7 +99,7 @@ const (
 func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
-			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
@@ -114,10 +119,17 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
-	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -309,6 +321,18 @@ type HostMDMProfileRetryCount struct {
 	// ProfileName is the unique name used by Windows profiles
 	ProfileName string `db:"profile_name"`
 	Retries     uint   `db:"retries"`
+}
+
+// ProfileACMECommandResult bundles the gates needed to decide whether an
+// InstallProfile ack should trigger a CertificateList refetch on macOS:
+// host platform, profile UUID, and whether the delivered profile contains a
+// com.apple.security.acme payload. Computed in a single query keyed on
+// (host_uuid, command_uuid).
+type ProfileACMECommandResult struct {
+	HostID         uint   `db:"host_id"`
+	Platform       string `db:"platform"`
+	ProfileUUID    string `db:"profile_uuid"`
+	HasACMEPayload bool   `db:"has_acme_payload"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -1356,3 +1380,46 @@ const (
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
 )
+
+// ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
+// include mode may be set, no label may appear in both include and exclude lists, and the legacy
+// Labels field is normalised to LabelsIncludeAll. Errors are accumulated into invalid.
+func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, customSettings []MDMProfileSpec) {
+	for i, prof := range customSettings {
+		includeCount := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0} {
+			if b {
+				includeCount++
+			}
+		}
+		if includeCount > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+		}
+		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
+		if overlap := ProfileLabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
+}
+
+// ProfileLabelOverlap returns the first label name that appears in both
+// the include list and the exclude list, or an empty string if there is none.
+// include should be the union of labels_include_all and labels_include_any.
+func ProfileLabelOverlap(include, exclude []string) string {
+	seen := make(map[string]struct{}, len(include))
+	for _, n := range include {
+		seen[n] = struct{}{}
+	}
+	for _, n := range exclude {
+		if _, overlapExists := seen[n]; overlapExists {
+			return n
+		}
+	}
+	return ""
+}

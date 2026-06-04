@@ -145,7 +145,9 @@ This is the server name or IP address used by the client certificate.
 
 ### mysql_max_open_conns
 
-The maximum open connections to the database.
+The maximum open connections from each Fleet server to the database. This value should be less than the database's maximum connection limit.
+
+If your database has 100 connections available and you have up to 3 Fleet servers running, this value should be 30 to avoid opening more connections than the database can handle and still leave a small buffer.
 
 - Default value: 50
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
@@ -594,6 +596,35 @@ A value of 0 means no timeout.
   ```yaml
   redis:
     write_timeout: 5s
+  ```
+
+### redis_host_cache_enabled
+
+Enables a Redis-backed cache that fronts host lookups on the osquery and orbit auth paths.
+When enabled, Fleet caches authenticated host records in Redis to reduce MySQL load on
+high-volume check-in endpoints. Disable to bypass the cache and serve every check-in directly
+from MySQL.
+
+- Default value: true
+- Environment variable: `FLEET_REDIS_HOST_CACHE_ENABLED`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_enabled: true
+  ```
+
+### redis_host_cache_ttl
+
+Base TTL for entries in the Redis-backed host lookup cache. Each entry's actual TTL is jittered
+by ±10% to avoid synchronized expiry waves. Must be greater than 0 when `redis_host_cache_enabled`
+is true; to disable the cache, set `redis_host_cache_enabled=false` instead of zeroing this value.
+
+- Default value: 60s
+- Environment variable: `FLEET_REDIS_HOST_CACHE_TTL`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_ttl: 60s
   ```
 
 ## Server
@@ -2544,6 +2575,20 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
     ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
   ```
 
+### ses_sender_domain
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server_settings.server_url`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SENDER_DOMAIN`
+- Config file format:
+  ```yaml
+  ses:
+    sender_domain: notifications.example.com
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
@@ -2664,6 +2709,25 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```yaml
   s3:
    software_installers_sts_external_id: your_unique_id
+  ```
+
+### s3_software_installers_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_software_installers_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_software_installers_access_key_id`,
+`s3_software_installers_secret_access_key`, and `s3_software_installers_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcs_iam_auth: true
   ```
 
 ### s3_software_installers_endpoint_url
@@ -2825,6 +2889,25 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   ```yaml
   s3:
      carves_sts_external_id: your_unique_id
+  ```
+
+### s3_carves_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_carves_access_key_id`,
+`s3_carves_secret_access_key`, and `s3_carves_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    carves_gcs_iam_auth: true
   ```
 
 ### s3_carves_endpoint_url
@@ -3423,11 +3506,11 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
 
 ### mdm.enable_custom_os_updates_and_filevault
 
+> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Custom OS updates will be enabled for all, for FileVault you can use `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
-
-> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+Allows users to add custom Apple MDM profiles for both OS updates and FileVault management.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
@@ -3435,6 +3518,22 @@ Allows users to add custom Apple MDM profiles for OS updates and FileVault manag
   ```yaml
   mdm:
     enable_custom_os_updates_and_filevault: true
+  ```
+
+### mdm.enable_custom_filevault
+
+*Available in Fleet Premium.*
+
+Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+
+> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_filevault: false
   ```
 
 ### mdm.allow_all_declarations

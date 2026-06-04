@@ -326,6 +326,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
+				_, ok = gitops.Controls.WindowsEntraClientIDs.([]any)
+				assert.True(t, ok, "windows_entra_client_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
@@ -814,7 +816,7 @@ reports:
 `
 	_, err = gitOpsFromString(t, config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "environment variable \"NOT_DEFINED\" not set")
+	require.Contains(t, err.Error(), `environment variable "NOT_DEFINED" not set; if you intended the literal string $NOT_DEFINED then please escape it as \$NOT_DEFINED.`)
 }
 
 func TestMixingGlobalAndTeamConfig(t *testing.T) {
@@ -3748,6 +3750,79 @@ org_settings:
 	})
 }
 
+// TestAppleBusinessKeyRename verifies that the new mdm.apple_business key is
+// accepted in org_settings, that the deprecated mdm.apple_business_manager key
+// still works, and that specifying both raises a conflict error.
+func TestAppleBusinessKeyRename(t *testing.T) {
+	t.Parallel()
+
+	baseConfig := func(mdmSection string) string {
+		return `
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:` + mdmSection + `
+`
+	}
+
+	t.Run("new_key_accepted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_fleet: "Workstations"
+        ios_fleet: "Phones"
+        ipados_fleet: "Tablets"`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("old_key_still_accepted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business_manager:
+      - organization_name: Test Org
+        macos_fleet: "Workstations"
+        ios_fleet: "Phones"
+        ipados_fleet: "Tablets"`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("both_keys_conflict", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business:
+      - organization_name: A
+    apple_business_manager:
+      - organization_name: B`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot specify both")
+		require.Contains(t, err.Error(), "org_settings.mdm.apple_business")
+	})
+}
+
 // TestSetupExperienceSoftwareDeprecation verifies that supplying a list of
 // software under `controls.setup_experience.software` emits a deprecation
 // warning steering users toward the per-item `setup_experience: true` form.
@@ -4095,7 +4170,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
-		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 
 	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
@@ -4151,6 +4226,52 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+	})
+
+	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "zoom/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
+	})
+
+	t.Run("patch policy with different fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "1password/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}, "1password/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 }
 
