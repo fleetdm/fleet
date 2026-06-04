@@ -1,1 +1,0 @@
-- Fixed an issue where starting Orbit with `--debug` (or `ORBIT_DEBUG=1`) could restart unexpectedly when the server was not sending debug flags
