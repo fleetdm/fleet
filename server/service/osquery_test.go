@@ -4899,3 +4899,79 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
 	require.True(t, insertCalled, "install should fire when there is no prior install")
 }
+
+// TestProcessVPPForNewlyFailingPoliciesContinuousCooldown is the VPP analog of
+// TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown: a continuous
+// policy automation must not re-install a VPP app more than once per policy update
+// interval. The cooldown is keyed on apps verified-installed within the interval
+// (MapAdamIDsRecentlyVerifiedInstalls). Newly-failing (pass→fail) policies still
+// fire immediately.
+func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Clock: mockClock})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID = uint(1)
+		hostID   = uint(42)
+		adamID   = "adam-vpp-1"
+	)
+
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		return []fleet.PolicyVPPData{{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true}}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+	}
+	ds.MapAdamIDsPendingInstallFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
+	}
+	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	var installCalled bool
+	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+			return "vpp-token", nil
+		},
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			installCalled = true
+			return "command-uuid", nil
+		},
+	})
+
+	failing := map[uint]*bool{policyID: new(false)}
+	noNewlyFailing := map[uint]struct{}{}
+
+	setRecentlyVerified := func(recent bool) {
+		ds.MapAdamIDsRecentlyVerifiedInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+			if recent {
+				return map[string]struct{}{adamID: {}}, nil
+			}
+			return map[string]struct{}{}, nil
+		}
+	}
+
+	// Continuous re-fire with the app verified-installed within the interval => throttled.
+	installCalled = false
+	setRecentlyVerified(true)
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, noNewlyFailing))
+	require.False(t, installCalled, "continuous VPP install should be throttled within the policy update interval")
+
+	// Continuous re-fire with no recent verified install (cooldown elapsed) => fires.
+	installCalled = false
+	setRecentlyVerified(false)
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, noNewlyFailing))
+	require.True(t, installCalled, "continuous VPP install should fire once the cooldown elapses")
+
+	// Newly failing (pass→fail) bypasses the cooldown even with a recent verified install.
+	installCalled = false
+	setRecentlyVerified(true)
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{policyID: {}}))
+	require.True(t, installCalled, "newly-failing VPP install should fire regardless of cooldown")
+}
