@@ -15,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+const inHouseAppInstallTokenLength = 36 // UUID
+
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
 	existingInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
 	if err != nil {
@@ -299,6 +301,12 @@ func (svc *Service) validateInHouseAppInstallToken(
 	urlTitleID uint,
 	token string,
 ) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	// Reject obviously malformed lengths before hitting the DB; the column is
+	// VARCHAR(36) (UUID), so anything else can't match a row.
+	if len(token) != inHouseAppInstallTokenLength {
+		return nil, fleet.NewPermissionError("invalid token")
+	}
+
 	meta, err := svc.ds.GetInHouseAppInstallTokenMetadata(ctx, token)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -323,5 +331,5 @@ func inHouseTeamIDPtr(teamID uint) *uint {
 	if teamID == 0 {
 		return nil
 	}
-	return &teamID
+	return new(teamID)
 }

@@ -636,6 +636,13 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	var permErr *fleet.PermissionError
 	require.ErrorAs(t, err, &permErr)
 
+	// Wrong-length token is rejected before a DB lookup happens.
+	ds.GetInHouseAppInstallTokenMetadataFuncInvoked = false
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "short")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppInstallTokenMetadataFuncInvoked)
+
 	_, err = svc.GetInHouseAppManifest(ctx, 2, validToken)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &permErr)

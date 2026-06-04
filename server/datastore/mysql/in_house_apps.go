@@ -1854,8 +1854,10 @@ SELECT token, software_title_id, team_id, host_id, expires_at
 FROM in_house_app_install_tokens
 WHERE token = ? AND expires_at > NOW(6)
 `
+	// Read from primary: tokens are minted in the activation tx and may be
+	// looked up before replicas have caught up.
 	var meta fleet.InHouseAppInstallTokenMetadata
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &meta, stmt, token); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &meta, stmt, token); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppInstallToken"))
 		}
