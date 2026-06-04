@@ -583,9 +583,22 @@ const CommandPalette = (): JSX.Element | null => {
                   // (e.g., the "Users" Settings page and the "Users"
                   // setup-experience sub-item) don't collide.
                   value={`BEST_MATCH ${target.id} ${target.label}`}
-                  onSelect={() =>
-                    item.onAction ? item.onAction() : navigate(target.path!)
-                  }
+                  onSelect={() => {
+                    // Sub-items navigate to their own path — never route
+                    // through the parent's onAction. Otherwise a future
+                    // sub-item under an action-backed parent (e.g., a
+                    // child of "View host") would open the parent flow
+                    // instead of the sub-item destination.
+                    if (sub) {
+                      navigate(sub.path);
+                      return;
+                    }
+                    if (item.onAction) {
+                      item.onAction();
+                      return;
+                    }
+                    navigate(item.path!);
+                  }}
                   className={itemClass}
                 >
                   <div className={`${baseClass}__item-left`}>
