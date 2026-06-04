@@ -119,10 +119,10 @@ const AddProfileModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
-  const [selectedIncludeMode, setSelectedIncludeMode] = useState<"any" | "all">(
-    "any"
-  );
+  const [selectedLabelTabIndex, setSelectedLabelTabIndex] = useState(0);
+  const [selectedLabelIncludeMode, setSelectedLabelIncludeMode] = useState<
+    "any" | "all"
+  >("any");
   const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
     Record<string, boolean>
   >({});
@@ -174,7 +174,7 @@ const AddProfileModal = ({
     try {
       const labelKey = generateLabelKey(
         selectedTargetType,
-        selectedIncludeMode,
+        selectedLabelIncludeMode,
         selectedIncludeLabels,
         selectedExcludeLabels
       );
@@ -305,7 +305,10 @@ const AddProfileModal = ({
 
     return (
       <TabNav secondary>
-        <Tabs selectedIndex={selectedTabIndex} onSelect={setSelectedTabIndex}>
+        <Tabs
+          selectedIndex={selectedLabelTabIndex}
+          onSelect={setSelectedLabelTabIndex}
+        >
           <TabList>
             <Tab>
               <TabText
@@ -331,7 +334,7 @@ const AddProfileModal = ({
               className="target-label-selector__radio-input"
               label="Any"
               id="include-any-radio"
-              checked={selectedIncludeMode === "any"}
+              checked={selectedLabelIncludeMode === "any"}
               value="any"
               name="include-mode"
               tooltip={
@@ -341,14 +344,14 @@ const AddProfileModal = ({
                 </>
               }
               onChange={(val: string) =>
-                setSelectedIncludeMode(val as "any" | "all")
+                setSelectedLabelIncludeMode(val as "any" | "all")
               }
             />
             <Radio
               className="target-label-selector__radio-input"
               label="All"
               id="include-all-radio"
-              checked={selectedIncludeMode === "all"}
+              checked={selectedLabelIncludeMode === "all"}
               value="all"
               name="include-mode"
               tooltip={
@@ -358,7 +361,7 @@ const AddProfileModal = ({
                 </>
               }
               onChange={(val: string) =>
-                setSelectedIncludeMode(val as "any" | "all")
+                setSelectedLabelIncludeMode(val as "any" | "all")
               }
             />
             <SearchField
