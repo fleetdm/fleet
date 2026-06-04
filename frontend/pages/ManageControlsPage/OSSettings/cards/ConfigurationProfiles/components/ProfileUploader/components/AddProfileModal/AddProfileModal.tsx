@@ -129,8 +129,7 @@ const AddProfileModal = ({
   const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
     Record<string, boolean>
   >({});
-  const [includeSearchQuery, setIncludeSearchQuery] = useState("");
-  const [excludeSearchQuery, setExcludeSearchQuery] = useState("");
+  const [labelSearchQuery, setLabelSearchQuery] = useState("");
 
   const fileRef = useRef<File | null>(null);
 
@@ -158,8 +157,7 @@ const AddProfileModal = ({
     setFileDetails(null);
     setSelectedIncludeLabels({});
     setSelectedExcludeLabels({});
-    setIncludeSearchQuery("");
-    setExcludeSearchQuery("");
+    setLabelSearchQuery("");
     setShowModal(false);
   }, [fileRef, setShowModal]);
 
@@ -296,19 +294,18 @@ const AddProfileModal = ({
       );
     }
 
-    const filteredIncludeLabels = (labels || []).filter((l) =>
-      l.name.toLowerCase().includes(includeSearchQuery.toLowerCase())
+    const filteredLabels = (labels || []).filter((l) =>
+      l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
     );
-    const filteredExcludeLabels = (labels || []).filter((l) =>
-      l.name.toLowerCase().includes(excludeSearchQuery.toLowerCase())
-    );
+
+    const onSelectTab = (index: number) => {
+      setSelectedLabelTabIndex(index);
+      setLabelSearchQuery("");
+    };
 
     return (
       <TabNav secondary>
-        <Tabs
-          selectedIndex={selectedLabelTabIndex}
-          onSelect={setSelectedLabelTabIndex}
-        >
+        <Tabs selectedIndex={selectedLabelTabIndex} onSelect={onSelectTab}>
           <TabList>
             <Tab>
               <TabText
@@ -366,11 +363,11 @@ const AddProfileModal = ({
             />
             <SearchField
               placeholder="Search labels"
-              onChange={setIncludeSearchQuery}
+              onChange={setLabelSearchQuery}
             />
             {renderSelectedBadges(selectedIncludeLabels, onSelectIncludeLabel)}
             {renderLabelCheckboxes(
-              filteredIncludeLabels,
+              filteredLabels,
               selectedIncludeLabels,
               selectedExcludeLabels,
               onSelectIncludeLabel
@@ -379,11 +376,11 @@ const AddProfileModal = ({
           <TabPanel>
             <SearchField
               placeholder="Search labels"
-              onChange={setExcludeSearchQuery}
+              onChange={setLabelSearchQuery}
             />
             {renderSelectedBadges(selectedExcludeLabels, onSelectExcludeLabel)}
             {renderLabelCheckboxes(
-              filteredExcludeLabels,
+              filteredLabels,
               selectedExcludeLabels,
               selectedIncludeLabels,
               onSelectExcludeLabel
