@@ -2157,6 +2157,9 @@ func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial s
 }
 
 func (ds *Datastore) ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error) {
+	if serial == "" || platform == "" {
+		return false, nil
+	}
 	type candidate struct {
 		HostID              uint `db:"host_id"`
 		HasActiveAssignment bool `db:"has_active_assignment"`
@@ -2196,8 +2199,8 @@ func (ds *Datastore) ReconcileDuplicateDEPHostOnDelete(ctx context.Context, seri
 	for _, c := range candidates {
 		if !c.HasAnyAssignment {
 			if _, err := ds.writer(ctx).ExecContext(ctx,
-				`UPDATE host_dep_assignments SET host_id = ? WHERE host_id = ?`,
-				c.HostID, deletedHostID,
+				`UPDATE host_dep_assignments SET host_id = ? WHERE host_id = ? AND hardware_serial = ? AND deleted_at IS NULL`,
+				c.HostID, deletedHostID, serial,
 			); err != nil {
 				return true, ctxerr.Wrap(ctx, err, "transfer dep assignment to surviving host")
 			}
