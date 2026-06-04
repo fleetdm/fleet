@@ -232,9 +232,12 @@ const SelfServiceCard = ({
       })
     : softwareInSelectedCategory;
 
-  // Per design, the button shows in all four variants (including "All"). When
-  // no category is selected, the install_all endpoint has nothing to scope to,
-  // so the button renders disabled.
+  // The button shows in all four variants (including "All"). On "All",
+  // `categoryId` is undefined; the click posts to install_all without a
+  // category_id query param and the BE installs every eligible (uninstalled,
+  // not-in-progress) self-service item. Disabled state is driven purely by
+  // hasInProgressInCategory || uninstalledCount === 0 — no special case for
+  // categoryId === undefined.
   const installAllButton = !isMobileView ? (
     <InstallAllInCategoryButton
       uninstalledCount={uninstalledCount}
@@ -262,7 +265,15 @@ const SelfServiceCard = ({
             enhancedSoftware={filteredSoftware}
             isFetching={isFetching}
             isEmptySearch={
-              enhancedSoftware.length > 0 && filteredSoftware.length === 0
+              enhancedSoftware.length > 0 &&
+              filteredSoftware.length === 0 &&
+              !!queryParams.query
+            }
+            isEmptyCategory={
+              enhancedSoftware.length > 0 &&
+              filteredSoftware.length === 0 &&
+              !queryParams.query &&
+              queryParams.category_id !== undefined
             }
             onClickInstallAction={onClickInstallAction}
           />

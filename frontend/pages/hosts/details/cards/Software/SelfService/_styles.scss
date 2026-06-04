@@ -33,6 +33,11 @@
       display: flex;
       gap: $pad-medium;
       align-items: center;
+      // Right-align the action group regardless of whether CategoryFilter is
+      // present. justify-content: space-between only spaces things when 2+
+      // children exist; with no categories, this auto-margin keeps Install all
+      // + Search anchored to the right edge.
+      margin-left: auto;
     }
 
     .search-field__tooltip-container {

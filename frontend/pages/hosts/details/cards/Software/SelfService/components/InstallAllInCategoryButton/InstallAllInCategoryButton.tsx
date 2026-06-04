@@ -12,7 +12,7 @@ const baseClass = "install-all-in-category-button";
 
 export interface IInstallAllInCategoryButtonProps {
   /** Number of items in the selected category that are not yet installed.
-   * Does not included software that has INSTALLED_OR_IN_FLIGHT_UI_STATUSES */
+   * Does not include software that has INSTALLED_OR_IN_FLIGHT_UI_STATUSES */
   uninstalledCount: number;
   /** True if any item in the selected category is currently in-progress. */
   hasInProgressInCategory: boolean;

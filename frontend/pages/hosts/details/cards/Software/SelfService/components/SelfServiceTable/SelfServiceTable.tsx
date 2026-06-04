@@ -40,11 +40,41 @@ const SelfServiceTable = ({
   const initialSortDirection = queryParams.order_direction || "asc";
   const initialSortPage = queryParams.page || 0;
   // The table renders emptyComponent only when its post-filter data is empty.
-  // If the user has a search query at that point, the search is what produced
-  // the empty result; otherwise the category filter (or the initial dataset)
-  // did. Derived here so the parent doesn't have to know about TableContainer's
-  // internal search filter to compute this accurately.
+  // Distinguish three reachable causes so the copy reflects what the user did:
+  //   1. search applied (with or without a category)
+  //   2. only a category applied — filterSoftwareByCustomCategory returned []
+  //   3. neither (fallback; should be unreachable since SelfServiceCard's
+  //      isEmpty guard renders a different EmptyState before we get here)
+  // Search wins over category when both are set so the user sees the more
+  // recently-applied filter explained.
   const isEmptySearch = !!queryParams.query;
+  const isEmptyCategory =
+    !isEmptySearch && queryParams.category_id !== undefined;
+
+  const renderEmptyState = () => {
+    if (isEmptySearch) {
+      return (
+        <EmptyState
+          header="No items match your search"
+          info={
+            <>
+              Not finding what you&apos;re looking for?{" "}
+              <CustomLink url={contactUrl} text="Reach out to IT" newTab />
+            </>
+          }
+        />
+      );
+    }
+    if (isEmptyCategory) {
+      return <EmptyState header="No items in this category" />;
+    }
+    return (
+      <EmptyState
+        header="No items match the current search criteria"
+        info="Expecting to see software? Check back later."
+      />
+    );
+  };
 
   return (
     <div className={`${baseClass}__table`}>
@@ -68,24 +98,7 @@ const SelfServiceTable = ({
         isClientSidePagination
         disableAutoResetPage
         onClientSidePaginationChange={onClientSidePaginationChange}
-        emptyComponent={() =>
-          isEmptySearch ? (
-            <EmptyState
-              header="No items match your search"
-              info={
-                <>
-                  Not finding what you&apos;re looking for?{" "}
-                  <CustomLink url={contactUrl} text="Reach out to IT" newTab />
-                </>
-              }
-            />
-          ) : (
-            <EmptyState
-              header="No items match the current search criteria"
-              info="Expecting to see software? Check back later."
-            />
-          )
-        }
+        emptyComponent={renderEmptyState}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableTableHeader

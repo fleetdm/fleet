@@ -413,10 +413,40 @@ describe("SelfServiceCard", () => {
     expect(
       screen.getByText(/Not finding what you're looking for/)
     ).toBeInTheDocument();
+    // Should NOT render the category-empty copy — search is the active filter.
+    expect(
+      screen.queryByText("No items in this category")
+    ).not.toBeInTheDocument();
 
     const contactLink = screen.getAllByRole("link", {
       name: /Reach out to IT/i,
     });
     expect(contactLink[0]).toHaveAttribute("href", props.contactUrl);
+  });
+
+  it("renders empty-category state when the category filter yields no rows", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    // Default enhancedSoftware items have no `categories` entries, so
+    // filterSoftwareByCustomCategory returns [] for any category_id.
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1 },
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    expect(
+      await screen.findByText("No items in this category")
+    ).toBeInTheDocument();
+    // Confirm we're NOT falling through to the misleading search-themed copy
+    // — no search query was entered.
+    expect(
+      screen.queryByText("No items match your search")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No items match the current search criteria")
+    ).not.toBeInTheDocument();
   });
 });
