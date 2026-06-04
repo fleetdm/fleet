@@ -73,17 +73,23 @@ func TestParseSoftwareLastOpenedAtRowValue(t *testing.T) {
 	require.Zero(t, lastOpenedAt)
 
 	// Some macOS apps return last_opened_at=315532800.0 (1980-01-01 UTC, the
-	// DOS/FAT epoch) for apps that were never opened. This predates macOS, so
-	// it should be treated as "never" rather than a date decades in the past.
+	// DOS/FAT epoch) for apps that were never opened, so this sentinel is also
+	// treated as "never" rather than a date decades in the past.
 	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("315532800.0")
 	require.NoError(t, err)
 	require.Zero(t, lastOpenedAt)
 
-	// Any timestamp before 2001-01-01 UTC (roughly when macOS was released) is
-	// treated as "never".
-	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("978307199")
+	// Values just after the sentinel are valid timestamps, not "never".
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("315532801")
 	require.NoError(t, err)
-	require.Zero(t, lastOpenedAt)
+	require.Equal(t, time.Unix(315532801, 0).UTC(), lastOpenedAt)
+
+	// Legitimate pre-2001 timestamps (e.g. Linux deb/rpm last_opened_at derived
+	// from file atime) must be preserved, not silently discarded. 946684800 is
+	// 2000-01-01 UTC.
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("946684800")
+	require.NoError(t, err)
+	require.Equal(t, time.Unix(946684800, 0).UTC(), lastOpenedAt)
 
 	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("foobar")
 	require.Error(t, err)
