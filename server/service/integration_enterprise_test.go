@@ -31887,8 +31887,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 }
 
 // TestInstallAllSelfServiceSoftware exercises POST /device/{token}/software/install_all
-// end to end. The candidate-selection filtering (status/inventory/label/category/team
-// matrix) is covered cheaply by the datastore test
+// end to end. Which installs qualify (status/inventory/label/category/team matrix) is
+// covered cheaply by the datastore test
 // TestSoftwareInstallers/GetSoftwareTitlesForInstallAll; each run here focuses on a
 // theme that needs the full HTTP + service + queue path.
 func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
@@ -32097,15 +32097,51 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		installAll(token, http.StatusAccepted)
 		require.Len(t, queuedTitles(host.ID), 3)
 
-		// install_all also queues VPP self-service app installs on an MDM-enrolled
-		// darwin host. (In-house apps are iOS/iPadOS-only and the device endpoint is
-		// desktop-only, so those installs are covered in the MDM suite, not here.)
-		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
+		// the same MDM-enrolled darwin host installs custom packages (chrome, zoom) and a
+		// VPP app (slack); install_all queues them intermixed, sorted by name (not grouped
+		// by type). (In-house apps are iOS/iPadOS-only and the device endpoint is desktop-
+		// only, so those installs are covered in the MDM suite, not here.)
+		macTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
 		require.NoError(t, err)
-		vppHost, vppTok := newMDMHost("darwin", "av-statuses", &vppTeam.ID)
-		newVPPApp("vpp-statuses", &vppTeam.ID, nil)
-		installAll(vppTok, http.StatusAccepted)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+		macHost, macTok := newMDMHost("darwin", "av-statuses", &macTeam.ID)
+		newMacOSInstaller := func(name string) {
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
+			require.NoError(t, err)
+			_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				StorageID:       name + "-storage",
+				Filename:        name + ".pkg",
+				Title:           name,
+				Extension:       "pkg",
+				Source:          "apps",
+				Platform:        "darwin",
+				Version:         "1.0",
+				InstallScript:   "install",
+				UninstallScript: "uninstall",
+				InstallerFile:   tfr,
+				SelfService:     true,
+				UserID:          s.users["admin1@example.com"].ID,
+				TeamID:          &macTeam.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+		}
+		newMacOSInstaller("chrome")          // custom package
+		newMacOSInstaller("zoom")            // custom package
+		newVPPApp("slack", &macTeam.ID, nil) // VPP app; sorts between the packages
+		installAll(macTok, http.StatusAccepted)
+
+		// the package and VPP installs queue intermixed, in name order
+		var macHostUpcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", macHost.ID), nil, http.StatusOK, &macHostUpcoming)
+		var macQueued []string
+		for _, act := range macHostUpcoming.Activities {
+			var d struct {
+				SoftwareTitle string `json:"software_title"`
+			}
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			macQueued = append(macQueued, d.SoftwareTitle)
+		}
+		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
 	})
 
 	t.Run("coexists with existing and incoming activities", func(t *testing.T) {

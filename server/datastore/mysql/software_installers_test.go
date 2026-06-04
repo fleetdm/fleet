@@ -5533,4 +5533,50 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, teamHost, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"team-app"}, names(got))
+
+	// VPP apps and package installers are returned together, sorted by name (not
+	// grouped by type). Verify on an MDM-connected darwin host, where both a macOS
+	// package and a VPP app are available (the ubuntu host above is not MDM-connected,
+	// so VPP apps never apply to it).
+	test.CreateInsertGlobalVPPToken(t, ds)
+	macTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "iall-mac-team"})
+	require.NoError(t, err)
+	macHost := test.NewHost(t, ds, "iall-mac-host", "", "iall-mac-key", "iall-mac-uuid", time.Now(), test.WithPlatform("darwin"))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&macTeam.ID, []uint{macHost.ID})))
+	macHost, err = ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, macHost, false)
+
+	newMacOSInstaller := func(name string) {
+		_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			StorageID:       name + "-storage",
+			Filename:        name + ".pkg",
+			Title:           name,
+			Extension:       "pkg",
+			Source:          "apps",
+			Platform:        "darwin",
+			Version:         "1.0",
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			SelfService:     true,
+			UserID:          user.ID,
+			TeamID:          &macTeam.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+	}
+	newMacOSInstaller("chrome") // package
+	newMacOSInstaller("zoom")   // package
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "slack", // VPP app; sorts between the two packages
+		BundleIdentifier: "com.example.slack",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform},
+			SelfService: true,
+		},
+	}, &macTeam.ID)
+	require.NoError(t, err)
+	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
 }
