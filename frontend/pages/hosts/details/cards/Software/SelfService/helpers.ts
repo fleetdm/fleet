@@ -59,7 +59,10 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 6, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
-// Client-side category filter by name (both sides come from software_categories) until BE supports server-side category_id (#46369); "All" (undefined) returns all, unknown id returns [].
+// Client-side category filter by name — both sides come from
+// `software_categories` until BE supports server-side `category_id` (#46369).
+// `categoryId === undefined` is the "All" filter (returns input unchanged);
+// an unknown id (stale URL or still-loading list) returns `[]`.
 export const filterSoftwareByCustomCategory = (
   software: IDeviceSoftwareWithUiStatus[],
   categories: ISelfServiceCategory[],
