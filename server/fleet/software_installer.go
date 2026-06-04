@@ -401,6 +401,9 @@ type HostLastInstallData struct {
 	ExecutionID string `db:"execution_id"`
 	// Status is the status of the installation on the host.
 	Status *SoftwareInstallerStatus `db:"status"`
+	// CreatedAt is when the install request was created. It is used to throttle
+	// continuous policy automation re-installs (see continuousAutomationOnCooldown).
+	CreatedAt time.Time `db:"created_at"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

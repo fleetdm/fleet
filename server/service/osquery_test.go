@@ -4795,3 +4795,107 @@ func makeLiveQueryStore(t *testing.T, countToReturn int) *live_query_mock.MockLi
 	}
 	return lq
 }
+
+func TestContinuousAutomationOnCooldown(t *testing.T) {
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	svc, _ := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Clock: mockClock})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	now := mockClock.Now()
+	// No prior automation install (zero time) is never on cooldown.
+	require.False(t, svcImpl.continuousAutomationOnCooldown(time.Time{}))
+	// Fired within the policy update interval (1h in TestConfig) => on cooldown.
+	require.True(t, svcImpl.continuousAutomationOnCooldown(now.Add(-30*time.Minute)))
+	// Fired before the policy update interval => not on cooldown.
+	require.False(t, svcImpl.continuousAutomationOnCooldown(now.Add(-2*time.Hour)))
+}
+
+// TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown verifies that a
+// continuous policy automation (continuous_automations_enabled) does not re-queue a
+// software install more than once per policy update interval. This prevents the tight
+// install→refetch→re-run→install loop that happens when the install succeeds but the
+// policy keeps failing. Newly-failing (pass→fail) policies still fire immediately.
+func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Clock: mockClock})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{ID: policyID, InstallerID: installerID, ContinuousAutomationsEnabled: true}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "darwin"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+	ds.ResetPolicyAutomationRetryAttemptsForHostFunc = func(ctx context.Context, hostID uint, policyIDs []uint) error {
+		return nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	noNewlyFailing := map[uint]struct{}{}
+	now := mockClock.Now()
+	installed := fleet.SoftwareInstalled
+	failedInstall := fleet.SoftwareInstallFailed
+
+	setLastInstall := func(status *fleet.SoftwareInstallerStatus, createdAt time.Time) {
+		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+			return &fleet.HostLastInstallData{ExecutionID: "prev-exec", Status: status, CreatedAt: createdAt}, nil
+		}
+	}
+
+	// Continuous re-fire with a recent successful install => throttled.
+	insertCalled = false
+	setLastInstall(&installed, now.Add(-10*time.Minute))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.False(t, insertCalled, "continuous install should be throttled within the policy update interval")
+
+	// Continuous re-fire after the interval elapsed => fires.
+	insertCalled = false
+	setLastInstall(&installed, now.Add(-2*time.Hour))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.True(t, insertCalled, "continuous install should fire once the cooldown elapses")
+
+	// Newly failing (pass→fail) bypasses the cooldown even with a recent install.
+	insertCalled = false
+	setLastInstall(&installed, now.Add(-1*time.Minute))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, map[uint]struct{}{policyID: {}}))
+	require.True(t, insertCalled, "newly-failing install should fire regardless of cooldown")
+
+	// A recent FAILED install does not throttle: only successful installs request the
+	// refetch that drives the loop, and failures are retried via the dedicated path.
+	insertCalled = false
+	setLastInstall(&failedInstall, now.Add(-1*time.Minute))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.True(t, insertCalled, "continuous install should fire when the recent install failed")
+
+	// A recent install with nil status (installed then removed) does not throttle.
+	insertCalled = false
+	setLastInstall(nil, now.Add(-1*time.Minute))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.True(t, insertCalled, "continuous install should fire when the recent install has no resolved status")
+
+	// No prior install => fires.
+	insertCalled = false
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.True(t, insertCalled, "install should fire when there is no prior install")
+}
