@@ -46,6 +46,7 @@ import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import RealvncViewer from "./RealvncViewer";
 import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
@@ -498,6 +499,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidapi: RapidApi,
   raycast: Raycast,
   "realvnc server": RealVncServer,
+  "realvnc viewer": RealvncViewer,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
