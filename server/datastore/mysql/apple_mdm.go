@@ -3551,7 +3551,9 @@ func (ds *Datastore) acmeProfileUUIDs(ctx context.Context, payload []*fleet.MDMA
 		return nil, ctxerr.Wrap(ctx, err, "building acme profile lookup")
 	}
 	var acmeUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &acmeUUIDs, stmt, args...); err != nil {
+	// Read from the primary: a stale replica miss would persist
+	// has_acme_payload=false and silently disable the removal trigger.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &acmeUUIDs, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "looking up acme profiles")
 	}
 	res := make(map[string]struct{}, len(acmeUUIDs))
