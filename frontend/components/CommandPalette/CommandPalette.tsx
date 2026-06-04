@@ -18,6 +18,7 @@ import paths from "router/paths";
 
 import {
   ICommandItem,
+  ICommandSubItem,
   GROUPS,
   buildPaletteItems,
   buildFleetSwitchUrl,
@@ -33,14 +34,23 @@ import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
 
-// Pure helper hoisted to module scope so it's stable across renders and
-// can be safely called from inside memoization.
-const getItemValue = (item: ICommandItem) => {
-  const parts = [item.label, ...(item.keywords ?? [])];
+// cmdk treats `value` as the row's identity *and* as the substring it
+// filters against. Two rows with the same value collide. Including the
+// item's id guarantees uniqueness without losing the user-typeable
+// label/keyword content cmdk needs for its filter pass.
+//
+// Hoisted to module scope so callers can use these from memoization
+// safely (stable identity across renders).
+const getUniqueItemValue = (item: ICommandItem) => {
+  const parts = [item.id, item.label, ...(item.keywords ?? [])];
   item.subItems?.forEach((sub) => {
     parts.push(sub.label, ...(sub.keywords ?? []));
   });
   return parts.join(" ");
+};
+
+const getUniqueSubItemValue = (sub: ICommandSubItem) => {
+  return [sub.id, sub.label, ...(sub.keywords ?? [])].join(" ");
 };
 
 type Page =
@@ -436,12 +446,9 @@ const CommandPalette = (): JSX.Element | null => {
     const map = new Map<string, string>();
     items.forEach((item) => {
       if (item.subItems?.length) {
-        map.set(getItemValue(item).toLowerCase().trim(), item.id);
+        map.set(getUniqueItemValue(item).toLowerCase().trim(), item.id);
         item.subItems.forEach((sub) => {
-          const subValue = `${sub.label} ${sub.keywords?.join(" ") ?? ""}`
-            .toLowerCase()
-            .trim();
-          map.set(subValue, item.id);
+          map.set(getUniqueSubItemValue(sub).toLowerCase().trim(), item.id);
         });
       }
     });
@@ -490,7 +497,7 @@ const CommandPalette = (): JSX.Element | null => {
     return (
       <React.Fragment key={item.id}>
         <Command.Item
-          value={getItemValue(item)}
+          value={getUniqueItemValue(item)}
           onSelect={() =>
             item.onAction ? item.onAction() : navigate(item.path!)
           }
@@ -539,7 +546,7 @@ const CommandPalette = (): JSX.Element | null => {
           visibleSubItems.map((sub) => (
             <Command.Item
               key={sub.id}
-              value={`${sub.label} ${sub.keywords?.join(" ") ?? ""}`}
+              value={getUniqueSubItemValue(sub)}
               onSelect={() => navigate(sub.path)}
               className={`${baseClass}__item ${baseClass}__item--sub`}
             >
@@ -571,7 +578,11 @@ const CommandPalette = (): JSX.Element | null => {
               return (
                 <Command.Item
                   key={`best-${target.id}`}
-                  value={`BEST_MATCH ${target.label}`}
+                  // cmdk treats value as the row's identity. Include
+                  // target.id so two promoted items with the same label
+                  // (e.g., the "Users" Settings page and the "Users"
+                  // setup-experience sub-item) don't collide.
+                  value={`BEST_MATCH ${target.id} ${target.label}`}
                   onSelect={() =>
                     item.onAction ? item.onAction() : navigate(target.path!)
                   }

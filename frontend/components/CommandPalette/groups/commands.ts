@@ -214,7 +214,6 @@ const buildCommandsItems = (
                     "software",
                     "managed app",
                     "fma",
-                    "add app",
                     "create fleet-maintained app",
                     "new fleet-maintained app",
                     "add fleet maintained app",
