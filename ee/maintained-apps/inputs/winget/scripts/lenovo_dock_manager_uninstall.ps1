@@ -75,6 +75,71 @@ if (-not (Test-Path -LiteralPath $uninstPath)) {
 $logFile = Join-Path $env:TEMP "LenovoDockManager-Uninstall.log"
 Remove-Item -LiteralPath $logFile -Force -ErrorAction SilentlyContinue
 
+# The Inno uninstaller pops a CUSTOM Yes/No dialog ("Do you want to keep local
+# user data and settings?") that /VERYSILENT /SUPPRESSMSGBOXES does NOT dismiss:
+# those flags only suppress message boxes created via Inno's SuppressibleMsgBox()
+# helper, and Lenovo coded this one with the plain (non-suppressible) MsgBox().
+# There is no command-line flag that will get past it, so we dismiss it ourselves
+# while the uninstaller runs by clicking the dialog's button via the Win32 API.
+# SendMessage(BM_CLICK) works even in session 0 with no interactive desktop
+# (where SendKeys / AppActivate / SetForegroundWindow do not), which is how
+# Fleet's orbit agent runs uninstall scripts (as SYSTEM). We only ever click
+# "Yes"/"OK" -- never "No"/"Cancel" -- so we can never abort the uninstall; for
+# the keep-data prompt, "Yes" just proceeds (the program and its registry entry
+# are still removed, which is what Test-StillInstalled verifies).
+$dismisserLoaded = $false
+try {
+  Add-Type -Language CSharp @"
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class InnoDlg {
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowsProc cb, IntPtr p);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr h, EnumWindowsProc cb, IntPtr p);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, uint msg, IntPtr wp, IntPtr lp);
+    delegate bool EnumWindowsProc(IntPtr h, IntPtr p);
+    const uint BM_CLICK = 0x00F5;
+
+    static string ClassOf(IntPtr h) { var sb = new StringBuilder(256); GetClassName(h, sb, sb.Capacity); return sb.ToString(); }
+    static string TextOf(IntPtr h)  { var sb = new StringBuilder(512); GetWindowText(h, sb, sb.Capacity); return sb.ToString(); }
+
+    // Finds standard dialog windows (#32770) owned by the Inno uninstaller -- the
+    // original "unins000" or its relaunched temporary "_iu*.tmp" second phase --
+    // and clicks their Yes/OK button. Returns the number of such dialogs found.
+    public static int DismissOnce() {
+        int found = 0;
+        EnumWindows((h, p) => {
+            if (ClassOf(h) != "#32770") return true;
+            uint pid; GetWindowThreadProcessId(h, out pid);
+            string pname = "";
+            try { pname = Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch {}
+            if (!(pname.StartsWith("unins") || pname.StartsWith("_iu"))) return true;
+            found++;
+            EnumChildWindows(h, (c, q) => {
+                if (ClassOf(c) != "Button") return true;
+                string t = TextOf(c).Replace("&", "").Trim();
+                if (t.Equals("Yes", StringComparison.OrdinalIgnoreCase) ||
+                    t.Equals("OK",  StringComparison.OrdinalIgnoreCase)) {
+                    SendMessage(c, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+                }
+                return true;
+            }, IntPtr.Zero);
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+}
+"@
+  $dismisserLoaded = $true
+} catch {
+  Write-Host "Warning: could not load dialog dismisser ($($_.Exception.Message)); uninstaller may block on prompts."
+}
+
 Write-Host "Uninstall command: $uninstPath"
 Write-Host "Uninstall args: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$logFile`""
 
@@ -83,7 +148,22 @@ try {
       -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$logFile`"" `
       -PassThru
 
-    $exited = $process.WaitForExit($waitSeconds * 1000)
+    # Poll for exit while dismissing any uninstaller dialog that pops up, instead
+    # of a single blocking WaitForExit -- otherwise the custom "keep user data?"
+    # prompt stalls the uninstaller until it is force-killed.
+    $deadline = (Get-Date).AddSeconds($waitSeconds)
+    $exited = $false
+    while ((Get-Date) -lt $deadline) {
+        if ($process.HasExited) { $exited = $true; break }
+        if ($dismisserLoaded) {
+            try {
+                $n = [InnoDlg]::DismissOnce()
+                if ($n -gt 0) { Write-Host "Dismissed $n uninstaller dialog(s)" }
+            } catch { }
+        }
+        Start-Sleep -Milliseconds 750
+    }
+
     if ($exited) {
         Write-Host "Uninstaller process exited. ExitCode: $($process.ExitCode)"
     } else {
