@@ -101,9 +101,41 @@
     align-items: center;
     gap: $pad-small;
     justify-content: center;
+    text-align: center;
 
     span {
       color: $ui-fleet-black-75;
+    }
+
+    &--title {
+      font-size: $small;
+      font-weight: $bold;
+      color: $core-fleet-black !important;
+    }
+
+    &--description {
+      font-size: $xx-small;
+      margin-top: -$pad-xsmall;
+    }
+
+    &--link {
+      margin-top: $pad-small;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      padding: $pad-small $pad-medium;
+      height: 36px;
+      line-height: 1;
+      background-color: $core-fleet-green;
+      color: $core-fleet-white;
+      border-radius: $border-radius;
+      font-weight: $bold;
+      text-decoration: none;
+
+      &:hover {
+        background-color: $core-fleet-green-over;
+        text-decoration: none;
+      }
     }
   }
 

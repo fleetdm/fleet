@@ -18,7 +18,6 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
@@ -284,24 +283,33 @@ const AddProfileModal = ({
     if (isErrorLabels) {
       return <DataError />;
     }
-    if (!labels?.length) {
-      return (
-        <div className="target-label-selector__no-labels">
-          <span>No labels</span>
-          <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to
-          target specific hosts.
-        </div>
-      );
-    }
+    const hasLabels = !!labels?.length;
 
-    const filteredLabels = (labels || []).filter((l) =>
-      l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
-    );
+    const filteredLabels = hasLabels
+      ? (labels || []).filter((l) =>
+          l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
+        )
+      : [];
 
     const onSelectTab = (index: number) => {
       setSelectedLabelTabIndex(index);
       setLabelSearchQuery("");
     };
+
+    const renderNoLabels = () => (
+      <div className={`${baseClass}__no-labels`}>
+        <span className={`${baseClass}__no-labels--title`}>No labels</span>
+        <span className={`${baseClass}__no-labels--description`}>
+          Add a label to target your configuration profile.
+        </span>
+        <a
+          href={PATHS.LABEL_NEW_DYNAMIC}
+          className={`${baseClass}__no-labels--link`}
+        >
+          Add label
+        </a>
+      </div>
+    );
 
     return (
       <TabNav secondary>
@@ -327,63 +335,81 @@ const AddProfileModal = ({
             </Tab>
           </TabList>
           <TabPanel>
-            <Radio
-              className="target-label-selector__radio-input"
-              label="Any"
-              id="include-any-radio"
-              checked={selectedLabelIncludeMode === "any"}
-              value="any"
-              name="include-mode"
-              tooltip={
-                <>
-                  Profile will be applied to hosts that <b>have any</b> of these
-                  labels.
-                </>
-              }
-              onChange={(val: string) =>
-                setSelectedLabelIncludeMode(val as "any" | "all")
-              }
-            />
-            <Radio
-              className="target-label-selector__radio-input"
-              label="All"
-              id="include-all-radio"
-              checked={selectedLabelIncludeMode === "all"}
-              value="all"
-              name="include-mode"
-              tooltip={
-                <>
-                  Profile will be applied to hosts that <b>have all</b> of these
-                  labels.
-                </>
-              }
-              onChange={(val: string) =>
-                setSelectedLabelIncludeMode(val as "any" | "all")
-              }
-            />
-            <SearchField
-              placeholder="Search labels"
-              onChange={setLabelSearchQuery}
-            />
-            {renderSelectedBadges(selectedIncludeLabels, onSelectIncludeLabel)}
-            {renderLabelCheckboxes(
-              filteredLabels,
-              selectedIncludeLabels,
-              selectedExcludeLabels,
-              onSelectIncludeLabel
+            {!hasLabels ? (
+              renderNoLabels()
+            ) : (
+              <>
+                <Radio
+                  className="target-label-selector__radio-input"
+                  label="Any"
+                  id="include-any-radio"
+                  checked={selectedLabelIncludeMode === "any"}
+                  value="any"
+                  name="include-mode"
+                  tooltip={
+                    <>
+                      Profile will be applied to hosts that <b>have any</b> of
+                      these labels.
+                    </>
+                  }
+                  onChange={(val: string) =>
+                    setSelectedLabelIncludeMode(val as "any" | "all")
+                  }
+                />
+                <Radio
+                  className="target-label-selector__radio-input"
+                  label="All"
+                  id="include-all-radio"
+                  checked={selectedLabelIncludeMode === "all"}
+                  value="all"
+                  name="include-mode"
+                  tooltip={
+                    <>
+                      Profile will be applied to hosts that <b>have all</b> of
+                      these labels.
+                    </>
+                  }
+                  onChange={(val: string) =>
+                    setSelectedLabelIncludeMode(val as "any" | "all")
+                  }
+                />
+                <SearchField
+                  placeholder="Search labels"
+                  onChange={setLabelSearchQuery}
+                />
+                {renderSelectedBadges(
+                  selectedIncludeLabels,
+                  onSelectIncludeLabel
+                )}
+                {renderLabelCheckboxes(
+                  filteredLabels,
+                  selectedIncludeLabels,
+                  selectedExcludeLabels,
+                  onSelectIncludeLabel
+                )}
+              </>
             )}
           </TabPanel>
           <TabPanel>
-            <SearchField
-              placeholder="Search labels"
-              onChange={setLabelSearchQuery}
-            />
-            {renderSelectedBadges(selectedExcludeLabels, onSelectExcludeLabel)}
-            {renderLabelCheckboxes(
-              filteredLabels,
-              selectedExcludeLabels,
-              selectedIncludeLabels,
-              onSelectExcludeLabel
+            {!hasLabels ? (
+              renderNoLabels()
+            ) : (
+              <>
+                <SearchField
+                  placeholder="Search labels"
+                  onChange={setLabelSearchQuery}
+                />
+                {renderSelectedBadges(
+                  selectedExcludeLabels,
+                  onSelectExcludeLabel
+                )}
+                {renderLabelCheckboxes(
+                  filteredLabels,
+                  selectedExcludeLabels,
+                  selectedIncludeLabels,
+                  onSelectExcludeLabel
+                )}
+              </>
             )}
           </TabPanel>
         </Tabs>
