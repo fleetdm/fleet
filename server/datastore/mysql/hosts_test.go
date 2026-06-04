@@ -2479,7 +2479,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, none, 0)
 
-	// check to make sure search on ip address works
+	// check to make sure search on private ip address works
 	h2.PrimaryIP = "99.100.101.103"
 	err = ds.UpdateHost(context.Background(), h2)
 	require.NoError(t, err)
@@ -2491,6 +2491,20 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.111")
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
+
+	// check that search on public ip address also works
+	h2.PublicIP = "1.2.3.4"
+	err = ds.UpdateHost(context.Background(), h2)
+	require.NoError(t, err)
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.4")
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	assert.Equal(t, h2.ID, hits[0].ID)
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "1.2.3.9")
+	require.NoError(t, err)
+	assert.Empty(t, hits)
 
 	h3.PrimaryIP = "99.100.101.104"
 	err = ds.UpdateHost(context.Background(), h3)
