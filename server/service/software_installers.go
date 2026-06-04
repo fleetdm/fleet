@@ -939,7 +939,7 @@ type submitSelfServiceSoftwareInstallAllResponse struct {
 func (r submitSelfServiceSoftwareInstallAllResponse) Error() error { return r.Err }
 func (r submitSelfServiceSoftwareInstallAllResponse) Status() int  { return http.StatusAccepted }
 
-func submitSelfServiceSoftwareInstallAll(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func submitSelfServiceSoftwareInstallAll(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
