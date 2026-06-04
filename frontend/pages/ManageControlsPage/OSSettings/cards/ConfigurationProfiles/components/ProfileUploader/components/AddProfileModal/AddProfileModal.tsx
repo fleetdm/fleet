@@ -345,6 +345,12 @@ const AddProfileModal = ({
               checked={selectedIncludeMode === "any"}
               value="any"
               name="include-mode"
+              tooltip={
+                <>
+                  Profile will be applied to hosts that{" "}
+                  <b>have any</b> of these labels.
+                </>
+              }
               onChange={(val: string) =>
                 setSelectedIncludeMode(val as "any" | "all")
               }
@@ -356,6 +362,12 @@ const AddProfileModal = ({
               checked={selectedIncludeMode === "all"}
               value="all"
               name="include-mode"
+              tooltip={
+                <>
+                  Profile will be applied to hosts that{" "}
+                  <b>have all</b> of these labels.
+                </>
+              }
               onChange={(val: string) =>
                 setSelectedIncludeMode(val as "any" | "all")
               }
