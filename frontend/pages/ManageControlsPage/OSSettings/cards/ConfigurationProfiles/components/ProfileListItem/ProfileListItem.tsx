@@ -25,6 +25,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
+    <Icon name="filter" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );

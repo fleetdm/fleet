@@ -65,6 +65,9 @@
     gap: $pad-small;
 
     &--count {
+      display: flex;
+      align-items: center;
+      gap: $gap-icon-text;
       align-self: center;
       color: $ui-fleet-black-75;
       font-size: $x-small; // Remove when global default font is implemented
