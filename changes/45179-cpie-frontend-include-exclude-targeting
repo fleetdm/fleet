@@ -1,3 +1,0 @@
-* Updated the "Add profile" modal to support selecting both include and exclude labels simultaneously when uploading an MDM configuration profile.
-* Updated the profile labels modal to display include and exclude label sections separately when both are set.
-* Updated the delete label confirmation to inform users that labels used by a configuration profile cannot be deleted until the profile is removed first.
