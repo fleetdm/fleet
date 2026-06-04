@@ -1,0 +1,1 @@
+- Fixed an issue where a fleetd built with DEBUG=1 could retart unexpectedly when the server was not sending debug flags
