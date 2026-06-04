@@ -461,6 +461,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 					host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
 					host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
 				}
+				suppressAndroidBYODWipeStatus(host)
 			}
 		}
 	}

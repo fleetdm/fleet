@@ -38,6 +38,9 @@ func (svc Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Pol
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
+	if err := svc.populateSoftwareIconURLs(ctx, []*fleet.Policy{policy}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate software icon urls")
+	}
 
 	return policy, nil
 }

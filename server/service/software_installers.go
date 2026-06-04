@@ -853,6 +853,9 @@ type batchSetSoftwareInstallersResultResponse struct {
 	Status   string                          `json:"status"`
 	Message  string                          `json:"message"`
 	Packages []fleet.SoftwarePackageResponse `json:"packages"`
+	// DeletedPackages lists the packages the batch deleted (dry run: would
+	// delete) because their title matches no entry in the request payload.
+	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -861,23 +864,24 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
-	status, message, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
 	return batchSetSoftwareInstallersResultResponse{
-		Status:   status,
-		Message:  message,
-		Packages: packages,
+		Status:          status,
+		Message:         message,
+		Packages:        packages,
+		DeletedPackages: deletedPackages,
 	}, nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", "", nil, fleet.ErrMissingLicense
+	return "", "", nil, nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
