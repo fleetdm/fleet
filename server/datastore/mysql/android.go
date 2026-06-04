@@ -205,6 +205,14 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
 
+		// Sync team_id to android_devices so it survives host deletion.
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
+			host.TeamID, host.Host.ID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on new host")
+		}
+
 		// insert storage data into host_disks table for API consumption
 		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
 		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
@@ -287,6 +295,14 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
+		// Keep android_devices.team_id in sync so the team survives host deletion.
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
+			host.TeamID, host.Host.ID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync android_devices team_id")
+		}
+
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
 			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
@@ -318,6 +334,21 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		return nil
 	})
 	return err
+}
+
+func (ds *Datastore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
+	var teamID *uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID,
+		`SELECT team_id FROM android_devices WHERE enterprise_specific_id = ?`,
+		enterpriseSpecificID,
+	)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, false, nil
+	case err != nil:
+		return nil, false, ctxerr.Wrap(ctx, err, "get android device last team_id")
+	}
+	return teamID, true, nil
 }
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {

@@ -3381,6 +3381,11 @@ type Datastore interface {
 
 type AndroidDatastore interface {
 	android.Datastore
+	// GetAndroidDeviceLastTeamID returns the last-known team_id from the
+	// android_devices row for the given enterprise_specific_id. Returns the
+	// team_id (may be nil for "no team") and a bool indicating whether a row
+	// was found.
+	GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in

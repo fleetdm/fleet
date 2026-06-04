@@ -592,7 +592,6 @@ var hostRefs = []string{
 	"host_calendar_events",
 	"upcoming_activities",
 	"host_certificates",
-	"android_devices",
 	"host_scim_user",
 	"batch_activity_host_results",
 	"host_mdm_commands",
@@ -617,6 +616,9 @@ var hostRefs = []string{
 // want to keep the enrollment relationship even if the host is temporarily
 // deleted from the UI. Re-enrollment sometimes is not straightforward like it
 // is for osquery/fleetd
+// - android_devices: preserved so the device's last-known team_id survives host
+//   deletion and is available during re-enrollment. CreateDeviceTx finds the
+//   existing row by enterprise_specific_id and reuses it.
 // - host_recovery_key_passwords: keyed by host_uuid, intentionally preserved across
 // host deletion. The device may still be enrolled in MDM with the password intact;
 // Orbit re-enrollment recreates the host row and the existing password row remains
