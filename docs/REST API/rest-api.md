@@ -10904,7 +10904,7 @@ Get a list of all software.
 ```json
 {
   "counts_updated_at": "2022-01-01 12:32:00",
-  "count": 3,
+  "count": 1,
   "software_titles": [
     {
       "id": 12,
