@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check:
+  check-website-dep-changes:
     runs-on: ubuntu-22.04
     env:
       INCUBATION_HOURS: 72

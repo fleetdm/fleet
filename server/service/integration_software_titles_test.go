@@ -945,7 +945,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		Name:                     ptr.String("Observer 1"),
 		Email:                    ptr.String("observer@nurv.com"),
 		Password:                 ptr.String(userRawPwd),
-		Teams:                    ptr.T([]fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}),
+		Teams:                    new([]fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}),
 		AdminForcedPasswordReset: ptr.Bool(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)

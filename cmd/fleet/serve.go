@@ -34,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
@@ -78,13 +77,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
-	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -181,8 +179,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
-	// Init OTEL providers (traces, metrics, logs)
-	loggerProvider, tracerProvider, meterProvider := initOTELProviders(config, initFatal)
+	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
+	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
+	// alongside their WrapHandler calls further down in this function.
+	traceRegistry := tracing.NewRegistry()
+	service.RegisterTracingTiers(traceRegistry)
+	activity_bootstrap.RegisterTracingTiers(traceRegistry)
+	// Future bounded contexts: each exposes its own RegisterTracingTiers.
+
+	// Init OTEL providers (traces, metrics, logs) and the route aware sampler.
+	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
 
@@ -242,79 +248,25 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.MDM.CertificateProfilesLimit = 0
 	}
 
-	var ds fleet.Datastore
-	var carveStore fleet.CarveStore
-
-	opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
-	if config.MysqlReadReplica.Address != "" {
-		opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
-	}
-	// NOTE this will disable OTEL/APM interceptor
-	if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
-		opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-			logger: logger.With("component", "sql-interceptor"),
-		}))
-	}
-
-	if config.Logging.TracingEnabled {
-		opts = append(opts, mysql.TracingEnabled(&config.Logging))
-	}
-
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
-	// Create database connections that can be shared across datastores
-	dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
-	if err != nil {
-		initFatal(err, "initializing database connections")
+	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
+	if mds == nil {
+		initFatal(errors.New("datastore was nil after initialization"), "initializing datastore")
+		return
 	}
-
-	mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
-	if err != nil {
-		initFatal(err, "initializing datastore")
-	}
-	ds = mds
-
-	if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
-		carveStore, err = s3.NewCarveStore(config.S3, ds)
-		if err != nil {
-			initFatal(err, "initializing S3 carvestore")
-		}
-	} else {
-		carveStore = ds
-	}
+	var ds fleet.Datastore = mds
 
 	migrationStatus, err := ds.MigrationStatus(cmd.Context())
 	if err != nil {
 		initFatal(err, "retrieving migration status")
 	}
-
-	switch migrationStatus.StatusCode {
-	case fleet.AllMigrationsCompleted:
-		// OK
-	case fleet.UnknownMigrations:
-		printUnknownMigrationsMessage(migrationStatus.UnknownTable, migrationStatus.UnknownData)
-		if dev_mode.IsEnabled {
-			os.Exit(1)
-		}
-	case fleet.NeedsFleetv4732Fix:
-		printFleetv4732FixNeededMessage()
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.UnknownFleetv4732State:
-		printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.SomeMigrationsCompleted:
-		tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
-		printMissingMigrationsWarning(os.Stdout, tables, data)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.NoMigrationsCompleted:
-		printDatabaseNotInitializedError()
+	if migrationStatus == nil {
+		initFatal(errors.New("migration status was nil"), "retrieving migration status")
+		return
+	}
+	if evalMigrationStatus(migrationStatus, dev_mode.IsEnabled, config.Upgrades.AllowMissingMigrations) {
 		os.Exit(1)
 	}
 
@@ -529,168 +481,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
 	}
 
-	mdmStorage, err := mds.NewMDMAppleMDMStorage()
-	if err != nil {
-		initFatal(err, "initialize mdm apple MySQL storage")
+	if config.MDM.EnableCustomFileVault && !license.IsPremium() {
+		config.MDM.EnableCustomFileVault = false
+		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
 	}
 
-	depStorage, err := mds.NewMDMAppleDEPStorage()
-	if err != nil {
-		initFatal(err, "initialize Apple BM DEP storage")
-	}
+	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
-	scepStorage, err := mds.NewSCEPDepot()
-	if err != nil {
-		initFatal(err, "initialize mdm apple scep storage")
-	}
-
-	var mdmPushService push.Pusher
-	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
-	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-			Certificates: []tls.Certificate{*cert},
-		})), nil
-	}))
-	if dev_mode.Env("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
-		mdmPushService = nopPusher{}
-	} else {
-		mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-	}
+	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
 	mds.WithPusher(mdmPushService)
 
-	checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
-		_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)
-		if err != nil {
-			if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
-				return false, nil
-			}
-			return false, err
-		}
-		return true, nil
-	}
-
-	// reconcile Apple Business configuration environment variables with the database
-	if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
-		if len(config.Server.PrivateKey) == 0 {
-			initFatal(errors.New("inserting MDM APNs and SCEP assets"),
-				"missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-		}
-
-		// first we'll check if the APNs and SCEP assets are already in the database and
-		// only insert config values if they're not already present in the database
-		toInsert := make(map[fleet.MDMAssetName]struct{}, 4)
-
-		// check DB for APNs assets
-		found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey})
-		switch {
-		case err != nil:
-			initFatal(err, "reading APNs assets from database")
-		case !found:
-			toInsert[fleet.MDMAssetAPNSCert] = struct{}{}
-			toInsert[fleet.MDMAssetAPNSKey] = struct{}{}
-		default:
-			logger.WarnContext(cmd.Context(),
-				"Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
-		}
-
-		// check DB for SCEP assets
-		found, err = checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-		switch {
-		case err != nil:
-			initFatal(err, "reading SCEP assets from database")
-		case !found:
-			toInsert[fleet.MDMAssetCACert] = struct{}{}
-			toInsert[fleet.MDMAssetCAKey] = struct{}{}
-		default:
-			logger.WarnContext(cmd.Context(),
-				"Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
-		}
-
-		if len(toInsert) > 0 {
-			config.MDM.ValidateAppleAPNSAndSCEPPair(initFatal)
-
-			// parse the APNs and SCEP assets from the config
-			_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
-			if err != nil {
-				initFatal(err, "parse Apple APNs certificate and key from config")
-			}
-			_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
-			if err != nil {
-				initFatal(err, "load Apple SCEP certificate and key from config")
-			}
-
-			var args []fleet.MDMConfigAsset
-			for name := range toInsert {
-				switch name {
-				case fleet.MDMAssetAPNSCert:
-					args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsCertPEM})
-				case fleet.MDMAssetAPNSKey:
-					args = append(args, fleet.MDMConfigAsset{Name: name, Value: apnsKeyPEM})
-				case fleet.MDMAssetCACert:
-					args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPCertPEM})
-				case fleet.MDMAssetCAKey:
-					args = append(args, fleet.MDMConfigAsset{Name: name, Value: appleSCEPKeyPEM})
-				}
-			}
-
-			if err := ds.InsertMDMConfigAssets(context.Background(), args, nil); err != nil {
-				if mysql.IsDuplicate(err) {
-					// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
-					logger.DebugContext(cmd.Context(), "unexpected duplicate key error inserting MDM APNs and SCEP assets")
-				} else {
-					initFatal(err, "inserting MDM APNs and SCEP assets")
-				}
-			}
-		}
-	}
-
-	// reconcile Apple Business configuration environment variables with the database
-	if config.MDM.IsAppleBMSet() {
-		if len(config.Server.PrivateKey) == 0 {
-			initFatal(errors.New("inserting MDM ABM assets"),
-				"missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-		}
-
-		appleBM, err := config.MDM.AppleBM()
-		if err != nil {
-			initFatal(err, "parse Apple BM token, certificate and key from config")
-		}
-
-		toInsert := make([]fleet.MDMConfigAsset, 0, 2)
-
-		found, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetABMKey, fleet.MDMAssetABMCert})
-		switch {
-		case err != nil:
-			initFatal(err, "reading ABM assets from database")
-		case !found:
-			toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
-				fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM})
-		default:
-			logger.WarnContext(cmd.Context(),
-				"Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
-		}
-
-		if len(toInsert) > 0 {
-			err := ds.InsertMDMConfigAssets(context.Background(), toInsert, nil)
-			switch {
-			case err != nil && mysql.IsDuplicate(err):
-				// we already checked for existing assets so we should never have a duplicate key error here; we'll add a debug log just in case
-				logger.DebugContext(cmd.Context(), "unexpected duplicate key error inserting ABM assets")
-			case err != nil:
-				initFatal(err, "inserting ABM assets")
-			default:
-				// insert the ABM token without any metdata; it'll be picked by the
-				// apple_mdm_dep_profile_assigner cron and backfilled
-				if _, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
-					EncryptedToken: appleBM.EncryptedToken,
-					RenewAt: time.Date(2000, time.January, 1, 0, 0, 0, 0,
-						time.UTC), // 2000-01-01 is our "zero value" for time
-				}); err != nil {
-					initFatal(err, "save ABM token")
-				}
-			}
-		}
-	}
+	// reconcile Apple MDM and Business Manager configuration with the database
+	reconcileAppleMDMAPNsAndSCEPAssets(context.Background(), config, ds, logger, initFatal)
+	reconcileAppleMDMABMAssets(context.Background(), config, ds, logger, initFatal)
 
 	appCfg, err := ds.AppConfig(context.Background())
 	if err != nil {
@@ -700,7 +503,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	appCfg.MDM.EnabledAndConfigured = false
 	appCfg.MDM.AppleBMEnabledAndConfigured = false
 	if len(config.Server.PrivateKey) > 0 {
-		appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+		appCfg.MDM.EnabledAndConfigured, err = checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{
 			fleet.MDMAssetCACert,
 			fleet.MDMAssetCAKey,
 			fleet.MDMAssetAPNSKey,
@@ -711,7 +514,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		var appleBMCerts bool
-		appleBMCerts, err = checkMDMAssets([]fleet.MDMAssetName{
+		appleBMCerts, err = checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{
 			fleet.MDMAssetABMCert,
 			fleet.MDMAssetABMKey,
 		})
@@ -1032,6 +835,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}()
 
+	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
+	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
+	// replicas. No-op when OTEL is disabled.
+	if traceSampler != nil {
+		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
+	}
+
 	if softwareInstallStore != nil {
 		if err := cronSchedules.StartCronSchedule(
 			func() (fleet.CronSchedule, error) {
@@ -1064,7 +874,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
+				ctx, instanceID, ds, carveStore, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
 			)
 		},
 	); err != nil {
@@ -1389,7 +1199,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Init(apiHandler); err != nil {
+		if err := apiendpoints.Validate(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
@@ -1469,6 +1279,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	), healthCheckers)
 
 	rootMux := http.NewServeMux()
+	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
+	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
+	// with probe spans. Register /metrics here even though its handler is mounted conditionally below. Registering a route
+	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place.
+	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
+	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
+	traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 	rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
@@ -1491,7 +1308,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
 
-		hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+		hasSCEPChallenge, err := checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 		if err != nil {
 			initFatal(err, "checking SCEP challenge in database")
 		}

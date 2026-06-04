@@ -98,6 +98,10 @@ const (
 	// CapabilityEndUserAuth denotes the ability of the client to authenticate
 	// the end user against the Fleet server (e.g. SSO) before enrolling
 	CapabilityEndUserAuth Capability = "end_user_auth"
+	// CapabilityWindowsMDMSync denotes the ability of Windows fleetd to start an on-demand OMA-DM session (via deviceenroller) when the server
+	// signals that the host has queued Windows MDM commands. This lets the server relax the aggressive Windows MDM poll while keeping command
+	// latency low.
+	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -129,6 +133,10 @@ func GetOrbitClientCapabilities() CapabilityMap {
 	// On non-macOS systems, include end user auth capability.
 	if runtime.GOOS != "darwin" {
 		capabilities[CapabilityEndUserAuth] = struct{}{}
+	}
+	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server signals queued MDM commands.
+	if runtime.GOOS == "windows" {
+		capabilities[CapabilityWindowsMDMSync] = struct{}{}
 	}
 	return capabilities
 }

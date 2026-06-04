@@ -2088,11 +2088,27 @@ const TAGGED_TEMPLATES = {
     return <>edited enroll secret{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
-    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <> added Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
+    );
   },
   deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
     return (
-      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
+      <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
+    );
+  },
+  addedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
+    return (
+      <> added Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
+    );
+  },
+  deletedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
+    return (
+      <> deleted Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
     );
   },
   clearedPasscode: (activity: IActivity) => {
@@ -2566,6 +2582,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.AddedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);
