@@ -4284,7 +4284,7 @@ func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID 
 
 	deleted, _ := res.RowsAffected()
 	if deleted != 1 {
-		return ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithID(teamID))
+		return ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithFleetID(teamID))
 	}
 	return nil
 }
@@ -4433,7 +4433,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithID(teamID))
+			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithFleetID(teamID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package meta")
 	}
