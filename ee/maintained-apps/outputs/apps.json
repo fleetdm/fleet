@@ -156,6 +156,20 @@
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
     },
     {
+      "name": "Amazon DCV Client",
+      "slug": "amazon-dcv-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon DCV Client",
+      "description": "Amazon DCV Client is a remote display client for connecting to Amazon DCV sessions for high-performance remote desktop and application streaming."
+    },
+    {
+      "name": "Amazon DCV Server",
+      "slug": "amazon-dcv-server/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon DCV Server",
+      "description": "Amazon DCV Server is remote display software that delivers high-performance remote desktop and application streaming to connected clients."
+    },
+    {
       "name": "Amazon WorkSpaces",
       "slug": "amazon-workspaces/darwin",
       "platform": "darwin",
@@ -807,6 +821,20 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
+      "name": "Dell Command Update",
+      "slug": "dell-command-update/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Command | Update",
+      "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
+    },
+    {
+      "name": "Dell Display Manager",
+      "slug": "dell-display-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Display Manager 2.3",
+      "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -1381,6 +1409,13 @@
       "description": "LastPass is a password manager."
     },
     {
+      "name": "Lenovo Dock Manager",
+      "slug": "lenovo-dock-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Lenovo Dock Manager",
+      "description": "Lenovo Dock Manager is an application for deploying and managing firmware updates for Lenovo docks."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -1535,6 +1570,13 @@
       "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
     },
     {
+      "name": "Microsoft Remote Help",
+      "slug": "microsoft-remote-help/windows",
+      "platform": "windows",
+      "unique_identifier": "Remote Help",
+      "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -1589,6 +1631,13 @@
       "platform": "windows",
       "unique_identifier": "MySQL Workbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
+    },
+    {
+      "name": "Nessus Agent",
+      "slug": "nessus-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Nessus Agent (x64)",
+      "description": "Nessus Agent is a lightweight agent that performs local vulnerability and compliance scans and reports the results to Tenable Nessus Manager or Tenable Vulnerability Management."
     },
     {
       "name": "Nextcloud",
@@ -1829,6 +1878,13 @@
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
+      "name": "Plantronics Hub",
+      "slug": "plantronics-hub/windows",
+      "platform": "windows",
+      "unique_identifier": "Plantronics Hub",
+      "description": "Plantronics Hub is a desktop application for customizing settings and viewing the status of Plantronics (Poly) audio devices."
+    },
+    {
       "name": "PlugData",
       "slug": "plugdata/darwin",
       "platform": "darwin",
@@ -1857,11 +1913,25 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Power Automate",
+      "slug": "power-automate/windows",
+      "platform": "windows",
+      "unique_identifier": "Power Automate for desktop",
+      "description": "Power Automate is a Microsoft application for building and running automated workflows across desktop and web applications."
+    },
+    {
       "name": "Power BI",
       "slug": "power-bi/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "PowerToys",
+      "slug": "powertoys/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerToys",
+      "description": "PowerToys is a set of utilities from Microsoft for power users to tune and streamline their Windows experience for greater productivity."
     },
     {
       "name": "Prisma Browser",
@@ -2023,6 +2093,13 @@
       "platform": "darwin",
       "unique_identifier": "com.lemonmojo.RoyalTSX.App",
       "description": "Royal TSX is a remote management solution."
+    },
+    {
+      "name": "RStudio",
+      "slug": "rstudio/windows",
+      "platform": "windows",
+      "unique_identifier": "RStudio",
+      "description": "RStudio is an integrated development environment (IDE) for the R programming language."
     },
     {
       "name": "RubyMine",

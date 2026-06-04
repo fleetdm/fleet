@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "0.99.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.99.1') < 0);"
+      },
+      "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.99.1/PowerToysSetup-0.99.1-x64.exe",
+      "install_script_ref": "1a5ce2ca",
+      "uninstall_script_ref": "7a43d033",
+      "sha256": "29210f756b93dc1871694fc2a6be89ab0bc76227f66ffba0f5a80f408e576cdd",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "1a5ce2ca": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/install /quiet /norestart\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "7a43d033": "$displayNameLike = \"PowerToys*\"\n$publisherLike = \"Microsoft Corporation*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\n$entry = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike\n  }\n  if ($items) { $entry = $items | Select-Object -First 1; break }\n}\n\nif (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"PowerToys\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($existingArgs -notmatch '(?i)/uninstall') { $existingArgs = (\"$existingArgs /uninstall\").Trim() }\nif ($existingArgs -notmatch '(?i)/quiet') { $existingArgs = (\"$existingArgs /quiet\").Trim() }\nif ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = (\"$existingArgs /norestart\").Trim() }\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}
