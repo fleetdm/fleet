@@ -30,10 +30,6 @@ type FlagRunner struct {
 type FlagUpdateOptions struct {
 	// RootDir is the root directory for orbit state
 	RootDir string
-	// StartedInDebug keeps --verbose and --tls_dump in osquery.flags even
-	// when the server doesn't push them, so server config can't silently
-	// override the operator's startup --debug flag.
-	StartedInDebug bool
 }
 
 // NewFlagRunner creates a new runner with provided options
@@ -71,15 +67,6 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		}
 	}
 
-	// Startup --debug is a floor; admin-specified values still win.
-	if r.opt.StartedInDebug {
-		if _, ok := osqueryFlagMapFromFleet["--verbose"]; !ok {
-			osqueryFlagMapFromFleet["--verbose"] = "true"
-		}
-		if _, ok := osqueryFlagMapFromFleet["--tls_dump"]; !ok {
-			osqueryFlagMapFromFleet["--tls_dump"] = "true"
-		}
-	}
 
 	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
 		return nil
