@@ -163,10 +163,10 @@ describe("hasInProgressInstallAllItems", () => {
 
 describe("filterSoftwareByCustomCategory", () => {
   const browsersPackage = createMockHostSoftwarePackage({
-    categories: (["🌎 Browsers"] as unknown) as SoftwareCategory[],
+    categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
   });
   const securityPackage = createMockHostSoftwarePackage({
-    categories: (["🔐 Security"] as unknown) as SoftwareCategory[],
+    categories: (["🔐 Security"] as string[]) as SoftwareCategory[],
   });
 
   const browser = makeItem("uninstalled", {
@@ -210,7 +210,7 @@ describe("filterSoftwareByCustomCategory", () => {
 
   it("matches case-insensitively", () => {
     const utilitiesPackage = createMockHostSoftwarePackage({
-      categories: (["🛠️ Utilities"] as unknown) as SoftwareCategory[],
+      categories: (["🛠️ Utilities"] as string[]) as SoftwareCategory[],
     });
     const item = makeItem("uninstalled", {
       name: "ohai",

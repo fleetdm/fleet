@@ -26,6 +26,22 @@ describe("InstalledAllSelfServiceSoftwareActivityItem", () => {
     expect(screen.queryByText("Test User")).not.toBeInTheDocument();
   });
 
+  it("treats a null category name the same as un-scoped", () => {
+    render(
+      <InstalledAllSelfServiceSoftwareActivityItem
+        activity={createMockHostPastActivity({
+          type: ActivityType.InstalledAllSelfServiceSoftware,
+          details: { self_service_category_name: null },
+        })}
+        tab="past"
+      />
+    );
+
+    expect(
+      screen.getByText(/installed all the software in self-service/i)
+    ).toBeVisible();
+  });
+
   it("names the category when the roll-up is category-scoped", () => {
     render(
       <InstalledAllSelfServiceSoftwareActivityItem

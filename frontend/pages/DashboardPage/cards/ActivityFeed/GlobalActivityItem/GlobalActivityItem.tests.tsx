@@ -2169,4 +2169,16 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Productivity")).toBeInTheDocument();
     expect(screen.getByText(/in the self-service/i)).toBeInTheDocument();
   });
+
+  it("treats a null category the same as un-scoped (installed_all_self_service_software)", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAllSelfServiceSoftware,
+      details: { self_service_category_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/installed all the software in self-service/i)
+    ).toBeInTheDocument();
+  });
 });
