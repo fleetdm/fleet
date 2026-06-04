@@ -2742,6 +2742,18 @@ type Datastore interface {
 	// DeleteInHouseApp deletes an in house app and removes pending installs for it
 	DeleteInHouseApp(ctx context.Context, id uint) error
 
+	// CreateInHouseAppInstallToken inserts a per-install download token. The
+	// caller supplies the executor so the insert commits atomically with the
+	// nano_commands row that embeds the token in its ManifestURL.
+	CreateInHouseAppInstallToken(ctx context.Context, ex sqlx.ExtContext, token string, softwareTitleID, teamID, hostID uint) error
+
+	// GetInHouseAppInstallTokenMetadata returns the binding for the token, or
+	// NotFound if the token is unknown or expired (both cases collapse — the
+	// caller must not surface the distinction).
+	GetInHouseAppInstallTokenMetadata(ctx context.Context, token string) (*InHouseAppInstallTokenMetadata, error)
+
+	DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error)
+
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error

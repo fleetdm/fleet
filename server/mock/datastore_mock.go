@@ -1602,6 +1602,12 @@ type GetSummaryHostInHouseAppInstallsFunc func(ctx context.Context, teamID *uint
 
 type DeleteInHouseAppFunc func(ctx context.Context, id uint) error
 
+type CreateInHouseAppInstallTokenFunc func(ctx context.Context, ex sqlx.ExtContext, token string, softwareTitleID uint, teamID uint, hostID uint) error
+
+type GetInHouseAppInstallTokenMetadataFunc func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error)
+
+type DeleteExpiredInHouseAppInstallTokensFunc func(ctx context.Context) (int64, error)
+
 type CleanupUnusedSoftwareTitleIconsFunc func(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
@@ -4423,6 +4429,15 @@ type DataStore struct {
 
 	DeleteInHouseAppFunc        DeleteInHouseAppFunc
 	DeleteInHouseAppFuncInvoked bool
+
+	CreateInHouseAppInstallTokenFunc        CreateInHouseAppInstallTokenFunc
+	CreateInHouseAppInstallTokenFuncInvoked bool
+
+	GetInHouseAppInstallTokenMetadataFunc        GetInHouseAppInstallTokenMetadataFunc
+	GetInHouseAppInstallTokenMetadataFuncInvoked bool
+
+	DeleteExpiredInHouseAppInstallTokensFunc        DeleteExpiredInHouseAppInstallTokensFunc
+	DeleteExpiredInHouseAppInstallTokensFuncInvoked bool
 
 	CleanupUnusedSoftwareTitleIconsFunc        CleanupUnusedSoftwareTitleIconsFunc
 	CleanupUnusedSoftwareTitleIconsFuncInvoked bool
@@ -10629,6 +10644,27 @@ func (s *DataStore) DeleteInHouseApp(ctx context.Context, id uint) error {
 	s.DeleteInHouseAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteInHouseAppFunc(ctx, id)
+}
+
+func (s *DataStore) CreateInHouseAppInstallToken(ctx context.Context, ex sqlx.ExtContext, token string, softwareTitleID uint, teamID uint, hostID uint) error {
+	s.mu.Lock()
+	s.CreateInHouseAppInstallTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateInHouseAppInstallTokenFunc(ctx, ex, token, softwareTitleID, teamID, hostID)
+}
+
+func (s *DataStore) GetInHouseAppInstallTokenMetadata(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	s.mu.Lock()
+	s.GetInHouseAppInstallTokenMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppInstallTokenMetadataFunc(ctx, token)
+}
+
+func (s *DataStore) DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.DeleteExpiredInHouseAppInstallTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteExpiredInHouseAppInstallTokensFunc(ctx)
 }
 
 func (s *DataStore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error {

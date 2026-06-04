@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1823,4 +1824,61 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
 	}
 	return nil
+}
+
+func (ds *Datastore) CreateInHouseAppInstallToken(
+	ctx context.Context,
+	ex sqlx.ExtContext,
+	token string,
+	softwareTitleID, teamID, hostID uint,
+) error {
+	const stmt = `
+INSERT INTO in_house_app_install_tokens
+	(token, software_title_id, team_id, host_id, expires_at)
+VALUES
+	(?, ?, ?, ?, ?)
+`
+	expiresAt := time.Now().UTC().Add(fleet.InHouseAppInstallTokenTTL)
+	if _, err := ex.ExecContext(ctx, stmt, token, softwareTitleID, teamID, hostID, expiresAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert in-house app install token")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetInHouseAppInstallTokenMetadata(
+	ctx context.Context,
+	token string,
+) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	const stmt = `
+SELECT token, software_title_id, team_id, host_id, expires_at
+FROM in_house_app_install_tokens
+WHERE token = ? AND expires_at > NOW(6)
+`
+	var meta fleet.InHouseAppInstallTokenMetadata
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &meta, stmt, token); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppInstallToken"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app install token metadata")
+	}
+	return &meta, nil
+}
+
+func (ds *Datastore) DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error) {
+	const stmt = `DELETE FROM in_house_app_install_tokens WHERE expires_at < NOW(6) LIMIT 1000`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens rows affected")
+		}
+		total += n
+		if n < 1000 {
+			return total, nil
+		}
+	}
 }

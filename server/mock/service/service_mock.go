@@ -510,9 +510,9 @@ type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VP
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error)
 
-type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, token string) ([]byte, error)
 
-type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -4009,18 +4009,18 @@ func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *u
 	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, payload)
 }
 
-func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, token string) ([]byte, error) {
 	s.mu.Lock()
 	s.GetInHouseAppManifestFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+	return s.GetInHouseAppManifestFunc(ctx, titleID, token)
 }
 
-func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	s.mu.Lock()
 	s.GetInHouseAppPackageFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
+	return s.GetInHouseAppPackageFunc(ctx, titleID, token)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
