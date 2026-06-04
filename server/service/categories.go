@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -32,6 +34,47 @@ func getSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc flee
 }
 
 func (svc *Service) ListSoftwareCategories(ctx context.Context, _ *uint) ([]fleet.SoftwareCategory, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// List self-service categories for a device (token-authenticated)
+//////////////////////////////////////////////////////////////////////////////
+
+type getDeviceSelfServiceCategoriesRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getDeviceSelfServiceCategoriesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceSelfServiceCategoriesResponse struct {
+	SelfServiceCategories []fleet.SoftwareCategory `json:"self_service_categories"`
+	Err                   error                    `json:"error,omitempty"`
+}
+
+func (r getDeviceSelfServiceCategoriesResponse) Error() error { return r.Err }
+
+func getDeviceSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceSelfServiceCategoriesResponse{Err: err}, nil
+	}
+
+	categories, err := svc.ListSelfServiceSoftwareCategoriesForHost(ctx, host)
+	if err != nil {
+		return getDeviceSelfServiceCategoriesResponse{Err: err}, nil
+	}
+	return getDeviceSelfServiceCategoriesResponse{SelfServiceCategories: categories}, nil
+}
+
+func (svc *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
@@ -32,6 +33,16 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 	categories, err := svc.ds.ListSoftwareCategories(ctx, *teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
+	}
+	return categories, nil
+}
+
+func (svc *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
+	teamID := ptr.ValOrZero(host.TeamID)
+
+	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list self-service software categories for host")
 	}
 	return categories, nil
 }
