@@ -38,6 +38,8 @@ import { generateLabelKey, listNamesFromSelectedLabels } from "./helpers";
 
 const baseClass = "add-profile-modal";
 
+type TargetType = "All hosts" | "Custom";
+
 interface IFileChooserProps {
   isLoading: boolean;
   onFileOpen: (files: FileList | null) => void;
@@ -117,7 +119,9 @@ const AddProfileModal = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
+    "All hosts"
+  );
   const [selectedLabelTabIndex, setSelectedLabelTabIndex] = useState(0);
   const [selectedLabelIncludeMode, setSelectedLabelIncludeMode] = useState<
     "any" | "all"
@@ -445,7 +449,9 @@ const AddProfileModal = ({
                   checked={selectedTargetType === "All hosts"}
                   value="All hosts"
                   name="target-type"
-                  onChange={setSelectedTargetType}
+                  onChange={(val: string) =>
+                    setSelectedTargetType(val as TargetType)
+                  }
                 />
                 <Radio
                   className="target-label-selector__radio-input"
@@ -454,7 +460,9 @@ const AddProfileModal = ({
                   checked={selectedTargetType === "Custom"}
                   value="Custom"
                   name="target-type"
-                  onChange={setSelectedTargetType}
+                  onChange={(val: string) =>
+                    setSelectedTargetType(val as TargetType)
+                  }
                 />
               </div>
               {selectedTargetType === "Custom" && renderCustomTarget()}
