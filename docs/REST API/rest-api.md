@@ -4969,13 +4969,22 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
       "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
+        "automatic_install_policies": null,
         "platform": "darwin",
         "version": "125.12.0.3",
         "self_service": true,
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
-        }
+        },
+        "last_uninstall": {
+          "uninstall_uuid": "1bbf1084-f861-42df-9359-c27c8682a874",
+          "uninstalled_at": "2024-05-15T15:23:57Z"
+        },
+        "package_url": null,
+        "categories": [
+          "Security"
+        ]
       },
       "app_store_app": null,
       "source": "apps",
@@ -5050,30 +5059,6 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
           "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
         }
       ]
-    },
-    {
-      "id": 12,
-      "name": "MyCustomApp",
-      "software_package": {
-        "name": "MyCustomApp-1.12.ipa",
-        "platform": "ios",
-        "version": "1.12",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null
-      },
-      "app_store_app": null,
-      "versions_count": 1,
-      "source": "ios_apps",
-      "hosts_count": 48,
-      "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": null
-        }
-      ],
     }
   ],
   "meta": {
@@ -8817,7 +8802,6 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
-| installer_id      | integer | body | _Available in Fleet Premium_. ID of the specific package (installer) to install if the policy fails. Only applicable when `software_title_id` is specified and the software title has more than one package. If not specified, defaults to the most recently added package (`uploaded_at`). |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
@@ -11092,40 +11076,6 @@ Returns information about the specified software. By default, `versions` are sor
         "fleet_id": 310
       },
     ],
-    "software_package": {
-      "team_id": 310,
-      "title_id": 12,
-      "name": "GoogleChrome.pkg",
-      "icon_url": null,
-      "version": "148.0.7778.179",
-      "platform": "darwin",
-      "uploaded_at": "2026-07-12T18:45:09.826096Z",
-      "installer_id": 36799,
-      "install_script": "#!/bin/bash\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local console_user=\"$2\"\n  local timeout_duration=10\n\n  if [[ $EUID -eq 0 && \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n ...",
-      "pre_install_query": "",
-      "post_install_script": "",
-      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
-      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
-      "status": {
-        "installed": 250,
-        "pending_install": 0,
-        "failed_install": 10,
-        "pending_uninstall": 2,
-        "failed_uninstall": 0
-      },
-      "url": "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg",
-      "fleet_maintained_app_id": null,
-      "fleet_maintained_versions": null,
-      "automatic_install_policies": null,
-      "labels_include_any": null,
-      "labels_exclude_any": null,
-      "labels_include_all": null,
-      "categories": [
-        "Browsers"
-      ],
-      "patch_policy": null,
-      "fleet_id": 310
-    },
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
@@ -11316,35 +11266,7 @@ Returns information about the specified software. By default, `versions` are sor
         "labels_include_all": null,
         "labels_exclude_any": null,
       }
-    ]
-    "software_package": {
-      "name": "MyCustomApp-1.12.ipa",
-      "platform": "ios",
-      "fleet_maintained_id": null,
-      "version": "1.12",
-      "automatic_install_policies": null,
-      "categories": null,
-      "uploaded_at": "2025-08-15T00:55:03.96954Z",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "title_id": 12,
-      "team_id": 3,
-      "fleet_id": 3,
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      },
-      "installer_id": 332,
-      "install_script": null,
-      "uninstall_script": null,
-      "post_install_script": null,
-      "pre_install_query": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-    },
+    ],
     "app_store_app": null,
     "versions_count": 1,
     "source": "ios_apps",
@@ -11619,39 +11541,6 @@ software="FalconSensor-6.44.pkg"
       "fleet_id": 310
     }
   ]
-  "software_package": {
-      "team_id": 310,
-      "name": "FalconSensor-6.44.pkg.pkg",
-      "icon_url": null,
-      "version": "6.44",
-      "platform": "darwin",
-      "uploaded_at": "2026-07-12T18:45:09.826096Z",
-      "installer_id": 36799,
-      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-      "pre_install_query": "",
-      "post_install_script": "",
-      "uninstall_script": "#!/bin/bash\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil <<< \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  ...",
-      "hash_sha256": "b1ab609e98134df713c10806937fe0d6827057039a74568d4d8cfd831761c96f",
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      },
-      "url": "https://example.com/falcon-sensor/download",
-      "fleet_maintained_app_id": null,
-      "fleet_maintained_versions": null,
-      "automatic_install_policies": null,
-      "labels_include_any": null,
-      "labels_exclude_any": null,
-      "labels_include_all": null,
-      "categories": [
-        "Browsers"
-      ],
-      "patch_policy": null,
-      "fleet_id": 310
-    }
 }
 ```
 
