@@ -33,6 +33,7 @@ spec:
     zendesk: null
   mdm:
     android_enabled_and_configured: false
+    apple_business:
     apple_business_manager:
     apple_server_url: ""
     volume_purchasing_program:

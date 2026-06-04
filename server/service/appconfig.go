@@ -1964,7 +1964,7 @@ func (svc *Service) validateABMAssignments(
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
 			return nil, nil
 		}
 
@@ -1997,13 +1997,13 @@ func (svc *Service) validateABMAssignments(
 		for _, bm := range mdm.AppleBusinessManager.Value {
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
 				}
 			}
 
 			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
-				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
 				return nil, nil
 			}
 
