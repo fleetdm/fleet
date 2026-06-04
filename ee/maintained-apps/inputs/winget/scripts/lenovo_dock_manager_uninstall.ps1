@@ -36,19 +36,33 @@ if (-not $entry -or -not $entry.UninstallString) {
   Exit 0
 }
 
-# Close the Dock Manager components first: the service plus the dockmgr,
-# dockmgr.schd and dockmgr.svc processes. Uses only built-in PowerShell cmdlets.
+# Tear down the Dock Manager components before uninstalling. A soft Stop-Service
+# is not enough: the scheduler component (dockmgr.schd) and service recovery
+# restart the service within seconds, and the running service then locks files
+# so the Inno uninstaller's second phase blocks immediately. So we DISABLE the
+# service (so it cannot restart), disable the scheduled task, and force-kill all
+# components. Uses only built-in Windows tools (sc.exe, taskkill, *-ScheduledTask).
 $svcs = Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {
   $_.PathName -like '*dockmgr*' -or $_.PathName -like '*Dock Manager*'
 }
 foreach ($s in $svcs) {
-  Write-Host "Stopping service: $($s.Name) ($($s.State)) -> $($s.PathName)"
-  Stop-Service -Name $s.Name -Force -ErrorAction SilentlyContinue
+  Write-Host "Disabling + stopping service: $($s.Name) ($($s.State)) -> $($s.PathName)"
+  & sc.exe config "$($s.Name)" start= disabled | Out-Null
+  & sc.exe stop "$($s.Name)" | Out-Null
 }
-foreach ($n in @('dockmgr', 'dockmgr.schd', 'dockmgr.svc')) {
-  $p = Get-Process -Name $n -ErrorAction SilentlyContinue
-  if ($p) { Write-Host "Stopping process: $n"; Stop-Process -Name $n -Force -ErrorAction SilentlyContinue }
+
+Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+  $_.TaskName -like '*Dock*Manager*' -or $_.TaskName -like '*dockmgr*'
+} | ForEach-Object {
+  Write-Host "Disabling scheduled task: $($_.TaskName)"
+  Disable-ScheduledTask -TaskName $_.TaskName -TaskPath $_.TaskPath -ErrorAction SilentlyContinue | Out-Null
 }
+
+foreach ($n in @('dockmgr', 'dockmgr.svc', 'dockmgr.schd')) {
+  Write-Host "Killing process: $n.exe"
+  & taskkill.exe /F /IM "$n.exe" /T 2>$null | Out-Null
+}
+Start-Sleep -Seconds 3
 
 # Inno's UninstallString is the bare unins000.exe path (quoted, no args).
 $uninstPath = ($entry.UninstallString -replace '"', '').Trim()
