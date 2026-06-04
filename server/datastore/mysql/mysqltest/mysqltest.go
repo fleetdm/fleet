@@ -903,7 +903,7 @@ func NewTestActivityService(t testing.TB, ds *mysql.Datastore) activity_api.Serv
 	dbConns := TestDBConnections(t, ds)
 
 	lookupSvc := &testingLookupService{ds: ds}
-	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc, ds)
 
 	discardLogger := slog.New(slog.DiscardHandler)
 	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, discardLogger)

@@ -188,12 +188,13 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBussinessManager instead
+	// Deprecated: use AppleBusinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
-	// AppleBusinessManager defines the associations between ABM tokens
-	// and the teams used to assign hosts when they're ingested from ABM.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
+	// AppleBusinessManager defines the associations between AB tokens
+	// and the fleets used to assign hosts when they're ingested from Apple
+	// Business.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -244,6 +245,10 @@ type MDM struct {
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
+
+	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
+	// Windows automatic enrollment.
+	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -426,6 +431,10 @@ func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
 	return true
 }
 
+func (w WindowsUpdates) Configured() bool {
+	return w.DeadlineDays.Valid && w.GracePeriodDays.Valid
+}
+
 func (w WindowsUpdates) Validate() error {
 	const (
 		minDeadline    = 0
@@ -584,8 +593,12 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
-	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
 	}
 
 	return nil
@@ -936,6 +949,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.WindowsEntraTenantIDs.Set {
 		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
+	if c.MDM.WindowsEntraClientIDs.Set {
+		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
+		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
 	}
 
 	return &clone
@@ -1752,8 +1770,9 @@ type EmailConfig struct {
 }
 
 type SESConfig struct {
-	Region    string `json:"region"`
-	SourceARN string `json:"source_arn"`
+	Region       string `json:"region"`
+	SourceARN    string `json:"source_arn"`
+	SenderDomain string `json:"sender_domain"`
 }
 
 type UpdateIntervalConfig struct {

@@ -112,5 +112,5 @@ Track the percentage of users with standing admin rights over time, the average 
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-13">
+<meta name="publishedOn" value="2026-03-12">
 <meta name="description" value="Enforce the principle of least privilege on macOS, Windows, and Linux to help satisfy access minimization requirements in frameworks.">

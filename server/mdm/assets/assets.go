@@ -2,10 +2,12 @@ package assets
 
 import (
 	"context"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,6 +18,65 @@ import (
 
 func CAKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificate, error) {
 	return KeyPair(ctx, ds, fleet.MDMAssetCACert, fleet.MDMAssetCAKey)
+}
+
+// CADecryptRetriever is the subset of fleet.Datastore needed to load the Apple
+// MDM CA private key plus every historical CA certificate for CMS decryption.
+type CADecryptRetriever interface {
+	fleet.MDMAssetRetriever
+	GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error)
+}
+
+// CACertsAndKeyForDecryption returns the Apple MDM CA private key together with
+// every CA certificate (current and previously-rolled-over) whose public key
+// matches that private key, newest first. Pass the returned certs to
+// mdm.DecryptBase64CMSWithCerts so payloads escrowed against an earlier CA cert
+// still decrypt after a rollover — see that function for why the cert (not just
+// the key) matters. Certs whose public key does not match the current private
+// key (e.g. a CA from a prior key rotation) are skipped, since they could not
+// decrypt with this key anyway.
+func CACertsAndKeyForDecryption(ctx context.Context, ds CADecryptRetriever) ([]*x509.Certificate, crypto.PrivateKey, error) {
+	keyPair, err := CAKeyPair(ctx, ds)
+	if err != nil {
+		return nil, nil, err
+	}
+	signer, ok := keyPair.PrivateKey.(crypto.Signer)
+	if !ok {
+		return nil, nil, errors.New("apple mdm ca private key is not a crypto.Signer")
+	}
+	pub := signer.Public()
+
+	historical, err := ds.GetAllMDMConfigAssetsByNameIncludingDeleted(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert})
+	if err != nil {
+		return nil, nil, fmt.Errorf("loading historical CA certificates: %w", err)
+	}
+
+	type publicKeyEqual interface {
+		Equal(crypto.PublicKey) bool
+	}
+
+	var certs []*x509.Certificate
+	for _, asset := range historical {
+		block, _ := pem.Decode(asset.Value)
+		if block == nil || block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			continue
+		}
+		if eq, ok := cert.PublicKey.(publicKeyEqual); ok && eq.Equal(pub) {
+			certs = append(certs, cert)
+		}
+	}
+
+	// Fall back to the keypair leaf if the include-deleted lookup yielded
+	// nothing usable, so behaviour matches the previous single-cert path.
+	if len(certs) == 0 {
+		certs = append(certs, keyPair.Leaf)
+	}
+
+	return certs, keyPair.PrivateKey, nil
 }
 
 func APNSKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificate, string, error) {

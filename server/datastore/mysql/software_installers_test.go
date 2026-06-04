@@ -696,7 +696,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingInstall.ID},
@@ -706,7 +706,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHousePendingInstall.ID},
@@ -716,7 +716,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						SoftwareStatusFilter:  new(fleet.SoftwarePending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingInstall.ID, hostPendingUninstall.ID},
@@ -726,7 +726,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						SoftwareStatusFilter:  new(fleet.SoftwarePending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHousePendingInstall.ID},
@@ -736,7 +736,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedInstall.ID},
@@ -746,7 +746,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
@@ -756,7 +756,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedInstall.ID, hostFailedUninstall.ID},
@@ -766,7 +766,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
@@ -776,7 +776,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstalled),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInstalled.ID},
@@ -786,7 +786,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstalled),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseInstalled.ID},
@@ -796,7 +796,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareUninstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingUninstall.ID},
@@ -806,7 +806,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareUninstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedUninstall.ID},
@@ -1888,7 +1888,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 	}
 
-	// batch-set change ins0's install script to update it and cancel the pending install
+	// batch-set ins0's install script. ins0's in-flight SE install must not be cancelled.
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:      "install2",
@@ -1929,7 +1929,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
-	// Verify that ins0's install was cancelled but ins1 is still running
+	// both SE rows must stay running: ins0 was the edited installer, ins1 was unrelated
 	ins1ExecID := ""
 	ins0Found := false
 	ins1Found := false
@@ -1937,7 +1937,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		if status.Name == ins0 {
 			assert.False(t, ins0Found, "duplicate ins0 found")
 			ins0Found = true
-			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		} else {
 			assert.False(t, ins1Found, "duplicate ins1 found")
 			assert.Equal(t, ins1, status.Name)
@@ -2001,15 +2001,14 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
-	// Verify that ins0's install is still cancelled and ins1 is still running(because it hasn't
-	// been updated in the SESR entry yet)
+	// both SE rows still running. ins1 is unchanged because SetHostSoftwareInstallResult doesn't advance the SE row.
 	ins0Found = false
 	ins1Found = false
 	for _, status := range statuses {
 		if status.Name == ins0 {
 			assert.False(t, ins0Found, "duplicate ins0 found")
 			ins0Found = true
-			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		} else {
 			assert.False(t, ins1Found, "duplicate ins1 found")
 			assert.Equal(t, ins1, status.Name)

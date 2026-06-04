@@ -41,7 +41,7 @@ func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
 }
 
-func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 	type certSourceToSet struct {
 		Source   fleet.HostCertificateSource
 		Username string
@@ -50,6 +50,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	incomingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(certs))
 	incomingSourcesBySHA1 := make(map[string][]certSourceToSet, len(certs))
 	for _, cert := range certs {
+		// Tag every incoming cert with the calling ingestion source. We trust the
+		// caller for this — origin scopes deletion semantics, not data integrity.
+		cert.Origin = origin
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
 			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
@@ -100,6 +103,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	toInsertBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(incomingBySHA1))
 	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
+	// Existing mdm-origin rows that osquery is also reporting. One-way
+	// downgrade: osquery sees a strict superset of the keychain, so dual
+	// observation isn't evidence of MDM delivery.
+	var toDowngrade []uint
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
@@ -118,8 +125,13 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			toSetSourcesBySHA1[sha1] = incomingSources
 		}
 
+		existing, hasExisting := existingBySHA1[sha1]
+		if hasExisting && existing.Origin == fleet.HostCertificateOriginMDM && incoming.Origin == fleet.HostCertificateOriginOsquery {
+			toDowngrade = append(toDowngrade, existing.ID)
+		}
+
 		// Check by SHA but also validity dates, as certs with dynamic SCEP challenges, the profile contents does not change other than validity dates.
-		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
+		if hasExisting && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
 			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
@@ -163,8 +175,11 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	now := time.Now()
 	for _, row := range hostMDMManagedCerts {
 		hostMDMManagedCert := &row.MDMManagedCertificate
-		// DigiCert is populated server-side at issuance, not via osquery/MDM.
-		if !hostMDMManagedCert.Type.SupportsRenewalID() {
+		// Skip CA types that don't carry a renewal-ID marker — today only
+		// DigiCert, which is server-issued and managed without matching
+		// against ingested certs. Empty/NULL `Type` (rows created by the
+		// non-proxied insert path below) IS eligible.
+		if hostMDMManagedCert.Type != "" && !hostMDMManagedCert.Type.SupportsRenewalID() {
 			continue
 		}
 
@@ -220,9 +235,84 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
+	// Non-proxied insert path: for each profile installed on this host
+	// without an existing host_mdm_managed_certificates row, see if any
+	// incoming cert's Subject carries the `fleet-<profile_uuid>` marker.
+	// If so, create the row from the cert's metadata. This activates
+	// renewal for ACME / non-proxied SCEP flows where Fleet isn't in the
+	// issuance path so no row gets created at issuance time.
+	hostMDMManagedCertsToInsert := make([]*fleet.MDMManagedCertificate, 0, len(incomingBySHA1))
+	if len(incomingBySHA1) > 0 {
+		existingProfileUUIDs := make(map[string]struct{}, len(hostMDMManagedCerts))
+		for _, row := range hostMDMManagedCerts {
+			existingProfileUUIDs[row.ProfileUUID] = struct{}{}
+		}
+		var candidateProfileUUIDs []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidateProfileUUIDs, `
+			SELECT profile_uuid FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND operation_type = ?
+			UNION
+			SELECT profile_uuid FROM host_mdm_windows_profiles
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall,
+			hostUUID, fleet.MDMOperationTypeInstall,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "list candidate profile UUIDs for managed cert insert")
+		}
+		for _, profileUUID := range candidateProfileUUIDs {
+			if _, exists := existingProfileUUIDs[profileUUID]; exists {
+				continue
+			}
+			renewalIDString := "fleet-" + profileUUID
+			var bestMatch *fleet.HostCertificateRecord
+			for _, cert := range incomingBySHA1 {
+				if !strings.Contains(cert.SubjectCommonName, renewalIDString) &&
+					!strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
+					continue
+				}
+				// Skip certs outside their validity window: a device may
+				// still be reporting a just-expired cert alongside its
+				// renewal, and latching onto it would seed the row with
+				// backward-pointing dates.
+				if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+					continue
+				}
+				if bestMatch == nil || cert.NotValidBefore.After(bestMatch.NotValidBefore) {
+					bestMatch = cert
+				}
+			}
+			if bestMatch == nil {
+				continue
+			}
+			// Use a fixed sentinel for ca_name on non-proxied rows.
+			// Proxied flows set ca_name from Fleet-controlled CA
+			// registration (stable across renewals); deriving it from
+			// the cert's Issuer CN would drift if the upstream CA ever
+			// renames. The cert's actual issuer is available in
+			// host_certificates for support visibility.
+			// Type is written as NULL by insertHostMDMManagedCertDB —
+			// Fleet wasn't in the issuance path so it doesn't know the
+			// CA type. The struct's Type field is left unset.
+			hostMDMManagedCertsToInsert = append(hostMDMManagedCertsToInsert, &fleet.MDMManagedCertificate{
+				HostUUID:       hostUUID,
+				ProfileUUID:    profileUUID,
+				NotValidBefore: &bestMatch.NotValidBefore,
+				NotValidAfter:  &bestMatch.NotValidAfter,
+				CAName:         "non_proxied",
+				Serial:         ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+			})
+		}
+	}
+
 	toDelete := make([]uint, 0, len(existingBySHA1))
 	for sha1, existing := range existingBySHA1 {
 		if _, ok := incomingBySHA1[sha1]; !ok {
+			// Source-scoped delete: only remove rows whose origin matches the
+			// calling ingestion source. An osquery sync omitting an MDM-only cert
+			// must not delete that cert, and vice versa.
+			if existing.Origin != origin {
+				continue
+			}
 			toDelete = append(toDelete, existing.ID)
 		}
 	}
@@ -258,8 +348,16 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "soft delete host certs")
 		}
 
+		if err := downgradeHostCertsOriginToOsqueryDB(ctx, tx, hostID, toDowngrade); err != nil {
+			return ctxerr.Wrap(ctx, err, "downgrade host certs origin")
+		}
+
 		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
+		}
+
+		if err := insertHostMDMManagedCertDB(ctx, tx, hostMDMManagedCertsToInsert); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed cert rows")
 		}
 		return nil
 	})
@@ -380,6 +478,7 @@ SELECT
 	hc.issuer_org,
 	hc.issuer_org_unit,
 	hc.issuer_common_name,
+	hc.origin,
 	hcs.source,
 	hcs.username
 	%s`, fromWhereClause)
@@ -527,25 +626,46 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	origin
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	const singleRowPlaceholderCount = 19
+	const singleRowPlaceholderCount = 20
 	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		origin := cert.Origin
+		if origin == "" {
+			origin = fleet.HostCertificateOriginOsquery
+		}
 		args = append(args,
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName,
+			origin)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host certificates")
+	}
+	return nil
+}
+
+func downgradeHostCertsOriginToOsqueryDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt := `UPDATE host_certificates SET origin = ? WHERE host_id = ? AND id IN (?) AND origin = ?`
+	stmt, args, err := sqlx.In(stmt, fleet.HostCertificateOriginOsquery, hostID, ids, fleet.HostCertificateOriginMDM)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building downgrade origin query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "downgrading host certificate origin")
 	}
 	return nil
 }
@@ -571,6 +691,55 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	return nil
 }
 
+// softDeleteMDMHostCertsDB clears all MDM-origin cert rows on unenroll, where
+// nothing else will: no more CertificateList, and osquery can't see
+// hardware-bound ACME certs.
+func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	const stmt = `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND origin = ? AND deleted_at IS NULL`
+	if _, err := tx.ExecContext(ctx, stmt, hostID, fleet.HostCertificateOriginMDM); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft deleting mdm host certificates")
+	}
+	return nil
+}
+
+// See the Datastore interface for contract. Batched to bound lock scope: a
+// host can have many MDM certs, so a mass unenroll could otherwise lock a
+// large set in one statement.
+func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	const batchSize = 1000
+	// Derived-table wrap is required: MySQL forbids referencing the updated
+	// table directly in the subquery's FROM.
+	const stmt = `
+		UPDATE host_certificates
+		SET deleted_at = NOW(6)
+		WHERE deleted_at IS NULL AND id IN (
+			SELECT id FROM (
+				SELECT hc.id
+				FROM host_certificates hc
+				JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+				WHERE hc.origin = ? AND hc.deleted_at IS NULL
+				ORDER BY hc.id
+				LIMIT ?
+			) AS batch
+		)`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.HostCertificateOriginMDM, batchSize)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "rows affected for mdm host certificates sweep")
+		}
+		total += n
+		if n < batchSize {
+			break
+		}
+	}
+	return total, nil
+}
+
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
 	if len(certs) == 0 {
 		return nil
@@ -588,6 +757,32 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
+		}
+	}
+	return nil
+}
+
+// insertHostMDMManagedCertDB creates host_mdm_managed_certificates rows for
+// non-proxied SCEP/ACME flows discovered via cert ingestion. type is always
+// written as NULL because Fleet wasn't in the issuance path and doesn't know
+// the CA type. Uses INSERT IGNORE so a row created concurrently by another
+// transaction (e.g., a SCEP proxy issuance) doesn't cause a duplicate-key
+// error here — the matcher's UPDATE pass picks up that row on the next
+// ingestion call.
+func insertHostMDMManagedCertDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
+	if len(certs) == 0 {
+		return nil
+	}
+	for _, c := range certs {
+		_, err := tx.ExecContext(ctx, `
+			INSERT IGNORE INTO host_mdm_managed_certificates
+				(host_uuid, profile_uuid, ca_name, type,
+				 not_valid_before, not_valid_after, serial)
+			VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+			c.HostUUID, c.ProfileUUID, c.CAName,
+			c.NotValidBefore, c.NotValidAfter, c.Serial)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed certificate")
 		}
 	}
 	return nil

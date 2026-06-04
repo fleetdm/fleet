@@ -972,7 +972,7 @@ func (c *Client) ApplyGroup(
 		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("applying fleets: %w", err)
 		}
 
 		// Run any caller-supplied hook between fleet creation and fleet-resource
@@ -1168,7 +1168,7 @@ func extractTeamOrNoTeamMacOSSetupSoftware(baseDir string, software []*fleet.Mac
 	m := make(map[fleet.MacOSSetupSoftware]struct{}, len(software))
 	for _, sw := range software {
 		if sw.AppStoreID != "" && sw.PackagePath != "" {
-			return nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
+			return nil, errors.New("applying fleets: only one of app_store_id or package_path can be set")
 		}
 		if sw.PackagePath != "" {
 			sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
@@ -2139,8 +2139,8 @@ func (c *Client) DoGitOps(
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
-			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
-				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			if _, ok := mdmAppConfig["apple_business"]; !ok {
+				mdmAppConfig["apple_business"] = []any{}
 			}
 		}
 
@@ -2174,6 +2174,10 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
 		if incoming.Controls.WindowsEntraTenantIDs == nil {
 			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
+		}
+		mdmAppConfig["windows_entra_client_ids"] = incoming.Controls.WindowsEntraClientIDs
+		if incoming.Controls.WindowsEntraClientIDs == nil {
+			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
@@ -3121,8 +3125,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 
 		// Get patch policy title IDs for the team
-		for i := range config.Policies {
-			config.Policies[i].PatchSoftwareTitleID = softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+		for _, policy := range config.Policies {
+			if policy.Type == fleet.PolicyTypePatch {
+				policy.PatchSoftwareTitleID = softwareTitleIDsBySlug[policy.FleetMaintainedAppSlug]
+			}
 		}
 	}
 

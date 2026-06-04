@@ -151,7 +151,13 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
+export type HostMdmPendingAction =
+  | "unlock"
+  | "lock"
+  | "wipe"
+  | "clear_passcode"
+  | "location"
+  | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -238,8 +244,12 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
+  /** @deprecated use `org_logo_url_dark_mode` */
   org_logo_url: string;
+  /** @deprecated use `org_logo_url_light_mode` */
   org_logo_url_light_background: string;
+  org_logo_url_dark_mode?: string;
+  org_logo_url_light_mode?: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;

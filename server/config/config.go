@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -169,6 +169,63 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
+// allowedURLPrefixRegexp matches a non-empty slash-prefixed path made of
+// `/segment[/segment...]` where each segment is one or more URL-safe characters.
+var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+// Validate checks server-side private key configuration: private_key and
+// private_key_arn cannot both be set. Called early so a misconfigured server
+// fails before paying for an external Secrets Manager lookup.
+func (s ServerConfig) Validate(initFatal func(err error, msg string)) {
+	if s.PrivateKey != "" && s.PrivateKeySecretArn != "" {
+		initFatal(errors.New("cannot specify both private_key and private_key_arn"),
+			"validate private key configuration")
+	}
+}
+
+// ValidatePrivateKeyLength enforces a 32-byte minimum on the (possibly
+// Secrets-Manager-resolved) private key. Called after Secrets Manager
+// retrieval so an SM-provided short key is also caught.
+func (s ServerConfig) ValidatePrivateKeyLength(initFatal func(err error, msg string)) {
+	if len(s.PrivateKey) > 0 && len(s.PrivateKey) < 32 {
+		initFatal(errors.New("private key must be at least 32 bytes long"),
+			"validate private key")
+	}
+}
+
+// NormalizeURLPrefix trims a trailing slash and ensures a leading slash on
+// the configured URL prefix. Mutates the receiver; safe to call when empty.
+// Call before ValidateURLPrefix.
+//
+// A user-supplied "/" trims down to "" and would otherwise be indistinguishable
+// from "no prefix configured" by ValidateURLPrefix. Restore it to "/" so the
+// regex check rejects it instead of silently accepting a misconfiguration.
+func (s *ServerConfig) NormalizeURLPrefix() {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	s.URLPrefix = strings.TrimSuffix(s.URLPrefix, "/")
+	if len(s.URLPrefix) == 0 {
+		s.URLPrefix = "/"
+		return
+	}
+	if !strings.HasPrefix(s.URLPrefix, "/") {
+		s.URLPrefix = "/" + s.URLPrefix
+	}
+}
+
+// ValidateURLPrefix checks the URL prefix against the allowed pattern.
+// Should be called after NormalizeURLPrefix; an empty prefix is allowed.
+func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	if !allowedURLPrefixRegexp.MatchString(s.URLPrefix) {
+		initFatal(fmt.Errorf("prefix must match regexp %q", allowedURLPrefixRegexp.String()),
+			"setting server URL prefix")
+	}
+}
+
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
 	BcryptCost                  int           `yaml:"bcrypt_cost"`
@@ -247,6 +304,21 @@ type OsqueryConfig struct {
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
+// Validate checks that osquery_host_identifier is one of the supported values.
+// The osquery agent uses this to determine which identifier is reported as the host UUID.
+func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
+	allowed := map[string]struct{}{
+		"provided": {},
+		"instance": {},
+		"uuid":     {},
+		"hostname": {},
+	}
+	if _, ok := allowed[o.HostIdentifier]; !ok {
+		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
+			"set host identifier")
+	}
+}
+
 // AsyncTaskName is the type of names that identify tasks supporting
 // asynchronous execution.
 type AsyncTaskName string
@@ -315,6 +387,15 @@ type LoggingConfig struct {
 	DisableLogTopics string `yaml:"disable_topics"`
 }
 
+// Validate checks logging configuration consistency: OTEL log export requires
+// tracing to be enabled so log records carry trace IDs.
+func (l LoggingConfig) Validate(initFatal func(err error, msg string)) {
+	if l.OtelLogsEnabled && !l.TracingEnabled {
+		initFatal(errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+			"OTEL logs require tracing for trace correlation")
+	}
+}
+
 // ActivityConfig defines configs related to activities.
 type ActivityConfig struct {
 	// EnableAuditLog enables logging for audit activities.
@@ -358,6 +439,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -831,12 +913,18 @@ type MDMConfig struct {
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
 
-	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
-	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
+	SSORateLimitPerMinute    int `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit int `yaml:"certificate_profiles_limit"`
+	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+func (m MDMConfig) IsCustomFileVaultEnabled() bool {
+	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -961,6 +1049,20 @@ func (m *MDMConfig) IsAppleBMSet() bool {
 	}
 	// the BM token options is not taken into account by pair.IsSet
 	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
+}
+
+// ValidateAppleAPNSAndSCEPPair enforces that Apple APNs and SCEP are
+// configured together — neither half of the pair is usable on its own.
+// Callers should gate this on a precondition that at least one side is set
+// (the outer Apple-MDM init flow handles that today).
+func (m *MDMConfig) ValidateAppleAPNSAndSCEPPair(initFatal func(err error, msg string)) {
+	if !m.IsAppleAPNsSet() {
+		initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
+			"validate Apple MDM")
+	} else if !m.IsAppleSCEPSet() {
+		initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
+			"validate Apple MDM")
+	}
 }
 
 // AppleAPNs returns the parsed TLS certificate for Apple APNs.
@@ -1227,7 +1329,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.host_cache_enabled", true,
 		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
 			"and serve every check-in from MySQL.")
-	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+	man.addConfigDuration("redis.host_cache_ttl", 180*time.Second,
 		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
 			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
 			"redis.host_cache_enabled=false to disable the cache.")
@@ -1387,6 +1489,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from the Fleet Web Address (server_settings.server_url)")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1638,7 +1741,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
-	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -1863,6 +1967,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -1969,6 +2074,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
@@ -2385,12 +2491,20 @@ func TestConfig() FleetConfig {
 	}
 }
 
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
+}
+
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
 // configured properly. The provided certificate and private key are used for
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

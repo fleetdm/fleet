@@ -35,11 +35,11 @@ The Fleet handbook provides team members with up-to-date information about how t
 
 At Fleet, we make changes to the handbook first.  That means, before any change to how we run the business is "live" or "official", it is first changed in the relevant [handbook pages](https://fleetdm.com/handbook) and [issue templates](https://github.com/fleetdm/confidential/tree/main/.github/ISSUE_TEMPLATE).
 
-Making changes to the handbook first [encourages](https://www.youtube.com/watch?v=aZrK8AQM8Ro) a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
+Making changes to the handbook first encourages a culture of self-reliance, which is essential for daily asynchronous work as part of an all-remote team.  It keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change. 
 
 > The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
+To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company/writing#writing).
 
 
 ## Why read documentation?
@@ -315,6 +315,10 @@ AI can't take responsibility. Only humans can. If your name is on the commit, th
 - **AI review is not a substitute for human review.** AI reviews are useful, but they don't transfer accountability.
 - **The value of a review is the guarantee, not the findings.** It is normal to review an AI-generated PR carefully and only find nits, or nothing at all. That doesn't mean the review was wasted. The value is the guarantee that a human read every line and understood it. Without that guarantee, we ship work no one understands, and that is how teams accumulate latent bugs, brittle abstractions, and broken systems that nobody can debug.
 
+
+## Why send LinkedIn comments to Unthread?
+
+Fleet routes LinkedIn comments to Unthread so that a dedicated team owns every comment rather than it being another inbox for a single individual to triage. Unthread surfaces comments as actionable tickets, ensuring nothing is overlooked and responders are held accountable. Reverting to this process gives accountability and repeatable success to the team best equipped to respond to comments.
 
 ## Why keep issue templates simple?
 

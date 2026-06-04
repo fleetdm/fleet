@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -62,7 +63,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	if len(tokens) > 1 {
-		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
+		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
 	}
 
 	abmToken := tokens[0]
@@ -284,14 +285,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	if payload.EndUserLocalAccountType != nil {
-		if *payload.EndUserLocalAccountType != "admin" {
-			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
-		}
-		if !ac.MDM.MacOSSetup.EndUserLocalAccountType.Valid || ac.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
-			ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
-			didUpdate = true
-		}
+	if didUpdateFromValidation, err := payload.Validate(&ac.MDM.MacOSSetup); err != nil {
+		return err
+	} else if didUpdateFromValidation {
+		didUpdate = true
 	}
 
 	if didUpdate {
@@ -1422,7 +1419,6 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 
 func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice, updates fleet.AppleOSUpdateSettings) error {
 	const (
-		softwareUpdateType        = `com.apple.configuration.softwareupdate.enforcement.specific`
 		softwareUpdateIdentSuffix = `-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
 	)
 	var (
@@ -1464,9 +1460,9 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, updates.Deadline.Value))
 
-	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, apple_mdm.DeclarationTypeSoftwareUpdate, softwareUpdateIdentifier)
 
 	// Associate the profile with the built-in label to ensure that the profile is applied to the targeted devices.
 	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName}, fleet.TeamFilter{}) // built-in labels are global
@@ -1811,9 +1807,53 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return svc.clearPasscodeApple(ctx, host, appCfg)
 	}
 
+	if fleet.IsAndroidPlatform(host.Platform) {
+		return svc.clearPasscodeAndroid(ctx, host, appCfg)
+	}
+
 	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-		Message: "Clearing passcode is only supported on Apple mobile platforms",
+		Message: "Clearing passcode is only supported on Apple mobile platforms and Android",
 	})
+}
+
+// clearPasscodeAndroid dispatches Clear passcode to the Android Service.
+func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fleet.AndroidMDMNotConfiguredMessage,
+		})
+	}
+
+	// Per-host MDM-enrollment check, mirroring the android branch of LockHost/WipeHost. Without this,
+	// targeting a not-yet-enrolled (or already unenrolled) Android host surfaces a wrapped AMAPI error
+	// instead of the standardized friendly message.
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Can't clear passcode for the host because it doesn't have MDM turned on.",
+		})
+	}
+
+	commandUUID, err := svc.androidModule.ClearAndroidPasscode(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "issuing android clear-passcode")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeClearedPasscode{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for android cleared passcode")
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: commandUUID,
+		RequestType: string(android.MDMAndroidCommandTypeResetPassword),
+		Platform:    host.Platform,
+	}, nil
 }
 
 func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
