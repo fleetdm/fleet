@@ -76,9 +76,8 @@ export const generateSoftwareOptionHelpText = (
     platform && extension
       ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
       : "";
-  const version = title.software_package?.version
-    ? ` • ${title.software_package.version}`
-    : "";
+  const version = title.software_package?.version ?? "";
+  const separator = platformString && version ? " • " : "";
 
-  return `${platformString}${version}`;
+  return `${platformString}${separator}${version}`;
 };

@@ -69,6 +69,20 @@ describe("generateSoftwareOptionHelpText", () => {
     expect(generateSoftwareOptionHelpText(title)).toBe("Windows (.exe)");
   });
 
+  it("omits the leading separator when there is a version but no platform string", () => {
+    const title = createMockSoftwareTitle({
+      // null-platform source -> empty platform string, but the package has a version
+      source: "go_binaries",
+      app_store_app: null,
+      software_package: createMockSoftwarePackage({
+        name: "mytool",
+        version: "1.2.3",
+      }),
+    });
+
+    expect(generateSoftwareOptionHelpText(title)).toBe("1.2.3");
+  });
+
   it("returns an empty string when neither platform nor version is available", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
