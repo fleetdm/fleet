@@ -699,21 +699,21 @@ export const getPerformanceImpactIndicatorTooltip = (
       return (
         <>
           Running this report very frequently has little to no <br /> impact on
-          your device&apos;s performance.
+          your host&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.CONSIDERABLE:
       return (
         <>
           Running this report frequently can have a noticeable <br />
-          impact on your device&apos;s performance.
+          impact on your host&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.EXCESSIVE:
       return (
         <>
           Running this report, even infrequently, can have a <br />
-          significant impact on your device&apos;s performance.
+          significant impact on your host&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.DENYLISTED:

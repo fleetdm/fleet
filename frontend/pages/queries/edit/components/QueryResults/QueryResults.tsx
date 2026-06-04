@@ -251,8 +251,19 @@ const QueryResults = ({
         errors: filteredErrors.length,
         performance: performanceStats?.length ?? 0,
       };
+      // each performance row is a host, so count "hosts" rather than "performance"
+      const nameByType = {
+        results: "results",
+        errors: "errors",
+        performance: "hosts",
+      };
 
-      return <TableCount name={tableType} count={countByType[tableType]} />;
+      return (
+        <TableCount
+          name={nameByType[tableType]}
+          count={countByType[tableType]}
+        />
+      );
     },
     [filteredResults.length, filteredErrors.length, performanceStats?.length]
   );
