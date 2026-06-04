@@ -699,8 +699,8 @@ This activity contains the following fields:
 Generated when the minimum required iOS version or deadline is modified.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the minimum iOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "minimum_version": The minimum iOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -722,8 +722,8 @@ This activity contains the following fields:
 Generated when the minimum required iPadOS version or deadline is modified.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -745,8 +745,8 @@ This activity contains the following fields:
 Generated when the Windows OS updates deadline or grace period is modified.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
 - "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
 
@@ -768,8 +768,8 @@ This activity contains the following fields:
 Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -787,8 +787,8 @@ This activity contains the following fields:
 Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the setting applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -842,8 +842,8 @@ Generated when a user adds a new macOS profile to a fleet (or no fleet).
 This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "profile_identifier": Identifier of the profile.
-- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -865,8 +865,8 @@ Generated when a user deletes a macOS profile from a fleet (or no fleet).
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "profile_identifier": Identifier of deleted the profile.
-- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -886,8 +886,8 @@ This activity contains the following fields:
 Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -906,8 +906,8 @@ Generated when a user sets the macOS setup assistant for a fleet (or no fleet).
 
 This activity contains the following fields:
 - "name": Name of the macOS setup assistant file.
-- "fleet_id": The ID of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the setup assistant applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -927,8 +927,8 @@ Generated when a user deletes the macOS setup assistant for a fleet (or no fleet
 
 This activity contains the following fields:
 - "name": Name of the deleted macOS setup assistant file.
-- "fleet_id": The ID of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the setup assistant applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -947,8 +947,8 @@ This activity contains the following fields:
 Generated when a user turns on disk encryption for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -966,8 +966,8 @@ This activity contains the following fields:
 Generated when a user turns off disk encryption for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1066,8 +1066,8 @@ Generated when a user adds a new bootstrap package to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1087,8 +1087,8 @@ Generated when a user deletes a bootstrap package from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the package applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1107,8 +1107,8 @@ This activity contains the following fields:
 Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1126,8 +1126,8 @@ This activity contains the following fields:
 Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1213,8 +1213,8 @@ Generated when a script is added to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1234,8 +1234,8 @@ Generated when a script is deleted from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1254,8 +1254,8 @@ This activity contains the following fields:
 Generated when a user edits the scripts of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the scripts apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1274,8 +1274,8 @@ Generated when a script is updated.
 
 This activity contains the following fields:
 - "script_name": Name of the script.
-- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the script applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1295,8 +1295,8 @@ Generated when a user adds a new Windows profile to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1316,8 +1316,8 @@ Generated when a user deletes a Windows profile from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
-- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1336,8 +1336,8 @@ This activity contains the following fields:
 Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1429,8 +1429,8 @@ Generated when a user adds a new macOS declaration to a fleet (or no fleet).
 This activity contains the following fields:
 - "profile_name": Name of the declaration.
 - "identifier": Identifier of the declaration.
-- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1452,8 +1452,8 @@ Generated when a user removes a macOS declaration from a fleet (or no fleet).
 This activity contains the following fields:
 - "profile_name": Name of the declaration.
 - "identifier": Identifier of the declaration.
-- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the declaration applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1473,8 +1473,8 @@ This activity contains the following fields:
 Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1493,8 +1493,8 @@ Generated when a user adds a new Android profile to a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1514,8 +1514,8 @@ Generated when a user deletes an Android profile from a fleet (or no fleet).
 
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
-- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1534,8 +1534,8 @@ This activity contains the following fields:
 Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1553,8 +1553,8 @@ This activity contains the following fields:
 Generated when a user adds or removes Android certificate templates of a fleet (or no fleet) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the certificate templates apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2616,8 +2616,8 @@ This activity contains the following fields:
 Generated when global or fleet enroll secrets are edited.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the enroll secret applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2669,8 +2669,8 @@ This activity contains the following fields:
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2688,8 +2688,8 @@ This activity contains the following fields:
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that Recovery Lock password applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2707,8 +2707,8 @@ This activity contains the following fields:
 Generated when a managed local account password is rotated.
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2724,8 +2724,8 @@ This activity contains the following fields:
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -2741,8 +2741,8 @@ This activity contains the following fields:
 Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
