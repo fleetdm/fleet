@@ -597,6 +597,8 @@ software:
 ```
 
 #### self_service, labels, categories, and setup_experience
+
+When adding multiple packages to a YAML file, labels must be specified for each package inside the YAML file, not on the fleet-level YAML file.
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
