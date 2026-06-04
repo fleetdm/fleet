@@ -630,6 +630,15 @@ const CommandPalette = (): JSX.Element | null => {
                       {item.teamName}
                     </span>
                   )}
+                  {/* Parent label as a context chip on promoted sub-items
+                      — disambiguates rows that share a label (e.g., two
+                      "Run script" sub-items, one under Setup experience
+                      and one under Manage policy automations). */}
+                  {sub && (
+                    <span className={`${baseClass}__item-meta`}>
+                      {item.label}
+                    </span>
+                  )}
                 </Command.Item>
               );
             })}
