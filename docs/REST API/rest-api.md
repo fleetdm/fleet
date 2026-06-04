@@ -11155,84 +11155,65 @@ Returns information about the specified software. By default, `versions` are sor
 ```json
 {
   "software_title": {
-    "id": 12,
-    "name": "Google Chrome.app",
-    "display_name": "Google Chrome",
-    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
-    "display_name": "",
-    "bundle_identifier": "com.google.Chrome",
+    "id": 2792,
+    "name": "Slack",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/f7/27/90f727be-835b-54ad-4d9d-8b597e63e321/electron.png/512x512bb.png",
+    "source": "apps",
+    "extension_for": "",
+    "browser": "",
+    "hosts_count": 5,
+    "versions_count": 4,
+    "versions": [
+        {
+            "id": 515953,
+            "version": "4.39.88",
+            "vulnerabilities": null,
+            "hosts_count": 1
+        },
+        {
+            "id": 610801,
+            "version": "4.47.72",
+            "vulnerabilities": null,
+            "hosts_count": 2
+        }
+    ],
+    "counts_updated_at": "2026-06-04T17:23:45Z",
     "software_package": {
-      "name": "GoogleChrome.pkg",
-      "version": "143.0.7499.193",
-      "categories": ["Productivity"],
-      "platform": "darwin",
-      "fleet_maintained_app_id": 42,
-      "fleet_maintained_versions": [
-        {
-          "id": 1,
-          "version": "143.0.7499.193"
+        "team_id": 310,
+        "title_id": 2792,
+        "name": "Slack-4.50.128-macOS.pkg",
+        "icon_url": null,
+        "version": "4.50.128",
+        "platform": "darwin",
+        "uploaded_at": "2026-06-04T17:29:09.155424Z",
+        "installer_id": 36817,
+        "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+        "pre_install_query": "",
+        "post_install_script": "",
+        "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
+        "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+        "status": {
+            "installed": 0,
+            "pending_install": 1,
+            "failed_install": 0,
+            "pending_uninstall": 0,
+            "failed_uninstall": 0
         },
-        {
-          "id": 2,
-          "version": "142.0.7444.176"
-        },
-      ],
-      "installer_id": 23,
-      "team_id": 3,
-      "uploaded_at": "2024-04-01T14:22:58Z",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
-      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-      "uninstall_script": "/Library/CS/falconctl uninstall",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
-          "type": "dynamic"
-        }
-      ],
-      "status": {
-        "installed": 3,
-        "pending_install": 1,
-        "failed_install": 0,
-        "pending_uninstall": 2,
-        "failed_uninstall": 1
-      }
+        "self_service": false,
+        "url": "",
+        "fleet_maintained_app_id": null,
+        "automatic_install_policies": null,
+        "labels_include_any": null,
+        "labels_exclude_any": null,
+        "labels_include_all": null,
+        "categories": null,
+        "display_name": "",
+        "patch_policy": null,
+        "fleet_id": 310
     },
     "app_store_app": null,
-    "counts_updated_at": "2024-11-03T22:39:36Z",
-    "source": "apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "142.0.7444.176",
-        "vulnerabilities": ["CVE-2023-1234"],
-        "hosts_count": 37
-      },
-      {
-        "id": 124,
-        "version": "141.0.7444.170",
-        "vulnerabilities": ["CVE-2023-4321"],
-        "hosts_count": 7
-      },
-      {
-        "id": 127,
-        "version": "138.0.7655.171",
-        "vulnerabilities": ["CVE-2023-7654"],
-        "hosts_count": 4
-      }
-    ]
+    "bundle_identifier": "com.tinyspeck.slackmacgap",
+    "display_name": ""
   }
 }
 ```
