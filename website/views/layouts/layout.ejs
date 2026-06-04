@@ -1123,7 +1123,7 @@
     <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
     <script>
       window.addEventListener('load', function() {
-        setTimeout(function() {
+        setTimeout(function() {// Note: we're using setTimeout here to run this code after other load event handlers have run.
           try {
             if (window.location.search) {
               history.replaceState(window.history.state, document.title, window.location.pathname + window.location.hash);
