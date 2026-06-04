@@ -32096,6 +32096,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		uninstalledID := newInstaller("uninstalled", nil, true, noLabels)
 		pendingID := newInstaller("pending", nil, true, noLabels)
 		newInstaller("inventory", nil, true, noLabels)
+		newInstaller("update-available", nil, true, noLabels)
 		newInstaller("nonss", nil, false, noLabels)
 		newInstaller("zlabel-out", nil, true, excludeLbl)
 
@@ -32117,7 +32118,11 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		completeHead(host, 0)
 		uninstall(host, uninstalledID, "uninstalled", 0) // back to available (status NULL)
 
-		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{{Name: "inventory", Version: "0.5", Source: "deb_packages"}})
+		// both are in osquery inventory ("update-available" is older than its 1.0 installer) -> not queued
+		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "inventory", Version: "0.5", Source: "deb_packages"},
+			{Name: "update-available", Version: "0.5", Source: "deb_packages"},
+		})
 		require.NoError(t, err)
 
 		deviceInstall(token, pendingID)
