@@ -2058,12 +2058,16 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
+		softwareInstallerTitleID_ := uint(0)
+		if installerMetadata.TitleID != nil {
+			softwareInstallerTitleID_ = *installerMetadata.TitleID
+		}
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", failingPolicyWithInstaller.ID,
 			"software_installer_id", failingPolicyWithInstaller.InstallerID,
-			"software_title_id", installerMetadata.TitleID,
+			"software_title_id", softwareInstallerTitleID_,
 			"software_installer_platform", installerMetadata.Platform,
 		)
 		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
@@ -2109,8 +2113,6 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			*hostLastInstall.Status == fleet.SoftwareInstalled &&
 			svc.continuousAutomationOnCooldown(hostLastInstall.CreatedAt) {
 			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
-				"host_id", hostID,
-				"policy_id", policyID,
 				"last_install_execution_id", hostLastInstall.ExecutionID,
 				"last_install_at", hostLastInstall.CreatedAt,
 			)
@@ -2230,8 +2232,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
 			"vpp_adam_id", failingPolicyWithVPP.AdamID,
-			"vpp_platform", failingPolicyWithVPP.AdamID,
-			"software_title_id", failingPolicyWithVPP.Platform,
+			"vpp_platform", failingPolicyWithVPP.Platform,
+			"continuous_automations_enabled", failingPolicyWithVPP.ContinuousAutomationsEnabled,
 		)
 
 		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
@@ -2266,11 +2268,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		// A successful VPP install requests a host refetch, which re-runs policies
 		// immediately; without this a perpetually-failing policy would loop tightly.
 		if _, recentlyInstalled := recentAppInstalls[failingPolicyWithVPP.AdamID]; !newlyFailing && failingPolicyWithVPP.ContinuousAutomationsEnabled && recentlyInstalled {
-			logger.InfoContext(ctx, "skipping continuous policy automation vpp install; within policy update interval cooldown",
-				"host_id", hostID,
-				"policy_id", policyID,
-				"adam_id", failingPolicyWithVPP.AdamID,
-			)
+			logger.InfoContext(ctx, "skipping continuous policy automation vpp install; within policy update interval cooldown")
 			continue
 		}
 
