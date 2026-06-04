@@ -357,7 +357,8 @@ const getEmptyCellTooltip = (
   if (isAppleAppStoreApp) {
     return (
       <>
-        App Store app can be installed on the host. <br />
+        {softwareName ? <b>{softwareName}</b> : "App Store app"} can be
+        installed on the host. <br />
         Select <b>Actions &gt; Install</b> to install.
       </>
     );
