@@ -3334,9 +3334,10 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
-// installerRequiredPlatform returns the file extension and the platform required
-// to install the package. The installer's stored Platform is authoritative when
-// set (e.g. .zip is used on both darwin and windows).
+// installerRequiredPlatform returns the file extension and the platform used for
+// platform validation. The installer's stored Platform is used when set (e.g.
+// .zip installers may target windows or darwin). Note that `.sh` installers are
+// stored as platform=linux but are allowed on any unix-like host by callers.
 func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
 	ext = filepath.Ext(installer.Name)
 	if installer.Platform != "" {

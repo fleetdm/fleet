@@ -963,10 +963,11 @@ func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
+		return &fleet.Host{
 			ID:           1,
-			OrbitNodeKey: ptr.String("orbit_key"),
+			OrbitNodeKey: new("orbit_key"),
 			Platform:     "windows",
-			TeamID:       ptr.Uint(1),
+			TeamID:       new(uint(1)),
 		}, nil
 	}
 
@@ -980,8 +981,8 @@ func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
 			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
 			Extension:   "zip",
 			Platform:    "windows",
-			TeamID:      ptr.Uint(1),
-			TitleID:     ptr.Uint(100),
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
 			SelfService: false,
 		}, nil
 	}
@@ -1003,7 +1004,7 @@ func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
 	err := svc.InstallSoftwareTitle(ctx, 1, 100)
