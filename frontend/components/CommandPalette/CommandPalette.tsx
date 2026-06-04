@@ -18,10 +18,11 @@ import paths from "router/paths";
 
 import {
   ICommandItem,
-  ICommandSubItem,
   GROUPS,
   buildPaletteItems,
   buildFleetSwitchUrl,
+  computeBestMatch,
+  highlightMatches,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
@@ -459,27 +460,32 @@ const CommandPalette = (): JSX.Element | null => {
     [valueToParentId, isSearching]
   );
 
-  // Find exact match — an item or sub-item whose label exactly matches the
-  // search. Memoized so we don't rebuild the Set on every keystroke once
-  // items is stable.
-  const exactMatchIds = useMemo(() => {
-    if (!isSearching) return new Set<string>();
-    return new Set(
-      items.reduce<string[]>((acc, item) => {
-        if (item.label.toLowerCase() === searchLower) {
-          acc.push(item.id);
-        }
-        item.subItems
-          ?.filter((sub) => sub.label.toLowerCase() === searchLower)
-          .forEach((sub) => acc.push(sub.id));
-        return acc;
-      }, [])
-    );
-  }, [items, isSearching, searchLower]);
+  // Find Best matches — items and sub-items scored by how strongly their
+  // label or keywords match the query. Implementation is in helpers.ts
+  // (so the scoring tiers are unit-testable independent of cmdk).
+  const bestMatchItems = useMemo(() => computeBestMatch(items, searchLower), [
+    items,
+    searchLower,
+  ]);
+
+  // Set of IDs already shown in Best match — used to dedupe from regular
+  // groups and inside expanded sub-item lists.
+  const bestMatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    bestMatchItems.forEach(({ item, sub }) => ids.add((sub ?? item).id));
+    return ids;
+  }, [bestMatchItems]);
 
   const renderItem = (item: ICommandItem) => {
     const isExpanded = expandedItems.has(item.id);
-    const hasSubItems = item.subItems && item.subItems.length > 0;
+    // Sub-items promoted into Best match are hidden here so they don't
+    // render twice. The parent stays visible because its own promotion
+    // is handled one level up (in renderRootPage, via groupedItems
+    // filtering).
+    const visibleSubItems = item.subItems?.filter(
+      (sub) => !bestMatchIds.has(sub.id)
+    );
+    const hasSubItems = !!visibleSubItems && visibleSubItems.length > 0;
 
     return (
       <React.Fragment key={item.id}>
@@ -529,8 +535,8 @@ const CommandPalette = (): JSX.Element | null => {
         {/* Render sub-items when expanded (browsing) or always when searching */}
         {hasSubItems &&
           (isExpanded || isSearching) &&
-          item.subItems &&
-          item.subItems.map((sub) => (
+          visibleSubItems &&
+          visibleSubItems.map((sub) => (
             <Command.Item
               key={sub.id}
               value={`${sub.label} ${sub.keywords?.join(" ") ?? ""}`}
@@ -544,43 +550,75 @@ const CommandPalette = (): JSX.Element | null => {
     );
   };
 
-  // Collect exact match items for the "Best match" section
-  const exactMatchItems = useMemo(() => {
-    if (exactMatchIds.size === 0) return [];
-    return items.reduce<Array<{ item: ICommandItem; sub?: ICommandSubItem }>>(
-      (acc, item) => {
-        if (exactMatchIds.has(item.id)) {
-          acc.push({ item });
-        }
-        item.subItems
-          ?.filter((sub) => exactMatchIds.has(sub.id))
-          .forEach((sub) => acc.push({ item, sub }));
-        return acc;
-      },
-      []
-    );
-  }, [items, exactMatchIds]);
-
   const renderRootPage = () => (
     <>
-      {/* Exact match at the top with a separator */}
-      {exactMatchItems.length > 0 && (
+      {/* Top-ranked items render without a heading — visually they're
+          just the most relevant matches, separated from the rest by a
+          rule. The BEST_MATCH prefix on the value is a cmdk filter-bypass
+          token (see filter prop) — it forces the item past substring
+          filtering regardless of score. */}
+      {bestMatchItems.length > 0 && (
         <>
-          <Command.Group heading="Best match" className={`${baseClass}__group`}>
-            {exactMatchItems.map(({ item, sub }) => {
+          <Command.Group className={`${baseClass}__group`}>
+            {bestMatchItems.map(({ item, sub }) => {
               const target = sub || item;
+              // Sub-items get the same indented styling they have in
+              // their regular group, so users can tell at a glance which
+              // results are nested.
+              const itemClass = sub
+                ? `${baseClass}__item ${baseClass}__item--sub`
+                : `${baseClass}__item`;
               return (
                 <Command.Item
-                  key={`exact-${target.id}`}
-                  value={`EXACT_MATCH ${target.label}`}
+                  key={`best-${target.id}`}
+                  value={`BEST_MATCH ${target.label}`}
                   onSelect={() =>
                     item.onAction ? item.onAction() : navigate(target.path!)
                   }
-                  className={`${baseClass}__item`}
+                  className={itemClass}
                 >
-                  <span className={`${baseClass}__item-label`}>
-                    {target.label}
-                  </span>
+                  <div className={`${baseClass}__item-left`}>
+                    <span className={`${baseClass}__item-label`}>
+                      {highlightMatches(target.label, search).map((seg, i) =>
+                        seg.matched ? (
+                          <mark
+                            // Index keys are safe here — segments are
+                            // derived synchronously from the same label
+                            // + query each render, so order is stable.
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={i}
+                            className={`${baseClass}__item-label-match`}
+                          >
+                            {seg.text}
+                          </mark>
+                        ) : (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <React.Fragment key={i}>{seg.text}</React.Fragment>
+                        )
+                      )}
+                    </span>
+                    {/* Render the sub-page chevron for items that open a
+                        picker (View host, View software, etc.). The
+                        chevron only belongs to parent items — sub-items
+                        navigate directly. */}
+                    {!sub && item.opensSubPage && (
+                      <span aria-hidden className={`${baseClass}__item-more`}>
+                        <Icon
+                          name="chevron-right"
+                          size="small"
+                          color="ui-fleet-black-50"
+                        />
+                      </span>
+                    )}
+                  </div>
+                  {/* Team-context chip on items whose navigation switches
+                      the user's current fleet (e.g., add-report on All
+                      fleets shows "All fleets"). */}
+                  {!sub && item.teamName && (
+                    <span className={`${baseClass}__item-fleet`}>
+                      {item.teamName}
+                    </span>
+                  )}
                 </Command.Item>
               );
             })}
@@ -593,13 +631,22 @@ const CommandPalette = (): JSX.Element | null => {
         if (!groupItems?.length) {
           return null;
         }
+        // Drop items already shown in Best match so the user doesn't see
+        // the same row twice. Items with only a sub-item promoted stay —
+        // renderItem hides the promoted sub-item inline.
+        const visibleGroupItems = groupItems.filter(
+          (item) => !bestMatchIds.has(item.id)
+        );
+        if (!visibleGroupItems.length) {
+          return null;
+        }
         return (
           <Command.Group
             key={group}
             heading={group}
             className={`${baseClass}__group`}
           >
-            {groupItems.map(renderItem)}
+            {visibleGroupItems.map(renderItem)}
           </Command.Group>
         );
       })}
@@ -670,8 +717,9 @@ const CommandPalette = (): JSX.Element | null => {
       overlayClassName={`${baseClass}__overlay`}
       contentClassName={`${baseClass}__content`}
       filter={(value, searchTerm) => {
-        // Always show exact match items at the top
-        if (value.startsWith("EXACT_MATCH ")) {
+        // Best match items bypass cmdk's substring filter — they're already
+        // scored against the query, and we want them shown regardless.
+        if (value.startsWith("BEST_MATCH ")) {
           return 1;
         }
         // Picker results are pre-filtered by the server; show everything.
@@ -736,9 +784,7 @@ const CommandPalette = (): JSX.Element | null => {
               <kbd className={`${baseClass}__shortcut-key`}>
                 {isMacPlatform ? "⌘" : "Ctrl"}
               </kbd>
-              <span className={`${baseClass}__shortcut-sep`}>+</span>
               <kbd className={`${baseClass}__shortcut-key`}>⇧</kbd>
-              <span className={`${baseClass}__shortcut-sep`}>+</span>
               <kbd className={`${baseClass}__shortcut-key`}>F</kbd>
             </span>
           </button>
