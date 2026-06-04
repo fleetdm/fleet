@@ -6,6 +6,7 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
@@ -214,6 +215,7 @@ import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
+import SfSymbols from "./SfSymbols";
 import Shottr from "./Shottr";
 import Signal from "./Signal";
 import Sketch from "./Sketch";
@@ -250,6 +252,7 @@ import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
 import VirtualBox from "./VirtualBox";
+import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
@@ -300,6 +303,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon chime": AmazonChime,
   "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
+  "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
@@ -504,6 +508,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   santa: Santa,
   secretive: Secretive,
   "sequel ace": SequelAce,
+  "sf symbols": SfSymbols,
   shottr: Shottr,
   signal: Signal,
   sketch: Sketch,
@@ -542,6 +547,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   twingate: Twingate,
   utm: Utm,
   virtualbox: VirtualBox,
+  virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,

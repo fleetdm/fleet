@@ -819,3 +819,103 @@ func TestBitlockerOperations(t *testing.T) {
 	})
 
 }
+
+func TestWindowsMDMSync(t *testing.T) {
+	var logBuf bytes.Buffer
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	syncCfg := func(req bool) *fleet.OrbitConfig {
+		return &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{WindowsMDMSyncRequest: req}}
+	}
+
+	// newCounting builds a receiver whose sync increments calls and returns err: the common shape for most subtests below.
+	newCounting := func(freq time.Duration, err error) (*windowsMDMSyncConfigReceiver, *atomic.Int32) {
+		var calls atomic.Int32
+		r := &windowsMDMSyncConfigReceiver{Frequency: freq, execSyncFn: func() error { calls.Add(1); return err }}
+		return r, &calls
+	}
+
+	// The sync runs in a background goroutine that holds w.mu until it finishes. waitIdle blocks until that goroutine has released the
+	// lock, so afterwards the test can read the call counter, lastRun, and the shared log buffer without racing the goroutine's writes.
+	// Subtests must stay sequential (no t.Parallel): they share logBuf and the global log.Logger.
+	waitIdle := func(t *testing.T, r *windowsMDMSyncConfigReceiver) {
+		t.Helper()
+		require.Eventually(t, func() bool {
+			if r.mu.TryLock() {
+				r.mu.Unlock()
+				return true
+			}
+			return false
+		}, 2*time.Second, time.Millisecond)
+	}
+
+	// runSync delivers cfg and blocks until any spawned sync goroutine has finished.
+	runSync := func(t *testing.T, r *windowsMDMSyncConfigReceiver, req bool) {
+		t.Helper()
+		require.NoError(t, r.Run(syncCfg(req)))
+		waitIdle(t, r)
+	}
+
+	t.Run("no sync request does not trigger", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(time.Hour, nil)
+		runSync(t, r, false)
+		require.Equal(t, int32(0), calls.Load())
+	})
+
+	t.Run("sync request triggers once and records the run", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(time.Hour, nil)
+		runSync(t, r, true)
+		require.Equal(t, int32(1), calls.Load())
+		require.False(t, r.lastRun.IsZero(), "a successful sync must record lastRun")
+	})
+
+	t.Run("second run within frequency is throttled", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(time.Hour, nil)
+		runSync(t, r, true)
+		runSync(t, r, true)
+		require.Equal(t, int32(1), calls.Load(), "second run within Frequency should be throttled")
+	})
+
+	t.Run("not throttled once frequency elapsed", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(0, nil)
+		runSync(t, r, true)
+		time.Sleep(time.Millisecond)
+		runSync(t, r, true)
+		require.Equal(t, int32(2), calls.Load())
+	})
+
+	t.Run("sync already in flight is dropped", func(t *testing.T) {
+		logBuf.Reset()
+		var calls atomic.Int32
+		release, started := make(chan struct{}), make(chan struct{})
+		r := &windowsMDMSyncConfigReceiver{Frequency: 0, execSyncFn: func() error {
+			calls.Add(1)
+			close(started)
+			<-release // hold w.mu so a concurrent Run observes TryLock failing
+			return nil
+		}}
+		require.NoError(t, r.Run(syncCfg(true))) // returns immediately; the sync goroutine now holds w.mu
+		<-started
+		require.NoError(t, r.Run(syncCfg(true))) // a sync is in flight, so this attempt must be dropped, not queued
+		require.Equal(t, int32(1), calls.Load(), "a second sync must not start while one is in flight")
+		close(release)
+		waitIdle(t, r)
+		require.Equal(t, int32(1), calls.Load())
+	})
+
+	t.Run("failure does not set lastRun and retries on next run", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(time.Hour, io.ErrUnexpectedEOF)
+		runSync(t, r, true)
+		runSync(t, r, true)
+		require.Equal(t, int32(2), calls.Load(), "failed sync should not be throttled on the next run")
+		require.True(t, r.lastRun.IsZero(), "lastRun must remain unset after failures")
+		require.Contains(t, logBuf.String(), "triggering on-demand Windows MDM sync failed")
+	})
+}

@@ -1,5 +1,9 @@
 # Fleet 4.86.0 | Rotate local admin password, Windows setup experience, Platform SSO, and more...
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/Auc_KHR7HLk?si=bRTL8pJEat3id0zP" title="0" allowfullscreen></iframe>
+</div>
+
 Fleet 4.86.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.86.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
@@ -13,37 +17,37 @@ Fleet 4.86.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Rotate local admin password
 
-Building on the [local admin account](https://fleetdm.com/articles/fleet-4.85.0#create-a-local-admin-account-during-macos-setup) introduced in 4.85, Fleet now lets admins rotate the hidden account's password directly from the **Host details** page. After an admin views the password, Fleet starts a countdown and automatically rotates it roughly an hour later — limiting how long a credential is valid after it's been seen. Admins can also rotate immediately using the **Rotate password** button at any time. Every rotation is logged as an activity, whether triggered manually or automatically by Fleet.
+Building on the [local admin account](https://fleetdm.com/releases/fleet-4-85-0#create-a-local-admin-account-during-macos-setup) introduced in 4.85, Fleet now lets admins rotate the hidden account's password directly from the **Host details** page. After an admin views the password, Fleet automatically rotates an hour later which limits how long a credential is valid after it's been seen. IT admins can also rotate immediately using the **Rotate password** button at any time. Every rotation is logged as an activity, whether triggered manually or automatically by Fleet.
 
 GitHub issue: [#37142](https://github.com/fleetdm/fleet/issues/37142)
 
 ### Windows setup experience: cancel if software fails
 
-Fleet now gives IT admins control over what happens when setup experience software fails during a Windows Autopilot or OOBE enrollment. Turning on **Cancel setup if software fails** in **Controls > Setup experience** causes the device to display a failure screen and prompt the end user to restart if any setup software doesn't install successfully. Without this toggle, failed installs are surfaced in host details but the device proceeds to the desktop anyway. A `canceled_setup_experience` activity is logged when the feature triggers, making it easy to review what went wrong.
+Fleet now gives IT admins control over what happens when setup experience software fails during a Windows Autopilot enrollment ([OOBE](https://learn.microsoft.com/en-us/windows-hardware/customize/desktop/customize-oobe-in-windows-11#oobe-flow)). Turning on **Cancel setup if software fails** in **Controls > Setup experience** causes the device to display a failure screen and prompt the end user to restart if any setup software doesn't install successfully. Without this toggle, failed installs are surfaced in host details but the device proceeds to the desktop anyway. A `canceled_setup_experience` activity is logged when the feature triggers, making it easy to review what went wrong.
 
 GitHub issue: [#38785](https://github.com/fleetdm/fleet/issues/38785)
 
 ### Platform SSO during macOS Setup Assistant
 
-Fleet now supports configuring [Platform SSO](https://support.apple.com/guide/deployment/platform-sso-depfd9cdf8ab/web) during macOS [Automated Device Enrollment (ADE)](https://fleetdm.com/articles/apple-device-enrollment-program). With this enabled, end users log in to their Mac using the same credentials they use for their identity provider (such as Okta) — no separate local password to remember. Platform SSO can be deployed alongside Fleet's existing Setup Assistant profiles and setup experience apps, with or without end user authentication enabled.
+Fleet now supports configuring [Platform SSO with Okta](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) during macOS [Automated Device Enrollment (ADE)](https://fleetdm.com/articles/apple-device-enrollment-program). With this enabled, end users log in to their Mac using the same credentials they use for Okta. Microsoft Entra support is [coming soon](https://github.com/fleetdm/fleet/issues/45587).
 
 GitHub issue: [#30674](https://github.com/fleetdm/fleet/issues/30674)
 
 ### Upload your org logo
 
-IT admins can now upload their organization's logo directly to their Fleet instance — no external image hosting required. Separate images can be set for light and dark mode. Upload during Fleet's initial setup or update later from **Settings > Organization settings**. Logos set here appear in Fleet's masthead and can be managed via the API, [`fleetctl`](https://fleetdm.com/articles/fleetctl), or [GitOps](https://fleetdm.com/docs/configuration/yaml-files). This feature is available in Fleet Free.
+IT admins can now upload their organization's logo directly to their Fleet instance with no external hosting required. Separate images can be set for light and dark mode. Upload during Fleet's initial setup or update later from **Settings > Organization settings**. Logos set here appear in Fleet's masthead and can also be managed via the API or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
 GitHub issue: [#39016](https://github.com/fleetdm/fleet/issues/39016)
 
 ### Automatic SCEP and ACME certificate renewal
 
-Fleet now automatically re-pushes configuration profiles containing SCEP or ACME certificates before they expire — including certificates that aren't proxied through Fleet. This covers common identity and network access scenarios: Okta conditional access (SCEP), Okta Verify (SCEP with a static challenge), and hardware-attested ACME certificates. The renewal logic follows the [same pattern](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal) already used for Fleet-proxied SCEP certificates. No Fleet configuration changes are required; include the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the certificate profile's Subject and Fleet handles the rest.
+Fleet automatically re-pushes configuration profiles containing SCEP or ACME certificates before they expire. This now includes certificates that aren't proxied through Fleet. This covers, for example, certificates deployed for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration) (SCEP) and Okta Verify (SCEP with a static challenge). The renewal logic follows the [same pattern](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal) already used for Fleet-proxied SCEP certificates. No Fleet configuration changes are required; just include the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the certificate profile's organizational unit (OU) and Fleet handles the rest.
 
 GitHub issue: [#40639](https://github.com/fleetdm/fleet/issues/40639)
 
 ### iOS/iPadOS software for user-enrolled hosts
 
-Fleet now supports installing VPP and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-based User Enrollment with Managed Apple Account. Admins can install apps from the host details page, and end users can install from self-service. Setup experience software also installs automatically on user enrollment. Previously, software installs on personally enrolled iOS and iPadOS devices returned an error; this release removes that restriction for Account-based User Enrolled hosts.
+Fleet now supports installing Apple App Store (VPP) and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via [Account-driven User Enrollment](https://support.apple.com/guide/deployment/account-driven-enrollment-methods-dep4d9e9cd26/web) with a Managed Apple Account. IT admins can install apps from the **Host details** page, and end users can install from self-service. Setup experience software also installs automatically on enrollment.
 
 GitHub issue: [#31138](https://github.com/fleetdm/fleet/issues/31138)
 

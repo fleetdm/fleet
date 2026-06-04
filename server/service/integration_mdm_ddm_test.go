@@ -57,14 +57,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
 
-	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
-	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.softwareupdate.enforcement.specific", "Payload": "test"}`)},
-	}}, http.StatusUnprocessableEntity)
-
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
-
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {
 		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -533,7 +525,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	require.Empty(t, resp.Profiles)
 
 	// Add secrets to server
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -545,7 +537,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// Now real run
@@ -662,7 +654,7 @@ WHERE name = ?`
 
 	// Change the secrets.
 	myBash = "my.new.bash"
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",

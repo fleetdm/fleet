@@ -126,9 +126,9 @@ var (
 )
 
 // jitteredHostCacheTTL returns the configured base TTL perturbed by
-// ±(hostCacheTTLJitterFraction / 2). With the default 0.2 and a 60s base, the
-// result falls in [54s, 66s], yielding ~5 cache hits per miss at the default
-// 10s osquery check-in interval (~83% hit rate).
+// ±(hostCacheTTLJitterFraction / 2). With the default 0.2 and a 180s base, the
+// result falls in [162s, 198s], yielding ~17 cache hits per miss at the default
+// 10s osquery check-in interval (~94% hit rate).
 func (d *Datastore) jitteredHostCacheTTL() time.Duration {
 	if d.hostCacheTTL <= 0 {
 		return 0

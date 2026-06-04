@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.9659.2",
+      "version": "1.10628.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '1.9659.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '1.10628.2') < 0);"
       },
-      "installer_url": "https://downloads.claude.ai/releases/darwin/universal/1.9659.2/Claude-390d6ca38de808ca81aeccd2945d9c8be800f47d.zip",
+      "installer_url": "https://downloads.claude.ai/releases/darwin/universal/1.10628.2/Claude-deee0a79e9070caed69480a2c8d2e09f895512c4.zip",
       "install_script_ref": "8b957973",
       "uninstall_script_ref": "421baa98",
-      "sha256": "d4bd47a08019de6f677b5227989c020627fe1aafbf73d62d4c64a13a9269800b",
+      "sha256": "aed0ee22d42010a19fb53e4c287271e4fd8d4fa94ea958ecfd32efa2d3d4e16c",
       "default_categories": [
         "Developer tools"
       ]

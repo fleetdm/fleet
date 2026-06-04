@@ -62,7 +62,6 @@ describe("PolicyForm - component", () => {
     isFetchingAutofillDescription: false,
     isFetchingAutofillResolution: false,
     resetAiAutofillData: jest.fn(),
-    currentAutomatedPolicies: [],
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -150,7 +149,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -220,7 +218,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -303,7 +300,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -382,12 +378,11 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
       await user.hover(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
@@ -461,15 +456,14 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
 
       await waitFor(() => {
         waitFor(() => {
-          user.hover(screen.getByRole("button", { name: "Run" }));
+          user.hover(screen.getByRole("button", { name: "Run policy" }));
         });
 
         expect(
