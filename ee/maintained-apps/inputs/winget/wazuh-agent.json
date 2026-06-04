@@ -1,0 +1,12 @@
+{
+  "name": "Wazuh Agent",
+  "slug": "wazuh-agent/windows",
+  "package_identifier": "Wazuh.WazuhAgent",
+  "unique_identifier": "Wazuh Agent",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Security"
+  ]
+}

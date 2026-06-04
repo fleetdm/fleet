@@ -1,0 +1,12 @@
+{
+  "name": "Neovim",
+  "slug": "neovim/windows",
+  "package_identifier": "Neovim.Neovim",
+  "unique_identifier": "Neovim",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

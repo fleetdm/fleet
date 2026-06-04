@@ -1,0 +1,12 @@
+{
+  "name": "Duplicati",
+  "slug": "duplicati/windows",
+  "package_identifier": "Duplicati.Duplicati",
+  "unique_identifier": "Duplicati",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}

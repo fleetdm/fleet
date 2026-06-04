@@ -1,0 +1,12 @@
+{
+  "name": "Meld",
+  "slug": "meld/windows",
+  "package_identifier": "Meld.Meld",
+  "unique_identifier": "Meld",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

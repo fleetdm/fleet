@@ -8,8 +8,10 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import AwsSamCli from "./AwsSamCli";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureCli from "./AzureCli";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
@@ -20,33 +22,49 @@ import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
+import DatadogAgent from "./DatadogAgent";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
+import Duplicati from "./Duplicati";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
+import GithubCli from "./GithubCli";
+import Go from "./Go";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
+import Keepass from "./Keepass";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import MongodbServer from "./MongodbServer";
+import Mysql from "./Mysql";
+import Neovim from "./Neovim";
+import Nessus from "./Nessus";
 import Nextcloud from "./Nextcloud";
+import NextcloudDesktop from "./NextcloudDesktop";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
+import Openvpn from "./Openvpn";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Pdf24Creator from "./Pdf24Creator";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import PowerBiReportBuilder from "./PowerBiReportBuilder";
+import Powershell from "./Powershell";
 import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
 import RustDesk from "./RustDesk";
+import Seafile from "./Seafile";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -224,6 +242,7 @@ import Snagit from "./Snagit";
 import Sourcetree from "./Sourcetree";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
+import SplunkUniversalForwarder from "./SplunkUniversalForwarder";
 import Spotify from "./Spotify";
 import Stats from "./Stats";
 import Steam from "./Steam";
@@ -232,6 +251,7 @@ import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
 import Swiftdialog from "./Swiftdialog";
+import SynologyDriveClient from "./SynologyDriveClient";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -246,11 +266,13 @@ import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import TorBrowser from "./TorBrowser";
 import Tortoisegit from "./Tortoisegit";
+import Tortoisesvn from "./Tortoisesvn";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import Vagrant from "./Vagrant";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
@@ -260,6 +282,7 @@ import VncViewer from "./VncViewer";
 import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
+import WazuhAgent from "./WazuhAgent";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -269,6 +292,7 @@ import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
 import Winscp from "./Winscp";
+import Wireguard from "./Wireguard";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
@@ -318,10 +342,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
+  "aws sam cli": AwsSamCli,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
   "azul zulu 25 jdk": AzulZulu25Jdk,
   "azul zulu 25 jre": AzulZulu25Jre,
+  "azure cli": AzureCli,
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
@@ -357,15 +383,20 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   cryptomator: Cryptomator,
+  "datadog agent": DatadogAgent,
   "duo desktop": DuoDesktop,
+  duplicati: Duplicati,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
+  "github cli": GithubCli,
+  go: Go,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
   joplin: Joplin,
+  keepass: Keepass,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
@@ -424,6 +455,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
   "mongodb compass": MongoDbCompass,
+  "mongodb server": MongodbServer,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
@@ -453,8 +485,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
+  mysql: Mysql,
   "mysql workbench": MySqlWorkbench,
+  neovim: Neovim,
+  nessus: Nessus,
   nextcloud: Nextcloud,
+  "nextcloud desktop": NextcloudDesktop,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
@@ -470,12 +507,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  openvpn: Openvpn,
   "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  "pdf24 creator": Pdf24Creator,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
@@ -483,6 +522,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "podman desktop": PodmanDesktop,
   postman: Postman,
   "power bi": PowerBi,
+  "power bi report builder": PowerBiReportBuilder,
+  powershell: Powershell,
   prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
@@ -506,6 +547,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  seafile: Seafile,
   secretive: Secretive,
   "sequel ace": SequelAce,
   "sf symbols": SfSymbols,
@@ -517,6 +559,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sourcetree: Sourcetree,
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
+  "splunk universal forwarder": SplunkUniversalForwarder,
   spotify: Spotify,
   stats: Stats,
   steam: Steam,
@@ -526,6 +569,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
   swiftdialog: Swiftdialog,
+  "synology drive client": SynologyDriveClient,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
@@ -541,11 +585,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   todoist: Todoist,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
+  tortoisesvn: Tortoisesvn,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   utm: Utm,
+  vagrant: Vagrant,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
@@ -556,6 +602,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
+  "wazuh agent": WazuhAgent,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
@@ -564,6 +611,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
   winscp: Winscp,
+  wireguard: Wireguard,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,

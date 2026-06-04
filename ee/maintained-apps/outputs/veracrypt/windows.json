@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.26.24",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'VeraCrypt %' AND publisher = 'AM Crypto';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'VeraCrypt %' AND publisher = 'AM Crypto' AND version_compare(version, '1.26.24') < 0);"
+      },
+      "installer_url": "https://launchpad.net/veracrypt/trunk/1.26.24/+download/VeraCrypt_Setup_x64_1.26.24.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "80cd8894",
+      "sha256": "48184a29db24a88acef0a0ab079230676cfdf1a8f2c87cbd42188952496b54da",
+      "default_categories": [
+        "Security"
+      ],
+      "upgrade_code": "{298F5D2B-3B01-4A13-BEFD-4B3C7BE43BC6}"
+    }
+  ],
+  "refs": {
+    "80cd8894": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{298F5D2B-3B01-4A13-BEFD-4B3C7BE43BC6}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

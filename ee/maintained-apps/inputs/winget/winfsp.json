@@ -1,0 +1,12 @@
+{
+  "name": "WinFsp",
+  "slug": "winfsp/windows",
+  "package_identifier": "WinFsp.WinFsp",
+  "unique_identifier": "WinFsp 2025",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

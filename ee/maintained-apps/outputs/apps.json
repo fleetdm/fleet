@@ -289,6 +289,13 @@
       "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
     },
     {
+      "name": "AWS SAM CLI",
+      "slug": "aws-sam-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS SAM Command Line Interface",
+      "description": "AWS SAM CLI is an open-source framework for building serverless applications on AWS."
+    },
+    {
       "name": "AWS Client VPN",
       "slug": "aws-vpn-client/darwin",
       "platform": "darwin",
@@ -315,6 +322,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azure CLI",
+      "slug": "azure-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Azure CLI (64-bit)",
+      "description": "Azure CLI is a command-line tool for creating and managing Azure resources."
     },
     {
       "name": "Backblaze",
@@ -625,6 +639,13 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "CMake",
+      "slug": "cmake/windows",
+      "platform": "windows",
+      "unique_identifier": "CMake",
+      "description": "CMake is a cross-platform, open-source build system generator."
+    },
+    {
       "name": "Connect Fonts",
       "slug": "connect-fonts/darwin",
       "platform": "darwin",
@@ -707,6 +728,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kapeli.dashdoc",
       "description": "Dash is an API documentation browser and code snippet manager."
+    },
+    {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent is a monitoring agent that collects metrics, traces, and logs and forwards them to the Datadog platform."
     },
     {
       "name": "DataGrip",
@@ -912,6 +940,13 @@
       "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
     },
     {
+      "name": "Duplicati",
+      "slug": "duplicati/windows",
+      "platform": "windows",
+      "unique_identifier": "Duplicati",
+      "description": "Duplicati is a free, open-source backup client that stores encrypted, incremental backups on cloud and remote storage."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
@@ -945,6 +980,13 @@
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "Everything",
+      "slug": "everything/windows",
+      "platform": "windows",
+      "unique_identifier": "Everything",
+      "description": "Everything is a fast file and folder search tool for Windows that locates files by name instantly."
     },
     {
       "name": "ExpressVPN",
@@ -1066,6 +1108,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GitHub CLI",
+      "slug": "github-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub CLI",
+      "description": "GitHub CLI is a command-line tool that brings GitHub pull requests, issues, and other features to the terminal."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -1092,6 +1141,13 @@
       "platform": "windows",
       "unique_identifier": "GitKraken",
       "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
+      "name": "Go",
+      "slug": "go/windows",
+      "platform": "windows",
+      "unique_identifier": "Go Programming Language",
+      "description": "Go is an open-source programming language for building simple, reliable, and efficient software."
     },
     {
       "name": "GoLand",
@@ -1190,6 +1246,13 @@
       "platform": "windows",
       "unique_identifier": "Granola",
       "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
+      "name": "grepWin",
+      "slug": "grepwin/windows",
+      "platform": "windows",
+      "unique_identifier": "grepWin x64",
+      "description": "grepWin is a regular-expression search and replace tool for Windows."
     },
     {
       "name": "Hyper",
@@ -1325,6 +1388,13 @@
       "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
     },
     {
+      "name": "KeePass",
+      "slug": "keepass/windows",
+      "platform": "windows",
+      "unique_identifier": "KeePass",
+      "description": "KeePass is a free, open-source password manager that stores credentials in an encrypted database."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
@@ -1400,6 +1470,13 @@
       "platform": "darwin",
       "unique_identifier": "org.libreoffice.script",
       "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
+      "name": "LibreOffice",
+      "slug": "libreoffice/windows",
+      "platform": "windows",
+      "unique_identifier": "LibreOffice",
+      "description": "LibreOffice is a free and open-source office suite for word processing, spreadsheets, presentations, and more."
     },
     {
       "name": "Linear",
@@ -1484,6 +1561,20 @@
       "platform": "windows",
       "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
+      "name": "Meld",
+      "slug": "meld/windows",
+      "platform": "windows",
+      "unique_identifier": "Meld",
+      "description": "Meld is a visual diff and merge tool for comparing files, directories, and version-controlled projects."
+    },
+    {
+      "name": "Mercurial",
+      "slug": "mercurial/windows",
+      "platform": "windows",
+      "unique_identifier": "Mercurial",
+      "description": "Mercurial is a fast, distributed source control management tool."
     },
     {
       "name": "Microsoft Auto Update",
@@ -1577,6 +1668,27 @@
       "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
     },
     {
+      "name": "MongoDB Server",
+      "slug": "mongodb-server/windows",
+      "platform": "windows",
+      "unique_identifier": "MongoDB",
+      "description": "MongoDB Server is a general-purpose, document-oriented database for modern applications."
+    },
+    {
+      "name": "mRemoteNG",
+      "slug": "mremoteng/windows",
+      "platform": "windows",
+      "unique_identifier": "mRemoteNG",
+      "description": "mRemoteNG is an open-source, multi-protocol, tabbed remote connections manager."
+    },
+    {
+      "name": "MySQL",
+      "slug": "mysql/windows",
+      "platform": "windows",
+      "unique_identifier": "MySQL Server",
+      "description": "MySQL is an open-source relational database management system."
+    },
+    {
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
@@ -1591,11 +1703,39 @@
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
+      "name": "Neovim",
+      "slug": "neovim/windows",
+      "platform": "windows",
+      "unique_identifier": "Neovim",
+      "description": "Neovim is a hyperextensible Vim-based text editor focused on extensibility and usability."
+    },
+    {
+      "name": "Nessus",
+      "slug": "nessus/windows",
+      "platform": "windows",
+      "unique_identifier": "Tenable Nessus (x64)",
+      "description": "Nessus is a vulnerability scanner that identifies misconfigurations, missing patches, and vulnerabilities across hosts and networks."
+    },
+    {
+      "name": "Nextcloud Desktop",
+      "slug": "nextcloud-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Nextcloud",
+      "description": "Nextcloud Desktop is a desktop client for synchronizing files with a Nextcloud server."
+    },
+    {
       "name": "Nextcloud",
       "slug": "nextcloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nextcloud.desktopclient",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
+      "name": "Node.js",
+      "slug": "nodejs/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js is a free, open-source, cross-platform JavaScript runtime environment."
     },
     {
       "name": "NordPass",
@@ -1766,6 +1906,13 @@
       "description": "OpenVPN Connect is the official OpenVPN client."
     },
     {
+      "name": "OpenVPN",
+      "slug": "openvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "OpenVPN",
+      "description": "OpenVPN is an application for creating secure point-to-point and site-to-site VPN connections."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -1794,11 +1941,32 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "Pandoc",
+      "slug": "pandoc/windows",
+      "platform": "windows",
+      "unique_identifier": "Pandoc",
+      "description": "Pandoc is a universal document converter that translates files between markup formats."
+    },
+    {
       "name": "Parallels Desktop",
       "slug": "parallels/darwin",
       "platform": "darwin",
       "unique_identifier": "com.parallels.desktop.console",
       "description": "Parallels Desktop is virtualization software."
+    },
+    {
+      "name": "PDF24 Creator",
+      "slug": "pdf24-creator/windows",
+      "platform": "windows",
+      "unique_identifier": "PDF24 Creator",
+      "description": "PDF24 Creator is a free PDF toolkit for creating, converting, merging, and editing PDF files."
+    },
+    {
+      "name": "PDFsam",
+      "slug": "pdfsam/windows",
+      "platform": "windows",
+      "unique_identifier": "PDFsam Basic",
+      "description": "PDFsam is a free and open-source tool to split, merge, extract, mix, and rotate PDF files."
     },
     {
       "name": "pgAdmin 4",
@@ -1857,11 +2025,25 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Power BI Report Builder",
+      "slug": "power-bi-report-builder/windows",
+      "platform": "windows",
+      "unique_identifier": "Power BI Report Builder",
+      "description": "Power BI Report Builder is a tool for authoring paginated reports for the Power BI service."
+    },
+    {
       "name": "Power BI",
       "slug": "power-bi/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "PowerShell",
+      "slug": "powershell/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerShell 7-x64",
+      "description": "PowerShell is a cross-platform automation and configuration tool built on a command-line shell and scripting language."
     },
     {
       "name": "Prisma Browser",
@@ -2004,6 +2186,13 @@
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
     },
     {
+      "name": "Devolutions Remote Desktop Manager",
+      "slug": "remote-desktop-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Remote Desktop Manager",
+      "description": "Devolutions Remote Desktop Manager is an application for centralizing and managing remote connections and credentials."
+    },
+    {
       "name": "Rider",
       "slug": "rider/darwin",
       "platform": "darwin",
@@ -2065,6 +2254,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Seafile",
+      "slug": "seafile/windows",
+      "platform": "windows",
+      "unique_identifier": "Seafile",
+      "description": "Seafile is a desktop client for syncing files with a Seafile server."
     },
     {
       "name": "Secretive",
@@ -2172,6 +2368,13 @@
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
+      "name": "Splunk Universal Forwarder",
+      "slug": "splunk-universal-forwarder/windows",
+      "platform": "windows",
+      "unique_identifier": "UniversalForwarder",
+      "description": "Splunk Universal Forwarder is a lightweight agent that collects and forwards machine data to a Splunk deployment."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",
@@ -2205,6 +2408,13 @@
       "platform": "windows",
       "unique_identifier": "Steam",
       "description": "Steam is a video game digital distribution service."
+    },
+    {
+      "name": "Strawberry Perl",
+      "slug": "strawberry-perl/windows",
+      "platform": "windows",
+      "unique_identifier": "Strawberry Perl (64-bit)",
+      "description": "Strawberry Perl is a Perl environment for Windows that includes everything needed to run and develop Perl applications."
     },
     {
       "name": "Sublime Merge",
@@ -2247,6 +2457,13 @@
       "platform": "darwin",
       "unique_identifier": "au.csiro.dialog",
       "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
+    },
+    {
+      "name": "Synology Drive Client",
+      "slug": "synology-drive-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Synology Drive Client",
+      "description": "Synology Drive Client is a desktop utility for file syncing and backup with a Synology Drive Server."
     },
     {
       "name": "Tableau Desktop",
@@ -2361,6 +2578,13 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "TightVNC",
+      "slug": "tightvnc/windows",
+      "platform": "windows",
+      "unique_identifier": "TightVNC",
+      "description": "TightVNC is free, lightweight remote control and remote desktop software."
+    },
+    {
       "name": "Todoist",
       "slug": "todoist-app/darwin",
       "platform": "darwin",
@@ -2387,6 +2611,13 @@
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is a Subversion client for Windows implemented as a Windows shell extension."
     },
     {
       "name": "Tower",
@@ -2436,6 +2667,20 @@
       "platform": "darwin",
       "unique_identifier": "com.utmapp.UTM",
       "description": "UTM is a virtual machines UI using QEMU."
+    },
+    {
+      "name": "Vagrant",
+      "slug": "vagrant/windows",
+      "platform": "windows",
+      "unique_identifier": "Vagrant",
+      "description": "Vagrant is a tool for building and managing virtual machine environments in a single workflow."
+    },
+    {
+      "name": "VeraCrypt",
+      "slug": "veracrypt/windows",
+      "platform": "windows",
+      "unique_identifier": "VeraCrypt",
+      "description": "VeraCrypt is a free, open-source disk encryption tool for creating encrypted volumes and encrypting partitions or storage devices."
     },
     {
       "name": "VirtualBox",
@@ -2543,6 +2788,13 @@
       "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
     },
     {
+      "name": "Wazuh Agent",
+      "slug": "wazuh-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Wazuh Agent",
+      "description": "Wazuh Agent is a security monitoring agent that collects log, file integrity, and intrusion detection data for the Wazuh platform."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -2578,6 +2830,13 @@
       "description": "WhatsApp is WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
+      "name": "WinDirStat",
+      "slug": "windirstat/windows",
+      "platform": "windows",
+      "unique_identifier": "WinDirStat",
+      "description": "WinDirStat is a disk usage statistics viewer and cleanup tool for Windows."
+    },
+    {
       "name": "Windows App",
       "slug": "windows-app/darwin",
       "platform": "darwin",
@@ -2599,11 +2858,25 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "WinFsp",
+      "slug": "winfsp/windows",
+      "platform": "windows",
+      "unique_identifier": "WinFsp 2025",
+      "description": "WinFsp is a Windows file system proxy that enables user-mode file systems."
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",
       "unique_identifier": "WinSCP",
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
+    },
+    {
+      "name": "WireGuard",
+      "slug": "wireguard/windows",
+      "platform": "windows",
+      "unique_identifier": "WireGuard",
+      "description": "WireGuard is a fast, modern, and secure VPN tunnel."
     },
     {
       "name": "Wireshark",
@@ -2632,6 +2905,13 @@
       "platform": "darwin",
       "unique_identifier": "com.twocanoes.xcreds",
       "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
+    },
+    {
+      "name": "Yarn",
+      "slug": "yarn/windows",
+      "platform": "windows",
+      "unique_identifier": "Yarn",
+      "description": "Yarn is a package manager for JavaScript and Node.js projects."
     },
     {
       "name": "Yubico Authenticator",

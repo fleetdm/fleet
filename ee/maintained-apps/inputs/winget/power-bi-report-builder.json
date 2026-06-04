@@ -1,0 +1,12 @@
+{
+  "name": "Power BI Report Builder",
+  "slug": "power-bi-report-builder/windows",
+  "package_identifier": "Microsoft.PowerBIReportBuilder",
+  "unique_identifier": "Power BI Report Builder",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}

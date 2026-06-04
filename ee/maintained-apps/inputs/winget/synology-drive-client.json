@@ -1,0 +1,12 @@
+{
+  "name": "Synology Drive Client",
+  "slug": "synology-drive-client/windows",
+  "package_identifier": "Synology.DriveClient",
+  "unique_identifier": "Synology Drive Client",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}
