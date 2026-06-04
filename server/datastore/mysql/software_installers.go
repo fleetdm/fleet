@@ -2040,7 +2040,7 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	created_at
+	updated_at
 FROM
 	upcoming_activities
 WHERE
@@ -2067,7 +2067,7 @@ func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installer
 SELECT
 	execution_id,
 	status,
-	created_at
+	updated_at
 FROM
 	host_software_installs
 WHERE

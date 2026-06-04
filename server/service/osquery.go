@@ -2111,10 +2111,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		if !newlyFailing && failingPolicyWithInstaller.ContinuousAutomationsEnabled &&
 			hostLastInstall != nil && hostLastInstall.Status != nil &&
 			*hostLastInstall.Status == fleet.SoftwareInstalled &&
-			svc.continuousAutomationOnCooldown(hostLastInstall.CreatedAt) {
+			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
 			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
 				"last_install_execution_id", hostLastInstall.ExecutionID,
-				"last_install_at", hostLastInstall.CreatedAt,
+				"last_install_at", hostLastInstall.UpdatedAt,
 			)
 			continue
 		}
@@ -2264,9 +2264,10 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
-		// and we already queued a VPP install within the policy update interval, skip it.
-		// A successful VPP install requests a host refetch, which re-runs policies
-		// immediately; without this a perpetually-failing policy would loop tightly.
+		// and the VPP app was successfully installed (verified) within the policy update
+		// interval, skip it. A successful VPP install requests a host refetch, which
+		// re-runs policies immediately; without this a perpetually-failing policy would
+		// loop tightly.
 		if _, recentlyInstalled := recentAppInstalls[failingPolicyWithVPP.AdamID]; !newlyFailing && failingPolicyWithVPP.ContinuousAutomationsEnabled && recentlyInstalled {
 			logger.InfoContext(ctx, "skipping continuous policy automation vpp install; within policy update interval cooldown")
 			continue

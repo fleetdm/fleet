@@ -4854,9 +4854,9 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	installed := fleet.SoftwareInstalled
 	failedInstall := fleet.SoftwareInstallFailed
 
-	setLastInstall := func(status *fleet.SoftwareInstallerStatus, createdAt time.Time) {
+	setLastInstall := func(status *fleet.SoftwareInstallerStatus, updatedAt time.Time) {
 		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-			return &fleet.HostLastInstallData{ExecutionID: "prev-exec", Status: status, CreatedAt: createdAt}, nil
+			return &fleet.HostLastInstallData{ExecutionID: "prev-exec", Status: status, UpdatedAt: updatedAt}, nil
 		}
 	}
 

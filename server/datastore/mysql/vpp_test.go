@@ -3055,11 +3055,23 @@ func testMapAdamIDsRecentlyVerifiedInstalls(t *testing.T, ds *Datastore) {
 	require.Len(t, adamIDs, 1)
 	require.Contains(t, adamIDs, adamID)
 
-	// Outside the lookback window: not returned.
-	time.Sleep(2 * time.Second)
-	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 1)
+	// Verified before the lookback window: not returned. Move verification_at into the
+	// past deterministically rather than sleeping.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_vpp_software_installs SET verification_at = NOW() - INTERVAL 2 HOUR WHERE command_uuid = ?`, cmdUUID)
 	require.NoError(t, err)
-	require.Empty(t, adamIDs)
+	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 3600)
+	require.NoError(t, err)
+	require.Empty(t, adamIDs, "an install verified before the lookback window must not count")
+
+	// Recently verified but removed: not returned. Removed software is no longer on the
+	// host and should be reinstalled rather than throttled.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_vpp_software_installs SET verification_at = NOW(), removed = 1 WHERE command_uuid = ?`, cmdUUID)
+	require.NoError(t, err)
+	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 3600)
+	require.NoError(t, err)
+	require.Empty(t, adamIDs, "a removed install must not count")
 }
 
 func testGetHostVPPInstallByCommandUUID(t *testing.T, ds *Datastore) {
