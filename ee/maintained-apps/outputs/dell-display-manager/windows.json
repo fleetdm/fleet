@@ -3,8 +3,8 @@
     {
       "version": "2.3.1.16",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Dell Display Manager 2.3' AND publisher = 'Dell Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dell Display Manager 2.3' AND publisher = 'Dell Inc.' AND version_compare(version, '2.3.1.16') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Dell Display Manager %' AND publisher = 'Dell Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Dell Display Manager %' AND publisher = 'Dell Inc.' AND version_compare(version, '2.3.1.16') < 0);"
       },
       "installer_url": "https://dl.dell.com/FOLDER11807726M/1/ddmsetup.exe",
       "install_script_ref": "85f22f37",

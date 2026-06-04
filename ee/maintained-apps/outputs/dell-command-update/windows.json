@@ -3,8 +3,8 @@
     {
       "version": "5.7.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Dell Command | Update' AND publisher = 'Dell Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dell Command | Update' AND publisher = 'Dell Inc.' AND version_compare(version, '5.7.0') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.' AND version_compare(version, '5.7.0') < 0);"
       },
       "installer_url": "https://dl.dell.com/FOLDER14424243M/1/Dell-Command-Update-Application_RXT5N_WIN64_5.7.0_A00.EXE",
       "install_script_ref": "9f0e4526",

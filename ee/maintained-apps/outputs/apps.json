@@ -824,14 +824,14 @@
       "name": "Dell Command Update",
       "slug": "dell-command-update/windows",
       "platform": "windows",
-      "unique_identifier": "Dell Command | Update",
+      "unique_identifier": "Dell Command",
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
       "name": "Dell Display Manager",
       "slug": "dell-display-manager/windows",
       "platform": "windows",
-      "unique_identifier": "Dell Display Manager 2.3",
+      "unique_identifier": "Dell Display Manager",
       "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
     },
     {
