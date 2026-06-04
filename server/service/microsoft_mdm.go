@@ -2104,6 +2104,15 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
+		// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd can be woken on demand, so we can stop
+		// the aggressive default 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
+		// session.
+		if enrolledDevice.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationNone {
+			if err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice); err != nil {
+				return nil, fmt.Errorf("poll schedule reconcile error: %w", err)
+			}
+		}
+
 		// Process the pending operations and get the MDM response protocol commands
 		pendingCmds, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
 		if err != nil {
@@ -2133,6 +2142,67 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	return msg, nil
+}
+
+const (
+	// windowsMDMFastPollIntervalMinutes mirrors NewDMClientProvisioningData's provisioned IntervalForFirstSetOfRetries: the aggressive poll
+	// used until a host is known to support on-demand sync.
+	windowsMDMFastPollIntervalMinutes = "1"
+	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. 480 minutes (8 hours) matches Intune's
+	// default check-in cadence. Steady-state command latency comes from the on-demand wake; this interval only bounds the fallback latency
+	// if a wake ever fails, so a longer value trades a larger worst-case fallback for less polling load.
+	windowsMDMRelaxedPollIntervalMinutes = "480"
+)
+
+// buildPollScheduleCommand builds an MDMWindowsCommand that Replaces the DMClient Poll interval with the value for the given schedule
+// (relaxed vs the aggressive default). It is enqueued like any other Windows MDM command, so the command queue handles delivery, automatic
+// re-delivery until acknowledged, and ack recording.
+func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
+	interval := windowsMDMFastPollIntervalMinutes
+	if relaxed {
+		interval = windowsMDMRelaxedPollIntervalMinutes
+	}
+	cmdUUID := uuid.NewString()
+	cmd := newSyncMLCmdInt(fleet.CmdReplace, syncml.DMClientPollIntervalLocURI, interval)
+	cmd.CmdID = mdm_types.CmdID{Value: cmdUUID}
+	rawCommand, err := xml.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal poll schedule command: %w", err)
+	}
+	return &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   rawCommand,
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
+	}, nil
+}
+
+// reconcileWindowsMDMPollSchedule relaxes (or restores) the device's DMClient poll schedule based on whether its fleetd can be woken on
+// demand. Capable hosts get a relaxed poll, so steady-state command delivery is driven by the on-demand wake instead of frequent polling
+// (the server-load reduction); non-capable hosts stay on the fast poll.
+//
+// It enqueues the poll Replace through the standard Windows MDM command queue. poll_schedule_relaxed records only the
+// INTENDED schedule, so a command is enqueued exactly once per intended change (and excluded from the
+// pending-command/wake signal, so tuning the poll does not itself request a wake).
+func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
+	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
+	// this hot management path does no extra DB lookups.
+	desiredRelaxed := device.FleetdSyncCapable
+	if desiredRelaxed == device.PollScheduleRelaxed {
+		// Intended schedule already matches; any still-undelivered Replace is re-sent by the command queue.
+		return nil
+	}
+
+	cmd, err := buildPollScheduleCommand(desiredRelaxed)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
+	}
+	// Enqueue the Replace and record the intended schedule atomically.
+	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+	}
+	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
+	return nil
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.
