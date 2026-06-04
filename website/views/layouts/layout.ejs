@@ -1120,13 +1120,13 @@
       vgo('process');
     </script>      
    <% } %>
-    <% /* Remove query params from the URL after analytics have ingested them. */ %>
+    <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
     <script>
       window.addEventListener('load', function() {
         setTimeout(function() {
           try {
             if (window.location.search) {
-              history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+              history.replaceState(window.history.state, document.title, window.location.pathname + window.location.hash);
             }
           } catch (unusedErr) {
             // No-op: never let URL cleanup break the page.
