@@ -67,7 +67,6 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		}
 	}
 
-
 	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
 		return nil
 	}

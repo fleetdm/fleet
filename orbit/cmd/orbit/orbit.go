@@ -1256,7 +1256,7 @@ func orbitAction(c *cli.Context) error {
 	}
 
 	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-		RootDir:        c.String("root-dir"),
+		RootDir: c.String("root-dir"),
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
