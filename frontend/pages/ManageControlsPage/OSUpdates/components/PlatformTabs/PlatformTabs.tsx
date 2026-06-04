@@ -2,7 +2,6 @@ import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
@@ -84,58 +83,18 @@ const PlatformTabs = ({
         >
           <TabList>
             <Tab key="macOS" data-text="macOS">
-              <TabText>
-                macOS
-                {isMacOSConfigured && (
-                  <Icon
-                    name="check"
-                    size="small"
-                    color="core-fleet-green"
-                    className={`${baseClass}__tab-check`}
-                  />
-                )}
-              </TabText>
+              <TabText showCheck={isMacOSConfigured}>macOS</TabText>
             </Tab>
             {isWindowsMdmEnabled && (
               <Tab key="Windows" data-text="Windows">
-                <TabText>
-                  Windows
-                  {isWindowsConfigured && (
-                    <Icon
-                      name="check"
-                      size="small"
-                      color="core-fleet-green"
-                      className={`${baseClass}__tab-check`}
-                    />
-                  )}
-                </TabText>
+                <TabText showCheck={isWindowsConfigured}>Windows</TabText>
               </Tab>
             )}
             <Tab key="iOS" data-text="iOS">
-              <TabText>
-                iOS
-                {isIOSConfigured && (
-                  <Icon
-                    name="check"
-                    size="small"
-                    color="core-fleet-green"
-                    className={`${baseClass}__tab-check`}
-                  />
-                )}
-              </TabText>
+              <TabText showCheck={isIOSConfigured}>iOS</TabText>
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
-              <TabText>
-                iPadOS
-                {isIPadOSConfigured && (
-                  <Icon
-                    name="check"
-                    size="small"
-                    color="core-fleet-green"
-                    className={`${baseClass}__tab-check`}
-                  />
-                )}
-              </TabText>
+              <TabText showCheck={isIPadOSConfigured}>iPadOS</TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">

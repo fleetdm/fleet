@@ -308,31 +308,21 @@ const AddProfileModal = ({
         <Tabs selectedIndex={selectedTabIndex} onSelect={setSelectedTabIndex}>
           <TabList>
             <Tab>
-              <TabText>
+              <TabText
+                showCheck={
+                  listNamesFromSelectedLabels(selectedIncludeLabels).length > 0
+                }
+              >
                 Include
-                {listNamesFromSelectedLabels(selectedIncludeLabels).length >
-                  0 && (
-                  <Icon
-                    name="check"
-                    size="small"
-                    color="core-fleet-green"
-                    className={`${baseClass}__tab-check`}
-                  />
-                )}
               </TabText>
             </Tab>
             <Tab>
-              <TabText>
+              <TabText
+                showCheck={
+                  listNamesFromSelectedLabels(selectedExcludeLabels).length > 0
+                }
+              >
                 Exclude
-                {listNamesFromSelectedLabels(selectedExcludeLabels).length >
-                  0 && (
-                  <Icon
-                    name="check"
-                    size="small"
-                    color="core-fleet-green"
-                    className={`${baseClass}__tab-check`}
-                  />
-                )}
               </TabText>
             </Tab>
           </TabList>
