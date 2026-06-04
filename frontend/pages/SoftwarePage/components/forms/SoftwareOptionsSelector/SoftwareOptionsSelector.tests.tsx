@@ -98,6 +98,21 @@ describe("SoftwareOptionsSelector", () => {
       expect(screen.getByText("🔐 Security")).toBeInTheDocument();
     });
 
+    it("treats teamId 0 (no team) as dynamic, fetching categories from the API", async () => {
+      // A name absent from the hardcoded fallback proves teamId 0 queried the API.
+      mockServer.use(
+        listSelfServiceCategoriesHandler([
+          { id: 9, name: "🛟 No-team custom category" },
+        ])
+      );
+
+      renderComponent({ ...selfServiceEditingProps, teamId: 0 });
+
+      expect(
+        await screen.findByText("🛟 No-team custom category")
+      ).toBeInTheDocument();
+    });
+
     it("shows the empty state with an Add category link when no categories exist", async () => {
       mockServer.use(emptySelfServiceCategoriesHandler);
 
