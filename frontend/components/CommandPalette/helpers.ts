@@ -253,13 +253,17 @@ export const computeBestMatch = (
   query: string
 ): IBestMatchEntry[] => {
   const queryLower = query.toLowerCase().trim();
-  if (queryLower.length < BEST_MATCH_MIN_QUERY) return [];
+  // Gate on typed characters, not raw length — interior whitespace
+  // shouldn't count toward the floor (otherwise "o s" reads as 3 chars
+  // and skips the stricter 2-char ladder).
+  const charCount = queryLower.replace(/\s+/g, "").length;
+  if (charCount < BEST_MATCH_MIN_QUERY) return [];
 
   // At 2 chars, raise the noise floor to label-prefix (exact + prefix
   // only). Below that floor the result is too noisy to surface as Best
   // match. 3+ chars uses the full tier ladder.
   const minScore =
-    queryLower.length < BEST_MATCH_FULL_LADDER_MIN ? SCORE_LABEL_PREFIX : 1;
+    charCount < BEST_MATCH_FULL_LADDER_MIN ? SCORE_LABEL_PREFIX : 1;
 
   // Split on whitespace only for tokenization — hyphens stay attached
   // because hyphenated phrases like "fleet-maintained" are intentional

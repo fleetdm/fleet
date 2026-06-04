@@ -951,6 +951,20 @@ describe("CommandPalette helpers", () => {
       expect(result.map((e) => e.item.id)).toEqual(["user-settings", "zeta"]);
     });
 
+    it("gates on typed characters, not whitespace — 'o s' is treated as 2 chars", () => {
+      // "o s" trims to length 3 but only 2 typed letters. Must use the
+      // restricted 2-char ladder, not the full one. Without the fix, a
+      // multi-token word-prefix match (score 80) would slip past the
+      // floor (minScore=1) and surface — but at 2 typed chars the floor
+      // is 90, so this must be rejected.
+      const items = [ITEM("user-os", "User OS")];
+      expect(computeBestMatch(items, "o s")).toEqual([]);
+
+      // Same shape with 3 typed chars uses the full ladder and accepts.
+      const fullResult = computeBestMatch(items, "us os");
+      expect(fullResult.length).toBe(1);
+    });
+
     it("promotes a label prefix match — 'sett' → 'Settings'", () => {
       // The motivating case from #39018 manager feedback: a partial label
       // match should land in Best match, not get jumbled below keyword
