@@ -352,8 +352,7 @@ const AddProfileModal = ({
                   name="include-mode"
                   tooltip={
                     <>
-                      Profile will be applied to hosts that <b>have any</b> of
-                      these labels.
+                      Profile will be applied to hosts that <em><b>have any</b></em> of these labels.
                     </>
                   }
                   onChange={(val: string) =>
@@ -369,8 +368,7 @@ const AddProfileModal = ({
                   name="include-mode"
                   tooltip={
                     <>
-                      Profile will be applied to hosts that <b>have all</b> of
-                      these labels.
+                      Profile will be applied to hosts that <em><b>have all</b></em> of these labels.
                     </>
                   }
                   onChange={(val: string) =>
