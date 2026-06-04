@@ -2156,6 +2156,59 @@ func (ds *Datastore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial s
 	return res, nil
 }
 
+func (ds *Datastore) ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error) {
+	type candidate struct {
+		HostID              uint `db:"host_id"`
+		HasActiveAssignment bool `db:"has_active_assignment"`
+		HasAnyAssignment    bool `db:"has_any_assignment"`
+	}
+	var candidates []candidate
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidates, `
+		SELECT
+			h.id AS host_id,
+			EXISTS (
+				SELECT 1 FROM host_dep_assignments a
+				WHERE a.host_id = h.id AND a.hardware_serial = h.hardware_serial AND a.deleted_at IS NULL
+			) AS has_active_assignment,
+			EXISTS (
+				SELECT 1 FROM host_dep_assignments a WHERE a.host_id = h.id
+			) AS has_any_assignment
+		FROM hosts h
+		WHERE h.hardware_serial = ? AND h.platform = ? AND h.id != ?`, serial, platform, deletedHostID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "find surviving dep hosts")
+	}
+
+	if len(candidates) == 0 {
+		return false, nil
+	}
+
+	// If any survivor already owns an active assignment for this serial, the ABM
+	// relationship is already preserved and there's nothing to do.
+	for _, c := range candidates {
+		if c.HasActiveAssignment {
+			return true, nil
+		}
+	}
+
+	// Otherwise transfer the deleted host's assignment to a survivor that has no
+	// assignment row of its own. host_id is the primary key, so a survivor that
+	// already has a (soft-deleted) row can't be a transfer target.
+	for _, c := range candidates {
+		if !c.HasAnyAssignment {
+			if _, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_dep_assignments SET host_id = ? WHERE host_id = ?`,
+				c.HostID, deletedHostID,
+			); err != nil {
+				return true, ctxerr.Wrap(ctx, err, "transfer dep assignment to surviving host")
+			}
+			return true, nil
+		}
+	}
+
+	// No survivor can take the assignment; leave the deleted host's row in place.
+	return true, nil
+}
+
 func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_dep_assignments

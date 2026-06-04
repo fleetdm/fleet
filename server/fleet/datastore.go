@@ -1527,6 +1527,15 @@ type Datastore interface {
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
 
+	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
+	// being deleted when one or more duplicate hosts (same serial and platform,
+	// excluding deletedHostID) still exist. It returns true if such a duplicate
+	// exists, in which case the caller must NOT restore a pending "ghost" host.
+	// When a surviving duplicate has no DEP assignment of its own, the deleted
+	// host's assignment is transferred to it so the ABM relationship is
+	// preserved.
+	ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 

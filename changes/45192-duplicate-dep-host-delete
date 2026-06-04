@@ -1,0 +1,1 @@
+- Fixed a bug where deleting one duplicate DEP host not resolving the duplicate. Fleet no longer recreates a pending host record when another host with the same serial and platform still exists
