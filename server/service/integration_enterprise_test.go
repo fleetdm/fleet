@@ -31206,12 +31206,35 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
 
-	// Second fail (fail→fail): continuous policy re-queues, default does not.
+	// Second fail (fail→fail) within the policy update interval: the continuous policy
+	// is throttled. A successful install requests a host refetch that re-runs policies
+	// immediately, so without throttling this would be a tight install→refetch→re-run
+	// loop. It must NOT re-queue until the interval elapses.
+	submitPolicyResult(continuousPolicy.ID, false)
+	require.Never(t, func() bool {
+		return countInstallsFor(continuousPolicy.ID) != 1
+	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+
+	// Age the last successful install past the policy update interval; the next failing
+	// result must re-queue (the retry happens on the next interval). The cooldown is
+	// keyed per host+installer (GetHostLastInstallData), and both policies share this
+	// installer, so age every install for it rather than only the continuous policy's.
+	ageInstaller := func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_software_installs SET updated_at = NOW() - INTERVAL 2 HOUR
+				WHERE host_id = ? AND software_installer_id = ?
+			`, host.ID, installerID)
+			return err
+		})
+	}
+	ageInstaller()
 	submitPolicyResult(continuousPolicy.ID, false)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must fire on every failing result")
+		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must re-fire after the cooldown elapses")
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
+
 	submitPolicyResult(transitionPolicy.ID, false)
 	// Poll for a window so a delayed enqueue doesn't slip past a one-shot check.
 	require.Never(t, func() bool {
