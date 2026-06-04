@@ -306,12 +306,13 @@ const AddProfileModal = ({
         <span className={`${baseClass}__no-labels--description`}>
           Add a label to target your configuration profile.
         </span>
-        <a
-          href={PATHS.LABEL_NEW_DYNAMIC}
-          className={`${baseClass}__no-labels--link`}
+        <Button
+          onClick={() => {
+            window.location.href = PATHS.LABEL_NEW_DYNAMIC;
+          }}
         >
           Add label
-        </a>
+        </Button>
       </div>
     );
 
@@ -352,7 +353,11 @@ const AddProfileModal = ({
                   name="include-mode"
                   tooltip={
                     <>
-                      Profile will be applied to hosts that <em><b>have any</b></em> of these labels.
+                      Profile will be applied to hosts that{" "}
+                      <em>
+                        <b>have any</b>
+                      </em>{" "}
+                      of these labels.
                     </>
                   }
                   onChange={(val: string) =>
@@ -368,7 +373,11 @@ const AddProfileModal = ({
                   name="include-mode"
                   tooltip={
                     <>
-                      Profile will be applied to hosts that <em><b>have all</b></em> of these labels.
+                      Profile will be applied to hosts that{" "}
+                      <em>
+                        <b>have all</b>
+                      </em>{" "}
+                      of these labels.
                     </>
                   }
                   onChange={(val: string) =>

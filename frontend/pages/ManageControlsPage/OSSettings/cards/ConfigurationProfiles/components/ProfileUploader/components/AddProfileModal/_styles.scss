@@ -119,24 +119,8 @@
       margin-top: -$pad-xsmall;
     }
 
-    &--link {
+    .button {
       margin-top: $pad-small;
-      box-sizing: border-box;
-      display: inline-flex;
-      align-items: center;
-      padding: $pad-small $pad-medium;
-      height: 36px;
-      line-height: 1;
-      background-color: $core-fleet-green;
-      color: $core-fleet-white;
-      border-radius: $border-radius;
-      font-weight: $bold;
-      text-decoration: none;
-
-      &:hover {
-        background-color: $core-fleet-green-over;
-        text-decoration: none;
-      }
     }
   }
 
