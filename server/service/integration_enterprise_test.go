@@ -31894,9 +31894,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 	t := s.T()
 	ctx := context.Background()
-	rollupName := fleet.ActivityTypeInstalledAllSelfServiceSoftware{}.ActivityName()
-	admin := s.users["admin1@example.com"]
-	noLabels := fleet.LabelIdentsWithScope{}
+	installAllActivityName := fleet.ActivityTypeInstalledAllSelfServiceSoftware{}.ActivityName()
 
 	installAll := func(token string, expectedStatus int, qp ...string) {
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token), nil, expectedStatus, qp...)
@@ -31941,7 +31939,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			UninstallScript: "uninstall",
 			InstallerFile:   tfr,
 			SelfService:     selfService,
-			UserID:          admin.ID,
+			UserID:          s.users["admin1@example.com"].ID,
 			TeamID:          teamID,
 			ValidatedLabels: &labels,
 			CategoryIDs:     categoryIDs,
@@ -31950,7 +31948,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		return titleID
 	}
 	// complete the host's currently-activated (head) install with the given exit code
-	completeHead := func(host *fleet.Host, exitCode int) {
+	completeActivatedInstall := func(host *fleet.Host, exitCode int) {
 		var uid string
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &uid, `SELECT execution_id FROM host_software_installs WHERE host_id = ? AND status = 'pending_install' LIMIT 1`, host.ID)
@@ -31960,28 +31958,10 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": %d, "install_script_output": "done"}`, *host.OrbitNodeKey, uid, exitCode)),
 			http.StatusNoContent)
 	}
-	// uninstall a title and report the result with the given exit code
-	uninstall := func(host *fleet.Host, titleID uint, titleName string, exitCode int) {
-		var resp installSoftwareResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
-		var hostSw getHostSoftwareResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &hostSw, "include_available_for_install", "true")
-		var execID string
-		for _, sw := range hostSw.Software {
-			if sw.Name == titleName && sw.SoftwarePackage != nil && sw.SoftwarePackage.LastUninstall != nil {
-				execID = sw.SoftwarePackage.LastUninstall.ExecutionID
-			}
-		}
-		require.NotEmpty(t, execID)
-		var scriptResp fleet.OrbitPostScriptResultResponse
-		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": %d, "output": "ok"}`, *host.OrbitNodeKey, execID, exitCode)),
-			http.StatusOK, &scriptResp)
-	}
 
-	// --- VPP + in-house support, so those dispatch branches are exercised by the
-	// runs below (not only one dedicated test). A stateless mock stands in for
-	// Apple's VPP API, Apple MDM is enabled, and a global VPP token is inserted. ---
+	// --- VPP + in-house installs are exercised by the runs below (not only one
+	// dedicated test). A stateless mock stands in for Apple's VPP API, Apple MDM is
+	// enabled, and a global VPP token is inserted. ---
 	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/disassociate"):
@@ -32005,7 +31985,15 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 	require.NoError(t, err)
 	appCfg.MDM.EnabledAndConfigured = true
 	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
-	time.Sleep(2 * time.Second) // let the cached AppConfig (1s TTL) refresh on the running server
+	// MDM.EnabledAndConfigured is set by the server (from APNs/SCEP config), so the
+	// config API ignores it — the test sets it directly. That write bypasses the running
+	// server's separate cached AppConfig (1s TTL), so read it back through the server
+	// until the cache reflects the change the VPP installs need.
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		var acResp appConfigResponse
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		assert.True(c, acResp.MDM.EnabledAndConfigured)
+	}, 5*time.Second, 100*time.Millisecond)
 	t.Cleanup(func() {
 		ac, err := s.ds.AppConfig(ctx)
 		require.NoError(t, err)
@@ -32016,7 +32004,10 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 
 	// MDM-connect an Apple host (required for VPP candidacy and because activation
 	// of either Apple type enqueues an MDM command).
-	mdmEnroll := func(host *fleet.Host) {
+	newMDMHost := func(platform, suffix string, teamID *uint) (*fleet.Host, string) {
+		host := createOrbitEnrolledHost(t, platform, suffix, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
+		host.TeamID = teamID
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
 			return err
@@ -32027,12 +32018,6 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			return err
 		})
 		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))
-	}
-	newMDMHost := func(platform, suffix string, teamID *uint) (*fleet.Host, string) {
-		host := createOrbitEnrolledHost(t, platform, suffix, s.ds)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
-		host.TeamID = teamID
-		mdmEnroll(host)
 		token := suffix + "-tok"
 		createDeviceTokenForHost(t, s.ds, host.ID, token)
 		return host, token
@@ -32052,18 +32037,6 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		require.NoError(t, err)
 		return app.TitleID
 	}
-	// queue a VPP self-service install via install_all on an MDM-enrolled darwin host
-	// in a fresh team, asserting the VPP dispatch creates a pending activity. (In-house
-	// apps are iOS/iPadOS-only and the device endpoint is desktop-only, so simulating
-	// those installs needs the MDM suite — covered there, not here.)
-	assertVPPQueues := func(t *testing.T, suffix string) {
-		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-" + suffix})
-		require.NoError(t, err)
-		dHost, dToken := newMDMHost("darwin", "av-"+suffix, &team.ID)
-		newVPPApp("vpp-"+suffix, &team.ID, nil)
-		installAll(dToken, http.StatusAccepted)
-		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, dHost.ID))
-	}
 
 	t.Run("install statuses", func(t *testing.T) {
 		host := createOrbitEnrolledHost(t, "ubuntu", "ia-st", s.ds)
@@ -32077,61 +32050,31 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			})
 		})
 
-		// bad device token -> 401; empty candidate set -> 202 with no rows or roll-up
+		// bad device token -> 401; nothing available to install -> 202 with no rows or roll-up
 		s.DoRawNoAuth("POST", "/api/latest/fleet/device/not-a-token/software/install_all", nil, http.StatusUnauthorized)
 		installAll(token, http.StatusAccepted)
 		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
-		s.lastActivityOfTypeDoesNotMatch(rollupName, "", 0)
+		s.lastActivityOfTypeDoesNotMatch(installAllActivityName, "", 0)
 
-		// a label the host is a member of, to scope an installer out
-		lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "select 1"})
-		require.NoError(t, err)
-		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
-		excludeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
+		// Which self-service installs qualify (statuses, inventory, label/category/team
+		// scoping, alphabetical order) is covered in testGetSoftwareTitlesForInstallAll;
+		// here we verify the endpoint queues those installs, records the activities, and
+		// is idempotent. "installed" is a smoke check that an installed title stays out.
+		newInstaller("available", nil, true, fleet.LabelIdentsWithScope{})
+		newInstaller("also-available", nil, true, fleet.LabelIdentsWithScope{})
+		installedID := newInstaller("installed", nil, true, fleet.LabelIdentsWithScope{})
+		pendingID := newInstaller("pending", nil, true, fleet.LabelIdentsWithScope{})
 
-		newInstaller("available", nil, true, noLabels)
-		installedID := newInstaller("installed", nil, true, noLabels)
-		failedID := newInstaller("failed", nil, true, noLabels)
-		failedUninstallID := newInstaller("failed-uninstall", nil, true, noLabels)
-		uninstalledID := newInstaller("uninstalled", nil, true, noLabels)
-		pendingID := newInstaller("pending", nil, true, noLabels)
-		newInstaller("inventory", nil, true, noLabels)
-		newInstaller("update-available", nil, true, noLabels)
-		newInstaller("nonss", nil, false, noLabels)
-		newInstaller("zlabel-out", nil, true, excludeLbl)
-
-		// drive each into its state; the queue is serialized, so finish each before the
-		// next, and leave "pending" enqueued last
+		// the host's queue runs one install at a time, so finish each before the next
 		deviceInstall(token, installedID)
-		completeHead(host, 0)
+		completeActivatedInstall(host, 0) // -> installed, must be skipped
+		deviceInstall(token, pendingID)   // -> pending head, must be left untouched
 
-		deviceInstall(token, failedID)
-		for range fleet.MaxSoftwareInstallAttempts { // exhaust auto-retries -> terminal failed
-			completeHead(host, 1)
-		}
-
-		deviceInstall(token, failedUninstallID)
-		completeHead(host, 0)
-		uninstall(host, failedUninstallID, "failed-uninstall", 1) // exit 1 -> failed_uninstall
-
-		deviceInstall(token, uninstalledID)
-		completeHead(host, 0)
-		uninstall(host, uninstalledID, "uninstalled", 0) // back to available (status NULL)
-
-		// both are in osquery inventory ("update-available" is older than its 1.0 installer) -> not queued
-		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
-			{Name: "inventory", Version: "0.5", Source: "deb_packages"},
-			{Name: "update-available", Version: "0.5", Source: "deb_packages"},
-		})
-		require.NoError(t, err)
-
-		deviceInstall(token, pendingID)
-
-		// install_all queues only the genuine candidates, in name order, behind the
+		// install_all queues only the available titles, in name order, after the
 		// already-pending title (which it leaves untouched and does not duplicate)
 		installAll(token, http.StatusAccepted)
-		require.Equal(t, []string{"pending", "available", "uninstalled"}, queuedTitles(host.ID))
-		s.lastActivityOfTypeMatches(rollupName, fmt.Sprintf(
+		require.Equal(t, []string{"pending", "also-available", "available"}, queuedTitles(host.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
 			host.ID, host.DisplayName()), 0)
 
@@ -32148,14 +32091,21 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			require.Equal(t, string(fleet.SoftwareInstallPending), d.Status)
 			actTitles = append(actTitles, d.SoftwareTitle)
 		}
-		require.ElementsMatch(t, []string{"pending", "available", "uninstalled"}, actTitles)
+		require.ElementsMatch(t, []string{"pending", "also-available", "available"}, actTitles)
 
 		// idempotent: a second call adds nothing
 		installAll(token, http.StatusAccepted)
 		require.Len(t, queuedTitles(host.ID), 3)
 
-		// VPP dispatch is exercised here too
-		assertVPPQueues(t, "statuses")
+		// install_all also queues VPP self-service app installs on an MDM-enrolled
+		// darwin host. (In-house apps are iOS/iPadOS-only and the device endpoint is
+		// desktop-only, so those installs are covered in the MDM suite, not here.)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-statuses", &vppTeam.ID)
+		newVPPApp("vpp-statuses", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
 	})
 
 	t.Run("coexists with existing and incoming activities", func(t *testing.T) {
@@ -32166,36 +32116,36 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		createDeviceTokenForHost(t, s.ds, host.ID, token)
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-		aID := newInstaller("act-a", &team.ID, true, noLabels)
-		newInstaller("act-b", &team.ID, true, noLabels)
-		newInstaller("act-c", &team.ID, true, noLabels)
+		aID := newInstaller("act-a", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-b", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-c", &team.ID, true, fleet.LabelIdentsWithScope{})
 
 		// a manual install of A is already pending before install_all runs
 		deviceInstall(token, aID)
 		require.Equal(t, []string{"act-a"}, queuedTitles(host.ID))
 
-		// install_all appends the remaining candidates behind A without re-queueing A
+		// install_all appends the remaining titles behind A without re-queueing A
 		installAll(token, http.StatusAccepted)
 		require.Equal(t, []string{"act-a", "act-b", "act-c"}, queuedTitles(host.ID))
-		s.lastActivityOfTypeMatches(rollupName, fmt.Sprintf(
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
 			host.ID, host.DisplayName()), 0)
 
-		// the serialized queue drains in order
+		// the queue drains in order
 		for range 3 {
-			completeHead(host, 0)
+			completeActivatedInstall(host, 0)
 		}
 		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
 		require.Equal(t, 3, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
 
-		// an activity arriving after the batch coexists and drains too
-		dID := newInstaller("act-d", &team.ID, true, noLabels)
+		// an install request arriving after install_all coexists and drains too
+		dID := newInstaller("act-d", &team.ID, true, fleet.LabelIdentsWithScope{})
 		deviceInstall(token, dID)
-		completeHead(host, 0)
+		completeActivatedInstall(host, 0)
 		require.Equal(t, 4, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
 
 		// an install request racing install_all on the same host must not corrupt the
-		// queue: exactly one activated head, every candidate present
+		// queue: exactly one activated head, every install request present
 		host2 := createOrbitEnrolledHost(t, "ubuntu", "ia-act2", s.ds)
 		token2 := "ia-act2-token" //nolint:gosec // G101: test value only
 		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
@@ -32247,8 +32197,8 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		require.GreaterOrEqual(t, len(queuedTitles(host2.ID)), 4)
 
 		// double-queue: if another endpoint queues a title behind an activated head
-		// while install_all's candidate list (read before that) still includes it,
-		// install_all enqueues a second copy. Its per-candidate reset only cancels
+		// while install_all's title list (read before that) still includes it,
+		// install_all queues a second copy. Its per-install reset only cancels
 		// ACTIVATED installs, so the not-yet-activated concurrent install survives.
 		// This reproduces that interleaving deterministically using install_all's exact
 		// insert sequence (ResetNonPolicyInstallAttempts + InsertSoftwareInstallRequest).
@@ -32257,8 +32207,8 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		createDeviceTokenForHost(t, s.ds, host3.ID, token3)
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host3.ID})))
 
-		headID := newInstaller("dq-head", &team.ID, true, noLabels)
-		fooID := newInstaller("dq-foo", &team.ID, true, noLabels)
+		headID := newInstaller("dq-head", &team.ID, true, fleet.LabelIdentsWithScope{})
+		fooID := newInstaller("dq-foo", &team.ID, true, fleet.LabelIdentsWithScope{})
 		deviceInstall(token3, headID) // activated head
 		deviceInstall(token3, fooID)  // queued behind the head, not yet activated
 
@@ -32276,8 +32226,13 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			JOIN software_titles st ON st.id = siua.software_title_id
 			WHERE ua.host_id = ? AND st.name = 'dq-foo'`, host3.ID))
 
-		// VPP dispatch is exercised here too
-		assertVPPQueues(t, "activities")
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-activities"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-activities", &vppTeam.ID)
+		newVPPApp("vpp-activities", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
 
 		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
 	})
@@ -32286,8 +32241,8 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)
 
-		// a no-team installer must never be a candidate for a team host
-		newInstaller("global-app", nil, true, noLabels)
+		// a no-team installer must never be queued for a team host
+		newInstaller("global-app", nil, true, fleet.LabelIdentsWithScope{})
 		t.Cleanup(func() {
 			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
@@ -32307,7 +32262,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		includeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
 		excludeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
 
-		newInstaller("team-app", &team.ID, true, noLabels)
+		newInstaller("team-app", &team.ID, true, fleet.LabelIdentsWithScope{})
 		newInstaller("lbl-in", &team.ID, true, includeLbl)
 		newInstaller("lbl-out", &team.ID, true, excludeLbl)
 
@@ -32324,17 +32279,17 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 
 		cat, err := s.ds.NewSoftwareCategory(ctx, team.ID, t.Name()+"-cat")
 		require.NoError(t, err)
-		newInstaller("cat-app", &team.ID, true, noLabels, cat.ID)
+		newInstaller("cat-app", &team.ID, true, fleet.LabelIdentsWithScope{}, cat.ID)
 
 		// scoped to the category -> only its title, and the roll-up carries the category
 		installAll(tokenB, http.StatusAccepted, "category_id", fmt.Sprint(cat.ID))
 		require.Equal(t, []string{"cat-app"}, queuedTitles(hostB.ID))
-		s.lastActivityOfTypeMatches(rollupName, fmt.Sprintf(
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": %d, "self_service_category_name": %q, "software_titles_count": 1}`,
 			hostB.ID, hostB.DisplayName(), cat.ID, cat.Name), 0)
 
-		// nonexistent category -> 404; a category on another fleet -> 400
-		installAll(tokenB, http.StatusNotFound, "category_id", "9999999")
+		// nonexistent category, or a category on another fleet -> 400
+		installAll(tokenB, http.StatusBadRequest, "category_id", "9999999")
 		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
 		require.NoError(t, err)
 		otherCat, err := s.ds.NewSoftwareCategory(ctx, otherTeam.ID, t.Name()+"-othercat")
@@ -32361,7 +32316,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)
 		for i := range numInstallers {
-			newInstaller(fmt.Sprintf("mh-%d", i), &team.ID, true, noLabels)
+			newInstaller(fmt.Sprintf("mh-%d", i), &team.ID, true, fleet.LabelIdentsWithScope{})
 		}
 		type hostToken struct {
 			host  *fleet.Host
@@ -32411,14 +32366,14 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
 		}
 
-		// re-running queues nothing new, then drain every host's serialized queue
+		// re-running queues nothing new, then drain every host's queue
 		for i := range hosts {
 			installAll(hosts[i].token, http.StatusAccepted)
 			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
 		}
 		for i := range hosts {
 			for range numInstallers {
-				completeHead(hosts[i].host, 0)
+				completeActivatedInstall(hosts[i].host, 0)
 			}
 			require.Zerof(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hosts[i].host.ID), "host %d", i)
 			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, hosts[i].host.ID), "host %d", i)
@@ -32426,73 +32381,12 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 
 		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
 
-		// VPP dispatch is exercised here too
-		assertVPPQueues(t, "multihost")
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-multihost"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-multihost", &vppTeam.ID)
+		newVPPApp("vpp-multihost", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
 	})
-}
-
-// TestSelfServiceInstallDoubleEnqueue documents that the device self-service
-// single-install endpoint already lets the same title be enqueued twice when it
-// sits behind an activated head: that path has no pending pre-check, and the
-// per-request reset only cancels an *activated* install. install_all inherits this
-// existing behavior rather than introducing it.
-func (s *integrationEnterpriseTestSuite) TestSelfServiceInstallDoubleEnqueue() {
-	t := s.T()
-	ctx := context.Background()
-	admin := s.users["admin1@example.com"]
-
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-	require.NoError(t, err)
-	host := createOrbitEnrolledHost(t, "ubuntu", "ss-dq", s.ds)
-	token := "ss-dq-token" //nolint:gosec // G101: test value only
-	createDeviceTokenForHost(t, s.ds, host.ID, token)
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-
-	newInstaller := func(name string) uint {
-		tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
-		require.NoError(t, err)
-		_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-			StorageID:       name + "-storage",
-			Filename:        name + ".deb",
-			Title:           name,
-			Extension:       "deb",
-			Source:          "deb_packages",
-			Platform:        "linux",
-			Version:         "1.0",
-			InstallScript:   "install",
-			UninstallScript: "uninstall",
-			InstallerFile:   tfr,
-			SelfService:     true,
-			UserID:          admin.ID,
-			TeamID:          &team.ID,
-			ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		})
-		require.NoError(t, err)
-		return titleID
-	}
-	deviceInstall := func(titleID uint) {
-		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleID), nil, http.StatusAccepted)
-	}
-	countQueued := func(name string) int {
-		var n int
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &n, `
-				SELECT COUNT(*) FROM upcoming_activities ua
-				JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-				JOIN software_titles st ON st.id = siua.software_title_id
-				WHERE ua.host_id = ? AND st.name = ?`, host.ID, name)
-		})
-		return n
-	}
-
-	headID := newInstaller("ss-head")
-	fooID := newInstaller("ss-foo")
-
-	deviceInstall(headID) // becomes the activated head
-	deviceInstall(fooID)  // queued behind the head, not yet activated
-	deviceInstall(fooID)  // self-service has no pending guard -> a second copy is enqueued
-
-	require.Equal(t, 2, countQueued("ss-foo"))
-
-	require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
 }

@@ -5456,8 +5456,8 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 		return out
 	}
 
-	// candidates: available (also in the category), a successfully-uninstalled title,
-	// and a title scoped to a label the host is a member of
+	// available to install: available (also in the category), a successfully-uninstalled
+	// title, and a title scoped to a label the host is a member of
 	newInstaller("available", true, []uint{cat.ID}, nil, noLabels)
 	uninstalledID, _ := newInstaller("uninstalled", true, nil, nil, noLabels)
 	newInstaller("label-in", true, nil, nil, fleet.LabelIdentsWithScope{
@@ -5499,30 +5499,29 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, pendingID, fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 
-	// no category: only the candidates, returned in alphabetical order by name
+	// no category: only the available titles, returned in alphabetical order by name
 	got, categoryName, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil)
 	require.NoError(t, err)
 	require.Nil(t, categoryName)
 	require.Equal(t, []string{"available", "label-in", "uninstalled"}, names(got))
 
-	// scoped to a category: only the in-category candidate, and the name is returned
+	// scoped to a category: only the in-category title, and the name is returned
 	got, categoryName, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID)
 	require.NoError(t, err)
 	require.NotNil(t, categoryName)
 	require.Equal(t, cat.Name, *categoryName)
 	require.Equal(t, []string{"available"}, names(got))
 
-	// nonexistent category -> not found
+	// nonexistent category, or a category belonging to another team -> bad request
 	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, new(uint(9_999_999)))
-	require.True(t, fleet.IsNotFound(err))
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
 
-	// category belonging to another team -> bad request
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "iall-team"})
 	require.NoError(t, err)
 	teamCat, err := ds.NewSoftwareCategory(ctx, team.ID, "iall-team-cat")
 	require.NoError(t, err)
 	_, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &teamCat.ID)
-	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre)
 
 	// team scoping: a team host sees only its team's self-service installer

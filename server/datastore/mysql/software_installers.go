@@ -3816,7 +3816,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		cat, err := ds.SoftwareCategory(ctx, *categoryID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				return nil, nil, ctxerr.Wrap(ctx, err, "software category not found")
+				return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category not found", InternalErr: err})
 			}
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software category")
 		}
@@ -3870,7 +3870,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 			}
 		}
 
-		// not installed by fleet
+		// already installed
 		if len(s.InstalledVersions) > 0 {
 			continue
 		}
