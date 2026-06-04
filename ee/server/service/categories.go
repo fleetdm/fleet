@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // TODO(JK): the GitOps role is currently denied on every software_category
@@ -41,10 +42,8 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 }
 
 func (svc *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
+	teamID := ptr.ValOrZero(host.TeamID)
+
 	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list self-service software categories for host")
