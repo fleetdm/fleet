@@ -72,6 +72,7 @@
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
+    gap: $pad-small;
     padding-top: $pad-medium;
   }
 

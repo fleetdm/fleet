@@ -461,6 +461,9 @@ const AddProfileModal = ({
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>
+            <Button variant="inverse" onClick={onDone}>
+              Cancel
+            </Button>
             <Button
               className={`${baseClass}__add-profile-button`}
               onClick={onFileUpload}
