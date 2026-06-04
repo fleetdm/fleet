@@ -20,6 +20,8 @@ import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
+import DellCommandUpdate from "./DellCommandUpdate";
+import DellDisplayManager from "./DellDisplayManager";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -32,20 +34,27 @@ import Joplin from "./Joplin";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import PlantronicsHub from "./PlantronicsHub";
+import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import Powertoys from "./Powertoys";
 import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import Rstudio from "./Rstudio";
 import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
@@ -357,6 +366,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   cryptomator: Cryptomator,
+  "dell command update": DellCommandUpdate,
+  "dell display manager": DellDisplayManager,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
@@ -369,8 +380,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
   max: Max,
+  "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -454,6 +467,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
@@ -479,10 +493,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  "plantronics hub": PlantronicsHub,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
   postman: Postman,
+  "power automate": PowerAutomate,
   "power bi": PowerBi,
+  powertoys: Powertoys,
   prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
@@ -501,6 +518,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
+  rstudio: Rstudio,
   rubymine: RubyMine,
   rustdesk: RustDesk,
   rustrover: RustRover,
