@@ -10,7 +10,12 @@ import { IInvite } from "interfaces/invite";
 import { ITeam } from "interfaces/team";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { generateRole, generateTeam, greyCell, tooltipTextWithLineBreaks } from "utilities/helpers";
+import {
+  generateRole,
+  generateTeam,
+  greyCell,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
 import stringUtils from "utilities/strings";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
@@ -339,7 +344,10 @@ const generateRoleGroups = (
 ): { role: string; names: string[] }[] => {
   const groups: { role: string; names: string[] }[] = [];
   if (globalRole !== null && teams.length > 0) {
-    groups.push({ role: stringUtils.capitalizeRole(globalRole), names: ["Global"] });
+    groups.push({
+      role: stringUtils.capitalizeRole(globalRole),
+      names: ["Global"],
+    });
   }
   teams.forEach((team) => {
     const role = stringUtils.capitalizeRole(team.role || "Unassigned");
