@@ -665,8 +665,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
+          type: "automations",
           onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,
