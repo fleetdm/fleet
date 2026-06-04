@@ -3346,17 +3346,23 @@ func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, require
 }
 
 // packageExtensionToPlatform returns the platform name based on the
-// package extension. Returns an empty string if there is no match.
+// package extension. Returns an empty string if there is no match. This is only
+// used as a fallback by installerRequiredPlatform when an installer has no
+// stored Platform; prefer the stored Platform, which is authoritative.
 //
 // .msix is included for Fleet-maintained Windows apps only; custom package
 // upload still rejects .msix (see addMetadataToSoftwarePayload and
 // SoftwareInstallerPlatformFromExtension).
+//
+// .zip is intentionally omitted: it is ambiguous across platforms (a Windows
+// installer or a macOS app bundle), so the stored Platform must be used. Only FMAs allow 
+// for .zip uploads which require a Platform, so this fallback is never hit for zip.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
 	case ".msi", ".exe", ".ps1", ".msix":
 		requiredPlatform = "windows"
-	case ".pkg", ".dmg", ".zip":
+	case ".pkg", ".dmg":
 		requiredPlatform = "darwin"
 	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
 		requiredPlatform = "linux"
