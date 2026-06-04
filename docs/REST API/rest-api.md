@@ -10903,159 +10903,65 @@ Get a list of all software.
 
 ```json
 {
-  "counts_updated_at": "2022-01-01 12:32:00",
-  "count": 1,
+  "counts_updated_at": "2026-06-04T12:34:56Z",
+  "count": 2,
   "software_titles": [
     {
-      "id": 12,
-      "name": "Firefox.app",
-      "display_name": "Firefox",
-      "icon_url":"/api/latest/fleet/software/titles/12/icon?fleet_id=3",
-      "display_name": "",
-      "software_package": {
-        "platform": "darwin",
-        "fleet_maintained_app_id": 42,
-        "name": "FirefoxInstall.pkg",
-        "version": "125.6",
-        "self_service": true,
-        "patch_policy": {
-          "id": 122,
-          "name": "Firefox up to date"
-        },
-        "automatic_install_policies": [
+      "id": 2792,
+      "name": "Slack",
+      "icon_url": null,
+      "source": "apps",
+      "extension_for": "",
+      "browser": "",
+      "hosts_count": 5,
+      "versions_count": 4,
+      "versions": [
           {
-            "id": 343,
-            "name": "[Install software] Firefox.app",
-            "type": "dynamic",
+              "id": 515953,
+              "version": "4.39.88",
+              "vulnerabilities": null
+          },
+          {
+              "id": 610801,
+              "version": "4.47.72",
+              "vulnerabilities": null
           }
-        ],
-      },
-      "app_store_app": null,
-      "versions_count": 3,
-      "source": "apps",
-      "hosts_count": 48,
-      "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        },
-        {
-          "id": 124,
-          "version": "3.4",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        },
-        {
-          "id": 12,
-          "version": "1.13",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        }
       ],
-      "bundle_identifier": "org.mozilla.firefox",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-    },
-    {
-      "id": 22,
-      "name": "Google Chrome.app",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 5,
-      "source": "apps",
-      "hosts_count": 345,
-      "versions": [
-        {
-          "id": 331,
-          "version": "118.1",
-          "vulnerabilities": ["CVE-2023-1234"]
-        },
-        {
-          "id": 332,
-          "version": "119.0",
-          "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"]
-        },
-        {
-          "id": 334,
-          "version": "119.4",
-          "vulnerabilities": ["CVE-2023-1133", "CVE-2023-2224"]
-        },
-        {
-          "id": 348,
-          "version": "121.5",
-          "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
-        },
-      ],
-      "bundle_identifier": "com.google.Chrome",
-      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
-    },
-    {
-      "id": 32,
-      "name": "1Password – Password Manager",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 1,
-      "source": "chrome_extensions",
-      "browser": "chrome",
-      "extension_for": "chrome",
-      "hosts_count": 345,
-      "versions": [
-        {
-          "id": 4242,
-          "version": "2.3.7",
-          "vulnerabilities": []
-        }
-      ]
-    },
-    {
-      "id": 77,
-      "name": "Prettier",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 2,
-      "source": "jetbrains_plugin",
-      "extensions_for": "goland",
-      "hosts_count": 19,
-      "versions": [
-        {
-          "id": 6501,
-          "version": "232.1.0",
-          "vulnerabilities": []
-        },
-        {
-          "id": 6502,
-          "version": "241.2.1",
-          "vulnerabilities": []
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "name": "MyCustomApp",
       "software_package": {
-        "name": "MyCustomApp-1.12.ipa",
-        "platform": "ios",
-        "version": "1.12",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null
+          "name": "Slack-4.50.128-macOS.pkg",
+          "automatic_install_policies": null,
+          "version": "4.50.128",
+          "platform": "darwin",
+          "self_service": false,
+          "last_install": null,
+          "last_uninstall": null,
+          "package_url": ""
       },
       "app_store_app": null,
+      "bundle_identifier": "com.tinyspeck.slackmacgap",
+      "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+      "display_name": ""
+    },
+    {
+      "id": 2618,
+      "name": "Raycast",
+      "icon_url": null,
+      "source": "apps",
+      "extension_for": "",
+      "browser": "",
+      "hosts_count": 1,
       "versions_count": 1,
-      "source": "ios_apps",
-      "hosts_count": 48,
       "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": null
-        }
+          {
+              "id": 651354,
+              "version": "1.104.19",
+              "vulnerabilities": null
+          }
       ],
+      "software_package": null,
+      "app_store_app": null,
+      "bundle_identifier": "com.raycast.macos",
+      "display_name": ""
     }
   ],
   "meta": {
