@@ -1,37 +1,32 @@
 module.exports = {
 
 
-  friendlyName: 'View observability',
+  friendlyName: 'View visibility and reporting',
 
 
-  description: 'Display "Observability" page.',
+  description: 'Display "Visibility and reporting" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/observability'
+      viewTemplatePath: 'pages/visibility-and-reporting'
     },
-    badConfig: { responseType: 'badConfig' },
+
+    badConfig: {
+      responseType: 'badConfig'
+    },
+
   },
 
 
   fn: async function () {
+
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials)) {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
     // Get testimonials for the <scrolalble-tweets> component.
     let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
-    // Default the pagePersonalization to the user's primaryBuyingSituation if it is set, otherwise, default to the eo-it view..
-    let pagePersonalization = this.req.session.primaryBuyingSituation ? this.req.session.primaryBuyingSituation : 'eo-it';
-    // If a purpose query parameter is set, update the pagePersonalization value.
-    // Note: This is the only page we're using this method instead of using the primaryBuyingSiutation value set in the users session.
-    // This lets us link to the security and IT versions of the endpoint ops page from the unpersonalized homepage without changing the users primaryBuyingSituation.
-    if(this.req.param('purpose') === 'it'){
-      pagePersonalization = 'eo-it';
-    } else if(this.req.param('purpose') === 'security'){
-      pagePersonalization = 'eo-security';
-    }
 
     // Only filter and sort testimonials when static content has been built.
     // If the build-static-content script was not run, we'll show a placeholder testimonial that is added by the custom hook.
@@ -75,7 +70,6 @@ module.exports = {
     // Respond with view.
     return {
       testimonialsForScrollableTweets,
-      pagePersonalization,
     };
 
   }

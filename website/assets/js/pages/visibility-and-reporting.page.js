@@ -1,9 +1,9 @@
-parasails.registerPage('observability-page', {
+parasails.registerPage('visibility-and-reporting-page', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    modal: undefined,
+    //…
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -20,11 +20,6 @@ parasails.registerPage('observability-page', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickOpenVideoModal: function(modalName) {
-      this.modal = modalName;
-    },
-    closeModal: function() {
-      this.modal = undefined;
-    }
+    //…
   }
 });

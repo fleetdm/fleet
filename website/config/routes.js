@@ -422,10 +422,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /orchestration': {
-    action: 'view-observability',
+  'GET /visibility-and-reporting': {
+    action: 'view-visibility-and-reporting',
     locals: {
-      pageTitleForMeta: 'Orchestration',
+      pageTitleForMeta: 'Visibility and reporting',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
       currentSection: 'platform',
     }
@@ -1165,7 +1165,7 @@ module.exports.routes = {
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
-
+  'GET /orchestration': '/visibility-and-reporting',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
