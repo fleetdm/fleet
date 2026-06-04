@@ -6,8 +6,6 @@ import Icon from "components/Icon";
 
 const baseClass = "automations-button";
 
-// Derive prop types from Button so this wrapper stays in sync with the
-// underlying component (e.g. onClick supports mouse + keyboard handlers).
 export type IAutomationsButtonProps = Pick<
   IButtonProps,
   "onClick" | "disabled" | "className" | "size"
