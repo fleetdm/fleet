@@ -419,6 +419,7 @@ const EditSoftwareModal = ({
           source={source}
           iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          teamId={teamId}
           isIosOrIpadosApp={isIosOrIpadosApp}
           mobileVersion={
             ("latest_version" in softwareInstaller &&
