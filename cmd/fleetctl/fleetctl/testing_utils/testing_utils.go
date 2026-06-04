@@ -517,6 +517,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
 	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
 
 	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
