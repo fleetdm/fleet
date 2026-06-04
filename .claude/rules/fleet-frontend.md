@@ -108,6 +108,16 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
 
+## Command palette
+Every user-visible action belongs in `frontend/components/CommandPalette/groups/`. Add an entry when introducing:
+- A new top-level page, write action (modal/form/create/edit), or view-by-search flow
+- A new MDM platform, settings page, automation, control, or software action
+- A new admin operation gated on a specific role/tier
+
+Keyword authoring is label-first: any label match outranks any keyword match, so keywords are for words **not already in the label** (synonyms, acronyms, platform aliases). Permission gating must mirror the destination page exactly — don't route users to a screen they can't use.
+
+See `frontend/patterns.md` for required/optional fields, the full keyword/synonym checklist, and test expectations.
+
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
 - Prettier: default config (`.prettierrc.json`)
