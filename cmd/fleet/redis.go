@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -81,6 +82,11 @@ func initRedis(
 	logger *slog.Logger,
 	initFatal func(err error, msg string),
 ) (fleet.RedisPool, fleet.Datastore, *mysqlredis.Datastore) {
+	if license == nil {
+		initFatal(errors.New("license was nil"), "initialize Redis")
+		return nil, nil, nil
+	}
+
 	// Validate cheap local config before dialing Redis: surfaces a
 	// host-cache config error as itself, not as a connectivity failure,
 	// and avoids opening a pool that would be discarded if initFatal is
