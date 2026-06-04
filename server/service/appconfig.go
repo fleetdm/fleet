@@ -2062,6 +2062,9 @@ func (svc *Service) validateVPPAssignments(
 	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
+			if tmName == fleet.DisplayNameAllTeams {
+				tmName = fleet.TeamNameAllTeams
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
 				return nil, nil
@@ -2076,6 +2079,9 @@ func (svc *Service) validateVPPAssignments(
 
 		var tokenTeams []uint
 		for _, teamName := range vpp.Teams {
+			if teamName == fleet.DisplayNameAllTeams {
+				teamName = fleet.TeamNameAllTeams
+			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
