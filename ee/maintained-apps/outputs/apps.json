@@ -1227,6 +1227,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "Icon Composer",
+      "slug": "icon-composer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apple.IconComposer",
+      "description": "Icon Composer is an Apple tool to create multi-platform icons."
+    },
+    {
       "name": "IINA",
       "slug": "iina/darwin",
       "platform": "darwin",
