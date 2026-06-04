@@ -854,6 +854,8 @@ type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID 
 
 type ListSoftwareCategoriesFunc func(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error)
 
+type ListSelfServiceSoftwareCategoriesForHostFunc func(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error)
+
 type NewSoftwareCategoryFunc func(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error)
 
 type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
@@ -2189,6 +2191,9 @@ type Service struct {
 
 	ListSoftwareCategoriesFunc        ListSoftwareCategoriesFunc
 	ListSoftwareCategoriesFuncInvoked bool
+
+	ListSelfServiceSoftwareCategoriesForHostFunc        ListSelfServiceSoftwareCategoriesForHostFunc
+	ListSelfServiceSoftwareCategoriesForHostFuncInvoked bool
 
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
@@ -5236,6 +5241,13 @@ func (s *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]f
 	s.ListSoftwareCategoriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSoftwareCategoriesFunc(ctx, teamID)
+}
+
+func (s *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.ListSelfServiceSoftwareCategoriesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSelfServiceSoftwareCategoriesForHostFunc(ctx, host)
 }
 
 func (s *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
