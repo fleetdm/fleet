@@ -2109,6 +2109,14 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+	// enrollment.
+	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
+
+	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
+	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
+	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2162,10 +2170,10 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
-	// configuration value for the Windows MDM enrollment of the given host.
-	// This is a lightweight read for the orbit config polling path.
-	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state: the awaiting-configuration value and whether
+	// the host's most recent enrollment has queued, unacknowledged commands (the denormalized has_pending_commands
+	// flag). Returns NotFound if the host has no Windows MDM enrollment.
+	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
 
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
@@ -2743,6 +2751,12 @@ type Datastore interface {
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
+	// GetSoftwareInstallersPendingDeletion returns the software installers on the given team
+	// whose title matches none of the incoming title identifiers, i.e. the installers that a
+	// batch-set operation with those incoming titles will delete. It uses the same
+	// (unique_identifier, source) title-matching semantics as BatchSetSoftwareInstallers'
+	// deletion. An empty incoming list returns all installers on the team.
+	GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []SoftwareTitleIdentifier) ([]DeletedSoftwarePackage, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
