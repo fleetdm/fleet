@@ -11080,9 +11080,9 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-For In-house iOS app `software_package` field is populated with package information.
+For in-house iOS apps, the `software_package` field is populated with package information.
 
-For Apple App Store and Google Play apps `software_package` field is `null` and `app_store_app` is populated with informations from the store. This is example:
+For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
 
 ```json
 {
