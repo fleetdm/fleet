@@ -11220,174 +11220,36 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Example (app store app)
+For In-house iOS app `software_package` field is populated with package information.
 
-`GET /api/v1/fleet/software/titles/15?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
+For Apple App Store and Google Play apps `software_package` field is `null` and `app_store_app` is populated with informations from the store. This is example:
 
 ```json
 {
-  "software_title": {
-    "id": 15,
-    "name": "Logic Pro",
-    "display_name": "",
-    "icon_url": "/api/latest/fleet/software/titles/15/icon?fleet_id=3",
-    "display_name": "",
-    "bundle_identifier": "com.apple.logic10",
-    "software_package": null,
-    "auto_update_enabled": true,
-    "auto_update_window_start": "00:00",
-    "auto_update_window_end": "02:00",
-    "app_store_app": {
-      "name": "Logic Pro",
-      "categories": [],
-      "app_store_id": 1091189122,
-      "platform": "darwin",
-      "latest_version": "2.04",
-      "created_at": "2024-04-01T14:22:58Z",
-      "self_service": true,
-      "automatic_install_policies": [
-        {
-          "id": 345,
-          "name": "[Install software] Logic Pro",
-          "type": "dynamic"
-        }
-      ],
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "status": {
-        "installed": 3,
-        "pending": 1,
-        "failed": 2,
-      }
+  "app_store_app": {
+    "app_store_id": "361285480",
+    "platform": "darwin",
+    "name": "Keynote: Design Presentations",
+    "latest_version": "15.2.1",
+    "status": {
+      "installed": 13,
+      "pending": 0,
+      "failed": 2
     },
-    "source": "ios_apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "2.04",
-        "vulnerabilities": [],
-        "hosts_count": 24
-      }
-    ]
+    "self_service": true,
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "labels_include_all": null,
+    "created_at": "2026-01-28T21:49:04.145909Z",
+    "categories": [
+      "Productivity"
+    ],
+    "display_name": "Keynote"
   }
 }
 ```
 
-`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `fleet_id` is specified in the request.
-
-#### Example (Play Store app)
-
-`GET /api/v1/fleet/software/titles/16`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "software_title": {
-    "id": 16,
-    "name": "Zoom Workplace",
-    "icon_url": null,
-    "display_name": "",
-    "application_id": "us.zoom.videomeetings",
-    "counts_updated_at": "2025-08-29T10:23:48Z",
-    "software_package": null,
-    "app_store_app": {
-      "app_store_id": "us.zoom.videomeetings",
-      "platform": "android",
-      "name": "Zoom Workplace",
-      "icon_url": "https://lh3.googleusercontent.com/yZsmiNjmji3ZoOuLthoVvptLB9cZ0vCmitcky4OUXNcEFV3IEQkrBD2uu5kuWRF5_ERA",
-      "status": {
-        "installed": 1,
-        "pending": 0,
-        "failed": 0
-      },
-      "self_service": false,
-      "automatic_install_policies": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "created_at": "2025-08-15T00:55:03.96954Z",
-      "categories": null
-    },
-    "source": "android_apps",
-    "hosts_count": 72,
-    "versions_count": 1,
-    "versions": [
-      {
-        "id": 333,
-        "version": "6.5.10.32613",
-        "vulnerabilities": null,
-        "hosts_count": 24
-      }
-    ]
-  }
-}
-```
-
-
-#### Example (in-house iOS app)
-
-`GET /api/v1/fleet/software/titles/24?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "software_title": {
-    "id": 12,
-    "name": "MyCustomApp",
-    "software_package": {
-      "name": "MyCustomApp-1.12.ipa",
-      "platform": "ios",
-      "fleet_maintained_id": null,
-      "version": "1.12",
-      "self_service": false,
-      "automatic_install_policies": null,
-      "categories": null,
-      "uploaded_at": "2025-08-15T00:55:03.96954Z",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "title_id": 12,
-      "team_id": 3,
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      },
-      "installer_id": 332,
-      "install_script": null,
-      "uninstall_script": null,
-      "post_install_script": null,
-      "pre_install_query": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-    },
-    "app_store_app": null,
-    "versions_count": 1,
-    "source": "ios_apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "1.12",
-        "vulnerabilities": null
-      }
-    ]
-  }
-}
-```
 ### Get software version
 
 Returns information about the specified software version.
