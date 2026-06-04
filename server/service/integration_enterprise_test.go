@@ -31886,11 +31886,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
 }
 
-// TestInstallAllSelfServiceSoftware exercises POST /device/{token}/software/install_all
-// end to end. Which installs qualify (status/inventory/label/category/team matrix) is
-// covered cheaply by the datastore test
-// TestSoftwareInstallers/GetSoftwareTitlesForInstallAll; each run here focuses on a
-// theme that needs the full HTTP + service + queue path.
 func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 	t := s.T()
 	ctx := context.Background()
@@ -32273,7 +32268,7 @@ func (s *integrationEnterpriseTestSuite) TestInstallAllSelfServiceSoftware() {
 		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
 	})
 
-	t.Run("category, label, and team scoping", func(t *testing.T) {
+	t.Run("category label and team scoping", func(t *testing.T) {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)
 

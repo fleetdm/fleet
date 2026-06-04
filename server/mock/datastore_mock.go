@@ -7151,7 +7151,7 @@ func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fl
 	return s.GetSoftwareTitlesForInstallAllFunc(ctx, host, categoryID)
 }
 
-func (s *DataStore) InstallerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (uint, *fleet.VPPAppID, uint, error) {
+func (s *DataStore) InstallerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error) {
 	s.mu.Lock()
 	s.InstallerAvailableForInstallForTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
