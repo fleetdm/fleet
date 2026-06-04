@@ -3355,8 +3355,9 @@ func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, require
 // SoftwareInstallerPlatformFromExtension).
 //
 // .zip is intentionally omitted: it is ambiguous across platforms (a Windows
-// installer or a macOS app bundle), so the stored Platform must be used. Only FMAs allow 
-// for .zip uploads which require a Platform, so this fallback is never hit for zip.
+// installer or a macOS app bundle), so the stored Platform must be used. Both
+// FMAs and uploads always set Platform for .zip, so this fallback is never hit
+// for zip.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
