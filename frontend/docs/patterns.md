@@ -336,7 +336,7 @@ const PageOrComponent = (props) => {
 
 ## Custom hooks
 
-Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected Fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different team is selected.
+Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different fleet is selected.
 
 Custom hook names should be camel-cased and use the `use` prefix, and should live in the `frontend/hooks` directory.
 
