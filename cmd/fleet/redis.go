@@ -81,17 +81,21 @@ func initRedis(
 	logger *slog.Logger,
 	initFatal func(err error, msg string),
 ) (fleet.RedisPool, fleet.Datastore, *mysqlredis.Datastore) {
+	// Validate cheap local config before dialing Redis: surfaces a
+	// host-cache config error as itself, not as a connectivity failure,
+	// and avoids opening a pool that would be discarded if initFatal is
+	// swapped (e.g., a test recorder) and execution continues.
+	if err := validateRedisConfig(cfg.Redis); err != nil {
+		initFatal(err, "validate host cache configuration")
+		return nil, nil, nil
+	}
+
 	redisPool, err := redis.NewPool(buildRedisPoolConfig(cfg.Redis))
 	if err != nil {
 		initFatal(err, "initialize Redis")
 		return nil, nil, nil
 	}
 	logger.InfoContext(ctx, "redis initialized", "component", "redis", "mode", redisPool.Mode())
-
-	if err := validateRedisConfig(cfg.Redis); err != nil {
-		initFatal(err, "validate host cache configuration")
-		return nil, nil, nil
-	}
 
 	wrappedDS := cached_mysql.New(ds)
 
