@@ -285,6 +285,7 @@ const ManagePolicyPage = ({
   const {
     data: globalPoliciesCount,
     isFetching: isFetchingGlobalCount,
+    isError: isErrorGlobalPoliciesCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
@@ -342,6 +343,7 @@ const ManagePolicyPage = ({
   const {
     data: teamPoliciesCountResponse,
     isFetching: isFetchingTeamCountMergeInherited,
+    isError: isErrorTeamPoliciesCount,
     refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
@@ -620,14 +622,16 @@ const ManagePolicyPage = ({
   // command palette). Gate on the same predicate the in-page button
   // uses — the param alone must not surface a privileged modal to
   // non-admins or when there's nothing to automate. Wait for the
-  // relevant count so `hasPoliciesToAutomate` is meaningful; then
-  // always strip the param so a refresh doesn't reopen.
+  // relevant count query to settle (data OR error) so
+  // `hasPoliciesToAutomate` is meaningful; then always strip the param
+  // so a refresh doesn't reopen and the URL doesn't get stuck if the
+  // count call errored.
   useEffect(() => {
     if (location.query.manage_automations !== "1") return;
-    const countLoaded = isAllTeamsSelected
-      ? globalPoliciesCount !== undefined
-      : teamPoliciesCountResponse !== undefined;
-    if (!countLoaded) return;
+    const countSettled = isAllTeamsSelected
+      ? globalPoliciesCount !== undefined || isErrorGlobalPoliciesCount
+      : teamPoliciesCountResponse !== undefined || isErrorTeamPoliciesCount;
+    if (!countSettled) return;
     if (canEditAutomationsSettings && hasPoliciesToAutomate) {
       setShowAutomationsModal(true);
     }
@@ -642,6 +646,8 @@ const ManagePolicyPage = ({
     isAllTeamsSelected,
     globalPoliciesCount,
     teamPoliciesCountResponse,
+    isErrorGlobalPoliciesCount,
+    isErrorTeamPoliciesCount,
   ]);
 
   const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
