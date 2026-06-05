@@ -1144,7 +1144,7 @@ ON DUPLICATE KEY UPDATE
 		// flag's consumers (orbit-config wake, poll-relax reconcile) do not need mid-session freshness for a device that
 		// is actively draining its queue.
 		markStmt, markArgs, err := sqlx.In(
-			`UPDATE windows_mdm_command_queue SET acked_at = COALESCE(acked_at, NOW()) WHERE enrollment_id = ? AND command_uuid IN (?)`,
+			`UPDATE windows_mdm_command_queue SET acked_at = COALESCE(acked_at, NOW(6)) WHERE enrollment_id = ? AND command_uuid IN (?)`,
 			enrolledDevice.ID, matchingCmdUUIDs,
 		)
 		if err != nil {

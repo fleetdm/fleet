@@ -3338,7 +3338,7 @@ CREATE TABLE `windows_mdm_command_queue` (
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `acked_at` timestamp NULL DEFAULT NULL,
+  `acked_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`enrollment_id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
   KEY `idx_win_mdm_cmd_queue_enrollment_acked` (`enrollment_id`,`acked_at`),

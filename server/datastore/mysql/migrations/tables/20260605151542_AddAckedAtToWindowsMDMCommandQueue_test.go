@@ -56,7 +56,12 @@ func TestUp_20260605151542(t *testing.T) {
 	ackedB := ackedAt(enrollB, "cmd-b")
 	require.NotNil(t, ackedB, "acknowledged queue row must be backfilled with acked_at")
 
-	var resultCreatedAt string
-	require.NoError(t, db.Get(&resultCreatedAt, `SELECT created_at FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = 'cmd-b'`, enrollB))
-	require.Equal(t, resultCreatedAt, *ackedB, "backfilled acked_at must equal the result row's created_at")
+	// Compare in SQL rather than as strings: created_at is a second-resolution timestamp while acked_at is DATETIME(6),
+	// so the driver renders them with different fractional-second suffixes.
+	var backfillMatches bool
+	require.NoError(t, db.Get(&backfillMatches, `SELECT q.acked_at = r.created_at
+		FROM windows_mdm_command_queue q
+		JOIN windows_mdm_command_results r ON r.enrollment_id = q.enrollment_id AND r.command_uuid = q.command_uuid
+		WHERE q.enrollment_id = ? AND q.command_uuid = 'cmd-b'`, enrollB))
+	require.True(t, backfillMatches, "backfilled acked_at must equal the result row's created_at")
 }
