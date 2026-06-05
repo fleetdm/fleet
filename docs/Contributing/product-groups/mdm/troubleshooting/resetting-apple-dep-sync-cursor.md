@@ -23,7 +23,7 @@ This is fine to do even in larger deployments.
 
 ```sql
 UPDATE nano_dep_names
-SET    syncer_cursor = NULL
+SET    syncer_cursor = NULL,
 syncer_cursor_at = NULL;
 ```
 
