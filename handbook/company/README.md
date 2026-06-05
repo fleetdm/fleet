@@ -126,7 +126,6 @@ Fleet added support for [scripting and management capabilities](https://fleetdm.
 ### 2024: Fleet is growing globally 
 Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the world's most powerful computers). 
 
-<!-- 2024: and implement "zero trust" faster -->
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
