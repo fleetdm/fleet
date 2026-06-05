@@ -1983,6 +1983,13 @@
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
+      "name": "PowerShell",
+      "slug": "powershell/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerShell 7-x64",
+      "description": "PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
       "name": "PowerToys",
       "slug": "powertoys/windows",
       "platform": "windows",
