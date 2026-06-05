@@ -10,9 +10,8 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
+# Least-privilege default; jobs that build attestations grant id-token/attestations at the job level.
 permissions:
-  id-token: write
-  attestations: write
   contents: read
 
 jobs:
@@ -34,6 +33,10 @@ jobs:
     # later, avoiding runtime errors on systems using macOS 14 or newer.
     runs-on: macos-14
     needs: set-version
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -42,6 +45,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -87,7 +92,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "extracted/Fleet\ Desktop.app/Contents/MacOS/*"
 
@@ -97,7 +102,7 @@ jobs:
           tar -czf ../desktop.app.tar.gz ./*
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -113,6 +118,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -127,7 +134,7 @@ jobs:
           make desktop-windows
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows
           path: fleet-desktop.exe
@@ -161,6 +168,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -175,7 +184,7 @@ jobs:
           make desktop-windows-arm64
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows-arm64
           path: fleet-desktop.exe
@@ -202,6 +211,10 @@ jobs:
   desktop-linux:
     needs: set-version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -210,6 +223,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -225,12 +240,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "desktop.tar.gz"
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz
@@ -238,6 +253,10 @@ jobs:
   desktop-linux-arm64:
     needs: set-version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for attest-build-provenance
+      attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -246,6 +265,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -261,12 +282,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: 'desktop.tar.gz'
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop-arm64.tar.gz
           path: desktop.tar.gz

@@ -38,21 +38,9 @@ How to connect Fleet to APNs:
 
 > Available in Fleet Premium
 
-Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
-### Re-enrolling AB hosts
-
-When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
-  - Cancels pending MDM commands, script runs, and software installs
-  - Clears completed commands, scripts, and software from the previous enrollment
-  - Resets host labels
-
-This means you **do not need to delete** an ABM host from Fleet before 
-re-enrolling it. Fleet handles clearing stale state automatically.
-
-> This automatic state clearing does not apply to hosts undergoing ABM MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
-
-### To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
+How to connect Fleet to AB:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 2. Under **Apple Business (AB)**, select **Add AB**.
@@ -149,7 +137,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > MDM**.
 2. Under **Apple Business (AB)**, select **Add VPP** next to **Volume Purchasing Program (VPP)**.
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
-4. Head to **Settings > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
+4. Head to **Settings > Payments & Billing > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
 5. Upload the content token (.vpptoken file) to Fleet.
 6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
@@ -161,7 +149,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 2. Under **Apple Business (AB)**, select **Edit** next to **Volume Purchasing Program (VPP)** and then find the token that you want to renew.
 3. Select the **Actions > Renew** for the token.
 4. Sign in to [Apple Business](https://business.apple.com).
-5. Head to **Settings > Apps & Books** and download your content token.
+5. Head to **Settings > Payments & Billing > Apps & Books** and download your content token.
 6. Upload the content token (.vpptoken file) to Fleet.
 
 ## Best practice
@@ -243,20 +231,29 @@ For manually enrolled devices, if SCEP certificate renewal fails, MDM will be tu
 
 If a host is restarted/shut down during macOS Setup Assistant, it will fail to enroll to Fleet. Failed enrollments also happen if Fleet instance is down for an upgrade. When this happens, sometimes hosts automatically restart setup. If that doesn't happen, the best practice is to remotely [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) if the host is connected to Wi-Fi. If it's not, you'll need physical access to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
-### Apple Business (AB)
-
-Fleet surfaces AB (formerly Apple Business Manager) automatic enrollment profile assignment by retrieving assignment errors and timestamps for each host. While Fleet does not actively monitor push events, admins can view assignment and push timestamps in host details. If a device shows an assignment time but no push time, admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
-
-![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
-
-To view an AB issue:
+Failed enrollments also happen when the automatic enrollment profile isn't assigned in AB. Fleet surfaces failed automatic enrollment profile assignments on each host's **Host details** page:
 
 1. If there is an active issue assigning a profile, a vital called **AB issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with AB issues.
 
-2. Select a host and click on the MDM status to view details.
+2. Select a host and click on the **MDM status** to view details.
 
+If a host shows an assignment time but no push time, the push didn't happen. To resolve, restart the host or run `sudo profiles renew -type enrollment` for remediation. If that doesn't work, contact [Fleet support](https://fleetdm.com/support). Customers may need to contact Apple support if an online host never has a push time.
 
-> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
+How automatic enrollment profiles are assigned:
+
+![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
+
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an AB host from Fleet before 
+re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

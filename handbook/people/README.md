@@ -325,7 +325,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 1. Log in to your [Gusto admin account](https://gusto.com/).
 2. Navigate to "Benefits" and select "Renewal survey".
 3. Complete the survey questions, aiming for minimal changes.
-4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+4. Approximately 2-3 months after survey completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
 
 

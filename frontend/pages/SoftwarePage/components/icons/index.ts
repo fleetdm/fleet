@@ -43,8 +43,10 @@ import Marvel from "./Marvel";
 import Max from "./Max";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import MindManager from "./MindManager";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
@@ -266,6 +268,7 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import VcRedistX64 from "./VcRedistX64";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
@@ -447,6 +450,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
+  mindmanager: MindManager,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
@@ -474,12 +478,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
+  "microsoft visual c++": VcRedistX64,
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
   "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,

@@ -72,6 +72,7 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"public_ip":             "h.public_ip",
 	"last_enrolled_at":      "h.last_enrolled_at",
 	"last_restarted_at":     "h.last_restarted_at",
+	"agent":                 "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 	"orbit_version":         "hoi.version",
 	"fleet_desktop_version": "hoi.desktop_version",
 	"issues":                "host_issues.total_issues_count",
@@ -1133,7 +1134,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
     h.last_restarted_at,
-    h.timezone
+    h.timezone,
+    hoi.version AS orbit_version,
+    hoi.desktop_version AS fleet_desktop_version
 	`
 
 	sql += hostMDMSelect
@@ -1445,6 +1448,7 @@ func (ds *Datastore) applyHostFilters(
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
     %s
     %s
     %s

@@ -25,6 +25,7 @@ jobs:
             - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
               with:
                 fetch-depth: 0  # Fetch full history so merge base can be found
+                persist-credentials: false
 
             - name: Get Changed Manifest Files # fetch the changed manifest files
               id: changed_files

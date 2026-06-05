@@ -1633,6 +1633,13 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "MindManager",
+      "slug": "mindmanager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mindjet.mindmanager.25",
+      "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
       "name": "Miro",
       "slug": "miro/darwin",
       "platform": "darwin",
@@ -1687,6 +1694,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nextcloud.desktopclient",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
+      "name": "Node.js",
+      "slug": "nodejs/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
     },
     {
       "name": "NordPass",
@@ -2562,6 +2576,20 @@
       "platform": "darwin",
       "unique_identifier": "com.utmapp.UTM",
       "description": "UTM is a virtual machines UI using QEMU."
+    },
+    {
+      "name": "Microsoft Visual C++ 2013 Redistributable (x64)",
+      "slug": "vc-redist-2013-x64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual C++ 2013 Redistributable (x64)",
+      "description": "Microsoft Visual C++ 2013 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2013."
+    },
+    {
+      "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "slug": "vc-redist-x64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "description": "Microsoft Visual C++ 2015-2022 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
     },
     {
       "name": "VirtualBox",
