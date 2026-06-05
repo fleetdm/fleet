@@ -1,12 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -16,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
@@ -539,32 +541,83 @@ func (svc *Service) validateEJBCA(ctx context.Context, ejbcaCA *fleet.EJBCACA, e
 // supplied password and returns the PEM-encoded certificate (with any
 // intermediate chain) and private key. The password is used once here and
 // never persisted.
+//
+// POC NOTE — DO NOT SHIP THIS SUBPROCESS APPROACH TO PRODUCTION.
+// Both Go PKCS#12 libraries (software.sslmate.com/src/go-pkcs12 and
+// golang.org/x/crypto/pkcs12) require strict DER and reject BER-encoded
+// input. EJBCA's RA Web (Java/BouncyCastle) emits BER P12s with
+// indefinite-length sequences. To unblock the POC we shell out to the
+// `openssl` binary, which handles BER. This adds a runtime binary
+// dependency the Fleet server doesn't otherwise have and broadens the
+// trust surface (subprocess hardening, PATH lookup, openssl version
+// drift).
+//
+// Production (fleet#30986) should replace this with an in-process
+// BER→DER normalizer in pure Go before parsing with one of the existing
+// Go PKCS#12 libraries. See openspec/changes/add-ejbca-rest-ca-poc/
+// research.md "Open follow-ups" for the design notes.
+//
+// The password is written into the child process over an extra file
+// descriptor (consumed via openssl's `-passin fd:3`) rather than the
+// command line so it doesn't appear in `ps` listings on the Fleet host.
 func decodeEJBCAClientP12(p12Data []byte, password string) (certPEM, keyPEM string, err error) {
-	privateKey, leafCert, caCerts, err := pkcs12.DecodeChain(p12Data, password)
+	passR, passW, err := os.Pipe()
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("creating password pipe: %v", err)
 	}
-	if leafCert == nil {
-		return "", "", errors.New("PKCS#12 bundle did not contain a leaf certificate")
+	defer passR.Close()
+
+	// Write the password to the pipe in a goroutine, then close so openssl
+	// sees EOF after the single read.
+	go func() {
+		defer passW.Close()
+		_, _ = passW.Write([]byte(password))
+	}()
+
+	cmd := exec.Command("openssl", "pkcs12", "-passin", "fd:3", "-nodes")
+	cmd.ExtraFiles = []*os.File{passR} // child sees this as fd 3
+	cmd.Stdin = bytes.NewReader(p12Data)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if runErr := cmd.Run(); runErr != nil {
+		// openssl's stderr is user-actionable for common failures
+		// (wrong password, corrupt P12).
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = runErr.Error()
+		}
+		return "", "", fmt.Errorf("openssl failed to decode PKCS#12: %s", msg)
 	}
 
-	var certBuf strings.Builder
-	if err := pem.Encode(&certBuf, &pem.Block{Type: "CERTIFICATE", Bytes: leafCert.Raw}); err != nil {
-		return "", "", fmt.Errorf("encoding leaf certificate as PEM: %v", err)
-	}
-	for _, c := range caCerts {
-		if err := pem.Encode(&certBuf, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw}); err != nil {
-			return "", "", fmt.Errorf("encoding intermediate certificate as PEM: %v", err)
+	var certBuf, keyBuf strings.Builder
+	rest := stdout.Bytes()
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		// Drop openssl's "Bag Attributes" comment headers so the resulting
+		// PEM is directly consumable by tls.X509KeyPair.
+		block.Headers = nil
+		switch block.Type {
+		case "CERTIFICATE":
+			if err := pem.Encode(&certBuf, block); err != nil {
+				return "", "", fmt.Errorf("encoding certificate PEM block: %v", err)
+			}
+		case "PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY":
+			if err := pem.Encode(&keyBuf, block); err != nil {
+				return "", "", fmt.Errorf("encoding private key PEM block: %v", err)
+			}
 		}
 	}
 
-	keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return "", "", fmt.Errorf("marshaling private key to PKCS#8: %v", err)
+	if certBuf.Len() == 0 {
+		return "", "", errors.New("PKCS#12 bundle did not contain a certificate")
 	}
-	var keyBuf strings.Builder
-	if err := pem.Encode(&keyBuf, &pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}); err != nil {
-		return "", "", fmt.Errorf("encoding private key as PEM: %v", err)
+	if keyBuf.Len() == 0 {
+		return "", "", errors.New("PKCS#12 bundle did not contain a private key")
 	}
 
 	return certBuf.String(), keyBuf.String(), nil

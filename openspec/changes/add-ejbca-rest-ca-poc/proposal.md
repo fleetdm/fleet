@@ -84,6 +84,13 @@ captured in [fleet#30986](https://github.com/fleetdm/fleet/issues/30986).
   pattern as the existing DigiCert / NDES / SCEP types — to be picked up
   alongside the production implementation in #30986. POC scope is the
   API + UI path only.
+- **In-process BER → DER normalization for the PKCS#12 decode path.**
+  POC shells out to the `openssl` binary to convert EJBCA's BER P12
+  output before parsing (both Go PKCS#12 libraries are strict-DER). The
+  subprocess approach **must not ship to production** — it adds a
+  runtime binary dependency and broadens the trust surface. Production
+  (#30986) must replace it with a pure-Go BER → DER normalizer. See
+  research.md → "Open follow-ups" for design options.
 - Distinct error messages for cert-revoked vs cert-expired vs role-misconfigured
   TLS handshake failures (POC returns a generic "TLS handshake failed" with
   the wrapped server error; production tightens this).

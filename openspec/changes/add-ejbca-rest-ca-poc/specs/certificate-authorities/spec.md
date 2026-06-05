@@ -202,4 +202,10 @@ must be surfaced administratively.
   change. Follow-up alongside the production implementation will mirror
   the existing DigiCert / NDES / SCEP shapes, with the P12 carried as a
   base64-encoded string.
+- **Pure-Go BER → DER normalization for the PKCS#12 decode path.** POC
+  shells out to the `openssl` binary to convert EJBCA's BER-encoded P12
+  to DER before parsing — both Go PKCS#12 libraries are strict-DER and
+  reject EJBCA's output. Production (#30986) must replace this with a
+  pure-Go normalizer so Fleet has no runtime dependency on the openssl
+  binary. See research.md → "Open follow-ups" for design options.
 - Windows, Linux, and Android cert delivery paths.

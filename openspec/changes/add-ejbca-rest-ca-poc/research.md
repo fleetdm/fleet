@@ -368,6 +368,32 @@ is deferred — small follow-up, same backend.
 
 ## Open follow-ups
 
+- **BER → DER normalization for the PKCS#12 decode path. PRODUCTION
+  BLOCKER for #30986.** EJBCA's RA Web (Java/BouncyCastle) emits BER
+  PKCS#12 bundles with indefinite-length sequences. Both Go PKCS#12
+  libraries — `software.sslmate.com/src/go-pkcs12` and
+  `golang.org/x/crypto/pkcs12` — require strict DER and reject BER. The
+  POC unblocks this by shelling out to the `openssl` binary, which
+  handles BER. **This subprocess approach must not ship to production**:
+  it adds a runtime binary dependency Fleet doesn't otherwise have,
+  expands the trust surface (subprocess hardening, PATH lookup, openssl
+  version drift across host OS distros), and complicates the security
+  posture around password handling.
+
+  Production options, ranked:
+  1. *Implement an in-process BER → DER normalizer in pure Go.* The
+     conversion is mechanical (recursively replace indefinite-length
+     constructs with definite-length equivalents). Roughly 200–300 lines
+     including tests against EJBCA's actual output. No runtime
+     dependency. Best long-term shape.
+  2. *Patch BER support into one of the Go PKCS#12 libraries upstream
+     and depend on the patched version.* Cleaner externally but slower
+     (depends on maintainer cycles).
+  3. *Accept an additional upload format (e.g., separate PEM cert + PEM
+     key)* — sidesteps the BER issue entirely for customers who can
+     produce PEM out of EJBCA via openssl on their side. Already on
+     this Open follow-ups list under "PEM-direct upload".
+
 - OAuth 2.0 bearer-token authentication. Probably shares code with Fleet's
   existing OIDC SSO support — the same JWKS verification, audience
   validation, etc. File a follow-up issue under #30986 once POC merges.

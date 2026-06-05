@@ -16,7 +16,22 @@ the customer scenario for [fleet#30986](https://github.com/fleetdm/fleet/issues/
 - Docker
 - Fleet dev server running locally (with a server private key configured —
   required for encrypting the EJBCA client key at rest)
+- `openssl` on `$PATH` for the Fleet server (POC only — used to convert
+  EJBCA's BER-encoded P12 export to DER on upload; see "Known POC debt"
+  below)
 - A macOS host enrolled in your Fleet for the end-to-end test
+
+## Known POC debt
+
+The POC shells out to the `openssl` binary in the P12 decode path because
+EJBCA's RA Web emits BER-encoded PKCS#12 bundles and both Go PKCS#12
+libraries (`software.sslmate.com/src/go-pkcs12` and
+`golang.org/x/crypto/pkcs12`) require strict DER. **This subprocess approach
+must not ship to production.** The production implementation
+([fleet#30986](https://github.com/fleetdm/fleet/issues/30986)) will replace
+it with a pure-Go BER → DER normalizer so Fleet has no runtime dependency
+on the openssl binary. Tracked in
+`openspec/changes/add-ejbca-rest-ca-poc/research.md` → "Open follow-ups".
 
 ## Set up EJBCA in Docker
 
@@ -45,6 +60,26 @@ EJBCA's Admin UI is at `https://localhost:8443/ejbca/adminweb/`. First visit
 triggers a client-cert chooser (cancel it) and a TLS interstitial because the
 cert is self-signed for `ejbca.local` (click **Advanced → Proceed**).
 
+### Map `ejbca.local` to localhost
+
+The EJBCA container's HTTPS cert is issued for `ejbca.local`, matching the
+`-h ejbca.local` flag in `docker run`. Browsers accept it after the
+interstitial click-through, but Fleet's REST client does strict TLS
+verification (it's mTLS — we can't skip it) and needs the connect-time
+hostname to match the cert's SAN. Add a `/etc/hosts` entry so `ejbca.local`
+resolves to `127.0.0.1`:
+
+```bash
+echo '127.0.0.1 ejbca.local' | sudo tee -a /etc/hosts
+```
+
+When configuring Fleet below, use `https://ejbca.local:8443` (not
+`https://localhost:8443`) for the **EJBCA REST URL**.
+
+The existing SCEP dev guide sidesteps this by using the HTTP port (8480) —
+SCEP doesn't require TLS. The REST integration does (mTLS), so the
+hosts-file mapping is the cleanest dev workaround.
+
 ## CE caveats
 
 EJBCA Community Edition has two limitations that affect what we can verify
@@ -63,11 +98,69 @@ against the 30-day EJBCA Enterprise trial (see openspec
 
 ## EJBCA-side setup
 
+### 0. Enable REST API protocols
+
+**`keyfactor/ejbca-ce` ships with all REST API protocols DISABLED.** Hitting
+`/ejbca/ejbca-rest-api/v1/*` against a default container returns the
+unmistakable response:
+
+```
+<html><head><title>Error</title></head><body>This service has been disabled.</body></html>
+HTTP 403
+```
+
+Enable the REST protocol Fleet uses before doing anything else.
+
+Admin UI → top menu **System Configuration** → **Protocol Configuration**
+tab (it's a tab on the System Configuration page — *not* under "System
+Functions"):
+
+1. Find the **REST Certificate Management** row (resources
+   `/ejbca/ejbca-rest-api/v1/ca` and `/ejbca/ejbca-rest-api/v1/certificate`)
+   and click **Enable** in its Actions column. The status flips to `Enabled`
+   immediately — there's no separate page Save.
+
+That single protocol covers **both** endpoints Fleet calls: `GET /v1/ca/status`
+(the connection probe at CA-save time) and `POST /v1/certificate/pkcs10enroll`
+(the per-host enrollment) — both `/v1/ca` and `/v1/certificate` live under
+REST Certificate Management.
+
+Do **not** enable "REST CA Management" — despite the name, it serves only
+`/v1/ca_management` (CA lifecycle operations Fleet never calls), and on
+`keyfactor/ejbca-ce` it shows as `Unavailable` (can't be enabled in CE
+anyway). Enabling it does nothing for Fleet.
+
+**Heads up — you almost certainly need to restart the container after
+enabling.** Clicking Enable flips the config to `Enabled` and it persists,
+but on `keyfactor/ejbca-ce` the running REST app keeps serving the
+"This service has been disabled" 403 page until it reloads the protocol
+config on boot. Toggling the protocol off/on and waiting does not clear it.
+Restart the container and re-test:
+
+```bash
+docker restart ejbca
+# wait for it to come back, then:
+curl -sk -o /dev/null -w "%{http_code}\n" \
+    https://localhost:8443/ejbca/ejbca-rest-api/v1/certificate   # expect 401, not 403
+```
+
+A `401` (auth required — you didn't present a client cert) means the protocol
+is live; a `403` with the "disabled" page means it isn't yet. (You can also
+sanity-check that unauthenticated requests reach the app at all by hitting an
+already-enabled protocol like `/ejbca/ejbcaws/ejbcaws?wsdl`, which returns
+200.)
+
+In a real customer EJBCA deployment, the PKI admin would have already
+enabled this. For the local POC container you have to do it yourself —
+there's no Docker env-var to flip it on at boot.
+
 ### 1. Certificate Profile for the Fleet service cert
 
 Admin UI → **CA Functions → Certificate Profiles**:
 
-1. Type `fleetRESTAdmin` in **Identifier** and click **Clone** on the `ENDUSER` row.
+1. Click **Clone** on the `ENDUSER` row. A dialog appears — enter
+   `fleetRESTAdmin` as the **Name of new certificate profile** and click
+   **Create from template**.
 2. **Edit** the new `fleetRESTAdmin` row.
 3. Under **Available Key Algorithms**, ensure RSA is checked.
 4. Under **Bit Lengths**, check 2048 and 3072.
@@ -91,21 +184,28 @@ Admin UI → **RA Functions → End Entity Profiles**:
 
 ### 3. Enroll Fleet's service certificate
 
-Admin UI → **RA Web → Make New Request** (top-right menu → RA Web; the cert
-chooser dialog appears, cancel it):
+Admin UI → **RA Web** (top-right menu; the cert chooser dialog appears,
+cancel it) → **Enroll → Make New Request**:
 
 1. **Certificate Type** → `fleetRESTAdmin`.
 2. **Key-pair generation** → `By the CA`.
-3. **Subject DN** → CN: `Fleet REST Service`.
-4. **Username**: `fleet_rest_service`.
-5. **Enrollment code**: set a strong password (you will use this to download
-   the P12; Fleet stores neither this password nor the P12 itself —
-   re-uploading is fine if you lose it).
-6. Click **Enroll**.
-7. Download as **PKCS#12 (P12)**.
+3. **Key algorithm** → `RSA 2048 bits`. (This selector appears only after you
+   pick "By the CA," and defaults to `ECDSA B-163` — you must change it, or
+   you'll enroll an ECDSA service cert instead of RSA.)
+4. **Subject DN** → CN: `Fleet REST Service`.
+5. **Username**: `fleet_rest_service`.
+6. **Enrollment code** (+ **Confirm enrollment code**): set a strong password
+   (you will use this as the P12 password; Fleet stores neither this password
+   nor the P12 itself — re-uploading is fine if you lose it).
+7. Click **Download PKCS#12**. There is no separate "Enroll" step — this
+   button enrolls the end entity, generates the keypair, and downloads the
+   keystore in one action. (The sibling buttons — JKS, BCFKS, PEM — do the
+   same for other keystore formats.)
 
 You should now have `fleet_rest_service.p12` in your Downloads folder. Move
-it somewhere safe.
+it somewhere safe. To confirm the enrollment took, Admin UI → **RA Functions
+→ Search End Entities** → search status `All`: `fleet_rest_service` should
+appear with status `GENERATED`.
 
 ### 4. Admin Role + Access Rules
 
@@ -181,7 +281,8 @@ bundle" field.
 4. Fill in:
    - **Name**: `Test_EJBCA` (this becomes `$FLEET_VAR_EJBCA_DATA_Test_EJBCA`
      in profiles)
-   - **EJBCA REST URL**: `https://localhost:8443`
+   - **EJBCA REST URL**: `https://ejbca.local:8443` (requires the
+     `/etc/hosts` mapping from the Docker section above)
    - **Client certificate (.p12)**: upload `fleet_rest_service.p12`
    - **PKCS#12 password**: the password you set in step 3
    - **Trust CA bundle**: paste the Management CA PEM from step 7
@@ -206,7 +307,7 @@ curl -sk -X POST \
     -H "Content-Type: application/json" \
     -d '{"ejbca":{
           "name":"Test_EJBCA",
-          "url":"https://localhost:8443",
+          "url":"https://ejbca.local:8443",
           "client_p12":"'"$P12_BASE64"'",
           "client_p12_password":"<P12 password>",
           "trust_ca_bundle":"'"$TRUST_BUNDLE"'",
@@ -308,6 +409,15 @@ cert listed.
 
 ## Gotchas
 
+- **REST API protocols are disabled by default in `keyfactor/ejbca-ce`.**
+  Symptom: `<html><body>This service has been disabled.</body></html>` with
+  HTTP 403 on any `/ejbca/ejbca-rest-api/v1/*` URL. Fix: enable **REST
+  Certificate Management** (not "REST CA Management") in Admin UI → System
+  Configuration → Protocol Configuration tab (covered in the **Enable REST
+  API protocols** section above). If the 403 persists after enabling,
+  restart the container — the REST app re-reads protocol config on boot.
+  The TLS/mTLS layer succeeds before this check, so the failure mode from
+  Fleet's side is a silent EOF mid-request rather than a clean error.
 - **CE-only: end-entity status is consumed on use.** After successful
   issuance the EE flips from `NEW` (10) to `GENERATED` (40). Re-enrolling
   for the same host (e.g., to test rotation) requires resetting:
