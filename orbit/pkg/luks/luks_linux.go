@@ -229,7 +229,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 // default passphrase wording since they all ultimately accept a typed secret
 // against keyslot 0 from the user's perspective.
 func dialogCopyForEncryptionType(encType string) (title, prompt, retry string) {
-	if encType == EncryptionTypeTPM2 {
+	if encType == EncryptionTypeTPM2 || encType == EncryptionTypeRecovery {
 		return entryDialogTitleTPM2, entryDialogTextTPM2, retryEntryDialogTextTPM2
 	}
 	return entryDialogTitle, entryDialogText, retryEntryDialogText
