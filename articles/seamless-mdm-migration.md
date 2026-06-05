@@ -23,6 +23,8 @@ These requirements are easily met in self-hosted open-source MDM solutions and m
 
 Seamless migration may still be possible with control of DNS along with a copy of the original Certificate Signing Request (CSR) for the APNS certificate. If you are in this situation, please reach out to the Fleet team.
 
+If your SCEP certificate expires in less than 5 years, its validity will need to be extended. If you are in this situation, please reach out to the Fleet team.
+
 ### Why?
 
 Apple allows changing most values in profiles delivered by MDM, but the `ServerURL`, `CheckinURL`, and `PushTopic` cannot be changed without re-enrollment (and user actions). Control of DNS and the certificates allows the MDM to be swapped out without changing these.
