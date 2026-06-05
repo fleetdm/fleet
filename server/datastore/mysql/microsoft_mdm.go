@@ -2596,7 +2596,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
 		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
 		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
-			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
 			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
 			ELSE 0 END) as count_host_updated_after_labels
 	FROM
