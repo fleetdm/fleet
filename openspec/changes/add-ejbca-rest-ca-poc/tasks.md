@@ -61,28 +61,27 @@ this is a learning POC, not a production ship.
 
 ## 3. HTTP client package
 
-- [ ] Create `ee/server/service/ejbca/ejbca.go`.
-- [ ] Implement `buildTLSClient` helper that builds a `tls.Config` from
+- [x] Create `ee/server/service/ejbca/ejbca.go`.
+- [x] Implement `buildTLSClient` helper that builds a `tls.Config` from
       `ClientCertPEM` + `ClientKeyPEM` + optional `TrustCABundlePEM`. Pass
       via `fleethttp.WithTLSClientConfig` (already exists in
       `pkg/fleethttp/fleethttp.go:36`).
-- [ ] Implement `VerifyConnection`: `GET /ejbca/ejbca-rest-api/v1/ca/status`,
+- [x] Implement `VerifyConnection`: `GET /ejbca/ejbca-rest-api/v1/ca/status`,
       decode `{"status":"OK"}`.
-- [ ] Implement `GetCertificate`: generate RSA 2048, build CSR with CN =
+- [x] Implement `GetCertificate`: generate RSA 2048, build CSR with CN =
       username, POST `pkcs10enroll`, decode base64-DER cert, wrap in PKCS12,
       return `EJBCACertificate`.
-- [ ] In `GetCertificate`, generate a 32-byte cryptographically-random
+- [x] In `GetCertificate`, generate a 32-byte cryptographically-random
       value (via `crypto/rand`) hex-encoded as the `password` field on
       each `pkcs10enroll` call. Do not persist it. Required because
       EJBCA's backend rejects null `password` for any CA with
       `useUserStorage=true` (verified in `SignSessionBean.java`).
-- [ ] In `GetCertificate`, if `CertificateUserPrincipalNames` is non-empty,
+- [x] In `GetCertificate`, if `CertificateUserPrincipalNames` is non-empty,
       attach a `subjectAltName` extension to the CSR with one `otherName`
       per UPN (OID `1.3.6.1.4.1.311.20.2.3`, value type UTF8String).
       Construct via raw ASN.1 — Go's stdlib doesn't have first-class UPN
-      otherName support. Reference: there is no existing helper for this
-      in Fleet, so write it cleanly with comments.
-- [ ] Error distinction: 401/403 → "EJBCA rejected the Fleet client cert
+      otherName support. Unit-tested via `ejbca_test.go`.
+- [x] Error distinction: 401/403 → "EJBCA rejected the Fleet client cert
       (revoked or not bound to a role with sufficient access)". 404 → "CA or
       profile name not found in EJBCA". 422 → "EE profile rejected the CSR".
       Other → wrap message verbatim from EJBCA's `error_message`.
