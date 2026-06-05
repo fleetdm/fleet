@@ -1633,6 +1633,13 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "MindManager",
+      "slug": "mindmanager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mindjet.mindmanager.25",
+      "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
       "name": "Miro",
       "slug": "miro/darwin",
       "platform": "darwin",
