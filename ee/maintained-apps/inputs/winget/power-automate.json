@@ -1,0 +1,13 @@
+{
+  "name": "Power Automate",
+  "slug": "power-automate/windows",
+  "package_identifier": "Microsoft.PowerAutomateDesktop",
+  "unique_identifier": "Power Automate for desktop",
+  "program_publisher": "Microsoft Corporation",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/power_automate_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/power_automate_uninstall.ps1"
+}

@@ -261,6 +261,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
+		if payload.MDM != nil && (payload.MDM.MacOSUpdates != nil && payload.MDM.MacOSUpdates.Configured()) || (payload.MDM.IOSUpdates != nil && payload.MDM.IOSUpdates.Configured()) || (payload.MDM.IPadOSUpdates != nil && payload.MDM.IPadOSUpdates.Configured()) {
+			// Verify that we don't have a custom OS updates declaration
+			hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
+				}
+			}
+		}
+
 		if payload.MDM.WindowsUpdates != nil {
 			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
@@ -268,6 +281,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if payload.MDM.WindowsUpdates.DeadlineDays.Set || payload.MDM.WindowsUpdates.GracePeriodDays.Set {
 				windowsUpdatesUpdated = !team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
 				team.Config.MDM.WindowsUpdates = *payload.MDM.WindowsUpdates
+			}
+		}
+
+		if payload.MDM != nil && payload.MDM.WindowsUpdates != nil && payload.MDM.WindowsUpdates.Configured() {
+			// Verify that we don't have a custom OS updates profile
+			hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
+				}
 			}
 		}
 
@@ -1414,9 +1440,9 @@ func (svc *Service) createTeamFromSpec(
 	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
-	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
-	validateTeamCustomSettings(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1609,10 +1635,37 @@ func (svc *Service) editTeamFromSpec(
 			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
+
+	if spec.MDM.MacOSUpdates.Configured() || spec.MDM.IOSUpdates.Configured() || spec.MDM.IPadOSUpdates.Configured() {
+		// Verify that we don't have a custom OS updates declaration
+		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
+			}
+		}
+	}
+
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
 			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+	}
+
+	if spec.MDM.WindowsUpdates.Configured() {
+		// Verify that we don't have a custom OS updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
+			}
+		}
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
@@ -1792,9 +1845,9 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
-	validateTeamCustomSettings(invalid, "apple", team.Config.MDM.MacOSSettings.CustomSettings)
-	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
-	validateTeamCustomSettings(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "apple", team.Config.MDM.MacOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
@@ -1925,7 +1978,11 @@ func (svc *Service) editTeamFromSpec(
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
 		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			// The package may have already been deleted via the GUI while the
+			// team config JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			}
 		}
 	}
 
@@ -2006,25 +2063,6 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	return nil
-}
-
-func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
-	for i, prof := range customSettings {
-		count := 0
-		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0, len(prof.LabelsExcludeAny) > 0} {
-			if b {
-				count++
-			}
-		}
-		if count > 1 {
-			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
-		}
-		if len(prof.Labels) > 0 {
-			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
-			customSettings[i].Labels = nil
-		}
-	}
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(

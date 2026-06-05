@@ -326,6 +326,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
+				_, ok = gitops.Controls.WindowsEntraClientIDs.([]any)
+				assert.True(t, ok, "windows_entra_client_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
@@ -814,7 +816,7 @@ reports:
 `
 	_, err = gitOpsFromString(t, config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "environment variable \"NOT_DEFINED\" not set")
+	require.Contains(t, err.Error(), `environment variable "NOT_DEFINED" not set; if you intended the literal string $NOT_DEFINED then please escape it as \$NOT_DEFINED.`)
 }
 
 func TestMixingGlobalAndTeamConfig(t *testing.T) {
@@ -3745,6 +3747,79 @@ org_settings:
 		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
 		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+}
+
+// TestAppleBusinessKeyRename verifies that the new mdm.apple_business key is
+// accepted in org_settings, that the deprecated mdm.apple_business_manager key
+// still works, and that specifying both raises a conflict error.
+func TestAppleBusinessKeyRename(t *testing.T) {
+	t.Parallel()
+
+	baseConfig := func(mdmSection string) string {
+		return `
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:` + mdmSection + `
+`
+	}
+
+	t.Run("new_key_accepted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_fleet: "Workstations"
+        ios_fleet: "Phones"
+        ipados_fleet: "Tablets"`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("old_key_still_accepted", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business_manager:
+      - organization_name: Test Org
+        macos_fleet: "Workstations"
+        ios_fleet: "Phones"
+        ipados_fleet: "Tablets"`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("both_keys_conflict", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yaml := baseConfig(`
+    apple_business:
+      - organization_name: A
+    apple_business_manager:
+      - organization_name: B`)
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot specify both")
+		require.Contains(t, err.Error(), "org_settings.mdm.apple_business")
 	})
 }
 

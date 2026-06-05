@@ -21,6 +21,9 @@ import {
   ICommandSubItem,
   GROUPS,
   buildPaletteItems,
+  buildFleetSwitchUrl,
+  computeBestMatch,
+  highlightMatches,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
@@ -31,14 +34,23 @@ import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
 
-// Pure helper hoisted to module scope so it's stable across renders and
-// can be safely called from inside memoization.
-const getItemValue = (item: ICommandItem) => {
-  const parts = [item.label, ...(item.keywords ?? [])];
+// cmdk treats `value` as the row's identity *and* as the substring it
+// filters against. Two rows with the same value collide. Including the
+// item's id guarantees uniqueness without losing the user-typeable
+// label/keyword content cmdk needs for its filter pass.
+//
+// Hoisted to module scope so callers can use these from memoization
+// safely (stable identity across renders).
+const getUniqueItemValue = (item: ICommandItem) => {
+  const parts = [item.id, item.label, ...(item.keywords ?? [])];
   item.subItems?.forEach((sub) => {
     parts.push(sub.label, ...(sub.keywords ?? []));
   });
   return parts.join(" ");
+};
+
+const getUniqueSubItemValue = (sub: ICommandSubItem) => {
+  return [sub.id, sub.label, ...(sub.keywords ?? [])].join(" ");
 };
 
 type Page =
@@ -145,15 +157,24 @@ const CommandPalette = (): JSX.Element | null => {
       window.removeEventListener("fleet-theme-change", onThemeChange);
   }, []);
 
-  // Policy automations: same as canAddOrDeletePolicies in ManagePoliciesPage
-  const canManagePolicyAutomations =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isAnyTeamAdmin ||
-    isAnyTeamMaintainer;
+  // Policy automations: mirrors ManagePoliciesPage.canEditAutomationsSettings.
+  // Maintainers can add/delete policies but the in-page Automations button
+  // is hidden for them, and the deep-link useEffect re-checks the same
+  // gate — so the palette item must match, otherwise it's a dead link for
+  // maintainers. isTeamAdmin is scoped to currentTeam by AppContext, so a
+  // user who's team admin of A but viewing B correctly won't see this.
+  const canManagePolicyAutomations = isGlobalAdmin || isTeamAdmin;
 
   // Software automations require global admin (all fleets view)
   const canManageSoftwareAutomations = isGlobalAdmin;
+
+  // Report automations: mirror ManageQueriesPage's `canManageAutomations`
+  // exactly (isGlobalAdmin || isTeamAdmin) — the palette item points at
+  // the current team via withTeamId, so the destination's gate evaluates
+  // against the same team. Using isAnyTeamAdmin here would surface the
+  // command for users who are admin of *some* team but observer of the
+  // current one — they'd land on Reports and see no button.
+  const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
 
   const canAccessSettings = isGlobalAdmin;
 
@@ -214,17 +235,18 @@ const CommandPalette = (): JSX.Element | null => {
   // Toggle open on Cmd+K / Ctrl+K; jump to switch-fleet on Cmd+Shift+F.
   // Focus is handled by the [open, page] effect below — don't rAF here, the
   // input ref isn't set until Radix's portal mounts.
+  // Skip registration entirely for no-access users so we don't intercept
+  // (and preventDefault) keyboard shortcuts for a palette they can't open.
   useEffect(() => {
+    if (isNoAccess) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === "k") {
+      // Normalize once so Caps Lock (or shift layouts) don't miss.
+      const key = e.key.toLowerCase();
+      if (key === "k") {
         e.preventDefault();
         setOpen((prev) => !prev);
-      } else if (
-        e.shiftKey &&
-        (e.key === "f" || e.key === "F") &&
-        canSwitchFleet
-      ) {
+      } else if (e.shiftKey && key === "f" && canSwitchFleet) {
         e.preventDefault();
         setOpen(true);
         setSearch("");
@@ -233,7 +255,7 @@ const CommandPalette = (): JSX.Element | null => {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [canSwitchFleet]);
+  }, [canSwitchFleet, isNoAccess]);
 
   const navigate = useCallback((path: string) => {
     setOpen(false);
@@ -287,7 +309,7 @@ const CommandPalette = (): JSX.Element | null => {
   pageRef.current = page;
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || isNoAccess) {
       return undefined;
     }
     const onDocKey = (e: KeyboardEvent) => {
@@ -299,7 +321,7 @@ const CommandPalette = (): JSX.Element | null => {
     };
     document.addEventListener("keydown", onDocKey, true);
     return () => document.removeEventListener("keydown", onDocKey, true);
-  }, [open, goBack]);
+  }, [open, goBack, isNoAccess]);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -313,40 +335,9 @@ const CommandPalette = (): JSX.Element | null => {
       }
 
       const { pathname, search: currentSearch } = window.location;
-      const isAll = fleetId === APP_CONTEXT_ALL_TEAMS_ID;
-      const isUnassignedTarget = fleetId === 0;
-
-      // Pages that require a specific fleet — can't render "All fleets" or
-      // (with some overlap) "Unassigned". When switching to those contexts
-      // from one of these pages, fall back to Hosts which supports both.
-      const teamRequiredPrefixes = [
-        paths.CONTROLS,
-        paths.SOFTWARE_LIBRARY,
-        paths.NEW_REPORT,
-      ];
-      const isOnTeamRequiredPage = teamRequiredPrefixes.some((p) =>
-        pathname.startsWith(p)
+      browserHistory.push(
+        buildFleetSwitchUrl({ pathname, currentSearch, fleetId })
       );
-
-      if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
-        // For Unassigned, keep fleet_id=0 on the fallback URL.
-        // useTeamIdParam coerces a missing param back to All fleets (-1),
-        // which would silently undo the setCurrentTeam({id:0}) above.
-        browserHistory.push(
-          isUnassignedTarget
-            ? `${paths.MANAGE_HOSTS}?fleet_id=0`
-            : paths.MANAGE_HOSTS
-        );
-      } else {
-        const params = new URLSearchParams(currentSearch);
-        if (isAll) {
-          params.delete("fleet_id");
-        } else {
-          params.set("fleet_id", String(fleetId));
-        }
-        const qs = params.toString();
-        browserHistory.push(qs ? `${pathname}?${qs}` : pathname);
-      }
 
       // Return to root so the palette stays open on the main view.
       setSearch("");
@@ -384,6 +375,7 @@ const CommandPalette = (): JSX.Element | null => {
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
+        canManageReportAutomations,
         canEditCustomVariable,
         canAddSoftware,
         isTechnician,
@@ -418,6 +410,7 @@ const CommandPalette = (): JSX.Element | null => {
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
+      canManageReportAutomations,
       canEditCustomVariable,
       canAddSoftware,
       isTechnician,
@@ -454,54 +447,58 @@ const CommandPalette = (): JSX.Element | null => {
     const map = new Map<string, string>();
     items.forEach((item) => {
       if (item.subItems?.length) {
-        map.set(getItemValue(item).toLowerCase().trim(), item.id);
+        map.set(getUniqueItemValue(item).toLowerCase().trim(), item.id);
         item.subItems.forEach((sub) => {
-          const subValue = `${sub.label} ${sub.keywords?.join(" ") ?? ""}`
-            .toLowerCase()
-            .trim();
-          map.set(subValue, item.id);
+          map.set(getUniqueSubItemValue(sub).toLowerCase().trim(), item.id);
         });
       }
     });
     return map;
   }, [items]);
 
-  // Auto expand/collapse sub-items as the user arrows through items
+  // Auto expand/collapse sub-items as the user arrows through items.
+  // Normalize to match how valueToParentId stores its keys — cmdk
+  // hands back the raw `value` prop (preserves casing/whitespace).
   const handleHighlightChange = useCallback(
     (value: string) => {
       if (isSearching) return;
-      const parentId = valueToParentId.get(value);
+      const parentId = valueToParentId.get(value.toLowerCase().trim());
       setExpandedItems(parentId ? new Set([parentId]) : new Set());
     },
     [valueToParentId, isSearching]
   );
 
-  // Find exact match — an item or sub-item whose label exactly matches the
-  // search. Memoized so we don't rebuild the Set on every keystroke once
-  // items is stable.
-  const exactMatchIds = useMemo(() => {
-    if (!isSearching) return new Set<string>();
-    return new Set(
-      items.reduce<string[]>((acc, item) => {
-        if (item.label.toLowerCase() === searchLower) {
-          acc.push(item.id);
-        }
-        item.subItems
-          ?.filter((sub) => sub.label.toLowerCase() === searchLower)
-          .forEach((sub) => acc.push(sub.id));
-        return acc;
-      }, [])
-    );
-  }, [items, isSearching, searchLower]);
+  // Find Best matches — items and sub-items scored by how strongly their
+  // label or keywords match the query. Implementation is in helpers.ts
+  // (so the scoring tiers are unit-testable independent of cmdk).
+  const bestMatchItems = useMemo(() => computeBestMatch(items, searchLower), [
+    items,
+    searchLower,
+  ]);
+
+  // Set of IDs already shown in Best match — used to dedupe from regular
+  // groups and inside expanded sub-item lists.
+  const bestMatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    bestMatchItems.forEach(({ item, sub }) => ids.add((sub ?? item).id));
+    return ids;
+  }, [bestMatchItems]);
 
   const renderItem = (item: ICommandItem) => {
     const isExpanded = expandedItems.has(item.id);
-    const hasSubItems = item.subItems && item.subItems.length > 0;
+    // Sub-items promoted into Best match are hidden here so they don't
+    // render twice. The parent stays visible because its own promotion
+    // is handled one level up (in renderRootPage, via groupedItems
+    // filtering).
+    const visibleSubItems = item.subItems?.filter(
+      (sub) => !bestMatchIds.has(sub.id)
+    );
+    const hasSubItems = !!visibleSubItems && visibleSubItems.length > 0;
 
     return (
       <React.Fragment key={item.id}>
         <Command.Item
-          value={getItemValue(item)}
+          value={getUniqueItemValue(item)}
           onSelect={() =>
             item.onAction ? item.onAction() : navigate(item.path!)
           }
@@ -546,11 +543,11 @@ const CommandPalette = (): JSX.Element | null => {
         {/* Render sub-items when expanded (browsing) or always when searching */}
         {hasSubItems &&
           (isExpanded || isSearching) &&
-          item.subItems &&
-          item.subItems.map((sub) => (
+          visibleSubItems &&
+          visibleSubItems.map((sub) => (
             <Command.Item
               key={sub.id}
-              value={`${sub.label} ${sub.keywords?.join(" ") ?? ""}`}
+              value={getUniqueSubItemValue(sub)}
               onSelect={() => navigate(sub.path)}
               className={`${baseClass}__item ${baseClass}__item--sub`}
             >
@@ -561,43 +558,101 @@ const CommandPalette = (): JSX.Element | null => {
     );
   };
 
-  // Collect exact match items for the "Best match" section
-  const exactMatchItems = useMemo(() => {
-    if (exactMatchIds.size === 0) return [];
-    return items.reduce<Array<{ item: ICommandItem; sub?: ICommandSubItem }>>(
-      (acc, item) => {
-        if (exactMatchIds.has(item.id)) {
-          acc.push({ item });
-        }
-        item.subItems
-          ?.filter((sub) => exactMatchIds.has(sub.id))
-          .forEach((sub) => acc.push({ item, sub }));
-        return acc;
-      },
-      []
-    );
-  }, [items, exactMatchIds]);
-
   const renderRootPage = () => (
     <>
-      {/* Exact match at the top with a separator */}
-      {exactMatchItems.length > 0 && (
+      {/* Top-ranked items render without a heading — visually they're
+          just the most relevant matches, separated from the rest by a
+          rule. The BEST_MATCH prefix on the value is a cmdk filter-bypass
+          token (see filter prop) — it forces the item past substring
+          filtering regardless of score. */}
+      {bestMatchItems.length > 0 && (
         <>
-          <Command.Group heading="Best match" className={`${baseClass}__group`}>
-            {exactMatchItems.map(({ item, sub }) => {
+          <Command.Group className={`${baseClass}__group`}>
+            {bestMatchItems.map(({ item, sub }) => {
               const target = sub || item;
+              // Sub-items get the same indented styling they have in
+              // their regular group, so users can tell at a glance which
+              // results are nested.
+              const itemClass = sub
+                ? `${baseClass}__item ${baseClass}__item--sub`
+                : `${baseClass}__item`;
               return (
                 <Command.Item
-                  key={`exact-${target.id}`}
-                  value={`EXACT_MATCH ${target.label}`}
-                  onSelect={() =>
-                    item.onAction ? item.onAction() : navigate(target.path!)
-                  }
-                  className={`${baseClass}__item`}
+                  key={`best-${target.id}`}
+                  // cmdk treats value as the row's identity. Include
+                  // target.id so two promoted items with the same label
+                  // (e.g., the "Users" Settings page and the "Users"
+                  // setup-experience sub-item) don't collide.
+                  value={`BEST_MATCH ${target.id} ${target.label}`}
+                  onSelect={() => {
+                    // Sub-items navigate to their own path — never route
+                    // through the parent's onAction. Otherwise a future
+                    // sub-item under an action-backed parent (e.g., a
+                    // child of "View host") would open the parent flow
+                    // instead of the sub-item destination.
+                    if (sub) {
+                      navigate(sub.path);
+                      return;
+                    }
+                    if (item.onAction) {
+                      item.onAction();
+                      return;
+                    }
+                    navigate(item.path!);
+                  }}
+                  className={itemClass}
                 >
-                  <span className={`${baseClass}__item-label`}>
-                    {target.label}
-                  </span>
+                  <div className={`${baseClass}__item-left`}>
+                    <span className={`${baseClass}__item-label`}>
+                      {highlightMatches(target.label, search).map((seg, i) =>
+                        seg.matched ? (
+                          <mark
+                            // Index keys are safe here — segments are
+                            // derived synchronously from the same label
+                            // + query each render, so order is stable.
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={i}
+                            className={`${baseClass}__item-label-match`}
+                          >
+                            {seg.text}
+                          </mark>
+                        ) : (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <React.Fragment key={i}>{seg.text}</React.Fragment>
+                        )
+                      )}
+                    </span>
+                    {/* Render the sub-page chevron for items that open a
+                        picker (View host, View software, etc.). The
+                        chevron only belongs to parent items — sub-items
+                        navigate directly. */}
+                    {!sub && item.opensSubPage && (
+                      <span aria-hidden className={`${baseClass}__item-more`}>
+                        <Icon
+                          name="chevron-right"
+                          size="small"
+                          color="ui-fleet-black-50"
+                        />
+                      </span>
+                    )}
+                  </div>
+                  {/* Team-context chip on items whose navigation switches
+                      the user's current fleet (e.g., add-report on All
+                      fleets shows "All fleets"). */}
+                  {!sub && item.teamName && (
+                    <span className={`${baseClass}__item-fleet`}>
+                      {item.teamName}
+                    </span>
+                  )}
+                  {/* Parent label as a context chip on promoted sub-items
+                      — disambiguates rows that share a label (e.g., two
+                      "Run script" sub-items, one under Setup experience
+                      and one under Manage policy automations). */}
+                  {sub && (
+                    <span className={`${baseClass}__item-meta`}>
+                      {item.label}
+                    </span>
+                  )}
                 </Command.Item>
               );
             })}
@@ -610,13 +665,22 @@ const CommandPalette = (): JSX.Element | null => {
         if (!groupItems?.length) {
           return null;
         }
+        // Drop items already shown in Best match so the user doesn't see
+        // the same row twice. Items with only a sub-item promoted stay —
+        // renderItem hides the promoted sub-item inline.
+        const visibleGroupItems = groupItems.filter(
+          (item) => !bestMatchIds.has(item.id)
+        );
+        if (!visibleGroupItems.length) {
+          return null;
+        }
         return (
           <Command.Group
             key={group}
             heading={group}
             className={`${baseClass}__group`}
           >
-            {groupItems.map(renderItem)}
+            {visibleGroupItems.map(renderItem)}
           </Command.Group>
         );
       })}
@@ -687,8 +751,9 @@ const CommandPalette = (): JSX.Element | null => {
       overlayClassName={`${baseClass}__overlay`}
       contentClassName={`${baseClass}__content`}
       filter={(value, searchTerm) => {
-        // Always show exact match items at the top
-        if (value.startsWith("EXACT_MATCH ")) {
+        // Best match items bypass cmdk's substring filter — they're already
+        // scored against the query, and we want them shown regardless.
+        if (value.startsWith("BEST_MATCH ")) {
           return 1;
         }
         // Picker results are pre-filtered by the server; show everything.
@@ -704,9 +769,13 @@ const CommandPalette = (): JSX.Element | null => {
     >
       <div className={`${baseClass}__input-wrapper`}>
         {page !== "root" && (
+          // tabIndex=-1 so Radix's open-autofocus skips the back button
+          // and lands on Command.Input — Backspace and Escape already
+          // cover keyboard "go back" so we lose nothing.
           <button
             type="button"
             aria-label="Back"
+            tabIndex={-1}
             className={`${baseClass}__back-button`}
             onClick={goBack}
           >
@@ -749,9 +818,7 @@ const CommandPalette = (): JSX.Element | null => {
               <kbd className={`${baseClass}__shortcut-key`}>
                 {isMacPlatform ? "⌘" : "Ctrl"}
               </kbd>
-              <span className={`${baseClass}__shortcut-sep`}>+</span>
               <kbd className={`${baseClass}__shortcut-key`}>⇧</kbd>
-              <span className={`${baseClass}__shortcut-sep`}>+</span>
               <kbd className={`${baseClass}__shortcut-key`}>F</kbd>
             </span>
           </button>

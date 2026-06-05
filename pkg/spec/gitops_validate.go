@@ -112,8 +112,9 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 		}
 
 		// Also register the "renameto" alias (deprecated field name mappings)
-		// so that both old and new names are accepted.
-		if alias := field.Tag.Get("renameto"); alias != "" {
+		// so that both old and new names are accepted. Strip any options like
+		// ",inline" so the registered key is just the new name.
+		if alias, _, _ := strings.Cut(field.Tag.Get("renameto"), ","); alias != "" {
 			keys[alias] = fieldInfo{
 				jsonName: alias,
 				typ:      field.Type,

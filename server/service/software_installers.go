@@ -853,6 +853,9 @@ type batchSetSoftwareInstallersResultResponse struct {
 	Status   string                          `json:"status"`
 	Message  string                          `json:"message"`
 	Packages []fleet.SoftwarePackageResponse `json:"packages"`
+	// DeletedPackages lists the packages the batch deleted (dry run: would
+	// delete) because their title matches no entry in the request payload.
+	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -861,23 +864,24 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
-	status, message, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
 	return batchSetSoftwareInstallersResultResponse{
-		Status:   status,
-		Message:  message,
-		Packages: packages,
+		Status:          status,
+		Message:         message,
+		Packages:        packages,
+		DeletedPackages: deletedPackages,
 	}, nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", "", nil, fleet.ErrMissingLicense
+	return "", "", nil, nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1013,8 +1017,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 }
 
 type getInHouseAppManifestRequest struct {
-	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TitleID uint   `url:"title_id"`
+	Token   string `url:"token"`
 }
 
 type getInHouseAppManifestResponse struct {
@@ -1044,7 +1048,7 @@ func (r getInHouseAppManifestResponse) HijackRender(ctx context.Context, w http.
 
 func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInHouseAppManifestRequest)
-	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.TeamID)
+	manifest, err := svc.GetInHouseAppManifest(ctx, req.TitleID, req.Token)
 	if err != nil {
 		return &getInHouseAppManifestResponse{Err: err}, nil
 	}
@@ -1052,7 +1056,7 @@ func getInHouseAppManifestEndpoint(ctx context.Context, request any, svc fleet.S
 	return &getInHouseAppManifestResponse{Manifest: manifest}, nil
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, token string) ([]byte, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -1061,8 +1065,8 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 }
 
 type getInHouseAppPackageRequest struct {
-	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TitleID uint   `url:"title_id"`
+	Token   string `url:"token"`
 }
 
 type getInHouseAppPackageResponse struct {
@@ -1090,7 +1094,7 @@ func (r getInHouseAppPackageResponse) Error() error { return r.Err }
 
 func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInHouseAppPackageRequest)
-	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.TeamID)
+	file, err := svc.GetInHouseAppPackage(ctx, req.TitleID, req.Token)
 	if err != nil {
 		return &getInHouseAppPackageResponse{Err: err}, nil
 	}
@@ -1098,7 +1102,7 @@ func getInHouseAppPackageEndpoint(ctx context.Context, request any, svc fleet.Se
 	return &getInHouseAppPackageResponse{payload: file}, nil
 }
 
-func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -238,6 +238,10 @@ const (
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
 	DocProvisioningAppProviderID = "Fleet"
 
+	// DMClientPollIntervalLocURI is the DMClient Poll node Fleet writes to tune the Windows MDM poll cadence (the aggressive default vs the
+	// relaxed steady-state for hosts that can be woken on demand by fleetd).
+	DMClientPollIntervalLocURI = "./Device/Vendor/MSFT/DMClient/Provider/" + DocProvisioningAppProviderID + "/Poll/IntervalForFirstSetOfRetries"
+
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppName = DocProvisioningAppProviderID
 
