@@ -253,6 +253,32 @@ func TestEntityAppliesToHost_CombinedIncludeExclude(t *testing.T) {
 		// in exclude label -> does not apply
 		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
 	})
+
+	t.Run("dynamic exclude label created after host.LabelUpdatedAt disqualifies until host rescans", func(t *testing.T) {
+		// host.LabelUpdatedAt is 2026-05-01; dynamic exclude label created after that
+		dynamicExcLabel := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(99)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC),
+		}
+		p := &fleet.AppleProfileForReconcile{
+			TeamID:        0,
+			IncludeMode:   fleet.AppleProfileIncludeAny,
+			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
+			ExcludeLabels: []fleet.AppleProfileLabelRef{dynamicExcLabel},
+		}
+		// host is in include label and NOT a member of the exclude label, but the
+		// dynamic exclude label was created after label_updated_at -> disqualified
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
+
+		// once host.LabelUpdatedAt advances past the label's CreatedAt, the timing
+		// gate clears and the profile applies (host is not a member of the exclude label)
+		advancedHost := &fleet.AppleHostReconcileInfo{
+			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
+			LabelUpdatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		}
+		require.True(t, EntityAppliesToHost(p, advancedHost, map[uint]struct{}{1: {}}))
+	})
 }
 
 // TestEntityAppliesToHost_PureExcludeNoInclude confirms that a profile with
