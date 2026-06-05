@@ -20,6 +20,7 @@ import { InstallIconWithTooltip } from "components/TableContainer/DataTable/Soft
 import getFleetSuffix from "./pickerCopy";
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -128,7 +129,9 @@ const SoftwarePicker = ({
             className={`${baseClass}__item`}
           >
             <div className={`${baseClass}__item-left`}>
-              <span className={`${baseClass}__item-label`}>{label}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={label} query={search} />
+              </span>
               {installerProps && <InstallIconWithTooltip {...installerProps} />}
             </div>
             {typeLabel && (

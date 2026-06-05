@@ -5,6 +5,7 @@ import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -76,7 +77,9 @@ const HostPicker = ({
                 className={dotClass}
                 aria-label={`status: ${host.status}`}
               />
-              <span className={`${baseClass}__item-label`}>{label}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={label} query={search} />
+              </span>
             </span>
             {showTeamColumn && (
               <span className={`${baseClass}__host-team`}>

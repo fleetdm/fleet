@@ -23,13 +23,13 @@ import {
   buildPaletteItems,
   buildFleetSwitchUrl,
   computeBestMatch,
-  highlightMatches,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
 import SoftwarePicker from "./components/SoftwarePicker";
 import ReportPicker from "./components/ReportPicker";
 import PolicyPicker from "./components/PolicyPicker";
+import HighlightedLabel from "./components/HighlightedLabel";
 import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
@@ -603,23 +603,7 @@ const CommandPalette = (): JSX.Element | null => {
                 >
                   <div className={`${baseClass}__item-left`}>
                     <span className={`${baseClass}__item-label`}>
-                      {highlightMatches(target.label, search).map((seg, i) =>
-                        seg.matched ? (
-                          <mark
-                            // Index keys are safe here — segments are
-                            // derived synchronously from the same label
-                            // + query each render, so order is stable.
-                            // eslint-disable-next-line react/no-array-index-key
-                            key={i}
-                            className={`${baseClass}__item-label-match`}
-                          >
-                            {seg.text}
-                          </mark>
-                        ) : (
-                          // eslint-disable-next-line react/no-array-index-key
-                          <React.Fragment key={i}>{seg.text}</React.Fragment>
-                        )
-                      )}
+                      <HighlightedLabel text={target.label} query={search} />
                     </span>
                     {/* Render the sub-page chevron for items that open a
                         picker (View host, View software, etc.). The
@@ -844,6 +828,7 @@ const CommandPalette = (): JSX.Element | null => {
           <FleetPicker
             availableTeams={availableTeams}
             currentTeam={currentTeam}
+            search={search}
             onSelect={handleSwitchFleet}
           />
         )}
