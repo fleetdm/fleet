@@ -1227,6 +1227,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "Icon Composer",
+      "slug": "icon-composer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apple.IconComposer",
+      "description": "Icon Composer is an Apple tool to create multi-platform icons."
+    },
+    {
       "name": "IINA",
       "slug": "iina/darwin",
       "platform": "darwin",
@@ -2065,6 +2072,13 @@
       "platform": "darwin",
       "unique_identifier": "com.raycast.macos",
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
+    },
+    {
+      "name": "REAPER",
+      "slug": "reaper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cockos.reaper",
+      "description": "REAPER is a digital audio production application."
     },
     {
       "name": "Rectangle",

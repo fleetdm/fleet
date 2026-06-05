@@ -2686,6 +2686,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsRecentlyVerifiedInstalls gets App Store IDs of VPP apps that were
+	// successfully installed (verified) on the host within the provided number of
+	// seconds. It is used to throttle continuous policy automation re-installs (see
+	// the continuousAutomationOnCooldown service helper): only a successful install
+	// requests a host refetch, so only successful installs can drive the loop the
+	// throttle prevents.
+	MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
 	// on VPP installations for a host
 	//
@@ -2751,6 +2759,12 @@ type Datastore interface {
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
+	// GetSoftwareInstallersPendingDeletion returns the software installers on the given team
+	// whose title matches none of the incoming title identifiers, i.e. the installers that a
+	// batch-set operation with those incoming titles will delete. It uses the same
+	// (unique_identifier, source) title-matching semantics as BatchSetSoftwareInstallers'
+	// deletion. An empty incoming list returns all installers on the team.
+	GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []SoftwareTitleIdentifier) ([]DeletedSoftwarePackage, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)

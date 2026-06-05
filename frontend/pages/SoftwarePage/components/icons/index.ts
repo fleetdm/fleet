@@ -29,6 +29,7 @@ import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
+import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
 import Kitty from "./Kitty";
@@ -54,6 +55,7 @@ import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import Reaper from "./Reaper";
 import Rstudio from "./Rstudio";
 import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
@@ -374,6 +376,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
+  "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
   joplin: Joplin,
@@ -515,6 +518,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidapi: RapidApi,
   raycast: Raycast,
   "realvnc server": RealVncServer,
+  reaper: Reaper,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
