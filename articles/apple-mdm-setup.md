@@ -253,7 +253,7 @@ When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet 
 This means you **do not need to delete** an AB host from Fleet before 
 re-enrolling it. Fleet handles clearing stale state automatically.
 
-> This automatic state clearing does not apply to hosts undergoing ABM MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
