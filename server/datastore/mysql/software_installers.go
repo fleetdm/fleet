@@ -925,7 +925,7 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) InstallerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error) {
+func (ds *Datastore) installerAvailableForInstallForTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (installerID uint, vppAppID *fleet.VPPAppID, inHouseID uint, err error) {
 	const stmt = `
 SELECT
 	si.id AS installer_id,
