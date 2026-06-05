@@ -8,6 +8,6 @@
   "installer_type": "exe",
   "installer_scope": "",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_runtime_install.ps1",
-  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_runtime_8_uninstall.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_runtime_uninstall.ps1",
   "default_categories": ["Developer tools"]
 }
