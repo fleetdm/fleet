@@ -616,6 +616,34 @@ const ManagePolicyPage = ({
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
+  // Open the Manage automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate the in-page button
+  // uses — the param alone must not surface a privileged modal to
+  // non-admins or when there's nothing to automate. Wait for the
+  // relevant count so `hasPoliciesToAutomate` is meaningful; then
+  // always strip the param so a refresh doesn't reopen.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    const countLoaded = isAllTeamsSelected
+      ? globalPoliciesCount !== undefined
+      : teamPoliciesCountResponse !== undefined;
+    if (!countLoaded) return;
+    if (canEditAutomationsSettings && hasPoliciesToAutomate) {
+      setShowAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    canEditAutomationsSettings,
+    hasPoliciesToAutomate,
+    isAllTeamsSelected,
+    globalPoliciesCount,
+    teamPoliciesCountResponse,
+  ]);
+
   const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
   // Inherited (global) policies are listed in team views, but their webhook
   // membership lives on the *global* config — not the team's. Union both
