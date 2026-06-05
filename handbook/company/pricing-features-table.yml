@@ -340,7 +340,7 @@
 #  ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔═╗╔═╗╔═╗
 #  ╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ╚═╗╚═╗║ ║
 #  ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╚═╝╚═╝╚═╝
-- industryName: Platform SSO
+- industryName: Account creation & password sync
   description: Automatically create macOS local accounts and sync passwords with any IdP that supports OAuth ROPG, so end users have one password for their Mac and third-party tools.
   documentationUrl: https://github.com/fleetdm/fleet/issues/45524
   productCategories: [Device management]
