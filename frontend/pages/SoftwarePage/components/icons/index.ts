@@ -46,6 +46,7 @@ import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
 import MindManager from "./MindManager";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
@@ -482,6 +483,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mysql workbench": MySqlWorkbench,
   "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
