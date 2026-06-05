@@ -162,7 +162,8 @@ jobs:
         echo "Building fleet from this branch..."
         go build -o /tmp/fleet ./cmd/fleet
 
-        mysql_root() { docker compose exec -T mysql_test mysql -uroot -ptoor "$@"; }
+        # Password via MYSQL_PWD rather than -p to keep the client's "password on the command line" warning out of every log line.
+        mysql_root() { docker compose exec -T -e MYSQL_PWD=toor mysql_test mysql -uroot "$@"; }
 
         # Table-migration versions known to this branch (extracted from filenames).
         known_versions=$(ls server/datastore/mysql/migrations/tables/20*_*.go | grep -v '_test.go' | sed -E 's#.*/([0-9]+)_.*#\1#' | sort -u)
@@ -202,18 +203,29 @@ jobs:
           mysql_root -e "DROP DATABASE IF EXISTS upgrade_sim; CREATE DATABASE upgrade_sim;"
           { echo "SET FOREIGN_KEY_CHECKS=0;"; git show "${tag}:server/datastore/mysql/schema.sql"; } \
             | mysql_root upgrade_sim
-          echo "released base max table-migration version: $(mysql_root -N -e 'SELECT MAX(version_id) FROM migration_status_tables;' upgrade_sim)"
+          base_max=$(mysql_root -N -e 'SELECT MAX(version_id) FROM migration_status_tables;' upgrade_sim)
+          echo "released base max table-migration version: ${base_max}"
 
           # Apply this branch's migrations on top, twice. Capture each run's exit code: a non-zero exit (a failed data migration, or
           # a hard apply error such as a duplicate column) must fail the gate rather than be masked, and the second run must be a
           # clean no-op. rc capture must use the `|| rc=$?` form: under `set -e` a bare `out=$(cmd)` with a non-zero cmd aborts the
-          # whole step before we can inspect the code.
+          # whole step before we can inspect the code. stdin is redirected from /dev/null because fleet treats piped stdin (which CI
+          # provides) as extra CLI arguments and logs noise about it.
           export FLEET_MYSQL_DATABASE=upgrade_sim
           run1_rc=0; run2_rc=0
-          run1_out=$(/tmp/fleet prepare db --dev --no-prompt 2>&1) || run1_rc=$?
-          if [ "$run1_rc" -ne 0 ]; then echo "$run1_out" | tail -n 15; fi
-          run2_out=$(/tmp/fleet prepare db --dev --no-prompt 2>&1) || run2_rc=$?
-          echo "$run2_out" | tail -n 5
+          run1_out=$(/tmp/fleet prepare db --dev --no-prompt </dev/null 2>&1) || run1_rc=$?
+          if [ "$run1_rc" -ne 0 ]; then
+            echo "run 1 (upgrade) failed:"; echo "$run1_out" | tail -n 15
+          else
+            applied_count=$(mysql_root -N -e "SELECT COUNT(*) FROM migration_status_tables WHERE version_id > ${base_max} AND is_applied;" upgrade_sim)
+            echo "run 1 (upgrade): applied ${applied_count} table migrations newer than ${tag}'s max"
+          fi
+          run2_out=$(/tmp/fleet prepare db --dev --no-prompt </dev/null 2>&1) || run2_rc=$?
+          if [ "$run2_rc" -ne 0 ]; then
+            echo "run 2 (must be a no-op) failed:"; echo "$run2_out" | tail -n 15
+          else
+            echo "run 2 (must be a no-op): $(echo "$run2_out" | tail -n 1)"
+          fi
 
           applied=$(mysql_root -N -e "SELECT version_id FROM migration_status_tables WHERE version_id > 0 AND is_applied;" upgrade_sim | sort -u)
           # missing: known in this branch but never applied -> goose skipped them.
