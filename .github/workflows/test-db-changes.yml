@@ -247,3 +247,26 @@ jobs:
           echo "(see the /bump-migration skill), or make it idempotent with the columnExists/tableExists helpers."
         fi
         exit $overall_rc
+
+    # Nightly runs have no PR or push author watching them, so route failures to Slack (same channel as the nightly Go test
+    # failures). Gate on event_name rather than the exact cron string so the notification survives cron-time edits.
+    - name: Slack notification on scheduled-run failure
+      if: github.event_name == 'schedule' && failure()
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      with:
+        payload: |
+          {
+            "text": "Nightly DB migration checks failed",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "⚠️ Nightly DB migration checks failed, possibly an out-of-order migration relative to a newly released GA tag.\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
