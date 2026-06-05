@@ -373,7 +373,6 @@ const SaveNewPolicyModal = ({
           inputClassName={`${baseClass}__policy-save-modal-name`}
           label="Name"
           autofocus
-          ignore1password
           disabled={disableForm}
         />
         <InputField
