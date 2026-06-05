@@ -149,11 +149,32 @@
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
+      "name": "Amazon Corretto 21",
+      "slug": "amazon-corretto-21/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 21 is a no-cost, multiplatform, production-ready distribution of OpenJDK 21."
+    },
+    {
+      "name": "Amazon Corretto 24",
+      "slug": "amazon-corretto-24/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 24 is a no-cost, multiplatform, production-ready distribution of OpenJDK 24."
+    },
+    {
       "name": "Amazon Corretto 25",
       "slug": "amazon-corretto-25/windows",
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
+    },
+    {
+      "name": "Amazon Corretto 26",
+      "slug": "amazon-corretto-26/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 26 is a no-cost, multiplatform, production-ready distribution of OpenJDK 26."
     },
     {
       "name": "Amazon DCV Client",
@@ -1535,6 +1556,20 @@
       "description": "Microsoft Auto Update provides updates to various Microsoft products."
     },
     {
+      "name": "Microsoft .NET Runtime 10",
+      "slug": "microsoft-dotnet-runtime-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET Runtime - 10",
+      "description": "Microsoft .NET Runtime 10 is the runtime required to run .NET 10 applications, providing the libraries and execution environment for console and server apps."
+    },
+    {
+      "name": "Microsoft .NET Runtime 8",
+      "slug": "microsoft-dotnet-runtime-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET Runtime - 8",
+      "description": "Microsoft .NET Runtime 8 is the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -1598,6 +1633,13 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "MindManager",
+      "slug": "mindmanager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mindjet.mindmanager.25",
+      "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
       "name": "Miro",
       "slug": "miro/darwin",
       "platform": "darwin",
@@ -1652,6 +1694,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nextcloud.desktopclient",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
+      "name": "Node.js",
+      "slug": "nodejs/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
     },
     {
       "name": "NordPass",

@@ -56,6 +56,7 @@ class UserSettingsForm extends Component {
             label="Email (required)"
             helpText={renderEmailHelpText()}
             readOnly={!smtpConfigured}
+            ignore1password={false}
             tooltip={
               <>
                 Editing your email address requires that SMTP or SES is

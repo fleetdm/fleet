@@ -114,4 +114,32 @@ describe("HostSoftwareTable", () => {
 
     expect(screen.getByText("No software found")).toBeInTheDocument();
   });
+
+  it("renders the /Applications filter for macOS hosts with the filter on by default", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+    });
+
+    // The selected option label is shown in the dropdown
+    expect(screen.getByText("Applications")).toBeInTheDocument();
+  });
+
+  it("shows 'Full inventory' selected when the /Applications filter is off", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: false,
+    });
+
+    expect(screen.getByText("Full inventory")).toBeInTheDocument();
+  });
+
+  it("does not render the /Applications filter for non-macOS hosts", () => {
+    renderWithContext({
+      platform: "windows",
+    });
+
+    expect(screen.queryByText("Applications")).not.toBeInTheDocument();
+    expect(screen.queryByText("Full inventory")).not.toBeInTheDocument();
+  });
 });
