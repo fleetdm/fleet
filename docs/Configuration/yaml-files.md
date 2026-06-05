@@ -701,7 +701,6 @@ software:
     path: ../lib/software/santa-install-script.sh
   labels_include_all:
     - macOS
-    
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
     path: ../lib/software/santa-install-script.sh
