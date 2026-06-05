@@ -68,10 +68,9 @@ export const generateSoftwareOptionHelpText = (
 
   const platform: Platform | null =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[title.source] || null;
-  const extension =
-    (title.software_package &&
-      getExtensionFromFileName(title.software_package.name)) ||
-    undefined;
+  const extension = getExtensionFromFileName(
+    title.software_package?.name ?? ""
+  );
   const platformString =
     platform && extension
       ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
