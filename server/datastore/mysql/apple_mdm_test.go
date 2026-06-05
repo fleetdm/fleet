@@ -78,6 +78,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
+		{"TestReconcileDuplicateDEPHostOnDelete", testReconcileDuplicateDEPHostOnDelete},
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
@@ -4174,6 +4175,140 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
 	require.Equal(t, profMan, getProf)
+}
+
+func testReconcileDuplicateDEPHostOnDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHostPlatform := func(name, serial, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  ptr.String("osquery-" + name),
+			NodeKey:        ptr.String("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			Platform:       platform,
+			HardwareSerial: serial,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	newHost := func(name, serial string) *fleet.Host {
+		return newHostPlatform(name, serial, "darwin")
+	}
+	assignDEP := func(h *fleet.Host) {
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, make(map[uint]time.Time)))
+	}
+	hasAssignment := func(hostID uint) bool {
+		_, err := ds.GetHostDEPAssignment(ctx, hostID)
+		if err != nil {
+			require.True(t, fleet.IsNotFound(err))
+			return false
+		}
+		return true
+	}
+
+	t.Run("no duplicate, assignment untouched", func(t *testing.T) {
+		serial := "solo-serial"
+		deleted := newHost("solo-deleted", serial)
+		assignDEP(deleted)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.False(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+	})
+
+	t.Run("survivor already assigned, no transfer", func(t *testing.T) {
+		serial := "dup-serial"
+		deleted := newHost("dup-deleted", serial)
+		survivor := newHost("dup-survivor", serial)
+		assignDEP(deleted)
+		assignDEP(survivor)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// Both rows remain in place; the deleted host's row becomes a phantom.
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+	})
+
+	t.Run("survivor unassigned, assignment transferred", func(t *testing.T) {
+		serial := "xfer-serial"
+		deleted := newHost("xfer-deleted", serial)
+		survivor := newHost("xfer-survivor", serial)
+		assignDEP(deleted)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// The deleted host's assignment moved to the surviving host.
+		require.False(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+
+		transferred, err := ds.GetHostDEPAssignment(ctx, survivor.ID)
+		require.NoError(t, err)
+		require.Equal(t, survivor.ID, transferred.HostID)
+	})
+
+	t.Run("survivor has soft-deleted assignment, no transfer", func(t *testing.T) {
+		serial := "softdel-serial"
+		deleted := newHost("softdel-deleted", serial)
+		survivor := newHost("softdel-survivor", serial)
+		assignDEP(deleted)
+		assignDEP(survivor)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`, survivor.ID)
+			return err
+		})
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		// No transfer: the survivor already has a (soft-deleted) row, so moving
+		// the deleted host's row would collide on the primary key.
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(survivor.ID))
+	})
+
+	t.Run("survivor assignment serial mismatch, no transfer", func(t *testing.T) {
+		serial := "mismatch-serial"
+		deleted := newHost("mm-deleted", serial)
+		assignDEP(deleted)
+		// Survivor's host row has the serial, but its assignment row carries a
+		// stale serial, so it is neither an active match nor a transfer target.
+		survivor := newHost("mm-survivor", "mm-temp-serial")
+		assignDEP(survivor)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET hardware_serial = ? WHERE id = ?`, serial, survivor.ID)
+			return err
+		})
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.True(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+	})
+
+	t.Run("same serial different platform is not a duplicate", func(t *testing.T) {
+		serial := "platform-serial"
+		deleted := newHost("plat-deleted", serial)
+		assignDEP(deleted)
+		// Same serial but a different platform (e.g. a stale iOS record) must not
+		// be treated as a duplicate of the darwin host being deleted.
+		other := newHostPlatform("plat-other", serial, "ios")
+		assignDEP(other)
+
+		dup, err := ds.ReconcileDuplicateDEPHostOnDelete(ctx, serial, "darwin", deleted.ID)
+		require.NoError(t, err)
+		require.False(t, dup)
+		require.True(t, hasAssignment(deleted.ID))
+		require.True(t, hasAssignment(other.ID))
+	})
 }
 
 func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
