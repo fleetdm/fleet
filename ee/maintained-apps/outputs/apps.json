@@ -1696,6 +1696,13 @@
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
+      "name": "Node.js",
+      "slug": "nodejs/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
+    },
+    {
       "name": "NordPass",
       "slug": "nordpass/darwin",
       "platform": "darwin",
