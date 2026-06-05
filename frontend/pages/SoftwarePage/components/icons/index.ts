@@ -43,6 +43,7 @@ import Marvel from "./Marvel";
 import Max from "./Max";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import MindManager from "./MindManager";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
@@ -447,6 +448,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
+  mindmanager: MindManager,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
