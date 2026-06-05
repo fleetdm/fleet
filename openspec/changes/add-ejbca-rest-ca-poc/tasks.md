@@ -156,10 +156,22 @@ this is a learning POC, not a production ship.
 
 ## 7. Endpoints
 
-- [ ] Confirm `request_certificate` endpoint dispatches correctly to EJBCA
-      via type switch (it should — endpoint is generic).
-- [ ] Smoke-test all five CRUD endpoints (`POST`, `GET list`, `GET id`,
-      `PATCH`, `DELETE`) with EJBCA payloads.
+- [x] **Audit only — no code changes required.** All five CRUD endpoints
+      dispatch generically and are covered by Phases 4 and 5:
+      - `POST /fleet/certificate_authorities` → Phase 5 EJBCA branch
+      - `GET /fleet/certificate_authorities` → generic, returns
+        `CertificateAuthoritySummary`
+      - `GET /fleet/certificate_authorities/{id}` → Phase 4 polymorphic
+        SELECT + postprocess
+      - `PATCH /fleet/certificate_authorities/{id}` → Phase 5
+        `validateEJBCAUpdate`
+      - `DELETE /fleet/certificate_authorities/{id}` → Phase 5
+        ActivityDeletedEJBCA
+- [x] **`request_certificate` endpoint** intentionally rejects non-
+      Hydrant/EST types with the existing message; EJBCA inherits this
+      rejection by design (same as DigiCert). The EJBCA enrollment path
+      is the MDM profile processor (Phase 6), not this endpoint.
+- [x] **GitOps batch endpoints** deferred per proposal.
 
 ## 8. Frontend (minimal POC)
 
