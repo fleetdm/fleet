@@ -138,44 +138,39 @@ const AddCertAuthorityModal = ({
 
   const onChangeForm = (update: { name: string; value: string }) => {
     let setFormData;
-    let formData: ICertFormData;
     switch (certAuthorityType) {
       case "digicert":
         setFormData = setDigicertFormData;
-        formData = digicertFormData;
         break;
       case "hydrant":
         setFormData = setHydrantFormData;
-        formData = hydrantFormData;
         break;
       case "ndes_scep_proxy":
         setFormData = setNDESFormData;
-        formData = ndesFormData;
         break;
       case "custom_scep_proxy":
         setFormData = setCustomSCEPFormData;
-        formData = customSCEPFormData;
         break;
       case "smallstep":
         setFormData = setSmallstepFormData;
-        formData = smallstepFormData;
         break;
       case "custom_est_proxy":
         setFormData = setCustomESTFormData;
-        formData = customESTFormData;
         break;
       case "ejbca":
         setFormData = setEJBCAFormData;
-        formData = ejbcaFormData;
         break;
       default:
         return;
     }
 
-    (setFormData as React.Dispatch<React.SetStateAction<ICertFormData>>)({
-      ...formData,
-      [update.name]: update.value,
-    });
+    // Use the functional updater form so multi-field clears within a single
+    // user action (e.g., the EJBCA form's "trash the uploaded .p12" handler
+    // that resets the base64, filename, and password in three sequential
+    // calls) don't clobber each other via stale closure.
+    (setFormData as React.Dispatch<
+      React.SetStateAction<ICertFormData>
+    >)((prev) => ({ ...prev, [update.name]: update.value }));
   };
 
   const onAddCertAuthority = async () => {

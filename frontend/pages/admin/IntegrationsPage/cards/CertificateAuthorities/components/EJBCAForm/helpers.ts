@@ -68,8 +68,11 @@ export const generateFormValidations = (
         },
         {
           name: "validUrl",
+          // EJBCA is self-hosted, so localhost / IPs are legitimate URLs
+          // (dev setups, SSH tunnels, internal LBs without DNS). Unlike
+          // DigiCert which is SaaS at a fixed public domain.
           isValid: (formData: IEJBCAFormData) =>
-            valid_url({ url: formData.url }),
+            valid_url({ url: formData.url, allowLocalHost: true }),
           message: "Must be a valid URL.",
         },
       ],

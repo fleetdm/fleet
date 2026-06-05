@@ -154,7 +154,11 @@ const EJBCAForm = ({
         }
         additionalInfo="Enroll a service certificate in EJBCA (Client Authentication EKU), bind it to a Fleet admin role, then upload the .p12 here."
         buttonMessage="Upload"
-        internalError={p12Error || formValidation.clientP12Base64?.message}
+        // Only surface concrete failures (file-read errors). The "required"
+        // state is communicated implicitly by the empty upload widget and
+        // by the disabled submit button; an always-on red error before
+        // any interaction reads as broken.
+        internalError={p12Error}
         onFileUpload={onP12Upload}
         fileDetails={
           clientP12FileName ? { name: clientP12FileName } : undefined
