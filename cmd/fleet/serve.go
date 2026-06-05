@@ -52,7 +52,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -276,61 +275,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// Strip the Redis URI scheme if it's present. Scheme docs are at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-	// This allows us to use Render's Redis service in render.yaml, including the free tier.
-	// In the future, we could support the full Redis URI if needed (including username, password, database, etc.)
-	redisAddress := strings.TrimPrefix(config.Redis.Address, "redis://")
-	redisPool, err := redis.NewPool(redis.PoolConfig{
-		Server:                    redisAddress,
-		Username:                  config.Redis.Username,
-		Password:                  config.Redis.Password,
-		Database:                  config.Redis.Database,
-		UseTLS:                    config.Redis.UseTLS,
-		Region:                    config.Redis.Region,
-		CacheName:                 config.Redis.CacheName,
-		StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
-		StsExternalID:             config.Redis.StsExternalID,
-		ConnTimeout:               config.Redis.ConnectTimeout,
-		KeepAlive:                 config.Redis.KeepAlive,
-		ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
-		ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
-		ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
-		TLSCert:                   config.Redis.TLSCert,
-		TLSKey:                    config.Redis.TLSKey,
-		TLSCA:                     config.Redis.TLSCA,
-		TLSServerName:             config.Redis.TLSServerName,
-		TLSHandshakeTimeout:       config.Redis.TLSHandshakeTimeout,
-		MaxIdleConns:              config.Redis.MaxIdleConns,
-		MaxOpenConns:              config.Redis.MaxOpenConns,
-		ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
-		IdleTimeout:               config.Redis.IdleTimeout,
-		ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
-		WriteTimeout:              config.Redis.WriteTimeout,
-		ReadTimeout:               config.Redis.ReadTimeout,
-	})
-	if err != nil {
-		initFatal(err, "initialize Redis")
+	var redisPool fleet.RedisPool
+	var redisWrapperDS *mysqlredis.Datastore
+	redisPool, ds, redisWrapperDS = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
+	if redisPool == nil {
+		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
+		return
 	}
-	logger.InfoContext(cmd.Context(), "redis initialized", "component", "redis", "mode", redisPool.Mode())
-
-	ds = cached_mysql.New(ds)
-	var dsOpts []mysqlredis.Option
-	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
-		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
-	}
-	if config.Redis.HostCacheEnabled {
-		if config.Redis.HostCacheTTL <= 0 {
-			initFatal(
-				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
-				"validate host cache configuration",
-			)
-		}
-		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
-		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
-			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
-	}
-	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
-	ds = redisWrapperDS
 
 	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),

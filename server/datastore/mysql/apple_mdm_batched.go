@@ -367,10 +367,7 @@ func (ds *Datastore) bulkGetHostLabelMembershipsTransaction(
 
 // BulkGetHostMDMAppleProfilesByUUIDs returns the current host_mdm_apple_profiles
 // rows for the given host UUIDs, grouped by host UUID.
-//
-// The returned MDMAppleProfilePayload fields mirror what the legacy
-// listMDMAppleProfilesToRemoveTransaction returns. HostPlatform and
-// DeviceEnrolledAt are left zero because they come from joined tables the
+// HostPlatform and DeviceEnrolledAt are left zero because they come from joined tables the
 // in-memory reconciler already has from listAppleMDMHostsForReconcileBatchTransaction.
 func (ds *Datastore) BulkGetHostMDMAppleProfilesByUUIDs(
 	ctx context.Context,

@@ -304,6 +304,21 @@ func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error
 	}
 
 	if dep != nil && dep.DeletedAt == nil {
+		// Don't recreate a pending "ghost" host if a duplicate host for the same
+		// serial still exists. This happens when an operator deletes one of a set
+		// of duplicate hosts (e.g. from a Migration Assistant flow) to resolve the
+		// duplicate — restoring a ghost here would just recreate the duplicate they
+		// removed. If the surviving duplicate has no DEP assignment of its own, the
+		// deleted host's assignment is transferred to it to preserve the ABM
+		// relationship.
+		dupExists, err := t.ds.ReconcileDuplicateDEPHostOnDelete(ctx, opts.Host.HardwareSerial, opts.Host.Platform, opts.Host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile duplicate dep host")
+		}
+		if dupExists {
+			return nil
+		}
+
 		return t.restorePendingDEPHost(ctx, opts.Host, dep.ABMTokenID)
 	}
 

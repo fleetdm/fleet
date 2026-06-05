@@ -34,6 +34,7 @@ import PATHS from "router/paths";
 
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -425,13 +426,10 @@ const ManageQueriesPage = ({
               <div className={`${baseClass}__action-button-container`}>
                 {canManageAutomations &&
                   (isManageAutomationsEnabled ? (
-                    <Button
+                    <AutomationsButton
                       onClick={onManageAutomationsClick}
                       className={`${baseClass}__manage-automations button`}
-                      variant="inverse"
-                    >
-                      Manage automations
-                    </Button>
+                    />
                   ) : (
                     <TooltipWrapper
                       tipContent={
@@ -455,13 +453,10 @@ const ManageQueriesPage = ({
                       position="top"
                       showArrow
                     >
-                      <Button
+                      <AutomationsButton
                         disabled
                         className={`${baseClass}__manage-automations button`}
-                        variant="inverse"
-                      >
-                        Manage automations
-                      </Button>
+                      />
                     </TooltipWrapper>
                   ))}
                 {canCustomQuery && (
