@@ -2981,7 +2981,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 			TeamID:              teamID,
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(criteria),
+			HostVitalsCriteria:  new(json.RawMessage(criteria)),
 		})
 		require.NoError(t, err)
 		return lbl
