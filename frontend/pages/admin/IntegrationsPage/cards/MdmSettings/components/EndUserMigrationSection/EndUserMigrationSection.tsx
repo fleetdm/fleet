@@ -168,7 +168,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         <p>
           Control the end user migration workflow for macOS hosts.{" "}
           <CustomLink
-            url="https://fleetdm.com/learn-more-about/mdm-migration"
+            url="https://fleetdm.com/learn-more-about/end-user-migration-workflow"
             text="Learn more"
             newTab
           />
