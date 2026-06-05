@@ -320,7 +320,13 @@ export const highlightMatches = (
   query: string
 ): IHighlightSegment[] => {
   if (!text) return [{ text: "", matched: false }];
-  const queryLower = query.toLowerCase().trim();
+  // NFD-decompose, drop combining marks, lowercase. Mirrors
+  // utf8mb4_unicode_ci's accent-insensitive folding so the highlighter
+  // never undershoots a row the backend surfaced.
+  const foldChar = (cp: string): string =>
+    cp.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const fold = (s: string): string => Array.from(s, foldChar).join("");
+  const queryLower = fold(query).trim();
   if (!queryLower) return [{ text, matched: false }];
 
   // Always include the full query as one needle so phrase matches get
@@ -331,39 +337,38 @@ export const highlightMatches = (
     if (tok) needles.add(tok);
   });
 
-  // Build textLower in lockstep with an offset map back to the original.
-  // Some Unicode case folds change length (Turkish "İ" → "i̇"), so a
-  // naive textLower.indexOf + slice(original) misaligns and highlights
-  // the wrong characters. lowerToOrigStart[i] holds the original-text
-  // index of the source char that contributed textLower[i]. The
-  // collation Fleet's MySQL uses (utf8mb4_unicode_ci) returns "İstanbul"
-  // for query "i", so this needs to match leniently against any source
-  // char whose lowered form contains the needle — not just exact
-  // source-char-vs-needle alignment.
+  // Build textLower in lockstep with offset maps back to the original.
+  // Iterate by codepoint (not code unit) so supplementary-plane chars
+  // fold correctly — text[i].toLowerCase() on a lone surrogate is a
+  // no-op. Some folds change length (Turkish "İ" → "i", combining marks
+  // stripped from "Café" → "Cafe"); lowerToOrigStart/End translate
+  // matches back to original-text ranges.
   let textLower = "";
   const lowerToOrigStart: number[] = [];
-  for (let i = 0; i < text.length; i += 1) {
-    const lowered = text[i].toLowerCase();
-    for (let j = 0; j < lowered.length; j += 1) {
-      lowerToOrigStart.push(i);
+  const lowerToOrigEnd: number[] = [];
+  let origIdx = 0;
+  Array.from(text).forEach((cp) => {
+    const folded = foldChar(cp);
+    for (let j = 0; j < folded.length; j += 1) {
+      lowerToOrigStart.push(origIdx);
+      lowerToOrigEnd.push(origIdx + cp.length);
     }
-    textLower += lowered;
-  }
-  // Sentinel for end-of-text — lets lowerEnd === textLower.length resolve
-  // without a bounds check.
+    textLower += folded;
+    origIdx += cp.length;
+  });
+  // Sentinels for end-of-text alignment.
   lowerToOrigStart.push(text.length);
+  lowerToOrigEnd.push(text.length);
 
   const ranges: Array<[number, number]> = [];
   needles.forEach((needle) => {
     let idx = textLower.indexOf(needle);
     while (idx !== -1) {
       const lowerEnd = idx + needle.length;
-      // Translate to original-text coords. For origEnd:
-      // lowerToOrigStart[lowerEnd-1] is the source-char index whose
-      // contribution includes the last matched lower char; +1 covers
-      // the full source char, even when the match ends mid-folded-char.
+      // Translate to original-text coords. lowerToOrigEnd already
+      // accounts for surrogate-pair widths and length-changing folds.
       const origStart = lowerToOrigStart[idx];
-      const origEnd = lowerToOrigStart[lowerEnd - 1] + 1;
+      const origEnd = lowerToOrigEnd[lowerEnd - 1];
       ranges.push([origStart, origEnd]);
       idx = textLower.indexOf(needle, lowerEnd);
     }

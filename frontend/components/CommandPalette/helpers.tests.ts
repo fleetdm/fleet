@@ -1262,5 +1262,38 @@ describe("CommandPalette helpers", () => {
       expect(result.map((s) => s.text).join("")).toBe("İstanbul");
       expect(result[0]).toEqual({ text: "İ", matched: true });
     });
+
+    it("folds supplementary-plane characters (Adlam)", () => {
+      // U+1E900 (Adlam capital A) lowercases to U+1E922 (Adlam small a).
+      // Per-code-unit folding would leave the lone surrogates unchanged
+      // and silently drop the match.
+      const result = highlightMatches("\u{1E900}stanbul", "\u{1E922}stanbul");
+      expect(result).toEqual([{ text: "\u{1E900}stanbul", matched: true }]);
+    });
+
+    it("matches a multi-char ASCII query across a length-changing fold", () => {
+      // 'İ' → 'i' + combining dot splits the run; without combining-mark
+      // stripping, indexOf('istanbul') in the folded text returns -1.
+      const result = highlightMatches("İstanbul", "istanbul");
+      expect(result).toEqual([{ text: "İstanbul", matched: true }]);
+    });
+
+    it("matches accent-insensitively to mirror utf8mb4_unicode_ci", () => {
+      // Backend returns 'Café Server' for query 'cafe'; highlighter must
+      // do the same or the row renders with zero <mark> tags.
+      const result = highlightMatches("Café Server", "cafe");
+      expect(result).toEqual([
+        { text: "Café", matched: true },
+        { text: " Server", matched: false },
+      ]);
+    });
+
+    it("matches when the query itself carries an accent", () => {
+      const result = highlightMatches("Cafe Server", "café");
+      expect(result).toEqual([
+        { text: "Cafe", matched: true },
+        { text: " Server", matched: false },
+      ]);
+    });
   });
 });
