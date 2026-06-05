@@ -10769,6 +10769,7 @@ Get a list of all software.
     {
       "id": 2792,
       "name": "Slack",
+      "self_service": true,
       "icon_url": null,
       "source": "apps",
       "extension_for": "",
@@ -10787,12 +10788,28 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": [
+        {
+          "name": "Slack-4.50.128-macOS.pkg",
+          "automatic_install_policies": null,
+          "version": "4.50.128",
+          "platform": "darwin",
+          "package_url": ""
+        },
+        {
+          "name": "Slack-4.51.133-macOS.pkg",
+          "automatic_install_policies": null,
+          "version": "4.51.133",
+          "platform": "darwin",
+          "package_url": ""
+        }
+      ],
       "software_package": {
           "name": "Slack-4.50.128-macOS.pkg",
           "automatic_install_policies": null,
           "version": "4.50.128",
           "platform": "darwin",
-          "self_service": false,
+          "self_service": true,
           "last_install": null,
           "last_uninstall": null,
           "package_url": ""
