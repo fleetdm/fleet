@@ -10712,6 +10712,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
+- [Update software](#update-software)
 - [Add package](#add-package)
 - [Update package](#update-package)
 - [Update software icon](#update-software-icon)
@@ -10854,6 +10855,8 @@ Get a list of all software.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+> Install, pending, and failed counts in `software_title.packages.status` are combined across policy automations, setup experience, and manual installs.
 
 ### List software versions
 
@@ -11336,6 +11339,40 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 ```
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
+
+### Update software
+
+_Available in Fleet Premium._
+
+Update software's display name, categories and self-service.
+
+`PATCH /api/v1/fleet/software/titles/:id/`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path |  **Required.** ID of the software title being updated.|
+| display_name   | string | body | Optional override for the default software title `name`. |
+| self_service   | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| categories   | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**.  |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/123/`
+
+##### Request body
+
+```json
+{
+  "display_name": "Nudge",
+  "self_service": true
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ### Add package
 
