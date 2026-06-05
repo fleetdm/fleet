@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BACKUPS_DIRNAME: &str = "backups";
+const BACKUPS_DIRNAME: &str = "db-backups";
 const BACKUP_EXT: &str = ".sql.gz";
 
 #[derive(Debug, Serialize)]
@@ -147,7 +147,7 @@ pub fn db_save_backup_meta(
 #[tauri::command]
 pub fn db_delete_backup(repo: String, path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
-    // Require the path to live under <repo>/backups/. We accept a `repo`
+    // Require the path to live under <repo>/db-backups/. We accept a `repo`
     // argument explicitly rather than inferring from the path so we
     // can't be coerced into removing something outside the project
     // (e.g., a symlinked path or a sibling directory).

@@ -27,7 +27,7 @@ Plus, around the tabs:
 ## Project layout
 
 ```
-tools/fleet-hangar/
+tools/hangar/
 ├── src/                    React/TypeScript frontend
 │   ├── components/tabs/    One file per tab
 │   └── lib/                Tauri IPC bindings, orchestration, hooks
@@ -56,7 +56,7 @@ Requirements:
 - Tauri prerequisites for your platform — see the [Tauri prerequisites guide](https://tauri.app/start/prerequisites/)
 
 ```sh
-cd tools/fleet-hangar
+cd tools/hangar
 npm install
 npm run tauri dev
 ```

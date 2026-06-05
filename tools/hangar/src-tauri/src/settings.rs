@@ -83,9 +83,10 @@ impl Default for PythonConfig {
     }
 }
 
-/// User-tunable bits of `fleet serve --dev`. Everything optional with
-/// defaults that match what we shipped before (config: fleet.yml,
-/// premium, both debug flags on).
+/// User-tunable bits of `fleet serve --dev`. Everything optional:
+/// config is omitted by default (so `fleet serve --dev` falls back to
+/// env vars / built-in defaults and doesn't require a fleet.yml to
+/// exist), premium and both debug flags on.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FleetServeConfig {
     /// Path passed to `--config`. None / empty = omit the flag entirely,
@@ -115,7 +116,7 @@ fn true_default() -> bool {
 impl Default for FleetServeConfig {
     fn default() -> Self {
         Self {
-            config_path: Some("fleet.yml".into()),
+            config_path: None,
             premium: true,
             debug: true,
             logging_debug: true,

@@ -10,6 +10,9 @@ import { startServe, waitForExit } from "../../lib/orchestration";
 import type { DockerHealth, ServeStatus } from "../../lib/useSystemHealth";
 
 const BACKUP_EXT = ".sql.gz";
+// Subdirectory under the repo where DB dumps are written and read back.
+// Must stay in sync with BACKUPS_DIRNAME in src-tauri/src/db.rs.
+const BACKUPS_DIR = "db-backups";
 const RESET_DROP_ID = "db-reset-drop";
 const RESET_PREPARE_ID = "db-reset-prepare";
 const BACKUP_PROC_ID = "db-backup";
@@ -709,7 +712,7 @@ function NewBackupPanel({
       // Sidecar is best-effort metadata — we don't fail the save if it
       // can't be written, the dump itself is what matters.
       try {
-        const fullPath = `${repoPath}/backups/${check.final_name}`;
+        const fullPath = `${repoPath}/${BACKUPS_DIR}/${check.final_name}`;
         await api.dbSaveBackupMeta(
           fullPath,
           currentBranch,
@@ -749,7 +752,7 @@ function NewBackupPanel({
             borderRadius: 3,
             fontSize: "var(--fs-xxx-small)",
           }}
-          title="What this runs: ./tools/backup_db/backup.sh backups/<name>.sql.gz"
+          title="What this runs: ./tools/backup_db/backup.sh db-backups/<name>.sql.gz"
         >
           make db-backup
         </span>
@@ -837,9 +840,9 @@ function NewBackupPanel({
             textOverflow: "ellipsis",
             minWidth: 0,
           }}
-          title={`backups/${finalName}`}
+          title={`${BACKUPS_DIR}/${finalName}`}
         >
-          backups/{finalName}
+          {BACKUPS_DIR}/{finalName}
         </span>
       </div>
 
@@ -1152,13 +1155,13 @@ async function runRestore(
   setError(null);
   try {
     // restore.sh wants the path relative to cwd (the repo). We always
-    // store backups under <repo>/backups so this stays stable.
+    // store backups under <repo>/db-backups so this stays stable.
     await api.startProcess({
       id: RESTORE_PROC_ID,
       label: `db-restore ${entry.name}`,
       cwd: repoPath,
       program: "./tools/backup_db/restore.sh",
-      args: [`backups/${entry.name}`],
+      args: [`${BACKUPS_DIR}/${entry.name}`],
     });
     const success = await waitForExit(RESTORE_PROC_ID);
     if (!success) {

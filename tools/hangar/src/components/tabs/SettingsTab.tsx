@@ -1241,7 +1241,7 @@ function FleetctlContextsSection({
             {...noAutocorrect}
             placeholder={
               configExists
-                ? ""
+                ? "Config file is empty — paste or generate a starter template below."
                 : "Config file doesn't exist yet — paste or generate a starter template below."
             }
             style={{
@@ -1262,7 +1262,7 @@ function FleetctlContextsSection({
             }}
           />
 
-          {!configExists && draft.trim().length === 0 && (
+          {draft.trim().length === 0 && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
               <button
                 onClick={insertStarterTemplate}

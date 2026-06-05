@@ -137,7 +137,7 @@ export const DEFAULT_PYTHON_CONFIG: PythonConfig = {
 };
 
 export const DEFAULT_FLEET_SERVE_CONFIG: FleetServeConfig = {
-  config_path: "fleet.yml",
+  config_path: null,
   premium: true,
   debug: true,
   logging_debug: true,
