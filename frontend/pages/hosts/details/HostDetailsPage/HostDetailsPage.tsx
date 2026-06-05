@@ -1085,21 +1085,24 @@ const HostDetailsPage = ({
 
   const onClickMyDevice = async () => {
     if (!host) return;
+    // Open synchronously inside the click handler so popup blockers see a
+    // user-initiated open, and so we get a real WindowProxy back (passing
+    // `noopener` to window.open forces a null return per spec, which made
+    // the previous check a false positive).
+    const newWindow = window.open("about:blank", "_blank");
+    if (!newWindow) {
+      renderFlash(
+        "error",
+        "Couldn't open My device page. Please allow pop-ups and try again."
+      );
+      return;
+    }
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      // TODO: this sometimes flashes the "please allow pop-ups" error even when
-      // the popup successfully opens — `window.open` is returning null in cases
-      // where the new tab actually appears. Investigate (likely the async gap
-      // between the click and window.open is treated as non-user-initiated by
-      // some browsers, or the returned WindowProxy is filtered by noopener).
-      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        renderFlash(
-          "error",
-          "Couldn't open My device page. Please allow pop-ups and try again."
-        );
-      }
+      newWindow.location.replace(device_url);
+      newWindow.opener = null;
     } catch (e) {
+      newWindow.close();
       renderFlash("error", "Couldn't open My device page. Please try again.");
     }
   };

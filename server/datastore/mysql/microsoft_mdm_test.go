@@ -3825,6 +3825,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// Do test
 	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
 	require.NoError(t, err)
+	require.False(t, hasPending(enrolledDevice1), "MDMWindowsSaveResponse must recompute has_pending_commands to false after the ack")
 
 	// SaveResponse soft-dequeues the acked rows (acked_at stamped), so the pending fetch is empty - but it deliberately
 	// does NOT recompute the flag (that happens at most once per session, via the refresh below).

@@ -22,6 +22,7 @@ import {
 import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -398,16 +399,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
+            <AutomationsButton
               // TODO(Product) - Why not enable managing global automations when on any team like this
               // for everyone?
               disabled={!isAllTeamsSelected && !isPrimoMode}
               onClick={toggleManageAutomationsModal}
               className={`${baseClass}__manage-automations`}
-              variant="inverse"
-            >
-              Manage automations
-            </Button>
+            />
           </TooltipWrapper>
         )}
         {canAddSoftware && (

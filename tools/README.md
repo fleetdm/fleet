@@ -58,6 +58,10 @@ go run ./tools/snapshot r
 # Run osquery load tests
 ./tools/loadtest/osquery/gnuplot_osqueryd_cpu_memory.sh
 
+# Collect CloudWatch metrics for a load test environment, then compare runs
+./tools/loadtest/metrics/collect-metrics.sh --workspace 486loadtest --category baseline
+./tools/loadtest/metrics/compare-metrics.sh --filter loadtest --depth 4 --unique
+
 # Test webhooks
 go run ./tools/webhook 8082
 
@@ -306,6 +310,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `desktop-rate-limit/` | Test Fleet Desktop rate limiting | `go run ./tools/desktop-rate-limit -fleet_url https://localhost:8080` |
 | `kubequery/` | Kubequery + Fleet config | `kubectl apply -f kubequery-fleet.yml` |
 | `loadtest/fleetd_labels/` | Apply manual labels for load testing | `go run ./tools/loadtest/fleetd_labels` |
+| `loadtest/metrics/` | Collect & compare AWS CloudWatch metrics for load test environments | `./tools/loadtest/metrics/collect-metrics.sh --workspace <ws>` — see [loadtest/metrics/README.md](loadtest/metrics/README.md) |
 | `loadtest/osquery/` | Load test osquery on macOS/Windows/Linux | See [loadtest/osquery/README.md](loadtest/osquery/README.md) |
 | `loadtest/scripts_and_profiles/` | Load test scripts and profiles | `go run ./tools/loadtest/scripts_and_profiles` |
 | `loadtest/unified_queue/` | Load test unified queue story | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |

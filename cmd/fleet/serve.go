@@ -52,7 +52,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -248,79 +247,25 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.MDM.CertificateProfilesLimit = 0
 	}
 
-	var ds fleet.Datastore
-	var carveStore fleet.CarveStore
-
-	opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
-	if config.MysqlReadReplica.Address != "" {
-		opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
-	}
-	// NOTE this will disable OTEL/APM interceptor
-	if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
-		opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-			logger: logger.With("component", "sql-interceptor"),
-		}))
-	}
-
-	if config.Logging.TracingEnabled {
-		opts = append(opts, mysql.TracingEnabled(&config.Logging))
-	}
-
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
-	// Create database connections that can be shared across datastores
-	dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
-	if err != nil {
-		initFatal(err, "initializing database connections")
+	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
+	if mds == nil {
+		initFatal(errors.New("datastore was nil after initialization"), "initializing datastore")
+		return
 	}
-
-	mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
-	if err != nil {
-		initFatal(err, "initializing datastore")
-	}
-	ds = mds
-
-	if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
-		carveStore, err = s3.NewCarveStore(config.S3, ds)
-		if err != nil {
-			initFatal(err, "initializing S3 carvestore")
-		}
-	} else {
-		carveStore = ds
-	}
+	var ds fleet.Datastore = mds
 
 	migrationStatus, err := ds.MigrationStatus(cmd.Context())
 	if err != nil {
 		initFatal(err, "retrieving migration status")
 	}
-
-	switch migrationStatus.StatusCode {
-	case fleet.AllMigrationsCompleted:
-		// OK
-	case fleet.UnknownMigrations:
-		printUnknownMigrationsMessage(migrationStatus.UnknownTable, migrationStatus.UnknownData)
-		if dev_mode.IsEnabled {
-			os.Exit(1)
-		}
-	case fleet.NeedsFleetv4732Fix:
-		printFleetv4732FixNeededMessage()
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.UnknownFleetv4732State:
-		printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.SomeMigrationsCompleted:
-		tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
-		printMissingMigrationsWarning(os.Stdout, tables, data)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.NoMigrationsCompleted:
-		printDatabaseNotInitializedError()
+	if migrationStatus == nil {
+		initFatal(errors.New("migration status was nil"), "retrieving migration status")
+		return
+	}
+	if evalMigrationStatus(migrationStatus, dev_mode.IsEnabled, config.Upgrades.AllowMissingMigrations) {
 		os.Exit(1)
 	}
 
@@ -330,61 +275,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// Strip the Redis URI scheme if it's present. Scheme docs are at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-	// This allows us to use Render's Redis service in render.yaml, including the free tier.
-	// In the future, we could support the full Redis URI if needed (including username, password, database, etc.)
-	redisAddress := strings.TrimPrefix(config.Redis.Address, "redis://")
-	redisPool, err := redis.NewPool(redis.PoolConfig{
-		Server:                    redisAddress,
-		Username:                  config.Redis.Username,
-		Password:                  config.Redis.Password,
-		Database:                  config.Redis.Database,
-		UseTLS:                    config.Redis.UseTLS,
-		Region:                    config.Redis.Region,
-		CacheName:                 config.Redis.CacheName,
-		StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
-		StsExternalID:             config.Redis.StsExternalID,
-		ConnTimeout:               config.Redis.ConnectTimeout,
-		KeepAlive:                 config.Redis.KeepAlive,
-		ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
-		ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
-		ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
-		TLSCert:                   config.Redis.TLSCert,
-		TLSKey:                    config.Redis.TLSKey,
-		TLSCA:                     config.Redis.TLSCA,
-		TLSServerName:             config.Redis.TLSServerName,
-		TLSHandshakeTimeout:       config.Redis.TLSHandshakeTimeout,
-		MaxIdleConns:              config.Redis.MaxIdleConns,
-		MaxOpenConns:              config.Redis.MaxOpenConns,
-		ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
-		IdleTimeout:               config.Redis.IdleTimeout,
-		ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
-		WriteTimeout:              config.Redis.WriteTimeout,
-		ReadTimeout:               config.Redis.ReadTimeout,
-	})
-	if err != nil {
-		initFatal(err, "initialize Redis")
+	var redisPool fleet.RedisPool
+	var redisWrapperDS *mysqlredis.Datastore
+	redisPool, ds, redisWrapperDS = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
+	if redisPool == nil {
+		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
+		return
 	}
-	logger.InfoContext(cmd.Context(), "redis initialized", "component", "redis", "mode", redisPool.Mode())
-
-	ds = cached_mysql.New(ds)
-	var dsOpts []mysqlredis.Option
-	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
-		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
-	}
-	if config.Redis.HostCacheEnabled {
-		if config.Redis.HostCacheTTL <= 0 {
-			initFatal(
-				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
-				"validate host cache configuration",
-			)
-		}
-		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
-		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
-			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
-	}
-	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
-	ds = redisWrapperDS
 
 	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),

@@ -1,9 +1,9 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { getTeamDisplayName } from "interfaces/team";
+import { getFleetDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -16,11 +16,11 @@ import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
 
-type IAbmTableConfig = Column<IMdmAbmToken>;
-type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
-type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
+type IAbmTableConfig = Column<IMdmAbToken>;
+type ITableStringCellProps = IStringCellProps<IMdmAbToken>;
+type IRenewDateCellProps = CellProps<IMdmAbToken, IMdmAbToken["renew_date"]>;
 
-type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
+type ITableHeaderProps = IHeaderProps<IMdmAbToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "editTeams", label: "Edit fleets", disabled: false },
@@ -71,7 +71,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 };
 
 export const generateTableConfig = (
-  actionSelectHandler: (value: string, team: IMdmAbmToken) => void,
+  actionSelectHandler: (value: string, team: IMdmAbToken) => void,
   gitopsModeEnabled: boolean,
   repoURL?: string
 ): IAbmTableConfig[] => {
@@ -112,7 +112,7 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
+      accessor: (originalRow) => getFleetDisplayName(originalRow.macos_fleet),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -137,7 +137,7 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
+      accessor: (originalRow) => getFleetDisplayName(originalRow.ios_fleet),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -162,7 +162,7 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
+      accessor: (originalRow) => getFleetDisplayName(originalRow.ipados_fleet),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -208,6 +208,6 @@ export const generateTableConfig = (
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmAbToken[]) => {
   return data;
 };

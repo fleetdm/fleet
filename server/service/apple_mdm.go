@@ -472,9 +472,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
 
 	var (
 		actTeamID   *uint
@@ -950,10 +947,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 
 	var (
@@ -2982,16 +2975,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
-	}
-	var bulkTeamID uint
-	if tmID != nil {
-		bulkTeamID = *tmID
-	}
-
-	if !skipBulkPending {
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-		}
 	}
 
 	if err := svc.NewActivity(
@@ -5392,7 +5375,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		}
 	}
 
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPending {
 		// Since the device has been refetched, we can assume it's enrolled.
 		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")
@@ -5603,561 +5586,6 @@ func SendPushesToPendingDevices(
 
 		return ctxerr.Wrap(ctx, err, "sending push notifications")
 
-	}
-
-	return nil
-}
-
-func ReconcileAppleDeclarations(
-	ctx context.Context,
-	ds fleet.Datastore,
-	commander *apple_mdm.MDMAppleCommander,
-	logger *slog.Logger,
-) error {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("reading app config: %w", err)
-	}
-	if !appConfig.MDM.EnabledAndConfigured {
-		return nil
-	}
-
-	// batch set declarations as pending
-	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host declaration state")
-	}
-
-	// Find any hosts that requested a resync. This is used to cover special cases where we're not
-	// 100% certain of the declarations on the device.
-	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
-	}
-	if len(resyncHosts) > 0 {
-		changedHosts = append(changedHosts, resyncHosts...)
-		// Deduplicate changedHosts
-		uniqueHosts := make(map[string]struct{})
-		deduplicatedHosts := make([]string, 0, len(changedHosts))
-		for _, id := range changedHosts {
-			if _, exists := uniqueHosts[id]; !exists {
-				uniqueHosts[id] = struct{}{}
-				deduplicatedHosts = append(deduplicatedHosts, id)
-			}
-		}
-		changedHosts = deduplicatedHosts
-	}
-
-	if len(changedHosts) == 0 {
-		logger.InfoContext(ctx, "no hosts with changed declarations")
-		return nil
-	}
-
-	// send a DeclarativeManagement command to start a sync
-	if err := commander.DeclarativeManagement(ctx, changedHosts, uuid.NewString()); err != nil {
-		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
-	}
-
-	logger.InfoContext(ctx, "sent DeclarativeManagement command", "host_number", len(changedHosts))
-
-	return nil
-}
-
-// Number of hours to wait for a user enrollment to exist for a host after its
-// device enrollment. After that duration, the user-scoped profiles will be
-// delivered to the device-channel.
-const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
-
-func ReconcileAppleProfiles(
-	ctx context.Context,
-	ds fleet.Datastore,
-	commander *apple_mdm.MDMAppleCommander,
-	redisKeyValue fleet.AdvancedKeyValueStore,
-	logger *slog.Logger,
-	certProfilesLimit int,
-) error {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("reading app config: %w", err)
-	}
-	if !appConfig.MDM.EnabledAndConfigured {
-		return nil
-	}
-
-	// Map of host UUID->User Channel enrollment ID so that we can cache them per-device
-	userEnrollmentMap := make(map[string]string)
-	userEnrollmentsToHostUUIDsMap := make(map[string]string) // the same thing in reverse
-
-	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetCACert,
-	}, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Apple SCEP")
-	}
-
-	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return ctxerr.Wrap(ctx, err, "failed to decode PEM block from SCEP certificate")
-	}
-
-	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
-		logger.ErrorContext(ctx, "unable to ensure a fleetd configuration profiles are in place", "details", err)
-	}
-
-	// retrieve the profiles to install/remove.
-	toInstall, toRemove, err := ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to install and remove")
-	}
-
-	// Exclude macOS only profiles from iPhones/iPads.
-	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
-
-	getHostUserEnrollmentID := func(hostUUID string) (string, error) {
-		userEnrollmentID, ok := userEnrollmentMap[hostUUID]
-		if !ok {
-			userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, hostUUID)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "getting user enrollment for host")
-			}
-			if userNanoEnrollment != nil {
-				userEnrollmentID = userNanoEnrollment.ID
-			}
-			userEnrollmentMap[hostUUID] = userEnrollmentID
-			if userEnrollmentID != "" {
-				userEnrollmentsToHostUUIDsMap[userEnrollmentID] = hostUUID
-			}
-		}
-		return userEnrollmentID, nil
-	}
-
-	isAwaitingUserEnrollment := func(prof *fleet.MDMAppleProfilePayload) (bool, error) {
-		if prof.Scope != fleet.PayloadScopeUser {
-			return false, nil
-		}
-
-		userEnrollmentID, err := getHostUserEnrollmentID(prof.HostUUID)
-		if userEnrollmentID != "" || err != nil {
-			// there is a user enrollment (so it is not waiting for one), or it failed looking for one
-			return false, err
-		}
-
-		if prof.DeviceEnrolledAt != nil && time.Since(*prof.DeviceEnrolledAt) < hoursToWaitForUserEnrollmentAfterDeviceEnrollment*time.Hour {
-			return true, nil
-		}
-		return false, nil
-	}
-
-	// Perform aggregations to support all the operations we need to do
-
-	// toGetContents contains the UUIDs of all the profiles from which we
-	// need to retrieve contents. Since the previous query returns one row
-	// per host, it would be too expensive to retrieve the profile contents
-	// there, so we make another request. Using a map to deduplicate.
-	toGetContents := make(map[string]bool)
-
-	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
-	// with the new status, operation_type, etc.
-	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
-
-	// profileIntersection tracks profilesToAdd ∩ profilesToRemove, this is used to avoid:
-	//
-	// - Sending a RemoveProfile followed by an InstallProfile for a
-	// profile with an identifier that's already installed, which can cause
-	// racy behaviors.
-	// - Sending a InstallProfile command for a profile that's exactly the
-	// same as the one installed. Customers have reported that sending the
-	// command causes unwanted behavior.
-	profileIntersection := apple_mdm.NewProfileBimap()
-	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
-
-	// hostProfilesToCleanup is used to track profiles that should be removed
-	// from the database directly without having to issue a RemoveProfile
-	// command.
-	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
-
-	// Index host profiles to install by host and profile UUID, for easier bulk error processing
-	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
-
-	// When a certificate profiles limit is configured, fetch profile contents to classify
-	// profiles as CA/non-CA so we can throttle CA profile installations. The fetched contents
-	// are reused later by ProcessAndEnqueueProfiles to avoid a duplicate database call.
-	var caProfileUUIDs map[string]bool
-	var prefetchedContents map[string]mobileconfig.Mobileconfig
-	if certProfilesLimit > 0 {
-		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
-		for _, p := range toInstall {
-			uniqueUUIDs[p.ProfileUUID] = struct{}{}
-		}
-		uuids := make([]string, 0, len(uniqueUUIDs))
-		for u := range uniqueUUIDs {
-			uuids = append(uuids, u)
-		}
-		var err error
-		prefetchedContents, err = ds.GetMDMAppleProfilesContents(ctx, uuids)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
-		}
-		caProfileUUIDs = make(map[string]bool, len(prefetchedContents))
-		for pUUID, content := range prefetchedContents {
-			fleetVars := variables.Find(string(content))
-			if fleet.HasCAVariables(fleetVars) {
-				caProfileUUIDs[pUUID] = true
-			}
-		}
-	}
-
-	var caInstallCount int
-	throttledHostsByProfile := make(map[string][]string)
-	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
-	for _, p := range toInstall {
-		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
-			// if the profile was in any other status than `failed`
-			// and the checksums match (the profiles are exactly
-			// the same) we don't send another InstallProfile
-			// command.
-
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
-				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileUUID:       p.ProfileUUID,
-					HostUUID:          p.HostUUID,
-					ProfileIdentifier: p.ProfileIdentifier,
-					ProfileName:       p.ProfileName,
-					Checksum:          p.Checksum,
-					SecretsUpdatedAt:  p.SecretsUpdatedAt,
-					OperationType:     pp.OperationType,
-					Status:            pp.Status,
-					CommandUUID:       pp.CommandUUID,
-					Detail:            pp.Detail,
-					Scope:             pp.Scope,
-				}
-				hostProfiles = append(hostProfiles, hostProfile)
-				hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
-				continue
-			}
-		}
-
-		wait, err := isAwaitingUserEnrollment(p)
-		if err != nil {
-			return err
-		}
-		if wait {
-			// user-scoped profile still waiting for a user enrollment, leave the
-			// profile in NULL status
-			hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileUUID:       p.ProfileUUID,
-				HostUUID:          p.HostUUID,
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-				Checksum:          p.Checksum,
-				SecretsUpdatedAt:  p.SecretsUpdatedAt,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				Status:            nil,
-				Scope:             p.Scope,
-			}
-			hostProfiles = append(hostProfiles, hostProfile)
-			hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
-			continue
-		}
-
-		// Throttle CA profile installations when a limit is configured.
-		// Skipped profiles remain in NULL status and will be picked up on the next reconciler tick.
-		// Recently enrolled hosts (within 1 hour) bypass throttling so that setup experience
-		// and initial profile delivery are not delayed.
-		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
-		isThrottledCA := certProfilesLimit > 0 && caProfileUUIDs[p.ProfileUUID] && !recentlyEnrolled
-		if isThrottledCA && caInstallCount >= certProfilesLimit {
-			throttledHostsByProfile[p.ProfileUUID] = append(throttledHostsByProfile[p.ProfileUUID], p.HostUUID)
-			continue
-		}
-
-		toGetContents[p.ProfileUUID] = true
-
-		target := installTargets[p.ProfileUUID]
-		if target == nil {
-			target = &fleet.CmdTarget{
-				CmdUUID:           uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			}
-			installTargets[p.ProfileUUID] = target
-		}
-
-		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
-			if err != nil {
-				return err
-			}
-			if userEnrollmentID == "" {
-				var errorDetail string
-				if fleet.IsAppleMobilePlatform(p.HostPlatform) {
-					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
-				} else {
-					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll."
-					logger.WarnContext(ctx, "host does not have a user enrollment, failing profile installation",
-						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
-				}
-
-				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileUUID:       p.ProfileUUID,
-					HostUUID:          p.HostUUID,
-					OperationType:     fleet.MDMOperationTypeInstall,
-					Status:            &fleet.MDMDeliveryFailed,
-					Detail:            errorDetail,
-					CommandUUID:       "",
-					ProfileIdentifier: p.ProfileIdentifier,
-					ProfileName:       p.ProfileName,
-					Checksum:          p.Checksum,
-					SecretsUpdatedAt:  p.SecretsUpdatedAt,
-					Scope:             p.Scope,
-				}
-				hostProfiles = append(hostProfiles, hostProfile)
-				continue
-			}
-
-			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
-		} else {
-			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
-		}
-
-		// Only count against the CA throttle limit after confirming the profile will actually be queued.
-		if isThrottledCA {
-			caInstallCount++
-		}
-		toGetContents[p.ProfileUUID] = true
-
-		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileUUID:       p.ProfileUUID,
-			HostUUID:          p.HostUUID,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryPending,
-			CommandUUID:       target.CmdUUID,
-			ProfileIdentifier: p.ProfileIdentifier,
-			ProfileName:       p.ProfileName,
-			Checksum:          p.Checksum,
-			SecretsUpdatedAt:  p.SecretsUpdatedAt,
-			Scope:             p.Scope,
-		}
-		hostProfiles = append(hostProfiles, hostProfile)
-		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
-	}
-
-	// Log throttled hosts in batches to avoid exceeding log line size limits (e.g. 1MB Kinesis/Firehose limit).
-	const throttleLogBatchSize = 1000
-	for profileUUID, hostUUIDs := range throttledHostsByProfile {
-		for i := 0; i < len(hostUUIDs); i += throttleLogBatchSize {
-			end := min(i+throttleLogBatchSize, len(hostUUIDs))
-			logger.InfoContext(ctx, "throttled CA certificate profile installation",
-				"profile.uuid", profileUUID,
-				"mdm.target.host.uuids", hostUUIDs[i:end],
-				"mdm.certificate.profiles.limit", certProfilesLimit,
-				"batch", fmt.Sprintf("%d-%d/%d", i+1, end, len(hostUUIDs)),
-			)
-		}
-	}
-
-	for _, p := range toRemove {
-		// Exclude profiles that are also marked for installation.
-		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			continue
-		}
-
-		if p.FailedInstallOnHost() {
-			// then we shouldn't send an additional remove command since it failed to install on the host.
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			continue
-		}
-		if p.PendingInstallOnHost() {
-			// The profile most likely did not install on host. However, it is possible that the profile
-			// is currently being installed. So, we clean up the profile from the database, but also send
-			// a remove command to the host.
-			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-			// IgnoreError is set since the removal command is likely to fail.
-			p.IgnoreError = true
-		}
-
-		target := removeTargets[p.ProfileUUID]
-		if target == nil {
-			target = &fleet.CmdTarget{
-				CmdUUID:           uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			}
-			removeTargets[p.ProfileUUID] = target
-		}
-
-		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
-			if err != nil {
-				return err
-			}
-			if userEnrollmentID == "" {
-				logger.WarnContext(ctx, "host does not have a user enrollment, cannot remove user scoped profile",
-					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
-				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
-				continue
-			}
-
-			target.EnrollmentIDs = append(target.EnrollmentIDs, userEnrollmentID)
-		} else {
-			target.EnrollmentIDs = append(target.EnrollmentIDs, p.HostUUID)
-		}
-
-		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileUUID:       p.ProfileUUID,
-			HostUUID:          p.HostUUID,
-			OperationType:     fleet.MDMOperationTypeRemove,
-			Status:            &fleet.MDMDeliveryPending,
-			CommandUUID:       target.CmdUUID,
-			ProfileIdentifier: p.ProfileIdentifier,
-			ProfileName:       p.ProfileName,
-			Checksum:          p.Checksum,
-			SecretsUpdatedAt:  p.SecretsUpdatedAt,
-			IgnoreError:       p.IgnoreError,
-			Scope:             p.Scope,
-		})
-	}
-
-	// check if some of the hosts to install already is handled by the apple setup worker
-	// we want to batch check for 1k hosts at a time to avoid hitting query parameter limits
-	const isBeingSetupBatchSize = 1000
-	for i := 0; i < len(hostProfiles); i += isBeingSetupBatchSize {
-		end := min(i+isBeingSetupBatchSize, len(hostProfiles))
-		batch := hostProfiles[i:end]
-		hostUUIDs := make([]string, len(batch))
-		hostUUIDToHostProfiles := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(batch))
-		for j, hp := range batch {
-			hostUUIDs[j] = fleet.MDMProfileProcessingKeyPrefix + ":" + hp.HostUUID
-			hostUUIDToHostProfiles[hp.HostUUID] = append(hostUUIDToHostProfiles[hp.HostUUID], hp)
-		}
-
-		setupHostUUIDs, err := redisKeyValue.MGet(ctx, hostUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "filtering hosts being set up")
-		}
-		for keyedHostUUID, exists := range setupHostUUIDs {
-			if exists != nil {
-				hostUUID := strings.TrimPrefix(keyedHostUUID, fleet.MDMProfileProcessingKeyPrefix+":")
-				logger.DebugContext(ctx, "skipping profile reconciliation for host being set up", "host_uuid", hostUUID)
-				hps, ok := hostUUIDToHostProfiles[hostUUID]
-				if !ok {
-					logger.DebugContext(ctx, "expected host uuid to be present but was not, do not skip profile reconciliation", "host_uuid", hostUUID)
-					continue
-				}
-				for _, hp := range hps {
-					// Clear out host profile status and commandUUID to avoid updating the DB with a pending status
-					hp.Status = nil
-					hp.CommandUUID = ""
-					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
-
-					// Also remove this host from installTargets to prevent sending MDM commands for this host.
-					// Note: user-scoped profiles use user enrollment IDs (not host UUIDs) in EnrollmentIDs, so
-					// the removal below is a no-op for those profiles, which is acceptable, since they are not enqueued via the worker.
-					if hp.OperationType == fleet.MDMOperationTypeInstall {
-						if target, ok := installTargets[hp.ProfileUUID]; ok {
-							var newEnrollmentIDs []string
-							for _, id := range target.EnrollmentIDs {
-								if id != hp.HostUUID {
-									newEnrollmentIDs = append(newEnrollmentIDs, id)
-								}
-							}
-							if len(newEnrollmentIDs) == 0 {
-								delete(installTargets, hp.ProfileUUID)
-							} else {
-								target.EnrollmentIDs = newEnrollmentIDs
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// delete all profiles that have a matching identifier to be installed.
-	// This is to prevent sending both a `RemoveProfile` and an
-	// `InstallProfile` for the same identifier, which can cause race
-	// conditions. It's better to "update" the profile by sending a single
-	// `InstallProfile` command.
-	//
-	// Create a map of command UUIDs to host IDs
-	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
-	for _, hp := range hostProfilesToCleanup {
-		// Certain failure scenarios may leave the profile without a command UUID, so skip those
-		if hp.CommandUUID != "" {
-			commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
-		}
-	}
-	// We need to delete commands from the nano queue so they don't get sent to device.
-	if len(commandUUIDToHostIDsCleanupMap) > 0 {
-		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
-		}
-	}
-	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
-	}
-
-	// FIXME: How does this impact variable profiles? This happens before pre-processing, doesn't
-	// this potentially race with the command uuid and variable substitution?
-	//
-	// First update all the profiles in the database before sending the
-	// commands, this prevents race conditions where we could get a
-	// response from the device before we set its status as 'pending'
-	//
-	// We'll do another pass at the end to revert any changes for failed
-	// deliveries.
-	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host profiles")
-	}
-
-	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(
-		ctx,
-		ds,
-		logger,
-		appConfig,
-		commander,
-		installTargets,
-		removeTargets,
-		hostProfilesToInstallMap,
-		userEnrollmentsToHostUUIDsMap,
-		prefetchedContents,
-	)
-	if err != nil {
-		// revert the status of all pending profiles to null so they get picked up again in the next cron run.
-		// this is fine to do as if we errored out, we only do that before sending a single command
-		for _, hp := range hostProfiles {
-			if hp.Status != nil && *hp.Status == fleet.MDMDeliveryPending {
-				hp.Status = nil
-				hp.CommandUUID = ""
-			}
-		}
-		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-			return ctxerr.Wrap(ctx, err, "reverting host profiles after failed enqueue")
-		}
-		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
-	}
-
-	// Build cmdUUID→hostProfiles index AFTER preprocessing has rewritten CommandUUIDs.
-	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfiles))
-	for _, hp := range hostProfiles {
-		if hp.CommandUUID != "" {
-			hostProfsByCmdUUID[hp.CommandUUID] = append(hostProfsByCmdUUID[hp.CommandUUID], hp)
-		}
-	}
-
-	// Revert failed deliveries so they're retried on the next cron run.
-	var failed []*fleet.MDMAppleBulkUpsertHostProfilePayload
-	for cmdUUID := range enqueueResult.FailedCmdUUIDs {
-		for _, hp := range hostProfsByCmdUUID[cmdUUID] {
-			hp.CommandUUID = ""
-			hp.Status = nil
-			failed = append(failed, hp)
-		}
-	}
-
-	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
-		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
 
 	return nil
@@ -6941,7 +6369,7 @@ func (uploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type uploadABMTokenResponse struct {
-	Token *fleet.ABMToken `json:"abm_token,omitempty"`
+	Token *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
 	Err   error           `json:"error,omitempty"`
 }
 
@@ -7011,7 +6439,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 
 type listABMTokensResponse struct {
 	Err    error             `json:"error,omitempty"`
-	Tokens []*fleet.ABMToken `json:"abm_tokens"`
+	Tokens []*fleet.ABMToken `json:"abm_tokens" renameto:"ab_tokens,inline"`
 }
 
 func (r listABMTokensResponse) Error() error { return r.Err }
@@ -7078,7 +6506,7 @@ type updateABMTokenTeamsRequest struct {
 }
 
 type updateABMTokenTeamsResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
 	Err      error           `json:"error,omitempty"`
 }
 
@@ -7141,7 +6569,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 }
 
 type renewABMTokenResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token,omitempty"`
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
 	Err      error           `json:"error,omitempty"`
 }
 

@@ -302,6 +302,30 @@ describe("getAutomationsForPolicy", () => {
     });
   });
 
+  it("carries the custom icon_url onto the software automation", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Chrome.app",
+        software_title_id: 42,
+        icon_url: "/api/latest/fleet/software/titles/42/icon?fleet_id=1",
+      },
+    });
+    expect(result[0]).toMatchObject({
+      type: "software",
+      iconUrl: "/api/latest/fleet/software/titles/42/icon?fleet_id=1",
+    });
+  });
+
+  it("leaves iconUrl undefined when no custom icon exists", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: { name: "Chrome.app", software_title_id: 42 },
+    });
+    expect(result[0]).toMatchObject({ type: "software" });
+    expect((result[0] as { iconUrl?: string | null }).iconUrl).toBeUndefined();
+  });
+
   it("falls back to name when display_name is absent", () => {
     const result = getAutomationsForPolicy({
       ...basePolicy,
