@@ -1770,13 +1770,15 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 
 	inclAllLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "incl-all-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
+	inclAllLbl2, err := ds.NewLabel(ctx, &fleet.Label{Name: "incl-all-2", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
 	inclAnyLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-any-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 	exclLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
 
-	// include-all + exclude-any profile
-	pCombinedAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-all", inclAllLbl, exclLbl))
+	// include-all + exclude-any profile (requires both incl-all-1 and incl-all-2)
+	pCombinedAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-all", inclAllLbl, inclAllLbl2, exclLbl))
 	require.NoError(t, err)
 	// include-any + exclude-any profile
 	pCombinedAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-any", inclAnyLbl, exclLbl))
@@ -1791,7 +1793,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	require.Empty(t, profs)
 
 	// host joins include labels but not exclude → both profiles apply
-	err = ds.AddLabelsToHost(ctx, h.ID, []uint{inclAllLbl.ID, inclAnyLbl.ID})
+	err = ds.AddLabelsToHost(ctx, h.ID, []uint{inclAllLbl.ID, inclAllLbl2.ID, inclAnyLbl.ID})
 	require.NoError(t, err)
 
 	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
@@ -1823,6 +1825,16 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 		{ProfileUUID: pCombinedAll.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAll.Name, Checksum: profChecksum},
 		{ProfileUUID: pCombinedAny.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAny.Name, Checksum: profChecksum},
 	}, profs)
+
+	// remove host from one include-all label → include-all profile no longer applies, include-any still does
+	err = ds.RemoveLabelsFromHost(ctx, h.ID, []uint{inclAllLbl2.ID})
+	require.NoError(t, err)
+
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Len(t, profs, 1)
+	require.Equal(t, pCombinedAny.ProfileUUID, profs[0].ProfileUUID)
 }
 
 func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
