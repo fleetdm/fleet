@@ -5065,8 +5065,14 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
     {
       "id": 936,
       "name": "Google Chrome",
+      "display_name": "",
       "icon_url": null,
       "source": "apps",
+      "automatic_install_policies": null,
+      "categories": [
+        "Browsers"
+      ],
+      "self_service": true,
       "extension_for": "",
       "status": null,
       "installed_versions": [
