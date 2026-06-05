@@ -658,6 +658,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCACA              `json:"ejbca"`
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -677,6 +678,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCACA{},
 	}
 
 	for _, ca := range cas {
@@ -737,6 +739,26 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				Username:     *ca.Username,
 				Password:     *ca.Password,
 			})
+		case string(CATypeEJBCA):
+			entry := EJBCACA{
+				ID:                            ca.ID,
+				Name:                          *ca.Name,
+				URL:                           *ca.URL,
+				ClientCertPEM:                 *ca.ClientCertPEM,
+				ClientKeyPEM:                  *ca.ClientKeyPEM,
+				CertificateAuthorityNameEJBCA: *ca.EJBCACAName,
+				CertificateProfileName:        *ca.EJBCACertificateProfileName,
+				EndEntityProfileName:          *ca.EJBCAEndEntityProfileName,
+				UsernameTemplate:              *ca.EJBCAUsernameTemplate,
+				ClientCertExpiresAt:           ca.ClientCertExpiresAt,
+			}
+			if ca.TrustCABundlePEM != nil {
+				entry.TrustCABundlePEM = *ca.TrustCABundlePEM
+			}
+			if ca.CertificateUserPrincipalNames != nil {
+				entry.CertificateUserPrincipalNames = *ca.CertificateUserPrincipalNames
+			}
+			grouped.EJBCA = append(grouped.EJBCA, entry)
 		}
 	}
 

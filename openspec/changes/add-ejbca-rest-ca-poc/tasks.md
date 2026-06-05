@@ -88,17 +88,20 @@ this is a learning POC, not a production ship.
 
 ## 4. Datastore + migration
 
-- [ ] Write migration adding columns (per [design.md → Migration](./design.md#migration)).
-- [ ] Extend `type` ENUM with `'ejbca'`.
-- [ ] Update insert / select / encrypt / decrypt helpers in
+- [x] Write migration adding columns (per [design.md → Migration](./design.md#migration)).
+- [x] Extend `type` ENUM with `'ejbca'`.
+- [x] Update insert / select / encrypt / decrypt helpers in
       `server/datastore/mysql/certificate_authorities.go`.
-- [ ] Update `GroupCertificateAuthoritiesByType` in
+- [x] Update `GroupCertificateAuthoritiesByType` in
       `server/fleet/certificate_authorities.go`.
-- [ ] Update `postprocessRetrievedCertificateAuthority` to mask
-      the encrypted PEM private key when
-      `includeSecrets=false`.
-- [ ] After datastore method additions, run `go test ./server/service/`
-      to confirm mocks aren't broken. Run `make generate-mock` if needed.
+- [x] Update `postprocessRetrievedCertificateAuthority` to mask
+      the encrypted PEM private key when `includeSecrets=false`.
+      Also parses `notAfter` from the stored client cert PEM into
+      `ClientCertExpiresAt` for REQ-CA-EJBCA-12.
+- [x] After datastore method additions, run `go test ./server/service/`
+      to confirm mocks aren't broken. No new datastore interface
+      methods were added — only SQL queries and helpers — so mocks
+      are unaffected.
 
 ## 5. Service layer wiring
 
