@@ -2807,6 +2807,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_account_provisioning
+
+Generated when settings for account provisioning are edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
