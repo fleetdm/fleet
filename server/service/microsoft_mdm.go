@@ -2012,21 +2012,28 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 	return topLevelExists, nil
 }
 
-// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment.
-func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, error) {
+// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus whether any of them is a
+// non-poll command. The has_pending_commands flag intentionally excludes internal poll-schedule Replaces, so the
+// per-session refresh gate must use the same exclusion: a still-pending poll Replace alone must not block the refresh,
+// or the flag could stay stuck at 1 (and keep signaling sync-now) for work it is defined to ignore.
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
-		return nil, fmt.Errorf("getting incoming cmds %w", err)
+		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
 
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
+	hasNonPollPending := false
 	for _, pendingCmd := range pendingCmds {
+		if pendingCmd.TargetLocURI != syncml.DMClientPollIntervalLocURI {
+			hasNonPollPending = true
+		}
 		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {
@@ -2038,7 +2045,7 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		}
 	}
 
-	return cmds, nil
+	return cmds, hasNonPollPending, nil
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -2114,17 +2121,18 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
+		pendingCmds, hasNonPollPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
 
-		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when the fetch above came
-		// back empty - this is the session's final message (the queue is drained) and the flag may flip to 0. While
-		// commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session messages skip the
-		// recompute entirely. This runs once per session instead of once per ack message, which at 30K hosts during
-		// bulk profile waves was the top writer statement (~5.5 AAS peak).
+		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when the fetch above found
+		// no pending NON-POLL commands - the flag's own definition excludes internal poll-schedule Replaces, so a
+		// still-pending poll Replace must not block the refresh (or the flag could stay stuck at 1 for work it is
+		// defined to ignore). While non-poll commands remain queued the flag provably stays 1 (set by the enqueue
+		// paths), so mid-session messages skip the recompute entirely. This runs once per session instead of once per
+		// ack message, which at 30K hosts during bulk profile waves was the top writer statement (~5.5 AAS peak).
 		//
 		// The HasPendingCommands gate (as loaded at session start) keeps idle check-ins at zero writer-side statements:
 		// when the flag was already 0 and nothing is pending, there is no 1 -> 0 transition to record. A flag stranded
@@ -2132,7 +2140,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		// mid-session enqueue that flips 0 -> 1 after this row was loaded needs no refresh either: its commands are
 		// genuinely pending, so 1 is already correct. Best-effort: a failed refresh only delays the flag flip until
 		// the next session, so log and continue rather than failing the device's response.
-		if len(pendingCmds) == 0 && enrolledDevice.HasPendingCommands {
+		if !hasNonPollPending && enrolledDevice.HasPendingCommands {
 			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
 				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
 					"enrollment_id", enrolledDevice.ID)

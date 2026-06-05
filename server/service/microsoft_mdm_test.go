@@ -1114,6 +1114,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	var credsHash *[]byte
 	const testEnrollmentID uint = 123
+	// Captured before the local `syncml` string variable below shadows the syncml package.
+	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
@@ -1236,10 +1238,21 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
 	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 		require.Equal(t, testEnrollmentID, enrollmentID)
-		return []*fleet.MDMWindowsCommand{}, nil
+		// A still-pending internal poll-schedule Replace must NOT block the per-session refresh: the
+		// has_pending_commands flag excludes poll commands by definition, so the refresh gate must too.
+		return []*fleet.MDMWindowsCommand{
+			{
+				CommandUUID:  "poll-schedule-cmd-uuid",
+				RawCommand:   []byte(`<Replace><CmdID>poll-schedule-cmd-uuid</CmdID></Replace>`),
+				TargetLocURI: pollScheduleLocURI,
+			},
+		}, nil
 	}
-	// An empty pending fetch is the session's final message, so the service refreshes the denormalized
-	// has_pending_commands flag (at most once per session).
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+	// No NON-POLL pending commands means the session has drained the flag-relevant queue, so the service refreshes the
+	// denormalized has_pending_commands flag (at most once per session).
 	ds.MDMWindowsRefreshHasPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) error {
 		require.Equal(t, testEnrollmentID, enrollmentID)
 		return nil
@@ -1286,7 +1299,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
 	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
-		"refresh should run when the pending-commands fetch returns empty")
+		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {
