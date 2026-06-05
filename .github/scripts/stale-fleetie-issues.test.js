@@ -297,7 +297,8 @@ test('write failure in stale phase is recorded and run continues', async () => {
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'stale');
   assert.strictEqual(result.staled.length, 1);
-  assert.strictEqual(github._captured.addLabelsCalls.length, 1);
+  // Labels land before comments, so both issues are labeled even though #1's comment failed.
+  assert.strictEqual(github._captured.addLabelsCalls.length, 2);
 });
 
 test('excludes pull requests', async () => {
@@ -461,18 +462,20 @@ test('self-activity epsilon: updated_at 1ms past the epsilon boundary is treated
 // Confirm partial-write states are recorded and don't stop the rest of the run.
 // ---------------------------------------------------------------------------
 
-test('stale-phase: addLabels failure after createComment success is recorded', async () => {
+test('stale-phase: addLabels failure is recorded and skips the comment', async () => {
+  // The label is written first so a partial failure cannot bump updated_at without applying the
+  // label (which would silently reset the staleness clock).
   const { github, result } = await runWith({
     issues: [makeIssue({ number: 300, updated_at: daysAgoIso(STALE_DAYS + 70) })],
     failOn: { addLabels: 1 },
   });
-  assert.strictEqual(github._captured.createCommentCalls.length, 1, 'createComment ran first');
+  assert.strictEqual(github._captured.createCommentCalls.length, 0, 'no comment when labeling fails');
   assert.strictEqual(result.staled.length, 0);
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'stale');
 });
 
-test('close-phase: createComment failure is recorded and run continues', async () => {
+test('close-phase: createComment failure after a successful close is recorded and run continues', async () => {
   const labeledAt = Date.now() - 20 * DAY_MS;
   const { github, result } = await runWith({
     issues: [
@@ -486,8 +489,10 @@ test('close-phase: createComment failure is recorded and run continues', async (
     eventsByIssue: { 400: [makeStaleLabelEvent({ at: labeledAt })] },
     failOn: { createComment: 1 },
   });
-  assert.strictEqual(github._captured.updateCalls.length, 0, 'update not called when createComment fails');
-  assert.strictEqual(result.closed.length, 0);
+  // The close is written first, so the issue is closed even though its comment failed. The benign
+  // leftover is a closed issue without a comment, never a "closed" comment on an open issue.
+  assert.strictEqual(github._captured.updateCalls.length, 1, 'issue closed before the comment failed');
+  assert.strictEqual(result.closed.length, 0, 'partial failure reported as error, not success');
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'close');
   // Subsequent issue still processed (the close-phase failure only consumes the first
@@ -495,7 +500,9 @@ test('close-phase: createComment failure is recorded and run continues', async (
   assert.strictEqual(result.staled.length, 1);
 });
 
-test('close-phase: update failure after createComment success is recorded', async () => {
+test('close-phase: update failure is recorded and skips the comment', async () => {
+  // The close is written first so a failed close cannot leave a "this issue was closed" comment on
+  // a still-open issue (which would bump updated_at and un-stale it on the next run).
   const labeledAt = Date.now() - 20 * DAY_MS;
   const { github, result } = await runWith({
     issues: [
@@ -508,10 +515,7 @@ test('close-phase: update failure after createComment success is recorded', asyn
     eventsByIssue: { 402: [makeStaleLabelEvent({ at: labeledAt })] },
     failOn: { update: 1 },
   });
-  // The mock records calls only on success, so updateCalls stays empty when update throws. The
-  // behavior we care about: createComment succeeded (the script got past it), close didn't
-  // complete, and the failure is attributed to the close phase.
-  assert.strictEqual(github._captured.createCommentCalls.length, 1, 'createComment succeeded');
+  assert.strictEqual(github._captured.createCommentCalls.length, 0, 'no comment when the close fails');
   assert.strictEqual(result.closed.length, 0);
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'close');

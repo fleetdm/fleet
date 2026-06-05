@@ -261,20 +261,23 @@ async function run({ github, context, core, config }) {
         closed.push(entry);
       } else {
         try {
-          await github.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: issue.number,
-            body: closeMessage(author),
-            headers: GH_API_HEADERS,
-          });
-          writes += 1;
+          // Close before commenting. A close-comment that lands without the close would bump
+          // updated_at, and the next run would misread the bot's own comment as user activity and
+          // un-stale a still-open issue, dropping it from the cycle for another staleDays.
           await github.rest.issues.update({
             owner,
             repo,
             issue_number: issue.number,
             state: "closed",
             state_reason: "not_planned",
+            headers: GH_API_HEADERS,
+          });
+          writes += 1;
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: issue.number,
+            body: closeMessage(author),
             headers: GH_API_HEADERS,
           });
           writes += 1;
@@ -302,19 +305,22 @@ async function run({ github, context, core, config }) {
         staled.push(entry);
       } else {
         try {
-          await github.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: issue.number,
-            body: staleMessage(author),
-            headers: GH_API_HEADERS,
-          });
-          writes += 1;
+          // Label before commenting. A stale-comment that lands without the label would bump
+          // updated_at and reset the staleness clock for another staleDays with nothing to show for
+          // it; a label without the comment still closes on schedule, just without the warning.
           await github.rest.issues.addLabels({
             owner,
             repo,
             issue_number: issue.number,
             labels: [staleLabel],
+            headers: GH_API_HEADERS,
+          });
+          writes += 1;
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: issue.number,
+            body: staleMessage(author),
             headers: GH_API_HEADERS,
           });
           writes += 1;
