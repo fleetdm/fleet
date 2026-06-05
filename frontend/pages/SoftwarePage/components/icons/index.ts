@@ -268,6 +268,7 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import VcRedistX64 from "./VcRedistX64";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
@@ -477,6 +478,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
+  "microsoft visual c++": VcRedistX64,
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
