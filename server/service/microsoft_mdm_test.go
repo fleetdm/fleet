@@ -1721,6 +1721,71 @@ func TestGetESPCommands(t *testing.T) {
 	})
 }
 
+func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const enrollmentID = uint(7)
+
+	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed
+	// Replace on the Poll node with the expected interval.
+	assertEnqueuedInterval := func(t *testing.T, cmd *fleet.MDMWindowsCommand, interval string) {
+		t.Helper()
+		require.NotNil(t, cmd, "a poll command should have been enqueued")
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, cmd.TargetLocURI)
+		assert.NotEmpty(t, cmd.CommandUUID)
+		parsed, err := fleet.UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, parsed, 1)
+		assert.Equal(t, fleet.CmdReplace, parsed[0].XMLName.Local)
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, parsed[0].GetTargetURI())
+		assert.Equal(t, interval, parsed[0].GetTargetData())
+	}
+
+	// The reconcile relaxes the poll iff the host's persisted fleetd_sync_capable differs from its current poll_schedule_relaxed: it enqueues
+	// a Replace carrying the relaxed (480m) or fast (1m) interval and records the new intended state. The not-capable+fast case also covers
+	// the unlinked / never-reported-capable enrollment (fleetd_sync_capable defaults to false).
+	for _, c := range []struct {
+		name         string
+		syncCapable  bool
+		relaxed      bool
+		wantEnqueue  bool
+		wantInterval string // only checked when wantEnqueue
+	}{
+		{"capable host on fast poll is relaxed", true, false, true, windowsMDMRelaxedPollIntervalMinutes},
+		{"capable host already relaxed is a no-op", true, true, false, ""},
+		{"not-capable host marked relaxed is restored to fast", false, true, true, windowsMDMFastPollIntervalMinutes},
+		{"not-capable host already on fast poll is a no-op", false, false, false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var enqueued *fleet.MDMWindowsCommand
+			var intendedRelaxed *bool
+			ds := new(mock.Store)
+			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
+				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+			) error {
+				assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
+				assert.Equal(t, enrollmentID, id)
+				enqueued, intendedRelaxed = cmd, &relaxed
+				return nil
+			}
+			svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				ID: enrollmentID, MDMDeviceID: deviceID, PollScheduleRelaxed: c.relaxed, FleetdSyncCapable: c.syncCapable,
+			}
+			require.NoError(t, svc.reconcileWindowsMDMPollSchedule(t.Context(), device))
+
+			require.Equal(t, c.wantEnqueue, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
+			if c.wantEnqueue {
+				assertEnqueuedInterval(t, enqueued, c.wantInterval)
+				require.NotNil(t, intendedRelaxed)
+				// The recorded intended state always equals the capability (relax iff capable).
+				assert.Equal(t, c.syncCapable, *intendedRelaxed)
+			}
+		})
+	}
+}
+
 // TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows
 // automatic enrollment, including the v2 (client ID / GUID `aud`) path added for issue #46388 and the unchanged v1
 // (server-URL `aud`) path.

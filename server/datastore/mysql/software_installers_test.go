@@ -39,6 +39,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"BatchSetSoftwareInstallersWithUpgradeCodes", testBatchSetSoftwareInstallersWithUpgradeCodes},
+		{"GetSoftwareInstallersPendingDeletion", testGetSoftwareInstallersPendingDeletion},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
 		{"DeleteSoftwareInstallers", testDeleteSoftwareInstallers},
@@ -2015,6 +2016,164 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		}
 	}
+}
+
+func testGetSoftwareInstallersPendingDeletion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	newTFR := func(content string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte(content)), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	// Three installers: a macOS package with a bundle identifier and a display
+	// name override, a Windows package matched by name (no bundle identifier),
+	// and an FMA-backed package.
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:    "install",
+			InstallerFile:    newTFR("installer0"),
+			StorageID:        "installer0",
+			Filename:         "installer0",
+			Title:            "ins0",
+			Source:           "apps",
+			Version:          "1",
+			UserID:           user1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/ins0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.example.ins0",
+			DisplayName:      "Cool App",
+		},
+		{
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			InstallerFile:   newTFR("installer1"),
+			StorageID:       "installer1",
+			Filename:        "installer1",
+			Title:           "ins1",
+			Source:          "programs",
+			Version:         "2",
+			UserID:          user1.ID,
+			Platform:        "windows",
+			URL:             "https://example.com/ins1",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:        "install",
+			InstallerFile:        newTFR("installer2"),
+			StorageID:            "installer2",
+			Filename:             "installer2",
+			Title:                "Maintained1",
+			Source:               "apps",
+			Version:              "3",
+			UserID:               user1.ID,
+			Platform:             "darwin",
+			URL:                  "https://example.com/maintained1",
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			BundleIdentifier:     "fleet.maintained1",
+			FleetMaintainedAppID: new(maintainedApp.ID),
+		},
+	})
+	require.NoError(t, err)
+
+	displayNames := func(pkgs []fleet.DeletedSoftwarePackage) []string {
+		names := make([]string, 0, len(pkgs))
+		for _, p := range pkgs {
+			require.NotNil(t, p.TeamID)
+			require.Equal(t, team.ID, *p.TeamID)
+			require.NotZero(t, p.TitleID)
+			names = append(names, p.DisplayName)
+		}
+		return names
+	}
+
+	// empty incoming: everything is pending deletion; display-name override
+	// used for ins0, title-name fallback for the others; FMA row included.
+	deleted, err := ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"Cool App", "ins1", "Maintained1"}, displayNames(deleted))
+
+	// bundle-identifier match excludes ins0.
+	deleted, err = ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, []fleet.SoftwareTitleIdentifier{
+		{UniqueIdentifier: "com.example.ins0", Source: "apps"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"ins1", "Maintained1"}, displayNames(deleted))
+
+	// name match (no bundle identifier) excludes ins1.
+	deleted, err = ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, []fleet.SoftwareTitleIdentifier{
+		{UniqueIdentifier: "ins1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"Cool App", "Maintained1"}, displayNames(deleted))
+
+	// source must match too: same unique identifier, wrong source.
+	deleted, err = ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, []fleet.SoftwareTitleIdentifier{
+		{UniqueIdentifier: "com.example.ins0", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"Cool App", "ins1", "Maintained1"}, displayNames(deleted))
+
+	// all matched: nothing pending deletion.
+	deleted, err = ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, []fleet.SoftwareTitleIdentifier{
+		{UniqueIdentifier: "com.example.ins0", Source: "apps"},
+		{UniqueIdentifier: "ins1", Source: "programs"},
+		{UniqueIdentifier: "fleet.maintained1", Source: "apps"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, deleted)
+
+	// other teams are not affected: no-team has no installers.
+	deleted, err = ds.GetSoftwareInstallersPendingDeletion(ctx, nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, deleted)
+
+	// prediction matches reality: batch-set keeping only ins0 deletes exactly
+	// what was predicted.
+	predicted, err := ds.GetSoftwareInstallersPendingDeletion(ctx, &team.ID, []fleet.SoftwareTitleIdentifier{
+		{UniqueIdentifier: "com.example.ins0", Source: "apps"},
+	})
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:    "install",
+			InstallerFile:    newTFR("installer0"),
+			StorageID:        "installer0",
+			Filename:         "installer0",
+			Title:            "ins0",
+			Source:           "apps",
+			Version:          "1",
+			UserID:           user1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/ins0",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.example.ins0",
+		},
+	})
+	require.NoError(t, err)
+	remaining, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, remaining, 1)
+	remainingTitleIDs := map[uint]struct{}{*remaining[0].TitleID: {}}
+	for _, p := range predicted {
+		_, stillThere := remainingTitleIDs[p.TitleID]
+		require.False(t, stillThere, "predicted-deleted title %d (%s) survived the batch set", p.TitleID, p.DisplayName)
+	}
+	require.Len(t, predicted, 2)
 }
 
 func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastore) {

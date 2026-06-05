@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"time"
@@ -1394,19 +1395,50 @@ func MDMNameFromServerURL(serverURL string) string {
 	return UnknownMDMName
 }
 
+// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
+const (
+	MDMEnrollmentStatusPersonal  = "On (personal)"
+	MDMEnrollmentStatusManual    = "On (manual)"
+	MDMEnrollmentStatusAutomatic = "On (automatic)"
+	MDMEnrollmentStatusPending   = "Pending"
+	MDMEnrollmentStatusOff       = "Off"
+)
+
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
-		return "On (personal)"
+		return MDMEnrollmentStatusPersonal
 	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
-		return "On (manual)"
+		return MDMEnrollmentStatusManual
 	case h.Enrolled && h.InstalledFromDep:
-		return "On (automatic)"
+		return MDMEnrollmentStatusAutomatic
 	case !h.Enrolled && h.InstalledFromDep:
-		return "Pending"
+		return MDMEnrollmentStatusPending
 	default:
-		return "Off"
+		return MDMEnrollmentStatusOff
 	}
+}
+
+// ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
+// implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
+// UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
+// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
+// returns the underlying datastore error. Callers wrap the result with ctxerr.
+func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == MDMEnrollmentStatusPersonal {
+		return &BadRequestError{
+			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
+		}
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		return NewInvalidArgumentError("host_id", AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+	}
+	return nil
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
