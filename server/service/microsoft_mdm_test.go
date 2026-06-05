@@ -1235,6 +1235,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		require.Equal(t, testEnrollmentID, enrollmentID)
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
+	// An empty pending fetch is the session's final message, so the service refreshes the denormalized
+	// has_pending_commands flag (at most once per session).
+	ds.MDMWindowsRefreshHasPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) error {
+		require.Equal(t, testEnrollmentID, enrollmentID)
+		return nil
+	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}

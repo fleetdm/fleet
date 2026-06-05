@@ -303,16 +303,18 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 // windowsMDMHasPendingCommandsExpr computes whether an enrollment (aliased e) has queued, unacknowledged commands other than internal
 // poll-schedule Replaces. It backs the denormalized mdm_windows_enrollments.has_pending_commands flag. The single ? placeholder is the
 // poll-schedule LocURI to exclude.
+//
+// Pending is "queued with acked_at still NULL": the ack transaction stamps acked_at on the rows it records results for
+// (soft dequeue), so this is an index probe on (enrollment_id, acked_at) over only the actually-pending rows. The previous
+// shape anti-joined windows_mdm_command_results per queue row, which walked every acked-but-not-yet-GC'd row and was the
+// top writer statement during bulk profile waves (~5.5 AAS peak at 30K hosts).
 const windowsMDMHasPendingCommandsExpr = `EXISTS (
 	SELECT 1
 	FROM windows_mdm_command_queue q
 	JOIN windows_mdm_commands c ON c.command_uuid = q.command_uuid
 	WHERE q.enrollment_id = e.id
+		AND q.acked_at IS NULL
 		AND c.target_loc_uri <> ?
-		AND NOT EXISTS (
-			SELECT 1 FROM windows_mdm_command_results r
-			WHERE r.enrollment_id = q.enrollment_id AND r.command_uuid = q.command_uuid
-		)
 )`
 
 // recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs refreshes the has_pending_commands flag for the given enrollments by evaluating the
@@ -337,6 +339,16 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 		}
 		return nil
 	})
+}
+
+// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for one enrollment on the
+// writer. The management session flow calls it at most once per OMA-DM session: only when the pending-commands fetch for
+// the reply comes back empty (the session has drained the queue, so the flag may flip to 0). Mid-session messages skip it
+// entirely - the flag provably stays 1 while commands remain queued, having been set by the enqueue paths. Running it
+// outside the ack transaction is safe: the EXISTS recompute is authoritative against the writer, so a concurrent enqueue
+// between the fetch and this refresh still lands on has_pending_commands = 1.
+func (ds *Datastore) MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error {
+	return ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, ds.writer(ctx), []uint{enrollmentID})
 }
 
 // markMDMWindowsHasPendingCommandsByEnrollmentIDs sets has_pending_commands = 1 for the given enrollments without recomputing the EXISTS.
@@ -892,19 +904,13 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 	// Fast path: probe the queue. An MDM management session runs this query on every
 	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
-	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
+	// before paying for the fetch JOIN. SELECT EXISTS always returns a row, so the
 	// idle path does not go through a sql.ErrNoRows branch.
-	// Queue rows now persist after ACK (cleaned by periodic GC), so the probe
-	// must also exclude rows that already have a result in
-	// windows_mdm_command_results.
+	// Queue rows persist after ACK with acked_at stamped (soft dequeue, range-deleted by the periodic GC), so
+	// pending is acked_at IS NULL - an index probe on (enrollment_id, acked_at).
 	const probe = `SELECT EXISTS(
 		SELECT 1 FROM windows_mdm_command_queue wmcq
-		WHERE wmcq.enrollment_id = ?
-		AND NOT EXISTS (
-			SELECT 1 FROM windows_mdm_command_results wmcr
-			WHERE wmcr.enrollment_id = wmcq.enrollment_id
-			AND wmcr.command_uuid = wmcq.command_uuid
-		)
+		WHERE wmcq.enrollment_id = ? AND wmcq.acked_at IS NULL
 	)`
 	var hasPending bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
@@ -929,14 +935,7 @@ ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
 	wmcq.enrollment_id = ? AND
-	NOT EXISTS (
-		SELECT 1
-		FROM
-			windows_mdm_command_results wmcr
-		WHERE
-			wmcr.enrollment_id = wmcq.enrollment_id AND
-			wmcr.command_uuid = wmcq.command_uuid
-	)
+	wmcq.acked_at IS NULL
 ORDER BY
 	wmc.created_at ASC
 `
@@ -1132,10 +1131,27 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// Acknowledgments may have drained this enrollment's pending commands; refresh the denormalized flag in
-		// this same transaction so the orbit-config hot path reflects it on the next check-in.
-		if err := ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, []uint{enrolledDevice.ID}); err != nil {
-			return err
+		// Soft-dequeue the commands we just recorded results for: stamp acked_at on exactly those queue rows, in the
+		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. This is
+		// the ONLY path that inserts windows_mdm_command_results; any new results-insert path must stamp acked_at too,
+		// or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC range-deletes
+		// stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age floor is
+		// measured from the original acknowledgment.
+		//
+		// The has_pending_commands recompute deliberately does NOT happen here: it runs at most once per OMA-DM session
+		// (when the service's pending-commands fetch comes back empty), not once per message - see
+		// MDMWindowsRefreshHasPendingCommands. Mid-session the flag provably stays 1 (set by the enqueue paths), and the
+		// flag's consumers (orbit-config wake, poll-relax reconcile) do not need mid-session freshness for a device that
+		// is actively draining its queue.
+		markStmt, markArgs, err := sqlx.In(
+			`UPDATE windows_mdm_command_queue SET acked_at = COALESCE(acked_at, NOW()) WHERE enrollment_id = ? AND command_uuid IN (?)`,
+			enrolledDevice.ID, matchingCmdUUIDs,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build acked_at stamp for queue rows")
+		}
+		if _, err := tx.ExecContext(ctx, markStmt, markArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "stamp acked_at on queue rows")
 		}
 
 		return nil
@@ -3838,18 +3854,13 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 
 func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	const batchSize = 1000
-	// Multi-table DELETE does not support LIMIT directly, so we use a
-	// subquery to select the rows to delete in batches.
+	// Acknowledged rows carry acked_at (stamped in the ack transaction), so GC is a single-table index range delete on
+	// (enrollment_id, acked_at)'s acked_at part - no join against windows_mdm_command_results needed. The 1-hour age
+	// floor preserves the resend/debugging window the join-based predicate had via r.created_at.
 	const stmt = `
-DELETE q FROM windows_mdm_command_queue q
-INNER JOIN (
-    SELECT q2.enrollment_id, q2.command_uuid
-    FROM windows_mdm_command_queue q2
-    INNER JOIN windows_mdm_command_results r
-        ON r.enrollment_id = q2.enrollment_id AND r.command_uuid = q2.command_uuid
-    WHERE r.created_at < NOW() - INTERVAL 1 HOUR
-    LIMIT ?
-) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
+DELETE FROM windows_mdm_command_queue
+WHERE acked_at IS NOT NULL AND acked_at < NOW() - INTERVAL 1 HOUR
+LIMIT ?`
 	const maxBatches = 500 // cap total work per cron tick (500k rows)
 	var totalDeleted int64
 	exhausted := true

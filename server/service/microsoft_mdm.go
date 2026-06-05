@@ -2120,6 +2120,21 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 		resPendingCmds = pendingCmds
 
+		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when the fetch above came
+		// back empty - this is the session's final message (the queue is drained) and the flag may flip to 0. While
+		// commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session messages skip the
+		// recompute entirely. This runs once per session instead of once per ack message, which at 30K hosts during
+		// bulk profile waves was the top writer statement (~5.5 AAS peak). Unconditional on acks so a flag stranded at
+		// 1 by an aborted session self-heals on the next empty check-in. Best-effort: a failed refresh only delays the
+		// flag flip until the next empty session, so log and continue rather than failing the device's response.
+		if len(pendingCmds) == 0 {
+			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
+				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+
 		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
 		// so we don't leak ESP state to unauthenticated devices.
 		if enrolledDevice.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone {
