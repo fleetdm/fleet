@@ -137,12 +137,14 @@ jobs:
         # checkout (fetch-depth: 0) already provides tags; refresh them in case a release was tagged since.
         git fetch --tags --quiet --force
 
-        # Skip when the change under test contains no migration changes, to keep non-migration PRs and pushes fast. The nightly
-        # scheduled run (and manual dispatch) always simulates, as the safety net for drift that arrives without a push, e.g. a
-        # newly cut GA tag making migrations already on the branch out-of-order.
+        # Skip when the change under test contains no migration changes, to keep non-migration PRs and pushes fast. Changes to this
+        # workflow file also count, since they change the simulation itself and need to be exercised. The nightly scheduled run
+        # (and manual dispatch) always simulates, as the safety net for drift that arrives without a push, e.g. a newly cut GA tag
+        # making migrations already on the branch out-of-order.
+        relevant_paths=('server/datastore/mysql/migrations/' '.github/workflows/test-db-changes.yml')
         if [ "${{github.event_name}}" == "pull_request" ]; then
-          if [ -z "$(git diff --name-only "origin/${{github.base_ref}}" -- 'server/datastore/mysql/migrations/')" ]; then
-            echo "No migration changes in this PR; skipping upgrade simulation."
+          if [ -z "$(git diff --name-only "origin/${{github.base_ref}}" -- "${relevant_paths[@]}")" ]; then
+            echo "No migration or workflow changes in this PR; skipping upgrade simulation."
             exit 0
           fi
         elif [ "${{github.event_name}}" == "push" ]; then
@@ -151,8 +153,8 @@ jobs:
           # after a force push. In both cases the diff cannot be scoped, so run the simulation.
           before="${{github.event.before}}"
           if git rev-parse --quiet --verify "${before}^{commit}" >/dev/null \
-              && [ -z "$(git diff --name-only "$before" "${{github.sha}}" -- 'server/datastore/mysql/migrations/')" ]; then
-            echo "No migration changes in this push; skipping upgrade simulation."
+              && [ -z "$(git diff --name-only "$before" "${{github.sha}}" -- "${relevant_paths[@]}")" ]; then
+            echo "No migration or workflow changes in this push; skipping upgrade simulation."
             exit 0
           fi
         fi
