@@ -61,7 +61,7 @@ const Variables = ({ router, location }: IVariablesProps) => {
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
-  const { data, isLoading, refetch } = useQuery<
+  const { data, isFetching: isLoading, refetch } = useQuery<
     IListVariablesResponse,
     Error,
     IListVariablesResponse
