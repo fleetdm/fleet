@@ -385,7 +385,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: isRouteOk && canAddOrDeletePolicies,
+      enabled: isRouteOk,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -398,7 +398,7 @@ const ManagePolicyPage = ({
     Error
   >(["teams", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
     // Enable for all teams including "No team" (teamIdForApi === 0)
-    enabled: isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
+    enabled: isRouteOk && teamIdForApi !== undefined,
     staleTime: 5000,
   });
   const teamConfig = teamData?.team;
