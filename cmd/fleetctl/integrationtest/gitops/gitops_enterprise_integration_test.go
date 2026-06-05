@@ -3769,7 +3769,9 @@ labels:
 	require.True(t, ok, "expected created_label, got %T", got[0])
 	require.Equal(t, "lbl-host-vitals", c.Name)
 
-	// Phase 7: update the host_vitals criteria — should emit edited_label.
+	// Phase 7: update the host_vitals criteria — should emit edited_label. This
+	// also switches to a "domestic" vital (a hosts-table column) with the LIKE
+	// operator, exercising the no-JOIN query path end-to-end through gitops.
 	writeGlobal(`  - name: lbl-global
     description: edited-global
     label_membership_type: manual
@@ -3780,8 +3782,9 @@ labels:
     description: vitals-label
     label_membership_type: host_vitals
     criteria:
-      vital: end_user_idp_group
-      value: updated-group
+      vital: public_ip
+      operator: LIKE
+      value: 203.0.113.%
 `)
 	apply()
 	got = flush()

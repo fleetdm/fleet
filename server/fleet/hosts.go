@@ -520,6 +520,26 @@ var hostVitals = map[string]HostVital{
 		ForeignVitalGroup: ptr.String("idp"),
 		Path:              "scim_users.department",
 	},
+	// Domestic vitals are columns stored directly on the hosts table, so they
+	// require no foreign-table JOIN.
+	"public_ip": {
+		Name:      "Public IP address",
+		VitalType: HostVitalTypeDomestic,
+		DataType:  "string",
+		Path:      "hosts.public_ip",
+	},
+	"hardware_model": {
+		Name:      "Hardware model",
+		VitalType: HostVitalTypeDomestic,
+		DataType:  "string",
+		Path:      "hosts.hardware_model",
+	},
+	"hardware_vendor": {
+		Name:      "Hardware vendor",
+		VitalType: HostVitalTypeDomestic,
+		DataType:  "string",
+		Path:      "hosts.hardware_vendor",
+	},
 }
 
 type AndroidHost struct {
