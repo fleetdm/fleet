@@ -231,15 +231,17 @@ For manually enrolled devices, if SCEP certificate renewal fails, MDM will be tu
 
 If a host is restarted/shut down during macOS Setup Assistant, it will fail to enroll to Fleet. Failed enrollments also happen if Fleet instance is down for an upgrade. When this happens, sometimes hosts automatically restart setup. If that doesn't happen, the best practice is to remotely [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) if the host is connected to Wi-Fi. If it's not, you'll need physical access to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
-Failed enrollments also happen when the automatic enrollment profile isn't assigned in AB. Fleet surfaces failed automatic enrollment profile assignments on each host's Host details page. If a device shows an assignment time but no push time, IT admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
-
-![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
-
-See if a host has a failed automatic profile assignment:
+Failed enrollments also happen when the automatic enrollment profile isn't assigned in AB. Fleet surfaces failed automatic enrollment profile assignments on each host's **Host details** page:
 
 1. If there is an active issue assigning a profile, a vital called **AB issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with AB issues.
 
 2. Select a host and click on the **MDM status** to view details.
+
+If a host shows an assignment time but no push time, the push didn't happen. To resolve, restart the host or run `sudo profiles renew -type enrollment` for remediation. If that doesn't work, contact [Fleet support](https://fleetdm.com/support). Customers may need to contact Apple support if an online host never has a push time.
+
+How automatic enrollment profiles are assigned:
+
+![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
 
 ### Re-enrolling AB hosts
 
