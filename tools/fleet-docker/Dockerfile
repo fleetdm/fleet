@@ -5,6 +5,8 @@ LABEL org.opencontainers.image.version="${FLEET_VERSION}"
 LABEL org.opencontainers.image.vendor="Fleet Device Management Inc."
 LABEL org.opencontainers.image.title="fleet"
 LABEL org.opencontainers.image.source="https://github.com/fleetdm/fleet"
+LABEL org.opencontainers.image.url="https://fleetdm.com"
+LABEL org.opencontainers.image.documentation="https://fleetdm.com/docs"
 
 RUN apk --update add ca-certificates
 RUN apk --no-cache add jq
