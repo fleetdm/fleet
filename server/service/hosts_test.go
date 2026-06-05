@@ -1970,7 +1970,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
-	ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 		return nil
 	}
 
@@ -1988,8 +1988,8 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		}
 		var syncedUUIDs []string
 		var syncedTeamID *uint
-		ds.UpdateAndroidDeviceTeamIDFuncInvoked = false
-		ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 			syncedUUIDs = hostUUIDs
 			syncedTeamID = teamID
 			return nil
@@ -1999,7 +1999,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, "android-uuid-1", certUUID)
 		assert.Equal(t, uint(5), certTeamID)
-		assert.True(t, ds.UpdateAndroidDeviceTeamIDFuncInvoked)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 		assert.Equal(t, []string{"android-uuid-1"}, syncedUUIDs)
 		require.NotNil(t, syncedTeamID)
 		assert.Equal(t, uint(5), *syncedTeamID)
@@ -2007,7 +2007,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 
 	t.Run("transfer to no team uses teamID 0 and syncs nil team_id", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
-		ds.UpdateAndroidDeviceTeamIDFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
 		var certTeamID uint
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
@@ -2017,7 +2017,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 			return 1, nil
 		}
 		var syncedTeamID *uint
-		ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 			syncedTeamID = teamID
 			return nil
 		}
@@ -2025,20 +2025,20 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), nil, []uint{1}, false))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, uint(0), certTeamID)
-		assert.True(t, ds.UpdateAndroidDeviceTeamIDFuncInvoked)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 		assert.Nil(t, syncedTeamID)
 	})
 
 	t.Run("no android hosts skips cert templates and team sync", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
-		ds.UpdateAndroidDeviceTeamIDFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return nil, nil
 		}
 
 		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
 		assert.False(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
-		assert.False(t, ds.UpdateAndroidDeviceTeamIDFuncInvoked)
+		assert.False(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 	})
 }
 
@@ -2071,7 +2071,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
-	ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 		return nil
 	}
 
@@ -2089,8 +2089,8 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 		}
 		var syncedUUIDs []string
 		var syncedTeamID *uint
-		ds.UpdateAndroidDeviceTeamIDFuncInvoked = false
-		ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 			syncedUUIDs = hostUUIDs
 			syncedTeamID = teamID
 			return nil
@@ -2101,7 +2101,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, "android-uuid-1", certUUID)
 		assert.Equal(t, uint(5), certTeamID)
-		assert.True(t, ds.UpdateAndroidDeviceTeamIDFuncInvoked)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 		assert.Equal(t, []string{"android-uuid-1"}, syncedUUIDs)
 		require.NotNil(t, syncedTeamID)
 		assert.Equal(t, uint(5), *syncedTeamID)
@@ -2109,7 +2109,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 
 	t.Run("transfer to no team uses teamID 0 and syncs nil team_id", func(t *testing.T) {
 		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
-		ds.UpdateAndroidDeviceTeamIDFuncInvoked = false
+		ds.UpdateTeamIDOnAndroidDevicesFuncInvoked = false
 		var certTeamID uint
 		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 			return map[string]uint{"android-uuid-1": 1}, nil
@@ -2119,7 +2119,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 			return 1, nil
 		}
 		var syncedTeamID *uint
-		ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		ds.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 			syncedTeamID = teamID
 			return nil
 		}
@@ -2128,7 +2128,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, uint(0), certTeamID)
-		assert.True(t, ds.UpdateAndroidDeviceTeamIDFuncInvoked)
+		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 		assert.Nil(t, syncedTeamID)
 	})
 }

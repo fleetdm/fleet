@@ -92,8 +92,8 @@ func (ds *AndroidDSWithMock) GetAndroidDeviceLastTeamID(ctx context.Context, ent
 	return ds.Datastore.GetAndroidDeviceLastTeamID(ctx, enterpriseSpecificID)
 }
 
-func (ds *AndroidDSWithMock) UpdateAndroidDeviceTeamID(ctx context.Context, hostUUIDs []string, teamID *uint) error {
-	return ds.Datastore.UpdateAndroidDeviceTeamID(ctx, hostUUIDs, teamID)
+func (ds *AndroidDSWithMock) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	return ds.Datastore.UpdateTeamIDOnAndroidDevices(ctx, hostUUIDs, teamID)
 }
 
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.

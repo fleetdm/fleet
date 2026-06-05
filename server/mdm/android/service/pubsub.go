@@ -636,7 +636,8 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
 		hostKey := getAndroidHostKey(device)
 		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
-			svc.logger.WarnContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
+			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
+			ctxerr.Handle(ctx, err)
 		} else if found {
 			host.TeamID = priorTeamID
 		}
@@ -874,7 +875,8 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	teamID := enrollSecret.GetTeamID()
 	hostKey := getAndroidHostKey(device)
 	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
-		svc.logger.WarnContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
+		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
+		ctxerr.Handle(ctx, tlErr)
 	} else if found {
 		teamID = priorTeamID
 	}

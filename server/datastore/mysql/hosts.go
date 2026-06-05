@@ -618,7 +618,8 @@ var hostRefs = []string{
 // is for osquery/fleetd
 // - android_devices: preserved so the device's last-known team_id survives host
 //   deletion and is available during re-enrollment. CreateDeviceTx finds the
-//   existing row by enterprise_specific_id and reuses it.
+//   existing row by enterprise_specific_id and reuses it. Orphaned rows, device
+//   never re-enrolls, do not get deleted.
 // - host_recovery_key_passwords: keyed by host_uuid, intentionally preserved across
 // host deletion. The device may still be enrolled in MDM with the password intact;
 // Orbit re-enrollment recreates the host row and the existing password row remains

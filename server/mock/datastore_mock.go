@@ -1766,7 +1766,7 @@ type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *an
 
 type GetAndroidDeviceLastTeamIDFunc func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
 
-type UpdateAndroidDeviceTeamIDFunc func(ctx context.Context, hostUUIDs []string, teamID *uint) error
+type UpdateTeamIDOnAndroidDevicesFunc func(ctx context.Context, hostUUIDs []string, teamID *uint) error
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
@@ -4670,8 +4670,8 @@ type DataStore struct {
 	GetAndroidDeviceLastTeamIDFunc        GetAndroidDeviceLastTeamIDFunc
 	GetAndroidDeviceLastTeamIDFuncInvoked bool
 
-	UpdateAndroidDeviceTeamIDFunc        UpdateAndroidDeviceTeamIDFunc
-	UpdateAndroidDeviceTeamIDFuncInvoked bool
+	UpdateTeamIDOnAndroidDevicesFunc        UpdateTeamIDOnAndroidDevicesFunc
+	UpdateTeamIDOnAndroidDevicesFuncInvoked bool
 
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
@@ -11205,11 +11205,11 @@ func (s *DataStore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSp
 	return s.GetAndroidDeviceLastTeamIDFunc(ctx, enterpriseSpecificID)
 }
 
-func (s *DataStore) UpdateAndroidDeviceTeamID(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+func (s *DataStore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 	s.mu.Lock()
-	s.UpdateAndroidDeviceTeamIDFuncInvoked = true
+	s.UpdateTeamIDOnAndroidDevicesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAndroidDeviceTeamIDFunc(ctx, hostUUIDs, teamID)
+	return s.UpdateTeamIDOnAndroidDevicesFunc(ctx, hostUUIDs, teamID)
 }
 
 func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {

@@ -1283,7 +1283,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		for u := range androidUUIDs {
 			uuids = append(uuids, u)
 		}
-		if err := svc.ds.UpdateAndroidDeviceTeamID(ctx, uuids, teamID); err != nil {
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
 	}
@@ -1460,7 +1460,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		for u := range androidUUIDs {
 			uuids = append(uuids, u)
 		}
-		if err := svc.ds.UpdateAndroidDeviceTeamID(ctx, uuids, teamID); err != nil {
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
 	}

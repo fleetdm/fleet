@@ -62,7 +62,7 @@ func TestAndroid(t *testing.T) {
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 		{"AddDeleteAndroidAppWithConfiguration", testAddDeleteAndroidAppWithConfiguration},
 		{"HasAndroidAppConfigurationChanged", testHasAndroidAppConfigurationChanged},
-		{"UpdateAndroidDeviceTeamID", testUpdateAndroidDeviceTeamID},
+		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
 		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
 	}
 	for _, c := range cases {
@@ -3172,7 +3172,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testUpdateAndroidDeviceTeamID(t *testing.T, ds *Datastore) {
+func testUpdateTeamIDOnAndroidDevices(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	test.AddBuiltinLabels(t, ds)
 
@@ -3197,7 +3197,7 @@ func testUpdateAndroidDeviceTeamID(t *testing.T, ds *Datastore) {
 	require.Nil(t, teamID1)
 
 	// Update both devices to the team.
-	err = ds.UpdateAndroidDeviceTeamID(ctx, []string{h1.Host.UUID, h2.Host.UUID}, &team.ID)
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{h1.Host.UUID, h2.Host.UUID}, &team.ID)
 	require.NoError(t, err)
 
 	// Verify both were updated.
@@ -3215,7 +3215,7 @@ func testUpdateAndroidDeviceTeamID(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, *teamID2)
 
 	// Update to no team (nil).
-	err = ds.UpdateAndroidDeviceTeamID(ctx, []string{h1.Host.UUID}, nil)
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{h1.Host.UUID}, nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -3224,7 +3224,7 @@ func testUpdateAndroidDeviceTeamID(t *testing.T, ds *Datastore) {
 	require.Nil(t, teamID1)
 
 	// Empty slice is a no-op.
-	err = ds.UpdateAndroidDeviceTeamID(ctx, []string{}, &team.ID)
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{}, &team.ID)
 	require.NoError(t, err)
 }
 

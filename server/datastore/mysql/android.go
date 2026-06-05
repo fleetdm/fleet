@@ -337,7 +337,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
-func (ds *Datastore) UpdateAndroidDeviceTeamID(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 	hostUUIDs = slices.DeleteFunc(hostUUIDs, func(s string) bool { return s == "" })
 	if len(hostUUIDs) == 0 {
 		return nil
