@@ -154,6 +154,28 @@ describe("Modal", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it("does not call onExit when a backdrop mousedown is interrupted by the window losing focus", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <div>content</div>
+      </Modal>
+    );
+
+    const background = container.querySelector(".modal__background");
+    if (!background) throw new Error("Background element not found");
+
+    // User presses down on the backdrop then the window loses focus (tab switch /
+    // app switch) before releasing — mouseup never fires on the page.
+    fireEvent.mouseDown(background);
+    fireEvent.blur(window);
+    // On return, the stale mousedown state must not close the modal.
+    fireEvent.mouseUp(background);
+    act(() => jest.runAllTimers());
+
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
   it("does not call onExit when clicking the background if disableClosingModal is true", async () => {
     const onExit = jest.fn();
     const { container } = render(

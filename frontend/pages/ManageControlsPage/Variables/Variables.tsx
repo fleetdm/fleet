@@ -11,7 +11,7 @@ import { IVariable } from "interfaces/variables";
 import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
-import { FLEET_WEBSITE_URL } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, FLEET_WEBSITE_URL } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
@@ -58,11 +58,13 @@ const Variables = ({ router, location }: IVariablesProps) => {
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
-  const { data, isFetching: isLoading, refetch } = useQuery<
+  const { data, isLoading, refetch } = useQuery<
     IListVariablesResponse,
     Error,
     IListVariablesResponse
-  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams));
+  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
   // Open the Add variable modal via deep-link (e.g. from the command
   // palette). Gate on the same predicate the in-page button uses — the
