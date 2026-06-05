@@ -498,9 +498,13 @@ const CommandPalette = (): JSX.Element | null => {
       <React.Fragment key={item.id}>
         <Command.Item
           value={getUniqueItemValue(item)}
-          onSelect={() =>
-            item.onAction ? item.onAction() : navigate(item.path!)
-          }
+          onSelect={() => {
+            if (item.onAction) {
+              item.onAction();
+              return;
+            }
+            if (item.path) navigate(item.path);
+          }}
           className={`${baseClass}__item`}
         >
           <div className={`${baseClass}__item-left`}>
@@ -597,7 +601,7 @@ const CommandPalette = (): JSX.Element | null => {
                       item.onAction();
                       return;
                     }
-                    navigate(item.path!);
+                    if (item.path) navigate(item.path);
                   }}
                   className={itemClass}
                 >
