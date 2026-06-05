@@ -11,7 +11,10 @@ import { IVariable } from "interfaces/variables";
 import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
-import { DEFAULT_USE_QUERY_OPTIONS, FLEET_WEBSITE_URL } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  FLEET_WEBSITE_URL,
+} from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
