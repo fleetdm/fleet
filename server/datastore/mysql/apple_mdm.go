@@ -4429,7 +4429,7 @@ WHERE id = ? AND enabled = 1 AND enrolled_from_migration = 1`
 // since unlock_ref was set before CleanAppleMDMLock will clear the lock state.
 // This prevents the trailing Idle check-in (sent by the device right after
 // acknowledging the lock command) from prematurely clearing the lock state.
-const MDMLockCleanupMinutes = 5
+const MDMLockCleanupMinutes = 1
 
 func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
