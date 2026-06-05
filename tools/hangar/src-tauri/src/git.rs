@@ -259,9 +259,19 @@ pub fn git_list_branches(
     Ok(branches)
 }
 
+// Async + spawn_blocking so the network fetch runs off the main thread.
+// Sync Tauri commands execute on the main thread, which also drives the
+// macOS UI event loop — a blocking `git fetch` there froze the whole
+// window (you couldn't even switch tabs) for the fetch's duration. This
+// keeps the UI responsive; the auto-fetch on Git-tab open is genuinely
+// backgrounded now.
 #[tauri::command]
-pub fn git_fetch(repo: String) -> Result<String, String> {
-    run_git(&repo, &["fetch", "--all", "--prune"])
+pub async fn git_fetch(repo: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        run_git(&repo, &["fetch", "--all", "--prune"])
+    })
+    .await
+    .map_err(|e| format!("git fetch task failed: {e}"))?
 }
 
 #[tauri::command]

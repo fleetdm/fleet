@@ -12,6 +12,14 @@ type Filter = "rc" | "main" | "all";
 const DEFAULT_RC_MINORS = 10;
 const ALL_LIMIT = 200;
 
+// Cooldown for the auto-fetch on Git-tab open. GitTab remounts every time
+// the tab is selected, so without this, rapid tab in/out would re-fetch
+// (and could even run two `git fetch` at once → .git/index.lock errors).
+// Module-level so it survives the unmount/remount cycle; keyed per repo.
+// The manual Fetch button ignores this and always fetches.
+const AUTO_FETCH_COOLDOWN_MS = 20_000;
+const lastFetchAt = new Map<string, number>();
+
 export function GitTab({
   repoPath,
   branchStatus,
@@ -87,6 +95,13 @@ export function GitTab({
   const didAutoFetch = useRef(false);
   useEffect(() => {
     if (!repoPath || didAutoFetch.current) return;
+    // Skip if we fetched this repo recently — keeps re-opening the tab
+    // from re-fetching (and from racing an in-flight fetch on a fast
+    // tab-out/tab-in). Local branches/status still render immediately.
+    if (Date.now() - (lastFetchAt.get(repoPath) ?? 0) < AUTO_FETCH_COOLDOWN_MS) {
+      didAutoFetch.current = true;
+      return;
+    }
     const id = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         didAutoFetch.current = true;
@@ -144,6 +159,9 @@ export function GitTab({
   }
 
   async function doFetch() {
+    // Record at start so a remount during the in-flight fetch (or right
+    // after) honors the cooldown instead of kicking off a second fetch.
+    if (repoPath) lastFetchAt.set(repoPath, Date.now());
     await withBusy("fetch", async () => {
       await api.gitFetch(repoPath!);
       await loadBranches();
