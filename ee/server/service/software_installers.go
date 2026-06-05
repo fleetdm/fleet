@@ -3409,6 +3409,41 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return err
 }
 
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+	// get available self-service titles sorted by name
+	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get software titles for install all")
+	}
+
+	// Queue individual install activities for each title. If any errors occurred while
+	// queuing this title we log them and continue to the next software title.
+	var queuedCount uint
+	for _, title := range titles {
+		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "enqueuing software install", "title_id", title.ID, "err", err)
+			continue
+		}
+		queuedCount++
+	}
+
+	if queuedCount == 0 {
+		return nil
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledAllSelfServiceSoftware{
+		HostID:                  host.ID,
+		HostDisplayName:         host.DisplayName(),
+		SelfServiceCategoryID:   categoryID,
+		SelfServiceCategoryName: categoryName,
+		SoftwareTitlesCount:     queuedCount,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating installed all self-service software activity")
+	}
+
+	return nil
+}
+
 // branching out this call so it doesn't conflict with work in parallel in the
 // self-service install method, and it would be good to isolate the installers
 // and VPP apps logic too later on.

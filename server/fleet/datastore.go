@@ -830,6 +830,11 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
+	// to queue for the host's "install all" action, in alphabetical order, optionally
+	// scoped to a category.
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
+
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
 	// It will attempt to update both VPP and in-house app installs (only one will succeed since the command UUIDs are unique).

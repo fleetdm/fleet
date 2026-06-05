@@ -923,6 +923,45 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return fleet.ErrMissingLicense
 }
 
+type fleetSelfServiceSoftwareInstallAllRequest struct {
+	Token      string `url:"token"`
+	CategoryID *uint  `query:"category_id,optional"`
+}
+
+func (r *fleetSelfServiceSoftwareInstallAllRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type submitSelfServiceSoftwareInstallAllResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitSelfServiceSoftwareInstallAllResponse) Error() error { return r.Err }
+func (r submitSelfServiceSoftwareInstallAllResponse) Status() int  { return http.StatusAccepted }
+
+func submitSelfServiceSoftwareInstallAll(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return submitSelfServiceSoftwareInstallAllResponse{Err: err}, nil
+	}
+
+	req := request.(*fleetSelfServiceSoftwareInstallAllRequest)
+	if err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, req.CategoryID); err != nil {
+		return submitSelfServiceSoftwareInstallAllResponse{Err: err}, nil
+	}
+
+	return submitSelfServiceSoftwareInstallAllResponse{}, nil
+}
+
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 type fleetDeviceSoftwareUninstallRequest struct {
 	Token           string `url:"token"`
 	SoftwareTitleID uint   `url:"software_title_id"`
