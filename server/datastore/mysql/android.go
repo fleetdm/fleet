@@ -259,7 +259,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
-			team_id = :team_id,
 			detail_updated_at = :detail_updated_at,
 			label_updated_at = :label_updated_at,
 			hostname = :hostname,
@@ -277,7 +276,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
 			"id":                host.Host.ID,
-			"team_id":           host.TeamID,
 			"detail_updated_at": host.DetailUpdatedAt,
 			"label_updated_at":  host.LabelUpdatedAt,
 			"hostname":          host.Hostname,
@@ -294,14 +292,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
-		}
-
-		// Keep android_devices.team_id in sync so the team survives host deletion.
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
-			host.TeamID, host.Host.ID,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "sync android_devices team_id")
 		}
 
 		if fromEnroll {
