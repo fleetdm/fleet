@@ -1411,6 +1411,19 @@ CREATE TABLE `in_house_app_configurations` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `in_house_app_install_tokens` (
+  `token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `software_title_id` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`token`),
+  KEY `idx_in_house_app_install_tokens_expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `in_house_app_labels` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `in_house_app_id` int unsigned NOT NULL,
