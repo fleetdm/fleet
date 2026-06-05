@@ -89,6 +89,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		credentials_acknowledged,
 		poll_schedule_relaxed,
 		fleetd_sync_capable,
+		has_pending_commands,
 		created_at,
 		updated_at,
 		host_uuid

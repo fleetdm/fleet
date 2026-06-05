@@ -1120,6 +1120,9 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			MDMDeviceID:     "device",
 			HostUUID:        "host-uuid-123",
 			CredentialsHash: credsHash,
+			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
+			// the test); a device loaded with the flag at 0 skips the refresh entirely.
+			HasPendingCommands: true,
 		}, nil
 	}
 

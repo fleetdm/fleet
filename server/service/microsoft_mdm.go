@@ -2124,10 +2124,15 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		// back empty - this is the session's final message (the queue is drained) and the flag may flip to 0. While
 		// commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session messages skip the
 		// recompute entirely. This runs once per session instead of once per ack message, which at 30K hosts during
-		// bulk profile waves was the top writer statement (~5.5 AAS peak). Unconditional on acks so a flag stranded at
-		// 1 by an aborted session self-heals on the next empty check-in. Best-effort: a failed refresh only delays the
-		// flag flip until the next empty session, so log and continue rather than failing the device's response.
-		if len(pendingCmds) == 0 {
+		// bulk profile waves was the top writer statement (~5.5 AAS peak).
+		//
+		// The HasPendingCommands gate (as loaded at session start) keeps idle check-ins at zero writer-side statements:
+		// when the flag was already 0 and nothing is pending, there is no 1 -> 0 transition to record. A flag stranded
+		// at 1 by an aborted session still self-heals - it loads as 1 on the next session and the refresh runs. A
+		// mid-session enqueue that flips 0 -> 1 after this row was loaded needs no refresh either: its commands are
+		// genuinely pending, so 1 is already correct. Best-effort: a failed refresh only delays the flag flip until
+		// the next session, so log and continue rather than failing the device's response.
+		if len(pendingCmds) == 0 && enrolledDevice.HasPendingCommands {
 			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
 				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
 					"enrollment_id", enrolledDevice.ID)
