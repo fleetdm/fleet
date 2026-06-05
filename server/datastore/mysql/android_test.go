@@ -1811,6 +1811,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 
 	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, toRemove)
 	require.Empty(t, profs)
 
 	// host leaves exclude label → both profiles apply again

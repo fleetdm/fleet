@@ -223,7 +223,7 @@ func TestEntityAppliesToHost_CombinedIncludeExclude(t *testing.T) {
 		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 9: {}}))
 		// not in any include label -> does not apply
 		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
-		// in exclude only, not in include -> does not apply
+		// not in any label -> does not apply
 		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{}))
 	})
 
