@@ -28,18 +28,6 @@ func TestCalculateHostVitalsQueryDomesticVitals(t *testing.T) {
 			expectedQuery: "SELECT %s FROM %s WHERE hosts.public_ip = ? GROUP BY hosts.id",
 		},
 		{
-			name:          "hardware_model equals",
-			vital:         "hardware_model",
-			value:         "MacBookAir10,1",
-			expectedQuery: "SELECT %s FROM %s WHERE hosts.hardware_model = ? GROUP BY hosts.id",
-		},
-		{
-			name:          "hardware_vendor equals",
-			vital:         "hardware_vendor",
-			value:         "Dell Inc.",
-			expectedQuery: "SELECT %s FROM %s WHERE hosts.hardware_vendor = ? GROUP BY hosts.id",
-		},
-		{
 			name:          "public_ip LIKE",
 			vital:         "public_ip",
 			operator:      new(HostVitalOperatorLike),

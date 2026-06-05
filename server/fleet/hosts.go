@@ -521,24 +521,13 @@ var hostVitals = map[string]HostVital{
 		Path:              "scim_users.department",
 	},
 	// Domestic vitals are columns stored directly on the hosts table, so they
-	// require no foreign-table JOIN.
+	// require no foreign-table JOIN. public_ip is a server-derived value (the
+	// host's egress IP as seen by Fleet) that osquery cannot observe locally.
 	"public_ip": {
 		Name:      "Public IP address",
 		VitalType: HostVitalTypeDomestic,
 		DataType:  "string",
 		Path:      "hosts.public_ip",
-	},
-	"hardware_model": {
-		Name:      "Hardware model",
-		VitalType: HostVitalTypeDomestic,
-		DataType:  "string",
-		Path:      "hosts.hardware_model",
-	},
-	"hardware_vendor": {
-		Name:      "Hardware vendor",
-		VitalType: HostVitalTypeDomestic,
-		DataType:  "string",
-		Path:      "hosts.hardware_vendor",
 	},
 }
 
