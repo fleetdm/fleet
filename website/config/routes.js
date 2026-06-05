@@ -1264,7 +1264,7 @@ module.exports.routes = {
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
-  'GET /learn-more-about/end-user-migration-workflow': '/guides/mdm-migration#default-workflow',
+  'GET /learn-more-about/end-user-migration-workflow': '/guides/mdm-migration#end-user-workflow',
   'GET /learn-more-about/turn-on-apple-mdm': '/guides/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/setup-abm': '/guides/apple-mdm-setup#apple-business-ab',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
