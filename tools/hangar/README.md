@@ -14,7 +14,7 @@ Each tab maps to one chunk of the dev loop:
 - **Database** — back up / restore / delete dumps of the dev MySQL; one-click DB reset (`drop` + `prepare`). Backups land in a self-managed folder with its own `.gitignore` so they stay out of git.
 - **fleetctl** — sub-tabs for `login`, `get`, `trigger` (with the cron registry grouped into *featured / mdm / maintenance / fast / migration*), and free-form custom commands. Reads and edits the fleetctl config to switch contexts.
 - **GitOps** — scans a configured directory for gitops repos (anything with a `default.yml`) and runs `fleetctl gitops` apply or generate, with dry-run support and live streaming output.
-- **osquery-perf** — launches the load generator with per-OS template host counts, MDM probability, SCEP challenge, and interval flags. Totals are derived from the per-template sum so the agent can't fatal on a mismatch.
+- **osquery-perf** — launches the load generator with per-OS template host counts, MDM probability, SCEP challenge, and interval flags, plus named configurations you can save and reload. Totals are derived from the per-template sum so the agent can't fatal on a mismatch.
 - **Settings** — paths (Fleet repo, fleetctl binary, gitops dir), fleet serve flags, fleetctl contexts, ngrok / Python config, and a troubleshoot section that scans for processes by port or pattern and lets you kill them.
 
 Plus, around the tabs:
@@ -22,7 +22,7 @@ Plus, around the tabs:
 - **First-run gate** — discovers Fleet clones automatically and runs a dependency checklist (git, go, docker, node, etc.) against the versions declared in the repo.
 - **Status rail** — bottom bar showing current branch, running processes, and Docker health.
 - **System tray** — status-at-a-glance icon with a Start-All / Stop-All menu and the same service indicators as the in-app rail.
-- **Hide-to-tray** — closing the window (X / Cmd+W) hides it like Slack/Discord. Cmd+Q and tray ▸ Quit route through a confirm modal that tears down running services and runs `docker compose down` before exiting.
+- **Close vs. quit** — closing the window (X / Cmd+W) just hides it; the app keeps running and stays in your dock (it does not collapse to a menubar-only app), so a dock-icon click or the tray brings the window back. Cmd+Q and tray ▸ Quit route through a confirm modal that tears down running services and runs `docker compose down` before exiting.
 
 ## Project layout
 
@@ -40,6 +40,7 @@ tools/hangar/
         ├── db.rs           MySQL backup directory + metadata
         ├── deps.rs         First-run dependency checks
         ├── perf.rs         osquery-perf templates
+        ├── perf_configs.rs Saved osquery-perf configurations
         ├── settings.rs     Persisted settings
         ├── tray.rs         macOS tray menu
         ├── shellpath.rs    Login-shell PATH warming for the packaged build
@@ -51,7 +52,7 @@ tools/hangar/
 
 Requirements:
 
-- Node 20+ (see `.nvmrc`)
+- Node 24+ (see `.nvmrc`)
 - Rust stable
 - Tauri prerequisites for your platform — see the [Tauri prerequisites guide](https://tauri.app/start/prerequisites/)
 
@@ -71,4 +72,4 @@ The first-run gate handles the rest — it will discover your Fleet clones, chec
 
 ## Notes
 
-- Bundle identifier is `com.fleetdm.fleet-hangar`. Settings, logs, and DB backups are scoped to that identifier under the standard macOS app-support paths.
+- Bundle identifier is `com.fleetdm.fleet-hangar`. Settings and logs are scoped to that identifier under the standard macOS app-support / `~/Library/Logs` paths. DB backups instead live in a `db-backups/` folder inside the Fleet repo (with its own `.gitignore` so the dumps stay out of git).
