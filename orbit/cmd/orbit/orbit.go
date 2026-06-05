@@ -1169,6 +1169,9 @@ func orbitAction(c *cli.Context) error {
 		renewEnrollmentProfileCommandFrequency = 3 * time.Minute
 		windowsMDMEnrollmentCommandFrequency   = time.Hour
 		windowsMDMBitlockerCommandFrequency    = time.Hour
+		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
+		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
+		windowsMDMSyncCommandFrequency = time.Minute
 	)
 
 	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
@@ -1240,6 +1243,7 @@ func orbitAction(c *cli.Context) error {
 
 	case "windows":
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
+		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMSyncFetcherMiddleware(windowsMDMSyncCommandFrequency))
 		comWorker, err := bitlocker.NewCOMWorker()
 		if err != nil {
 			return fmt.Errorf("create BitLocker COM worker: %w", err)
@@ -1251,14 +1255,13 @@ func orbitAction(c *cli.Context) error {
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
 
-	// Floor for server-driven debug toggling: --debug at startup pins debug on.
-	startedInDebug := c.Bool("debug")
-
 	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-		RootDir:        c.String("root-dir"),
-		StartedInDebug: startedInDebug,
+		RootDir: c.String("root-dir"),
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+	// Floor for server-driven debug toggling: --debug at startup pins debug on.
+	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	if !c.Bool("disable-updates") {

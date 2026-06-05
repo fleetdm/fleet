@@ -301,9 +301,13 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	// be misread as having no MDM enrollment and would skip cancellation when it should fire.
 	// Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
 	if host.Platform == "windows" {
-		awaiting, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		var awaiting fleet.WindowsMDMAwaitingConfiguration
+		state, err := ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "load windows awaiting_configuration for setup-experience cancel gate")
+			return ctxerr.Wrap(ctx, err, "load windows host config state for setup-experience cancel gate")
+		}
+		if state != nil {
+			awaiting = state.AwaitingConfiguration
 		}
 		if fleet.IsNotFound(err) && host.ComputerName != "" {
 			device, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)

@@ -26,7 +26,7 @@
   [purpose='feature-image'] {
     // Cap the image at half the container in row layout so both sides shrink
     // proportionally on narrow viewports.
-    max-width: 50%;
+    max-width: calc(~'50% - 32px');
     img, video {
       // Use max-width (not width) so images scale DOWN to fit narrower
       // containers but never stretch beyond their natural source size.
@@ -44,6 +44,9 @@
   }
   @media (max-width: 991px) {
     gap: 48px;
+    [purpose='feature-image'] {
+      max-width: calc(~'50% - 24px');
+    }
   }
   @media (max-width: 768px) {
     flex-direction: column;

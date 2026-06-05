@@ -58,7 +58,9 @@ jobs:
       cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
       generate_go: false
       is_cron: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Extended MySQL coverage: only on the nightly cron schedule.
@@ -76,7 +78,9 @@ jobs:
       cover_pkg: 'github.com/fleetdm/fleet/v4/server/activity/...'
       generate_go: false
       is_cron: true
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # We upload all backend coverage in one step so that we're less likely to end up with a partial coverage report.
   upload-coverage:
@@ -86,12 +90,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
       - name: Download artifacts
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
@@ -111,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 

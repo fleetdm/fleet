@@ -405,13 +405,20 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.Wrap(ctx, err, "parse error Azure JWT content")
 	}
 
-	// Parse JWT token
-	claims := token.Claims.(jwt.MapClaims)
+	return azureDataFromClaims(ctx, token.Claims.(jwt.MapClaims))
+}
 
-	// Get UPN claim
+// azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD JWT.
+func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, error) {
+	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username`,
+	// so fall back to it when `upn` is absent. The UPN is not part of the enrollment authorization decision
+	// (that is the `aud`, `tid`, `iss`, and `scp` claims); it is only used afterwards for identity correlation
+	// (device-user mapping, SCIM lookup, EUA token), all of which already guard against an empty value. A v2
+	// token may carry neither claim when the `profile` scope is absent, so treat UPN as optional rather than
+	// rejecting an otherwise-authorized token.
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {
-		return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
+		upnClaim, _ = claims["preferred_username"].(string)
 	}
 
 	// Get TenantID claim
@@ -421,8 +428,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	}
 
 	// Validate that tenant ID is a UUID and matches the issuer
-	_, err = uuid.Parse(tenantIDClaim)
-	if err != nil {
+	if _, err := uuid.Parse(tenantIDClaim); err != nil {
 		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid TenantID claim format")
 	}
 	issuer, ok := claims["iss"].(string)
@@ -454,11 +460,10 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		audience = append(audience, singleAudience)
 	}
 
-	// Get UniqueName claim
-	uniqueNameClaim, ok := claims["unique_name"].(string)
-	if !ok {
-		return AzureData{}, ctxerr.New(ctx, "invalid UniqueName claim")
-	}
+	// UniqueName comes from the v1-only `unique_name` claim (v2 tokens use `preferred_username` instead) and is not
+	// consumed anywhere downstream, so treat it as optional: capture it when present, but don't reject the token when
+	// it's absent (which is the case for v2 access tokens).
+	uniqueNameClaim, _ := claims["unique_name"].(string)
 
 	// Get SCP claim
 	azureSCPClaim, ok := claims["scp"].(string)

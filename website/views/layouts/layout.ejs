@@ -13,7 +13,7 @@
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var showSearchInMobileMenu;// Shows the Algolia DocSearch input in the mobile navigation menu.
-  var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var defaultMetaDescription = `Manage, update, and secure all your devices like it's 2026`;
   var corporationDisplayName = 'Fleet' + (['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
@@ -214,17 +214,17 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Visibility & reporting" href="/visibility-and-reporting">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Visibility & reporting">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Orchestration
+                              Visibility & reporting
                             </p>
                             <p purpose="nav-item-body">
-                              Automate tasks across devices, from app installs to scripts.
+                              Real-time reports and diagnostics from every device.
                             </p>
                           </div>
                         </div>
@@ -483,17 +483,17 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Visibility & reporting" href="/visibility-and-reporting">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Visibility & reporting">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Orchestration
+                              Visibility & reporting
                             </p>
                             <p purpose="nav-item-body">
-                              Automate tasks across devices, from app installs to scripts.
+                              Real-time reports and diagnostics from every device.
                             </p>
                           </div>
                         </div>
@@ -957,7 +957,6 @@
     <script src="/js/pages/linux-management.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
-    <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
     <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
@@ -971,6 +970,7 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/visibility-and-reporting.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -1120,5 +1120,19 @@
       vgo('process');
     </script>      
    <% } %>
+    <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {// Note: we're using setTimeout here to run this code after other load event handlers have run.
+          try {
+            if (window.location.search) {
+              history.replaceState(window.history.state, document.title, window.location.pathname + window.location.hash);
+            }
+          } catch (unusedErr) {
+            // No-op: never let URL cleanup break the page.
+          }
+        }, 0);
+      });
+    </script>
   </body>
 </html>

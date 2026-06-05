@@ -1979,6 +1979,23 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 	return nil
 }
 
+// continuousAutomationOnCooldown reports whether a continuous policy automation that
+// last fired (queued an install) at lastFiredAt should be skipped on this run.
+//
+// Continuous automations re-fire on every failing policy result, not just on
+// pass→fail transitions. A successful install requests a host vitals refetch, and a
+// refetch makes policies re-run immediately (bypassing the policy update interval).
+// If the policy keeps failing, that creates a tight install→refetch→re-run→install
+// loop. We throttle continuous re-fires to at most once per policy update interval so
+// a perpetually-failing policy retries on the next interval (~1h) instead of
+// continuously. A zero lastFiredAt (no prior automation install) is never on cooldown.
+func (svc *Service) continuousAutomationOnCooldown(lastFiredAt time.Time) bool {
+	if lastFiredAt.IsZero() {
+		return false
+	}
+	return svc.clock.Now().Sub(lastFiredAt) < svc.config.Osquery.PolicyUpdateInterval
+}
+
 func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
@@ -2036,16 +2053,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
 		policyID := failingPolicyWithInstaller.ID
+		_, newlyFailing := newFailingSet[policyID]
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		softwareInstallerTitleID_ := uint(0)
+		if installerMetadata.TitleID != nil {
+			softwareInstallerTitleID_ = *installerMetadata.TitleID
 		}
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", failingPolicyWithInstaller.ID,
 			"software_installer_id", failingPolicyWithInstaller.InstallerID,
-			"software_title_id", installerMetadata.TitleID,
+			"software_title_id", softwareInstallerTitleID_,
 			"software_installer_platform", installerMetadata.Platform,
 		)
 		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
@@ -2074,6 +2096,25 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			// thus we do not queue another install request.
 			logger.DebugContext(ctx, "found pending install request for this host and installer",
 				"pending_execution_id", hostLastInstall.ExecutionID,
+			)
+			continue
+		}
+
+		// Throttle continuous policy automation re-installs: if this policy fired only
+		// because continuous_automations_enabled is set (not a pass→fail transition)
+		// and we already queued a successful install within the policy update interval,
+		// skip it. This prevents a tight install→refetch→re-run loop when the install
+		// succeeds but never makes the policy pass. We only throttle on a successful
+		// install because only success requests the refetch that drives the loop; failed
+		// installs are retried via the dedicated retry path (see
+		// shouldRetryPolicyAutomationSoftwareInstall). See continuousAutomationOnCooldown.
+		if !newlyFailing && failingPolicyWithInstaller.ContinuousAutomationsEnabled &&
+			hostLastInstall != nil && hostLastInstall.Status != nil &&
+			*hostLastInstall.Status == fleet.SoftwareInstalled &&
+			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
+			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
+				"last_install_execution_id", hostLastInstall.ExecutionID,
+				"last_install_at", hostLastInstall.UpdatedAt,
 			)
 			continue
 		}
@@ -2176,15 +2217,23 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
 	}
 
+	// Apps successfully installed within the policy update interval are used to throttle
+	// continuous policy automation re-installs (see continuousAutomationOnCooldown).
+	recentAppInstalls, err := svc.ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, hostID, int(svc.config.Osquery.PolicyUpdateInterval.Seconds()))
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
+	}
+
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
+		_, newlyFailing := newFailingSet[policyID]
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
 			"vpp_adam_id", failingPolicyWithVPP.AdamID,
-			"vpp_platform", failingPolicyWithVPP.AdamID,
-			"software_title_id", failingPolicyWithVPP.Platform,
+			"vpp_platform", failingPolicyWithVPP.Platform,
+			"continuous_automations_enabled", failingPolicyWithVPP.ContinuousAutomationsEnabled,
 		)
 
 		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
@@ -2210,6 +2259,17 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
 			logger.DebugContext(ctx, "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		// Throttle continuous policy automation re-installs: if this policy fired only
+		// because continuous_automations_enabled is set (not a pass→fail transition)
+		// and the VPP app was successfully installed (verified) within the policy update
+		// interval, skip it. A successful VPP install requests a host refetch, which
+		// re-runs policies immediately; without this a perpetually-failing policy would
+		// loop tightly.
+		if _, recentlyInstalled := recentAppInstalls[failingPolicyWithVPP.AdamID]; !newlyFailing && failingPolicyWithVPP.ContinuousAutomationsEnabled && recentlyInstalled {
+			logger.InfoContext(ctx, "skipping continuous policy automation vpp install; within policy update interval cooldown")
 			continue
 		}
 

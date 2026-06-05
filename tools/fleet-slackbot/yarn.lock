@@ -149,30 +149,30 @@
   dependencies:
     "@octokit/openapi-types" "^25.1.0"
 
-"@slack/bolt@4.6.0":
-  version "4.6.0"
-  resolved "https://registry.yarnpkg.com/@slack/bolt/-/bolt-4.6.0.tgz#4834763a1ea670e8c1c032a566134e550bde758b"
-  integrity sha512-xPgfUs2+OXSugz54Ky07pA890+Qydk22SYToi8uGpXeHSt1JWwFJkRyd/9Vlg5I1AdfdpGXExDpwnbuN9Q/2dQ==
+"@slack/bolt@4.7.2":
+  version "4.7.2"
+  resolved "https://registry.yarnpkg.com/@slack/bolt/-/bolt-4.7.2.tgz#6e2d078d13860936bb50d5a21901393094fb3853"
+  integrity sha512-ALHtaS2iaP2WAWgX08yXsoCxEDitC6AqZs26ot6smXJQzBFMM4slVP+w3blLwzUV551xZ/+9RlBmWHsZDJJ5HA==
   dependencies:
-    "@slack/logger" "^4.0.0"
-    "@slack/oauth" "^3.0.4"
-    "@slack/socket-mode" "^2.0.5"
-    "@slack/types" "^2.18.0"
-    "@slack/web-api" "^7.12.0"
+    "@slack/logger" "^4.0.1"
+    "@slack/oauth" "^3.0.5"
+    "@slack/socket-mode" "^2.0.7"
+    "@slack/types" "^2.20.1"
+    "@slack/web-api" "^7.15.1"
     axios "^1.12.0"
     express "^5.0.0"
     path-to-regexp "^8.1.0"
     raw-body "^3"
     tsscmp "^1.0.6"
 
-"@slack/logger@^4.0.0", "@slack/logger@^4.0.1":
+"@slack/logger@^4.0.1":
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/@slack/logger/-/logger-4.0.1.tgz#d8eed47117b6b106c976f5f76c9e5845f6de721b"
   integrity sha512-6cmdPrV/RYfd2U0mDGiMK8S7OJqpCTm7enMLRR3edccsPX8j7zXTLnaEF4fhxxJJTAIOil6+qZrnUPTuaLvwrQ==
   dependencies:
     "@types/node" ">=18"
 
-"@slack/oauth@^3.0.4":
+"@slack/oauth@^3.0.5":
   version "3.0.5"
   resolved "https://registry.yarnpkg.com/@slack/oauth/-/oauth-3.0.5.tgz#16a9b095b356e454401dbdfe70a08022a018c633"
   integrity sha512-exqFQySKhNDptWYSWhvRUJ4/+ndu2gayIy7vg/JfmJq3wGtGdHk531P96fAZyBm5c1Le3yaPYqv92rL4COlU3A==
@@ -183,7 +183,7 @@
     "@types/node" ">=18"
     jsonwebtoken "^9"
 
-"@slack/socket-mode@^2.0.5":
+"@slack/socket-mode@^2.0.7":
   version "2.0.7"
   resolved "https://registry.yarnpkg.com/@slack/socket-mode/-/socket-mode-2.0.7.tgz#dd7c33803f643295374b0441dbc4f928ce112da3"
   integrity sha512-qYy07je71WnEHgRwmw12DlAnZLi5HXmdlI2WUzUK2LH/rYXQpP6uEg462S5CwfE8FoCKUdIigHtYnOOfzZH1lQ==
@@ -195,12 +195,12 @@
     eventemitter3 "^5"
     ws "^8"
 
-"@slack/types@^2.18.0", "@slack/types@^2.21.0":
+"@slack/types@^2.20.1", "@slack/types@^2.21.0":
   version "2.21.1"
   resolved "https://registry.yarnpkg.com/@slack/types/-/types-2.21.1.tgz#d49105b97f372640af050bec6e84b5b2f29a21e5"
   integrity sha512-I8vmSjNYWsaxuWPx6dz4yeh0h7vRBWbgAMK14LEmblbZ404BtrPbXs6jDPx4cYgGf8msDGF4A9opLZBu21FViQ==
 
-"@slack/web-api@^7.12.0", "@slack/web-api@^7.15.0":
+"@slack/web-api@^7.15.0", "@slack/web-api@^7.15.1":
   version "7.16.0"
   resolved "https://registry.yarnpkg.com/@slack/web-api/-/web-api-7.16.0.tgz#1067e790c91d3d2df7bf57d58a86b421ea7cdeb8"
   integrity sha512-68SAV77uuGKuhyyaRytX8UijVnqSLsTSKslGXw17cjQYXn+jtNl7gbaEjHgC5x2rhCuFdahBrEC2VCLppbzReg==

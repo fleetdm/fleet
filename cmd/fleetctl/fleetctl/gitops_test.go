@@ -372,6 +372,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		defer muStoredCAs.Unlock()
 		return &storedCAs, nil
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -567,6 +570,61 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+// TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
+// `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
+// which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored
+// canonically (lower-cased and de-duplicated) to avoid functionally-identical entries that differ only in case.
+// SetupFullGitOpsPremiumServer configures the WSTEP cert/key so Windows MDM can be enabled, which the Entra ID
+// settings require.
+func TestGitOpsWindowsEntraIDs(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "Fleet GitOps Entra Test"
+	)
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+controls:
+  windows_enabled_and_configured: true
+  android_enabled_and_configured: true
+  windows_entra_tenant_ids:
+    - 1a86b496-e2a4-43ef-ba00-20004e29b13b
+  windows_entra_client_ids:
+    - ABCDEF12-3456-7890-ABCD-EF1234567890
+    - abcdef12-3456-7890-abcd-ef1234567890
+    - 11111111-2222-3333-4444-555555555555
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName))
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name()})
+
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
+	// The upper-case client ID and its case-only duplicate are normalized to a single canonical lower-case entry.
+	require.Equal(t,
+		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
+		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
+}
+
 func TestGitOpsExceptionEnforcement(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -582,6 +640,7 @@ func TestGitOpsExceptionEnforcement(t *testing.T) {
 	// Test: excepted keys present in YAML → error
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
 			GitOpsConfig: fleet.GitOpsConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://example.com/repo",
@@ -610,6 +669,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Secrets excepted + present → error
 	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -630,7 +690,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
-
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 	// Secrets excepted + present → error
 	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -645,6 +705,7 @@ software:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1398,6 +1459,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledTeamSecrets = secrets
 		return nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3586,13 +3650,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `only one of "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `only one of "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {
@@ -3906,10 +3970,10 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 		},
 		{
@@ -5954,6 +6018,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
 	t.Run("with values", func(t *testing.T) {
@@ -6053,6 +6120,34 @@ software:
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
 		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+
+	t.Run("os updates with existing OS updates config profile", func(t *testing.T) {
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return true, nil
+		}
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+controls:
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+queries:
+policies:
+agent_options:
+name: Team1
+team_settings:
+  secrets:
+    - secret: test
+software:
+`)
+		require.NoError(t, err)
+
+		_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates profile already exists")
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
 	})
 }
 
@@ -6500,9 +6595,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		Name:      localTeamName,
 	}
 
-	// Track calls to BulkSetPendingMDMHostProfiles.
-	var bulkSetPendingCalls int
-
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == localTeamName && savedTeam != nil {
 			return savedTeam, nil
@@ -6517,16 +6609,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		newTeam.ID = baseTeam.ID
 		savedTeam = newTeam
 		return newTeam, nil
-	}
-	// Only count calls that carry profile UUIDs — those originate from
-	// mdmAppleEditedAppleOSUpdates. The BatchSetMDMProfiles service method
-	// also calls BulkSetPendingMDMHostProfiles with empty slices (for
-	// Windows, Apple, and Android profiles), which we want to ignore here.
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
-		if len(profileUUIDs) > 0 {
-			bulkSetPendingCalls++
-		}
-		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
@@ -6564,6 +6646,9 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 			fleet.BuiltinLabelIOS:         2,
 			fleet.BuiltinLabelIPadOS:      3,
 		}, nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 
 	// teamYAML generates a team YAML with the given controls section.
@@ -6640,80 +6725,30 @@ software:
 	}
 
 	t.Run("macos_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
 
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
 		})
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
 			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -6721,43 +6756,19 @@ software:
 			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
 
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
 		})
 	})
 
 	t.Run("ipados_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
 			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
 
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -6765,9 +6776,11 @@ software:
 			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
 
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
 		})
 	})
 }
@@ -6842,6 +6855,9 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 
 	teamYAML := func(deadlineDays, gracePeriodDays int) string {
