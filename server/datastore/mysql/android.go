@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -337,6 +338,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 }
 
 func (ds *Datastore) UpdateAndroidDeviceTeamID(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	hostUUIDs = slices.DeleteFunc(hostUUIDs, func(s string) bool { return s == "" })
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
