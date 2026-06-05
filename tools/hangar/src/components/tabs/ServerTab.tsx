@@ -184,7 +184,7 @@ export function ServerTab({
       >
         <ChainCard
           title="Build chain"
-          subtitle="Rebuilds ./build/fleet"
+          subtitle="Install deps, bundle frontend, build fleet + fleetctl"
           steps={BUILD_CHAIN}
           repoPath={repoPath}
           procs={procs}
