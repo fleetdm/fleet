@@ -2114,7 +2114,7 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
 	require.NoError(t, err)
 	require.True(t, state.HasPendingCommands)
-	// (The ack -> not-pending transition - SaveResponse soft-dequeue plus the per-session MDMWindowsRefreshHasPendingCommands - is covered by testSaveResponse.)
+	// The ack -> not-pending transition (SaveResponse soft-dequeue plus the per-session MDMWindowsRefreshHasPendingCommands) is covered by testSaveResponse.
 
 	// awaiting_configuration is reflected in the combined read
 	_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, d.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationNone, fleet.WindowsMDMAwaitingConfigurationPending)
@@ -3826,8 +3826,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
-	// SaveResponse soft-dequeues the acked rows (acked_at stamped), so the pending fetch is empty - but it deliberately
-	// does NOT recompute the flag (that happens at most once per session, via the refresh below).
+	// SaveResponse soft-dequeues the acked rows (acked_at stamped), so the pending fetch is empty
 	pendingCmds, err := ds.MDMWindowsGetPendingCommands(context.Background(), enrolledDevice1.ID)
 	require.NoError(t, err)
 	require.Empty(t, pendingCmds, "acked commands must be soft-dequeued from the pending fetch")
