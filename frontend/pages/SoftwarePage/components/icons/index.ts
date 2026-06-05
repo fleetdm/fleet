@@ -41,6 +41,7 @@ import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
@@ -392,6 +393,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
   max: Max,
+  "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
