@@ -29,6 +29,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
@@ -94,6 +96,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
@@ -141,6 +145,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
@@ -185,6 +191,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
@@ -241,6 +249,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
