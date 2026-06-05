@@ -47,7 +47,7 @@ If you're currently using custom packages for software that Fleet maintains (com
 
 ### Current limitation
 
-FMAs must be defined inline in the fleet file—you cannot reference them via a file path using `include`. This means the path-based organization strategy described above doesn't apply to FMAs yet. Keep this in mind when structuring your GitOps configuration.
+FMAs must be defined inline in the fleet file. You cannot reference them via a file path using `include`. This means the path-based organization strategy described above doesn't apply to FMAs yet. Keep this in mind when structuring your GitOps configuration.
 
 ## ETag-based conditional downloads for custom packages
 
