@@ -2084,7 +2084,7 @@ func (svc *Service) validateVPPAssignments(
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
 					return nil, nil
 				}
 				tokenTeams = []uint{}
