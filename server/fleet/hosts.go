@@ -497,7 +497,7 @@ type HostVital struct {
 
 var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 	"idp": {
-		Name:  "Identity Provider",
+		Name: "Identity Provider",
 		// NOTE: This must be an INNER JOIN (not RIGHT JOIN) on host_scim_user. A
 		// RIGHT JOIN keeps all host_scim_user rows even when the host side has been
 		// filtered out -- e.g. for fleet/team-scoped labels, where the hosts table

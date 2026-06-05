@@ -2935,8 +2935,8 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 	teamIDs := []*uint{&team1.ID, &team2.ID, nil}
 	for i := range 3 {
 		host, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:  ptr.String(fmt.Sprintf("idp-%d", i)),
-			NodeKey:        ptr.String(fmt.Sprintf("idp-%d", i)),
+			OsqueryHostID:  new(fmt.Sprintf("idp-%d", i)),
+			NodeKey:        new(fmt.Sprintf("idp-%d", i)),
 			UUID:           fmt.Sprintf("idp-uuid%d", i),
 			Hostname:       fmt.Sprintf("idp-host%d.local", i),
 			HardwareSerial: fmt.Sprintf("idp-hwd%d", i),
@@ -2970,8 +2970,8 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
-		Vital: ptr.String("end_user_idp_group"),
-		Value: ptr.String("Engineering"),
+		Vital: new("end_user_idp_group"),
+		Value: new("Engineering"),
 	})
 	require.NoError(t, err)
 
@@ -2981,7 +2981,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 			TeamID:              teamID,
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  ptr.RawMessage(criteria),
+			HostVitalsCriteria:  new(criteria),
 		})
 		require.NoError(t, err)
 		return lbl
