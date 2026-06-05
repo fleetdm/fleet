@@ -498,8 +498,21 @@ jobs:
           # Filter changed apps to only include windows platform
           $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
-          $windowsSlugsJson = ($windowsSlugs | ConvertTo-Json -Compress)
+
+          # Build a JSON array of the windows slugs. Construct it explicitly so a single
+          # slug still serializes as an array (Windows PowerShell unwraps single-element
+          # arrays via ConvertTo-Json), and write it to a BOM-free file. We then pass the
+          # file PATH -- not the JSON string -- to the bash script: forwarding a quoted
+          # JSON string across the PowerShell -> bash argument boundary mangles the
+          # embedded quotes under Windows PowerShell 5.1, which breaks jq --argjson.
+          $slugsArray = @($windowsSlugs)
+          $windowsSlugsJson = "[" + (($slugsArray | ForEach-Object { $_ | ConvertTo-Json -Compress }) -join ",") + "]"
           Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
+
+          $windowsSlugsFile = Join-Path $env:TEMP "windows-slugs-$(New-Guid).json"
+          Set-Content -Path $windowsSlugsFile -Value $windowsSlugsJson -Encoding ascii -NoNewline
+          # Use forward slashes so Git Bash reads the path reliably (it reads this arg as a file).
+          $windowsSlugsFileForBash = $windowsSlugsFile -replace '\\', '/'
 
           # Backup original apps.json
           Copy-Item -Path "ee\maintained-apps\outputs\apps.json" -Destination "ee\maintained-apps\outputs\apps.json.backup"
@@ -507,7 +520,11 @@ jobs:
           # Create filtered apps.json
           # Use a fixed path for the temp file to avoid issues with bash
           $filteredAppsJson = Join-Path $env:TEMP "filtered-apps-$(New-Guid).json"
-          bash .github/scripts/filter-apps-json.sh "$windowsSlugsJson" "$filteredAppsJson"
+          bash .github/scripts/filter-apps-json.sh "$windowsSlugsFileForBash" "$filteredAppsJson"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: filter-apps-json.sh failed with exit code $LASTEXITCODE"
+            exit 1
+          }
 
           # Verify the filtered file was created
           if (-not (Test-Path $filteredAppsJson)) {
