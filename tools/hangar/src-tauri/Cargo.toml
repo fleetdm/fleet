@@ -1,6 +1,6 @@
 [package]
 name = "fleet-hangar"
-version = "0.1.0"
+version = "1.0.0"
 description = "Fleet Hangar"
 authors = ["Fleet"]
 edition = "2021"
