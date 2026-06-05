@@ -205,26 +205,18 @@ Frontend lint + prettier + TypeScript compile all clean.
 
 ## 9. Dev guide
 
-- [ ] Write `docs/Contributing/product-groups/security-compliance/ejbca-rest-testing.md`
-      as a sibling to the existing SCEP guide. Cover:
-      - Reuse of the same Docker container.
-      - The one-time EJBCA-side setup from §1 above.
-      - How to create the EJBCA CA in Fleet (curl examples for both API and
-        the create-via-UI flow).
-      - End-to-end: create CA → push a profile with `FLEET_VAR_EJBCA_*` to
-        an enrolled host → verify the cert installs.
-      - Gotchas:
-        - CE requires pre-creating end entities (covered by reusing the
-          existing SCEP guide's `bin/ejbca.sh ra addendentity` snippet);
-          EE auto-creates if the EE profile permits.
-        - **"Allow Extension Override" must be checked** on the
-          Certificate Profile if you use UPN templating — otherwise EJBCA
-          drops the SAN extension during issuance. Same gotcha as the
-          existing SCEP guide.
-        - GitOps is deferred for the POC — the dev guide covers the API
-          and UI paths only. (Fleet generates the EJBCA `password`
-          internally per enrollment; there is no enrollment-code field
-          anywhere in the POC surface.)
+- [x] Wrote `docs/Contributing/product-groups/security-compliance/ejbca-rest-testing.md`
+      as a sibling to the existing SCEP guide. Covers:
+      - Reuse of the same `keyfactor/ejbca-ce` Docker container.
+      - One-time EJBCA-side setup: Certificate Profile + End Entity Profile
+        + service-cert enrollment + admin role + cert-to-role binding +
+        pre-creation of one end entity for the local test + trust CA export.
+      - Configuring Fleet via both UI and curl (with base64-encoded P12).
+      - End-to-end test: create CA → push a `.mobileconfig` referencing
+        `FLEET_VAR_EJBCA_*` → verify cert installs on the host.
+      - Gotchas: CE end-entity status reset, "Allow Extension Override" for
+        UPN SAN, self-signed TLS / trust bundle requirement, P12 password
+        one-shot use, managed-cert tracking row deferred to follow-up.
 
 ## 10. Manual verification (POC success criteria)
 
