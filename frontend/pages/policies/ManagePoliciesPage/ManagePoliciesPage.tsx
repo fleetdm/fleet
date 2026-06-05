@@ -48,7 +48,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import AutomationsButton from "components/buttons/AutomationsButton";
 
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
@@ -880,16 +880,10 @@ const ManagePolicyPage = ({
   let automationsButton = null;
   if (canEditAutomationsSettings) {
     automationsButton = (
-      <Button
-        className={`${baseClass}__automations-button`}
+      <AutomationsButton
         onClick={toggleAutomationsModal}
         disabled={!hasPoliciesToAutomate}
-        variant="inverse"
-      >
-        <>
-          <Icon name="settings" /> Automations
-        </>
-      </Button>
+      />
     );
     if (!hasPoliciesToAutomate) {
       const tipContent =
