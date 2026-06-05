@@ -9,6 +9,7 @@ import { getErrorReason } from "interfaces/errors";
 import CustomLink from "components/CustomLink";
 
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
@@ -28,6 +29,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.ejbca, value: "ejbca" },
   {
     label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
@@ -169,6 +171,36 @@ export const generateAddCertAuthorityData = (
           url: customESTUrl,
           username: customESTUsername,
           password: customESTPassword,
+        },
+      };
+    }
+    case "ejbca": {
+      const {
+        name: ejbcaName,
+        url: ejbcaUrl,
+        clientP12Base64,
+        clientP12Password,
+        trustCABundle,
+        certificateAuthorityNameEJBCA,
+        certificateProfileName,
+        endEntityProfileName,
+        usernameTemplate,
+        userPrincipalName,
+      } = formData as IEJBCAFormData;
+      return {
+        ejbca: {
+          name: ejbcaName,
+          url: ejbcaUrl,
+          client_p12: clientP12Base64,
+          client_p12_password: clientP12Password,
+          trust_ca_bundle: trustCABundle || undefined,
+          certificate_authority_name_ejbca: certificateAuthorityNameEJBCA,
+          certificate_profile_name: certificateProfileName,
+          end_entity_profile_name: endEntityProfileName,
+          username_template: usernameTemplate,
+          certificate_user_principal_names: userPrincipalName
+            ? [userPrincipalName]
+            : null,
         },
       };
     }

@@ -6,6 +6,7 @@ import {
   ICertificateAuthority,
   ICertificatesCustomSCEP,
   ICertificatesDigicert,
+  ICertificatesEJBCA,
   ICertificatesHydrant,
   ICertificatesNDES,
   ICertificatesSmallstep,
@@ -35,7 +36,8 @@ export type IAddCertAuthorityFormData =
   | { custom_scep_proxy: ICertificatesCustomSCEP }
   | { hydrant: ICertificatesHydrant }
   | { smallstep: ICertificatesSmallstep }
-  | { custom_est_proxy: ICertificatesCustomEST };
+  | { custom_est_proxy: ICertificatesCustomEST }
+  | { ejbca: ICertificatesEJBCA };
 
 export type IEditCertAuthorityFormData =
   | { digicert: Partial<ICertificatesDigicert> }
@@ -43,7 +45,8 @@ export type IEditCertAuthorityFormData =
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
   | { hydrant: Partial<ICertificatesHydrant> }
   | { smallstep: Partial<ICertificatesSmallstep> }
-  | { custom_est_proxy: Partial<ICertificatesCustomEST> };
+  | { custom_est_proxy: Partial<ICertificatesCustomEST> }
+  | { ejbca: Partial<ICertificatesEJBCA> };
 
 interface IGetCertsParams extends PaginationParams {
   // not supported: after, order key, order direction, match query, meta (always included)

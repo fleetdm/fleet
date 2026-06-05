@@ -175,22 +175,33 @@ this is a learning POC, not a production ship.
 
 ## 8. Frontend (minimal POC)
 
-- [ ] Create `frontend/pages/admin/IntegrationsPage/cards/CertificateAuthorities/components/EJBCAForm/` —
-      mirror `DigicertForm.tsx`.
-- [ ] Add EJBCA option in `AddCertAuthorityModal`.
-- [ ] Add EJBCA branch in `EditCertAuthorityModal`.
-- [ ] Form accepts **only** PKCS#12 upload + password. Reject any other
-      filetype client-side with a clear "EJBCA expects a .p12 file" message.
-- [ ] Server-side: decode the P12 with the supplied password using
-      `software.sslmate.com/src/go-pkcs12`, extract cert + key, persist as
-      PEM (key encrypted). Discard the P12 password — it is never stored.
-- [ ] Edit modal exposes the same fields as create. Re-uploading a P12 in
-      edit mode replaces the stored cert+key (the rotation workflow — no
-      separate "Replace credentials" button in the POC).
-- [ ] On the CA list page, parse `not_after` from the stored EJBCA client
-      cert and render an "Expires in N days" badge per REQ-CA-EJBCA-12.
-      Warning visual <30 days; error visual <7 days.
-- [ ] No polish work — just enough for an end-to-end manual test.
+- [x] Create `frontend/pages/admin/IntegrationsPage/cards/CertificateAuthorities/components/EJBCAForm/` —
+      `EJBCAForm.tsx`, `helpers.ts`, `index.ts`. Mirrors `DigicertForm`
+      but uses `FileUploader` for the P12 (Fleet's existing component;
+      accepts `.p12`/`.pfx`).
+- [x] Add EJBCA option in `AddCertAuthorityModal` (state, change/submit
+      branches, dropdown option, generateAddCertAuthorityData branch).
+- [x] Add EJBCA branch in `EditCertAuthorityModal` (form mapping in
+      getFormComponent, generateDefaultFormData, generateEditCertAuthorityData
+      with diff+inject-P12-on-rotation, updateFormData passthrough).
+- [x] Form accepts only PKCS#12 upload + password. Client-side `accept`
+      attribute is `.p12,.pfx,application/x-pkcs12`; backend rejects
+      anything else on decode (Phase 5).
+- [x] Server-side decode + persist — already done in Phase 5
+      (`decodeEJBCAClientP12`).
+- [x] Edit modal: re-uploading a P12 triggers rotation via the standard
+      edit flow. Validation makes the P12 + password optional on edit
+      (only required when uploading a new one); the helper injects them
+      into the diff only when a new P12 is supplied.
+- [ ] **Deferred from POC**: "Expires in N days" badge on the CA list
+      page. Backend exposes `client_cert_expires_at` from Phase 4; the
+      list-page rendering is a follow-up — see the deferred section of
+      the spec.
+- [x] Type definitions: `ICertificatesEJBCA` and `isEJBCACertAuthority`
+      added to `frontend/interfaces/certificates.ts`; service-layer
+      types in `frontend/services/entities/certificates.ts` extended.
+
+Frontend lint + prettier + TypeScript compile all clean.
 
 ## 9. Dev guide
 

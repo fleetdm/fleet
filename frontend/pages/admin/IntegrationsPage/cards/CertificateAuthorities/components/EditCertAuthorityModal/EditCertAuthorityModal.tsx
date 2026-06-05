@@ -18,6 +18,7 @@ import {
 } from "./helpers";
 
 import DigicertForm from "../DigicertForm";
+import EJBCAForm from "../EJBCAForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
@@ -98,6 +99,8 @@ const EditCertAuthorityModal = ({
         return CustomSCEPForm;
       case "custom_est_proxy":
         return CustomESTForm;
+      case "ejbca":
+        return EJBCAForm;
       default:
         throw new Error(
           `Unknown certificate authority type: ${certAuthority.type}`

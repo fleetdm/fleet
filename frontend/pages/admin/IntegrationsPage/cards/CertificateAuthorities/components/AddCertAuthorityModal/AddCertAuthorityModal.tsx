@@ -19,6 +19,8 @@ import {
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import EJBCAForm from "../EJBCAForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
@@ -38,7 +40,8 @@ export type ICertFormData =
   | INDESFormData
   | ICustomSCEPFormData
   | ISmallstepFormData
-  | ICustomESTFormData;
+  | ICustomESTFormData
+  | IEJBCAFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -115,6 +118,19 @@ const AddCertAuthorityModal = ({
     username: "",
     password: "",
   });
+  const [ejbcaFormData, setEJBCAFormData] = useState<IEJBCAFormData>({
+    name: "",
+    url: "",
+    clientP12Base64: "",
+    clientP12FileName: "",
+    clientP12Password: "",
+    trustCABundle: "",
+    certificateAuthorityNameEJBCA: "",
+    certificateProfileName: "",
+    endEntityProfileName: "",
+    usernameTemplate: "",
+    userPrincipalName: "",
+  });
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
@@ -148,6 +164,10 @@ const AddCertAuthorityModal = ({
         setFormData = setCustomESTFormData;
         formData = customESTFormData;
         break;
+      case "ejbca":
+        setFormData = setEJBCAFormData;
+        formData = ejbcaFormData;
+        break;
       default:
         return;
     }
@@ -178,6 +198,9 @@ const AddCertAuthorityModal = ({
         break;
       case "custom_est_proxy":
         formData = customESTFormData;
+        break;
+      case "ejbca":
+        formData = ejbcaFormData;
         break;
       default:
         return;
@@ -268,6 +291,18 @@ const AddCertAuthorityModal = ({
         return (
           <CustomESTForm
             formData={customESTFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "ejbca":
+        return (
+          <EJBCAForm
+            formData={ejbcaFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
