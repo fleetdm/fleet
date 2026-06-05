@@ -1046,12 +1046,6 @@ type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID ui
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
 
-type ListMDMAppleProfilesToInstallFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error)
-
-type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
-
-type ListMDMAppleProfilesToInstallAndRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error)
-
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
 
 type BulkSetPendingMDMHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error)
@@ -1217,8 +1211,6 @@ type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string)
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
 
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
-
-type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
 type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (hostUUIDs []string, err error)
 
@@ -3594,15 +3586,6 @@ type DataStore struct {
 	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
 	OutdatedAutomationBatchFuncInvoked bool
 
-	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
-	ListMDMAppleProfilesToInstallFuncInvoked bool
-
-	ListMDMAppleProfilesToRemoveFunc        ListMDMAppleProfilesToRemoveFunc
-	ListMDMAppleProfilesToRemoveFuncInvoked bool
-
-	ListMDMAppleProfilesToInstallAndRemoveFunc        ListMDMAppleProfilesToInstallAndRemoveFunc
-	ListMDMAppleProfilesToInstallAndRemoveFuncInvoked bool
-
 	BulkUpsertMDMAppleHostProfilesFunc        BulkUpsertMDMAppleHostProfilesFunc
 	BulkUpsertMDMAppleHostProfilesFuncInvoked bool
 
@@ -3851,9 +3834,6 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
-
-	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
-	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
 
 	MDMAppleHostDeclarationsGetAndClearResyncFunc        MDMAppleHostDeclarationsGetAndClearResyncFunc
 	MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked bool
@@ -8695,27 +8675,6 @@ func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Policy
 	return s.OutdatedAutomationBatchFunc(ctx)
 }
 
-func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToInstallFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToInstallFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToRemoveFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToRemoveFunc(ctx)
-}
-
-func (s *DataStore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToInstallAndRemoveFunc(ctx)
-}
-
 func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 	s.mu.Lock()
 	s.BulkUpsertMDMAppleHostProfilesFuncInvoked = true
@@ -9295,13 +9254,6 @@ func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identif
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
-}
-
-func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
-	s.mu.Lock()
-	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {

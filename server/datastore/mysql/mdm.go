@@ -944,44 +944,28 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 	})
 }
 
-// TODO(MHJ): Document the oddity this now only handles Android
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) (updates fleet.MDMProfilesUpdates, err error) {
-	// Apple profiles, Apple declarations, and Android profiles reconcile
-	// eagerly inside one transaction here. Windows profile reconciliation is
+	// Android profiles reconcile eagerly inside one transaction here.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is
 	// intentionally NOT performed synchronously in production: the
-	// mdm_windows_profile_manager cron processes bounded host-window batches
-	// (see ReconcileWindowsProfiles) so large populations converge across
+	// profile manager crons processes bounded host-window batches
+	// (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched) so large populations converge across
 	// multiple 30s ticks. Doing it synchronously on top of large team
 	// transfers ties up the writer for minutes and starves ambient
 	// MDM/osquery checkins of row locks on host_mdm_windows_profiles.
-	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var innerErr error
-		updates, winHosts, innerErr = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+		updates, innerErr = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
 		return innerErr
 	})
 	if err != nil {
 		return updates, err
 	}
 
-	// updates.WindowsConfigProfile drives the "edited Windows profile"
-	// audit-log entry written by service/mdm.go's BatchSetMDMProfiles.
-	// We leave it false in production; BatchSetMDMProfiles ORs it with
-	// its own profUpdates.WindowsConfigProfile from
-	// batchSetMDMWindowsProfilesDB, which is the transactional source of
-	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
-	// get Apple-parity synchronous reconciliation here.
-	// TODO(MHJ): Marked for deletion
-	if ds.testWindowsEagerHook != nil {
-		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
-		if err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
-		}
-	}
 	return updates, nil
 }
 
@@ -989,24 +973,18 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
 //
-// This runs Apple profile, Apple declaration, and Android profile
-// reconciliation inside the caller-provided transaction. Windows profile
-// reconciliation is NOT performed here; the resolved Windows host UUIDs are
-// returned so the caller can optionally reconcile them (only the test path
-// does so; production relies on the mdm_windows_profile_manager cron).
-// TODO(MHJ): Major cleanup required here
+// This runs Android profile reconciliation inside the caller-provided transaction.
+// Apple profile, Apple declaration, and Windows profile
+// reconciliation is NOT performed here;
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
-) (updates fleet.MDMProfilesUpdates, winHosts []string, err error) {
+) (updates fleet.MDMProfilesUpdates, err error) {
 	var (
 		countArgs        int
-		macProfUUIDs     []string
-		winProfUUIDs     []string
 		androidProfUUIDs []string
-		hasAppleDecls    bool
 	)
 
 	if len(hostIDs) > 0 {
@@ -1018,19 +996,12 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	if len(profileUUIDs) > 0 {
 		countArgs++
 
-		// split into mac, win and android profiles
+		// This method only reconciles Android profiles synchronously; Apple
+		// and Windows profiles are reconciled by their respective crons, so any
+		// non-Android UUIDs here are simply ignored.
 		for _, puid := range profileUUIDs {
-			if strings.HasPrefix(puid, fleet.MDMAppleProfileUUIDPrefix) { //nolint:gocritic // ignore ifElseChain
-				macProfUUIDs = append(macProfUUIDs, puid)
-			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
-				hasAppleDecls = true
-			} else if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
+			if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
 				androidProfUUIDs = append(androidProfUUIDs, puid)
-			} else {
-				// Note: defaulting to windows profiles without checking the prefix as
-				// many tests fail otherwise and it's a whole rabbit hole that I can't
-				// address at the moment.
-				winProfUUIDs = append(winProfUUIDs, puid)
 			}
 		}
 	}
@@ -1038,27 +1009,18 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		countArgs++
 	}
 	if countArgs > 1 {
-		return updates, nil, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
+		return updates, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
-		return updates, nil, nil
+		return updates, nil
 	}
 
-	var countProfUUIDs int
-	if len(macProfUUIDs) > 0 {
-		countProfUUIDs++
-	}
-	if len(winProfUUIDs) > 0 {
-		countProfUUIDs++
-	}
-	if len(androidProfUUIDs) > 0 {
-		countProfUUIDs++
-	}
-	if hasAppleDecls {
-		countProfUUIDs++
-	}
-	if countProfUUIDs > 1 {
-		return updates, nil, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
+	// If the caller passed only non-Android profiles, there is nothing for this
+	// Android-only path to do. Returning here avoids falling through to the
+	// switch below with no matching case, which would leave uuidStmt empty and
+	// fail later in sqlx.In with a confusing error.
+	if len(profileUUIDs) > 0 && len(androidProfUUIDs) == 0 {
+		return updates, nil
 	}
 
 	var (
@@ -1097,38 +1059,6 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 			}
 		}
 
-	case len(macProfUUIDs) > 0:
-		// TODO: if a very large number (~65K/2) of profile UUIDs was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `
-SELECT DISTINCT h.uuid, h.platform
-FROM hosts h
-JOIN mdm_apple_configuration_profiles macp
-	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-LEFT JOIN host_mdm_apple_profiles hmap
-	ON h.uuid = hmap.host_uuid
-WHERE
-	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
-OR
-	hmap.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
-		args = append(args, macProfUUIDs, macProfUUIDs)
-
-	case len(winProfUUIDs) > 0:
-		// TODO: if a very large number (~65K/2) of profile IDs was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `
-SELECT DISTINCT h.uuid, h.platform
-FROM hosts h
-JOIN mdm_windows_configuration_profiles mawp
-	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
-LEFT JOIN host_mdm_windows_profiles hmwp
-	ON h.uuid = hmwp.host_uuid
-WHERE
-	mawp.profile_uuid IN (?) AND h.platform = 'windows'
-OR
-	hmwp.profile_uuid IN (?) AND h.platform = 'windows'`
-		args = append(args, winProfUUIDs, winProfUUIDs)
-
 	case len(androidProfUUIDs) > 0:
 		// TODO: if a very large number (~65K/2) of profile IDs was provided, could
 		// result in too many placeholders (not an immediate concern).
@@ -1148,31 +1078,19 @@ OR
 
 	// TODO: this could be optimized to avoid querying for platform when
 	// profileIDs or profileUUIDs are provided.
-	if len(hosts) == 0 && !hasAppleDecls {
+	if uuidStmt != "" {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
-			return updates, nil, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-			return updates, nil, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			return updates, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 		}
 	}
 
-	var appleHosts []string
 	var androidHosts []string
-	// winHosts is consumed by the test-only eager hook in
-	// BulkSetPendingMDMHostProfiles. In production the hook is nil, so
-	// skip the per-host slice work for Windows hosts; the cron will
-	// reconcile them on its next tick.
-	collectWinHosts := ds.testWindowsEagerHook != nil
 	for _, h := range hosts {
 		switch h.Platform {
-		case "darwin", "ios", "ipados":
-			appleHosts = append(appleHosts, h.UUID) //nolint:staticcheck // Will be cleaned up in follow-up PR
-		case "windows":
-			if collectWinHosts {
-				winHosts = append(winHosts, h.UUID)
-			}
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
@@ -1185,10 +1103,10 @@ OR
 
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
+		return updates, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
 	}
 
-	return updates, winHosts, nil
+	return updates, nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {

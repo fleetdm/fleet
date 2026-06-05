@@ -1555,21 +1555,6 @@ type Datastore interface {
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 
-	// ListMDMAppleProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
-	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToInstallAndRemove returns the result of ListMDMAppleProfilesToInstall
-	// and ListMDMAppleProfilesToRemove but queries for them in an isolated manner so that the two
-	// lists reflect the same system state and no changes can be introduced between the queries.
-	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
-
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
@@ -1579,18 +1564,11 @@ type Datastore interface {
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
 	//
-	// This reconciles Apple profiles, Apple declarations, and Android profiles
-	// synchronously. Windows profile reconciliation is deferred: the
-	// mdm_windows_profile_manager cron processes bounded host-window batches
-	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
-	// populations may require multiple 30s ticks to converge. Callers must not
-	// assume host_mdm_windows_profiles rows are written by the time this
-	// function returns; if a caller needs immediate Windows state (e.g. a
-	// test, or a synchronous UX flow), it must trigger reconciliation
-	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
-	// production: the BatchSetMDMProfiles flow that consumes this field
-	// already gets an accurate transactional signal from BatchSetMDMProfiles
-	// itself, and no other caller reads the field.
+	// This reconciles Android profiles synchronously.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
+	// profile manager crons processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched), so large host
+	// populations may require multiple 30s ticks to converge.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -1940,8 +1918,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-	// MDMAppleBatchSetHostDeclarationState
-	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
 	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
 	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
