@@ -995,8 +995,8 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
 			Name: "office-egress",
 			Criteria: &fleet.HostVitalCriteria{
-				Vital: ptr.String("public_ip"),
-				Value: ptr.String("203.0.113.10"),
+				Vital: new("public_ip"),
+				Value: new("203.0.113.10"),
 			},
 		})
 		require.NoError(t, err)

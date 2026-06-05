@@ -90,20 +90,20 @@ labels:
   description: Hosts belonging to the C-Suite
   label_membership_type: manual
   hosts:
-      - "IR7M6ZGQJM"
-      - "JMFWY8VZ09"
-  - name: Engineering department
-    description: Hosts used by engineers
-    label_membership_type: host_vitals
-    criteria:
-      vital: end_user_idp_department
-      value: Engineering
-  - name: NYC office
-    description: Hosts connecting from the New York City office egress IP
-    label_membership_type: host_vitals
-    criteria:
-      vital: public_ip
-      value: 203.0.113.10
+    - "IR7M6ZGQJM"
+    - "JMFWY8VZ09"
+- name: Engineering department
+  description: Hosts used by engineers
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Engineering
+- name: NYC office
+  description: Hosts connecting from the New York City office egress IP
+  label_membership_type: host_vitals
+  criteria:
+    vital: public_ip
+    value: 203.0.113.10
 ```
 
 `default.yml`

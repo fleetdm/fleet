@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,14 +51,14 @@ func TestCalculateHostVitalsQueryDomesticVitals(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			criteria := &HostVitalCriteria{
-				Vital:    ptr.String(tt.vital),
+				Vital:    new(tt.vital),
 				Operator: tt.operator,
-				Value:    ptr.String(tt.value),
+				Value:    new(tt.value),
 			}
 			criteriaJSON, err := json.Marshal(criteria)
 			require.NoError(t, err)
 
-			label := &Label{HostVitalsCriteria: ptr.RawMessage(criteriaJSON)}
+			label := &Label{HostVitalsCriteria: new(json.RawMessage(criteriaJSON))}
 			query, values, err := label.CalculateHostVitalsQuery()
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedQuery, query)
@@ -72,14 +71,14 @@ func TestCalculateHostVitalsQueryDomesticVitals(t *testing.T) {
 // are still rejected after LIKE is allowed.
 func TestCalculateHostVitalsQueryRejectsBadOperator(t *testing.T) {
 	criteria := &HostVitalCriteria{
-		Vital:    ptr.String("public_ip"),
+		Vital:    new("public_ip"),
 		Operator: new(HostVitalOperatorGreater),
-		Value:    ptr.String("203.0.113.10"),
+		Value:    new("203.0.113.10"),
 	}
 	criteriaJSON, err := json.Marshal(criteria)
 	require.NoError(t, err)
 
-	label := &Label{HostVitalsCriteria: ptr.RawMessage(criteriaJSON)}
+	label := &Label{HostVitalsCriteria: new(json.RawMessage(criteriaJSON))}
 	_, _, err = label.CalculateHostVitalsQuery()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operator")
