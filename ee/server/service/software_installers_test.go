@@ -557,8 +557,23 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	svc := newTestService(t, ds)
 	ctx := context.Background()
 
+	const validToken = "00000000-0000-0000-0000-000000000001"
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
+	}
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 1,
+				TeamID:          0,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
@@ -586,7 +601,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?fleet_id=0</string>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app/00000000-0000-0000-0000-000000000001</string>
           </dict>
           <dict>
             <key>kind</key>
@@ -613,16 +628,26 @@ func TestGetInHouseAppManifest(t *testing.T) {
   </dict>
 </plist>`
 
-	manifest, err := svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
-
 	assert.Equal(t, expected, string(manifest))
 
-	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
 
-	// Set up a new S3 store to test CloudFront signing
+	// Wrong-length token is rejected before a DB lookup happens.
+	ds.GetInHouseAppInstallTokenMetadataFuncInvoked = false
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "short")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppInstallTokenMetadataFuncInvoked)
+
+	_, err = svc.GetInHouseAppManifest(ctx, 2, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
@@ -636,9 +661,42 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.NoError(t, err)
 	svc.softwareInstallStore = s3Store
 
-	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
+}
+
+func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000002"
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 5,
+				TeamID:          2,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Unknown token → permission error before the metadata mock would fire.
+	_, err := svc.GetInHouseAppPackage(ctx, 5, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
+
+	_, err = svc.GetInHouseAppPackage(ctx, 99, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -657,8 +715,9 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	svc := &Service{
-		authz: authorizer,
-		ds:    ds,
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }
@@ -952,6 +1011,158 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	// Install .sh on darwin should succeed (not return BadRequestError)
 	err := svc.InstallSoftwareTitle(ctx, 1, 100)
 	require.NoError(t, err, ".sh install on darwin should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform (windows or darwin) rather than inferring darwin from the extension.
+func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: false,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestUninstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform during uninstall, so a Windows host can uninstall a Windows
+// .zip package without the helper inferring darwin from the extension.
+func TestUninstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:                "zip",
+			Platform:                 "windows",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("uninstall script"), nil
+	}
+
+	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+		return nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should uninstall")
+	require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+}
+
+// TestSelfServiceInstallZipInstallerUsesStoredPlatform tests that .zip
+// installers use the stored platform during self-service install, so a Windows
+// host can self-service install a Windows .zip package without the helper
+// inferring darwin from the extension.
+func TestSelfServiceInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: true,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	host := &fleet.Host{
+		ID:           1,
+		OrbitNodeKey: new("orbit_key"),
+		Platform:     "windows",
+		TeamID:       new(uint(1)),
+	}
+
+	err := svc.SelfServiceInstallSoftwareTitle(context.Background(), host, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should self-service install")
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 

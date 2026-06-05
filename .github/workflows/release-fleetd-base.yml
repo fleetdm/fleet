@@ -63,6 +63,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -148,6 +149,7 @@ jobs:
             .github/actions/r2-upload/action.yml
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Install fleetctl
         run: npm install -g fleetctl
@@ -249,7 +251,7 @@ jobs:
           mv fleet-osquery*.msi fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows
           path: fleetd-base.msi
@@ -292,6 +294,7 @@ jobs:
             .github/actions/r2-upload/action.yml
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Download signed artifact
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
@@ -331,6 +334,7 @@ jobs:
             .github/actions/r2-upload/action.yml
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Download latest-tuf-meta.json artifact
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4

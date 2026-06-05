@@ -287,7 +287,17 @@ describe("CommandPalette helpers", () => {
       expect(vpp?.label).toContain("Edit");
     });
 
-    it("shows team-scoped policy automations when premium and team selected", () => {
+    it("exposes Manage policy automations as a flat entry that deep-links into AutomationsModal", () => {
+      // Previously the palette listed Tickets & webhooks / Install
+      // software / Run script / Calendar / Conditional access as
+      // sub-items, each with its own ?manage_automations=<section> URL.
+      // ManagePoliciesPage never parsed those params, so all five were
+      // dead links. AutomationsModal also dropped its Install software
+      // / Run script sections (those are per-policy now), and the modal
+      // has no per-section URL trigger. The palette now mirrors the
+      // reports pattern: a single entry whose path is
+      // /policies?manage_automations=1, which the page reads to open
+      // the modal at its single shared body.
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
@@ -297,47 +307,56 @@ describe("CommandPalette helpers", () => {
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      expect(policyAutomations?.subItems?.length).toBeGreaterThan(1);
-
-      const subIds = policyAutomations?.subItems?.map((s) => s.id) ?? [];
-      expect(subIds).toContain("manage-policy-automations-install-software");
-      expect(subIds).toContain("manage-policy-automations-calendar");
+      expect(policyAutomations).toBeDefined();
+      expect(policyAutomations?.subItems).toBeUndefined();
+      expect(policyAutomations?.path).toContain("manage_automations=1");
     });
 
-    it("excludes team-scoped policy automations when no team selected", () => {
+    it("hides calendar + conditional-access keywords on All fleets (modal renders only Webhooks/tickets there)", () => {
       const items = buildPaletteItems(BASE_CONTEXT);
-
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      // Only webhooks should be present (no team-scoped items)
-      expect(policyAutomations?.subItems?.length).toBe(1);
-      expect(policyAutomations?.subItems?.[0].id).toBe(
-        "manage-policy-automations-webhooks"
-      );
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).not.toContain("calendar");
+      expect(keywords).not.toContain("google calendar");
+      expect(keywords).not.toContain("conditional access");
+      expect(keywords).not.toContain("sso");
     });
 
-    it("on Unassigned, shows install-software / run-script / conditional-access but NOT calendar", () => {
-      // ManagePoliciesPage allows these three automations on No team
-      // but disables Calendar events without a specific fleet. The
-      // palette must match — earlier all four were gated together on
-      // hasTeamSelected, which dropped them all on Unassigned.
+    it("hides calendar keywords on Unassigned (Calendar section is disabled there) but keeps conditional access", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
       });
-
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      const subIds = policyAutomations?.subItems?.map((s) => s.id) ?? [];
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).not.toContain("calendar");
+      expect(keywords).not.toContain("google calendar");
+      expect(keywords).toContain("conditional access");
+      expect(keywords).toContain("sso");
+    });
 
-      expect(subIds).toContain("manage-policy-automations-webhooks");
-      expect(subIds).toContain("manage-policy-automations-install-software");
-      expect(subIds).toContain("manage-policy-automations-run-script");
-      expect(subIds).toContain("manage-policy-automations-conditional-access");
-      expect(subIds).not.toContain("manage-policy-automations-calendar");
+    it("includes all keywords on a specific team", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+      const policyAutomations = items.find(
+        (i) => i.id === "manage-policy-automations"
+      );
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).toContain("calendar");
+      expect(keywords).toContain("google calendar");
+      expect(keywords).toContain("conditional access");
+      expect(keywords).toContain("sso");
     });
 
     it("excludes certificates and passwords for technicians", () => {

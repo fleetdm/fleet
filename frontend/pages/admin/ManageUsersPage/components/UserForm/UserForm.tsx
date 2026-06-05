@@ -505,7 +505,6 @@ const UserForm = ({
         inputOptions={{
           maxLength: 80,
         }}
-        ignore1password
         parseTarget
       />
       <InputField

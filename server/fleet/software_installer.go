@@ -427,6 +427,11 @@ type HostLastInstallData struct {
 	ExecutionID string `db:"execution_id"`
 	// Status is the status of the installation on the host.
 	Status *SoftwareInstallerStatus `db:"status"`
+	// UpdatedAt is when the install record was last updated. For a completed install
+	// this reflects when it reached its terminal status (e.g. installed), which is what
+	// requests the host refetch; it is used to throttle continuous policy automation
+	// re-installs (see continuousAutomationOnCooldown).
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

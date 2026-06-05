@@ -7,12 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 const run = require('./stale-fleetie-issues.js');
-// Pull constants from the script so a future policy change (e.g. STALE_DAYS 730 -> 365) surfaces
-// in the boundary tests instead of silently passing because the test hardcoded the old value.
+// Pull constants from the script so the boundary tests keep exercising the real boundary if a
+// future policy change (e.g. STALE_DAYS 730 -> 365) moves it.
 const { STALE_DAYS, CLOSE_DAYS, SELF_ACTIVITY_EPSILON_MS } = run;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const daysAgoIso = (days) => new Date(Date.now() - days * DAY_MS).toISOString();
+const { DAY_MS, daysAgoIso, makeStaleLabelEvent, makeContext, makeCore, makeGithub } = require('./stale-test-helpers.js');
 
 function makeIssue(overrides = {}) {
   return {
@@ -24,121 +22,6 @@ function makeIssue(overrides = {}) {
     state: 'open',
     pull_request: undefined,
     ...overrides,
-  };
-}
-
-// `at` (ms-since-epoch) takes precedence over `daysAgo` so tests aligning an event to a specific
-// updated_at moment can share the same instant rather than two independent Date.now() reads.
-function makeStaleLabelEvent({ daysAgo = 100, at } = {}) {
-  const created_at = at != null ? new Date(at).toISOString() : daysAgoIso(daysAgo);
-  return { event: 'labeled', label: { name: 'stale' }, created_at };
-}
-
-function makeContext() {
-  return { repo: { owner: 'o', repo: 'r' } };
-}
-
-function makeCore() {
-  const infos = [];
-  const warnings = [];
-  const summaryCalls = [];
-  const summary = new Proxy(
-    {},
-    {
-      get(_target, prop) {
-        if (prop === 'write') {
-          return async () => {
-            summaryCalls.push({ method: 'write' });
-          };
-        }
-        return (...args) => {
-          summaryCalls.push({ method: String(prop), args });
-          return summary;
-        };
-      },
-    },
-  );
-  return {
-    info: (msg) => infos.push(msg),
-    warning: (msg) => warnings.push(msg),
-    summary,
-    _captured: { infos, warnings, summaryCalls },
-  };
-}
-
-// `issuesByPage`: array of pages (each page is an array of issues) returned by paginate.iterator.
-// `eventsByIssue`: map from issue.number -> array of event objects returned by paginate(listEvents).
-// `failOn`: optional fault-injection { createComment, addLabels, update, removeLabel, listEvents }
-//           values can be 'always', an integer (fail until Nth call), or { status: 404 }.
-function makeGithub({ issuesByPage = [], eventsByIssue = {}, failOn = {} } = {}) {
-  const createCommentCalls = [];
-  const addLabelsCalls = [];
-  const removeLabelCalls = [];
-  const updateCalls = [];
-  const listEventsCalls = [];
-
-  const counters = {};
-  const shouldFail = (op) => {
-    const cfg = failOn[op];
-    if (!cfg) return null;
-    counters[op] = (counters[op] || 0) + 1;
-    if (cfg === 'always') return new Error(`${op} simulated failure`);
-    if (typeof cfg === 'number' && counters[op] <= cfg) return new Error(`${op} simulated failure`);
-    if (typeof cfg === 'object' && cfg.status && counters[op] === 1) {
-      const err = new Error(`${op} simulated failure status ${cfg.status}`);
-      err.status = cfg.status;
-      return err;
-    }
-    return null;
-  };
-
-  const paginate = async (endpoint, params) => {
-    if (endpoint === 'listEvents-sentinel') {
-      listEventsCalls.push(params);
-      const err = shouldFail('listEvents');
-      if (err) throw err;
-      return eventsByIssue[params.issue_number] || [];
-    }
-    if (endpoint === 'listForRepo-sentinel') {
-      return issuesByPage.flat();
-    }
-    return [];
-  };
-  paginate.iterator = async function* iterator(endpoint) {
-    if (endpoint === 'listForRepo-sentinel') {
-      for (const page of issuesByPage) yield { data: page };
-    }
-  };
-
-  return {
-    paginate,
-    rest: {
-      issues: {
-        listForRepo: 'listForRepo-sentinel',
-        listEvents: 'listEvents-sentinel',
-        createComment: async (params) => {
-          const err = shouldFail('createComment');
-          if (err) throw err;
-          createCommentCalls.push(params);
-        },
-        addLabels: async (params) => {
-          const err = shouldFail('addLabels');
-          if (err) throw err;
-          addLabelsCalls.push(params);
-        },
-        removeLabel: async (params) => {
-          const err = shouldFail('removeLabel');
-          if (err) throw err;
-          removeLabelCalls.push(params);
-        },
-        update: async (params) => {
-          const err = shouldFail('update');
-          if (err) throw err;
-          updateCalls.push(params);
-        },
-      },
-    },
-    _captured: { createCommentCalls, addLabelsCalls, removeLabelCalls, updateCalls, listEventsCalls },
   };
 }
 
@@ -182,6 +65,7 @@ test('marks a Fleetie-authored issue idle >2y as stale', async () => {
     issues: [makeIssue({ number: 1, user: { login: 'getvictor' }, updated_at: daysAgoIso(STALE_DAYS + 70) })],
   });
   assert.strictEqual(github._captured.createCommentCalls.length, 1);
+  assert.match(github._captured.createCommentCalls[0].body, /^@getvictor /, 'stale comment @-mentions the author');
   assert.strictEqual(github._captured.addLabelsCalls.length, 1);
   assert.deepStrictEqual(github._captured.addLabelsCalls[0].labels, ['stale']);
   assert.strictEqual(github._captured.updateCalls.length, 0);
@@ -390,15 +274,16 @@ test('does not exceed odd max_operations cap (CodeRabbit regression test)', asyn
   assert.strictEqual(result.hitCap, true);
 });
 
-test('MAX_OPERATIONS=0 disables all writes', async () => {
+test('MAX_OPERATIONS=0 disables all writes (treated as dry-run, still reports would-be actions)', async () => {
   const { github, result } = await runWith({
     issues: [makeIssue({ user: { login: 'getvictor' }, updated_at: daysAgoIso(STALE_DAYS + 70) })],
     maxOps: 0,
   });
   assert.strictEqual(github._captured.createCommentCalls.length, 0);
   assert.strictEqual(github._captured.addLabelsCalls.length, 0);
-  assert.strictEqual(result.hitCap, true);
-  assert.strictEqual(result.staled.length, 0);
+  assert.strictEqual(result.dryRun, true);
+  // Unlike a hard cap, the kill switch still surfaces what would have happened.
+  assert.strictEqual(result.staled.length, 1);
 });
 
 test('write failure in stale phase is recorded and run continues', async () => {
@@ -412,7 +297,8 @@ test('write failure in stale phase is recorded and run continues', async () => {
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'stale');
   assert.strictEqual(result.staled.length, 1);
-  assert.strictEqual(github._captured.addLabelsCalls.length, 1);
+  // Labels land before comments, so both issues are labeled even though #1's comment failed.
+  assert.strictEqual(github._captured.addLabelsCalls.length, 2);
 });
 
 test('excludes pull requests', async () => {
@@ -576,18 +462,20 @@ test('self-activity epsilon: updated_at 1ms past the epsilon boundary is treated
 // Confirm partial-write states are recorded and don't stop the rest of the run.
 // ---------------------------------------------------------------------------
 
-test('stale-phase: addLabels failure after createComment success is recorded', async () => {
+test('stale-phase: addLabels failure is recorded and skips the comment', async () => {
+  // The label is written first so a partial failure cannot bump updated_at without applying the
+  // label (which would silently reset the staleness clock).
   const { github, result } = await runWith({
     issues: [makeIssue({ number: 300, updated_at: daysAgoIso(STALE_DAYS + 70) })],
     failOn: { addLabels: 1 },
   });
-  assert.strictEqual(github._captured.createCommentCalls.length, 1, 'createComment ran first');
+  assert.strictEqual(github._captured.createCommentCalls.length, 0, 'no comment when labeling fails');
   assert.strictEqual(result.staled.length, 0);
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'stale');
 });
 
-test('close-phase: createComment failure is recorded and run continues', async () => {
+test('close-phase: createComment failure after a successful close is recorded and run continues', async () => {
   const labeledAt = Date.now() - 20 * DAY_MS;
   const { github, result } = await runWith({
     issues: [
@@ -601,8 +489,10 @@ test('close-phase: createComment failure is recorded and run continues', async (
     eventsByIssue: { 400: [makeStaleLabelEvent({ at: labeledAt })] },
     failOn: { createComment: 1 },
   });
-  assert.strictEqual(github._captured.updateCalls.length, 0, 'update not called when createComment fails');
-  assert.strictEqual(result.closed.length, 0);
+  // The close is written first, so the issue is closed even though its comment failed. The benign
+  // leftover is a closed issue without a comment, never a "closed" comment on an open issue.
+  assert.strictEqual(github._captured.updateCalls.length, 1, 'issue closed before the comment failed');
+  assert.strictEqual(result.closed.length, 0, 'partial failure reported as error, not success');
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'close');
   // Subsequent issue still processed (the close-phase failure only consumes the first
@@ -610,7 +500,9 @@ test('close-phase: createComment failure is recorded and run continues', async (
   assert.strictEqual(result.staled.length, 1);
 });
 
-test('close-phase: update failure after createComment success is recorded', async () => {
+test('close-phase: update failure is recorded and skips the comment', async () => {
+  // The close is written first so a failed close cannot leave a "this issue was closed" comment on
+  // a still-open issue (which would bump updated_at and un-stale it on the next run).
   const labeledAt = Date.now() - 20 * DAY_MS;
   const { github, result } = await runWith({
     issues: [
@@ -623,10 +515,7 @@ test('close-phase: update failure after createComment success is recorded', asyn
     eventsByIssue: { 402: [makeStaleLabelEvent({ at: labeledAt })] },
     failOn: { update: 1 },
   });
-  // The mock records calls only on success, so updateCalls stays empty when update throws. The
-  // behavior we care about: createComment succeeded (the script got past it), close didn't
-  // complete, and the failure is attributed to the close phase.
-  assert.strictEqual(github._captured.createCommentCalls.length, 1, 'createComment succeeded');
+  assert.strictEqual(github._captured.createCommentCalls.length, 0, 'no comment when the close fails');
   assert.strictEqual(result.closed.length, 0);
   assert.strictEqual(result.errored.length, 1);
   assert.strictEqual(result.errored[0].phase, 'close');

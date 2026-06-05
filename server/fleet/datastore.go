@@ -490,6 +490,14 @@ type Datastore interface {
 	// positive risk (one redundant CertificateList per false match).
 	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
+	// OktaCACleanupTargetForInstallCommand returns the host ID and target
+	// macOS short name needed to schedule the Okta conditional access
+	// keychain-cleanup script after a successful InstallProfile ack. The
+	// ok return is false when the command's profile is not the Okta CA
+	// profile, the host's platform is not darwin, or the host has no
+	// per-user MDM enrollment short name on record.
+	OktaCACleanupTargetForInstallCommand(ctx context.Context, hostUUID, commandUUID string) (OktaCACleanupTarget, bool, error)
+
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
 	// indicating if the enrollment is active.
@@ -1527,6 +1535,15 @@ type Datastore interface {
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
 
+	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
+	// being deleted when one or more duplicate hosts (same serial and platform,
+	// excluding deletedHostID) still exist. It returns true if such a duplicate
+	// exists, in which case the caller must NOT restore a pending "ghost" host.
+	// When a surviving duplicate has no DEP assignment of its own, the deleted
+	// host's assignment is transferred to it so the ABM relationship is
+	// preserved.
+	ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -1555,21 +1572,6 @@ type Datastore interface {
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 
-	// ListMDMAppleProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
-	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToInstallAndRemove returns the result of ListMDMAppleProfilesToInstall
-	// and ListMDMAppleProfilesToRemove but queries for them in an isolated manner so that the two
-	// lists reflect the same system state and no changes can be introduced between the queries.
-	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
-
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
@@ -1579,18 +1581,11 @@ type Datastore interface {
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
 	//
-	// This reconciles Apple profiles, Apple declarations, and Android profiles
-	// synchronously. Windows profile reconciliation is deferred: the
-	// mdm_windows_profile_manager cron processes bounded host-window batches
-	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
-	// populations may require multiple 30s ticks to converge. Callers must not
-	// assume host_mdm_windows_profiles rows are written by the time this
-	// function returns; if a caller needs immediate Windows state (e.g. a
-	// test, or a synchronous UX flow), it must trigger reconciliation
-	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
-	// production: the BatchSetMDMProfiles flow that consumes this field
-	// already gets an accurate transactional signal from BatchSetMDMProfiles
-	// itself, and no other caller reads the field.
+	// This reconciles Android profiles synchronously.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
+	// profile manager crons processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched), so large host
+	// populations may require multiple 30s ticks to converge.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -1940,8 +1935,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-	// MDMAppleBatchSetHostDeclarationState
-	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
 	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
 	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
@@ -2440,6 +2434,12 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
+	// but marks the request as internal (fleet-initiated), so it runs even when
+	// scripts are globally disabled and does not appear in the user-facing host
+	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
+	// scripts after MDM events).
+	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)
@@ -2553,7 +2553,7 @@ type Datastore interface {
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
-	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// unlock_ref was set within the value configured for MDMLockCleanupMinutes, to prevent the trailing
 	// Idle (sent right after the device acknowledges the lock command)
 	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
@@ -2686,6 +2686,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsRecentlyVerifiedInstalls gets App Store IDs of VPP apps that were
+	// successfully installed (verified) on the host within the provided number of
+	// seconds. It is used to throttle continuous policy automation re-installs (see
+	// the continuousAutomationOnCooldown service helper): only a successful install
+	// requests a host refetch, so only successful installs can drive the loop the
+	// throttle prevents.
+	MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
 	// on VPP installations for a host
 	//
@@ -2741,6 +2749,18 @@ type Datastore interface {
 
 	// DeleteInHouseApp deletes an in house app and removes pending installs for it
 	DeleteInHouseApp(ctx context.Context, id uint) error
+
+	// CreateInHouseAppInstallToken inserts a per-install download token. The
+	// caller supplies the executor so the insert commits atomically with the
+	// nano_commands row that embeds the token in its ManifestURL.
+	CreateInHouseAppInstallToken(ctx context.Context, ex sqlx.ExtContext, token string, softwareTitleID, teamID, hostID uint) error
+
+	// GetInHouseAppInstallTokenMetadata returns the binding for the token, or
+	// NotFound if the token is unknown or expired (both cases collapse — the
+	// caller must not surface the distinction).
+	GetInHouseAppInstallTokenMetadata(ctx context.Context, token string) (*InHouseAppInstallTokenMetadata, error)
+
+	DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error)
 
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
@@ -3373,6 +3393,12 @@ type Datastore interface {
 
 type AndroidDatastore interface {
 	android.Datastore
+	// GetAndroidDeviceLastTeamID returns the last-known team_id from the
+	// android_devices row for the given enterprise_specific_id. Returns the
+	// team_id (may be nil for "no team") and a bool indicating whether a row
+	// was found.
+	GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
+	UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in

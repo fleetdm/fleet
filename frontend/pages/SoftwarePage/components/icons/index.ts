@@ -5,7 +5,10 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AmazonCorretto21 from "./AmazonCorretto21";
+import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
@@ -38,9 +41,12 @@ import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import MindManager from "./MindManager";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
@@ -262,6 +268,7 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import VcRedistX64 from "./VcRedistX64";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
@@ -312,7 +319,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 21": AmazonCorretto21,
+  "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
+  "amazon corretto 26": AmazonCorretto26,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
@@ -386,6 +396,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
   max: Max,
+  "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -439,6 +450,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
+  mindmanager: MindManager,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
@@ -466,12 +478,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
+  "microsoft visual c++": VcRedistX64,
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
   "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
