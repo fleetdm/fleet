@@ -6067,7 +6067,7 @@ The following endpoints describe Fleet's Platform SSO implementation used for in
 
 ### Platform SSO Device Registration
 
-`POST /api/mdm/psso/registration`
+`POST /api/mdm/apple/psso/registration`
 
 This endpoint is used by the Device Registration phase of Platform SSO to establish per-device communication keys and authenticate the device based on the Registration Token in the Platform SSO payload. Only registration using a Registration Token is supported.
 
@@ -6085,7 +6085,7 @@ The registration token is a per-host secret Fleet substitutes into the `Registra
 
 #### Example
 
-`POST /api/mdm/psso/registration`
+`POST /api/mdm/apple/psso/registration`
 
 ##### Request body
 
@@ -6103,7 +6103,7 @@ No response body. A `2xx` tells the extension the keys were persisted; the frame
 
 ### Platform SSO Nonce endpoint
 
-`POST /api/mdm/psso/nonce`
+`POST /api/mdm/apple/psso/nonce`
 
 This endpoint is used prior to every call to the Token endpoint to obtain a new nonce which is immediately consumed on the call to the token endpoint where it is sent as the `request_nonce` claim of the JWT. Nonces have a five minute expiry. The returned nonce is a random 32-byte value, base64url-encoded.
 
@@ -6113,7 +6113,7 @@ None.
 
 #### Example
 
-`POST /api/mdm/psso/nonce`
+`POST /api/mdm/apple/psso/nonce`
 
 ##### Default response
 
@@ -6127,7 +6127,7 @@ None.
 
 ### Platform SSO Token endpoint
 
-`POST /api/mdm/psso/token`
+`POST /api/mdm/apple/psso/token`
 
 This endpoint is used for User Registration, Key Request and Key Exchange requests of Platform SSO to authenticate users of previously-registered devices and support operations such as Key Exchange which allows a user who has changed their IDP password and logged in with it to unlock their keychain without the prior password.
 
@@ -6151,7 +6151,7 @@ The dispatched operation is selected by the JWS payload:
 
 #### Example
 
-`POST /api/mdm/psso/token`
+`POST /api/mdm/apple/psso/token`
 
 ##### Request body
 
@@ -6174,7 +6174,7 @@ X-Content-Type-Options: nosniff
 
 ### Platform SSO JWKS
 
-`GET /api/mdm/psso/jwks`
+`GET /api/mdm/apple/psso/jwks`
 
 This endpoint is used by the Platform SSO extension to fetch the server's JSON Web Key Set. The device uses it to verify the `id_token` Fleet signs in the login response. Fleet's PSSO signing key is a P-256 / ES256 key; it is minted and persisted on first use.
 
@@ -6184,7 +6184,7 @@ None.
 
 #### Example
 
-`GET /api/mdm/psso/jwks`
+`GET /api/mdm/apple/psso/jwks`
 
 ##### Default response
 
