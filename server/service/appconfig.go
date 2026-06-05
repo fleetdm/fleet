@@ -1133,7 +1133,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			// The package may have already been deleted via the GUI while the
+			// appconfig JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			}
 		}
 	}
 

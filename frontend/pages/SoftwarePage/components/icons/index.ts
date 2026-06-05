@@ -5,7 +5,10 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AmazonCorretto21 from "./AmazonCorretto21";
+import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
@@ -20,6 +23,8 @@ import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
+import DellCommandUpdate from "./DellCommandUpdate";
+import DellDisplayManager from "./DellDisplayManager";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -27,25 +32,37 @@ import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
+import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
+import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import MindManager from "./MindManager";
+import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import PlantronicsHub from "./PlantronicsHub";
+import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import Powertoys from "./Powertoys";
 import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import Reaper from "./Reaper";
+import Rstudio from "./Rstudio";
 import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
@@ -251,6 +268,7 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import VcRedistX64 from "./VcRedistX64";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
@@ -301,7 +319,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 21": AmazonCorretto21,
+  "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
+  "amazon corretto 26": AmazonCorretto26,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
@@ -357,20 +378,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   cryptomator: Cryptomator,
+  "dell command update": DellCommandUpdate,
+  "dell display manager": DellDisplayManager,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
+  "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
   joplin: Joplin,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
   max: Max,
+  "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -423,6 +450,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
+  mindmanager: MindManager,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
@@ -450,11 +478,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
+  "microsoft visual c++": VcRedistX64,
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
@@ -479,10 +510,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  "plantronics hub": PlantronicsHub,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
   postman: Postman,
+  "power automate": PowerAutomate,
   "power bi": PowerBi,
+  powertoys: Powertoys,
   prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
@@ -498,9 +532,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidapi: RapidApi,
   raycast: Raycast,
   "realvnc server": RealVncServer,
+  reaper: Reaper,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
+  rstudio: Rstudio,
   rubymine: RubyMine,
   rustdesk: RustDesk,
   rustrover: RustRover,

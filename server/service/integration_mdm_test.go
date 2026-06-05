@@ -12425,13 +12425,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -12491,7 +12491,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12512,7 +12512,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12532,7 +12532,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -19366,23 +19366,39 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	continuousCount := func() int { return countInstallsFor(continuousPolicy.ID) }
 	transitionCount := func() int { return countInstallsFor(transitionPolicy.ID) }
 
+	// Age a policy's verified VPP install so it sits outside the policy update interval.
+	// The continuous cooldown is keyed on verification_at.
+	ageVPPInstall := func(policyID uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_vpp_software_installs SET verification_at = NOW() - INTERVAL 2 HOUR
+				WHERE host_id = ? AND policy_id = ?
+			`, mdmHost.ID, policyID)
+			return err
+		})
+	}
+
 	// First failing result: pass→fail transition queues an install on both.
 	step(continuousPolicy.ID, 1, continuousCount, "first install for continuous policy")
 	step(transitionPolicy.ID, 1, transitionCount, "first install for transition policy")
 
-	// Second failing result (fail→fail): only the continuous policy re-queues.
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must fire on every failing result")
+	// Second failing result (fail→fail) within the interval: the continuous policy is
+	// throttled. A successful VPP install requests a host refetch that re-runs policies
+	// immediately, so without throttling this would be a tight loop. It must NOT re-queue.
+	submitPolicyResult(continuousPolicy.ID, false)
+	require.Never(t, func() bool {
+		return continuousCount() != 1
+	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+
+	// After the interval elapses, the continuous policy re-fires.
+	ageVPPInstall(continuousPolicy.ID)
+	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must re-fire after the cooldown elapses")
+
+	// The default (transition-only) policy never re-fires on fail→fail.
 	submitPolicyResult(transitionPolicy.ID, false)
 	require.Never(t, func() bool {
 		return transitionCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
-
-	// Third failing result: continuous still re-triggers, default still does not.
-	step(continuousPolicy.ID, 3, continuousCount, "continuous policy must fire on every failing result")
-	submitPolicyResult(transitionPolicy.ID, false)
-	require.Never(t, func() bool {
-		return transitionCount() != 1
-	}, 2*time.Second, 100*time.Millisecond)
 
 	// Final: passing results never trigger an install, regardless of mode.
 	continuousBefore := continuousCount()

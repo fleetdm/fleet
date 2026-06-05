@@ -3,6 +3,7 @@ import { browserHistory } from "react-router";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import Icon from "components/Icon";
 import classnames from "classnames";
 
@@ -21,6 +22,10 @@ interface IInfoCardProps {
     | {
         type: "button";
         text: string;
+        onClick?: () => void;
+      }
+    | {
+        type: "automations";
         onClick?: () => void;
       };
   total_host_count?: number;
@@ -59,6 +64,16 @@ const useInfoCard = ({
 
   const renderAction = () => {
     if (action) {
+      if (action.type === "automations") {
+        return (
+          <AutomationsButton
+            className={`${baseClass}__action-button`}
+            size="small"
+            onClick={action.onClick}
+          />
+        );
+      }
+
       if (action.type === "button") {
         return (
           <Button

@@ -1032,6 +1032,8 @@ type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.Hos
 
 type GetHostDEPAssignmentsBySerialFunc func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 
+type ReconcileDuplicateDEPHostOnDeleteFunc func(ctx context.Context, serial string, platform string, deletedHostID uint) (duplicateExists bool, err error)
+
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
 type GetNanoMDMUserEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
@@ -1045,12 +1047,6 @@ type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
-
-type ListMDMAppleProfilesToInstallFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error)
-
-type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
-
-type ListMDMAppleProfilesToInstallAndRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error)
 
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
 
@@ -1217,8 +1213,6 @@ type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string)
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
 
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
-
-type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
 type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (hostUUIDs []string, err error)
 
@@ -1570,6 +1564,8 @@ type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uin
 
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+type MapAdamIDsRecentlyVerifiedInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
 type MapAdamIDsRecentInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
@@ -1615,6 +1611,8 @@ type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, instal
 type BatchSetInHouseAppsInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
 type GetSoftwareInstallersFunc func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error)
+
+type GetSoftwareInstallersPendingDeletionFunc func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error)
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
 
@@ -1773,6 +1771,10 @@ type DeleteOtherEnterprisesFunc func(ctx context.Context, id uint) error
 type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error)
 
 type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
+
+type GetAndroidDeviceLastTeamIDFunc func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
+
+type UpdateTeamIDOnAndroidDevicesFunc func(ctx context.Context, hostUUIDs []string, teamID *uint) error
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
@@ -3575,6 +3577,9 @@ type DataStore struct {
 	GetHostDEPAssignmentsBySerialFunc        GetHostDEPAssignmentsBySerialFunc
 	GetHostDEPAssignmentsBySerialFuncInvoked bool
 
+	ReconcileDuplicateDEPHostOnDeleteFunc        ReconcileDuplicateDEPHostOnDeleteFunc
+	ReconcileDuplicateDEPHostOnDeleteFuncInvoked bool
+
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
@@ -3595,15 +3600,6 @@ type DataStore struct {
 
 	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
 	OutdatedAutomationBatchFuncInvoked bool
-
-	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
-	ListMDMAppleProfilesToInstallFuncInvoked bool
-
-	ListMDMAppleProfilesToRemoveFunc        ListMDMAppleProfilesToRemoveFunc
-	ListMDMAppleProfilesToRemoveFuncInvoked bool
-
-	ListMDMAppleProfilesToInstallAndRemoveFunc        ListMDMAppleProfilesToInstallAndRemoveFunc
-	ListMDMAppleProfilesToInstallAndRemoveFuncInvoked bool
 
 	BulkUpsertMDMAppleHostProfilesFunc        BulkUpsertMDMAppleHostProfilesFunc
 	BulkUpsertMDMAppleHostProfilesFuncInvoked bool
@@ -3853,9 +3849,6 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
-
-	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
-	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
 
 	MDMAppleHostDeclarationsGetAndClearResyncFunc        MDMAppleHostDeclarationsGetAndClearResyncFunc
 	MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked bool
@@ -4382,6 +4375,9 @@ type DataStore struct {
 	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
 	MapAdamIDsPendingInstallFuncInvoked bool
 
+	MapAdamIDsRecentlyVerifiedInstallsFunc        MapAdamIDsRecentlyVerifiedInstallsFunc
+	MapAdamIDsRecentlyVerifiedInstallsFuncInvoked bool
+
 	MapAdamIDsPendingInstallVerificationFunc        MapAdamIDsPendingInstallVerificationFunc
 	MapAdamIDsPendingInstallVerificationFuncInvoked bool
 
@@ -4450,6 +4446,9 @@ type DataStore struct {
 
 	GetSoftwareInstallersFunc        GetSoftwareInstallersFunc
 	GetSoftwareInstallersFuncInvoked bool
+
+	GetSoftwareInstallersPendingDeletionFunc        GetSoftwareInstallersPendingDeletionFunc
+	GetSoftwareInstallersPendingDeletionFuncInvoked bool
 
 	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
 	HasSelfServiceSoftwareInstallersFuncInvoked bool
@@ -4687,6 +4686,12 @@ type DataStore struct {
 
 	UpdateDeviceTxFunc        UpdateDeviceTxFunc
 	UpdateDeviceTxFuncInvoked bool
+
+	GetAndroidDeviceLastTeamIDFunc        GetAndroidDeviceLastTeamIDFunc
+	GetAndroidDeviceLastTeamIDFuncInvoked bool
+
+	UpdateTeamIDOnAndroidDevicesFunc        UpdateTeamIDOnAndroidDevicesFunc
+	UpdateTeamIDOnAndroidDevicesFuncInvoked bool
 
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
@@ -8651,6 +8656,13 @@ func (s *DataStore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial st
 	return s.GetHostDEPAssignmentsBySerialFunc(ctx, serial)
 }
 
+func (s *DataStore) ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial string, platform string, deletedHostID uint) (duplicateExists bool, err error) {
+	s.mu.Lock()
+	s.ReconcileDuplicateDEPHostOnDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileDuplicateDEPHostOnDeleteFunc(ctx, serial, platform, deletedHostID)
+}
+
 func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	s.mu.Lock()
 	s.GetNanoMDMEnrollmentFuncInvoked = true
@@ -8698,27 +8710,6 @@ func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Policy
 	s.OutdatedAutomationBatchFuncInvoked = true
 	s.mu.Unlock()
 	return s.OutdatedAutomationBatchFunc(ctx)
-}
-
-func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToInstallFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToInstallFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToRemoveFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToRemoveFunc(ctx)
-}
-
-func (s *DataStore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleProfilesToInstallAndRemoveFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
@@ -9300,13 +9291,6 @@ func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identif
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
-}
-
-func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
-	s.mu.Lock()
-	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {
@@ -10534,6 +10518,13 @@ func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (
 	return s.MapAdamIDsPendingInstallFunc(ctx, hostID)
 }
 
+func (s *DataStore) MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsRecentlyVerifiedInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsRecentlyVerifiedInstallsFunc(ctx, hostID, seconds)
+}
+
 func (s *DataStore) MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
 	s.mu.Lock()
 	s.MapAdamIDsPendingInstallVerificationFuncInvoked = true
@@ -10693,6 +10684,13 @@ func (s *DataStore) GetSoftwareInstallers(ctx context.Context, tmID uint) ([]fle
 	s.GetSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallersFunc(ctx, tmID)
+}
+
+func (s *DataStore) GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallersPendingDeletionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallersPendingDeletionFunc(ctx, tmID, incoming)
 }
 
 func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error) {
@@ -11246,6 +11244,20 @@ func (s *DataStore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, devi
 	s.UpdateDeviceTxFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateDeviceTxFunc(ctx, tx, device)
+}
+
+func (s *DataStore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
+	s.mu.Lock()
+	s.GetAndroidDeviceLastTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidDeviceLastTeamIDFunc(ctx, enterpriseSpecificID)
+}
+
+func (s *DataStore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	s.mu.Lock()
+	s.UpdateTeamIDOnAndroidDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateTeamIDOnAndroidDevicesFunc(ctx, hostUUIDs, teamID)
 }
 
 func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {

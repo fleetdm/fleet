@@ -244,6 +244,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   min_cvss_score?: number;
   max_cvss_score?: number;
   exploit?: boolean;
+  macos_applications?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
