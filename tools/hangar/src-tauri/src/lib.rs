@@ -115,8 +115,8 @@ pub fn run() {
         // reference after a runtime policy switch, falling back to
         // the executable name). Better to keep the dock icon visible
         // while hidden, and let the Reopen handler below catch
-        // dock-click to bring the window back. Same pattern as
-        // Slack / Discord.
+        // dock-click to bring the window back. The app stays in the dock
+        // (unlike Slack / Discord, which hide to the menubar).
         tauri::RunEvent::WindowEvent {
             event: tauri::WindowEvent::CloseRequested { api, .. },
             ..
