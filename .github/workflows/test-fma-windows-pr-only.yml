@@ -45,6 +45,7 @@ jobs:
           fetch-depth: 0 # Need full history to compare with base branch
           ref: ${{ github.ref }}
           path: fleet
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0

@@ -40,6 +40,7 @@ jobs:
       uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
       with:
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Install Ruby Gems
       working-directory: ./ee/tools/puppet/fleetdm/
