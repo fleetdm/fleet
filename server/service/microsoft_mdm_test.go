@@ -1282,6 +1282,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	require.NotNil(t, res)
 
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
+		"refresh should run when the pending-commands fetch returns empty")
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {

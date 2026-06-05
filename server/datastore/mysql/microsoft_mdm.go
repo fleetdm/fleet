@@ -327,8 +327,12 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 	}
 	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
 	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+		// The has_pending_commands = 1 guard keeps idle sessions (empty fetch, flag already 0 - the common case for
+		// fast-polling hosts) from taking a writer-side row lock for a no-op: the refresh only exists for the 1 -> 0
+		// transition, since the enqueue paths own 0 -> 1 by setting the flag directly.
 		stmt, args, err := sqlx.In(
-			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
+			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+
+				` WHERE e.id IN (?) AND e.has_pending_commands = 1`,
 			syncml.DMClientPollIntervalLocURI, batch,
 		)
 		if err != nil {
@@ -3857,9 +3861,12 @@ func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	// Acknowledged rows carry acked_at (stamped in the ack transaction), so GC is a single-table index range delete on
 	// (enrollment_id, acked_at)'s acked_at part - no join against windows_mdm_command_results needed. The 1-hour age
 	// floor preserves the resend/debugging window the join-based predicate had via r.created_at.
+	// ORDER BY makes the LIMIT deterministic (oldest acknowledged rows first) and keeps the optimizer on the acked_at
+	// index for a bounded range delete.
 	const stmt = `
 DELETE FROM windows_mdm_command_queue
 WHERE acked_at IS NOT NULL AND acked_at < NOW() - INTERVAL 1 HOUR
+ORDER BY acked_at
 LIMIT ?`
 	const maxBatches = 500 // cap total work per cron tick (500k rows)
 	var totalDeleted int64
