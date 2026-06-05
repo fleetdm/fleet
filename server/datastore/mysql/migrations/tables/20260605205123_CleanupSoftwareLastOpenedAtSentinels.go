@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260604164417, Down_20260604164417)
+	MigrationClient.AddMigration(Up_20260605205123, Down_20260605205123)
 }
 
-func Up_20260604164417(tx *sql.Tx) error {
+func Up_20260605205123(tx *sql.Tx) error {
 	// Some macOS apps report the sentinel last_opened_time 315532800.0
 	// (1980-01-01 UTC, the DOS/FAT epoch) for apps that were never opened. Older
 	// Fleet versions stored this as a genuine timestamp, which the UI then
@@ -28,6 +28,6 @@ func Up_20260604164417(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260604164417(tx *sql.Tx) error {
+func Down_20260605205123(tx *sql.Tx) error {
 	return nil
 }
