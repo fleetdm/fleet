@@ -1,0 +1,2 @@
+- Added Python 3.14 as a Windows Fleet-maintained app.
+- Normalized Python's reported version on Windows (e.g. `3.14.5150.0` -> `3.14.5`) so software inventory and vulnerability matching use the real version.
