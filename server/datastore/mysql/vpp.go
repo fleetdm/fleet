@@ -1283,6 +1283,26 @@ func (ds *Datastore) MapAdamIDsRecentInstalls(ctx context.Context, hostID uint, 
 	return adamIDs, nil
 }
 
+func (ds *Datastore) MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	// The window is keyed on verification_at (when the install became successful and
+	// triggered the host refetch), not created_at, so a long-running install verified
+	// recently still counts and the cooldown isn't bypassed. removed=1 rows are software
+	// no longer on the host, which should be reinstalled rather than throttled.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIDsList,
+		`SELECT DISTINCT(adam_id) FROM host_vpp_software_installs
+		WHERE host_id = ? AND canceled = 0 AND removed = 0
+			AND verification_at >= NOW() - INTERVAL ? SECOND`,
+		hostID, seconds); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list host recently verified VPP installs")
+	}
+	adamIDs = make(map[string]struct{}, len(adamIDsList))
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
 func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	return ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, ds.reader(ctx), cmdUUID, status)
 }
@@ -3005,7 +3025,8 @@ func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sql
 		if exists {
 			return ctxerr.Wrap(ctx, fleet.ConflictError{
 				Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
-					conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+					conflictingTitle, teamName),
+			}, "vpp app conflicts with existing software installer")
 		}
 	}
 

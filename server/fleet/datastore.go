@@ -1527,6 +1527,15 @@ type Datastore interface {
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
 
+	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
+	// being deleted when one or more duplicate hosts (same serial and platform,
+	// excluding deletedHostID) still exist. It returns true if such a duplicate
+	// exists, in which case the caller must NOT restore a pending "ghost" host.
+	// When a surviving duplicate has no DEP assignment of its own, the deleted
+	// host's assignment is transferred to it so the ABM relationship is
+	// preserved.
+	ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -1555,21 +1564,6 @@ type Datastore interface {
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 
-	// ListMDMAppleProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
-	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToInstallAndRemove returns the result of ListMDMAppleProfilesToInstall
-	// and ListMDMAppleProfilesToRemove but queries for them in an isolated manner so that the two
-	// lists reflect the same system state and no changes can be introduced between the queries.
-	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
-
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
@@ -1579,18 +1573,11 @@ type Datastore interface {
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
 	//
-	// This reconciles Apple profiles, Apple declarations, and Android profiles
-	// synchronously. Windows profile reconciliation is deferred: the
-	// mdm_windows_profile_manager cron processes bounded host-window batches
-	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
-	// populations may require multiple 30s ticks to converge. Callers must not
-	// assume host_mdm_windows_profiles rows are written by the time this
-	// function returns; if a caller needs immediate Windows state (e.g. a
-	// test, or a synchronous UX flow), it must trigger reconciliation
-	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
-	// production: the BatchSetMDMProfiles flow that consumes this field
-	// already gets an accurate transactional signal from BatchSetMDMProfiles
-	// itself, and no other caller reads the field.
+	// This reconciles Android profiles synchronously.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
+	// profile manager crons processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched), so large host
+	// populations may require multiple 30s ticks to converge.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -1940,8 +1927,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-	// MDMAppleBatchSetHostDeclarationState
-	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
 	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
 	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
@@ -2686,6 +2672,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsRecentlyVerifiedInstalls gets App Store IDs of VPP apps that were
+	// successfully installed (verified) on the host within the provided number of
+	// seconds. It is used to throttle continuous policy automation re-installs (see
+	// the continuousAutomationOnCooldown service helper): only a successful install
+	// requests a host refetch, so only successful installs can drive the loop the
+	// throttle prevents.
+	MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
 	// on VPP installations for a host
 	//
@@ -2751,6 +2745,12 @@ type Datastore interface {
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
+	// GetSoftwareInstallersPendingDeletion returns the software installers on the given team
+	// whose title matches none of the incoming title identifiers, i.e. the installers that a
+	// batch-set operation with those incoming titles will delete. It uses the same
+	// (unique_identifier, source) title-matching semantics as BatchSetSoftwareInstallers'
+	// deletion. An empty incoming list returns all installers on the team.
+	GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []SoftwareTitleIdentifier) ([]DeletedSoftwarePackage, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)

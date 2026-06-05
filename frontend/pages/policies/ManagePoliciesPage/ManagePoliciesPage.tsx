@@ -285,6 +285,7 @@ const ManagePolicyPage = ({
   const {
     data: globalPoliciesCount,
     isFetching: isFetchingGlobalCount,
+    isError: isErrorGlobalPoliciesCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
@@ -342,6 +343,7 @@ const ManagePolicyPage = ({
   const {
     data: teamPoliciesCountResponse,
     isFetching: isFetchingTeamCountMergeInherited,
+    isError: isErrorTeamPoliciesCount,
     refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
@@ -615,6 +617,38 @@ const ManagePolicyPage = ({
       (teamPoliciesCountResponse?.inherited_policy_count ?? 0);
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
+
+  // Open the Manage automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate the in-page button
+  // uses — the param alone must not surface a privileged modal to
+  // non-admins or when there's nothing to automate. Wait for the
+  // relevant count query to settle (data OR error) so
+  // `hasPoliciesToAutomate` is meaningful; then always strip the param
+  // so a refresh doesn't reopen and the URL doesn't get stuck if the
+  // count call errored.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    const countSettled = isAllTeamsSelected
+      ? globalPoliciesCount !== undefined || isErrorGlobalPoliciesCount
+      : teamPoliciesCountResponse !== undefined || isErrorTeamPoliciesCount;
+    if (!countSettled) return;
+    if (canEditAutomationsSettings && hasPoliciesToAutomate) {
+      setShowAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    canEditAutomationsSettings,
+    hasPoliciesToAutomate,
+    isAllTeamsSelected,
+    globalPoliciesCount,
+    teamPoliciesCountResponse,
+    isErrorGlobalPoliciesCount,
+    isErrorTeamPoliciesCount,
+  ]);
 
   const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
   // Inherited (global) policies are listed in team views, but their webhook

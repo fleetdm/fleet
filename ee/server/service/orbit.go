@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
@@ -85,14 +86,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		})
 	}
 
-	profilesMissingInstallation, err := svc.ds.ListMDMAppleProfilesToInstall(ctx, host.UUID)
+	profilesMissingInstallation, _, err := apple_mdm.PendingProfilesForHost(ctx, svc.ds, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing apple config profiles to install")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if host.Platform != "darwin" {
-		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
-	}
+
 	if len(profilesMissingInstallation) > 0 {
 		for _, prof := range profilesMissingInstallation {
 			cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
