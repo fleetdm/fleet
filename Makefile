@@ -182,6 +182,7 @@ else
 serve:
 	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
 	$(call filter_args)
+	@mkdir -p ~/.fleet
 # If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
 # Unless NO_SAVE is set to true, save the command to the last invocation file.
 # IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.

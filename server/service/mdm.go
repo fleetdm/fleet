@@ -1679,25 +1679,30 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add labels
-	var existsInclAll, existsInclAny, existsExclAny, existsDepr bool
+	var existsInclAll, existsInclAny, existsDepr bool
 	var deprecatedLabels []string
 	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
 	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
-	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	decoded.LabelsExcludeAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
-	// validate that only one of the labels type is provided
-	var count int
-	for _, b := range []bool{existsInclAll, existsInclAny, existsExclAny, existsDepr} {
+	// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
+	var includeCount int
+	for _, b := range []bool{existsInclAll, existsInclAny, existsDepr} {
 		if b {
-			count++
+			includeCount++
 		}
 	}
-	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`}
+	if includeCount > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`}
 	}
 	if existsDepr {
 		decoded.LabelsIncludeAll = deprecatedLabels
+	}
+
+	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
+	if overlap := fleet.ProfileLabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
 	}
 
 	return &decoded, nil
@@ -1729,15 +1734,13 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
 	isJSON := strings.EqualFold(fileExt, ".json")
 
+	// determine include mode; labels_exclude_any may be combined with any include mode
 	var labels []string
 	var labelsMode fleet.MDMLabelsMode
 	switch {
 	case len(req.LabelsIncludeAny) > 0:
 		labels = req.LabelsIncludeAny
 		labelsMode = fleet.LabelsIncludeAny
-	case len(req.LabelsExcludeAny) > 0:
-		labels = req.LabelsExcludeAny
-		labelsMode = fleet.LabelsExcludeAny
 	default:
 		// default include all
 		labels = req.LabelsIncludeAll
@@ -1765,7 +1768,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -1782,7 +1785,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1792,7 +1795,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isAndroidJSON {
-		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1802,7 +1805,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1837,7 +1840,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1872,19 +1875,21 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
+	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
-	case fleet.LabelsExcludeAny:
-		cp.LabelsExcludeAny = labelMap
+		cp.LabelsIncludeAny = includeLabels
 	default:
 		// default include all
-		cp.LabelsIncludeAll = labelMap
+		cp.LabelsIncludeAll = includeLabels
 	}
+	cp.LabelsExcludeAny = excludeLabels
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
 	if err != nil {
@@ -1957,17 +1962,40 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	return profLabels, nil
 }
 
-func (svc *Service) validateProfileLabels(ctx context.Context, teamID *uint, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateProfileLabels(ctx, teamID, labelNames)
+// validateDeclarationLabelSets validates both include and exclude label sets in a single DB round-trip
+// and returns the resolved slices ready to assign to the declaration struct.
+func (svc *Service) validateDeclarationLabelSets(ctx context.Context, teamID uint, labelsInclude, labelsExcludeAny []string) (include, exclude []fleet.ConfigurationProfileLabel, err error) {
+	allLabelMap, err := svc.batchValidateDeclarationLabels(ctx, slices.Concat(labelsInclude, labelsExcludeAny), teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating profile labels")
+		return nil, nil, err
 	}
+	include = make([]fleet.ConfigurationProfileLabel, 0, len(labelsInclude))
+	for _, name := range labelsInclude {
+		include = append(include, allLabelMap[name])
+	}
+	exclude = make([]fleet.ConfigurationProfileLabel, 0, len(labelsExcludeAny))
+	for _, name := range labelsExcludeAny {
+		exclude = append(exclude, allLabelMap[name])
+	}
+	return include, exclude, nil
+}
 
-	var profLabels []fleet.ConfigurationProfileLabel
-	for _, label := range labelMap {
-		profLabels = append(profLabels, label)
+// validateProfileLabelSets validates both include and exclude label sets in a single DB round-trip
+// and returns the resolved slices ready to assign to the profile struct.
+func (svc *Service) validateProfileLabelSets(ctx context.Context, teamID *uint, labelsInclude, labelsExcludeAny []string) (include, exclude []fleet.ConfigurationProfileLabel, err error) {
+	allLabelMap, err := svc.batchValidateProfileLabels(ctx, teamID, slices.Concat(labelsInclude, labelsExcludeAny))
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	return profLabels, nil
+	include = make([]fleet.ConfigurationProfileLabel, 0, len(labelsInclude))
+	for _, name := range labelsInclude {
+		include = append(include, allLabelMap[name])
+	}
+	exclude = make([]fleet.ConfigurationProfileLabel, 0, len(labelsExcludeAny))
+	for _, name := range labelsExcludeAny {
+		exclude = append(exclude, allLabelMap[name])
+	}
+	return include, exclude, nil
 }
 
 type batchModifyMDMConfigProfilesRequest struct {
@@ -2158,7 +2186,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM.EnableCustomOSUpdatesAndFileVault)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -2211,6 +2239,51 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+
+	var seenAppleDeclOSUpdate, seenWindowsProfileOSUpdate bool
+	var rawAppleDecl, rawWindowsProfile []byte
+	for _, p := range appleDeclsSlice {
+		if !bytes.Contains(p.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+			continue
+		}
+
+		seenAppleDeclOSUpdate = true
+		rawAppleDecl = p.RawJSON
+	}
+
+	for _, p := range windowsProfilesSlice {
+		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			continue
+		}
+
+		seenWindowsProfileOSUpdate = true
+		rawWindowsProfile = p.SyncML
+	}
+
+	if seenAppleDeclOSUpdate {
+		rawDecl, err := fleet.GetRawDeclarationValues(rawAppleDecl)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting raw declaration values")
+		}
+		// This is fine to only pass one of many into, it does re-check the type, but would be a no-op here as we have our guard above.
+		// So it checks the remaining things which is applicable for all profiles trying to set.
+		if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "handling declaration software update")
+		}
+	}
+
+	if seenWindowsProfileOSUpdate {
+		// This is fine to only pass one of many into, it does re-check the type, but would be a no-op here as we have our guard above.
+		// So it checks the remaining things which is applicable for all profiles trying to set.
+		if err := svc.handleWindowsProfileSoftwareUpdate(ctx, rawWindowsProfile, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "handling Windows profile software update")
+		}
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -2228,6 +2301,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
+	// OS-update (software update) profiles/declarations are tracked atomically
+	// inside BatchSetMDMProfiles' transaction.
 	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID,
 		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, androidProfilesSlice, profilesVariablesByIdentifier); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
@@ -2463,7 +2538,7 @@ func getAppleProfiles(
 			}
 
 			if !mdmConfig.AllowAllDeclarations {
-				if err := rawDecl.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
+				if err := rawDecl.ValidateUserProvided(); err != nil {
 					return nil, nil, err
 				}
 			}
@@ -2562,7 +2637,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.IsCustomFileVaultEnabled()); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2615,7 +2690,6 @@ func getWindowsProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-	enableCustomOSUpdatesAndFileVault bool,
 ) (map[int]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
@@ -2659,7 +2733,7 @@ func getWindowsProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(enableCustomOSUpdatesAndFileVault); err != nil {
+		if err := mdmProf.ValidateUserProvided(); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
@@ -2760,20 +2834,24 @@ func getAndroidProfiles(ctx context.Context,
 
 func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
-		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
-		var count int
+		// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
+		var includeCount int
 		for _, b := range []bool{
 			len(profile.LabelsIncludeAll) > 0,
 			len(profile.LabelsIncludeAny) > 0,
-			len(profile.LabelsExcludeAny) > 0,
 			len(profile.Labels) > 0,
 		} {
 			if b {
-				count++
+				includeCount++
 			}
 		}
-		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+		if includeCount > 1 {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
+		}
+
+		includeLabels := append(profile.LabelsIncludeAll, append(profile.Labels, profile.LabelsIncludeAny...)...) //nolint:gocritic
+		if overlap := fleet.ProfileLabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
+			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(`Couldn't edit configuration_profiles. Label %q cannot appear in both include and exclude lists.`, overlap))
 		}
 
 		if len(profile.Contents) > 1024*1024 {
@@ -3748,6 +3826,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostID:           host.ID,
 			HostSerial:       host.HardwareSerial,
 			HostDisplayName:  host.DisplayName(),
 			InstalledFromDEP: installedFromDEP,

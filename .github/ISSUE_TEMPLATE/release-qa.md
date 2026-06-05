@@ -182,9 +182,7 @@ Perform a quick visual scan of the UI and confirm:
 <td>
 
 1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
-2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
-4. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+2. Verify able to run MDM commands on macOS hosts from the CLI.
 
 </td>
 <td>pass/fail</td>
@@ -198,7 +196,6 @@ Perform a quick visual scan of the UI and confirm:
 1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
 2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 3. Turn off MDM on a non ADE-eligible macOS host.
-4. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 
 </td>
 <td>pass/fail</td>
@@ -209,7 +206,7 @@ Perform a quick visual scan of the UI and confirm:
 <td>Verify OS settings functionality.</td>
 <td>
 
-1. Verify Profiles upload/download/delete (macOS & Windows).
+1. Verify Profiles upload/download/delete.
 2. Verify Profiles are delivered to host and applied.
 
 </td>
@@ -251,21 +248,6 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
-<td>
-
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
 <td>Token & Certificate Renewals</td>
 <td>APNs cert and ABM token renewal workflow.</td>
 <td>
@@ -287,11 +269,103 @@ Run basic checks for the product group area while using a Fleet Free license.
 
 - Features documented as Free work normally:
    - Host enrollment
-   - Apple, Windows, Android MDM
+   - Apple and Android MDM
    - Configuration profile delivery
    - APNs Certificate renewal
 - Premium features are correctly restricted or hidden:
    - Setup experience
+- No UI, API, or workflow errors occur when using Free-only functionality.
+
+Reference: https://fleetdm.com/pricing
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>UI / UX</td>
+<td>Verify visual consistency and layout integrity across product group areas.</td>
+<td>
+
+Perform a quick visual scan of the UI and confirm:
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements).
+- Fonts, colors, and icons render correctly and match the design system.
+- UI components render correctly (buttons, inputs, tables).
+- No obvious visual regressions or broken UI states.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+</table>
+
+### Power to PC
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+
+<tr>
+<td>MDM enrollment flow</td>
+<td>Verify MDM enrollments, run MDM commands.</td>
+<td>
+
+1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
+2. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
+3. Verify able to run MDM commands on Windows hosts from the CLI.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>MDM migration flow</td>
+<td>Verify MDM migration for Windows hosts.</td>
+<td>
+
+1. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>OS settings</td>
+<td>Verify OS settings functionality.</td>
+<td>
+
+1. Verify Profiles upload/download/delete.
+2. Verify Profiles are delivered to host and applied.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Setup Experience</td>
+<td>Verify Windows Setup experience.</td>
+<td>
+
+1. Configure End user authentication.
+2. Add software (FMA, Custom pkg).
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Fleet Free</td>
+<td>Verify that product group features behave correctly on Fleet Free.</td>
+<td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+
+- Features documented as Free work normally:
+   - Host enrollment
+   - Windows MDM
+   - Configuration profile delivery
+- Premium features are correctly restricted or hidden:
+   - Automatic MDM migration
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
@@ -477,6 +551,21 @@ Perform a quick visual scan of the UI and confirm:
     1. DigiCert
     2. NDES
     3. SmallStep
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Android</td>
+<td>Verify enrollment, profiles, & software installs.</td>
+<td>
+
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify certificate delivery.
+5. Verify `Unenroll`.
 
 </td>
 <td>pass/fail</td>

@@ -66,7 +66,7 @@ func (svc *Service) registerVPPClientUser(ctx context.Context, tokenID uint, man
 
 	// v1 registerVPPUserSrv is synchronous — a successful response means the
 	// user is registered and ready to receive license associations.
-	appleUserID, err := vpp.RegisterUser(token, clientUserID, managedAppleID)
+	appleUserID, err := vpp.RegisterUser(ctx, token, clientUserID, managedAppleID)
 	if err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "registering vpp user for managed apple id %q", managedAppleID)
 	}

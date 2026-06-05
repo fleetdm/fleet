@@ -95,7 +95,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -123,9 +123,10 @@ jobs:
           scan-type: "fs"
           ignore-unfixed: false
           # PR/push: only scan for secrets (block leaked credentials before merge).
-          # Schedule/manual: full scan (vuln + secret + misconfig) with SARIF upload
-          # to the Security tab for triage. CVEs are tracked nightly, not per-PR.
-          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret,misconfig' || 'secret' }}
+          # Schedule/manual: vuln + secret with SARIF upload to the Security tab
+          # for triage. CVEs are tracked nightly, not per-PR. Misconfig is
+          # intentionally excluded; revisit after the SOC 2 audit.
+          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret' || 'secret' }}
           format: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'sarif' || 'table' }}
           output: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'trivy-results.sarif' || '' }}
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}

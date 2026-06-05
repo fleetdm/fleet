@@ -90,6 +90,7 @@ func TestMDMApple(t *testing.T) {
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
+		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
@@ -305,8 +306,12 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
-	// break the profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	// simulate a broken label by nullifying its id in the join table
+	// (direct DeleteLabel is now blocked when referenced by a profile)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE apple_profile_uuid = ? AND label_id = ?`, labelProf.ProfileUUID, lbl.ID)
+		return err
+	})
 
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
@@ -6601,6 +6606,46 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, toks.DeclarationsToken)
 	require.NotZero(t, toks.Timestamp)
 	require.NotEqual(t, oldTok, toks.DeclarationsToken)
+}
+
+func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	suDecl := func(name, identifier string) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: identifier,
+			Name:       name,
+			RawJSON: json.RawMessage(fmt.Sprintf(`{
+				"Type": %q,
+				"Identifier": %q,
+				"Payload": {"TargetOSVersion": "14.0", "TargetLocalDateTime": "2025-01-01T12:00:00"}
+			}`, apple_mdm.DeclarationTypeSoftwareUpdate, identifier)),
+		}
+	}
+
+	// The first OS-update declaration is created and tracked.
+	_, err := ds.NewMDMAppleDeclaration(ctx, suDecl("su1", "com.fleet.su1"), nil)
+	require.NoError(t, err)
+
+	configured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, configured)
+
+	// A second OS-update declaration for the same team is allowed.
+	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil)
+	require.NoError(t, err)
+
+	// The allowed declaration must have been persisted.
+	var persistedCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &persistedCount,
+			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE team_id = 0 AND identifier = ?`, "com.fleet.su2")
+	})
+	require.Equal(t, 1, persistedCount)
+
+	// A non OS-update declaration is unaffected by the existing tracked one.
+	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil)
+	require.NoError(t, err)
 }
 
 func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {

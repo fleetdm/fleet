@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1317,9 +1318,15 @@ type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, 
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
+
+type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
+
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
 
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
@@ -1343,7 +1350,7 @@ type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID 
 
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
-type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
+type GetMDMWindowsHostConfigStateFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error)
 
 type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
@@ -1563,6 +1570,8 @@ type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uin
 
 type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+type MapAdamIDsRecentlyVerifiedInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 type MapAdamIDsPendingInstallVerificationFunc func(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error)
 
 type MapAdamIDsRecentInstallsFunc func(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
@@ -1602,6 +1611,8 @@ type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, instal
 type BatchSetInHouseAppsInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
 type GetSoftwareInstallersFunc func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error)
+
+type GetSoftwareInstallersPendingDeletionFunc func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error)
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
 
@@ -2040,6 +2051,14 @@ type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID s
 type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
+
+type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
+
+type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
+
+type GetTraceSamplerSettingsFunc func(ctx context.Context) (*tracing.Settings, error)
+
+type SetTraceSamplerSettingsFunc func(ctx context.Context, settings *tracing.Settings) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3983,11 +4002,20 @@ type DataStore struct {
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
 
+	MDMWindowsEnqueuePollScheduleCommandFunc        MDMWindowsEnqueuePollScheduleCommandFunc
+	MDMWindowsEnqueuePollScheduleCommandFuncInvoked bool
+
+	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
+	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
+
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
 
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked bool
+
+	WindowsHostLiteByHardwareSerialFunc        WindowsHostLiteByHardwareSerialFunc
+	WindowsHostLiteByHardwareSerialFuncInvoked bool
 
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
@@ -4022,8 +4050,8 @@ type DataStore struct {
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
 
-	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
-	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
+	GetMDMWindowsHostConfigStateFunc        GetMDMWindowsHostConfigStateFunc
+	GetMDMWindowsHostConfigStateFuncInvoked bool
 
 	HasWindowsSetupExperienceItemsForTeamFunc        HasWindowsSetupExperienceItemsForTeamFunc
 	HasWindowsSetupExperienceItemsForTeamFuncInvoked bool
@@ -4352,6 +4380,9 @@ type DataStore struct {
 	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
 	MapAdamIDsPendingInstallFuncInvoked bool
 
+	MapAdamIDsRecentlyVerifiedInstallsFunc        MapAdamIDsRecentlyVerifiedInstallsFunc
+	MapAdamIDsRecentlyVerifiedInstallsFuncInvoked bool
+
 	MapAdamIDsPendingInstallVerificationFunc        MapAdamIDsPendingInstallVerificationFunc
 	MapAdamIDsPendingInstallVerificationFuncInvoked bool
 
@@ -4411,6 +4442,9 @@ type DataStore struct {
 
 	GetSoftwareInstallersFunc        GetSoftwareInstallersFunc
 	GetSoftwareInstallersFuncInvoked bool
+
+	GetSoftwareInstallersPendingDeletionFunc        GetSoftwareInstallersPendingDeletionFunc
+	GetSoftwareInstallersPendingDeletionFuncInvoked bool
 
 	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
 	HasSelfServiceSoftwareInstallersFuncInvoked bool
@@ -5068,6 +5102,18 @@ type DataStore struct {
 
 	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
 	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
+
+	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
+	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
+
+	HasWindowsUpdateConfigProfileConfiguredFunc        HasWindowsUpdateConfigProfileConfiguredFunc
+	HasWindowsUpdateConfigProfileConfiguredFuncInvoked bool
+
+	GetTraceSamplerSettingsFunc        GetTraceSamplerSettingsFunc
+	GetTraceSamplerSettingsFuncInvoked bool
+
+	SetTraceSamplerSettingsFunc        SetTraceSamplerSettingsFunc
+	SetTraceSamplerSettingsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9601,6 +9647,20 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context,
 	return s.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
 }
 
+func (s *DataStore) MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error {
+	s.mu.Lock()
+	s.MDMWindowsEnqueuePollScheduleCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsEnqueuePollScheduleCommandFunc(ctx, mdmDeviceID, enrollmentID, cmd, relaxed)
+}
+
+func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error {
+	s.mu.Lock()
+	s.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsEnrollmentFleetdSyncCapableFunc(ctx, hostUUID, capable)
+}
+
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = true
@@ -9613,6 +9673,13 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx contex
 	s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc(ctx, deviceName)
+}
+
+func (s *DataStore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error) {
+	s.mu.Lock()
+	s.WindowsHostLiteByHardwareSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsHostLiteByHardwareSerialFunc(ctx, hardwareSerial)
 }
 
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
@@ -9692,11 +9759,11 @@ func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmD
 	return s.SetMDMWindowsAwaitingConfigurationFunc(ctx, mdmDeviceID, expectFrom, to)
 }
 
-func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+func (s *DataStore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 	s.mu.Lock()
-	s.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = true
+	s.GetMDMWindowsHostConfigStateFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
+	return s.GetMDMWindowsHostConfigStateFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
@@ -10462,6 +10529,13 @@ func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (
 	return s.MapAdamIDsPendingInstallFunc(ctx, hostID)
 }
 
+func (s *DataStore) MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error) {
+	s.mu.Lock()
+	s.MapAdamIDsRecentlyVerifiedInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsRecentlyVerifiedInstallsFunc(ctx, hostID, seconds)
+}
+
 func (s *DataStore) MapAdamIDsPendingInstallVerification(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
 	s.mu.Lock()
 	s.MapAdamIDsPendingInstallVerificationFuncInvoked = true
@@ -10600,6 +10674,13 @@ func (s *DataStore) GetSoftwareInstallers(ctx context.Context, tmID uint) ([]fle
 	s.GetSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallersFunc(ctx, tmID)
+}
+
+func (s *DataStore) GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallersPendingDeletionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallersPendingDeletionFunc(ctx, tmID, incoming)
 }
 
 func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error) {
@@ -12133,4 +12214,32 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	s.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
+}
+
+func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasAppleUpdateConfigProfileConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAppleUpdateConfigProfileConfiguredFunc(ctx, teamID)
+}
+
+func (s *DataStore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasWindowsUpdateConfigProfileConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasWindowsUpdateConfigProfileConfiguredFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error) {
+	s.mu.Lock()
+	s.GetTraceSamplerSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTraceSamplerSettingsFunc(ctx)
+}
+
+func (s *DataStore) SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error {
+	s.mu.Lock()
+	s.SetTraceSamplerSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetTraceSamplerSettingsFunc(ctx, settings)
 }

@@ -10,4 +10,8 @@
     flex-direction: column;
     gap: $gap-page-component;
   }
+
+  &__sub-header {
+    font-size: $x-small;
+  }
 }

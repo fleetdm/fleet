@@ -1,3 +1,21 @@
+## 1.56.2 (Jun 04, 2026)
+
+* Added the `orbit.debug_logging_on_enroll_duration` agent option to allow enabling orbit debug logging for a specified time period after enrollment.
+
+* Fixed Fleet Desktop failing to start on openSUSE Leap 16, by dropping the `-i` (login shell) flag from the sudo invocation used to launch Fleet Desktop and key-escrow dialogs as the logged-in user.
+
+* Updated orbit to rotate desktop token ("identifier" file) even if Fleet Desktop is disabled.
+
+* Improved validation around file paths in Orbit.
+
+* Fixed Fleet Desktop tray icon in KDE:
+  * Fixed the tray icon appearing oversized in KDE Plasma on Linux installs when hosts have kde-plasma-desktop installed alongside another window manager.
+  * Used the color version of the icon on KDE to improve UX on light/dark themes.
+
+* Updated go to 1.26.3.
+
+* Added new `adobe_plugins` osquery extension table to fleetd that detects Adobe CEP, UXP, and native plug-ins on macOS and Windows by scanning well-known directories and parsing plugin manifests for name, version, vendor, host application, and other metadata.
+
 ## 1.55.0 (May 05, 2026)
 
 * Updated go to 1.26.2.

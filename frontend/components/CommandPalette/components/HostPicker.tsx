@@ -80,7 +80,7 @@ const HostPicker = ({
             </span>
             {showTeamColumn && (
               <span className={`${baseClass}__host-team`}>
-                {host.team_name ?? ""}
+                {host.team_name || "Unassigned"}
               </span>
             )}
           </Command.Item>

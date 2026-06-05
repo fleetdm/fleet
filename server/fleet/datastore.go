@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -2108,6 +2109,14 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+	// enrollment.
+	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
+
+	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
+	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
+	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2116,6 +2125,9 @@ type Datastore interface {
 	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't
 	// find a row because the host->enrollment link has not been resolved yet.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*MDMWindowsEnrolledDevice, error)
+
+	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
+	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
@@ -2158,10 +2170,10 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
-	// configuration value for the Windows MDM enrollment of the given host.
-	// This is a lightweight read for the orbit config polling path.
-	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state: the awaiting-configuration value and whether
+	// the host's most recent enrollment has queued, unacknowledged commands (the denormalized has_pending_commands
+	// flag). Returns NotFound if the host has no Windows MDM enrollment.
+	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
 
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
@@ -2400,6 +2412,8 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	// An OS-update (software update) profile is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
@@ -2413,6 +2427,8 @@ type Datastore interface {
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
+	// An OS-update (software update) declaration is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
@@ -2670,6 +2686,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsRecentlyVerifiedInstalls gets App Store IDs of VPP apps that were
+	// successfully installed (verified) on the host within the provided number of
+	// seconds. It is used to throttle continuous policy automation re-installs (see
+	// the continuousAutomationOnCooldown service helper): only a successful install
+	// requests a host refetch, so only successful installs can drive the loop the
+	// throttle prevents.
+	MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
 	// on VPP installations for a host
 	//
@@ -2735,6 +2759,12 @@ type Datastore interface {
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
+	// GetSoftwareInstallersPendingDeletion returns the software installers on the given team
+	// whose title matches none of the incoming title identifiers, i.e. the installers that a
+	// batch-set operation with those incoming titles will delete. It uses the same
+	// (unique_identifier, source) title-matching semantics as BatchSetSoftwareInstallers'
+	// deletion. An empty incoming list returns all installers on the team.
+	GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []SoftwareTitleIdentifier) ([]DeletedSoftwarePackage, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
@@ -3331,6 +3361,22 @@ type Datastore interface {
 	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
+
+	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
+	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
+	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// TraceSamplerStore
+
+	// GetTraceSamplerSettings returns the singleton trace_sampler_settings row.
+	GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error)
+
+	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
+	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
+	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
 }
 
 type AndroidDatastore interface {
@@ -3390,9 +3436,9 @@ type AndroidDatastore interface {
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
-	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
-	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
-	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads). For BYO Android
+	// the resulting transient wipe status is suppressed (see suppressAndroidBYODWipeStatus) so no pending badge is shown. The caller
+	// must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the
