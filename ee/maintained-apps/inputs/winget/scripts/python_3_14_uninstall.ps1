@@ -1,25 +1,27 @@
-# Locates Python 3.14's WiX "Burn" bundle registration from the registry and
-# runs its uninstaller silently. python.org's per-machine x64 installer registers
-# a bundle DisplayName of exactly "Python 3.14.<patch> (64-bit)" with Publisher
-# "Python Software Foundation", PLUS a set of component MSIs with names like
-# "Python 3.14.<patch> Executables (64-bit)" / "...Core Interpreter (64-bit)".
-# We must uninstall the BUNDLE (an exe with "/uninstall"), which removes all of
-# its components; uninstalling a component MSI directly leaves the rest behind.
-# Hence the strict anchored match below that excludes the component entries.
+# python.org's Windows installer is a WiX "Burn" bundle. A per-machine x64
+# install registers MANY visible uninstall entries:
+#   * the bundle:    "Python 3.14.<patch> (64-bit)" -> a cached Burn EXE run with
+#                    "/uninstall" (removes the bundle and all of its components)
+#   * components:    "Python 3.14.<patch> Core Interpreter (64-bit)",
+#                    "...Standard Library (64-bit)", etc. -> individual MSIs
+#
+# Strategy (mirrors the Power BI Burn uninstaller):
+#   Phase 1: uninstall the bundle via its EXE. Burn relaunches a cached copy of
+#            itself and drives msiexec asynchronously, so wait for those to exit.
+#   Phase 2: sweep any component MSIs the bundle left behind via msiexec /X.
+# We match on the DisplayName only (anchored for the bundle) rather than on the
+# Publisher string, and scan every hive osquery's "programs" table reads, so the
+# uninstall doesn't silently no-op on a publisher/registry-view mismatch.
 
-$publisher = "Python Software Foundation"
-# Matches only the bundle, e.g. "Python 3.14.5 (64-bit)" — not components such as
-# "Python 3.14.5 Executables (64-bit)".
+# Catches the bundle and every component entry.
+$pythonNameLike = "Python 3.14.* (64-bit)"
+# Anchored: matches ONLY the bundle, e.g. "Python 3.14.5 (64-bit)" — not
+# components such as "Python 3.14.5 Core Interpreter (64-bit)".
 $bundleNamePattern = '^Python 3\.14\.\d+ \(64-bit\)$'
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
-# 0 = success, 3010 = success (reboot required), 1641 = success (reboot
-# initiated), 1605 = product already uninstalled.
-$ExpectedExitCodes = @(0, 1605, 1641, 3010)
+# 0 = success, 1605 = product not installed, 1614 = product already uninstalled,
+# 1641 = success (reboot initiated), 3010 = success (reboot required).
+$ExpectedExitCodes = @(0, 1605, 1614, 1641, 3010)
 $exitCode = 0
 
 function Wait-ForProcessExit {
@@ -33,89 +35,109 @@ function Wait-ForProcessExit {
     }
 }
 
+function Get-UninstallRoots {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
+    return $roots
+}
+
+function Get-PythonEntries {
+    param([string[]]$Roots, [string]$NameLike)
+    $list = @()
+    foreach ($root in $Roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            if ($key.DisplayName -notlike $NameLike) { continue }
+            $list += [PSCustomObject]@{
+                DisplayName  = $key.DisplayName
+                KeyName      = $sub.PSChildName
+                Uninstall    = $key.UninstallString
+                QuietUninstall = $key.QuietUninstallString
+            }
+        }
+    }
+    return $list
+}
+
+function Get-ExePath {
+    param([string]$Command)
+    if ($Command -match '^\s*"([^"]+)"') { return $Matches[1] }
+    if ($Command -match '(?i)^\s*(.+?\.exe)(\s|$)') { return $Matches[1] }
+    return $null
+}
+
 try {
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path $paths `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
-
-$selected = $null
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and `
-        $key.DisplayName -match $bundleNamePattern -and `
-        $key.Publisher -eq $publisher) {
-        $selected = $key
-        break
+    $roots = Get-UninstallRoots
+    $entries = Get-PythonEntries -Roots $roots -NameLike $pythonNameLike
+    if ($entries.Count -eq 0) {
+        Write-Host "No Python 3.14 (64-bit) entries found (already removed)."
+        Exit 0
     }
-}
 
-if (-not $selected) {
-    Write-Host "No Python 3.14 (64-bit) bundle entry found (already removed)."
-    Exit 0
-}
+    # Best-effort: stop any running interpreter so component MSIs aren't locked.
+    foreach ($proc in @("python", "pythonw", "py")) {
+        Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
+    }
 
-# Burn bundles expose a QuietUninstallString that already includes the silent
-# flags; fall back to UninstallString otherwise.
-$uninstallCommand = if ($selected.QuietUninstallString) {
-    $selected.QuietUninstallString
-} else {
-    $selected.UninstallString
-}
+    # --- Phase 1: uninstall the Burn bundle(s) FIRST. ---
+    foreach ($e in ($entries | Where-Object { $_.DisplayName -match $bundleNamePattern })) {
+        $command = if ($e.QuietUninstall) { $e.QuietUninstall } else { $e.Uninstall }
+        if (-not $command) { Write-Host "No uninstall string for bundle '$($e.DisplayName)'"; continue }
 
-if (-not $uninstallCommand) {
-    Write-Host "Uninstall string not found for '$($selected.DisplayName)'"
-    Exit 1
-}
+        $exe = Get-ExePath $command
+        if (-not $exe) { Write-Host "Could not parse bundle exe from: $command"; continue }
+        if (-not (Test-Path -LiteralPath $exe)) { Write-Host "Bundle exe missing: $exe"; continue }
 
-# Split the uninstall string into exe + args. Handle quoted paths, unquoted paths
-# that may contain spaces, and bare tokens.
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
-}
+        Write-Host "Uninstalling bundle: '$($e.DisplayName)'"
+        Write-Host "  Command: $exe"
+        Write-Host "  Args: /uninstall /quiet /norestart"
+        $p = Start-Process -FilePath $exe -ArgumentList "/uninstall /quiet /norestart" -PassThru -Wait
+        Write-Host "  Exit code: $($p.ExitCode)"
+        if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
 
-# Ensure the bundle runs in silent uninstall mode without prompting for a reboot.
-if ($existingArgs -notmatch '(?i)/uninstall') { $existingArgs = ("/uninstall $existingArgs").Trim() }
-if ($existingArgs -notmatch '(?i)/quiet')     { $existingArgs = ("$existingArgs /quiet").Trim() }
-if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
+        # Burn relaunches a cached copy of itself and spawns msiexec asynchronously.
+        # Give the relaunch a moment to appear, then wait for it (and msiexec) to finish.
+        Start-Sleep -Seconds 3
+        $exeName = [System.IO.Path]::GetFileNameWithoutExtension($exe)
+        Wait-ForProcessExit -Names @($exeName, "msiexec") -TimeoutSeconds 300
+    }
 
-Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $existingArgs"
+    # --- Phase 2: remove any component MSIs the bundle didn't clean up. ---
+    foreach ($e in (Get-PythonEntries -Roots $roots -NameLike $pythonNameLike)) {
+        $msiCode = $null
+        if ($e.Uninstall -match "(?i)MsiExec\.exe\s+/[IX]\s*(\{[A-F0-9-]+\})") { $msiCode = $Matches[1] }
+        elseif ($e.KeyName -match "(?i)^\{[A-F0-9-]+\}$") { $msiCode = $e.KeyName }
+        if (-not $msiCode) {
+            Write-Host "Skipping non-MSI leftover: '$($e.DisplayName)' ($($e.Uninstall))"
+            continue
+        }
 
-$processOptions = @{
-    FilePath = $exePath
-    ArgumentList = $existingArgs
-    PassThru = $true
-    Wait = $true
-}
+        Write-Host "Removing leftover MSI: '$($e.DisplayName)' ($msiCode)"
+        $p = Start-Process -FilePath "msiexec.exe" -ArgumentList "/X $msiCode /qn /norestart" -PassThru -Wait
+        Write-Host "  Exit code: $($p.ExitCode)"
+        Wait-ForProcessExit -Names @("msiexec") -TimeoutSeconds 240
+        if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
+    }
 
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
-Write-Host "Uninstall exit code: $exitCode"
-
-# Burn relaunches a cached copy of itself and drives msiexec to remove the
-# component MSIs asynchronously, so the launched process can return before the
-# work is done. Wait for those to finish before we report success, otherwise a
-# follow-up inventory check may still see lingering component entries.
-$exeName = [System.IO.Path]::GetFileNameWithoutExtension($exePath)
-Wait-ForProcessExit -Names @($exeName, "msiexec") -TimeoutSeconds 240
-
-if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
-Exit $exitCode
+    # Verify nothing remains in the programs table.
+    $remaining = Get-PythonEntries -Roots $roots -NameLike $pythonNameLike
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Python 3.14 entry(ies) still present after uninstall:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName)" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
 
 } catch {
     Write-Host "Error: $_"
-    Exit 1
+    $exitCode = 1
 }
+
+if ($ExpectedExitCodes -contains $exitCode) { Exit 0 } else { Exit $exitCode }
