@@ -70,6 +70,20 @@ Other useful commands:
 
 The first-run gate handles the rest — it will discover your Fleet clones, check dependencies, and let you pick which clone to point at.
 
+## Running an unsigned build
+
+The packaged `.app` isn't code-signed or notarized, so macOS quarantines it once it's copied to another machine (or into a VM) and refuses to open it with a misleading "damaged" / "can't be opened" error. Clear the quarantine flag to run it (adjust the path to wherever the `.app` lives):
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Fleet Hangar.app"
+```
+
+If it still won't open on Apple Silicon, give it an ad-hoc signature first (an unsigned arm64 app needs at least this to run):
+
+```sh
+codesign --force --deep --sign - "/Applications/Fleet Hangar.app"
+```
+
 ## Notes
 
 - Bundle identifier is `com.fleetdm.fleet-hangar`. Settings and logs are scoped to that identifier under the standard macOS app-support / `~/Library/Logs` paths. DB backups instead live in a `db-backups/` folder inside the Fleet repo (with its own `.gitignore` so the dumps stay out of git).
