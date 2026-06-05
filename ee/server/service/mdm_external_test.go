@@ -96,6 +96,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil, // ejbcaService
 		nil,
 		nil,
 		nil,
@@ -126,6 +127,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil, // ejbcaService
 		nil,
 		nil,
 	)

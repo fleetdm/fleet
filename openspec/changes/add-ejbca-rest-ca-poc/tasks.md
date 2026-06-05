@@ -105,16 +105,24 @@ this is a learning POC, not a production ship.
 
 ## 5. Service layer wiring
 
-- [ ] Add `ejbcaService fleet.EJBCAService` to the EE service struct;
-      inject in `cmd/fleet` setup.
-- [ ] Implement `validateEJBCA(payload)` (mirror `validateDigicert`):
-      required-field checks, URL parse, PEM cert+key parse,
-      `tls.X509KeyPair()` to confirm they match, optional trust bundle parse.
-- [ ] Wire `NewCertificateAuthority` EJBCA branch: validate → encrypt →
-      persist → call `VerifyConnection` → on failure, return wrapped error
-      (do not persist).
-- [ ] Wire `UpdateCertificateAuthority` EJBCA branch: same shape.
-- [ ] Skip GitOps for the POC. `BatchApplyCertificateAuthorities` and
+- [x] Add `ejbcaService fleet.EJBCAService` to the EE service struct;
+      inject in `cmd/fleet` setup. Also added to the core service.Service
+      and threaded through svctest + testing_utils + mdm_external_test
+      callers.
+- [x] Implement `validateEJBCA(payload)`: name + URL + profile-name
+      checks, P12 + password required, decode P12 once (extract cert +
+      key as PEM, discard the bundle and password), trust bundle parse
+      if provided, Fleet-var allow-list check on username_template + UPNs,
+      probe EJBCA via `VerifyConnection`.
+- [x] Wire `NewCertificateAuthority` EJBCA branch: validate (which
+      includes the VerifyConnection probe) → set caToCreate fields →
+      datastore insert → activity log.
+- [x] Wire `UpdateCertificateAuthority` EJBCA branch: validateEJBCAUpdate
+      decodes any new P12 and probes the merged (new + existing) config
+      before persistence. Returns the decoded PEM cert/key for the
+      caller to plumb into caToUpdate.
+- [x] Wire `DeleteCertificateAuthority` EJBCA branch (ActivityDeletedEJBCA).
+- [x] Skip GitOps for the POC. `BatchApplyCertificateAuthorities` and
       `ValidateCertificateAuthoritiesSpec` are NOT extended for EJBCA in
       this change — see proposal.md "Out of scope" and design.md "GitOps
       — deferred". Follow-up alongside the production implementation.
