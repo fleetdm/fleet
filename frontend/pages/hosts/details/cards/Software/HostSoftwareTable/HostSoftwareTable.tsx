@@ -132,11 +132,14 @@ const HostSoftwareTable = ({
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         fleet_id: teamId,
+        ...(macosApplicationsFilter !== undefined && {
+          macos_applications: macosApplicationsFilter,
+        }),
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [vulnFilters, teamId, macosApplicationsFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
