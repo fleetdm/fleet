@@ -1549,7 +1549,24 @@ function NgrokSection({
         label="Enable ngrok"
         description="Show ngrok in the Active processes panel on the Server tab."
         checked={cfg.enabled}
-        onChange={(v) => updateDefaults({ enabled: v })}
+        onChange={(v) => {
+          // Enabling with nothing selected leaves ngrok unlaunchable and
+          // it's easy to miss — pre-select the first tunnel from the
+          // parsed ngrok.yml so it's ready to start.
+          if (
+            v &&
+            !cfg.start_all &&
+            cfg.default_tunnels.length === 0 &&
+            info?.tunnels.length
+          ) {
+            updateDefaults({
+              enabled: true,
+              default_tunnels: [info.tunnels[0].name],
+            });
+          } else {
+            updateDefaults({ enabled: v });
+          }
+        }}
       />
 
       <div

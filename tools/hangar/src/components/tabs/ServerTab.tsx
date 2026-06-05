@@ -1254,30 +1254,28 @@ function ActiveProcessesPanel({
             down={!docker.up}
           />
         </Cell>
-        {showNgrok && (
-          <NgrokCell
-            running={ngrokRunning}
-            info={ngrokInfo}
-            settings={settings}
-            preview={ngrokArgs().preview}
-            busy={busy?.startsWith("ngrok-") ?? false}
-            onStart={ngrokStart}
-            onStop={ngrokStop}
-            onSettings={() => goToSettings("ngrok")}
-            onToggleTunnel={toggleNgrokTunnel}
-          />
-        )}
-        {showPython && (
-          <PythonCell
-            running={pythonRunning}
-            settings={settings}
-            preview={pythonArgs().preview}
-            busy={busy?.startsWith("python-") ?? false}
-            onStart={pythonStart}
-            onStop={pythonStop}
-            onSettings={() => goToSettings("python")}
-          />
-        )}
+        {/* Always rendered, even when disabled, so users can see these
+            optional services exist and jump to Settings to enable them. */}
+        <NgrokCell
+          running={ngrokRunning}
+          info={ngrokInfo}
+          settings={settings}
+          preview={ngrokArgs().preview}
+          busy={busy?.startsWith("ngrok-") ?? false}
+          onStart={ngrokStart}
+          onStop={ngrokStop}
+          onSettings={() => goToSettings("ngrok")}
+          onToggleTunnel={toggleNgrokTunnel}
+        />
+        <PythonCell
+          running={pythonRunning}
+          settings={settings}
+          preview={pythonArgs().preview}
+          busy={busy?.startsWith("python-") ?? false}
+          onStart={pythonStart}
+          onStop={pythonStop}
+          onSettings={() => goToSettings("python")}
+        />
       </div>
     </div>
   );
@@ -1313,6 +1311,49 @@ function StarterCell({
     >
       {children}
     </div>
+  );
+}
+
+/// Greyed-out placeholder for an optional service (ngrok / python) that
+/// is turned off in Settings. Keeps the box visible on the Server tab so
+/// users know the service exists, with a link to enable it. The header
+/// is dimmed; the Settings link stays at full opacity so it reads as the
+/// one actionable element.
+function DisabledServiceCell({
+  name,
+  settingsLabel,
+  onSettings,
+}: {
+  name: string;
+  settingsLabel: string;
+  onSettings: () => void;
+}) {
+  return (
+    <StarterCell>
+      <div style={{ opacity: 0.55, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="dot idle" />
+          <div className="card-title">
+            {name}{" "}
+            <span className="dim" style={{ fontWeight: 400 }}>
+              · disabled
+            </span>
+          </div>
+        </div>
+        <div className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
+          Optional service — enable it in Settings to run it from here.
+        </div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <button
+          onClick={onSettings}
+          className="link-btn"
+          style={{ fontSize: "var(--fs-xx-small)" }}
+        >
+          {settingsLabel}
+        </button>
+      </div>
+    </StarterCell>
   );
 }
 
@@ -1355,6 +1396,16 @@ function NgrokCell({
           down={false}
         />
       </Cell>
+    );
+  }
+
+  if (!cfg.enabled) {
+    return (
+      <DisabledServiceCell
+        name="ngrok"
+        settingsLabel="Settings → ngrok ↗"
+        onSettings={onSettings}
+      />
     );
   }
 
@@ -1488,6 +1539,16 @@ function PythonCell({
           down={false}
         />
       </Cell>
+    );
+  }
+
+  if (!cfg.enabled) {
+    return (
+      <DisabledServiceCell
+        name="python http.server"
+        settingsLabel="Settings → http.server ↗"
+        onSettings={onSettings}
+      />
     );
   }
 
