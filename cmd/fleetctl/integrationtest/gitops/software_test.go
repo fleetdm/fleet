@@ -1219,6 +1219,39 @@ software:
 			},
 		},
 		{
+			name: "all fleets is supported",
+			cfgs: []string{
+				global(`
+                        volume_purchasing_program:
+                          - location: Fleet Device Management Inc.
+                            teams:
+                              - "All fleets"`),
+				workstations,
+				iosTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"All fleets",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
 			name: "not provided teams defaults to no team",
 			cfgs: []string{
 				global(`
