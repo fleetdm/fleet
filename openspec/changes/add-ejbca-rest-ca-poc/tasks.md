@@ -129,13 +129,30 @@ this is a learning POC, not a production ship.
 
 ## 6. MDM profile processor
 
-- [ ] Add EJBCA branches in `server/mdm/apple/profile_processor.go`:
-      - `isCAConfigured` → recognize `FLEET_VAR_EJBCA_*` prefixes.
-      - validation phase → ensure the named CA exists.
-      - expansion phase → per host, deep-copy CA, expand
-        `UsernameTemplate`, call `ejbcaService.GetCertificate`, substitute
-        `FLEET_VAR_EJBCA_DATA_<name>` (base64 PFX) and
+- [x] Add EJBCA branches in `server/mdm/apple/profile_processor.go`:
+      - `ProcessAndEnqueueProfiles` constructs an `ejbca.NewService(...)`
+        and passes it to `preprocessProfileContents`.
+      - `preprocessProfileContents` takes a new `ejbcaService` parameter
+        and declares an `ejbcaCAs` cache.
+      - `variablesUpdatedAt` window includes EJBCA prefixes so
+        validation timestamps are tracked.
+      - Validation phase recognizes `FLEET_VAR_EJBCA_*` and calls
+        `isEJBCAConfigured` (new helper that mirrors
+        `isDigiCertConfigured`: premium-license check, lookup in
+        `groupedCAs.EJBCA`, cache hit).
+      - Expansion phase: per host, deep-copy CA (clone the UPN slice),
+        expand `UsernameTemplate` and each UPN via
+        `replaceFleetVarInItem`, call `ejbcaService.GetCertificate`,
+        substitute `FLEET_VAR_EJBCA_DATA_<name>` (base64 PFX) and
         `FLEET_VAR_EJBCA_PASSWORD_<name>` in the profile XML.
+      - On enrollment failure, marks the host's profile failed with the
+        EJBCA error message, mirroring the DigiCert failure path.
+      - POC does NOT emit a `BulkUpsertMDMManagedCertificates` record
+        for EJBCA — the legacy `CAConfigAssetType` enum doesn't have an
+        `ejbca` entry. The production implementation in #30986 should
+        add `CAConfigEJBCA` and tracking. Noted inline.
+- [x] Existing `preprocessProfileContents` tests updated to pass a real
+      ejbca service instead of nil (satisfies nilaway flow analysis).
 
 ## 7. Endpoints
 

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -70,6 +71,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 	err = preprocessProfileContents(ctx, appConfig, ds,
 		scep.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
+		ejbca.NewService(ejbca.WithLogger(logger)),
 		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
 		return nil, err
@@ -156,6 +158,7 @@ func preprocessProfileContents(
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	logger *slog.Logger,
 	targets map[string]*fleet.CmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -173,6 +176,7 @@ func preprocessProfileContents(
 		digiCertCAs   map[string]*fleet.DigiCertCA
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 		smallstepCAs  map[string]*fleet.SmallstepSCEPProxyCA
+		ejbcaCAs      map[string]*fleet.EJBCACA
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -208,7 +212,8 @@ func preprocessProfileContents(
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarHostUUID) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
-				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) ||
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)) {
 				// Give a few minutes leeway to account for clock skew
 				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
 				break
@@ -247,6 +252,24 @@ func preprocessProfileContents(
 				configured, err := isDigiCertConfigured(ctx, logger, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
+				}
+				if !configured {
+					valid = false
+					break initialFleetVarLoop
+				}
+
+			case strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)):
+				caName, found := strings.CutPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix))
+				if !found {
+					caName, _ = strings.CutPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix))
+				}
+
+				if ejbcaCAs == nil {
+					ejbcaCAs = make(map[string]*fleet.EJBCACA)
+				}
+				configured, err := isEJBCAConfigured(ctx, logger, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, ejbcaCAs, profUUID, target, caName, fleetVar)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking EJBCA configuration")
 				}
 				if !configured {
 					valid = false
@@ -627,6 +650,79 @@ func preprocessProfileContents(
 						Serial:         &cert.SerialNumber,
 					})
 
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)):
+					// Replaced below when we populate the certificate data.
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)):
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix))
+					ca, ok := ejbcaCAs[caName]
+					if !ok {
+						logger.ErrorContext(ctx, "EJBCA CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
+					}
+					// Deep-copy the cached config so per-host Fleet-var
+					// expansion can't bleed into other hosts via shared slice
+					// backing arrays (mirrors DigiCert's pattern above).
+					caCopy := *ca
+					caCopy.CertificateUserPrincipalNames = slices.Clone(ca.CertificateUserPrincipalNames)
+
+					caVarsCache := make(map[string]string)
+
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.UsernameTemplate, onMismatchedHostCount)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in EJBCA username template")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					if len(caCopy.CertificateUserPrincipalNames) > 0 {
+						for i := range caCopy.CertificateUserPrincipalNames {
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], onMismatchedHostCount)
+							if err != nil {
+								return ctxerr.Wrap(ctx, err, "populating Fleet variables in EJBCA UPN")
+							}
+							if !ok {
+								failed = true
+								break fleetVarLoop
+							}
+						}
+					}
+
+					cert, err := ejbcaService.GetCertificate(ctx, caCopy)
+					if err != nil {
+						detail := fmt.Sprintf("Couldn't get certificate from EJBCA for %s. %s", caCopy.Name, err)
+						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.CmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for EJBCA")
+						}
+						failed = true
+						break fleetVarLoop
+					}
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarEJBCADataPrefix), caName, hostContents,
+						base64.StdEncoding.EncodeToString(cert.PfxData))
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for EJBCA data")
+					}
+					hostContents, err = profiles.ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarEJBCAPasswordPrefix), caName, hostContents, cert.Password)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for EJBCA password")
+					}
+					// EJBCA's CA type isn't represented in the legacy
+					// CAConfigAssetType enum used for managed-cert
+					// tracking — for the POC we skip the
+					// BulkUpsertMDMManagedCertificates record. Production
+					// implementation in #30986 should add a CAConfigEJBCA
+					// enum value and a tracking row here.
+
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
@@ -748,6 +844,35 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 			// We should not reach this since we validated the variables when saving app config
 		}
 	}
+	return true, nil
+}
+
+func isEJBCAConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
+	hostProfilesToInstallMap map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	existingEJBCACAs map[string]*fleet.EJBCACA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
+) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "EJBCA integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+	}
+	if _, ok := existingEJBCACAs[caName]; ok {
+		return true, nil
+	}
+	var ejbcaCA *fleet.EJBCACA
+	if groupedCAs != nil && len(groupedCAs.EJBCA) > 0 {
+		for _, ca := range groupedCAs.EJBCA {
+			if ca.Name == caName {
+				ejbcaCA = &ca
+				break
+			}
+		}
+	}
+	if ejbcaCA == nil {
+		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
+	}
+
+	existingEJBCACAs[caName] = ejbcaCA
 	return true, nil
 }
 
