@@ -157,12 +157,13 @@ const CommandPalette = (): JSX.Element | null => {
       window.removeEventListener("fleet-theme-change", onThemeChange);
   }, []);
 
-  // Policy automations: same as canAddOrDeletePolicies in ManagePoliciesPage
-  const canManagePolicyAutomations =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isAnyTeamAdmin ||
-    isAnyTeamMaintainer;
+  // Policy automations: mirrors ManagePoliciesPage.canEditAutomationsSettings.
+  // Maintainers can add/delete policies but the in-page Automations button
+  // is hidden for them, and the deep-link useEffect re-checks the same
+  // gate — so the palette item must match, otherwise it's a dead link for
+  // maintainers. isTeamAdmin is scoped to currentTeam by AppContext, so a
+  // user who's team admin of A but viewing B correctly won't see this.
+  const canManagePolicyAutomations = isGlobalAdmin || isTeamAdmin;
 
   // Software automations require global admin (all fleets view)
   const canManageSoftwareAutomations = isGlobalAdmin;

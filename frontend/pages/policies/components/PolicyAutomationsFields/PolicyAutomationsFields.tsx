@@ -23,6 +23,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import {
+  generateSoftwareOptionHelpText,
   getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
@@ -205,6 +206,7 @@ const PolicyAutomationsFields = forwardRef<
         (softwareTitlesData?.software_titles ?? []).map((t) => ({
           label: t.name,
           value: String(t.id),
+          helpText: generateSoftwareOptionHelpText(t),
         })),
       [softwareTitlesData]
     );
