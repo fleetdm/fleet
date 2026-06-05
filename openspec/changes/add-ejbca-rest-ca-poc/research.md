@@ -324,6 +324,74 @@ is deferred — small follow-up, same backend.
 - **`fleethttp.WithTLSClientConfig` already exists** at
   `pkg/fleethttp/fleethttp.go:36`. No package additions needed for the
   mTLS plumbing.
+
+### Confirmed during end-to-end testing against `keyfactor/ejbca-ce`
+
+- **EJBCA RA Web emits BER-encoded PKCS#12 bundles** (indefinite-length
+  ASN.1, leading bytes `30 80 02 01 03 30 80 ...`). Both Go PKCS#12
+  decoders (`software.sslmate.com/src/go-pkcs12` and
+  `golang.org/x/crypto/pkcs12`) use the strict-DER `encoding/asn1` and
+  reject these inputs. Resolved for the POC by an openssl subprocess
+  in `decodeEJBCAClientP12` — explicitly flagged as PROD-BLOCKER in
+  the same function's doc comment.
+- **`keyfactor/ejbca-ce` ships with all REST API protocols DISABLED.**
+  The 403 response carries an HTML body (`This service has been
+  disabled`), and the failure presents as a silent `EOF` mid-request
+  from Fleet's side because the TLS handshake completes before the
+  protocol-disabled check runs. Enable via Admin UI → System
+  Configuration → Protocol Configuration tab → **REST Certificate
+  Management** (despite the name, this is the module that serves
+  `/v1/ca/status` and `/v1/certificate/pkcs10enroll`). A container
+  restart is required after enabling — the running app doesn't reload
+  protocol config in place. **REST CA Management** is a different
+  module (serves `/v1/ca_management`) and is `Unavailable` in CE
+  anyway. Customer-side production EJBCA admins will already have the
+  right module enabled; this only matters for local POC dev.
+- **EJBCA container HTTPS cert has SAN = `ejbca.local`.** Fleet's mTLS
+  client does strict TLS verification (can't skip — it's mTLS). Local
+  workaround: `/etc/hosts` mapping for `ejbca.local → 127.0.0.1` and
+  configure Fleet's URL field as `https://ejbca.local:8443`. The SCEP
+  dev guide sidesteps this by using HTTP port 8480; the REST path
+  can't.
+- **macOS curl + EJBCA P12 don't mix directly.** macOS curl links
+  against LibreSSL which rejects EJBCA's P12 bundles
+  (`LibreSSL error: PKCS12 routines:CRYPTO_internal:mac verify failure`).
+  Doesn't affect Fleet — its server-side openssl subprocess uses the
+  full OpenSSL on `$PATH`. Only matters when developers try to use
+  curl's `--cert-type P12` directly for diagnostic mTLS testing on a
+  Mac. Workaround documented in the dev guide's Troubleshooting
+  section: pre-extract to PEM with openssl, then use curl with
+  `--cert/--key` on the PEM files.
+- **End-to-end happy path verified.** With (a) openssl subprocess
+  decode in place, (b) `REST Certificate Management` enabled, (c)
+  `ejbca.local` in `/etc/hosts`, (d) the Management CA in Fleet's
+  trust bundle field, (e) the Fleet service cert bound to a custom
+  admin role with appropriate access rules: Add CA via Fleet's UI
+  completes, the connection probe (`GET /v1/ca/status`) returns 200,
+  and the EJBCA CA row lands in Fleet's database. The per-host
+  enrollment path (`pkcs10enroll`) is unit-tested for UPN SAN
+  encoding but hasn't yet been exercised against real EJBCA via the
+  MDM profile-delivery flow — pending Phase 10 / manual verification.
+- **MDM profile Fleet-var support has TWO checkpoints, not one.**
+  Phase 6's `preprocessProfileContents` handles the *runtime*
+  expansion path (per-host enrollment when the profile is delivered).
+  Separately, there's an *upload-time* validator in
+  `server/service/mdm_profiles.go` that maintains an allow-list of
+  Fleet-var prefixes accepted in `.mobileconfig` uploads and tracks
+  DATA+PASSWORD pair completeness per CA via `*VarsFound` structs.
+  The original Phase 6 spec didn't separate these two concerns, so
+  the upload validator wasn't extended for EJBCA in the initial
+  implementation. Uploading the test profile failed with "Fleet
+  variable $FLEET_VAR_EJBCA_… is not supported in configuration
+  profiles" before the runtime path ever ran. Resolved by adding an
+  `EJBCAVarsFound` struct (mirrors `DigiCertVarsFound`), a fifth
+  `additionalEJBCAValidation` parameter to
+  `validateProfileCertificateAuthorityVariables` (nil in POC), and
+  the EJBCA prefix entries in the upload allow-list. The full
+  production implementation should also implement
+  `additionalEJBCAValidation` to mirror DigiCert's structural check
+  that the vars only appear inside a `com.apple.security.pkcs12`
+  payload.
 - **Enrollment code: required by API, not authenticating in our config.**
   Verified by reading `SignSessionBean.java` in the EJBCA source: the
   backend rejects `password=null` for any CA with `useUserStorage=true`

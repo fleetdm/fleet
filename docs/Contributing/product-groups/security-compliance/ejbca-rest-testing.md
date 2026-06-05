@@ -407,6 +407,46 @@ the username. You should see:
 In Admin UI → **RA Web → Search Certificates** you can also see the issued
 cert listed.
 
+## Troubleshooting
+
+Fleet's `VerifyConnection` probe at CA-save time talks to EJBCA in a layered
+TLS + HTTP exchange. When it fails, the specific error message tells you
+which layer broke. This ladder lists what we've seen during POC testing,
+top-down (cheapest fix first):
+
+| Fleet error (or curl symptom) | What it means | Where to fix |
+|---|---|---|
+| `client_p12 ... Could not decode PKCS#12 client certificate: pkcs12: error reading P12 data: asn1: syntax error: indefinite length found (not DER)` | The `openssl` subprocess isn't being invoked — Fleet fell back to a Go-native parser that rejects BER | Restart the Fleet server with the latest binary; verify `openssl` is on the server's `$PATH` |
+| `openssl failed to decode PKCS#12: Mac verify error: ...` | Wrong P12 password | Re-export from EJBCA RA Web and note the password exactly, or test the password locally: `openssl pkcs12 -in foo.p12 -passin pass:PW -nodes` |
+| `tls: failed to verify certificate: x509: certificate is valid for ejbca.local, not localhost` | Fleet's URL field uses `localhost` but the EJBCA HTTPS cert SAN is `ejbca.local` | Use `https://ejbca.local:8443` and add `/etc/hosts` mapping (see Docker setup §) |
+| `tls: failed to verify certificate: x509: certificate signed by unknown authority` | Fleet's system root store doesn't trust EJBCA's Management-CA-signed HTTPS cert | Paste the Management CA PEM into the **Trust CA bundle** field |
+| `sending EJBCA status request: ... EOF` or `Empty reply from server` from curl | TLS handshake completed but EJBCA's app layer dropped the connection. Almost always: REST protocol not enabled | Enable **REST Certificate Management** in System Configuration → Protocol Configuration (Step 0), then restart the container |
+| HTTP 401 / 403 with a JSON body | mTLS handshake succeeded; cert reached the app but isn't authorized | Verify the cert is bound to a role (Admin UI → Roles → Members), match value is the exact CN, issuer CA matches what issued the cert |
+| HTTP 404 `Could not find resource for full path` | REST is deployed and authenticated but the URL is wrong | Confirm path is `/ejbca/ejbca-rest-api/v1/ca/status` exactly |
+
+When in doubt, drop down a layer with the diagnostic commands:
+
+```bash
+# 1. DNS / port reachability
+curl -sk -o /dev/null -w "%{http_code}\n" https://ejbca.local:8443/ejbca/publicweb/healthcheck/ejbcahealth   # expect 200
+
+# 2. REST endpoint deployed and reachable (no mTLS)
+curl -sk -w "\nHTTP %{http_code}\n" https://ejbca.local:8443/ejbca/ejbca-rest-api/v1/ca/status   # 401 = enabled, 403 + HTML = disabled
+
+# 3. mTLS auth — extract P12 to PEM first because macOS curl uses LibreSSL
+openssl pkcs12 -in '/path/to/fleet_rest_service.p12' -passin pass:PW -nodes -clcerts -out /tmp/fleet_cert.pem
+openssl pkcs12 -in '/path/to/fleet_rest_service.p12' -passin pass:PW -nodes -nocerts -out /tmp/fleet_key.pem
+curl -kv --cert /tmp/fleet_cert.pem --key /tmp/fleet_key.pem https://ejbca.local:8443/ejbca/ejbca-rest-api/v1/ca/status
+shred -u /tmp/fleet_cert.pem /tmp/fleet_key.pem 2>/dev/null || rm /tmp/fleet_cert.pem /tmp/fleet_key.pem
+```
+
+When EJBCA's logs are useful, `docker logs ejbca 2>&1 | tail -50` shows
+recent audit events — successful auth shows up as `CA_USERAUTH;SUCCESS`,
+role checks as `ACCESS_CONTROL;SUCCESS`. Conspicuous absence of any log
+entry for your request usually means the request was rejected by the
+Wildfly filter chain before reaching the EJBCA app (the protocol-disabled
+case).
+
 ## Gotchas
 
 - **REST API protocols are disabled by default in `keyfactor/ejbca-ce`.**
@@ -445,6 +485,20 @@ cert listed.
   spec — the production implementation
   ([fleet#30986](https://github.com/fleetdm/fleet/issues/30986)) adds the
   required `CAConfigEJBCA` enum value and tracking write.
+- **macOS curl can't test the P12 directly.** macOS ships curl linked
+  against LibreSSL, which has limited PKCS#12 support and rejects
+  EJBCA's bundles with `LibreSSL error: PKCS12 routines:CRYPTO_internal:
+  mac verify failure`. Use the PEM-extraction-then-curl pattern in the
+  Troubleshooting section if you want to test mTLS against EJBCA
+  directly. Fleet's server-side openssl subprocess uses the full
+  OpenSSL on the host's `$PATH` (Homebrew openssl, system openssl on
+  Linux), which doesn't have this limitation.
+- **REST Certificate Management ≠ REST CA Management.** They sound
+  interchangeable. They aren't. The protocol Fleet uses is **REST
+  Certificate Management** — that one serves both `/v1/ca` and
+  `/v1/certificate` paths. **REST CA Management** serves
+  `/v1/ca_management` only and is `Unavailable` in EJBCA Community
+  Edition. Enabling the wrong one does nothing for Fleet.
 
 ## Cleanup
 

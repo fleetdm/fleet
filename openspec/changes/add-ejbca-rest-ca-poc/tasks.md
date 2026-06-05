@@ -153,6 +153,24 @@ this is a learning POC, not a production ship.
         add `CAConfigEJBCA` and tracking. Noted inline.
 - [x] Existing `preprocessProfileContents` tests updated to pass a real
       ejbca service instead of nil (satisfies nilaway flow analysis).
+- [x] **Follow-up discovered during end-to-end testing**: there's a
+      separate upload-time validator distinct from the runtime expander.
+      `validateConfigProfileFleetVariables` (server/service/apple_mdm.go)
+      maintains an allow-list of Fleet-var prefixes accepted in
+      `.mobileconfig` uploads, and
+      `validateProfileCertificateAuthorityVariables`
+      (server/service/mdm_profiles.go) tracks DATA+PASSWORD pair
+      completeness per CA via `*VarsFound` structs. Both needed EJBCA
+      support — without them an upload of an otherwise-valid profile is
+      rejected at validate-time with "Fleet variable $FLEET_VAR_EJBCA_…
+      is not supported in configuration profiles", before the runtime
+      expander ever runs. Added: `EJBCAVarsFound` struct mirroring
+      `DigiCertVarsFound` (DATA+PASSWORD pair check), an `ejbca` case
+      in the switch, a 5th parameter `additionalEJBCAValidation` (POC
+      passes nil — structural pkcs12-payload check is a follow-up),
+      and the EJBCA prefix entries in the upload allow-list. The
+      Windows-profile and test callers were updated to pass nil for
+      the new parameter.
 
 ## 7. Endpoints
 

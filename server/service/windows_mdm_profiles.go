@@ -246,7 +246,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil, nil)
 	if err != nil {
 		return nil, err
 	}

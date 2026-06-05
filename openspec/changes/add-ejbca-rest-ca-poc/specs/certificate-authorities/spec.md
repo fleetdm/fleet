@@ -208,4 +208,13 @@ must be surfaced administratively.
   reject EJBCA's output. Production (#30986) must replace this with a
   pure-Go normalizer so Fleet has no runtime dependency on the openssl
   binary. See research.md → "Open follow-ups" for design options.
+- **Structural `additionalEJBCAValidation` for `.mobileconfig` uploads.**
+  Mirrors `additionalDigiCertValidation`'s check that EJBCA Fleet
+  variables only appear inside a `com.apple.security.pkcs12` payload,
+  and that the Password / PayloadContent fields exactly match the
+  expected variable patterns. POC accepts the uploaded profile as
+  long as the DATA + PASSWORD pair is complete and the CA name
+  exists (the framework hooks are already in place — see the fifth
+  parameter `additionalEJBCAValidation` on
+  `validateProfileCertificateAuthorityVariables`, currently nil).
 - Windows, Linux, and Android cert delivery paths.
