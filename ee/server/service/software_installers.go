@@ -1721,8 +1721,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -1831,8 +1830,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// Validate platform
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -2256,6 +2254,9 @@ func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.Up
 
 const (
 	batchSoftwarePrefix = "software_batch_"
+	// batchSoftwareDeletedSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of packages the batch will delete (or, on a dry run, would delete).
+	batchSoftwareDeletedSuffix = ":deleted"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
 	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
@@ -2293,13 +2294,21 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
-	// + dry-run has nothing to validate or stage, so skip the async round-trip.
-	// The client handles an empty UUID response gracefully.
+	// + dry-run has nothing to validate or stage, so skip the async round-trip — but
+	// only when the team also has no installers: an empty payload deletes every
+	// existing package, and the dry run must report each one. The client handles an
+	// empty UUID response gracefully.
 	if dryRun && len(payloads) == 0 {
-		svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload",
-			"team_id", teamID,
-		)
-		return "", nil
+		pendingDeletion, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, nil)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
+		}
+		if len(pendingDeletion) == 0 {
+			svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload and no existing installers",
+				"team_id", teamID,
+			)
+			return "", nil
+		}
 	}
 
 	var allScripts []string
@@ -2569,6 +2578,9 @@ func (svc *Service) softwareBatchUpload(
 	dryRun bool,
 ) {
 	var batchErr error
+	// deletedPackagesJSON holds the JSON-encoded list of packages this batch will
+	// delete (dry run: would delete), recorded in Redis on completion.
+	var deletedPackagesJSON string
 
 	// TODO: this might be a little drastic to drop back to Background context,
 	// consider using ctx.WithoutCancel to keep all but the cancellation of the
@@ -2579,6 +2591,19 @@ func (svc *Service) softwareBatchUpload(
 	ctx := context.Background()
 
 	defer func(start time.Time) {
+		// The deleted-packages list was already persisted before any datastore
+		// mutation; re-set it here to refresh its TTL so the client has the full
+		// window to read it even after a long-running batch. Best-effort only: at
+		// this point the batch may have already committed, so a Redis failure must
+		// not mark it as failed.
+		if batchErr == nil && deletedPackagesJSON != "" {
+			if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
+				svc.logger.WarnContext(ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
+					"request_uuid", requestUUID,
+					"err", err,
+				)
+			}
+		}
 		status := batchSetCompleted
 		if batchErr != nil {
 			status = fmt.Sprintf("%s%s", batchSetFailedPrefix, batchErr)
@@ -3167,6 +3192,40 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	// Compute which existing packages this batch will delete (dry run: would
+	// delete): the installers on the team whose title matches no incoming
+	// payload, mirroring the title-based deletion in ds.BatchSetSoftwareInstallers.
+	incoming := make([]fleet.SoftwareTitleIdentifier, 0, len(installers))
+	for _, payloadWithExtras := range installers {
+		for _, p := range append([]*fleet.UploadSoftwareInstallerPayload{payloadWithExtras.UploadSoftwareInstallerPayload}, payloadWithExtras.ExtraInstallers...) {
+			incoming = append(incoming, fleet.SoftwareTitleIdentifier{
+				UniqueIdentifier: p.UniqueIdentifier(),
+				Source:           p.Source,
+			})
+		}
+	}
+	deletedPackages, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, incoming)
+	if err != nil {
+		batchErr = fmt.Errorf("computing software packages pending deletion: %w", err)
+		return
+	}
+	if len(deletedPackages) > 0 {
+		deletedJSON, err := json.Marshal(deletedPackages)
+		if err != nil {
+			batchErr = fmt.Errorf("encoding software packages pending deletion: %w", err)
+			return
+		}
+		deletedPackagesJSON = string(deletedJSON)
+		// Persist before any datastore mutation: a failure here fails the batch
+		// while it is still safe to retry (nothing has been applied or deleted),
+		// so deletion warnings are never silently missing. The defer refreshes
+		// this key's TTL on completion for long-running batches.
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
+			batchErr = fmt.Errorf("recording software packages pending deletion: %w", err)
+			return
+		}
+	}
+
 	if dryRun {
 		return
 	}
@@ -3261,33 +3320,48 @@ func validETag(etag string) bool {
 	return true
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	// We've already authorized in the POST /api/latest/fleet/software/batch,
 	// but adding it here so we don't need to worry about a special case endpoint.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return "", "", nil, err
+		return "", "", nil, nil, err
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "failed to get result")
+		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+		return "", "", nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+	}
+
+	// getDeletedPackages loads the packages the batch deleted (dry run: would
+	// delete). A missing or expired key degrades to an empty list, not an error.
+	getDeletedPackages := func() ([]fleet.DeletedSoftwarePackage, error) {
+		deletedJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get deleted packages result")
+		}
+		if deletedJSON == nil || *deletedJSON == "" {
+			return nil, nil
+		}
+		var deletedPackages []fleet.DeletedSoftwarePackage
+		if err := json.Unmarshal([]byte(*deletedJSON), &deletedPackages); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal deleted packages result")
+		}
+		return deletedPackages, nil
 	}
 
 	switch {
 	case *result == batchSetCompleted:
-		if dryRun {
-			return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, nil
-		} // this will fall through to retrieving software packages if not a dry run.
+		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
 		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
-		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil
 	default:
-		return "", "", nil, ctxerr.New(ctx, "invalid status")
+		return "", "", nil, nil, ctxerr.New(ctx, "invalid status")
 	}
 
 	var (
@@ -3297,7 +3371,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			return "", "", nil, ctxerr.Wrap(ctx, err, "load team by name")
+			return "", "", nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
 		}
 		teamID = team.ID
 		ptrTeamID = &team.ID
@@ -3307,17 +3381,27 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	// but adding it here so we don't need to worry about a special case endpoint.
 	//
 	// We use fleet.ActionWrite because this method is the counterpart of the POST
-	// /api/latest/fleet/software/batch.
+	// /api/latest/fleet/software/batch. This applies to dry runs too, since the
+	// deleted-packages list exposes team-scoped software data.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
+		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	deletedPackages, err := getDeletedPackages()
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+
+	if dryRun {
+		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, nil
 	}
 
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "get software installers")
+		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
-	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, nil
+	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
@@ -3355,8 +3439,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		ext := filepath.Ext(installer.Name)
-		requiredPlatform := packageExtensionToPlatform(ext)
+		ext, requiredPlatform := installerRequiredPlatform(installer)
 		if requiredPlatform == "" {
 			// this should never happen
 			return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -3481,18 +3564,37 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
+// installerRequiredPlatform returns the file extension and the platform used for
+// platform validation. The installer's stored Platform is used when set (e.g.
+// .zip installers may target windows or darwin). Note that `.sh` installers are
+// stored as platform=linux but are allowed on any unix-like host by callers.
+func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
+	ext = filepath.Ext(installer.Name)
+	if installer.Platform != "" {
+		return ext, installer.Platform
+	}
+	return ext, packageExtensionToPlatform(ext)
+}
+
 // packageExtensionToPlatform returns the platform name based on the
-// package extension. Returns an empty string if there is no match.
+// package extension. Returns an empty string if there is no match. This is only
+// used as a fallback by installerRequiredPlatform when an installer has no
+// stored Platform; prefer the stored Platform, which is authoritative.
 //
 // .msix is included for Fleet-maintained Windows apps only; custom package
 // upload still rejects .msix (see addMetadataToSoftwarePayload and
 // SoftwareInstallerPlatformFromExtension).
+//
+// .zip is intentionally omitted: it is ambiguous across platforms (a Windows
+// installer or a macOS app bundle), so the stored Platform must be used. Both
+// FMAs and uploads always set Platform for .zip, so this fallback is never hit
+// for zip.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
 	case ".msi", ".exe", ".ps1", ".msix":
 		requiredPlatform = "windows"
-	case ".pkg", ".dmg", ".zip":
+	case ".pkg", ".dmg":
 		requiredPlatform = "darwin"
 	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
 		requiredPlatform = "linux"

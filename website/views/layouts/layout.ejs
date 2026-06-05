@@ -224,7 +224,7 @@
                               Visibility & reporting
                             </p>
                             <p purpose="nav-item-body">
-                              Automate tasks across devices, from app installs to scripts.
+                              Real-time reports and diagnostics from every device.
                             </p>
                           </div>
                         </div>
@@ -493,7 +493,7 @@
                               Visibility & reporting
                             </p>
                             <p purpose="nav-item-body">
-                              Automate tasks across devices, from app installs to scripts.
+                              Real-time reports and diagnostics from every device.
                             </p>
                           </div>
                         </div>
@@ -1120,5 +1120,19 @@
       vgo('process');
     </script>      
    <% } %>
+    <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {// Note: we're using setTimeout here to run this code after other load event handlers have run.
+          try {
+            if (window.location.search) {
+              history.replaceState(window.history.state, document.title, window.location.pathname + window.location.hash);
+            }
+          } catch (unusedErr) {
+            // No-op: never let URL cleanup break the page.
+          }
+        }, 0);
+      });
+    </script>
   </body>
 </html>

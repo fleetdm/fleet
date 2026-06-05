@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -954,6 +955,158 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
+// TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform (windows or darwin) rather than inferring darwin from the extension.
+func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: false,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestUninstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform during uninstall, so a Windows host can uninstall a Windows
+// .zip package without the helper inferring darwin from the extension.
+func TestUninstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:                "zip",
+			Platform:                 "windows",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("uninstall script"), nil
+	}
+
+	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+		return nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should uninstall")
+	require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+}
+
+// TestSelfServiceInstallZipInstallerUsesStoredPlatform tests that .zip
+// installers use the stored platform during self-service install, so a Windows
+// host can self-service install a Windows .zip package without the helper
+// inferring darwin from the extension.
+func TestSelfServiceInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: true,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	host := &fleet.Host{
+		ID:           1,
+		OrbitNodeKey: new("orbit_key"),
+		Platform:     "windows",
+		TeamID:       new(uint(1)),
+	}
+
+	err := svc.SelfServiceInstallSoftwareTitle(context.Background(), host, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should self-service install")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
 // TestInstallShScriptOnWindowsFails tests that .sh scripts can't be installed on Windows hosts.
 func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	t.Parallel()
@@ -1294,6 +1447,11 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
 	}
+	// The team has no installers, so the empty-payload dry run has nothing to
+	// report as pending deletion and must short-circuit.
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
 
 	svc := newTestService(t, ds)
 	svc.keyValueStore = kvs
@@ -1323,6 +1481,7 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			kvs.SetFuncInvoked = false
 			kvs.GetFuncInvoked = false
 			ds.TeamByNameFuncInvoked = false
+			ds.GetSoftwareInstallersPendingDeletionFuncInvoked = false
 
 			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
 			require.NoError(t, err)
@@ -1331,6 +1490,127 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
 			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
 				"TeamByName should only be called when tmName != \"\"")
+			require.True(t, ds.GetSoftwareInstallersPendingDeletionFuncInvoked,
+				"the short-circuit must check for installers pending deletion")
 		})
 	}
+}
+
+// inMemoryKeyValueStore is a thread-safe map-backed KeyValueStore mock for
+// tests that need to observe what the batch goroutine writes.
+func inMemoryKeyValueStore() (*redismock.KeyValueStore, func(key string) *string) {
+	var mu sync.Mutex
+	values := make(map[string]string)
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			mu.Lock()
+			defer mu.Unlock()
+			values[key] = value
+			return nil
+		},
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if v, ok := values[key]; ok {
+				return &v, nil
+			}
+			return nil, nil
+		},
+	}
+	get := func(key string) *string {
+		mu.Lock()
+		defer mu.Unlock()
+		if v, ok := values[key]; ok {
+			return &v
+		}
+		return nil
+	}
+	return kvs, get
+}
+
+func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
+	t.Parallel()
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	wouldDelete := []fleet.DeletedSoftwarePackage{
+		{TeamID: nil, TitleID: 1, DisplayName: "Cool App"},
+		{TeamID: nil, TitleID: 2, DisplayName: "Teammate Tool"},
+	}
+
+	ds := new(mock.Store)
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		// assert (not require): this runs on the batch goroutine, where FailNow would misbehave.
+		assert.Empty(t, incoming)
+		return wouldDelete, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Empty payload + dry run, but the (no-)team has installers: must NOT
+	// short-circuit, and must report every installer as pending deletion.
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", nil, true)
+	require.NoError(t, err)
+	require.NotEmpty(t, requestUUID, "dry run with installers pending deletion must go through the async path")
+
+	// Wait for the background goroutine to complete the batch.
+	require.Eventually(t, func() bool {
+		status := getKey(batchSoftwarePrefix + requestUUID)
+		return status != nil && *status == batchSetCompleted
+	}, 10*time.Second, 50*time.Millisecond, "batch never completed")
+
+	deletedJSON := getKey(batchSoftwarePrefix + requestUUID + batchSoftwareDeletedSuffix)
+	require.NotNil(t, deletedJSON, "deleted-packages key must be written before completion")
+	var gotDeleted []fleet.DeletedSoftwarePackage
+	require.NoError(t, json.Unmarshal([]byte(*deletedJSON), &gotDeleted))
+	require.Equal(t, wouldDelete, gotDeleted)
+
+	// The result endpoint returns the deleted packages on the dry-run completed branch.
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Equal(t, wouldDelete, deletedPackages)
+}
+
+func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
+	t.Parallel()
+
+	// Status key exists (completed) but the deleted-packages key is missing or
+	// expired: must degrade to an empty list, not an error.
+	completed := batchSetCompleted
+	kvs := &redismock.KeyValueStore{
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			if key == batchSoftwarePrefix+"test-uuid" {
+				return &completed, nil
+			}
+			return nil, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Empty(t, deletedPackages)
 }
