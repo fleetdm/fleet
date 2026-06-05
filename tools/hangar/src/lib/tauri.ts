@@ -315,6 +315,11 @@ export const api = {
     invoke<void>("save_settings", { settings }),
   probeFleetRepo: (path?: string) =>
     invoke<RepoProbe[]>("probe_fleet_repo", { path }),
+  /// Relative name (fleet.yml/.yaml) of a config in the repo root, or null
+  /// if none exists. Relative because serve runs with the repo as cwd.
+  /// Used to auto-populate the serve --config path on repo select.
+  detectFleetConfig: (repo: string) =>
+    invoke<string | null>("detect_fleet_config", { repo }),
   checkDependencies: (repoPath?: string | null, refreshPath?: boolean) =>
     invoke<DepReport>("check_dependencies", {
       repoPath: repoPath ?? null,

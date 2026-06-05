@@ -54,6 +54,7 @@ pub fn run() {
             settings::get_settings,
             settings::save_settings,
             settings::probe_fleet_repo,
+            settings::detect_fleet_config,
             deps::check_dependencies,
             settings::parse_ngrok_yml,
             settings::read_text_file,

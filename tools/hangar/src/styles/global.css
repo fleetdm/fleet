@@ -53,6 +53,10 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+  /* Kill WebKit's rubber-band overscroll so content can't be dragged
+     off-screen into empty space (esp. noticeable in VMs). Scroll
+     containers below opt in to their own scrolling explicitly. */
+  overscroll-behavior: none;
 }
 
 body {

@@ -34,9 +34,13 @@ export default function App() {
   const [branchStatus, setBranchStatus] = useState<BranchStatus | null>(null);
   const [procs, setProcs] = useState<ProcInfo[]>([]);
   const procPoll = useRef<number | null>(null);
+  // No need to probe serve / docker / processes until the user is past
+  // the first-run gate — nothing can be running on the welcome screen.
+  const monitoringEnabled = settings?.first_run_complete ?? false;
   const { serve, docker } = useSystemHealth(
     settings?.repo_path ?? null,
     procs,
+    monitoringEnabled,
   );
   // Quit flow phases: idle = no modal, confirm = "stop everything and
   // quit?" prompt, stopping = backend is shutting down. Triggered by
@@ -70,6 +74,7 @@ export default function App() {
   }, [refreshBranchStatus]);
 
   useEffect(() => {
+    if (!monitoringEnabled) return;
     let cancelled = false;
     const unlistens: Array<() => void> = [];
 
@@ -118,7 +123,7 @@ export default function App() {
       unlistens.forEach((u) => u());
       if (procPoll.current) window.clearInterval(procPoll.current);
     };
-  }, []);
+  }, [monitoringEnabled]);
 
   // Compute the slices of state the tray menu cares about. Re-runs cheaply
   // on each render, but updateTray itself only fires when something

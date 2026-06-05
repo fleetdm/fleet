@@ -398,7 +398,14 @@ function PathsSection({
       return;
     }
     setError(null);
-    await save({ ...settings, repo_path: probed[0].path });
+    // Re-derive the serve --config from the newly selected repo: point at
+    // its fleet.yml if present, otherwise clear it (env / dev defaults).
+    const detectedConfig = await api.detectFleetConfig(probed[0].path);
+    await save({
+      ...settings,
+      repo_path: probed[0].path,
+      fleet_serve: { ...settings.fleet_serve, config_path: detectedConfig },
+    });
   }
   async function pickFleetctl() {
     // No file-type filter — fleetctl is a bare binary with no extension

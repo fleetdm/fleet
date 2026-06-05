@@ -23,9 +23,13 @@ export type DockerHealth = {
 /// still recovering from out-of-band changes within reasonable time.
 const SERVE_POLL_MS = 10_000;
 const DOCKER_POLL_MS = 3_000;
+/// `enabled` gates the periodic probes off entirely — passed false while
+/// the first-run gate is up so we don't probe serve / docker before the
+/// user has even picked a repo or anything can be running.
 export function useSystemHealth(
   repoPath: string | null,
   procs: ProcInfo[],
+  enabled = true,
 ) {
   const [serve, setServe] = useState<ServeStatus>({ up: false, upSinceMs: null });
   const [docker, setDocker] = useState<DockerHealth>({
@@ -62,20 +66,21 @@ export function useSystemHealth(
   }, [repoPath]);
 
   useEffect(() => {
+    if (!enabled) return;
     probeServe();
     const id = window.setInterval(probeServe, SERVE_POLL_MS);
     return () => window.clearInterval(id);
-  }, [probeServe]);
+  }, [enabled, probeServe]);
 
   useEffect(() => {
-    if (!repoPath) {
+    if (!enabled || !repoPath) {
       setDocker({ up: false, upSinceMs: null, containers: [] });
       return;
     }
     probeDocker();
     const id = window.setInterval(probeDocker, DOCKER_POLL_MS);
     return () => window.clearInterval(id);
-  }, [repoPath, probeDocker]);
+  }, [enabled, repoPath, probeDocker]);
 
   // Ad-hoc reprobe on proc state transitions — saves up to one full
   // polling interval of "I clicked start, why is it still grey?".

@@ -50,9 +50,14 @@ export function FirstRunGate({
     setBusy(true);
     try {
       const baseline = await api.getSettings();
+      // Auto-detect a fleet.yml in the repo root so serve points at it
+      // when present; absent → leave config unset (env / dev defaults).
+      const detectedConfig =
+        !skip && selected ? await api.detectFleetConfig(selected) : null;
       const s: Settings = {
         ...baseline,
         repo_path: skip ? null : selected,
+        fleet_serve: { ...baseline.fleet_serve, config_path: detectedConfig },
         first_run_complete: true,
       };
       await api.saveSettings(s);
@@ -74,6 +79,9 @@ export function FirstRunGate({
         justifyContent: "center",
         padding: "var(--pad-large)",
         overflowY: "auto",
+        // Contain scroll to this panel and prevent the rubber-band
+        // overscroll that lets the whole card be dragged off-screen.
+        overscrollBehavior: "none",
       }}
     >
       <div

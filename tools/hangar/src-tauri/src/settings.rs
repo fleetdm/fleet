@@ -350,6 +350,26 @@ pub fn probe_fleet_repo(path: Option<String>) -> Result<Vec<RepoProbe>, String> 
     }
 }
 
+/// Look for a serve config file in the repo root so the UI can
+/// auto-populate the serve `--config` path when a repo is selected.
+/// Returns the *relative* name (`fleet.yml` / `fleet.yaml`) if one
+/// exists, else None. Relative is intentional: serve always spawns with
+/// the repo as its cwd, so `--config fleet.yml` resolves correctly,
+/// keeps the command preview readable, and stays valid if the repo
+/// moves. None means "no config", leaving `fleet serve --dev` on env
+/// vars / built-in defaults. Checked at repo selection time, not at
+/// launch, so the value is visible/editable in Settings before Start.
+#[tauri::command]
+pub fn detect_fleet_config(repo: String) -> Option<String> {
+    let root = PathBuf::from(shellexpand(&repo));
+    for name in ["fleet.yml", "fleet.yaml"] {
+        if root.join(name).is_file() {
+            return Some(name.to_string());
+        }
+    }
+    None
+}
+
 #[derive(Debug, Serialize)]
 pub struct NgrokTunnel {
     pub name: String,
