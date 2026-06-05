@@ -224,10 +224,10 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 }
 
 // dialogCopyForEncryptionType returns the (title, prompt, retry) strings shown
-// to the end user when asking them to unlock the LUKS volume. Only TPM2-backed
-// setups use distinct copy today; passphrase / fido2 / recovery share the
-// default passphrase wording since they all ultimately accept a typed secret
-// against keyslot 0 from the user's perspective.
+// to the end user when asking them to unlock the LUKS volume. TPM2-backed and
+// recovery-key setups use distinct copy today; passphrase / fido2 share the
+// default passphrase wording since they accept a typed secret from the user's
+// perspective.
 func dialogCopyForEncryptionType(encType string) (title, prompt, retry string) {
 	if encType == EncryptionTypeTPM2 || encType == EncryptionTypeRecovery {
 		return entryDialogTitleTPM2, entryDialogTextTPM2, retryEntryDialogTextTPM2
