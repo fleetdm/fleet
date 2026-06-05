@@ -541,6 +541,38 @@ function SubTabSidebar({
 
 type LoginMode = "credentials" | "token";
 
+// Loopback addresses serve Fleet's self-signed dev cert, which the macOS
+// platform verifier rejects ("x509: certificate is not standard
+// compliant"). A tunneled/remote URL (ngrok etc.) presents a real CA cert
+// and must keep verifying — so skip-verify auto-on is scoped to loopback
+// only. Mirrors fleetctl preview, which sets TLSSkipVerify for local dev.
+function isLoopbackUrl(addr: string): boolean {
+  try {
+    const h = new URL(addr.trim()).hostname.toLowerCase();
+    return (
+      h === "localhost" ||
+      h === "127.0.0.1" ||
+      h === "::1" ||
+      h.endsWith(".localhost")
+    );
+  } catch {
+    const s = addr.toLowerCase();
+    return s.includes("localhost") || s.includes("127.0.0.1");
+  }
+}
+
+// Heuristic match for the self-signed-cert failure so we can nudge the
+// user toward skip-verify. Covers the macOS verifier message and the
+// generic x509 path.
+function looksLikeTlsCertError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("x509") ||
+    m.includes("certificate is not standard compliant") ||
+    (m.includes("tls") && m.includes("certificate"))
+  );
+}
+
 function LoginPanel({
   binary,
   ctx,
@@ -574,6 +606,19 @@ function LoginPanel({
   );
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  // fleetctl persists tls-skip-verify per-context and defaults it to
+  // false, so a self-signed local instance otherwise fails login with
+  // "x509: certificate is not standard compliant". Default it ON for
+  // loopback URLs (the self-signed dev case) and OFF otherwise.
+  const [skipTlsVerify, setSkipTlsVerify] = useState(() =>
+    isLoopbackUrl(selectedAddress ?? "https://localhost:8080"),
+  );
+  // Mirror in a ref so the "Enable & retry" action can flip it on and
+  // immediately re-run login without waiting for a state-update render.
+  const skipRef = useRef(skipTlsVerify);
+  skipRef.current = skipTlsVerify;
+  // Shown after a login fails with a cert error while skip-verify is off.
+  const [showTlsHint, setShowTlsHint] = useState(false);
 
   // Re-seed the address field when the user picks a different context
   // (or when refreshCtx brings new data in). The user's manual edits
@@ -581,21 +626,87 @@ function LoginPanel({
   // we reset that flag on selection change so a context switch always
   // pulls the stored value.
   const userEditedAddress = useRef(false);
+  // Likewise: once the user ticks/unticks the box themselves, stop
+  // auto-deriving it from the address. Reset on context switch so a fresh
+  // context re-derives from its stored address.
+  const userToggledSkipVerify = useRef(false);
   useEffect(() => {
     userEditedAddress.current = false;
+    userToggledSkipVerify.current = false;
   }, [selectedContext]);
+  useEffect(() => {
+    // Keep skip-verify in sync with whether the target is loopback, until
+    // the user overrides it manually.
+    if (!userToggledSkipVerify.current) {
+      setSkipTlsVerify(isLoopbackUrl(address));
+    }
+  }, [address]);
   useEffect(() => {
     if (!userEditedAddress.current && selectedAddress) {
       setAddress(selectedAddress);
     }
   }, [selectedAddress]);
 
+  // Persist tls-skip-verify on the context before login / config-set.
+  // Order matters in the credentials flow: `fleetctl login` reads the
+  // stored context, so the flag has to be set first. It's idempotent, so
+  // running it first in the token flow too is harmless. Returns false (and
+  // sets the error) on failure so callers can bail early.
+  async function applySkipTlsVerify(): Promise<boolean> {
+    if (!skipRef.current) return true;
+    if (!binary) return false;
+    const run = await api.fleetctlRunCapture({
+      program: binary.path,
+      cwd: repoPath,
+      args: [
+        "config",
+        "set",
+        "--context",
+        selectedContext,
+        "--tls-skip-verify",
+      ],
+      timeoutMs: 15_000,
+    });
+    if (run.exit_code !== 0) {
+      setError(
+        (run.stderr || run.stdout).trim() || "failed to set tls-skip-verify",
+      );
+      return false;
+    }
+    return true;
+  }
+
+  // Surface a failure and, if it looks like the self-signed-cert error and
+  // skip-verify isn't already on, raise the hint nudging the user to it.
+  function reportLoginFailure(msg: string) {
+    setError(msg);
+    if (!skipRef.current && looksLikeTlsCertError(msg)) setShowTlsHint(true);
+  }
+
+  // One-click recovery from the hint: flip skip-verify on (and remember it
+  // as a manual choice) and immediately re-run the current login flow. We
+  // set the ref synchronously so applySkipTlsVerify sees it this run.
+  function enableSkipAndRetry() {
+    userToggledSkipVerify.current = true;
+    skipRef.current = true;
+    setSkipTlsVerify(true);
+    setShowTlsHint(false);
+    if (mode === "credentials") void doCredentialsLogin();
+    else void doTokenLogin();
+  }
+
   async function doCredentialsLogin() {
     if (!binary?.exists) return;
     setBusy(true);
     setError(null);
     setResult(null);
+    setShowTlsHint(false);
     try {
+      // Set tls-skip-verify first — login reads the stored context.
+      if (!(await applySkipTlsVerify())) {
+        setBusy(false);
+        return;
+      }
       // Pass the password via env var rather than --password so it
       // doesn't show up in `ps`. EMAIL is non-sensitive but symmetric.
       const run = await api.fleetctlRunCapture({
@@ -613,7 +724,7 @@ function LoginPanel({
         await onLoggedIn();
       } else {
         const msg = (run.stderr || run.stdout).trim();
-        setError(msg || `fleetctl login exited ${run.exit_code}`);
+        reportLoginFailure(msg || `fleetctl login exited ${run.exit_code}`);
       }
     } catch (e) {
       setError(String(e));
@@ -626,7 +737,13 @@ function LoginPanel({
     setBusy(true);
     setError(null);
     setResult(null);
+    setShowTlsHint(false);
     try {
+      // tls-skip-verify first (idempotent), then address, then token.
+      if (!(await applySkipTlsVerify())) {
+        setBusy(false);
+        return;
+      }
       // Two steps: address first (idempotent), then token. Doing it as
       // two separate calls keeps the error messages precise — a typo'd
       // address shouldn't make the user think their token is bad.
@@ -644,9 +761,8 @@ function LoginPanel({
         timeoutMs: 15_000,
       });
       if (setAddr.exit_code !== 0) {
-        setError(
-          (setAddr.stderr || setAddr.stdout).trim() ||
-            "failed to set address",
+        reportLoginFailure(
+          (setAddr.stderr || setAddr.stdout).trim() || "failed to set address",
         );
         setBusy(false);
         return;
@@ -665,9 +781,8 @@ function LoginPanel({
         timeoutMs: 15_000,
       });
       if (setTok.exit_code !== 0) {
-        setError(
-          (setTok.stderr || setTok.stdout).trim() ||
-            "failed to set token",
+        reportLoginFailure(
+          (setTok.stderr || setTok.stdout).trim() || "failed to set token",
         );
         setBusy(false);
         return;
@@ -683,10 +798,9 @@ function LoginPanel({
       if (verify.exit_code === 0) {
         setResult("Token saved and verified.");
       } else {
-        const tail = (verify.stderr || verify.stdout).trim().slice(-300);
-        setResult(
-          `Token saved, but verification failed: ${tail || "see Logs"}`,
-        );
+        const raw = (verify.stderr || verify.stdout).trim();
+        setResult(`Token saved, but verification failed: ${raw.slice(-300) || "see Logs"}`);
+        if (!skipRef.current && looksLikeTlsCertError(raw)) setShowTlsHint(true);
       }
       setToken("");
       await onLoggedIn();
@@ -776,6 +890,69 @@ function LoginPanel({
             <span className="mono">fleetctl config set</span> for you.
           </div>
         </>
+      )}
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          marginBottom: 12,
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={skipTlsVerify}
+          onChange={(e) => {
+            userToggledSkipVerify.current = true;
+            setSkipTlsVerify(e.target.checked);
+            if (e.target.checked) setShowTlsHint(false);
+          }}
+          style={{ marginTop: 1, flexShrink: 0 }}
+        />
+        <span style={{ fontSize: "var(--fs-xxx-small)", lineHeight: 1.4 }}>
+          <span style={{ color: "var(--app-text)" }}>
+            Skip TLS verification
+          </span>{" "}
+          <span style={{ color: "var(--ui-error)" }}>(insecure)</span>
+          <span className="dim">
+            {" "}
+            — for self-signed local instances. Runs{" "}
+            <span className="mono">config set --tls-skip-verify</span> on this
+            context first.
+          </span>
+        </span>
+      </label>
+
+      {showTlsHint && !skipTlsVerify && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+            padding: "8px 10px",
+            border: "1px solid var(--app-border)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--app-surface-2)",
+          }}
+        >
+          <span style={{ fontSize: "var(--fs-xxx-small)", flex: 1 }}>
+            That looks like a self-signed certificate. Enable{" "}
+            <span style={{ color: "var(--app-text)" }}>
+              Skip TLS verification
+            </span>{" "}
+            and try again.
+          </span>
+          <button
+            onClick={enableSkipAndRetry}
+            disabled={busy}
+            style={{ fontSize: "var(--fs-xxx-small)", flexShrink: 0 }}
+          >
+            Enable &amp; retry
+          </button>
+        </div>
       )}
 
       <div
