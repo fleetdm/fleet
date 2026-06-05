@@ -629,7 +629,9 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
-		host.TeamID = enrollSecret.GetTeamID()
+		if err == nil {
+			host.TeamID = enrollSecret.GetTeamID()
+		}
 
 		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
 		hostKey := getAndroidHostKey(device)

@@ -336,6 +336,23 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
+func (ds *Datastore) UpdateAndroidDeviceTeamID(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+	query, args, err := sqlx.In(
+		`UPDATE android_devices ad JOIN hosts h ON ad.host_id = h.id SET ad.team_id = ? WHERE h.uuid IN (?)`,
+		teamID, hostUUIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build update android_devices team_id query")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android_devices team_id")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
 	var teamID *uint
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID,

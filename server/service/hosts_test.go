@@ -1970,6 +1970,9 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
+	ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
 
 	t.Run("transfer to team creates pending cert templates", func(t *testing.T) {
 		var calledWithUUID string
@@ -2044,6 +2047,9 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
+	}
+	ds.UpdateAndroidDeviceTeamIDFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
 	}
 
 	t.Run("transfer to team creates pending cert templates", func(t *testing.T) {
