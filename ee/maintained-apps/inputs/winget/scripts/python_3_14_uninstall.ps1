@@ -1,10 +1,16 @@
 # Locates Python 3.14's WiX "Burn" bundle registration from the registry and
 # runs its uninstaller silently. python.org's per-machine x64 installer registers
-# a DisplayName of "Python 3.14.<patch> (64-bit)" with Publisher
-# "Python Software Foundation". The bundle's uninstaller removes the bundle's own
-# registration along with the component MSIs it installed.
+# a bundle DisplayName of exactly "Python 3.14.<patch> (64-bit)" with Publisher
+# "Python Software Foundation", PLUS a set of component MSIs with names like
+# "Python 3.14.<patch> Executables (64-bit)" / "...Core Interpreter (64-bit)".
+# We must uninstall the BUNDLE (an exe with "/uninstall"), which removes all of
+# its components; uninstalling a component MSI directly leaves the rest behind.
+# Hence the strict anchored match below that excludes the component entries.
 
 $publisher = "Python Software Foundation"
+# Matches only the bundle, e.g. "Python 3.14.5 (64-bit)" — not components such as
+# "Python 3.14.5 Executables (64-bit)".
+$bundleNamePattern = '^Python 3\.14\.\d+ \(64-bit\)$'
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -16,6 +22,17 @@ $paths = @(
 $ExpectedExitCodes = @(0, 1605, 1641, 3010)
 $exitCode = 0
 
+function Wait-ForProcessExit {
+    param([string[]]$Names, [int]$TimeoutSeconds = 240)
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        $running = $Names | Where-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue }
+        if (-not $running) { break }
+        Start-Sleep -Seconds 3
+        $elapsed += 3
+    }
+}
+
 try {
 
 [array]$uninstallKeys = Get-ChildItem `
@@ -26,7 +43,7 @@ try {
 $selected = $null
 foreach ($key in $uninstallKeys) {
     if ($key.DisplayName -and `
-        $key.DisplayName -like "Python 3.14.* (64-bit)" -and `
+        $key.DisplayName -match $bundleNamePattern -and `
         $key.Publisher -eq $publisher) {
         $selected = $key
         break
@@ -34,7 +51,7 @@ foreach ($key in $uninstallKeys) {
 }
 
 if (-not $selected) {
-    Write-Host "No Python 3.14 (64-bit) entry found (already removed)."
+    Write-Host "No Python 3.14 (64-bit) bundle entry found (already removed)."
     Exit 0
 }
 
@@ -87,6 +104,13 @@ $processOptions = @{
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
+
+# Burn relaunches a cached copy of itself and drives msiexec to remove the
+# component MSIs asynchronously, so the launched process can return before the
+# work is done. Wait for those to finish before we report success, otherwise a
+# follow-up inventory check may still see lingering component entries.
+$exeName = [System.IO.Path]::GetFileNameWithoutExtension($exePath)
+Wait-ForProcessExit -Names @($exeName, "msiexec") -TimeoutSeconds 240
 
 if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
 Exit $exitCode
