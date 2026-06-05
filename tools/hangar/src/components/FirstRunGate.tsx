@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, type RepoProbe, type Settings } from "../lib/tauri";
 import logoUrl from "../assets/logo.png";
@@ -18,14 +18,29 @@ export function FirstRunGate({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.probeFleetRepo().then((p) => {
+  // Re-runnable so the user can rescan after cloning a repo without
+  // having to restart the app. Keeps the current selection if it's still
+  // valid; otherwise falls back to the first valid clone found.
+  const scanRepos = useCallback(async () => {
+    setScanning(true);
+    try {
+      const p = await api.probeFleetRepo();
       setProbes(p);
-      const first = p.find((x) => x.valid);
-      if (first) setSelected(first.path);
+      setSelected((cur) =>
+        cur && p.some((x) => x.path === cur && x.valid)
+          ? cur
+          : (p.find((x) => x.valid)?.path ?? null),
+      );
+    } catch (e) {
+      setError(String(e));
+    } finally {
       setScanning(false);
-    });
+    }
   }, []);
+
+  useEffect(() => {
+    scanRepos();
+  }, [scanRepos]);
 
   async function pickFolder() {
     const result = await open({
@@ -128,7 +143,32 @@ export function FirstRunGate({
         <DepCheckSection repoPath={selected} onChange={setDepsOk} />
 
         <div>
-          <div className="section-title">Fleet repository</div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <div className="section-title" style={{ margin: 0 }}>
+              Fleet repository
+            </div>
+            <button
+              onClick={scanRepos}
+              disabled={scanning}
+              title="Re-scan common dev folders and ~/fleet for clones"
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              <span
+                className={scanning ? "spin" : undefined}
+                style={{ display: "inline-block" }}
+              >
+                ↻
+              </span>{" "}
+              Rescan
+            </button>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {scanning && (
               <div
@@ -266,7 +306,7 @@ function NoRepoFound() {
         className="dim"
         style={{ fontSize: "var(--fs-xxx-small)" }}
       >
-        Then click Recheck above, or pick the folder manually below.
+        Then click Rescan above, or pick the folder manually below.
       </div>
     </div>
   );
