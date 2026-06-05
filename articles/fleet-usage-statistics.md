@@ -49,6 +49,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numHostsFleetDesktopEnabled": 999,
   "numFleetsManagedAdminAccountEnabled": 999,
   "anyFleetRecoveryLockPasswordEnabled": true,
+  "accountProvisioningEnabled": true,
   "gitOpsModeEnabled": true,
   "gitOpsModeExceptions": [
     "labels",
