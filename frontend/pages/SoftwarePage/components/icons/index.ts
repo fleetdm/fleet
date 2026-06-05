@@ -215,6 +215,7 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Python313 from "./Python313";
 import Python314 from "./Python314";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
@@ -514,6 +515,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "python 3.13": Python313,
   "python 3.14": Python314,
   quip: Quip,
   "rancher desktop": RancherDesktop,
