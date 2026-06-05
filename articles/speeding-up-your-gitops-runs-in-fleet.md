@@ -27,7 +27,7 @@ policies:
   - path: ./lib/windows-patch-policies.yml
 ```
 
-This approach also has organizational benefits—it makes your GitOps repository easier to navigate and allows teams to own specific configuration files without conflicts.
+This approach also has organizational benefits. It makes your GitOps repository easier to navigate and allows teams to own specific configuration files without conflicts.
 
 > You can see how Fleet uses path-based references for patch policies in the [Fleet GitOps repository](https://github.com/fleetdm/fleet/blob/main).
 
