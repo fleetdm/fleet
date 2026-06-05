@@ -132,7 +132,6 @@ After growing revenue 6x during the previous two years, Fleet raised its Series 
 ### 2026: Mainstream adoption
 Of the 8 most anticipated IPOs in 2026, over half are Fleet customers.
 
-
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
 ## Org chart
