@@ -52,7 +52,6 @@ module.exports = {
         'Matt Carr',
         'Nico Waisman',
         'Adam Pippert',
-        'Dan Grzelak',
         'Philip Chotipradit',
         'Roger Cantrell',
         'Chayce O\'Neal',
