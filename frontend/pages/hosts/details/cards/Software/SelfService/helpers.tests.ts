@@ -1,4 +1,7 @@
-import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
+import {
+  IDeviceSoftwareWithUiStatus,
+  SoftwareCategory,
+} from "interfaces/software";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
@@ -160,10 +163,10 @@ describe("hasInProgressInstallAllItems", () => {
 
 describe("filterSoftwareByCustomCategory", () => {
   const browsersPackage = createMockHostSoftwarePackage({
-    categories: ["Browsers"],
+    categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
   });
   const securityPackage = createMockHostSoftwarePackage({
-    categories: ["Security"],
+    categories: (["🔐 Security"] as string[]) as SoftwareCategory[],
   });
 
   const browser = makeItem("uninstalled", {
@@ -196,7 +199,7 @@ describe("filterSoftwareByCustomCategory", () => {
     ).toEqual([]);
   });
 
-  it("filters items matching the category (after stripping emoji prefix)", () => {
+  it("filters items matching the selected category by name", () => {
     const categories = [
       createMockSelfServiceCategory({ id: 1, name: "🌎 Browsers" }),
     ];
@@ -205,9 +208,9 @@ describe("filterSoftwareByCustomCategory", () => {
     ).toEqual([browser]);
   });
 
-  it("matches case-insensitively (custom category 'utilities' matches 'Utilities')", () => {
+  it("matches case-insensitively", () => {
     const utilitiesPackage = createMockHostSoftwarePackage({
-      categories: ["Utilities"],
+      categories: (["🛠️ Utilities"] as string[]) as SoftwareCategory[],
     });
     const item = makeItem("uninstalled", {
       name: "ohai",
@@ -227,7 +230,7 @@ describe("filterSoftwareByCustomCategory", () => {
       software_package: null,
       app_store_app: {
         ...createMockHostSoftwarePackage(),
-        categories: ["Browsers"],
+        categories: ["🌎 Browsers"],
       } as never,
     });
     const categories = [

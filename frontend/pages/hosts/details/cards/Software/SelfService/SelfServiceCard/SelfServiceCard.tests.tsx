@@ -12,6 +12,7 @@ import { baseUrl } from "test/default-handlers";
 import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
+import { SoftwareCategory } from "interfaces/software";
 
 import SelfServiceCard, {
   SelfServiceQueryParams,
@@ -278,7 +279,7 @@ describe("SelfServiceCard", () => {
       listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
     );
     const browserPackage = createMockHostSoftwarePackage({
-      categories: ["Browsers"],
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
     });
     const props = createTestProps({
       queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 1 },

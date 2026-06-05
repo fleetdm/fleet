@@ -59,23 +59,10 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 6, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
-/**
- * Strips a leading emoji + whitespace from a custom category name so it can be
- * compared against software's existing `categories: SoftwareCategory[]` enum.
- *
- * BE will eventually associate software to custom categories by ID and this
- * helper will become obsolete — the device software endpoint will accept
- * `category_id` and filter server-side. Until then this gives a best-effort
- * client-side fallback for dev mode (#46369).
- */
-const stripEmojiPrefix = (name: string): string =>
-  name.replace(/^[^\p{L}\p{N}]+/u, "").trim();
-
-/**
- * Returns software in the given custom category. Best-effort name match — see
- * `stripEmojiPrefix` doc comment. Returns the unmodified list when category is
- * undefined (the "All" filter).
- */
+// Client-side category filter by name — both sides come from
+// `software_categories` until BE supports server-side `category_id` (#46369).
+// `categoryId === undefined` is the "All" filter (returns input unchanged);
+// an unknown id (stale URL or still-loading list) returns `[]`.
 export const filterSoftwareByCustomCategory = (
   software: IDeviceSoftwareWithUiStatus[],
   categories: ISelfServiceCategory[],
@@ -91,7 +78,7 @@ export const filterSoftwareByCustomCategory = (
   if (!category) {
     return [];
   }
-  const normalized = stripEmojiPrefix(category.name).toLowerCase();
+  const normalized = category.name.toLowerCase();
   return software.filter((item) => {
     const itemCategories = [
       ...(item.software_package?.categories ?? []),
