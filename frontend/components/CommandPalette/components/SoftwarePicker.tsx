@@ -130,7 +130,7 @@ const SoftwarePicker = ({
           >
             <div className={`${baseClass}__item-left`}>
               <span className={`${baseClass}__item-label`}>
-                <HighlightedLabel text={label} query={search} />
+                <HighlightedLabel text={label} query={debouncedQuery} />
               </span>
               {installerProps && <InstallIconWithTooltip {...installerProps} />}
             </div>

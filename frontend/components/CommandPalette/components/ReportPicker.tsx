@@ -96,7 +96,7 @@ const ReportPicker = ({
           >
             <div className={`${baseClass}__item-left`}>
               <span className={`${baseClass}__item-label`}>
-                <HighlightedLabel text={report.name} query={search} />
+                <HighlightedLabel text={report.name} query={debouncedQuery} />
               </span>
               {showObserverIcon && (
                 <TooltipWrapper

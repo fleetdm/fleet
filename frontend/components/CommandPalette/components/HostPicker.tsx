@@ -78,7 +78,9 @@ const HostPicker = ({
                 aria-label={`status: ${host.status}`}
               />
               <span className={`${baseClass}__item-label`}>
-                <HighlightedLabel text={label} query={search} />
+                {/* debouncedQuery, not live search — stays in sync
+                    with the debounced row list. */}
+                <HighlightedLabel text={label} query={debouncedQuery} />
               </span>
             </span>
             {showTeamColumn && (

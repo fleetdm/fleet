@@ -323,7 +323,6 @@ export const highlightMatches = (
   const queryLower = query.toLowerCase().trim();
   if (!queryLower) return [{ text, matched: false }];
 
-  const textLower = text.toLowerCase();
   // Always include the full query as one needle so phrase matches get
   // a contiguous highlight, plus each individual token for multi-token
   // queries.
@@ -332,12 +331,41 @@ export const highlightMatches = (
     if (tok) needles.add(tok);
   });
 
+  // Build textLower in lockstep with an offset map back to the original.
+  // Some Unicode case folds change length (Turkish "İ" → "i̇"), so a
+  // naive textLower.indexOf + slice(original) misaligns and highlights
+  // the wrong characters. lowerToOrigStart[i] holds the original-text
+  // index of the source char that contributed textLower[i]. The
+  // collation Fleet's MySQL uses (utf8mb4_unicode_ci) returns "İstanbul"
+  // for query "i", so this needs to match leniently against any source
+  // char whose lowered form contains the needle — not just exact
+  // source-char-vs-needle alignment.
+  let textLower = "";
+  const lowerToOrigStart: number[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    const lowered = text[i].toLowerCase();
+    for (let j = 0; j < lowered.length; j += 1) {
+      lowerToOrigStart.push(i);
+    }
+    textLower += lowered;
+  }
+  // Sentinel for end-of-text — lets lowerEnd === textLower.length resolve
+  // without a bounds check.
+  lowerToOrigStart.push(text.length);
+
   const ranges: Array<[number, number]> = [];
   needles.forEach((needle) => {
     let idx = textLower.indexOf(needle);
     while (idx !== -1) {
-      ranges.push([idx, idx + needle.length]);
-      idx = textLower.indexOf(needle, idx + needle.length);
+      const lowerEnd = idx + needle.length;
+      // Translate to original-text coords. For origEnd:
+      // lowerToOrigStart[lowerEnd-1] is the source-char index whose
+      // contribution includes the last matched lower char; +1 covers
+      // the full source char, even when the match ends mid-folded-char.
+      const origStart = lowerToOrigStart[idx];
+      const origEnd = lowerToOrigStart[lowerEnd - 1] + 1;
+      ranges.push([origStart, origEnd]);
+      idx = textLower.indexOf(needle, lowerEnd);
     }
   });
 

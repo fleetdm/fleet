@@ -1229,5 +1229,38 @@ describe("CommandPalette helpers", () => {
         { text: "tup", matched: false },
       ]);
     });
+
+    it("slices the original text correctly when a match follows a length-changing case fold", () => {
+      // "İ" (U+0130) lowercases to "i̇" (U+0069 + U+0307), expanding
+      // 1 char into 2. A naive textLower.indexOf + text.slice would find
+      // "stan" at lower-index 2 (the i + combining dot pushed it
+      // forward), then slice the original at [2, 6] — producing "tanb"
+      // instead of "stan". The offset map translates the lower-coord
+      // range back to the original-text range.
+      const result = highlightMatches("İstanbul", "stan");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      const matched = result.filter((s) => s.matched).map((s) => s.text);
+      expect(matched).toEqual(["stan"]);
+    });
+
+    it("matches an ASCII query against a source char whose lowercase expands (İ → i̇)", () => {
+      // utf8mb4_unicode_ci treats İ and i as equivalent, so the backend
+      // returns "İstanbul" for query "i". The frontend must do the same
+      // or rows render with zero highlights. The match in textLower
+      // ("i̇stanbul") ends mid-folded-char; the offset map expands it
+      // to cover the whole "İ".
+      const result = highlightMatches("İstanbul", "i");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      expect(result[0]).toEqual({ text: "İ", matched: true });
+    });
+
+    it("matches a multi-char-lowercased query against the source char that produced it", () => {
+      // Query "İ" lowercases to "i̇" (2 chars); source "İ" also lowercases
+      // to "i̇". The whole source char should highlight in its original
+      // form.
+      const result = highlightMatches("İstanbul", "İ");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      expect(result[0]).toEqual({ text: "İ", matched: true });
+    });
   });
 });

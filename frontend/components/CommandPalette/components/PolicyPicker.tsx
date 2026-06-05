@@ -106,7 +106,7 @@ const PolicyPicker = ({
           >
             <div className={`${baseClass}__item-left`}>
               <span className={`${baseClass}__item-label`}>
-                <HighlightedLabel text={policy.name} query={search} />
+                <HighlightedLabel text={policy.name} query={debouncedQuery} />
               </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
