@@ -25,7 +25,5 @@ rules:
       - fleet-and-orbit.yml
       - generate-osqueryd-targets.yml
       - goreleaser-fleet.yaml
-  ref-version-mismatch: # 44 findings (online audit)
-    disable: true
   template-injection: # 234 findings
     disable: true
