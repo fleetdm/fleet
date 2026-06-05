@@ -2,15 +2,20 @@
 # registers many visible uninstall entries:
 #   * the bundle:    "Python 3.14.<patch> (64-bit)" -> a cached Burn EXE
 #   * components:    "Python 3.14.<patch> Core Interpreter (64-bit)",
-#                    "...Standard Library (64-bit)", etc. -> individual MSIs
+#                    "...Standard Library (64-bit)", "...Executables (64-bit)",
+#                    etc. -> individual MSIs
 #
-# The bundle's "/uninstall /quiet" relaunches a cached copy of itself in a clean
-# room and removes the components asynchronously, which is slow/racy to wait on.
-# Instead we remove the component MSIs directly with "msiexec /X ... /qn" (fully
-# synchronous), then clear the bundle's own registration. We match on the
-# DisplayName (anchored for the bundle) rather than the Publisher string, and
-# scan every hive osquery's "programs" table reads, so this works for both
-# per-machine (SYSTEM, HKLM) and per-user (HKU) installs.
+# The component MSIs must be removed in DEPENDENCY ORDER: the feature components
+# (Standard Library, Tcl/Tk, pip, docs, etc.) run uninstall custom actions that
+# invoke python.exe, so the "Executables" and "Core Interpreter" components that
+# provide python.exe must be removed LAST. Removing them first makes the rest
+# fail with exit code 1603. This ordering + "REBOOT=ReallySuppress /qn" mirrors
+# the documented silentinstallhq.com Python uninstall.
+#
+# We match on the DisplayName (anchored for the bundle) rather than the Publisher
+# string, and scan every hive osquery's "programs" table reads (HKLM +
+# Wow6432Node + all HKU) so this works for per-machine (SYSTEM) and per-user
+# installs alike.
 
 $pythonNameLike    = "Python 3.14.* (64-bit)"
 $bundleNamePattern = '^Python 3\.14\.\d+ \(64-bit\)$'
@@ -60,6 +65,15 @@ function Get-MsiProductCode {
     return $null
 }
 
+# Dependency removal order: feature components first (0), then Executables (1),
+# then Core Interpreter LAST (2).
+function Get-RemovalPriority {
+    param([string]$Name)
+    if ($Name -match '(?i)Core Interpreter') { return 2 }
+    if ($Name -match '(?i)Executables')      { return 1 }
+    return 0
+}
+
 function Get-ExePath {
     param([string]$Command)
     if ($Command -match '^\s*"([^"]+)"') { return $Matches[1] }
@@ -81,33 +95,33 @@ try {
         Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
     }
 
-    # --- Phase 1: remove component MSIs directly (synchronous). ---
-    foreach ($e in $entries) {
-        if ($e.DisplayName -match $bundleNamePattern) { continue } # handle the bundle in phase 2
+    # --- Remove component MSIs in dependency order (Core Interpreter last). ---
+    $components = $entries |
+        Where-Object { $_.DisplayName -notmatch $bundleNamePattern } |
+        Sort-Object @{ Expression = { Get-RemovalPriority $_.DisplayName } }
+
+    foreach ($e in $components) {
         $code = Get-MsiProductCode $e
         if (-not $code) { Write-Host "Skipping non-MSI component: '$($e.DisplayName)'"; continue }
 
         Write-Host "Removing component: '$($e.DisplayName)' ($code)"
-        $p = Start-Process -FilePath "msiexec.exe" -ArgumentList "/X $code /qn /norestart" -PassThru -Wait
+        $p = Start-Process -FilePath "msiexec.exe" `
+            -ArgumentList "/x $code REBOOT=ReallySuppress /qn /norestart" -PassThru -Wait
         Write-Host "  Exit code: $($p.ExitCode)"
         if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
     }
 
-    # --- Phase 2: remove the bundle. With its components gone, the bundle's own
-    # uninstall is quick; if its cached EXE is missing or it leaves an ARP entry,
-    # delete the orphaned registration so detection clears. ---
+    # --- Remove the bundle. With its components gone its own uninstall is quick;
+    # if a registration lingers, delete the orphaned key so detection clears. ---
     foreach ($e in (Get-PythonEntries -Roots $roots | Where-Object { $_.DisplayName -match $bundleNamePattern })) {
         $command = if ($e.QuietUninstall) { $e.QuietUninstall } else { $e.Uninstall }
         $exe = if ($command) { Get-ExePath $command } else { $null }
-
         if ($exe -and (Test-Path -LiteralPath $exe)) {
             Write-Host "Uninstalling bundle: '$($e.DisplayName)' via $exe"
             $p = Start-Process -FilePath $exe -ArgumentList "/uninstall /quiet /norestart" -PassThru -Wait
             Write-Host "  Exit code: $($p.ExitCode)"
             if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
         }
-
-        # If a registration still lingers (e.g. orphaned bundle entry), remove it.
         $still = Get-ItemProperty $e.KeyPath -ErrorAction SilentlyContinue
         if ($still -and $still.DisplayName) {
             Write-Host "Removing leftover bundle registration: '$($e.DisplayName)'"
