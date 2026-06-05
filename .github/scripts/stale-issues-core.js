@@ -36,6 +36,8 @@ const STALE_LABEL_DEFAULT = "stale";
 // activity bump from genuine user activity after labeling.
 const SELF_ACTIVITY_EPSILON_MS = 60 * 1000;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+// Opt in to the 2026-03-10 REST API version on every call.
+const GH_API_HEADERS = { "x-github-api-version": "2026-03-10" };
 
 const parseMaxOps = (raw) => {
   const parsed = Number.parseInt(raw ?? "", 10);
@@ -59,7 +61,8 @@ async function run({ github, context, core, config }) {
   const maxOps = parseMaxOps(process.env.MAX_OPERATIONS);
   // MAX_OPERATIONS=0 is the kill switch: scan and report what would happen, but make no writes.
   // Treating it as dry-run (rather than breaking on the first cap check) keeps the summary complete.
-  const dryRun = String(process.env.DRY_RUN).toLowerCase() === "true" || maxOps === 0;
+  const dryRun =
+    String(process.env.DRY_RUN).toLowerCase() === "true" || maxOps === 0;
 
   // All time math is in UTC-equivalent epoch milliseconds: Date.now() is UTC, and the GitHub
   // REST API returns ISO 8601 strings with a `Z` suffix, so timezone and DST cannot affect the
@@ -67,7 +70,9 @@ async function run({ github, context, core, config }) {
   const now = Date.now();
   const daysSince = (iso) => (now - new Date(iso).getTime()) / MS_PER_DAY;
 
-  core.info(`${title}: dry_run=${dryRun}, max_operations=${maxOps}, stale_days=${staleDays}, close_days=${closeDays}`);
+  core.info(
+    `${title}: dry_run=${dryRun}, max_operations=${maxOps}, stale_days=${staleDays}, close_days=${closeDays}`
+  );
 
   // Collect candidates by scanning all open issues. Two groups qualify:
   //   1. Idle >= closeDays — feeds the stale and close phases.
@@ -81,6 +86,7 @@ async function run({ github, context, core, config }) {
     sort: "updated",
     direction: "asc",
     per_page: 100,
+    headers: GH_API_HEADERS,
   });
   for await (const { data } of iterator) {
     for (const issue of data) {
@@ -153,6 +159,7 @@ async function run({ github, context, core, config }) {
           repo,
           issue_number: issue.number,
           per_page: 100,
+          headers: GH_API_HEADERS,
         });
       } catch (err) {
         core.warning(
@@ -210,6 +217,7 @@ async function run({ github, context, core, config }) {
               repo,
               issue_number: issue.number,
               name: staleLabel,
+              headers: GH_API_HEADERS,
             });
             writes += 1;
             unstaled.push(entry);
@@ -258,6 +266,7 @@ async function run({ github, context, core, config }) {
             repo,
             issue_number: issue.number,
             body: closeMessage(author),
+            headers: GH_API_HEADERS,
           });
           writes += 1;
           await github.rest.issues.update({
@@ -266,6 +275,7 @@ async function run({ github, context, core, config }) {
             issue_number: issue.number,
             state: "closed",
             state_reason: "not_planned",
+            headers: GH_API_HEADERS,
           });
           writes += 1;
           closed.push(entry);
@@ -297,6 +307,7 @@ async function run({ github, context, core, config }) {
             repo,
             issue_number: issue.number,
             body: staleMessage(author),
+            headers: GH_API_HEADERS,
           });
           writes += 1;
           await github.rest.issues.addLabels({
@@ -304,6 +315,7 @@ async function run({ github, context, core, config }) {
             repo,
             issue_number: issue.number,
             labels: [staleLabel],
+            headers: GH_API_HEADERS,
           });
           writes += 1;
           staled.push(entry);
@@ -326,7 +338,9 @@ async function run({ github, context, core, config }) {
   // (from addHeading / addList), which suspends markdown parsing for child content — markdown
   // bullets via addRaw collapse onto one line in that context.
   const fmtItem = (e) =>
-    `<a href="${e.url}">#${e.number}</a> by @${e.author} (idle ${e.idleDays.toFixed(1)}d)`;
+    `<a href="${e.url}">#${e.number}</a> by @${
+      e.author
+    } (idle ${e.idleDays.toFixed(1)}d)`;
   const fmtErrorItem = (e) => `#${e.number} (${e.phase}): ${e.message}`;
   const appendList = (s, items, fn) =>
     items.length ? s.addList(items.map(fn)) : s.addRaw("_none_").addEOL();
