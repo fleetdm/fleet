@@ -608,7 +608,7 @@ Set the following on each Fleet server, then point it at an OTLP collector such 
 export FLEET_LOGGING_TRACING_ENABLED=true
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_SERVICE_NAME=fleet
-# Optional: export logs alongside traces so log records carry trace IDs.
+# Optional: export logs alongside traces.
 export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
 ```
 
