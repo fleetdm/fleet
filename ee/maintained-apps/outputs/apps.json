@@ -2578,6 +2578,13 @@
       "description": "UTM is a virtual machines UI using QEMU."
     },
     {
+      "name": "Microsoft Visual C++ Redistributable (x64)",
+      "slug": "vc-redist-x64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "description": "Microsoft Visual C++ Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
+    },
+    {
       "name": "VirtualBox",
       "slug": "virtualbox/darwin",
       "platform": "darwin",
