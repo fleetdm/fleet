@@ -21,7 +21,7 @@ on:
       max_operations:
         description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
         type: number
-        default: 200
+        default: 400
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -56,10 +56,9 @@ jobs:
         env:
           # Schedule runs always run live. Manual runs honor the dry_run input (default true).
           DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == true) && 'true' || 'false' }}
-          # On manual runs, forward the input verbatim (format() keeps an explicit `0` as the truthy
-          # string "0" so the documented no-writes kill switch survives). Schedule runs fall through
-          # to 200 to match the previous actions/stale operations-per-run.
-          MAX_OPERATIONS: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.max_operations) || '200' }}
+          # Forwarded verbatim so an explicit `0` (the no-writes kill switch) survives. On schedule
+          # runs the input is empty and parseMaxOps in the script applies the 400 default.
+          MAX_OPERATIONS: ${{ inputs.max_operations }}
         with:
           script: |
             const run = require('./.github/scripts/stale-eng-issues.js');
