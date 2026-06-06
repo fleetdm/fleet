@@ -90,9 +90,19 @@ try {
         Exit 0
     }
 
-    # Stop any running interpreter/launcher so component MSIs aren't locked.
+    # Stop only running interpreters that belong to THIS Python install so the
+    # component MSIs aren't locked. We scope the kill to processes whose image
+    # lives under the version-specific "Python314" directory; matching by image
+    # base name alone (python.exe/pythonw.exe/...) would also terminate a
+    # side-by-side 3.12/3.13, Microsoft Store, or Anaconda interpreter -- a
+    # 3.14 uninstall running as SYSTEM could kill an unrelated long-running
+    # workload mid-write. The shared "py"/"pyw" launcher lives in C:\Windows and
+    # is version-agnostic, so it is intentionally left running.
+    $installDirPattern = '*\Python314\*'
     foreach ($proc in @("python", "pythonw", "py", "pyw")) {
-        Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
+        Get-Process -Name $proc -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -like $installDirPattern } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
     }
 
     # --- Remove component MSIs in dependency order (Core Interpreter last). ---

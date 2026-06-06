@@ -2306,7 +2306,14 @@ var (
 	// DisplayVersion embeds the micro version in the third segment (e.g.
 	// "3.14.5150.0"), which neither matches the real version nor sorts correctly,
 	// so we recover the true version from the name instead.
-	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+) \(`)
+	//
+	// python.org's installer also registers the individual component MSIs as their
+	// own ARP entries ("Python 3.14.5 Core Interpreter (64-bit)", "...Standard
+	// Library (64-bit)", "...Executables (64-bit)", etc.), all sharing the same
+	// bogus DisplayVersion. The optional middle group lets those component names
+	// normalize to the same marketing version as the bundle, so a single install
+	// doesn't show up in inventory under two different versions.
+	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
 	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
@@ -2465,7 +2472,7 @@ var (
 					pythonNameVersion.MatchString(s.Name)
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
-				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) == 2 {
+				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
 					s.Version = matches[1]
 				}
 			},
