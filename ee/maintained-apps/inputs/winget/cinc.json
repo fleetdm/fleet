@@ -1,0 +1,12 @@
+{
+  "name": "Cinc Workstation",
+  "slug": "cinc/windows",
+  "package_identifier": "CINCSoftware.Workstation",
+  "unique_identifier": "Cinc Workstation",
+  "fuzzy_match_name": "Cinc Workstation v%",
+  "program_publisher": "Cinc Project <maintainers@cinc.sh>",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

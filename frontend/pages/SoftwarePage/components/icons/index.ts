@@ -20,6 +20,7 @@ import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
+import Cinc from "./Cinc";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
@@ -364,6 +365,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
   "chrome remote desktop": ChromeRemoteDesktop,
+  "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
