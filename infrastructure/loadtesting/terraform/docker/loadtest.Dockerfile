@@ -2,7 +2,9 @@ FROM golang:1.26.3-alpine3.23@sha256:f44b851aa23dfa219d18db6eab743203245429d355c
 ARG TAG
 RUN apk add git sqlite gcc musl-dev sqlite-dev
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
-RUN go install github.com/fleetdm/fleet/v4/cmd/osquery-perf@${TAG}
+# Build from the clone instead of `go install ...@${TAG}`: installing by module path fetches the module zip,
+# and the Fleet monorepo exceeds Go's hardcoded 500 MB module-zip limit.
+RUN cd /go/fleet && go build -o /go/bin/osquery-perf ./cmd/osquery-perf
 
 # Generate software database from SQL file
 RUN cd /go/fleet/cmd/osquery-perf/software-library && \
