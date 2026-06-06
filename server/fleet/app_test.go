@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMacOSUpdatesValidate(t *testing.T) {
@@ -23,6 +24,20 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01"),
+				},
+			},
+			{
+				"with time HH:MM:SS",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("10.15.0"),
+					Deadline:       optjson.SetString("2020-01-01T14:30:00"),
+				},
+			},
+			{
+				"with time HH:MM",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("10.15.0"),
+					Deadline:       optjson.SetString("2020-01-01T14:30"),
 				},
 			},
 			{
@@ -65,6 +80,20 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01T00:00:00Z"),
+				},
+			},
+			{
+				"deadline with invalid time hour",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("10.15.0"),
+					Deadline:       optjson.SetString("2020-01-01T25:00:00"),
+				},
+			},
+			{
+				"deadline with invalid time minute",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("10.15.0"),
+					Deadline:       optjson.SetString("2020-01-01T14:60:00"),
 				},
 			},
 			{
@@ -193,6 +222,74 @@ func TestMacOSUpdatesConfigured(t *testing.T) {
 		}
 		require.Equal(t, tc.out, m.Configured())
 	}
+}
+
+func TestAppleOSUpdateSettingsHelpers(t *testing.T) {
+	t.Run("HasDeadlineTime", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			deadline string
+			want     bool
+		}{
+			{"date only", "2020-01-01", false},
+			{"with HH:MM:SS", "2020-01-01T14:30:00", true},
+			{"with HH:MM", "2020-01-01T14:30", true},
+			{"empty", "", false},
+			{"invalid", "not-a-date", false},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				m := AppleOSUpdateSettings{Deadline: optjson.SetString(tt.deadline)}
+				require.Equal(t, tt.want, m.HasDeadlineTime())
+			})
+		}
+	})
+
+	t.Run("DeadlineDatePart", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			deadline string
+			want     string
+		}{
+			{"date only", "2020-01-01", "2020-01-01"},
+			{"with HH:MM:SS", "2020-01-01T14:30:00", "2020-01-01"},
+			{"with HH:MM", "2020-01-01T14:30", "2020-01-01"},
+			{"empty", "", ""},
+			{"short", "2020", "2020"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				m := AppleOSUpdateSettings{Deadline: optjson.SetString(tt.deadline)}
+				require.Equal(t, tt.want, m.DeadlineDatePart())
+			})
+		}
+	})
+
+	t.Run("DeadlineDateTime", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			deadline string
+			wantOK  bool
+			want    string // formatted back as "2006-01-02T15:04:05"
+		}{
+			{"date only", "2020-01-01", true, "2020-01-01T00:00:00"},
+			{"with HH:MM:SS", "2020-01-01T14:30:00", true, "2020-01-01T14:30:00"},
+			{"with HH:MM", "2020-01-01T14:30", true, "2020-01-01T14:30:00"},
+			{"invalid", "not-a-date", false, ""},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				m := AppleOSUpdateSettings{Deadline: optjson.SetString(tt.deadline)}
+				tm, err := m.DeadlineDateTime()
+				if !tt.wantOK {
+					require.Error(t, err)
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, tm.Format("2006-01-02T15:04:05"))
+			})
+		}
+	})
 }
 
 func TestSSOSettingsIsEmpty(t *testing.T) {
