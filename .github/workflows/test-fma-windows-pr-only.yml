@@ -99,9 +99,9 @@ jobs:
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_firefox=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_nodejs=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_r=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_git=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             exit 0
           }
 
@@ -115,9 +115,9 @@ jobs:
             "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_firefox=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_nodejs=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_r=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             "has_git=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "No windows apps changed, skipping Windows workflow"
           } else {
             "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -157,6 +157,14 @@ jobs:
               "has_nodejs=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             }
 
+            # Check if powershell/windows is in the changed apps
+            if ("powershell/windows" -in $windowsSlugs) {
+              "has_powershell=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              Write-Host "PowerShell detected in changed apps"
+            } else {
+              "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            }
+
             # Check if r/windows is in the changed apps
             if ("r/windows" -in $windowsSlugs) {
               "has_r=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -171,12 +179,6 @@ jobs:
               Write-Host "Git detected in changed apps"
             } else {
               "has_git=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            # Check if powershell/windows is in the changed apps
-            if ("powershell/windows" -in $windowsSlugs) {
-              "has_powershell=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-              Write-Host "PowerShell detected in changed apps"
-            } else {
-              "has_powershell=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             }
           }
         shell: pwsh
@@ -433,22 +435,6 @@ jobs:
           }
         shell: pwsh
 
-      - name: Remove pre-installed R
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_r == 'true'
-        run: |
-          Write-Host "Listing all installed packages containing 'R for Windows':"
-          Get-Package | Where-Object { $_.Name -like "*R for Windows*" } | ForEach-Object {
-            Write-Host "  - $($_.Name) (Version: $($_.Version))"
-          }
-
-          # Stop any R processes so the uninstaller doesn't fail on locked files
-          Get-Process -Name "Rgui","Rterm","Rscript" -ErrorAction SilentlyContinue | ForEach-Object {
-            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-          }
-
-          # R for Windows installs via Inno Setup and registers under "R for Windows <ver>"
-          # / "R Core Team". The version is embedded in the DisplayName, so match by prefix
-          # and use the registry UninstallString (Inno has no MSI ProductCode).
       - name: Remove pre-installed PowerShell
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_powershell == 'true'
         # NOTE: this step (and the verify step below) run under Windows PowerShell 5.1
@@ -470,16 +456,86 @@ jobs:
 
           $found = $false
           foreach ($path in $uninstallPaths) {
-            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "R for Windows*" -and $_.Publisher -like "*R Core Team*" }
-            foreach ($entry in $entries) {
-              if (-not $entry) { continue }
-              $found = $true
-              Write-Host "Found R uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
             $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "PowerShell 7*" -and $_.Publisher -like "*Microsoft Corporation*" }
             foreach ($entry in $entries) {
               if (-not $entry) { continue }
               $found = $true
               Write-Host "Found PowerShell uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
+
+              $uninstallString = if ($entry.QuietUninstallString) {
+                $entry.QuietUninstallString
+              } elseif ($entry.UninstallString) {
+                $entry.UninstallString
+              } else {
+                $null
+              }
+
+              if ($uninstallString) {
+                Write-Host "Found PowerShell uninstall path: $uninstallString"
+                try {
+                  # PowerShell 7 uses an MSI uninstaller (MsiExec.exe /X{GUID} or /I{GUID})
+                  if ($uninstallString -match "/[XI]\{([A-F0-9\-]+)\}") {
+                    $guid = $matches[1]
+                    Write-Host "Uninstalling PowerShell MSI with GUID: $guid"
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
+                    Write-Host "Successfully removed PowerShell via MSI uninstaller"
+                  } else {
+                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                  }
+                } catch {
+                  Write-Host "Failed to remove PowerShell: $($_.Exception.Message)"
+                }
+              } else {
+                Write-Host "PowerShell uninstall string not found in registry entry"
+              }
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "PowerShell uninstall path not found in registry"
+          }
+
+          # Force-remove leftover PowerShell 7 directory in case files remain after MSI removal
+          $psDir = "C:\Program Files\PowerShell\7"
+          if (Test-Path $psDir) {
+            Write-Host "Removing leftover directory: $psDir"
+            Remove-Item -Path $psDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path $psDir) {
+              Write-Host "WARNING: Failed to fully remove $psDir"
+            } else {
+              Write-Host "Removed $psDir"
+            }
+          }
+        shell: powershell
+
+      - name: Remove pre-installed R
+        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_r == 'true'
+        run: |
+          Write-Host "Listing all installed packages containing 'R for Windows':"
+          Get-Package | Where-Object { $_.Name -like "*R for Windows*" } | ForEach-Object {
+            Write-Host "  - $($_.Name) (Version: $($_.Version))"
+          }
+
+          # Stop any R processes so the uninstaller doesn't fail on locked files
+          Get-Process -Name "Rgui","Rterm","Rscript" -ErrorAction SilentlyContinue | ForEach-Object {
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          # R for Windows installs via Inno Setup and registers under "R for Windows <ver>"
+          # / "R Core Team". The version is embedded in the DisplayName, so match by prefix
+          # and use the registry UninstallString (Inno has no MSI ProductCode).
+          $uninstallPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $found = $false
+          foreach ($path in $uninstallPaths) {
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "R for Windows*" -and $_.Publisher -like "*R Core Team*" }
+            foreach ($entry in $entries) {
+              if (-not $entry) { continue }
+              $found = $true
+              Write-Host "Found R uninstall entry: $($entry.DisplayName) (Version: $($entry.DisplayVersion))"
 
               $uninstallString = if ($entry.QuietUninstallString) {
                 $entry.QuietUninstallString
@@ -504,14 +560,6 @@ jobs:
                     Write-Host "Uninstalling R via: $exePath"
                     Start-Process -FilePath $exePath -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -NoNewWindow
                     Write-Host "Successfully removed R via Inno uninstaller"
-                Write-Host "Found PowerShell uninstall path: $uninstallString"
-                try {
-                  # PowerShell 7 uses an MSI uninstaller (MsiExec.exe /X{GUID} or /I{GUID})
-                  if ($uninstallString -match "/[XI]\{([A-F0-9\-]+)\}") {
-                    $guid = $matches[1]
-                    Write-Host "Uninstalling PowerShell MSI with GUID: $guid"
-                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
-                    Write-Host "Successfully removed PowerShell via MSI uninstaller"
                   } else {
                     Write-Host "Could not parse uninstall string format: $uninstallString"
                   }
@@ -520,10 +568,6 @@ jobs:
                 }
               } else {
                 Write-Host "R uninstall string not found in registry entry"
-                  Write-Host "Failed to remove PowerShell: $($_.Exception.Message)"
-                }
-              } else {
-                Write-Host "PowerShell uninstall string not found in registry entry"
               }
             }
           }
@@ -543,29 +587,14 @@ jobs:
               Write-Host "Removed $rDir"
             }
           }
-        shell: pwsh
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
 
       # NOTE: filtering is split out from validation and runs BEFORE "Remove pre-installed
       # Git" below. Git for Windows provides the Git Bash 'bash' that this step's
       # filter-apps-json.sh call depends on; validation itself does not need bash.
       - name: Filter apps.json for changed apps
-            Write-Host "PowerShell uninstall path not found in registry"
-          }
-
-          # Force-remove leftover PowerShell 7 directory in case files remain after MSI removal
-          $psDir = "C:\Program Files\PowerShell\7"
-          if (Test-Path $psDir) {
-            Write-Host "Removing leftover directory: $psDir"
-            Remove-Item -Path $psDir -Recurse -Force -ErrorAction SilentlyContinue
-            if (Test-Path $psDir) {
-              Write-Host "WARNING: Failed to fully remove $psDir"
-            } else {
-              Write-Host "Removed $psDir"
-            }
-          }
-        shell: powershell
-
-      - name: Filter apps.json and verify changed apps
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           cd fleet
@@ -611,7 +640,9 @@ jobs:
 
           # Replace apps.json with filtered version
           Move-Item -Path $filteredAppsJson -Destination "ee\maintained-apps\outputs\apps.json" -Force
-        shell: pwsh
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
 
       - name: Remove pre-installed Git
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_git == 'true'
@@ -695,7 +726,9 @@ jobs:
               Write-Host "Removed $gitDir"
             }
           }
-        shell: pwsh
+        # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
+        # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
 
       - name: Validate changed apps
         if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
