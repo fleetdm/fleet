@@ -404,14 +404,7 @@ func (m AppleOSUpdateSettings) Validate() error {
 		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
 	}
 
-	var deadlineValid bool
-	for _, layout := range deadlineDateTimeLayouts {
-		if _, err := time.Parse(layout, m.Deadline.Value); err == nil {
-			deadlineValid = true
-			break
-		}
-	}
-	if !deadlineValid {
+	if _, err := m.DeadlineDateTime(); err != nil {
 		return errors.New(AppleOSVersionDeadlineInvalidMessage)
 	}
 
@@ -448,12 +441,13 @@ func (m AppleOSUpdateSettings) DeadlineDateTime() (time.Time, error) {
 }
 
 // DeadlineDatePart returns just the YYYY-MM-DD portion of the deadline.
+// Returns empty string if the deadline is too short.
 func (m AppleOSUpdateSettings) DeadlineDatePart() string {
 	deadline := m.Deadline.Value
 	if len(deadline) >= 10 {
 		return deadline[:10]
 	}
-	return deadline
+	return ""
 }
 
 // WindowsUpdates is part of AppConfig and defines the Windows update settings.

@@ -255,7 +255,7 @@ func TestAppleOSUpdateSettingsHelpers(t *testing.T) {
 			{"with HH:MM:SS", "2020-01-01T14:30:00", "2020-01-01"},
 			{"with HH:MM", "2020-01-01T14:30", "2020-01-01"},
 			{"empty", "", ""},
-			{"short", "2020", "2020"},
+			{"short", "2020", ""},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
