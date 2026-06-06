@@ -1,8 +1,10 @@
 # Locates Git for Windows' Inno Setup uninstaller from the registry and runs it
-# silently. The DisplayName embeds the version (e.g. "Git version 2.54.0"), so
-# match by prefix and require the Git Development Community publisher.
+# silently. The registry DisplayName is not reliably "Git version <ver>" (e.g. the
+# GitHub-hosted runner's Git is listed as just "Git"), so anchor the match on the
+# publisher -- which is unique to Git for Windows -- and only loosely guard the
+# DisplayName. This mirrors the generated exists query's publisher clause.
 
-$displayNameLike = "Git version *"
+$displayNameLike = "Git*"
 $publisherLike = "The Git Development Community*"
 
 $paths = @(

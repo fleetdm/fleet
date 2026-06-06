@@ -660,8 +660,10 @@ jobs:
             Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
           }
 
-          # Git for Windows installs via Inno Setup and registers under "Git version <ver>"
-          # / "The Git Development Community". Match by prefix; use the registry
+          # Git for Windows installs via Inno Setup. Its registry DisplayName is not
+          # reliably "Git version <ver>" (the runner's pre-installed Git is listed as
+          # just "Git"), so anchor on the publisher -- which is unique to Git for
+          # Windows -- and loosely guard the DisplayName. Use the registry
           # UninstallString (Inno has no MSI ProductCode).
           $uninstallPaths = @(
             "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
@@ -670,7 +672,7 @@ jobs:
 
           $found = $false
           foreach ($path in $uninstallPaths) {
-            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Git version *" -and $_.Publisher -like "*The Git Development Community*" }
+            $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Git*" -and $_.Publisher -like "*The Git Development Community*" }
             foreach ($entry in $entries) {
               if (-not $entry) { continue }
               $found = $true
