@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 
   backend "s3" {
@@ -360,7 +364,13 @@ resource "null_resource" "signoz_predestroy_cleanup" {
       # loses the race.
       kubectl delete deployment -n signoz signoz-clickhouse-operator --ignore-not-found --timeout=60s || true
       kubectl delete deployment -n signoz -l app.kubernetes.io/name=clickhouse-operator --ignore-not-found --timeout=60s || true
-      sleep 5
+      # Wait until the operator pods are actually gone (deployment deletion returns before pod termination). Match by
+      # pod name rather than labels so this works regardless of chart label conventions. Bounded at 120s.
+      kubectl wait -n signoz --for=delete pod -l app.kubernetes.io/name=clickhouse-operator --timeout=120s || true
+      for _ in $(seq 1 24); do
+        kubectl get pods -n signoz --no-headers 2>/dev/null | grep -q clickhouse-operator || break
+        sleep 5
+      done
       # With the operator gone the patch sticks; without it, helm uninstall hangs on CHI deletion (#35405).
       kubectl patch clickhouseinstallations.clickhouse.altinity.com signoz-clickhouse -n signoz --type merge -p '{"metadata":{"finalizers":[]}}' || true
       # Release the AWS load balancers before the EKS/VPC teardown.
