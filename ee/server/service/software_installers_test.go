@@ -557,8 +557,23 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	svc := newTestService(t, ds)
 	ctx := context.Background()
 
+	const validToken = "00000000-0000-0000-0000-000000000001"
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
+	}
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 1,
+				TeamID:          0,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
@@ -586,7 +601,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?fleet_id=0</string>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app/00000000-0000-0000-0000-000000000001</string>
           </dict>
           <dict>
             <key>kind</key>
@@ -613,16 +628,26 @@ func TestGetInHouseAppManifest(t *testing.T) {
   </dict>
 </plist>`
 
-	manifest, err := svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
-
 	assert.Equal(t, expected, string(manifest))
 
-	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
 
-	// Set up a new S3 store to test CloudFront signing
+	// Wrong-length token is rejected before a DB lookup happens.
+	ds.GetInHouseAppInstallTokenMetadataFuncInvoked = false
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "short")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppInstallTokenMetadataFuncInvoked)
+
+	_, err = svc.GetInHouseAppManifest(ctx, 2, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
@@ -636,9 +661,42 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.NoError(t, err)
 	svc.softwareInstallStore = s3Store
 
-	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
+}
+
+func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000002"
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 5,
+				TeamID:          2,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Unknown token → permission error before the metadata mock would fire.
+	_, err := svc.GetInHouseAppPackage(ctx, 5, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
+
+	_, err = svc.GetInHouseAppPackage(ctx, 99, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -657,8 +715,9 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	svc := &Service{
-		authz: authorizer,
-		ds:    ds,
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }

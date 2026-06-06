@@ -56,6 +56,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"NewMDMWindowsConfigProfileSoftwareUpdateTracking", testNewMDMWindowsConfigProfileSoftwareUpdateTracking},
+		{"TestMDMWindowsProfileLabelsCombined", testMDMWindowsProfileLabelsCombined},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
@@ -3548,6 +3549,114 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 			Checksum: profileChecksums[excludeAnyManualProf.ProfileUUID],
 		},
 	}, profilesToInstall)
+}
+
+func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Use a dedicated team to isolate from other tests in the same suite.
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "combined-label-test-team"})
+	require.NoError(t, err)
+
+	u := uuid.New().String()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now().Add(-5 * time.Second),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &u,
+		UUID:            u,
+		Hostname:        u,
+		Platform:        "windows",
+		TeamID:          &tm.ID,
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host)
+
+	incLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-combined", Query: "select 1;"})
+	require.NoError(t, err)
+	excLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "exclude-combined",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	incAllLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-combined-1", Query: "select 1;"})
+	require.NoError(t, err)
+	incAllLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-combined-2", Query: "select 1;"})
+	require.NoError(t, err)
+
+	// Profile: include-any + exclude-any (scoped to the test team)
+	profAnyExcl := windowsConfigProfileForTest(t, "prof-include-any-exclude", "./combined/any", incLabel, excLabel)
+	profAnyExcl.TeamID = &tm.ID
+	inclAnyExclProf, err := ds.NewMDMWindowsConfigProfile(ctx, *profAnyExcl, nil)
+	require.NoError(t, err)
+	sumAny := md5.Sum(inclAnyExclProf.SyncML) //nolint:gosec
+	checksumAnyExcl := append([]byte{}, sumAny[:]...)
+
+	// Profile: include-all + exclude-any (scoped to the test team)
+	profAllExcl := windowsConfigProfileForTest(t, "prof-include-all-exclude", "./combined/all", incAllLabel1, incAllLabel2, excLabel)
+	profAllExcl.TeamID = &tm.ID
+	inclAllExclProf, err := ds.NewMDMWindowsConfigProfile(ctx, *profAllExcl, nil)
+	require.NoError(t, err)
+	sumAll := md5.Sum(inclAllExclProf.SyncML) //nolint:gosec
+	checksumAllExcl := append([]byte{}, sumAll[:]...)
+
+	// Host in include label, not in exclude -> both profiles should apply
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
+		{incLabel.ID, host.ID},
+		{incAllLabel1.ID, host.ID},
+		{incAllLabel2.ID, host.ID},
+	})
+	require.NoError(t, err)
+
+	// Update label_updated_at so dynamic labels are considered
+	host.LabelUpdatedAt = time.Now().Add(1 * time.Second)
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
+		{ProfileUUID: inclAllExclProf.ProfileUUID, ProfileName: inclAllExclProf.Name, HostUUID: host.UUID, Checksum: checksumAllExcl},
+	}, profilesToInstall)
+
+	// Add host to exclude label -> neither profile should apply
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profilesToInstall)
+
+	// Remove host from exclude label -> both profiles should apply again
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
+		{ProfileUUID: inclAllExclProf.ProfileUUID, ProfileName: inclAllExclProf.Name, HostUUID: host.UUID, Checksum: checksumAllExcl},
+	}, profilesToInstall)
+
+	// Remove host from one include-all label -> include-all profile should no longer apply
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incAllLabel1.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
+		{ProfileUUID: inclAnyExclProf.ProfileUUID, ProfileName: inclAnyExclProf.Name, HostUUID: host.UUID, Checksum: checksumAnyExcl},
+	}, profilesToInstall)
+
+	// Remove host from include-any label -> include-any profile should no longer apply either
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incLabel.ID, host.ID}})
+	require.NoError(t, err)
+
+	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profilesToInstall)
 }
 
 func expectWindowsProfiles(

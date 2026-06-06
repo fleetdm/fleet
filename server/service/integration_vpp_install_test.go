@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -1654,9 +1656,11 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
-			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
-			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+			expectedManifestURL := regexp.MustCompile(fmt.Sprintf(
+				`%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/[a-f0-9-]{36}`,
+				regexp.QuoteMeta(s.server.URL), titleID,
+			))
+			assert.Regexp(t, expectedManifestURL, string(cmd.Raw))
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
@@ -1839,9 +1843,11 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
-			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
-			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+			expectedManifestURL := regexp.MustCompile(fmt.Sprintf(
+				`%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/[a-f0-9-]{36}`,
+				regexp.QuoteMeta(s.server.URL), titleID,
+			))
+			assert.Regexp(t, expectedManifestURL, string(cmd.Raw))
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
@@ -1936,12 +1942,60 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
 		res.Body.Close()
 		return buf
 	}
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	// Mint directly; the activation path is exercised in end-to-end tests.
+	token := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return s.ds.CreateInHouseAppInstallToken(context.Background(), q, token, titleID, *teamID, 1)
+	})
+	res := s.DoRawNoAuth("GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, token),
+		nil, http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)
-	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?fleet_id=%d", titleID, *teamID))
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app/%s", titleID, token))
+}
+
+func (s *integrationMDMTestSuite) TestGetInHouseAppManifestInvalidToken() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	cases := []struct {
+		name string
+		path string
+		want int
+	}{
+		{
+			name: "tokenless path",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest", titleID),
+			want: http.StatusNotFound,
+		},
+		{
+			name: "malformed token",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/not-a-uuid", titleID),
+			want: http.StatusNotFound,
+		},
+		{
+			name: "unknown token",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, uuid.NewString()),
+			want: http.StatusForbidden,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s.DoRawNoAuth("GET", c.path, nil, c.want)
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {

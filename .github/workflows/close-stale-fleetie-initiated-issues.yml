@@ -14,6 +14,10 @@ name: Close stale Fleetie-initiated issues
 # and delete `stale-fleetie-issues.js` and its tests.
 
 on:
+  schedule:
+    # Daily at 9:10pm CDT (2:10am UTC) -- off-hours to prevent hitting the GitHub API rate limit,
+    # and one hour after the eng-initiated closer so the two bots don't compete for the same budget.
+    - cron: "10 2 * * *"
   workflow_dispatch: # Manual
     inputs:
       dry_run:
@@ -73,8 +77,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           FLEETIE_HANDLES_FILE: ${{ runner.temp }}/fleeties.txt
-          # Force dry-run for every event other than workflow_dispatch.
-          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) && 'false' || 'true' }}
+          # Schedule runs always run live. Manual runs honor the dry_run input (default true).
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == true) && 'true' || 'false' }}
           # parseMaxOps in the script applies the 400 default when the value is empty.
           MAX_OPERATIONS: ${{ inputs.max_operations }}
         with:

@@ -96,7 +96,7 @@ jobs:
           APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
 
       - name: Attest binaries and archives
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "dist/**"
 
@@ -117,7 +117,7 @@ jobs:
           echo "digest_fleetctl=$digest_fleetctl" >> "$GITHUB_OUTPUT"
 
       - name: Attest Fleet image
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
@@ -125,7 +125,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest FleetCtl image
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
@@ -276,7 +276,7 @@ jobs:
 
       - name: Attest package
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: dist/fleetctl_v*_mac.pkg
 
@@ -385,7 +385,7 @@ jobs:
 
       - name: Attest MSI
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path:
             dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{

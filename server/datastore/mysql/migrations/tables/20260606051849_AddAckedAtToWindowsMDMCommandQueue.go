@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260605151542, Down_20260605151542)
+	MigrationClient.AddMigration(Up_20260606051849, Down_20260606051849)
 }
 
-func Up_20260605151542(tx *sql.Tx) error {
+func Up_20260606051849(tx *sql.Tx) error {
 	// acked_at is the soft-dequeue marker for the Windows MDM command queue. Queue rows persist after acknowledgment until the
 	// periodic GC, so every predicate that needs "pending = queued and unacknowledged" had to anti-join windows_mdm_command_results
 	// per row. With the wake model recomputing the denormalized has_pending_commands flag during ack processing, that anti-join walk
@@ -39,6 +39,6 @@ func Up_20260605151542(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260605151542(tx *sql.Tx) error {
+func Down_20260606051849(tx *sql.Tx) error {
 	return nil
 }

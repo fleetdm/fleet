@@ -92,7 +92,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "extracted/Fleet\ Desktop.app/Contents/MacOS/*"
 
@@ -102,7 +102,7 @@ jobs:
           tar -czf ../desktop.app.tar.gz ./*
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -134,7 +134,7 @@ jobs:
           make desktop-windows
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows
           path: fleet-desktop.exe
@@ -184,7 +184,7 @@ jobs:
           make desktop-windows-arm64
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unsigned-windows-arm64
           path: fleet-desktop.exe
@@ -240,12 +240,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "desktop.tar.gz"
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz
@@ -282,12 +282,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: 'desktop.tar.gz'
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: desktop-arm64.tar.gz
           path: desktop.tar.gz

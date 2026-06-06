@@ -2480,9 +2480,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 
 	UNION
 
-	-- label-based profiles where the host is a member of all the labels (include-all).
-	-- by design, "include" labels cannot match if they are broken (the host cannot be
-	-- a member of a deleted label).
+	-- include-all only (no exclude labels): host must be a member of every include label.
+	-- broken include labels disqualify the profile.
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2507,6 +2506,10 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
@@ -2515,11 +2518,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 
 	UNION
 
-	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
-	-- explicitly ignore profiles with broken excluded labels so that they are never applied,
-	-- and ignore profiles that depend on labels created _after_ the label_updated_at timestamp
-	-- of the host (because we don't have results for that label yet, the host may or may not be
-	-- a member).
+	-- exclude-any only (no include labels): host must NOT be a member of any exclude label.
+	-- broken or not-yet-scanned dynamic exclude labels disqualify the profile.
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2529,10 +2529,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
-		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet. But we
-		-- only need consider this for dynamic labels - manual(type=1) can be
-		-- considered at any time
 		SUM(
 			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
 			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
@@ -2553,18 +2549,20 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
 	HAVING
-		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
 		count_profile_labels > 0 AND count_profile_labels = count_non_broken_labels AND count_profile_labels = count_host_updated_after_labels AND count_host_labels = 0
 
 	UNION
 
-	-- label-based profiles where the host is a member of any of the labels (include-any).
-	-- by design, "include" labels cannot match if they are broken (the host cannot be
-	-- a member of a deleted label).
+	-- include-any only (no exclude labels): host must be a member of at least one include label.
+	-- broken include labels are skipped (host can't be a member of a deleted label).
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2589,11 +2587,120 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
 	HAVING
 		count_profile_labels > 0 AND count_host_labels >= 1
+
+	UNION
+
+	-- include-all + exclude-any: host must be in ALL include labels AND NOT in ANY exclude label.
+	-- the include and exclude rows are counted separately via conditional aggregation.
+	-- broken include labels or broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
+		h.uuid as host_uuid,
+		SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mcpl.label_id
+			LEFT OUTER JOIN label_membership lm_inc
+				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
+			LEFT OUTER JOIN label_membership lm_exc
+				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+	WHERE
+		h.platform = 'windows' AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0 AND require_all = 1
+		) AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		-- include gate: host in all include labels (no broken include labels)
+		count_profile_labels > 0 AND count_non_broken_labels = count_profile_labels AND count_host_labels = count_profile_labels AND
+		-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels (reusing count_host_updated_after_labels)
+		count_host_updated_after_labels = 0
+
+	UNION
+
+	-- include-any + exclude-any: host must be in AT LEAST ONE include label AND NOT in ANY exclude label.
+	-- broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
+		h.uuid as host_uuid,
+		SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mcpl.label_id
+			LEFT OUTER JOIN label_membership lm_inc
+				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
+			LEFT OUTER JOIN label_membership lm_exc
+				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+	WHERE
+		h.platform = 'windows' AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0 AND require_all = 0
+		) AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		-- include gate: host in at least one include label
+		count_host_labels >= 1 AND
+		-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels
+		count_host_updated_after_labels = 0
 `
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
@@ -2656,7 +2763,7 @@ const windowsProfilesToInstallQuery = `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var profiles []*fleet.MDMWindowsProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
+	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install")
 	}
@@ -2679,7 +2786,7 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 		hostFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
 	}
 
-	toInstallQuery := fmt.Sprintf(windowsProfilesToInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter)
+	toInstallQuery := fmt.Sprintf(windowsProfilesToInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter, hostFilter, hostFilter)
 
 	// use a 10k host batch size to match what we do on the macOS side.
 	selectProfilesBatchSize := 10_000
@@ -2703,10 +2810,12 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 				fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
 		}
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
@@ -2774,8 +2883,8 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 	// UNION arms so the optimizer filters early. The remove query also
 	// gets the cursor in its 5th slot (outer WHERE on hmwp.host_uuid)
 	// for a clean PK range scan on host_mdm_windows_profiles.
-	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
-	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
+	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
 
 	stmt := fmt.Sprintf(`
 		SELECT host_uuid FROM (
@@ -2788,13 +2897,13 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 	`, toInstall, toRemove, batchSize)
 
 	// Placeholder order in stmt:
-	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
-	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
+	//   install branches: 6 cursor (h.uuid > ?), 2 op-type (install, remove)
+	//   remove branches:  6 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		afterHostUUID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
@@ -2879,7 +2988,7 @@ const windowsProfilesToRemoveQuery = `
 `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx sqlx.ExtContext) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
-	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
+	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove")
 	}
@@ -2905,7 +3014,7 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	}
 
 	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery,
-		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
+		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
 		outerFilter,
 	)
 
@@ -2932,9 +3041,13 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 			)
 		} else {
 			stmt, args, err = sqlx.In(toRemoveQuery,
+				batchUUIDs,
+				batchUUIDs,
 				batchUUIDs,
 				batchUUIDs,
 				batchUUIDs,

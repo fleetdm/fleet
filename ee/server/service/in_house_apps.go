@@ -15,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+const inHouseAppInstallTokenLength = 36 // UUID
+
 func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, vc viewer.Viewer, teamName *string, software *fleet.SoftwareTitle) (*fleet.SoftwareInstaller, error) {
 	existingInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
 	if err != nil {
@@ -182,21 +184,29 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	return updatedInstaller, nil
 }
 
-func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
-	// TODO(JVE): use time-based JWT auth here, this is just for testing
-	svc.authz.SkipAuthorization(ctx)
+func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, token string) ([]byte, error) {
+	svc.authz.SkipAuthorization(ctx) // gated on validateInHouseAppInstallToken below
+
+	tokenMeta, err := svc.validateInHouseAppInstallToken(ctx, titleID, token)
+	if err != nil {
+		return nil, err
+	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get app config")
 	}
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	teamIDPtr := inHouseTeamIDPtr(tokenMeta.TeamID)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamIDPtr, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app manifest: get in house app metadata")
 	}
 
-	downloadURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, ptr.ValOrZero(teamID))
+	downloadURL := fmt.Sprintf(
+		"%s/api/latest/fleet/software/titles/%d/in_house_app/%s",
+		appConfig.ServerSettings.ServerURL, titleID, token,
+	)
 
 	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
@@ -267,14 +277,59 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 	return buf.Bytes(), nil
 }
 
-func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
-	// TODO(JVE): JWT with expiration for auth
-	svc.authz.SkipAuthorization(ctx)
+func (svc *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	svc.authz.SkipAuthorization(ctx) // gated on validateInHouseAppInstallToken below
 
-	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	tokenMeta, err := svc.validateInHouseAppInstallToken(ctx, titleID, token)
+	if err != nil {
+		return nil, err
+	}
+
+	teamIDPtr := inHouseTeamIDPtr(tokenMeta.TeamID)
+	meta, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamIDPtr, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in house app package: get in house app metadata")
 	}
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, "installer.ipa")
+}
+
+// validateInHouseAppInstallToken collapses missing, expired, and title-mismatch
+// into the same permission error so callers can't distinguish them.
+func (svc *Service) validateInHouseAppInstallToken(
+	ctx context.Context,
+	urlTitleID uint,
+	token string,
+) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	// Reject obviously malformed lengths before hitting the DB; the column is
+	// VARCHAR(36) (UUID), so anything else can't match a row.
+	if len(token) != inHouseAppInstallTokenLength {
+		return nil, fleet.NewPermissionError("invalid token")
+	}
+
+	meta, err := svc.ds.GetInHouseAppInstallTokenMetadata(ctx, token)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			svc.logger.WarnContext(ctx, "in-house app install token not found or expired",
+				"title_id", urlTitleID)
+			return nil, fleet.NewPermissionError("invalid token")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "lookup in-house app install token")
+	}
+	if meta.SoftwareTitleID != urlTitleID {
+		svc.logger.WarnContext(ctx, "in-house app install token title mismatch",
+			"url_title_id", urlTitleID,
+			"token_title_id", meta.SoftwareTitleID,
+			"host_id", meta.HostID)
+		return nil, fleet.NewPermissionError("invalid token")
+	}
+	return meta, nil
+}
+
+// inHouseTeamIDPtr maps stored team_id (0 == no team) back to *uint.
+func inHouseTeamIDPtr(teamID uint) *uint {
+	if teamID == 0 {
+		return nil
+	}
+	return new(teamID)
 }

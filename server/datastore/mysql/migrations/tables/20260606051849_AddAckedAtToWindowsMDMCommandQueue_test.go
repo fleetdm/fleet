@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260605151542(t *testing.T) {
+func TestUp_20260606051849(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertEnrollment := func(deviceID string) int64 {
