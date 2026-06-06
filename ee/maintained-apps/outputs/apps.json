@@ -2350,7 +2350,7 @@
       "name": "SQL Server Management Studio",
       "slug": "sql-server-management-studio/windows",
       "platform": "windows",
-      "unique_identifier": "SQL Server Management Studio",
+      "unique_identifier": "SQL Server Management Studio 22",
       "description": "SQL Server Management Studio (SSMS) is an integrated environment for managing SQL Server and Azure SQL infrastructure. It provides tools to configure, monitor, and administer database instances, and to build and run queries and scripts."
     },
     {

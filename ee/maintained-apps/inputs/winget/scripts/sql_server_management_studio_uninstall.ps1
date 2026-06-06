@@ -1,11 +1,9 @@
 # SSMS 22 is owned by the Visual Studio Installer. Its ARP entry registers under
-# DisplayName "SQL Server Management Studio" with DisplayVersion "22.x". The
-# UninstallString points at the VS Installer's setup.exe with an "uninstall
-# --installPath ..." command; we look it up from the registry rather than
-# hard-coding the install path, then ensure the silent switches are present.
-$displayName = "SQL Server Management Studio"
-$publisher = "Microsoft Corporation"
-$versionPrefix = "22."
+# DisplayName "SQL Server Management Studio 22" (verified via osquery on a real
+# host). The UninstallString points at the VS Installer's setup.exe with an
+# "uninstall --installPath ..." command; we look it up from the registry rather
+# than hard-coding the install path, then ensure the silent switches are present.
+$displayName = "SQL Server Management Studio 22"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -17,9 +15,7 @@ $ExpectedExitCodes = @(0, 1641, 3010)
 $uninstall = $null
 foreach ($p in $paths) {
   $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -eq $displayName -and `
-    $_.Publisher -like "$publisher*" -and `
-    $_.DisplayVersion -like "$versionPrefix*"
+    $_.DisplayName -eq $displayName
   }
   if ($items) { $uninstall = $items | Select-Object -First 1; break }
 }
