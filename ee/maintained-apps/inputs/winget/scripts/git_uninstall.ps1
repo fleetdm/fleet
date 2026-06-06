@@ -67,6 +67,28 @@ try {
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
+
+    # Inno Setup's unins000.exe relaunches itself (it copies to a temp _iu*.tmp and
+    # spawns that copy), so the process we waited on returns BEFORE the uninstall
+    # has finished. Poll the registry until the entry is gone so the post-uninstall
+    # state is consistent for callers (e.g. Fleet's install/uninstall verification).
+    $deadline = (Get-Date).AddSeconds(120)
+    do {
+        Start-Sleep -Seconds 2
+        $stillPresent = $false
+        foreach ($p in $paths) {
+            $match = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+                $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
+            }
+            if ($match) { $stillPresent = $true; break }
+        }
+    } while ($stillPresent -and ((Get-Date) -lt $deadline))
+
+    if ($stillPresent) {
+        Write-Host "Uninstall entry still present after waiting; uninstall did not complete"
+        Exit 1
+    }
+
     if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
     Exit $exitCode
 } catch {
