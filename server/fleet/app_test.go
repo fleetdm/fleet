@@ -8,8 +8,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMacOSUpdatesValidate(t *testing.T) {
@@ -269,8 +269,8 @@ func TestAppleOSUpdateSettingsHelpers(t *testing.T) {
 		tests := []struct {
 			name     string
 			deadline string
-			wantOK  bool
-			want    string // formatted back as "2006-01-02T15:04:05"
+			wantOK   bool
+			want     string // formatted back as "2006-01-02T15:04:05"
 		}{
 			{"date only", "2020-01-01", true, "2020-01-01T00:00:00"},
 			{"with HH:MM:SS", "2020-01-01T14:30:00", true, "2020-01-01T14:30:00"},
