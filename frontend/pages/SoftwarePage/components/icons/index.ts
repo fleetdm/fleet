@@ -30,6 +30,7 @@ import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
+import Git from "./Git";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import IconComposer from "./IconComposer";
@@ -61,6 +62,7 @@ import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import R from "./R";
 import RealVncServer from "./RealVncServer";
 import Reaper from "./Reaper";
 import Rstudio from "./Rstudio";
@@ -385,6 +387,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
+  git: Git,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   "icon composer": IconComposer,
@@ -530,6 +533,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
   quip: Quip,
+  "r for windows": R,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,
