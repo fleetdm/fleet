@@ -35,7 +35,12 @@ const validateMinVersion = (value: string) => {
 };
 
 const validateDeadline = (value: string) => {
-  return /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/.test(value);
+  return (
+    /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/.test(value) ||
+    /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(
+      value
+    )
+  );
 };
 
 const validateForm = (formData: IAppleOSTargetFormData) => {
@@ -214,8 +219,8 @@ const AppleOSTargetForm = ({
         disabled={gitOpsModeEnabled}
         name="deadline"
         label="Deadline"
-        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
-        helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
+        tooltip="The end user can&apos;t dismiss the OS update once they reach this deadline. If no time is specified, defaults to 12:00 (noon) local time."
+        helpText='YYYY-MM-DD format (e.g., "2024-07-01") or YYYY-MM-DDTHH:MM (e.g., "2024-07-01T14:30") or YYYY-MM-DDTHH:MM:SS.'
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}
