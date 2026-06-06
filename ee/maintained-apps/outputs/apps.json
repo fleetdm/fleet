@@ -856,6 +856,13 @@
       "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
     },
     {
+      "name": "Devin Desktop",
+      "slug": "devin-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.exafunction.windsurf",
+      "description": "Devin Desktop is an agentic IDE with an AI agent command center, formerly known as Windsurf."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -2744,13 +2751,6 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
       "description": "Windows App helps you connect to Windows from your Mac."
-    },
-    {
-      "name": "Windsurf",
-      "slug": "windsurf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.exafunction.windsurf",
-      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
       "name": "Windsurf",

@@ -1,8 +1,8 @@
 {
-  "name": "Windsurf",
+  "name": "Devin Desktop",
   "unique_identifier": "com.exafunction.windsurf",
-  "token": "windsurf",
+  "token": "devin-desktop",
   "installer_format": "dmg",
-  "slug": "windsurf/darwin",
+  "slug": "devin-desktop/darwin",
   "default_categories": ["Developer tools"]
 }
