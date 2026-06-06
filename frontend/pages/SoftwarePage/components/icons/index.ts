@@ -25,6 +25,7 @@ import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
 import DellCommandUpdate from "./DellCommandUpdate";
 import DellDisplayManager from "./DellDisplayManager";
+import DevinDesktop from "./DevinDesktop";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -381,6 +382,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cryptomator: Cryptomator,
   "dell command update": DellCommandUpdate,
   "dell display manager": DellDisplayManager,
+  "devin desktop": DevinDesktop,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
