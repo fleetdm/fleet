@@ -2795,6 +2795,13 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "WinRAR",
+      "slug": "winrar/windows",
+      "platform": "windows",
+      "unique_identifier": "WinRAR",
+      "description": ""
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",
