@@ -2866,6 +2866,13 @@
     },
     {
       "name": "Zen Browser",
+      "slug": "zen-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Zen Browser (x64 en-US)",
+      "description": "Zen Browser is a Gecko based web browser."
+    },
+    {
+      "name": "Zen Browser",
       "slug": "zen/darwin",
       "platform": "darwin",
       "unique_identifier": "app.zen-browser.zen",
