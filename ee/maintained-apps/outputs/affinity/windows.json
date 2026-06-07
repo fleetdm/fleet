@@ -10,9 +10,7 @@
       "install_script_ref": "9e9c1496",
       "uninstall_script_ref": "5b2f45ee",
       "sha256": "36e3826175ba812aa5674546183180e3bb976e1382041e2da5a41b9d3f983969",
-      "default_categories": [
-        "Productivity"
-      ]
+      "default_categories": ["Productivity"]
     }
   ],
   "refs": {
