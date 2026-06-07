@@ -1997,6 +1997,13 @@
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
+      "name": "Power Monitor",
+      "slug": "power-monitor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.PowerMonitor",
+      "description": "Power Monitor is an app that reports power adapter and battery status."
+    },
+    {
       "name": "PowerShell",
       "slug": "powershell/windows",
       "platform": "windows",
