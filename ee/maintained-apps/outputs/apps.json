@@ -1563,6 +1563,13 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "Microsoft 365 Copilot",
+      "slug": "microsoft-365-copilot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.m365copilot",
+      "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
