@@ -632,6 +632,13 @@
       "description": "CleanShot X is a screen capturing tool."
     },
     {
+      "name": "ClickShare",
+      "slug": "clickshare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barco.clickshare.updater",
+      "description": "ClickShare is a wireless screen sharing client for Barco conferencing systems."
+    },
+    {
       "name": "ClickUp",
       "slug": "clickup/darwin",
       "platform": "darwin",
@@ -1577,6 +1584,13 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "Microsoft 365 Copilot",
+      "slug": "microsoft-365-copilot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.m365copilot",
+      "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -2009,6 +2023,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "Power Monitor",
+      "slug": "power-monitor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.PowerMonitor",
+      "description": "Power Monitor is an app that reports power adapter and battery status."
     },
     {
       "name": "PowerShell",

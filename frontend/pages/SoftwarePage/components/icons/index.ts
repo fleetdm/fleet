@@ -22,6 +22,7 @@ import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
+import ClickShare from "./ClickShare";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
@@ -44,6 +45,7 @@ import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
 import MindManager from "./MindManager";
@@ -58,6 +60,7 @@ import PlantronicsHub from "./PlantronicsHub";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import PowerMonitor from "./PowerMonitor";
 import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
 import Prisma from "./Prisma";
@@ -375,6 +378,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
+  clickshare: ClickShare,
   clion: CLion,
   clickup: ClickUp,
   "clockify desktop": ClockifyDesktop,
@@ -404,6 +408,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   marvel: Marvel,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -523,6 +528,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   postman: Postman,
   "power automate": PowerAutomate,
   "power bi": PowerBi,
+  "power monitor": PowerMonitor,
   powershell: Powershell,
   powertoys: Powertoys,
   prisma: Prisma,
