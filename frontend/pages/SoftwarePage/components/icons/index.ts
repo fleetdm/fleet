@@ -377,6 +377,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
+  clickshare: ClickShare,
   clion: CLion,
   clickup: ClickUp,
   "clockify desktop": ClockifyDesktop,
