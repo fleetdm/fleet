@@ -482,7 +482,8 @@ type AppleProfileLabelRef = MDMProfileLabelRef
 // AppleLabeledEntity aliases the platform-neutral label-gated entity view;
 // see MDMLabeledEntity in mdm_reconcile.go. Both AppleProfileForReconcile
 // and AppleDeclarationForReconcile implement it so the same dispatcher and
-// handlers run against both reconcilers, and against other platforms'.
+// handlers run against both Apple reconcilers as well as other platforms'
+// reconcilers.
 type AppleLabeledEntity = MDMLabeledEntity
 
 // AppleProfileForReconcile is the profile data needed by the batched
