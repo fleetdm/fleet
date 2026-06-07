@@ -254,13 +254,6 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
-      "name": "AnyDesk",
-      "slug": "anydesk/windows",
-      "platform": "windows",
-      "unique_identifier": "AnyDesk",
-      "description": "AnyDesk is an app that allows connection to a computer remotely."
-    },
-    {
       "name": "Apparency",
       "slug": "apparency/darwin",
       "platform": "darwin",
@@ -618,13 +611,6 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/windows",
-      "platform": "windows",
-      "unique_identifier": "Citrix Workspace",
-      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
-    },
-    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
@@ -905,13 +891,6 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
-      "name": "DeepL",
-      "slug": "deepl/windows",
-      "platform": "windows",
-      "unique_identifier": "DeepL",
-      "description": "DeepL is an AI-powered translator."
-    },
-    {
       "name": "Dell Command Update",
       "slug": "dell-command-update/windows",
       "platform": "windows",
@@ -1094,24 +1073,10 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
-      "name": "Evernote",
-      "slug": "evernote/windows",
-      "platform": "windows",
-      "unique_identifier": "Evernote",
-      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
-    },
-    {
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.expressvpn.ExpressVPN",
-      "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
-    },
-    {
-      "name": "ExpressVPN",
-      "slug": "expressvpn/windows",
-      "platform": "windows",
-      "unique_identifier": "ExpressVPN",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
@@ -1189,13 +1154,6 @@
       "slug": "front/darwin",
       "platform": "darwin",
       "unique_identifier": "com.frontapp.Front",
-      "description": "Front is a customer communication platform."
-    },
-    {
-      "name": "Front",
-      "slug": "front/windows",
-      "platform": "windows",
-      "unique_identifier": "Front",
       "description": "Front is a customer communication platform."
     },
     {
@@ -1374,13 +1332,6 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
-      "name": "Hyper",
-      "slug": "hyper/windows",
-      "platform": "windows",
-      "unique_identifier": "Hyper",
-      "description": "Hyper is a terminal built on web technologies."
-    },
-    {
       "name": "Icon Composer",
       "slug": "icon-composer/darwin",
       "platform": "darwin",
@@ -1500,13 +1451,6 @@
       "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
     },
     {
-      "name": "Jabra Direct",
-      "slug": "jabra-direct/windows",
-      "platform": "windows",
-      "unique_identifier": "Jabra Direct",
-      "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
-    },
-    {
       "name": "JetBrains Toolbox",
       "slug": "jetbrains-toolbox/darwin",
       "platform": "darwin",
@@ -1553,13 +1497,6 @@
       "slug": "keeper-password-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.keepersecurity.passwordmanager",
-      "description": "Keeper Password Manager is a password manager application and digital vault."
-    },
-    {
-      "name": "Keeper Password Manager",
-      "slug": "keeper-password-manager/windows",
-      "platform": "windows",
-      "unique_identifier": "Keeper Password Manager",
       "description": "Keeper Password Manager is a password manager application and digital vault."
     },
     {
@@ -1798,13 +1735,6 @@
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.teams2",
-      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
-    },
-    {
-      "name": "Microsoft Teams",
-      "slug": "microsoft-teams/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Teams",
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
@@ -2053,13 +1983,6 @@
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
-      "name": "OneDrive",
-      "slug": "onedrive/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft OneDrive",
-      "description": "OneDrive is Microsoft's cloud storage client."
-    },
-    {
       "name": "OpenVPN Connect",
       "slug": "openvpn-connect/darwin",
       "platform": "darwin",
@@ -2078,13 +2001,6 @@
       "slug": "opera/darwin",
       "platform": "darwin",
       "unique_identifier": "com.operasoftware.Opera",
-      "description": "Opera is a web browser."
-    },
-    {
-      "name": "Opera",
-      "slug": "opera/windows",
-      "platform": "windows",
-      "unique_identifier": "Opera Stable",
       "description": "Opera is a web browser."
     },
     {
@@ -2162,13 +2078,6 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
-    },
-    {
-      "name": "Podman Desktop",
-      "slug": "podman-desktop/windows",
-      "platform": "windows",
-      "unique_identifier": "Podman Desktop",
       "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
@@ -2256,13 +2165,6 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
-      "name": "Proton Mail",
-      "slug": "proton-mail/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Mail",
-      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
-    },
-    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",
@@ -2296,13 +2198,6 @@
       "platform": "darwin",
       "unique_identifier": "com.proxyman.NSProxy",
       "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
-    },
-    {
-      "name": "Proxyman",
-      "slug": "proxyman/windows",
-      "platform": "windows",
-      "unique_identifier": "Proxyman",
-      "description": "Proxyman is a tool that lets developers capture, view, and inspect HTTP/HTTPS requests and responses."
     },
     {
       "name": "PuTTY",
@@ -2379,13 +2274,6 @@
       "slug": "reaper/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cockos.reaper",
-      "description": "REAPER is a digital audio production application."
-    },
-    {
-      "name": "REAPER",
-      "slug": "reaper/windows",
-      "platform": "windows",
-      "unique_identifier": "REAPER",
       "description": "REAPER is a digital audio production application."
     },
     {
@@ -2564,24 +2452,10 @@
       "description": "Splashtop Business is remote access software."
     },
     {
-      "name": "Splashtop Business",
-      "slug": "splashtop-business/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Business",
-      "description": "Splashtop Business is remote access software."
-    },
-    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splashtop.Splashtop-Streamer",
-      "description": "Splashtop Streamer is used to connect to and control computers."
-    },
-    {
-      "name": "Splashtop Streamer",
-      "slug": "splashtop-streamer/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Streamer",
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
@@ -2627,13 +2501,6 @@
       "description": "Sublime Merge is a git client."
     },
     {
-      "name": "Sublime Merge",
-      "slug": "sublime-merge/windows",
-      "platform": "windows",
-      "unique_identifier": "Sublime Merge",
-      "description": "Sublime Merge is a git client."
-    },
-    {
       "name": "Sublime Text",
       "slug": "sublime-text/darwin",
       "platform": "darwin",
@@ -2652,13 +2519,6 @@
       "slug": "surfshark/darwin",
       "platform": "darwin",
       "unique_identifier": "com.surfshark.vpnclient.macos.direct",
-      "description": "Surfshark is a VPN client for secure internet access and private browsing."
-    },
-    {
-      "name": "Surfshark",
-      "slug": "surfshark/windows",
-      "platform": "windows",
-      "unique_identifier": "Surfshark",
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
     },
     {
@@ -2921,13 +2781,6 @@
       "description": "Viscosity is an OpenVPN client with AppleScript support."
     },
     {
-      "name": "Viscosity",
-      "slug": "viscosity/windows",
-      "platform": "windows",
-      "unique_identifier": "Viscosity",
-      "description": "Viscosity is an OpenVPN client for secure VPN connections."
-    },
-    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -2963,24 +2816,10 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
-      "name": "VNC Server",
-      "slug": "vnc-server/windows",
-      "platform": "windows",
-      "unique_identifier": "RealVNC Server",
-      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
-    },
-    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
-    },
-    {
-      "name": "VNC Viewer",
-      "slug": "vnc-viewer/windows",
-      "platform": "windows",
-      "unique_identifier": "RealVNC Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
@@ -3061,13 +2900,6 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
-      "name": "Windows App",
-      "slug": "windows-app/windows",
-      "platform": "windows",
-      "unique_identifier": "Windows App",
-      "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
-    },
-    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -3107,13 +2939,6 @@
       "slug": "wrike/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
-      "description": "Wrike is a project management app."
-    },
-    {
-      "name": "Wrike",
-      "slug": "wrike/windows",
-      "platform": "windows",
-      "unique_identifier": "Wrike for Windows (64 bit)",
       "description": "Wrike is a project management app."
     },
     {
