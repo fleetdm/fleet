@@ -247,6 +247,13 @@
       "description": "Another Redis Desktop Manager is a GUI client for Redis."
     },
     {
+      "name": "Google Antigravity",
+      "slug": "antigravity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.antigravity",
+      "description": "Google Antigravity is an agent orchestration platform."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
