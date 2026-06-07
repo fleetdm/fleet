@@ -124,7 +124,6 @@ import ChromeOS from "./ChromeOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
-import ClickShare from "./ClickShare";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
