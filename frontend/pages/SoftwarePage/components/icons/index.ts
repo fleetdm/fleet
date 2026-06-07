@@ -463,6 +463,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
   goland: GoLand,
+  "google antigravity": Antigravity,
   "google chrome": ChromeApp,
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
