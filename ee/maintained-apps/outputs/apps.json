@@ -422,6 +422,13 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "Beekeeper Studio",
+      "slug": "beekeeper-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.beekeeperstudio.desktop",
+      "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
+    },
+    {
       "name": "BetterDisplay",
       "slug": "betterdisplay/darwin",
       "platform": "darwin",
