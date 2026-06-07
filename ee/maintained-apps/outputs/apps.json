@@ -149,6 +149,13 @@
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
+      "name": "Amazon Chime",
+      "slug": "amazon-chime/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Chime",
+      "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
+    },
+    {
       "name": "Amazon Corretto 21",
       "slug": "amazon-corretto-21/windows",
       "platform": "windows",
@@ -268,6 +275,13 @@
       "description": "Arc is a productivity-focused browser."
     },
     {
+      "name": "Arc",
+      "slug": "arc/windows",
+      "platform": "windows",
+      "unique_identifier": "Arc",
+      "description": "Arc is a productivity-focused browser."
+    },
+    {
       "name": "Archaeology",
       "slug": "archaeology/darwin",
       "platform": "darwin",
@@ -279,6 +293,13 @@
       "slug": "arduino-ide/darwin",
       "platform": "darwin",
       "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/windows",
+      "platform": "windows",
+      "unique_identifier": "Arduino IDE",
       "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
     },
     {
@@ -1010,6 +1031,13 @@
       "description": "Egnyte is a client for the Egnyte cloud storage service."
     },
     {
+      "name": "Egnyte",
+      "slug": "egnyte/windows",
+      "platform": "windows",
+      "unique_identifier": "Egnyte Desktop App",
+      "description": "Egnyte is a client for the Egnyte cloud storage service."
+    },
+    {
       "name": "Elgato Control Center",
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
@@ -1017,10 +1045,24 @@
       "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
+      "name": "Elgato Control Center",
+      "slug": "elgato-control-center/windows",
+      "platform": "windows",
+      "unique_identifier": "Elgato Control Center",
+      "description": "Elgato Control Center is an app to control your Elgato key lights."
+    },
+    {
       "name": "Elgato Stream Deck",
       "slug": "elgato-stream-deck/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elgato.StreamDeck",
+      "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+    },
+    {
+      "name": "Elgato Stream Deck",
+      "slug": "elgato-stream-deck/windows",
+      "platform": "windows",
+      "unique_identifier": "Elgato Stream Deck",
       "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
@@ -1311,10 +1353,24 @@
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing Profile Editor",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
       "name": "iMazing",
       "slug": "imazing/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazing3Mac",
+      "description": "iMazing is an iPhone management application."
+    },
+    {
+      "name": "iMazing",
+      "slug": "imazing/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing",
       "description": "iMazing is an iPhone management application."
     },
     {
@@ -1507,6 +1563,13 @@
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
+      "name": "LibreOffice",
+      "slug": "libreoffice/windows",
+      "platform": "windows",
+      "unique_identifier": "LibreOffice",
+      "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
       "name": "Linear",
       "slug": "linear/darwin",
       "platform": "darwin",
@@ -1689,6 +1752,13 @@
       "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
     },
     {
+      "name": "MindManager",
+      "slug": "mindmanager/windows",
+      "platform": "windows",
+      "unique_identifier": "MindManager",
+      "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
       "name": "Miro",
       "slug": "miro/darwin",
       "platform": "darwin",
@@ -1742,6 +1812,13 @@
       "slug": "nextcloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nextcloud.desktopclient",
+      "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
+      "name": "Nextcloud",
+      "slug": "nextcloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Nextcloud",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
@@ -2106,6 +2183,13 @@
       "slug": "proxifier/darwin",
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
+      "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "Proxifier",
+      "slug": "proxifier/windows",
+      "platform": "windows",
+      "unique_identifier": "Proxifier",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
@@ -2526,6 +2610,13 @@
       "slug": "teleport-connect/darwin",
       "platform": "darwin",
       "unique_identifier": "gravitational.teleport.connect",
+      "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
+    },
+    {
+      "name": "Teleport Connect",
+      "slug": "teleport-connect/windows",
+      "platform": "windows",
+      "unique_identifier": "Teleport Connect",
       "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
     },
     {
