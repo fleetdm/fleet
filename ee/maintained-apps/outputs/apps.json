@@ -2130,6 +2130,13 @@
       "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
+      "name": "PostgreSQL 18",
+      "slug": "postgresql-18/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 18",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
