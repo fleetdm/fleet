@@ -2564,13 +2564,6 @@
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
     },
     {
-      "name": "Surfshark",
-      "slug": "surfshark/windows",
-      "platform": "windows",
-      "unique_identifier": "Surfshark",
-      "description": "Surfshark is a VPN client for secure internet access and private browsing."
-    },
-    {
       "name": "Suspicious Package",
       "slug": "suspicious-package/darwin",
       "platform": "darwin",
