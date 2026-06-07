@@ -21,6 +21,7 @@ import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
+import ClickShare from "./ClickShare";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
@@ -375,6 +376,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
+  clickshare: ClickShare,
   clion: CLion,
   clickup: ClickUp,
   "clockify desktop": ClockifyDesktop,
