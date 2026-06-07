@@ -5,12 +5,14 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import Affinity from "./Affinity";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import Antigravity from "./Antigravity";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -22,6 +24,8 @@ import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
 import ClaudeDevtools from "./ClaudeDevtools";
+import ClickShare from "./ClickShare";
+import Comet from "./Comet";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
@@ -35,6 +39,7 @@ import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
+import GrooveOmniDialer from "./GrooveOmniDialer";
 import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
@@ -293,6 +298,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winrar from "./Winrar";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
@@ -323,6 +329,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  affinity: Affinity,
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
@@ -336,6 +343,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "android studio": AndroidStudio,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
+  antigravity: Antigravity,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
@@ -384,6 +392,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  comet: Comet,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
@@ -397,6 +406,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
+  "groove omnidialer": GrooveOmniDialer,
   "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
@@ -468,6 +478,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
   goland: GoLand,
+  "google antigravity": Antigravity,
   "google chrome": ChromeApp,
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
@@ -613,6 +624,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winrar: Winrar,
   winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
