@@ -35,6 +35,7 @@ import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
+import GrooveOmniDialer from "./GrooveOmniDialer";
 import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
@@ -395,6 +396,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
+  "groove omnidialer": GrooveOmniDialer,
   "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
