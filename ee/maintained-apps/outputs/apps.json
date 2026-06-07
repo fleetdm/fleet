@@ -632,6 +632,13 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
+      "name": "Claude DevTools",
+      "slug": "claude-devtools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.claudecode.context",
+      "description": "Claude DevTools is an app to visualise and analyse Claude Code session executions."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",

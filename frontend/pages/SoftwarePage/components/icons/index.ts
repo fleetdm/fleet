@@ -23,6 +23,7 @@ import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
+import ClaudeDevtools from "./ClaudeDevtools";
 import ClickShare from "./ClickShare";
 import Comet from "./Comet";
 import ConnectFonts from "./ConnectFonts";
@@ -380,6 +381,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  "claude-devtools": ClaudeDevtools,
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
