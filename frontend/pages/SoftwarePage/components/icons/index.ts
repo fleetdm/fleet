@@ -57,6 +57,7 @@ import PlantronicsHub from "./PlantronicsHub";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import PowerMonitor from "./PowerMonitor";
 import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
 import Prisma from "./Prisma";
@@ -521,6 +522,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   postman: Postman,
   "power automate": PowerAutomate,
   "power bi": PowerBi,
+  "power monitor": PowerMonitor,
   powershell: Powershell,
   powertoys: Powertoys,
   prisma: Prisma,
