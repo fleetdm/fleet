@@ -1,0 +1,12 @@
+{
+  "name": "Front",
+  "slug": "front/windows",
+  "package_identifier": "FrontApp.Front",
+  "unique_identifier": "Front",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Communication"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/front_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/front_uninstall.ps1"
+}

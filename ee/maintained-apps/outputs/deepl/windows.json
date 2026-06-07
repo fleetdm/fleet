@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "26.4.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'DeepL' AND publisher = 'DeepL SE';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DeepL' AND publisher = 'DeepL SE' AND version_compare(version, '26.4.1') < 0);"
+      },
+      "installer_url": "https://appdownload.deepl.com/windows/0install/DeepLSetup.exe",
+      "install_script_ref": "f27f4bdb",
+      "uninstall_script_ref": "e6614b02",
+      "sha256": "e46aa95bf47009cfeb86575ed8b86000e24bef6f1a6093f5cb5519bc9e96f243",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "e6614b02": "# Fleet extracts name from installer and saves it to PACKAGE_ID variable\n$softwareName = 'https%3a##appdownload.deepl.com#windows#0install#deepl.xml'\n\n# DeepL registers its DisplayName as \"DeepL\"\n$softwareNameLike = \"DeepL\"\n\n# DeepL's silent uninstall switches (Zero Install / Inno based)\n$uninstallArgs = \"--uninstall --verysilent\"\n\n# DeepL may register under HKLM (machine scope) or HKCU (user scope)\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareNameLike) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Parse the uninstall string defensively into command + args\n        $u = $uninstallCommand\n        if ($u -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            # Quoted path\n            $uninstallCommand = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($u -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            # Unquoted path that may contain spaces — capture through .exe\n            $uninstallCommand = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } else {\n            # Bare token\n            $parts = $u -split '\\s+', 2\n            $uninstallCommand = $parts[0]\n            $existingArgs = if ($parts.Length -gt 1) { $parts[1].Trim() } else { \"\" }\n        }\n\n        # If the registered command already runs silently, keep its args;\n        # otherwise apply the documented silent uninstall switches.\n        if ($existingArgs -match '(?i)verysilent' -or $existingArgs -match '(?i)/S\\b' -or $key.QuietUninstallString) {\n            if ($existingArgs -ne '') { $uninstallArgs = $existingArgs }\n        }\n\n        Write-Host \"Uninstall command: $uninstallCommand\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallCommand\n            PassThru = $true\n            Wait = $true\n        }\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = $uninstallArgs\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "f27f4bdb": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# DeepL Setup (Inno/Zero Install based):\n#   --verysilent : silent install, no UI\n#   --no-run     : do not launch the app after install\n#   --machine    : install machine-wide (per the winget machine-scope installer)\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--verysilent --no-run --machine\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
