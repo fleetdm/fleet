@@ -11,6 +11,7 @@ import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import Antigravity from "./Antigravity";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -332,6 +333,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "android studio": AndroidStudio,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
+  antigravity: Antigravity,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
