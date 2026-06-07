@@ -2459,6 +2459,13 @@
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
+      "name": "TablePlus",
+      "slug": "tableplus/windows",
+      "platform": "windows",
+      "unique_identifier": "TablePlus",
+      "description": "TablePlus is a native GUI tool for relational databases."
+    },
+    {
       "name": "Tailscale",
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
