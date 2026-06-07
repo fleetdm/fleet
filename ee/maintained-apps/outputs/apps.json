@@ -1458,6 +1458,13 @@
       "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
     },
     {
+      "name": "Jabra Direct",
+      "slug": "jabra-direct/windows",
+      "platform": "windows",
+      "unique_identifier": "Jabra Direct",
+      "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
+    },
+    {
       "name": "JetBrains Toolbox",
       "slug": "jetbrains-toolbox/darwin",
       "platform": "darwin",
@@ -1745,6 +1752,13 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
+      "name": "Microsoft Teams",
+      "slug": "microsoft-teams/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
+      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
+    },
+    {
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
@@ -1987,6 +2001,13 @@
       "slug": "onedrive/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.OneDrive",
+      "description": "OneDrive is Microsoft's cloud storage client."
+    },
+    {
+      "name": "OneDrive",
+      "slug": "onedrive/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OneDrive",
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
@@ -2281,6 +2302,13 @@
       "slug": "reaper/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cockos.reaper",
+      "description": "REAPER is a digital audio production application."
+    },
+    {
+      "name": "REAPER",
+      "slug": "reaper/windows",
+      "platform": "windows",
+      "unique_identifier": "REAPER",
       "description": "REAPER is a digital audio production application."
     },
     {
@@ -2788,6 +2816,13 @@
       "description": "Viscosity is an OpenVPN client with AppleScript support."
     },
     {
+      "name": "Viscosity",
+      "slug": "viscosity/windows",
+      "platform": "windows",
+      "unique_identifier": "Viscosity",
+      "description": "Viscosity is an OpenVPN client for secure VPN connections."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -2823,10 +2858,24 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
+      "name": "VNC Server",
+      "slug": "vnc-server/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Server",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
+      "description": "VNC Viewer is a remote desktop application focusing on security."
+    },
+    {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
@@ -2907,6 +2956,13 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
+      "name": "Windows App",
+      "slug": "windows-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Windows App",
+      "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -2946,6 +3002,13 @@
       "slug": "wrike/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
+      "description": "Wrike is a project management app."
+    },
+    {
+      "name": "Wrike",
+      "slug": "wrike/windows",
+      "platform": "windows",
+      "unique_identifier": "Wrike for Windows (64 bit)",
       "description": "Wrike is a project management app."
     },
     {
