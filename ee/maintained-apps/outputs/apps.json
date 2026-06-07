@@ -618,13 +618,6 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/windows",
-      "platform": "windows",
-      "unique_identifier": "Citrix Workspace",
-      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
-    },
-    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
@@ -1087,24 +1080,10 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
-      "name": "Evernote",
-      "slug": "evernote/windows",
-      "platform": "windows",
-      "unique_identifier": "Evernote",
-      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
-    },
-    {
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.expressvpn.ExpressVPN",
-      "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
-    },
-    {
-      "name": "ExpressVPN",
-      "slug": "expressvpn/windows",
-      "platform": "windows",
-      "unique_identifier": "ExpressVPN",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
@@ -1182,13 +1161,6 @@
       "slug": "front/darwin",
       "platform": "darwin",
       "unique_identifier": "com.frontapp.Front",
-      "description": "Front is a customer communication platform."
-    },
-    {
-      "name": "Front",
-      "slug": "front/windows",
-      "platform": "windows",
-      "unique_identifier": "Front",
       "description": "Front is a customer communication platform."
     },
     {
@@ -1364,13 +1336,6 @@
       "slug": "hyper/darwin",
       "platform": "darwin",
       "unique_identifier": "co.zeit.hyper",
-      "description": "Hyper is a terminal built on web technologies."
-    },
-    {
-      "name": "Hyper",
-      "slug": "hyper/windows",
-      "platform": "windows",
-      "unique_identifier": "Hyper",
       "description": "Hyper is a terminal built on web technologies."
     },
     {
@@ -2067,13 +2032,6 @@
       "description": "Opera is a web browser."
     },
     {
-      "name": "Opera",
-      "slug": "opera/windows",
-      "platform": "windows",
-      "unique_identifier": "Opera Stable",
-      "description": "Opera is a web browser."
-    },
-    {
       "name": "OrbStack",
       "slug": "orbstack/darwin",
       "platform": "darwin",
@@ -2536,24 +2494,10 @@
       "description": "Splashtop Business is remote access software."
     },
     {
-      "name": "Splashtop Business",
-      "slug": "splashtop-business/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Business",
-      "description": "Splashtop Business is remote access software."
-    },
-    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splashtop.Splashtop-Streamer",
-      "description": "Splashtop Streamer is used to connect to and control computers."
-    },
-    {
-      "name": "Splashtop Streamer",
-      "slug": "splashtop-streamer/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Streamer",
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
