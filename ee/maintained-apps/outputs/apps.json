@@ -121,6 +121,13 @@
       "description": "Affinity is an image editing and design software."
     },
     {
+      "name": "Affinity",
+      "slug": "affinity/windows",
+      "platform": "windows",
+      "unique_identifier": "Affinity",
+      "description": "Affinity is an image editing and design software."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
