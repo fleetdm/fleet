@@ -2799,7 +2799,7 @@
       "slug": "winrar/windows",
       "platform": "windows",
       "unique_identifier": "WinRAR",
-      "description": ""
+      "description": "WinRAR is a file archiver utility for Windows. It creates and extracts RAR and ZIP archives and supports compression, encryption, and splitting archives into volumes."
     },
     {
       "name": "WinSCP",
