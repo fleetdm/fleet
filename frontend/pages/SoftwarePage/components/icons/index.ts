@@ -43,6 +43,7 @@ import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
 import MindManager from "./MindManager";
@@ -403,6 +404,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   marvel: Marvel,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
