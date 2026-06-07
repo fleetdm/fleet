@@ -114,6 +114,13 @@
       "description": "Adobe DNG Conver is a DNG file converter."
     },
     {
+      "name": "Affinity",
+      "slug": "affinity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.affinity",
+      "description": "Affinity is an image editing and design software."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
