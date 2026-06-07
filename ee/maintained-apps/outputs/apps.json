@@ -247,6 +247,13 @@
       "description": "Google Antigravity is an AI coding agent IDE."
     },
     {
+      "name": "Google Antigravity IDE",
+      "slug": "antigravity-ide/windows",
+      "platform": "windows",
+      "unique_identifier": "Antigravity IDE",
+      "description": "Google Antigravity is an AI coding agent IDE."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
