@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.3.315",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Greenshot %' AND publisher = 'Greenshot';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Greenshot %' AND publisher = 'Greenshot' AND version_compare(version, '1.3.315') < 0);"
+      },
+      "installer_url": "https://github.com/greenshot/greenshot/releases/download/v1.3.315/Greenshot-INSTALLER-1.3.315-RELEASE.exe",
+      "install_script_ref": "f4e5cf92",
+      "uninstall_script_ref": "ba064f63",
+      "sha256": "9bb4971e729a2ad1612e8aa2fa490b69c33af7f42515f9b642c7d0f80f8c0fd3",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "ba064f63": "# Uninstalls Greenshot (Inno Setup installer).\n# Looks up the registry UninstallString and runs it with Inno's silent flags.\n\n$softwareNameLike = \"Greenshot*\"\n$silentArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey       = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Defensive parser for the three UninstallString shapes.\n        $uninstallPath = $null\n        $existingArgs  = ''\n        if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        }\n\n        $finalArgs = ($existingArgs.Trim() + ' ' + $silentArgs).Trim()\n\n        Write-Host \"Uninstall command: $uninstallPath\"\n        Write-Host \"Uninstall args: $finalArgs\"\n\n        $processOptions = @{\n            FilePath     = $uninstallPath\n            ArgumentList = $finalArgs\n            PassThru     = $true\n            Wait         = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for Greenshot not found.\"\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nExit $exitCode\n",
+    "f4e5cf92": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Greenshot uses an Inno Setup installer. /ALLUSERS forces a machine-wide\n# install (the default per-user install would land in the SYSTEM profile when\n# Fleet runs as SYSTEM). /VERYSILENT /SUPPRESSMSGBOXES /NORESTART are the\n# standard Inno Setup silent switches.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
