@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "148.0.7778.1016",
+      "version": "145.2.7632.4581",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.perplexity.comet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.perplexity.comet' AND version_compare(bundle_short_version, '148.0.7778.1016') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.perplexity.comet' AND version_compare(bundle_short_version, '145.2.7632.4581') < 0);"
       },
       "installer_url": "https://www.perplexity.ai/rest/browser/download?channel=stable&platform=mac_arm64",
       "install_script_ref": "af8d196c",
