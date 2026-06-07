@@ -61,6 +61,9 @@ import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
 import PlantronicsHub from "./PlantronicsHub";
+import Postgresql15 from "./Postgresql15";
+import Postgresql16 from "./Postgresql16";
+import Postgresql17 from "./Postgresql17";
 import Postgresql18 from "./Postgresql18";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
@@ -536,6 +539,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "plantronics hub": PlantronicsHub,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
+  "postgresql 15": Postgresql15,
+  "postgresql 16": Postgresql16,
+  "postgresql 17": Postgresql17,
   "postgresql 18": Postgresql18,
   postman: Postman,
   "power automate": PowerAutomate,
