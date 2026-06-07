@@ -2795,6 +2795,13 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "WinRAR",
+      "slug": "winrar/windows",
+      "platform": "windows",
+      "unique_identifier": "WinRAR",
+      "description": "WinRAR is a file archiver utility for Windows. It creates and extracts RAR and ZIP archives and supports compression, encryption, and splitting archives into volumes."
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",

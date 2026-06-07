@@ -293,6 +293,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winrar from "./Winrar";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
@@ -613,6 +614,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winrar: Winrar,
   winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
