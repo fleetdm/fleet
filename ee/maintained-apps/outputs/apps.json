@@ -674,6 +674,20 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Comet",
+      "slug": "comet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.perplexity.comet",
+      "description": "Comet is a web browser with an integrated AI assistant from Perplexity."
+    },
+    {
+      "name": "Comet",
+      "slug": "comet/windows",
+      "platform": "windows",
+      "unique_identifier": "Comet",
+      "description": "Comet is a web browser with an integrated AI assistant from Perplexity."
+    },
+    {
       "name": "Connect Fonts",
       "slug": "connect-fonts/darwin",
       "platform": "darwin",

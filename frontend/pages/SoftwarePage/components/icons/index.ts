@@ -22,6 +22,7 @@ import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
 import ClickShare from "./ClickShare";
+import Comet from "./Comet";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
@@ -384,6 +385,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  comet: Comet,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
