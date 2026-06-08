@@ -1180,7 +1180,7 @@ org_settings:
       host_batch_size: 0
 ```
 
-### vulnerability_settings
+### vulnerability_exposure_historical_reporting
 
 The `vulnerability_settings` section lets you define filters for the **Vulnerability exposure** dashboard chart (risk registry). These filters control which software and vulnerabilities are included when calculating vulnerability exposure.
 
