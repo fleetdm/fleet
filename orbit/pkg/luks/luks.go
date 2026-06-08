@@ -9,6 +9,7 @@ import (
 
 type LuksDump struct {
 	Keyslots map[string]Keyslot `json:"keyslots"` // keyslot -> salt
+	Tokens   map[string]Token   `json:"tokens"`
 }
 
 type Keyslot struct {
@@ -17,6 +18,62 @@ type Keyslot struct {
 
 type KDF struct {
 	Salt string `json:"salt"`
+}
+
+// Token represents an entry from the LUKS2 "tokens" object. We only need the
+// type field to identify TPM2/FIDO2/recovery setups; other fields are ignored.
+type Token struct {
+	Type string `json:"type"`
+}
+
+// EncryptionType values returned by DetectEncryptionType. These are local to
+// orbit — the server does not currently persist or care about which one the
+// host is on; the value is only used to branch dialog copy when prompting the
+// end user during escrow.
+const (
+	EncryptionTypePassphrase = "passphrase"
+	EncryptionTypeTPM2       = "tpm2"
+	EncryptionTypeFIDO2      = "fido2"
+	EncryptionTypeRecovery   = "recovery"
+)
+
+// LUKS2 token-type identifiers emitted by systemd-cryptenroll. These match
+// the literal "type" field of entries in the luksDump "tokens" object.
+const (
+	systemdTPM2Type     = "systemd-tpm2"
+	systemdFIDO2Type    = "systemd-fido2"
+	systemdRecoveryType = "systemd-recovery"
+)
+
+// DetectEncryptionType inspects a LUKS2 dump's tokens and returns the
+// best-matching encryption type for the volume. Priority order when multiple
+// tokens are present is tpm2 > fido2 > recovery > passphrase. A nil dump, an
+// empty tokens map, or unrecognized token types all map to
+// EncryptionTypePassphrase.
+func DetectEncryptionType(dump *LuksDump) string {
+	if dump == nil {
+		return EncryptionTypePassphrase
+	}
+
+	var hasFIDO2, hasRecovery bool
+	for _, tok := range dump.Tokens {
+		switch tok.Type {
+		case systemdTPM2Type:
+			return EncryptionTypeTPM2
+		case systemdFIDO2Type:
+			hasFIDO2 = true
+		case systemdRecoveryType:
+			hasRecovery = true
+		}
+	}
+
+	switch {
+	case hasFIDO2:
+		return EncryptionTypeFIDO2
+	case hasRecovery:
+		return EncryptionTypeRecovery
+	}
+	return EncryptionTypePassphrase
 }
 
 type KeyEscrower interface {
