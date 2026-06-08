@@ -1,0 +1,10 @@
+{
+  "name": "OpenIn",
+  "unique_identifier": "app.loshadki.OpenIn",
+  "token": "openin",
+  "installer_format": "zip",
+  "slug": "openin/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

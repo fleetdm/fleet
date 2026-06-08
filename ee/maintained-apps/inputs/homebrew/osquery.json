@@ -1,0 +1,10 @@
+{
+  "name": "osquery",
+  "unique_identifier": "com.facebook.osquery",
+  "token": "osquery",
+  "installer_format": "pkg",
+  "slug": "osquery/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Orion Browser",
+  "unique_identifier": "com.kagi.kagimacOS",
+  "token": "orion",
+  "installer_format": "zip",
+  "slug": "orion/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

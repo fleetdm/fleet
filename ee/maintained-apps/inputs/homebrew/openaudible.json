@@ -1,0 +1,10 @@
+{
+  "name": "OpenAudible",
+  "unique_identifier": "org.openaudible.openaudible",
+  "token": "openaudible",
+  "installer_format": "dmg",
+  "slug": "openaudible/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

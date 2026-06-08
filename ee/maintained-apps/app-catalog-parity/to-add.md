@@ -565,42 +565,42 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## O  (36)
 
-- [ ] `ocenaudio` — ocenaudio
-- [ ] `ok-json` — OK JSON
-- [ ] `oka-unarchiver` — Oka Unarchiver
-- [ ] `okta-advanced-server-access` — Okta Advanced Server Access
-- [ ] `omnidisksweeper` — OmniDiskSweeper
-- [ ] `omnifocus` — OmniFocus *
-- [ ] `omnioutliner` — OmniOutliner *
-- [ ] `omniplan` — OmniPlan *
-- [ ] `one-switch` — One Switch
-- [ ] `onionshare` — OnionShare
-- [ ] `only-switch` — OnlySwitch
-- [ ] `onlyoffice` — ONLYOFFICE
-- [ ] `onyx` — OnyX
-- [ ] `opal-composer` — Opal Composer
-- [ ] `openaudible` — OpenAudible
-- [ ] `openboard` — OpenBoard
-- [ ] `opencloud` — OpenCloud Desktop
-- [ ] `opencode-desktop` — OpenCode
-- [ ] `opencore-patcher` — OpenCore Legacy Patcher
-- [ ] `openin` — OpenIn
-- [ ] `openinterminal` — OpenInTerminal
-- [ ] `openlens` — OpenLens
-- [ ] `openmtp` — OpenMTP
-- [ ] `openrct2` — OpenRCT2
-- [ ] `openrefine` — OpenRefine
-- [ ] `openshot-video-editor` — OpenShot Video Editor
-- [ ] `opentoonz` — OpenToonz
-- [ ] `optimus-player` — Optimus Player
-- [ ] `origami-studio` — Origami Studio
-- [ ] `orion` — Orion Browser
-- [ ] `orka-desktop` — Orka Desktop
-- [ ] `osquery` — osquery
-- [ ] `outset` — outset
-- [ ] `overflow` — Overflow
-- [ ] `oversight` — OverSight
-- [ ] `owncloud` — ownCloud
+- [x] `ocenaudio` — ocenaudio
+- [x] `ok-json` — OK JSON
+- [x] `oka-unarchiver` — Oka Unarchiver
+- [x] `okta-advanced-server-access` — Okta Advanced Server Access
+- [x] `omnidisksweeper` — OmniDiskSweeper
+- [x] `omnifocus` — OmniFocus *
+- [x] `omnioutliner` — OmniOutliner *
+- [x] `omniplan` — OmniPlan *
+- [x] `one-switch` — One Switch
+- [x] `onionshare` — OnionShare
+- [x] `only-switch` — OnlySwitch
+- [x] `onlyoffice` — ONLYOFFICE
+- [x] `onyx` — OnyX
+- [x] `opal-composer` — Opal Composer
+- [x] `openaudible` — OpenAudible
+- [x] `openboard` — OpenBoard
+- [x] `opencloud` — OpenCloud Desktop
+- [x] `opencode-desktop` — OpenCode
+- [x] `opencore-patcher` — OpenCore Legacy Patcher
+- [x] `openin` — OpenIn
+- [x] `openinterminal` — OpenInTerminal
+- [x] `openlens` — OpenLens
+- [x] `openmtp` — OpenMTP
+- [x] `openrct2` — OpenRCT2
+- [x] `openrefine` — OpenRefine
+- [ ] `openshot-video-editor` — OpenShot Video Editor  — **deferred — could not determine bundle id**
+- [x] `opentoonz` — OpenToonz
+- [x] `optimus-player` — Optimus Player
+- [x] `origami-studio` — Origami Studio
+- [x] `orion` — Orion Browser
+- [x] `orka-desktop` — Orka Desktop
+- [x] `osquery` — osquery
+- [x] `outset` — outset
+- [x] `overflow` — Overflow
+- [x] `oversight` — OverSight
+- [x] `owncloud` — ownCloud
 
 ## P  (58)
 

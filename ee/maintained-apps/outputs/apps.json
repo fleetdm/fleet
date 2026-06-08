@@ -5413,6 +5413,34 @@
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
     },
     {
+      "name": "ocenaudio",
+      "slug": "ocenaudio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ocenaudio",
+      "description": "ocenaudio is an audio editor."
+    },
+    {
+      "name": "OK JSON",
+      "slug": "ok-json/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.shinystone.OKJSON",
+      "description": "OK JSON is a scriptable JSON formatter and editor."
+    },
+    {
+      "name": "Oka Unarchiver",
+      "slug": "oka-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.chenhaowu.mac.utility.website.zip",
+      "description": "Oka Unarchiver is a free unarchiver."
+    },
+    {
+      "name": "Okta Advanced Server Access",
+      "slug": "okta-advanced-server-access/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scaleft.ScaleFT",
+      "description": "Okta Advanced Server Access is an identity and access management."
+    },
+    {
       "name": "Okta Verify",
       "slug": "okta-verify/darwin",
       "platform": "darwin",
@@ -5434,11 +5462,39 @@
       "description": "Ollama is a tool to get up and running with large language models locally."
     },
     {
+      "name": "OmniDiskSweeper",
+      "slug": "omnidisksweeper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniDiskSweeper",
+      "description": "OmniDiskSweeper is a finds large, unwanted files and deletes them."
+    },
+    {
+      "name": "OmniFocus",
+      "slug": "omnifocus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniFocus4",
+      "description": "OmniFocus is an app for scheduling application focusing on organisation."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.omnigroup.OmniGraffle7",
       "description": "OmniGraffle is visual communication software."
+    },
+    {
+      "name": "OmniOutliner",
+      "slug": "omnioutliner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniOutliner6",
+      "description": "OmniOutliner is a note taking application and information organiser."
+    },
+    {
+      "name": "OmniPlan",
+      "slug": "omniplan/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnigroup.OmniPlan4",
+      "description": "OmniPlan is a project planning and management software."
     },
     {
       "name": "Omnissa Horizon Client",
@@ -5455,6 +5511,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "One Switch",
+      "slug": "one-switch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "studio.fireball.OneSwitch",
+      "description": "One Switch is an all system and utility switches in one place."
+    },
+    {
       "name": "OneDrive",
       "slug": "onedrive/darwin",
       "platform": "darwin",
@@ -5467,6 +5530,125 @@
       "platform": "windows",
       "unique_identifier": "Microsoft OneDrive",
       "description": "OneDrive is Microsoft's cloud storage client."
+    },
+    {
+      "name": "OnionShare",
+      "slug": "onionshare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.onionshare.onionshare",
+      "description": "OnionShare is a securely and anonymously share files, host websites, and chat with friends."
+    },
+    {
+      "name": "OnlySwitch",
+      "slug": "only-switch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "jacklandrin.OnlySwitch",
+      "description": "OnlySwitch is a system and utility switches."
+    },
+    {
+      "name": "ONLYOFFICE",
+      "slug": "onlyoffice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "asc.onlyoffice.editors-helper-renderer",
+      "description": "ONLYOFFICE is a document editor."
+    },
+    {
+      "name": "OnyX",
+      "slug": "onyx/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.titanium.OnyX",
+      "description": "OnyX is a verify system files structure, run miscellaneous maintenance and more."
+    },
+    {
+      "name": "Opal Composer",
+      "slug": "opal-composer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.opalcamera.Opal.v2",
+      "description": "Opal Composer is a professional webcam software for the Opal C1."
+    },
+    {
+      "name": "OpenAudible",
+      "slug": "openaudible/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.openaudible.openaudible",
+      "description": "OpenAudible is an audiobook manager for Audible users."
+    },
+    {
+      "name": "OpenBoard",
+      "slug": "openboard/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.oe-f.OpenBoard",
+      "description": "OpenBoard is an interactive whiteboard application."
+    },
+    {
+      "name": "OpenCloud Desktop",
+      "slug": "opencloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "eu.opencloud.desktopclient",
+      "description": "OpenCloud Desktop is a desktop syncing client for OpenCloud."
+    },
+    {
+      "name": "OpenCode",
+      "slug": "opencode-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.opencode.desktop",
+      "description": "OpenCode is an AI coding agent desktop client."
+    },
+    {
+      "name": "OpenCore Legacy Patcher",
+      "slug": "opencore-patcher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dortania.opencore-legacy-patcher-wxpython",
+      "description": "OpenCore Legacy Patcher is a boot loader to inject/patch current features for unsupported Macs."
+    },
+    {
+      "name": "OpenIn",
+      "slug": "openin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.loshadki.OpenIn",
+      "description": "OpenIn is a route links, emails, and files to your preferred apps."
+    },
+    {
+      "name": "OpenInTerminal",
+      "slug": "openinterminal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "wang.jianing.app.OpenInTerminal",
+      "description": "OpenInTerminal is a finder Toolbar app to open the current directory in Terminal or Editor."
+    },
+    {
+      "name": "OpenLens",
+      "slug": "openlens/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.open-lens",
+      "description": "OpenLens is an open source build of Lens Kubernetes IDE."
+    },
+    {
+      "name": "OpenMTP",
+      "slug": "openmtp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.ganeshrvel.openmtp",
+      "description": "OpenMTP is an android file transfer."
+    },
+    {
+      "name": "OpenRCT2",
+      "slug": "openrct2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.openrct2.OpenRCT2",
+      "description": "OpenRCT2 is an open-source re-implementation of RollerCoaster Tycoon 2."
+    },
+    {
+      "name": "OpenRefine",
+      "slug": "openrefine/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.refine.Refine",
+      "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
+    },
+    {
+      "name": "OpenToonz",
+      "slug": "opentoonz/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.github.opentoonz.OpenToonz",
+      "description": "OpenToonz is an open-source full-featured 2D animation creation software."
     },
     {
       "name": "OpenVPN Connect",
@@ -5490,11 +5672,74 @@
       "description": "Opera is a web browser."
     },
     {
+      "name": "Optimus Player",
+      "slug": "optimus-player/darwin",
+      "platform": "darwin",
+      "unique_identifier": "mo.darren.optimus.player.mac",
+      "description": "Optimus Player is a media player."
+    },
+    {
       "name": "OrbStack",
       "slug": "orbstack/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.kdrag0n.MacVirt",
       "description": "OrbStack is a replacement for Docker Desktop."
+    },
+    {
+      "name": "Origami Studio",
+      "slug": "origami-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.facebook.Origami-Studio",
+      "description": "Origami Studio is a tool to design tool for interactive interfaces."
+    },
+    {
+      "name": "Orion Browser",
+      "slug": "orion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kagi.kagimacOS",
+      "description": "Orion Browser is a WebKit based web browser."
+    },
+    {
+      "name": "Orka Desktop",
+      "slug": "orka-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macstadium.OrkaDesktop",
+      "description": "Orka Desktop is a tool to run macOS virtual machines locally and build images for use with Orka."
+    },
+    {
+      "name": "osquery",
+      "slug": "osquery/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.facebook.osquery",
+      "description": "osquery is a SQL powered operating system instrumentation and analytics."
+    },
+    {
+      "name": "outset",
+      "slug": "outset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.macadmins.Outset",
+      "description": "outset is a process packages and scripts during boot, login, or on demand."
+    },
+    {
+      "name": "Overflow",
+      "slug": "overflow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stuntsoftware.Overflow3",
+      "description": "Overflow is a visual application launcher."
+    },
+    {
+      "name": "OverSight",
+      "slug": "oversight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.objective-see.oversight",
+      "description": "OverSight is a monitors computer mic and webcam."
+    },
+    {
+      "name": "ownCloud",
+      "slug": "owncloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.owncloud.desktopclient",
+      "description": "ownCloud is a desktop syncing client for ownCloud."
     },
     {
       "name": "P4V",

@@ -1,0 +1,10 @@
+{
+  "name": "OnyX",
+  "unique_identifier": "com.titanium.OnyX",
+  "token": "onyx",
+  "installer_format": "dmg",
+  "slug": "onyx/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
