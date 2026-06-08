@@ -113,14 +113,14 @@ type CertificateAuthority struct {
 
 	// EJBCA. Client cert + trust bundle stored as PEM, client key encrypted at rest.
 	// CertificateUserPrincipalNames is shared with DigiCert above.
-	ClientCertPEM                 *string    `json:"client_cert,omitempty" db:"client_cert_pem"`
-	ClientKeyPEM                  *string    `json:"client_key,omitempty" db:"-"`
-	TrustCABundlePEM              *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
-	EJBCACAName                   *string    `json:"certificate_authority_name_ejbca,omitempty" db:"ejbca_ca_name"`
-	EJBCACertificateProfileName   *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile"`
-	EJBCAEndEntityProfileName     *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile"`
-	EJBCAUsernameTemplate         *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
-	ClientCertExpiresAt           *time.Time `json:"client_cert_expires_at,omitempty" db:"-"`
+	ClientCertPEM               *string    `json:"client_cert,omitempty" db:"client_cert_pem"`
+	ClientKeyPEM                *string    `json:"client_key,omitempty" db:"-"`
+	TrustCABundlePEM            *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
+	EJBCACAName                 *string    `json:"certificate_authority_name_ejbca,omitempty" db:"ejbca_ca_name"`
+	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile"`
+	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile"`
+	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
+	ClientCertExpiresAt         *time.Time `json:"client_cert_expires_at,omitempty" db:"-"`
 
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

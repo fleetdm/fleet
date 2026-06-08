@@ -274,9 +274,17 @@ Frontend lint + prettier + TypeScript compile all clean.
 
 ## 12. Linting + final hygiene
 
-- [ ] `make lint-go-incremental` — clean.
-- [ ] `make lint-js` — clean.
-- [ ] `go test ./server/fleet/... ./server/service/...` — at minimum no
-      mock crashes.
+- [x] `make lint-go` — 0 issues (full sweep, not just incremental). One
+      gofmt whitespace alignment in `server/fleet/certificate_authorities.go`
+      caught by the final sweep and fixed.
+- [x] `make lint-js` — 0 errors. 306 warnings exist in the codebase but
+      none are in EJBCA-touched files; all are pre-existing tech debt.
+- [x] `go test ./server/fleet/... ./ee/server/service/ejbca/...
+      ./server/variables/...` — all pass.
+- [x] `go test ./server/service/` — compile + mocks unaffected by the
+      EJBCAService interface addition (no test crashes).
+- [x] `MYSQL_TEST=1 FLEET_MYSQL_TEST_PORT=3309 go test
+      ./server/datastore/mysql/migrations/tables/ -run
+      TestUp_20260605080208` — migration applies cleanly.
 - [ ] PR description: link to this proposal, list what was skipped, note
       open questions for the customer call.
