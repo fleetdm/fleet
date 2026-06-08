@@ -1546,7 +1546,7 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 }
 
 func TestInitOrgLogoStore(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("filesystem store when dir is writable", func(t *testing.T) {
 		t.Setenv("FLEET_ORG_LOGO_STORE_DIR", t.TempDir())

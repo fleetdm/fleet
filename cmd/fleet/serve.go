@@ -1532,10 +1532,6 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 	}
 	store, err := filesystem.NewOrgLogoStore(logoDir)
 	if err != nil {
-		// Mirror the software installer / title icon stores: don't crash the
-		// server when the local filesystem store can't be set up (e.g. a
-		// read-only root filesystem). Degrade to a failing store so Fleet
-		// still boots; custom org logos are simply unavailable.
 		logger.ErrorContext(ctx,
 			"failed to configure local filesystem org logo store; custom org logos disabled",
 			"directory", logoDir, "err", err)
