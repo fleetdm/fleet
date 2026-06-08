@@ -961,6 +961,13 @@
       "description": "Devin Desktop is an agentic IDE with an AI agent command center, formerly known as Windsurf."
     },
     {
+      "name": "DFU Blaster Pro",
+      "slug": "dfu-blaster-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twocanoes.DFU-Blaster-Pro",
+      "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
