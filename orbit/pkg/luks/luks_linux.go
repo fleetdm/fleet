@@ -33,7 +33,7 @@ const (
 	retryEntryDialogText = "Passphrase incorrect. Please try again."
 	infoTitle            = "Disk encryption"
 	infoFailedText       = "Failed to escrow key. Please try again later."
-	infoSuccessText      = "Disk encryption key created! Now, return to your browser window and follow the instructions to verify."
+	infoSuccessText      = "Disk encryption key created! You can close this window. To confirm, navigate to your Fleet My Device page and click Refetch."
 	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create key"
 	maxKeySlots          = 8
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
