@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -344,4 +345,95 @@ func TestBuildChartScopeResolver(t *testing.T) {
 		require.False(t, skip)
 		require.Nil(t, disabled)
 	})
+}
+
+func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
+	ctx := context.Background()
+	ds := mysqltest.CreateMySQLDS(t)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-cron-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-cron-team2"})
+	require.NoError(t, err)
+
+	// host0 -> team1, host1 -> team2, host2 -> global (no team).
+	hosts := make([]*fleet.Host, 3)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil}
+	for i := range 3 {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("idp-cron-%d", i)),
+			NodeKey:        new(fmt.Sprintf("idp-cron-%d", i)),
+			UUID:           fmt.Sprintf("idp-cron-uuid%d", i),
+			Hostname:       fmt.Sprintf("idp-cron-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("idp-cron-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	// All three SCIM users are in the same "Engineering" IdP group.
+	scimUserIDs := make([]uint, 3)
+	for i := range 3 {
+		id, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName: fmt.Sprintf("idp-cron-user%d", i),
+			Active:   new(true),
+		})
+		require.NoError(t, err)
+		scimUserIDs[i] = id
+		hostID, scimUserID := hosts[i].ID, id
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)",
+				hostID, scimUserID)
+			return err
+		})
+	}
+	_, err = ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "Engineering", ScimUsers: scimUserIDs})
+	require.NoError(t, err)
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital: new("end_user_idp_group"),
+		Value: new("Engineering"),
+	})
+	require.NoError(t, err)
+
+	// Create a global and a team1-scoped IdP host vitals label.
+	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "idp-cron-global",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+	})
+	require.NoError(t, err)
+	team1Label, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "idp-cron-team1",
+		TeamID:              &team1.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+	})
+	require.NoError(t, err)
+
+	// Run the actual cron.
+	require.NoError(t, cronHostVitalsLabelMembership(ctx, ds))
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	gotGlobal := make([]uint, 0, len(globalHosts))
+	for _, h := range globalHosts {
+		gotGlobal = append(gotGlobal, h.ID)
+	}
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, gotGlobal)
+
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	gotTeam1 := make([]uint, 0, len(team1Hosts))
+	for _, h := range team1Hosts {
+		gotTeam1 = append(gotTeam1, h.ID)
+	}
+	require.ElementsMatch(t, []uint{hosts[0].ID}, gotTeam1)
 }
