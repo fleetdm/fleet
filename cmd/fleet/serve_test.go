@@ -23,6 +23,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/failing"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1541,4 +1543,27 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 			assert.Contains(t, out, os.Args[0])
 		})
 	}
+}
+
+func TestInitOrgLogoStore(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("filesystem store when dir is writable", func(t *testing.T) {
+		t.Setenv("FLEET_ORG_LOGO_STORE_DIR", t.TempDir())
+		store := initOrgLogoStore(t.Context(), config.S3Config{}, logger)
+		require.IsType(t, &filesystem.OrgLogoStore{}, store)
+	})
+
+	t.Run("falls back to failing store when dir cannot be created", func(t *testing.T) {
+		// Point the store dir at a path whose parent is a regular file, so
+		// MkdirAll fails deterministically (ENOTDIR) — standing in for the
+		// read-only root filesystem case from #47090. Before the fix this
+		// crashed the process via initFatal instead of degrading.
+		notADir := filepath.Join(t.TempDir(), "file")
+		require.NoError(t, os.WriteFile(notADir, []byte("x"), 0o600))
+		t.Setenv("FLEET_ORG_LOGO_STORE_DIR", filepath.Join(notADir, "logos"))
+
+		store := initOrgLogoStore(t.Context(), config.S3Config{}, logger)
+		require.IsType(t, &failing.FailingOrgLogoStore{}, store)
+	})
 }

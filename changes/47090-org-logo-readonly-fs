@@ -1,0 +1,1 @@
+* Fixed Fleet failing to start on a read-only root filesystem when no S3 software installers bucket is configured by falling back to a disabled org logo store instead of exiting.
