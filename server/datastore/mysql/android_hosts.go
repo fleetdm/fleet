@@ -5,7 +5,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -38,7 +37,7 @@ func (ds *AndroidDatastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtConte
 
 func (ds *AndroidDatastore) deleteDuplicate(ctx context.Context, device *android.Device, tx sqlx.ExtContext, existing []android.Device) error {
 	// Duplicates should never happen. We log error and try to handle it gracefully.
-	level.Error(ds.logger).Log("msg", "Found two Android devices with the same device ID or enterprise specific ID", "device_id",
+	ds.logger.ErrorContext(ctx, "Found two Android devices with the same device ID or enterprise specific ID", "device_id",
 		device.DeviceID, "enterprise_specific_id", device.EnterpriseSpecificID)
 	// It should not matter which duplicate we delete since the other one will be overwritten.
 	err := ds.deleteDevice(ctx, tx, existing[0].ID)

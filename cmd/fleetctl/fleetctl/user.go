@@ -16,18 +16,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-const (
-	globalRoleFlagName = "global-role"
-	teamFlagName       = "team"
-	passwordFlagName   = "password"
-	emailFlagName      = "email"
-	nameFlagName       = "name"
-	ssoFlagName        = "sso"
-	mfaFlagName        = "mfa"
-	apiOnlyFlagName    = "api-only"
-	csvFlagName        = "csv"
-)
-
 func userCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "user",
@@ -50,9 +38,8 @@ func createUserCommand() *cli.Command {
    If a password is required and not provided by flag, the command will prompt for password input through stdin.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     emailFlagName,
-				Usage:    "Email for new user (required)",
-				Required: true,
+				Name:  emailFlagName,
+				Usage: "Email for new user. This can be omitted if using --api-only (otherwise required)",
 			},
 			&cli.StringFlag{
 				Name:     nameFlagName,
@@ -61,7 +48,7 @@ func createUserCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  passwordFlagName,
-				Usage: "Password for new user",
+				Usage: "Password for new user. This can be omitted if using --api-only (otherwise required)",
 			},
 			&cli.BoolFlag{
 				Name:  ssoFlagName,
@@ -80,9 +67,9 @@ func createUserCommand() *cli.Command {
 				Usage: "Global role to assign to user (default \"observer\")",
 			},
 			&cli.StringSliceFlag{
-				Name:    "team",
-				Aliases: []string{"t"},
-				Usage:   "Team assignments in team_id:role pairs (multiple may be specified)",
+				Name:    fleetFlagName,
+				Aliases: []string{"team", "t"},
+				Usage:   "Fleet assignments in fleet_id:role pairs (multiple may be specified)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -102,7 +89,7 @@ func createUserCommand() *cli.Command {
 			mfa := c.Bool(mfaFlagName)
 			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
-			teamStrings := c.StringSlice(teamFlagName)
+			teamStrings := c.StringSlice(fleetFlagName)
 
 			if mfa && sso {
 				return errors.New("email verification on login is not applicable to SSO users")
@@ -135,6 +122,39 @@ func createUserCommand() *cli.Command {
 
 					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115
 				}
+			}
+
+			if apiOnly {
+				if mfa {
+					return errors.New("--mfa cannot be used with --api-only")
+				}
+				sessionKey, err := client.CreateAPIOnlyUser(name, globalRole, teams)
+				if err != nil {
+					return fmt.Errorf("Failed to create user: %w", err)
+				}
+
+				fmt.Fprintln(c.App.Writer, "Successfully created new user!")
+				appCfg, cfgErr := client.GetAppConfig()
+				if cfgErr != nil {
+					fmt.Fprintln(c.App.Writer, "Could not fetch app configuration")
+				}
+
+				if cfgErr == nil &&
+					appCfg.License != nil && appCfg.License.IsPremium() {
+					fmt.Fprintln(c.App.Writer, "To further customize endpoints this API-only user has access to, head to the Fleet UI.")
+				}
+
+				if sessionKey != nil && *sessionKey != "" {
+					// Prevents blocking if we are executing a test
+					if terminal.IsTerminal(int(os.Stdin.Fd())) { //nolint:gosec // ignore G115
+						fmt.Fprint(c.App.Writer, "\nWhen you're ready to view the API token, press any key (will not be shown again): ")
+						if _, err := os.Stdin.Read(make([]byte, 1)); err != nil {
+							return fmt.Errorf("failed to read input: %w", err)
+						}
+					}
+					fmt.Fprintf(c.App.Writer, "The API token for your new user is: %s\n", *sessionKey)
+				}
+				return nil
 			}
 
 			if sso && len(password) > 0 {

@@ -2,7 +2,7 @@
 
 # GitOps Migration Tool
 # Moves self_service, categories, labels_exclude_any, labels_include_any keys
-# from software YAML files to team YAML files
+# from software YAML files to fleet (formerly "teams") YAML files
 #
 # Usage: ./migrate.sh <teams_directory_path>
 # Example: ./migrate.sh it-and-security/teams

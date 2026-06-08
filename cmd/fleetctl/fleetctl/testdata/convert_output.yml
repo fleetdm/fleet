@@ -1,6 +1,6 @@
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
@@ -12,10 +12,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from app_schemes;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
@@ -27,10 +27,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from disk_encryption;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
@@ -42,10 +42,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from disk_encryption;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieve basic information about the physical disks of a system.
@@ -57,10 +57,10 @@ spec:
   observer_can_run: false
   platform: chrome,windows
   query: select * from disk_info;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current filters and chains per filter in the target system.
@@ -72,10 +72,10 @@ spec:
   observer_can_run: false
   platform: linux
   query: select * from iptables;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description:
@@ -89,10 +89,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from launchd;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
@@ -104,10 +104,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux,windows
   query: select * from listening_ports;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
@@ -119,10 +119,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux,windows
   query: select * from listening_ports;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
@@ -134,10 +134,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from sandboxes;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System resource usage limits.
@@ -149,10 +149,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from ulimit_info;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -164,10 +164,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from uptime;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -179,10 +179,10 @@ spec:
   observer_can_run: false
   platform: linux,windows
   query: select * from uptime;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -194,10 +194,10 @@ spec:
   observer_can_run: false
   platform: darwin,windows
   query: select * from uptime;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -209,10 +209,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from uptime;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
@@ -224,10 +224,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from sandboxes;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -239,10 +239,10 @@ spec:
   observer_can_run: false
   platform: ""
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -254,10 +254,10 @@ spec:
   observer_can_run: false
   platform: ""
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -269,10 +269,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -284,10 +284,10 @@ spec:
   observer_can_run: false
   platform: ""
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -299,10 +299,10 @@ spec:
   observer_can_run: false
   platform: darwin,linux
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -314,10 +314,10 @@ spec:
   observer_can_run: false
   platform: ""
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -329,10 +329,10 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -344,10 +344,10 @@ spec:
   observer_can_run: false
   platform: chrome,windows
   query: select * from user_groups;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Extracted information from Windows crash logs (Minidumps).
@@ -359,10 +359,10 @@ spec:
   observer_can_run: false
   platform: windows
   query: select * from windows_crashes;
-  team: ""
+  fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description:
@@ -376,4 +376,4 @@ spec:
   observer_can_run: false
   platform: darwin,linux,windows
   query: select * from yara;
-  team: ""
+  fleet: ""

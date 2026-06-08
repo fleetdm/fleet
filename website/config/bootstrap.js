@@ -73,7 +73,10 @@ module.exports.bootstrap = async function() {
     fleetSandboxURL: 'http://example.com',
     fleetSandboxExpiresAt: 1,
     fleetSandboxDemoKey: await sails.helpers.strings.uuid(),
-    password: await sails.helpers.passwords.hashPassword('abc123')
+    password: await sails.helpers.passwords.hashPassword('abc123'),
+    fleetPremiumTrialType: 'local trial',
+    fleetPremiumTrialLicenseKey: await sails.helpers.strings.uuid(),
+    fleetPremiumTrialLicenseKeyExpiresAt: Date.now() + (60 * 60 * 24 * 30 * 1000),
   }).fetch();
 
   // Note: We do not create a platform record to avoid potential consistency violations.

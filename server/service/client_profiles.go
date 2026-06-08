@@ -27,7 +27,7 @@ func (c *Client) ListProfiles(teamID *uint) ([]*fleet.MDMAppleConfigProfile, err
 	verb, path := "GET", "/api/latest/fleet/mdm/apple/profiles"
 	query := make(url.Values)
 	if teamID != nil {
-		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
+		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
 	}
 	var responseBody listMDMAppleConfigProfilesResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
@@ -40,7 +40,7 @@ func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProf
 	verb, path := "GET", "/api/latest/fleet/configuration_profiles"
 	query := make(url.Values)
 	if teamID != nil {
-		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
+		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
 	}
 	var responseBody listMDMConfigProfilesResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
@@ -57,7 +57,7 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
@@ -77,7 +77,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	}
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	teamIDField, err := writer.CreateFormField("team_id")
+	teamIDField, err := writer.CreateFormField("fleet_id")
 	if err != nil {
 		return 0, err
 	}
@@ -97,7 +97,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 
 	request, err := http.NewRequest(
 		"POST",
-		c.baseURL.String()+"/api/latest/fleet/mdm/apple/profiles",
+		c.BaseURL.String()+"/api/latest/fleet/mdm/apple/profiles",
 		body,
 	)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	response, err := c.http.Do(request)
+	response, err := c.HTTP.Do(request)
 	if err != nil {
 		return 0, err
 	}
@@ -138,7 +138,7 @@ func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSumma
 	verb, path := "GET", "/api/latest/fleet/mdm/profiles/summary"
 	query := make(url.Values)
 	if teamID != nil {
-		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
+		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
 	}
 	var responseBody getMDMProfilesSummaryResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
@@ -152,12 +152,11 @@ func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetup
 	verb, path := "GET", "/api/latest/fleet/enrollment_profiles/automatic"
 	var query string
 	if teamID != 0 {
-		query = fmt.Sprintf("team_id=%d", teamID)
+		query = fmt.Sprintf("fleet_id=%d", teamID)
 	}
 	var responseBody createMDMAppleSetupAssistantResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
-		var notFoundErr notFoundErr
-		if errors.As(err, &notFoundErr) {
+		if isNotFoundErr(err) {
 			// If the profile is not found, return nil instead of an error.
 			return nil, nil
 		}

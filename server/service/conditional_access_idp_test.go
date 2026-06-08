@@ -258,8 +258,22 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Contains(t, profileStr, "com.fleetdm.conditional-access-preference")
 		require.Contains(t, profileStr, "com.fleetdm.chrome.certs")
 
-		// Verify certificate CN is present in the profile
-		require.Contains(t, profileStr, "Fleet conditional access for Okta")
+		// Top-level PayloadIdentifier and certificate CN must match the
+		// shared constants so the InstallProfile-ack cleanup hook can
+		// reliably gate on them.
+		require.Contains(t, profileStr, fleet.ConditionalAccessOktaProfileIdentifier)
+		require.Contains(t, profileStr, fleet.ConditionalAccessOktaCertificateCN)
+
+		// Verify the renewal-ID marker is in the SCEP payload's Subject OU
+		// so auto-renewal activates by default. Substituted to
+		// fleet-<profile_uuid> at delivery time; Fleet's own SCEP CA
+		// preserves OU in the issued cert.
+		require.Contains(t, profileStr, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+		require.Regexp(t,
+			`(?s)<key>Subject</key>.*<string>OU</string>\s*<string>\$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>`,
+			profileStr,
+			"renewal-ID marker must be in Subject OU, not CN",
+		)
 	})
 
 	t.Run("missing CA certificate", func(t *testing.T) {

@@ -1,0 +1,8 @@
+{
+  "name": "Cavalry",
+  "unique_identifier": "com.scenegroup.cavalry",
+  "token": "cavalry",
+  "installer_format": "dmg",
+  "slug": "cavalry/darwin",
+  "default_categories": ["Productivity"]
+}

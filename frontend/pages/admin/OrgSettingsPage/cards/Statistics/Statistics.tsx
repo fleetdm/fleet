@@ -41,8 +41,7 @@ const Statistics = ({
       server_settings: {
         enable_analytics: enableUsageStatistics,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
-        query_reports_disabled:
-          appConfig.server_settings.query_reports_disabled,
+        discard_reports_data: appConfig.server_settings.query_reports_disabled,
         scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
@@ -65,12 +64,10 @@ const Statistics = ({
             This information helps our team better understand feature adoption
             and usage, and allows us to see how Fleet is adding value, so that
             we can make better product decisions. Fleet Premium customers always
-            submit usage statistics data.
-            <br />
-            <br />
+            submit usage statistics data.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
-              text="Learn more about usage statistics"
+              text="Learn more"
               newTab
             />
           </p>
@@ -87,11 +84,10 @@ const Statistics = ({
           Enable usage statistics
         </Checkbox>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={disableChildren}
+              disabled={disableChildren || telemetryAlwaysEnabled}
               className="button-wrap"
               isLoading={isUpdatingSettings}
             >

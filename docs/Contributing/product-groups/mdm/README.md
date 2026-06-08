@@ -16,6 +16,7 @@ Fleet's MDM functionality allows organizations to manage and secure devices acro
 - [Custom Configuration Web URL](custom-configuration-web-url.md)
 - [Custom SCEP Integration](custom-scep-integration.md)
 - [Provide end user email address w/o relying on end user](set-up-custom-end-user-email.md)
+- [Migrate to Fleet via Orbit/Fleet Desktop](migrate-to-fleet-orbit.md)
 
 ## Related Resources
 

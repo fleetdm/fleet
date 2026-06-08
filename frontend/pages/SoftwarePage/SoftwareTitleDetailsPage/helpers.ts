@@ -6,6 +6,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
   ISoftwarePackage,
 } from "interfaces/software";
+import { getDisplayedSoftwareName } from "../helpers";
 
 export interface InstallerCardInfo {
   softwareTitleName: string;
@@ -41,7 +42,10 @@ export const getInstallerCardInfo = (
 
   return {
     softwareTitleName: softwareTitle.name,
-    softwareDisplayName: softwareTitle.display_name || softwareTitle.name,
+    softwareDisplayName: getDisplayedSoftwareName(
+      softwareTitle.name,
+      softwareTitle.display_name
+    ),
     softwareInstaller: installerData,
     name: (isPackage && installerData.name) || softwareTitle.name,
     version:

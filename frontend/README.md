@@ -95,7 +95,7 @@ Constants](./app_constants) object.
 
 ### [services](./services)
 
-CRUD functions for all Fleet entities (e.g. `query`) that link directly to the Fleet API.
+CRUD functions for all Fleet entities (e.g. `report`) that link directly to the Fleet API.
 
 ### [styles](./styles)
 

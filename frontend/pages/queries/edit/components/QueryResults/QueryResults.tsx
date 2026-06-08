@@ -23,6 +23,7 @@ import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
 import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
+import EmptyState from "components/EmptyState";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -42,7 +43,7 @@ interface IQueryResultsProps {
 }
 
 const baseClass = "query-results";
-const CSV_TITLE = "New Query";
+const CSV_TITLE = "New Report";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -155,15 +156,22 @@ const QueryResults = ({
   };
 
   const renderNoResults = () => {
+    const hostVerb = targetsTotalCount === 1 ? "host is" : "hosts are";
+    const errorsMessage = errors?.length ? (
+      <>
+        {" "}
+        or review the <strong>Errors</strong> tab for details
+      </>
+    ) : null;
     return (
-      <p className="no-results-message">
-        Your live query returned no results.
-        <span>
-          Expecting to see results? Check to see if the host
-          {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
-          &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo; table.
-        </span>
-      </p>
+      <EmptyState
+        header="No results returned"
+        info={
+          <>
+            Check whether the {hostVerb} online{errorsMessage}.
+          </>
+        }
+      />
     );
   };
 
@@ -234,6 +242,7 @@ const QueryResults = ({
             tableType === "results" ? setFilteredResults : setFilteredErrors
           }
           renderCount={() => renderCount(tableType)}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );
@@ -274,7 +283,7 @@ const QueryResults = ({
         }
         numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
@@ -284,7 +293,7 @@ const QueryResults = ({
           cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
-            <b>Results clipped.</b> A sample of this query&apos;s results and
+            <b>Results clipped.</b> A sample of this report&apos;s results and
             errors is included below. Please target fewer hosts at once to build
             a full set of results.
           </div>

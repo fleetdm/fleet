@@ -2,6 +2,8 @@ package nvd
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
@@ -183,6 +185,40 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				},
 			},
 		},
+		// CVE-2017-17522 is DISPUTED. NVD lists python:python up to (and including) 3.6.3 as
+		// vulnerable, but the CPE criteria is broad and matches modern Python installs (e.g. it was
+		// reported against Python 3.9.6). Python maintainers reject the report: exploitation is
+		// impossible because webbrowser.py relies on subprocess.Popen with the default shell=False.
+		// Following the same approach as CVE-2013-0340, we ignore it entirely. See #35148.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2017-17522": {},
+			},
+		},
+		// CVE-2023-36632 is DISPUTED. NVD/Python state it is "neither a vulnerability nor a bug": the
+		// legacy email.utils.parseaddr function raises a RecursionError on crafted input, which is
+		// the email package's intended behavior of throwing an exception when size limits are
+		// exceeded. It matches python:python up to 3.11.4 with a 7.5 score. Following the same
+		// approach as CVE-2013-0340, we ignore it entirely. See #35148.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2023-36632": {},
+			},
+		},
+		// CVE-2024-3219 affects CPython's pure-Python socket.socketpair() implementation, which is
+		// only used on platforms lacking AF_UNIX support (Windows). Linux and macOS use the native
+		// AF_UNIX implementation and are not affected, but the NVD/VulnCheck CPE data uses
+		// target_sw=* causing false positives on macOS and Linux. See #35148.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-3219": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
 		// These vulnerabilities in the MongoDB client incorrectly match
 		// the VS Code extension.
 		CPEMatchingRule{
@@ -311,6 +347,109 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
+			},
+		},
+		// CVE-2019-17201 and CVE-2019-17202 are Windows-only privilege escalation vulnerabilities
+		// in Admin By Request (named pipe bypass and PIN challenge-response bypass).
+		// The NVD CPE data uses target_sw=* with no platform differentiation, causing false positives
+		// on macOS and Linux where the software uses independent version numbering. See #41586.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2019-17201": {},
+				"CVE-2019-17202": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
+		// CVE-2023-28205 WebKit vulnerability
+		// Apple released fixes via:
+		// - Safari 16.4.1 standalone update for Big Sur/Monterey (HT213722)
+		// - macOS Ventura 13.3.1 system update (HT213721)
+		//
+		// - Safari 16.0-16.4.0 are vulnerable
+		// - Safari < 16.0 not vulnerable
+		// - macOS Ventura < 13.3.1 is vulnerable
+		// - macOS < 13.0 ignore for macOS matches, no system-level fix, rely on Safari version matching
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-28205": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				// For Safari CPE matches, only match versions 16.x
+				if cpeMeta.Vendor == "apple" && cpeMeta.Product == "safari" {
+					version := wfn.StripSlashes(cpeMeta.Version)
+					parts := strings.Split(version, ".")
+
+					if len(parts) > 0 {
+						majorVer, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return false
+						}
+
+						if majorVer < 16 || majorVer > 16 {
+							return true
+						}
+
+						if majorVer == 16 && len(parts) >= 2 {
+							minorVer, _ := strconv.Atoi(parts[1])
+
+							// Safari 16.5+
+							if minorVer > 4 {
+								return true
+							}
+
+							// Safari 16.4.x
+							if minorVer == 4 && len(parts) >= 3 {
+								patchVer, _ := strconv.Atoi(parts[2])
+								if patchVer >= 1 {
+									return true
+								}
+							}
+						}
+					}
+				}
+
+				// For macOS CPE matches, only match Ventura < 13.3.1
+				if cpeMeta.Vendor == "apple" && cpeMeta.Product == "macos" {
+					version := wfn.StripSlashes(cpeMeta.Version)
+					parts := strings.Split(version, ".")
+
+					if len(parts) > 0 {
+						majorVer, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return false
+						}
+
+						// Ignore non-Ventura
+						if majorVer != 13 {
+							return true
+						}
+
+						// For Ventura, check if >= 13.3.1
+						if len(parts) >= 2 {
+							minorVer, _ := strconv.Atoi(parts[1])
+
+							if minorVer > 3 {
+								return true
+							}
+
+							if minorVer == 3 {
+								if len(parts) == 2 {
+									return false
+								}
+								if len(parts) >= 3 {
+									patchVer, _ := strconv.Atoi(parts[2])
+									if patchVer >= 1 {
+										return true
+									}
+								}
+							}
+						}
+					}
+				}
+
+				return false
 			},
 		},
 	}

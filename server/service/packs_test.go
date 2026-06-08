@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -38,7 +38,8 @@ func TestGetPack(t *testing.T) {
 
 func TestNewPackSavesTargets(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 	ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 		return pack, nil
@@ -46,12 +47,6 @@ func TestNewPackSavesTargets(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
-
 	packPayload := fleet.PackPayload{
 		Name:     ptr.String("foo"),
 		HostIDs:  &[]uint{123},
@@ -68,11 +63,38 @@ func TestNewPackSavesTargets(t *testing.T) {
 	assert.Equal(t, uint(456), pack.LabelIDs[0])
 	assert.Equal(t, uint(789), pack.TeamIDs[0])
 	assert.True(t, ds.NewPackFuncInvoked)
-	assert.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+}
+
+func TestNewPackRejectsMissingName(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload fleet.PackPayload
+	}{
+		{name: "nil name", payload: fleet.PackPayload{}},
+		{name: "empty string name", payload: fleet.PackPayload{Name: ptr.String("")}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+
+			ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+				return pack, nil
+			}
+
+			_, err := svc.NewPack(test.UserContext(ctx, test.UserAdmin), c.payload)
+			require.Error(t, err)
+			var badReqErr *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReqErr)
+			assert.Contains(t, badReqErr.Message, "pack name cannot be empty")
+			assert.False(t, ds.NewPackFuncInvoked, "datastore should not be called when name is missing")
+		})
+	}
 }
 
 func TestPacksWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -85,7 +107,7 @@ func TestPacksWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

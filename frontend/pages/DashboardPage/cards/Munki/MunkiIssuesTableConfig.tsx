@@ -91,7 +91,7 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
             <ViewAllHostsLink
               queryParams={{
                 munki_issue_id: cellProps.row.original.id,
-                team_id: teamId,
+                fleet_id: teamId,
               }}
               className="munki-issue-link"
             />

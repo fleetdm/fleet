@@ -1,27 +1,29 @@
 package goval_dictionary
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"path/filepath"
+
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	"net/http"
-	"net/url"
-	"path/filepath"
 )
 
 func Refresh(
+	ctx context.Context,
 	versions *fleet.OSVersions,
 	vulnPath string,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) ([]oval.Platform, error) {
 	toDownload := whatToDownload(versions)
 	if len(toDownload) > 0 {
-		level.Debug(logger).Log("msg", "goval_dictionary-sync-downloading")
+		logger.DebugContext(ctx, "goval_dictionary-sync-downloading")
 		err := Sync(vulnPath, toDownload)
 		if err != nil {
 			return nil, err

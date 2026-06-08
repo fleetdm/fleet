@@ -13,6 +13,7 @@ type Action string
 
 const (
 	ActionRead Action = "read"
+	ActionList Action = "list"
 )
 
 // Authorizer is the interface for authorization checks.

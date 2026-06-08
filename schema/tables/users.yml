@@ -1,4 +1,5 @@
 name: users
+description: Local user accounts (including domain accounts that have logged on locally on Windows).
 platforms:
   - darwin
   - windows

@@ -17,8 +17,8 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
-    // Modal title
-    expect(screen.getByText(mockSoftware.name)).toBeVisible();
+    // Modal title is display_name and not name
+    expect(screen.getByText("Mock Software")).toBeVisible();
 
     // Version, Type, Bundle identifier, Last opened
     expect(screen.getByText("Version")).toBeVisible();
@@ -42,8 +42,8 @@ describe("SoftwareDetailsModal", () => {
     // Vulnerabilities
     expect(screen.getByText(/CVE-2020-0001/)).toBeVisible();
 
-    // Done button
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    // Close button
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 
   it("does not render hash if signature_information is missing", () => {

@@ -123,7 +123,6 @@ const EditCertAuthorityModal = ({
         formData={formData}
         submitBtnText="Save"
         isSubmitting={isUpdating}
-        isEditing
         isDirty={isDirty}
         onChange={onChangeForm}
         onSubmit={onEditCertAuthority}

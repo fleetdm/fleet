@@ -1,0 +1,64 @@
+name: containerd_mounts
+platforms:
+  - linux
+description: Information about containerd container mounts.
+evented: false
+columns:
+  - name: namespace
+    type: text
+    required: false
+    description: |-
+      Namespace of the container.
+  - name: container_id
+    type: text
+    required: false
+    description: |-
+      Container ID.
+  - name: type
+    type: text
+    required: false
+    description: |-
+      Mount type (e.g. bind, tmpfs, proc).
+  - name: source
+    type: text
+    required: false
+    description: |-
+      Source path on the host.
+  - name: destination
+    type: text
+    required: false
+    description: |-
+      Destination path in the container.
+  - name: options
+    type: text
+    required: false
+    description: |-
+      Mount options (comma-separated).
+examples: |-
+  Get all mounts for all containers:
+
+  ```
+  SELECT * FROM containerd_mounts;
+  ```
+
+  Get mounts for a specific container:
+
+  ```
+  SELECT * FROM containerd_mounts WHERE container_id='abc123';
+  ```
+  
+  Get all bind mounts:
+
+  ```
+  SELECT * FROM containerd_mounts WHERE type='bind';
+  ```
+  
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent
+  ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  
+  The `containerd_mounts` table is available on Linux systems with containerd installed. It provides
+  information about the mounts configured for containers managed by containerd.
+  
+  This table is useful for systems using containerd as a container runtime, such as those running
+  Kubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.

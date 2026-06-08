@@ -1,10 +1,12 @@
+import React, { useState } from "react";
+
+import { QueryLoggingOption } from "interfaces/schedulable_query";
+
+import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
-import { QueryLoggingOption } from "interfaces/schedulable_query";
-import React, { useState } from "react";
-import { Link } from "react-router";
 
 const baseClass = "discard-data-option";
 
@@ -22,34 +24,40 @@ const DiscardDataOption = ({
   setDiscardData,
 }: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
-  const disable = queryReportsDisabled && !forceEditDiscardData;
+
+  const isDisabled = queryReportsDisabled && !forceEditDiscardData;
+  const isReportsLoggingIgnored =
+    selectedLoggingType === "differential" ||
+    selectedLoggingType === "differential_ignore_removals";
 
   const renderHelpText = () => (
-    <div className="help-text">
-      {disable ? (
+    <>
+      {isDisabled ? (
         <>
-          This setting is ignored because query reports in Fleet have been{" "}
+          This setting is ignored because reports in Fleet have been{" "}
           <TooltipWrapper
             tipContent={
               <>
-                A Fleet administrator can enable query reports under <br />
+                A Fleet administrator can enable reports under <br />
                 <b>
-                  Organization settings &gt; Advanced options &gt; Disable query
+                  Organization settings &gt; Advanced options &gt; Disable
                   reports
                 </b>
                 .
               </>
             }
           >
-            {"globally disabled."}
-          </TooltipWrapper>{" "}
-          <Link
-            to=""
+            globally disabled.
+          </TooltipWrapper>
+          <Button
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setForceEditDiscardData(true);
             }}
+            variant="text-icon"
+            size="small"
             className={`${baseClass}__edit-anyway`}
+            iconStroke
           >
             <>
               Edit anyway
@@ -59,32 +67,27 @@ const DiscardDataOption = ({
                 size="small"
               />
             </>
-          </Link>
+          </Button>
         </>
       ) : (
         "The most recent results for each host will not be available in Fleet."
       )}
-    </div>
+    </>
   );
+
   return (
     <div className={baseClass}>
-      {["differential", "differential_ignore_removals"].includes(
-        selectedLoggingType
-      ) && (
-        <>
-          <InfoBanner color="purple">
-            The <b>Discard data</b> setting is ignored when differential logging
-            is enabled. This query&apos;s results will not be saved in Fleet.
-          </InfoBanner>
-        </>
+      {isReportsLoggingIgnored && (
+        <InfoBanner>
+          The <b>Discard data</b> setting is ignored when differential logging
+          is enabled. This report&apos;s results will not be saved in Fleet.
+        </InfoBanner>
       )}
       <Checkbox
         name="discardData"
         onChange={setDiscardData}
         value={discardData}
-        wrapperClassName={
-          disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
-        }
+        disabled={isDisabled}
         helpText={renderHelpText()}
       >
         Discard data

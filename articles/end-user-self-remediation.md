@@ -54,7 +54,7 @@ Read [Including Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts
 
 So, you’ve deployed Fleet and installed Fleet Desktop on your hosts (employees’ computers). Now, it’s time to create your policies.
 
-When saving the policy query, you’ll notice a “resolution” field. Completing this field is crucial for end user self-remediation. These will be the remediation instructions that end users see in Fleet Desktop.
+When saving the policy's query, you’ll notice a “resolution” field. Completing this field is crucial for end user self-remediation. These will be the remediation instructions that end users see in Fleet Desktop.
 
 Take your time writing these instructions. Remember, employees have different areas of expertise. Try to keep your technical explanations as simple as possible.
 

@@ -9,7 +9,7 @@ const meta: Meta<typeof Editor> = {
   argTypes: {
     mode: {
       control: "select",
-      options: ["sh", "powershell"],
+      options: ["sh", "python", "powershell"],
       description: "Syntax highlighting mode",
     },
     readOnly: { control: "boolean" },

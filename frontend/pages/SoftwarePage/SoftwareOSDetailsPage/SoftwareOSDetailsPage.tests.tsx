@@ -87,10 +87,11 @@ describe("KernelsCard", () => {
     );
 
     expect(screen.getByText("Kernels")).toBeInTheDocument();
-    expect(screen.getByText("35 items")).toBeInTheDocument();
+    expect(screen.getByText("3 items")).toBeInTheDocument();
     expect(screen.getAllByText("6.11.0-26.26~24.04.1").length).toBeGreaterThan(
       0
     );
+
     expect(screen.getByText("14 vulnerabilities")).toBeInTheDocument();
   });
 

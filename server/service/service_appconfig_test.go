@@ -98,6 +98,9 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
 
 	err := svc.ApplyEnrollSecretSpec(
 		test.UserContext(ctx, test.UserAdmin),
@@ -403,8 +406,9 @@ func TestService_EmailConfig(t *testing.T) {
 			want: &fleet.EmailConfig{
 				Backend: "ses",
 				Config: fleet.SESConfig{
-					Region:    "us-east-1",
-					SourceARN: "qux",
+					Region:       "us-east-1",
+					SourceARN:    "qux",
+					SenderDomain: "email.example.com",
 				},
 			},
 			wantErr: assert.NoError,

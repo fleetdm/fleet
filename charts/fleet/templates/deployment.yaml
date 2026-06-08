@@ -32,11 +32,54 @@ spec:
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
     spec:
+      initContainers:
+      {{- if include "fleet.additionalCAs.enabled" . }}
+      - name: install-trusted-cas
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        {{- with .Values.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+        command:
+          - sh
+          - -c
+          - |
+            set -e
+            apk add ca-certificates
+            echo "Installing trusted CA certificates..."
+
+            for dir in /custom-ca/*; do
+              if [ -d "$dir" ]; then
+                cp "$dir"/*.crt /usr/local/share/ca-certificates/
+              fi
+            done
+
+            update-ca-certificates
+        volumeMounts:
+      {{- range .Values.fleet.additionalCAs.configMaps }}
+          - name: ca-configmap-{{ .name }}
+            mountPath: /custom-ca/configmap-{{ .name }}
+            readOnly: true
+      {{- end }}
+      {{- range .Values.fleet.additionalCAs.secrets }}
+          - name: ca-secret-{{ .name }}
+            mountPath: /custom-ca/secret-{{ .name }}
+            readOnly: true
+      {{- end }}
+          - name: ca-certs
+            mountPath: /etc/ssl/certs
+      {{- end }}
       containers:
       - name: fleet
         command: [/usr/bin/fleet]
         args: ["serve"]
         image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        {{- with .Values.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         ports:
         - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}
@@ -103,6 +146,8 @@ spec:
             value: "{{ .Values.fleet.carving.s3.endpointURL }}"
           - name: FLEET_S3_FORCE_S3_PATH_STYLE
             value: "{{ .Values.fleet.carving.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_CARVES_GCS_IAM_AUTH
+            value: "{{ .Values.fleet.carving.s3.gcsIAMAuth }}"
           - name: FLEET_S3_CARVES_REGION
             value: "{{ .Values.fleet.carving.s3.region }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
@@ -128,6 +173,8 @@ spec:
             value: "{{ .Values.fleet.softwareInstallers.s3.endpointURL }}"
           - name: FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE
             value: "{{ .Values.fleet.softwareInstallers.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_GCS_IAM_AUTH
+            value: "{{ .Values.fleet.softwareInstallers.s3.gcsIAMAuth }}"
           - name: FLEET_S3_SOFTWARE_INSTALLERS_REGION
             value: "{{ .Values.fleet.softwareInstallers.s3.region }}"
           {{- if ne .Values.fleet.softwareInstallers.s3.accessKeyID "" }}
@@ -411,7 +458,11 @@ spec:
           capabilities:
             drop: [ALL]
           privileged: false
+          {{- if hasKey .Values.fleet.securityContext "readOnlyRootFilesystem" }}
+          readOnlyRootFilesystem: {{ .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          {{- else }}
           readOnlyRootFilesystem: true
+          {{- end }}
           {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
           {{- end }}
@@ -435,10 +486,10 @@ spec:
             {{- if .Values.fleet.tls.enabled }}
             scheme: HTTPS
             {{- end }}
-        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           - name: tmp
             mountPath: /tmp
+        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
           {{- if .Values.fleet.tls.enabled }}
           - name: fleet-tls
             readOnly: true
@@ -452,6 +503,10 @@ spec:
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
           - name: osquery-logs
             mountPath: /logs
+          {{- end }}
+          {{- if include "fleet.additionalCAs.enabled" . }}
+          - name: ca-certs
+            mountPath: /etc/ssl/certs
           {{- end }}
           {{- with .Values.fleet.extraVolumeMounts }}
           {{- toYaml . | nindent 10 }}
@@ -495,10 +550,10 @@ spec:
         {{- toYaml . | nindent 8}}
       {{- end }}
       serviceAccountName: fleet
-      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         - name: tmp
           emptyDir:
+      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
@@ -520,6 +575,20 @@ spec:
         {{- end }}
         {{- with .Values.fleet.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if include "fleet.additionalCAs.enabled" . }}
+        {{- range .Values.fleet.additionalCAs.configMaps }}
+        - name: ca-configmap-{{ .name }}
+          configMap:
+            name: {{ .name }}
+        {{- end }}
+        {{- range .Values.fleet.additionalCAs.secrets }}
+        - name: ca-secret-{{ .name }}
+          secret:
+            secretName: {{ .name }}
+        {{- end }}
+        - name: ca-certs
+          emptyDir: {}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

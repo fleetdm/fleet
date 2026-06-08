@@ -30,7 +30,7 @@ There are no surprises - you can see what they are working on at any time.
 
 **Mike Meyer**
 
-Senior Manager, Corporate Engineer
+Senior systems engineer & Technical lead
 
 </div>
 
@@ -46,7 +46,7 @@ One of the easiest, quickest, smoothest migrations I’ve ever done.
 
 **Mike Meyer**
 
-Senior Manager, Corporate Engineer
+Senior systems engineer & Technical lead
 
 </div>
 
@@ -72,7 +72,7 @@ Fleet is the best tool for Foursquare - it helps my team be more creative and ef
 
 **Mike Meyer**
 
-Senior Manager, Corporate Engineer
+Senior systems engineer & Technical lead
 
 </div>
 
@@ -80,6 +80,7 @@ Senior Manager, Corporate Engineer
 <meta name="category" value="case study">
 <meta name="companyLogoFilename" value="foursquare-logo-212x40@2x.png">
 <meta name="articleTitle" value="Foursquare cut costs and gained 114% ROI with Fleet">
+<meta name="description" value="Foursquare replaced two MDM tools with Fleet, cut maintenance work by 50%, reduced costs by 24%, and achieved 114% ROI.">
 
 
 <meta name="publishedOn" value="2025-12-11">
@@ -89,7 +90,7 @@ Senior Manager, Corporate Engineer
 <meta name="quoteContent" value="“One of the easiest, quickest, smoothest migrations I’ve ever done.”">
 <meta name="quoteAuthorImageFilename" value="mike-meyer-120x120@2x.png">
 <meta name="quoteAuthorName" value="Mike Meyer">
-<meta name="quoteAuthorJobTitle" value="Senior Manager, Corporate Engineer">
+<meta name="quoteAuthorJobTitle" value="Senior systems engineer & Technical lead">
 
 <meta name="companyName" value="Foursquare">
 <meta name="companyInfo" value="Foursquare is the industry's leading geospatial technology platform, designed to help businesses make smarter decisions and create more engaging customer experiences.">

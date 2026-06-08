@@ -9,8 +9,8 @@ import (
 
 // WrapHandler wraps an HTTP handler with OpenTelemetry instrumentation for a fixed route.
 // It creates spans named as "{method} {route}" (e.g., "GET /healthz").
-func WrapHandler(handler http.Handler, route string, config config.FleetConfig) http.Handler {
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+func WrapHandler(handler http.Handler, route string, cfg config.FleetConfig) http.Handler {
+	if cfg.OTELEnabled() {
 		// Wrap with OTEL handler to create properly named spans: "{method} {route}"
 		return otelhttp.NewHandler(
 			otelhttp.WithRouteTag(route, handler),
@@ -25,8 +25,8 @@ func WrapHandler(handler http.Handler, route string, config config.FleetConfig) 
 
 // WrapHandlerDynamic wraps an HTTP handler with OpenTelemetry instrumentation using dynamic routes.
 // It creates spans based on the actual request path (e.g., "GET /assets/app.js").
-func WrapHandlerDynamic(handler http.Handler, config config.FleetConfig) http.Handler {
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+func WrapHandlerDynamic(handler http.Handler, cfg config.FleetConfig) http.Handler {
+	if cfg.OTELEnabled() {
 		// Create a wrapper that instruments each request with its actual path
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Use the actual request path as the route

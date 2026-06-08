@@ -3,12 +3,14 @@ package osquery
 import (
 	"net/url"
 	"path"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // FleetFlags is the set of flags to pass to osquery when connecting to Fleet.
-func FleetFlags(fleetURL *url.URL) []string {
+func FleetFlags(osqueryVersion string, fleetURL *url.URL) []string {
 	hostname, prefix := fleetURL.Host, fleetURL.Path
-	return []string{
+	flags := []string{
 		"--tls_hostname=" + hostname,
 		"--enroll_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/enroll"),
 		"--config_plugin=tls",
@@ -32,4 +34,12 @@ func FleetFlags(fleetURL *url.URL) []string {
 		"--carver_continue_endpoint=" + path.Join(prefix, "/api/v1/osquery/carve/block"),
 		"--carver_block_size=8000000",
 	}
+
+	if v, err := semver.NewVersion(osqueryVersion); err == nil {
+		if !semver.New(v.Major(), v.Minor(), v.Patch(), "", "").LessThan(semver.New(5, 21, 0, "", "")) {
+			flags = append(flags, "--tls_accept_gzip=true")
+		}
+	}
+
+	return flags
 }

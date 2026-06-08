@@ -1,0 +1,7 @@
+- name: Windows screen lock exclusions
+  description: |
+    Hosts in this label are excluded from the "Windows - Interactive logon screen lock timeout configured"
+    policy and the corresponding "Screen lock timeout.xml" configuration profile.
+    Add Fleet host IDs below to exclude a host (hardware_serial or uuid also work).
+  label_membership_type: manual
+  hosts: []

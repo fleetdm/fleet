@@ -1,7 +1,6 @@
 import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import { IAceEditor } from "react-ace/lib/types";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
@@ -44,8 +43,8 @@ export interface ISQLEditorProps {
   helpText?: ReactNode;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
-  onBlur?: (editor?: IAceEditor) => void;
-  onLoad?: (editor: IAceEditor) => void;
+  onBlur?: (editor?: Ace.Editor) => void;
+  onLoad?: (editor: Ace.Editor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
   disabled?: boolean;
@@ -99,7 +98,7 @@ const SQLEditor = ({
     });
   };
 
-  const fixHotkeys = (editor: IAceEditor) => {
+  const fixHotkeys = (editor: Ace.Editor) => {
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
   };
@@ -226,7 +225,7 @@ const SQLEditor = ({
     }
   }
 
-  const onLoadHandler = (editor: IAceEditor) => {
+  const onLoadHandler = (editor: Ace.Editor) => {
     fixHotkeys(editor);
 
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
@@ -262,7 +261,7 @@ const SQLEditor = ({
     onLoad && onLoad(editor);
   };
 
-  const onBlurHandler = (event: any, editor?: IAceEditor): void => {
+  const onBlurHandler = (event: any, editor?: Ace.Editor): void => {
     onBlur && onBlur(editor);
   };
 

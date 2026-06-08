@@ -1,5 +1,9 @@
 /** Helpers used across the host details and my device pages and components. */
-import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
+import {
+  HostMdmDeviceStatus,
+  HostMdmPendingAction,
+  RecoveryLockPasswordStatus,
+} from "interfaces/host";
 import {
   IHostMdmProfile,
   WindowsDiskEncryptionStatus,
@@ -57,10 +61,28 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This is the only type of profile that can have this value
+    profile_uuid: "disk_enc_dummy",
     platform: "linux",
     name: "Disk encryption",
     status: diskEncryptionStatus,
+    detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
+  };
+};
+
+export const REC_LOCK_SYNTHETIC_PROFILE_UUID = "rec_lock_dummy";
+
+export const generateRecoveryLockPasswordSetting = (
+  status: RecoveryLockPasswordStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+    platform: "darwin",
+    name: "Recovery Lock password",
+    status,
     detail,
     operation_type: null,
     scope: null,
@@ -75,6 +97,7 @@ export type HostMdmDeviceStatusUIState =
   | "locking"
   | "wiped"
   | "wiping"
+  | "clearing_passcode"
   | "locating";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
@@ -89,10 +112,19 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  clear_passcode: "clearing_passcode",
+  /** When device_status is "locked" and pending_action is "location", show "locating",
+   * device_status is "unlocked" and pending_action is "location" is still "locking"
+   */
   location: "locating",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
+const deviceUpdatingStates = [
+  "unlocking",
+  "locking",
+  "wiping",
+  "clearing_passcode",
+] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what
@@ -109,6 +141,14 @@ export const getHostDeviceStatusUIState = (
   if (pendingAction === "") {
     return API_TO_UI_DEVICE_STATUS_MAP[deviceStatus];
   }
+
+  // Special case: when pending_action is "location" and device_status is "unlocked",
+  // the device is in the process of locking in order to enable location tracking.
+  // Return "locking" in this case.
+  if (pendingAction === "location" && deviceStatus === "unlocked") {
+    return "locking";
+  }
+
   return API_TO_UI_DEVICE_STATUS_MAP[pendingAction];
 };
 

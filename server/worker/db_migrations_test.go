@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,13 +19,13 @@ import (
 func TestDBMigrationsVPPToken(t *testing.T) {
 	ctx := context.Background()
 
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately as a DB migration may have created jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
-	nopLog := kitlog.NewNopLogger()
+	nopLog := slog.New(slog.DiscardHandler)
 	// use this to debug/verify details of calls
-	// nopLog := kitlog.NewJSONLogger(os.Stdout)
+	// nopLog = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// create and register the worker
 	processor := &DBMigration{
@@ -39,7 +39,7 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 	expDate := time.Date(2024, 8, 27, 0, 0, 0, 0, time.UTC)
 	tok, err := test.CreateVPPTokenEncodedAfterMigration(expDate, "test-org", "test-loc")
 	require.NoError(t, err)
-	encTok, err := mysql.EncryptWithPrivateKey(t, ds, tok)
+	encTok, err := mysqltest.EncryptWithPrivateKey(t, ds, tok)
 	require.NoError(t, err)
 
 	const insVPP = `
@@ -66,7 +66,7 @@ INSERT INTO jobs (
 )
 VALUES (?, ?, ?, '', ?, ?, ?)
 `
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, insVPP, encTok)
 		if err != nil {
 			return err
@@ -111,7 +111,7 @@ VALUES (?, ?, ?, '', ?, ?, ?)
 	require.ErrorAs(t, err, &nfe)
 
 	// enqueue a DB migration job with an unknown task
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		argsJSON, err := json.Marshal(dbMigrationArgs{Task: DBMigrationTask("no-such-task")})
 		if err != nil {
 			return fmt.Errorf("failed to JSON marshal the job arguments: %w", err)

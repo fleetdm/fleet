@@ -4,11 +4,11 @@ package main
 
 import (
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +24,7 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 			name:   "no changes",
 			before: func() {},
 			testFunc: func(t *testing.T) {
-				appPath, changerError, listError := ac.expectToChangeFileSystem(
+				appPath, changerError, listError := ac.expectToChangeFileSystem(t.Context(),
 					func() error {
 						return nil
 					},
@@ -38,7 +38,7 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 			name:   "item added",
 			before: func() {},
 			testFunc: func(t *testing.T) {
-				appPath, changerError, listError := ac.expectToChangeFileSystem(
+				appPath, changerError, listError := ac.expectToChangeFileSystem(t.Context(),
 					func() error {
 						err := os.Mkdir(filepath.Join(ac.cfg.installationSearchDirectory, "app1"), 0o755)
 						if err != nil {
@@ -66,7 +66,7 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 				}
 			},
 			testFunc: func(t *testing.T) {
-				appPath, changerError, listError := ac.expectToChangeFileSystem(
+				appPath, changerError, listError := ac.expectToChangeFileSystem(t.Context(),
 					func() error {
 						err := os.Remove(filepath.Join(ac.cfg.installationSearchDirectory, "app2"))
 						if err != nil {
@@ -85,7 +85,7 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 			name:   "error inside change function",
 			before: func() {},
 			testFunc: func(t *testing.T) {
-				appPath, changerError, listError := ac.expectToChangeFileSystem(
+				appPath, changerError, listError := ac.expectToChangeFileSystem(t.Context(),
 					func() error {
 						return errors.New("simulated error in change function")
 					},
@@ -105,11 +105,11 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 			defer os.RemoveAll(installationSearchDirectory)
 
 			cfg := &Config{
-				logger:                      kitlog.NewNopLogger(),
+				logger:                      slog.New(slog.DiscardHandler),
 				installationSearchDirectory: installationSearchDirectory,
 			}
 
-			ac = AppCommander{cfg: cfg, appLogger: kitlog.NewNopLogger()}
+			ac = AppCommander{cfg: cfg, appLogger: slog.New(slog.DiscardHandler)}
 			tc.before()
 			tc.testFunc(t)
 		})

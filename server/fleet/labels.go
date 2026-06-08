@@ -139,6 +139,65 @@ type HostVitalsLabel interface {
 	GetLabel() *Label
 }
 
+var ValidLabelPlatformVariants = map[string]struct{}{
+	"":        {}, // empty platform is valid value
+	"darwin":  {},
+	"windows": {},
+	"ubuntu":  {},
+	"centos":  {},
+}
+
+// ValidateLabelMembershipFields checks that the fields on a label spec are
+// consistent with its declared membership type. It returns an
+// InvalidArgumentError with field-specific entries, or nil if valid.
+func ValidateLabelMembershipFields(spec *LabelSpec) *InvalidArgumentError {
+	var invalid InvalidArgumentError
+	switch spec.LabelMembershipType {
+	case LabelMembershipTypeManual:
+		if spec.Query != "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as manual but contains a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as manual but contains criteria", spec.Name))
+		}
+		if spec.Platform != "" {
+			invalid.Append("platform", fmt.Sprintf("label %q is declared as manual but contains a platform", spec.Name))
+		}
+	case LabelMembershipTypeDynamic:
+		if strings.TrimSpace(spec.Query) == "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as dynamic but is missing a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as dynamic but contains criteria", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			invalid.Append("hosts", fmt.Sprintf("label %q is declared as dynamic but contains hosts", spec.Name))
+		}
+		if spec.Platform != "" {
+			if _, ok := ValidLabelPlatformVariants[spec.Platform]; !ok {
+				invalid.Append("platform", fmt.Sprintf("label %q has invalid platform: %q", spec.Name, spec.Platform))
+			}
+		}
+	case LabelMembershipTypeHostVitals:
+		if spec.HostVitalsCriteria == nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as host_vitals but is missing criteria", spec.Name))
+		}
+		if spec.Query != "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as host_vitals but contains a query", spec.Name))
+		}
+		if spec.Platform != "" {
+			invalid.Append("platform", fmt.Sprintf("label %q is declared as host_vitals but contains a platform", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			invalid.Append("hosts", fmt.Sprintf("label %q is declared as host_vitals but contains hosts", spec.Name))
+		}
+	}
+	if invalid.HasErrors() {
+		return &invalid
+	}
+	return nil
+}
+
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
@@ -151,12 +210,12 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
-	TeamID              *uint               `json:"team_id" db:"team_id"`
+	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
 }
 
 type LabelWithTeamName struct {
 	Label
-	TeamName *string `json:"team_name" db:"team_name"`
+	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -168,7 +227,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	TeamID      *uint     `json:"team_id" db:"team_id"`
+	TeamID      *uint     `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -230,7 +289,7 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
-	TeamID              *uint               `json:"team_id" db:"team_id"`
+	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
 }
 
 const (
@@ -287,6 +346,31 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 type LabelIdent struct {
 	LabelID   uint   `json:"id"`
 	LabelName string `json:"name"`
+}
+
+// LabelNamesToIdents wraps each label name in a bare LabelIdent (with LabelID
+// left zero).
+func LabelNamesToIdents(names []string) []LabelIdent {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]LabelIdent, len(names))
+	for i, name := range names {
+		out[i] = LabelIdent{LabelName: name}
+	}
+	return out
+}
+
+// LabelIdentsToNames extracts the label names from a slice of LabelIdent.
+func LabelIdentsToNames(idents []LabelIdent) []string {
+	if len(idents) == 0 {
+		return nil
+	}
+	out := make([]string, len(idents))
+	for i, ident := range idents {
+		out[i] = ident.LabelName
+	}
+	return out
 }
 
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM

@@ -12,13 +12,11 @@ You can also manage which Google Play Store apps are available for self-service 
 
 > Before using Fleet to manage VPP apps, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp). Once you've completed that setup, you can follow the directions below for each app.
 
-1. Purchase the relevant app through Apple Business Manager (ABM). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
+1. Purchase the relevant app through Apple Business (AB). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, then select the app you just purchased.
-
-> Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
 
 ### Google Play (Android)
 
@@ -26,17 +24,49 @@ You can also manage which Google Play Store apps are available for self-service 
 
 1. Head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+#### Install Android web app (web clip)
+
+> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.
+
+To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
+
+The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
+
+**Example request**
+
+```sh
+curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
+  -H "Authorization: Bearer <your_fleet_api_token>" \
+  -F 'title=Acme web app' \
+  -F 'url=https://app.acme.com' \
+  -F 'icon=@/path/to/app-icon.png'
+```
+
 ## Edit or delete the app
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
-2. Search for the app you want to delete and select the app to head to its **Software details** page.
-3. On the **Software details** page, select **Actions > Edit software** to edit the app's [self-service](https://fleetdm.com/guides/software-self-service) status and categories, or to change its target to different sets of hosts.
-4 On the **Software details** page, select **Actions > Edit appearance** to edit the apps's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the team where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
-5. To delete the app, on the **Software details** page, select the trash can (delete) icon.
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+2. Search for the app you want to remove and select the app to head to its **Software details** page.
+
+3. To edit the app icon and display name, select **Actions > Edit appearance**.
+
+4. To configure the app's self-service categories or change which hosts can install the app, select **Actions > Edit software**.
+
+5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
+
+## Configure automatic updates for an app (iOS / iPadOS only)
+
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+2. Search for the app you want to configure and select the app to head to its **Software details** page.
+
+3. Click the **Actions** button and select **Schedule auto updates**.
+
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the **Target** option (this configuration will also affect which end users can install the app themselves via the self-service feature).
 
 ## Install an app
 
@@ -44,15 +74,71 @@ You can also manage which Google Play Store apps are available for self-service 
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+> If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+> 
+> To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
-If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+> VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries) to handle intermittent issues.
 
-To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
+
+> VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
+
+#### iOS and iPadOS managed configuration
+
+Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+
+Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+##### Example (Zoom)
+
+This configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+
+```xml
+<dict>
+  <key>ForceLoginWithSSO</key>
+  <true />
+  <key>SetSSOURL</key>
+  <string>example</string>
+</dict>
+```
 
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
+
+#### Managed configuration
+
+Currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+
+`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+##### Example (GlobalProtect)
+
+This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
+
+```json
+{
+  "managedConfiguration": {
+    "portal": "example.portal.com",
+    "connect_method": "on-demand"
+  }  
+}
+
+```
+
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+##### Example (Google Calendar)
+
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
+```json
+{
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
 
 ## API and GitOps
 

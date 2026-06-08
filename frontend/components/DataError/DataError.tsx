@@ -25,6 +25,8 @@ interface IDataErrorProps {
   className?: string;
   /** Flag to use the updated DataError design */
   useNew?: boolean;
+  /** Overrides something gone wrong line with description text to condense error onto one line */
+  singleCustomLine?: boolean;
 }
 
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
@@ -36,8 +38,31 @@ const DataError = ({
   verticalPaddingSize,
   className,
   useNew = false,
+  singleCustomLine = false,
 }: IDataErrorProps): JSX.Element => {
   const classes = classnames(baseClass, className);
+
+  if (singleCustomLine) {
+    return (
+      <div className={classes}>
+        <div
+          className={`${baseClass}__inner ${
+            verticalPaddingSize &&
+            `${baseClass}__vertical-${verticalPaddingSize}`
+          }`}
+        >
+          <div className={`${baseClass}__content`}>
+            <span
+              className={`${baseClass}__header ${baseClass}__header--single-line`}
+            >
+              <Icon name="error" />
+              {description}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (useNew) {
     return (
@@ -54,9 +79,11 @@ const DataError = ({
           </div>
           {children || (
             <>
-              <div className={`${baseClass}__data`}>Refresh to try again.</div>
+              <div className={`${baseClass}__description`}>
+                Refresh to try again.
+              </div>
               {!excludeIssueLink && (
-                <div className={`${baseClass}__data`}>
+                <div className={`${baseClass}__file-issue`}>
                   If this keeps happening please&nbsp;
                   <CustomLink
                     url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -79,8 +106,8 @@ const DataError = ({
           verticalPaddingSize && `${baseClass}__vertical-${verticalPaddingSize}`
         }`}
       >
-        <div className="info">
-          <span className="info__header">
+        <div className={`${baseClass}__content`}>
+          <span className={`${baseClass}__header`}>
             <Icon name="error" />
             Something&apos;s gone wrong.
           </span>
@@ -89,10 +116,12 @@ const DataError = ({
             {children || (
               <>
                 {description && (
-                  <span className="info__data">{description}</span>
+                  <span className={`${baseClass}__description`}>
+                    {description}
+                  </span>
                 )}
                 {!excludeIssueLink && (
-                  <span className="info__data">
+                  <span className={`${baseClass}__file-issue`}>
                     If this keeps happening, please&nbsp;
                     <CustomLink
                       url="https://github.com/fleetdm/fleet/issues/new/choose"

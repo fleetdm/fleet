@@ -10,6 +10,10 @@
       }
     }
 
+    .last_fetched__cell {
+      white-space: nowrap; // Prevent timestamp wrapping on multiple lines
+    }
+
     .data-table__wrapper {
       overflow-x: scroll;
     }

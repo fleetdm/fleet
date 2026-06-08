@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { noop } from "lodash";
 
 import {
   IAppStoreApp,
@@ -19,7 +18,6 @@ import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import FileUploader from "components/FileUploader";
 import TabNav from "components/TabNav";
@@ -30,7 +28,10 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TableCount from "components/TableContainer/TableCount";
 import Spinner from "components/Spinner";
 
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  getDisplayedSoftwareName,
+  isSafeImagePreviewUrl,
+} from "pages/SoftwarePage/helpers";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
 import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
@@ -153,6 +154,7 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -224,7 +226,7 @@ const EditIconModal = ({
     });
 
   // Reset state to fallback/default icon when a current or new custom icon is removed
-  const resetIconState = () => {
+  const resetIconState = useCallback(() => {
     // Default to VPP icon if available, otherwise fall back to default icon
     const defaultPreviewUrl =
       previewInfo.currentIconUrl &&
@@ -239,9 +241,9 @@ const EditIconModal = ({
       fileDetails: null,
       status: "fallback",
     });
-  };
+  }, [previewInfo.currentIconUrl]);
 
-  const { data: customIconData } = useQuery(
+  const { data: customIconData, isError: isCustomIconError } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
@@ -332,6 +334,13 @@ const EditIconModal = ({
   // useQuery does not handle dimension extraction, so this is required for updating
   // state with image details after loading the icon blob in the browser
   useEffect(() => {
+    // If the icon fetch failed, stop showing the spinner and fall back
+    if (isCustomIconError && isFirstLoadWithCustomIcon) {
+      setIsFirstLoadWithCustomIcon(false);
+      resetIconState();
+      return;
+    }
+
     // Handle API custom icon blob conversion and initialization
     if (
       shouldFetchCustomIcon &&
@@ -371,12 +380,15 @@ const EditIconModal = ({
     }
   }, [
     customIconData,
+    isCustomIconError,
+    isFirstLoadWithCustomIcon,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
     previewInfo.currentIconUrl,
     originalIsVpp,
     setCurrentApiCustomIcon,
+    resetIconState,
   ]);
 
   const fileDetails =
@@ -391,7 +403,6 @@ const EditIconModal = ({
 
   const renderPreviewFleetCard = () => {
     const {
-      name,
       type,
       versions,
       source,
@@ -553,6 +564,8 @@ const EditIconModal = ({
     />
   );
 
+  const defaultDisplayName = getDisplayedSoftwareName(previewInfo.titleName);
+
   const renderForm = () => (
     <>
       <InputField
@@ -564,7 +577,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{previewInfo.titleName}</strong>.
+            <strong>{defaultDisplayName}</strong>.
           </>
         }
         autofocus
@@ -694,16 +707,36 @@ const EditIconModal = ({
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
+        // Invalidate software list caches so the edit is reflected
+        // if the user navigates back before the stale time has passed.
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (iconSucceeded && iconSuccessMessage) {
         renderFlash("success", iconSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (nameSucceeded && nameSuccessMessage) {
         renderFlash("success", nameSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
@@ -722,25 +755,23 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      <>
-        {isFirstLoadWithCustomIcon ? (
-          <Spinner includeContainer={false} />
-        ) : (
-          renderForm()
-        )}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onClickSave}
-              isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveForm || isUpdatingSoftwareInfo}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      {isFirstLoadWithCustomIcon ? (
+        <Spinner includeContainer={false} />
+      ) : (
+        renderForm()
+      )}
+      <ModalFooter
+        primaryButtons={
+          <Button
+            type="submit"
+            onClick={onClickSave}
+            isLoading={isUpdatingSoftwareInfo}
+            disabled={!canSaveForm || isUpdatingSoftwareInfo}
+          >
+            Save
+          </Button>
+        }
+      />
     </Modal>
   );
 };

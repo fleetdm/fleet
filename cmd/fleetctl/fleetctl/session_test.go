@@ -15,8 +15,8 @@ import (
 
 func TestEarlySessionCheck(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return nil, errors.New("invalid session")
@@ -31,6 +31,6 @@ func TestEarlySessionCheck(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(config), configFilePerms)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"get", "queries", "--config", configPath})
+	_, err = runAppNoChecks([]string{"get", "queries", "--config", configPath})
 	require.ErrorIs(t, err, service.ErrUnauthenticated)
 }

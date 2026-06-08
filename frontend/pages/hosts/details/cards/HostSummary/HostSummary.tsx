@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
+  isEnrolledInMdm,
   isWindowsDiskEncryptionStatus,
   isLinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
@@ -15,7 +16,7 @@ import {
   isOsSettingsDisplayPlatform,
 } from "interfaces/platform";
 
-import getHostStatusTooltipText from "pages/hosts/helpers";
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
@@ -30,6 +31,7 @@ import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPack
 
 import {
   generateLinuxDiskEncryptionSetting,
+  generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
 
@@ -63,7 +65,7 @@ const HostSummary = ({
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const { status, platform, os_version } = summaryData;
+  const { status, platform, os_version, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
@@ -86,12 +88,12 @@ const HostSummary = ({
 
   const renderHostTeam = () => (
     <DataSet
-      title="Team"
+      title="Fleet"
       value={
         summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="no-team">No team</span>
+          <span className="no-team">Unassigned</span>
         )
       }
     />
@@ -166,6 +168,20 @@ const HostSummary = ({
       : [linuxDiskEncryptionSetting];
   }
 
+  if (
+    platform === "darwin" &&
+    isEnrolledInMdm(mdm?.enrollment_status ?? null) &&
+    osSettings?.recovery_lock_password?.status
+  ) {
+    const recoveryLockSetting = generateRecoveryLockPasswordSetting(
+      osSettings.recovery_lock_password.status,
+      osSettings.recovery_lock_password.detail
+    );
+    hostSettings = hostSettings
+      ? [...hostSettings, recoveryLockSetting]
+      : [recoveryLockSetting];
+  }
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -177,9 +193,11 @@ const HostSummary = ({
           title="Status"
           value={
             <StatusIndicator
-              value={status || ""} // temporary work around of integration test bug
+              value={getHostStatus(status, mdm?.enrollment_status)}
               tooltip={{
-                tooltipText: getHostStatusTooltipText(status),
+                tooltipText: getHostStatusTooltipText(
+                  getHostStatus(status, mdm?.enrollment_status)
+                ),
                 position: "bottom",
               }}
             />
@@ -191,6 +209,7 @@ const HostSummary = ({
         hostSettings &&
         hostSettings.length > 0 && (
           <DataSet
+            className={`${baseClass}__os-settings`}
             title="OS settings"
             value={
               <OSSettingsIndicator

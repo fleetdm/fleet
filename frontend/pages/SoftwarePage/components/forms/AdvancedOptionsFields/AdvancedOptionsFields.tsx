@@ -26,6 +26,8 @@ interface IAdvancedOptionsFieldsProps {
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   onChangeUninstallScript: (value?: string) => void;
+  gitopsCompatible?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 const AdvancedOptionsFields = ({
@@ -46,8 +48,12 @@ const AdvancedOptionsFields = ({
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
+  gitopsCompatible = false,
+  gitOpsModeEnabled = false,
 }: IAdvancedOptionsFieldsProps) => {
   const classNames = classnames(baseClass, className);
+
+  const disableFields = gitopsCompatible && gitOpsModeEnabled;
 
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showSchemaButton) {
@@ -76,6 +82,7 @@ const AdvancedOptionsFields = ({
         onChange={onChangePreInstallQuery}
         labelActionComponent={renderLabelComponent()}
         helpText="Software will be installed only if the query returns results."
+        readOnly={disableFields}
       />
       <Editor
         wrapEnabled
@@ -86,6 +93,7 @@ const AdvancedOptionsFields = ({
         helpText={installScriptHelpText}
         label="Install script"
         labelTooltip={installScriptTooltip}
+        readOnly={disableFields}
       />
       <Editor
         label="Post-install script"
@@ -97,6 +105,7 @@ const AdvancedOptionsFields = ({
         onChange={onChangePostInstallScript}
         value={postInstallScript}
         helpText={postInstallScriptHelpText}
+        readOnly={disableFields}
       />
       <Editor
         label="Uninstall script"
@@ -108,9 +117,11 @@ const AdvancedOptionsFields = ({
         onChange={onChangeUninstallScript}
         value={uninstallScript}
         helpText={uninstallScriptHelpText}
+        readOnly={disableFields}
       />
     </div>
   );
 };
 
-export default AdvancedOptionsFields;
+// Memoize to avoid unnecessary re-renders of heavy editor components
+export default React.memo(AdvancedOptionsFields);

@@ -1,6 +1,7 @@
 import React from "react";
 
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbToken } from "interfaces/mdm";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import TableContainer from "components/TableContainer";
 
@@ -9,19 +10,21 @@ import { generateTableConfig } from "./AppleBusinessManagerTableConfig";
 const baseClass = "apple-business-manager-table";
 
 interface IAppleBusinessManagerTableProps {
-  abmTokens: IMdmAbmToken[];
-  onEditTokenTeam: (token: IMdmAbmToken) => void;
-  onRenewToken: (token: IMdmAbmToken) => void;
-  onDeleteToken: (token: IMdmAbmToken) => void;
+  abTokens: IMdmAbToken[];
+  onEditTokenTeam: (token: IMdmAbToken) => void;
+  onRenewToken: (token: IMdmAbToken) => void;
+  onDeleteToken: (token: IMdmAbToken) => void;
 }
 
 const AppleBusinessManagerTable = ({
-  abmTokens,
+  abTokens,
   onEditTokenTeam,
   onRenewToken,
   onDeleteToken,
 }: IAppleBusinessManagerTableProps) => {
-  const onSelectAction = (action: string, abmToken: IMdmAbmToken) => {
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
+
+  const onSelectAction = (action: string, abmToken: IMdmAbToken) => {
     switch (action) {
       case "editTeams":
         onEditTokenTeam(abmToken);
@@ -37,10 +40,14 @@ const AppleBusinessManagerTable = ({
     }
   };
 
-  const tableConfig = generateTableConfig(onSelectAction);
+  const tableConfig = generateTableConfig(
+    onSelectAction,
+    gitOpsModeEnabled,
+    repoURL
+  );
 
   return (
-    <TableContainer<IMdmAbmToken>
+    <TableContainer<IMdmAbToken>
       columnConfigs={tableConfig}
       defaultSortHeader="org_name"
       disableTableHeader
@@ -49,7 +56,7 @@ const AppleBusinessManagerTable = ({
       isAllPagesSelected={false}
       emptyComponent={() => <></>}
       isLoading={false}
-      data={abmTokens}
+      data={abTokens}
       className={baseClass}
     />
   );

@@ -13,28 +13,49 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// UsersByIDsLookup is the minimal interface needed to look up user summaries by ID
+// without going through the service layer's authz. The activity bounded context
+// performs its own authorization on the host before reaching the user-enrichment
+// step, so a second authz check (which would reject team-scoped viewers since
+// Service.UsersByIDs authorizes against an empty *fleet.User) is both incorrect
+// and the cause of issue #46009 for hosts with user-initiated past activities.
+type UsersByIDsLookup interface {
+	UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
+}
+
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.UserLookupService
+	svc          fleet.ActivityLookupService
+	usersByIDsDS UsersByIDsLookup
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.UserLookupService) *FleetServiceAdapter {
-	return &FleetServiceAdapter{svc: svc}
+// usersByIDsDS is a datastore-direct lookup used for activity user enrichment;
+// it must bypass service-layer authz because the host authz check has already
+// gated access to the activity list.
+func NewFleetServiceAdapter(svc fleet.ActivityLookupService, usersByIDsDS UsersByIDsLookup) *FleetServiceAdapter {
+	return &FleetServiceAdapter{svc: svc, usersByIDsDS: usersByIDsDS}
 }
 
-// Ensure FleetServiceAdapter implements activity.UserProvider
-var _ activity.UserProvider = (*FleetServiceAdapter)(nil)
+// Ensure FleetServiceAdapter implements the required interfaces
+var (
+	_ activity.UserProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.HostProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
+	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
+)
 
-// UsersByIDs fetches users by their IDs from the Fleet service.
+// UsersByIDs fetches users by their IDs from the datastore directly,
+// bypassing service-layer authz. The activity service has already authorized
+// the caller against the host before this is called for enrichment.
 func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
 	// Fetch only the requested users by their IDs
-	users, err := a.svc.UsersByIDs(ctx, ids)
+	users, err := a.usersByIDsDS.UsersByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +91,18 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	return ids, nil
 }
 
+// GetHostLite fetches minimal host information for authorization.
+func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	host, err := a.svc.GetHostLite(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.Host{
+		ID:     host.ID,
+		TeamID: host.TeamID,
+	}, nil
+}
+
 func convertUser(u *fleet.UserSummary) *activity.User {
 	return &activity.User{
 		ID:       u.ID,
@@ -78,4 +111,21 @@ func convertUser(u *fleet.UserSummary) *activity.User {
 		Gravatar: u.GravatarURL,
 		APIOnly:  u.APIOnly,
 	}
+}
+
+// GetActivitiesWebhookConfig returns the webhook configuration for activities.
+func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	settings, err := a.svc.GetActivitiesWebhookSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.ActivitiesWebhookSettings{
+		Enable:         settings.Enable,
+		DestinationURL: settings.DestinationURL,
+	}, nil
+}
+
+// ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
+func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }

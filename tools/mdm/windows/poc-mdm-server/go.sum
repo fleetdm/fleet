@@ -1,8 +1,0 @@
-github.com/ernesto-jimenez/httplogger v0.0.0-20220128121225-117514c3f345 h1:AZLrCR38RDhsyCQakz1UxCx72As18Ai5mObrKvT8DK8=
-github.com/ernesto-jimenez/httplogger v0.0.0-20220128121225-117514c3f345/go.mod h1:pw+gaKQ52Cl/SrERU62yQAiWauPpLgKpuR1hkxwL4tM=
-github.com/go-xmlfmt/xmlfmt v1.1.2 h1:Nea7b4icn8s57fTx1M5AI4qQT5HEM3rVUO8MuE6g80U=
-github.com/go-xmlfmt/xmlfmt v1.1.2/go.mod h1:aUCEOzzezBEjDBbFBoSiya/gduyIiWYRP6CnSFIV8AM=
-github.com/gorilla/handlers v1.4.2 h1:0QniY0USkHQ1RGCLfKxeNHK9bkDHGRYGNDFBCS+YARg=
-github.com/gorilla/handlers v1.4.2/go.mod h1:Qkdc/uu4tH4g6mTK6auzZ766c4CA0Ng8+o/OAirnOIQ=
-github.com/gorilla/mux v1.7.3 h1:gnP5JzjVOuiZD07fKKToCAOjS0yOpj/qPETTXCCS6hw=
-github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=

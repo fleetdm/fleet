@@ -1,11 +1,12 @@
 import React, { useContext } from "react";
-import { Link } from "react-router";
+
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import hostAPI from "services/entities/hosts";
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -65,14 +66,28 @@ const LockModal = ({
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
 
+  const isAndroidHost = isAndroid(platform);
+
   const onLock = async () => {
     setIsLocking(true);
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash("success", "Locking host or will lock when it comes online.");
+      renderFlash(
+        "success",
+        isAndroidHost
+          ? "Successfully sent request to lock this host."
+          : "Locking host or will lock when it comes online."
+      );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      const errorReason = getErrorReason(e);
+      renderFlash(
+        "error",
+        isAndroidHost
+          ? errorReason ||
+              "Couldn't send request to lock this host. Please try again."
+          : errorReason
+      );
     }
     setIsLocking(false);
   };
@@ -91,7 +106,26 @@ const LockModal = ({
             .
           </p>
           <p> It can only be unlocked through Fleet.</p>
+          <p>
+            If the host is turned off or restarted while locked, it will
+            disconnect from Wi-Fi, and you won&apos;t be able to unlock it
+            remotely.{" "}
+            <CustomLink
+              newTab
+              text="Learn more"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/unlock-ios-ipados`}
+            />
+          </p>
         </>
+      );
+    }
+
+    if (isAndroid(platform)) {
+      return (
+        <p>
+          Locking will enforce the host lock screen and require the user to
+          enter their password/PIN to regain access.
+        </p>
       );
     }
 
@@ -107,42 +141,36 @@ const LockModal = ({
 
   return (
     <Modal className={baseClass} title="Lock" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <div className={`${baseClass}__description`}>
-            {renderDescription()}
-          </div>
-          <div className={`${baseClass}__confirm-message`}>
-            <span>
-              <b>Confirm:</b>
-            </span>
-            <Checkbox
-              wrapperClassName={`${baseClass}__lock-checkbox`}
-              value={lockChecked}
-              onChange={(value: boolean) => setLockChecked(value)}
-            >
-              I wish to lock <b>{hostName}</b>
-            </Checkbox>
-          </div>
-        </div>
-        {isIPadOrIPhone(platform) && (
-          <IosOrIpadLockPreview platform={platform} />
-        )}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onLock}
-            className="delete-loading"
-            disabled={!lockChecked}
-            isLoading={isLocking}
+      <div className={`${baseClass}__modal-content`}>
+        <div className={`${baseClass}__description`}>{renderDescription()}</div>
+        <div className={`${baseClass}__confirm-message`}>
+          <span>
+            <b>Confirm:</b>
+          </span>
+          <Checkbox
+            wrapperClassName={`${baseClass}__lock-checkbox`}
+            value={lockChecked}
+            onChange={(value: boolean) => setLockChecked(value)}
           >
-            Lock
-          </Button>
-          <Button onClick={onClose} variant="inverse">
-            Cancel
-          </Button>
+            I wish to lock <b>{hostName}</b>
+          </Checkbox>
         </div>
-      </>
+      </div>
+      {isIPadOrIPhone(platform) && <IosOrIpadLockPreview platform={platform} />}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onLock}
+          className="delete-loading"
+          disabled={!lockChecked}
+          isLoading={isLocking}
+        >
+          Lock
+        </Button>
+        <Button onClick={onClose} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

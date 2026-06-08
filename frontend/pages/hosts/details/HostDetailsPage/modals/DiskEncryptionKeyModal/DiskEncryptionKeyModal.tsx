@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import { getErrorReason } from "interfaces/errors";
 import { IHostEncrpytionKeyResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
 
@@ -29,7 +30,7 @@ const DiskEncryptionKeyModal = ({
     IHostEncrpytionKeyResponse,
     unknown,
     string
-  >("hostEncrpytionKey", () => hostAPI.getEncryptionKey(hostId), {
+  >(["hostEncrpytionKey", hostId], () => hostAPI.getEncryptionKey(hostId), {
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -50,7 +51,9 @@ const DiskEncryptionKeyModal = ({
       className={baseClass}
     >
       {encryptionKeyError ? (
-        <DataError />
+        <DataError
+          description={getErrorReason(encryptionKeyError) || undefined}
+        />
       ) : (
         <>
           <InputFieldHiddenContent value={encryptionKey ?? ""} />
@@ -63,7 +66,7 @@ const DiskEncryptionKeyModal = ({
             />
           </p>
           <div className="modal-cta-wrap">
-            <Button onClick={onCancel}>Done</Button>
+            <Button onClick={onCancel}>Close</Button>
           </div>
         </>
       )}

@@ -3,6 +3,7 @@ package nanopush
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 func TestPush(t *testing.T) {
@@ -36,6 +38,26 @@ func TestPush(t *testing.T) {
 	// test a multiple push
 	t.Run("multiple-push", func(t *testing.T) {
 		testPushDevices(t, devicePushInfoStrings)
+	})
+
+	// test nil push info does not panic
+	t.Run("nil-concurrent-push-info", func(t *testing.T) {
+		prov := &Provider{
+			baseURL: "https://example.com",
+			client:  &errorDoer{},
+			workers: 2,
+		}
+
+		resp, err := prov.Push(context.Background(), []*mdm.Push{nil, nil})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("expected non-nil response")
+		}
+		if len(resp) != 0 {
+			t.Fatalf("expected empty response, got %d", len(resp))
+		}
 	})
 }
 
@@ -92,6 +114,7 @@ func testPushDevices(t *testing.T, input [][]string) {
 	prov := &Provider{
 		baseURL: server.URL,
 		client:  http.DefaultClient,
+		workers: 2,
 	}
 
 	resp, err := prov.Push(context.Background(), pushInfos)
@@ -108,5 +131,53 @@ func testPushDevices(t *testing.T, input [][]string) {
 			}
 		}
 	}
+}
 
+type errorDoer struct{}
+
+func (d *errorDoer) Do(*http.Request) (*http.Response, error) {
+	return nil, errors.New("error from Do")
+}
+
+// goAwayDoer is a mock http.RoundTripper that returns an http2.GoAwayError,
+// simulating the APNs server sending an HTTP/2 GOAWAY frame.
+type goAwayDoer struct{}
+
+func (d *goAwayDoer) Do(*http.Request) (*http.Response, error) {
+	return nil, http2.GoAwayError{
+		LastStreamID: 0,
+		ErrCode:      http2.ErrCodeNo,
+		DebugData:    "server shutting down",
+	}
+}
+
+// TestGoAwayErrorNoPanic ensures that an http2.GoAwayError from APNs does not
+// cause a nil-pointer panic (regression test for fleetdm/fleet#42897).
+func TestGoAwayErrorNoPanic(t *testing.T) {
+	prov := &Provider{
+		baseURL: "https://api.push.apple.com",
+		client:  &goAwayDoer{},
+	}
+
+	pushInfo := &mdm.Push{
+		PushMagic: "47250C9C-1B37-4381-98A9-0B8315A441C7",
+		Topic:     "com.example.apns-topic",
+	}
+	err := pushInfo.SetTokenString("c2732227a1d8021cfaf781d71fb2f908c61f5861079a00954a5453f1d0281433")
+	require.NoError(t, err)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("code panicked on GoAwayError: %v", r)
+		}
+	}()
+
+	resp, err := prov.Push(context.Background(), []*mdm.Push{pushInfo})
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	// The response should carry an error (GoAway is not a success) but must not panic.
+	for _, v := range resp {
+		require.NotNil(t, v)
+		require.Error(t, v.Err)
+	}
 }

@@ -12,7 +12,7 @@ type InvitePayload struct {
 	SSOEnabled *bool       `json:"sso_enabled"`
 	MFAEnabled *bool       `json:"mfa_enabled"`
 	GlobalRole null.String `json:"global_role"`
-	Teams      []UserTeam  `json:"teams"`
+	Teams      []UserTeam  `json:"teams" renameto:"fleets"`
 }
 
 // Invite represents an invitation for a user to join Fleet.
@@ -27,7 +27,7 @@ type Invite struct {
 	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
 	MFAEnabled bool        `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole null.String `json:"global_role" db:"global_role"`
-	Teams      []UserTeam  `json:"teams"`
+	Teams      []UserTeam  `json:"teams" renameto:"fleets"`
 }
 
 func (i Invite) AuthzType() string {

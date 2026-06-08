@@ -25,12 +25,12 @@ describe("generateResultsCountText", () => {
     expect(generateResultsCountText("versions", 7)).toBe("7 versions");
   });
 
-  it("handles 'policies' and 'queries' correctly", () => {
+  it("handles 'policies' and 'reports' correctly", () => {
     expect(generateResultsCountText("policies", 1)).toBe("1 policy");
     expect(generateResultsCountText("policies", 6)).toBe("6 policies");
 
-    expect(generateResultsCountText("queries", 1)).toBe("1 query");
-    expect(generateResultsCountText("queries", 2)).toBe("2 queries");
+    expect(generateResultsCountText("reports", 1)).toBe("1 report");
+    expect(generateResultsCountText("reports", 2)).toBe("2 reports");
   });
 
   it("handles 'certificates' correctly", () => {

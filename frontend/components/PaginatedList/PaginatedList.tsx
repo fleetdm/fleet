@@ -4,9 +4,9 @@ import React, {
   useImperativeHandle,
   forwardRef,
   Ref,
+  ReactElement,
 } from "react";
 import classnames from "classnames";
-import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";

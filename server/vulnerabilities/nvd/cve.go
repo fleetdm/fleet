@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -24,9 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 )
 
@@ -37,7 +35,7 @@ const (
 // DownloadNVDCVEFeed downloads CVEs information from the NVD 2.0 API
 // and supplements the data with CPE information from the Vulncheck API.
 // This is used to download CVE information to vulnPath.
-func GenerateCVEFeeds(vulnPath string, debug bool, logger log.Logger) error {
+func GenerateCVEFeeds(vulnPath string, debug bool, logger *slog.Logger) error {
 	cveSyncer, err := nvdsync.NewCVE(
 		vulnPath,
 		nvdsync.WithLogger(logger),
@@ -58,7 +56,7 @@ func GenerateCVEFeeds(vulnPath string, debug bool, logger log.Logger) error {
 	return nil
 }
 
-func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
+func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger *slog.Logger) error {
 	var err error
 
 	if cveFeedPrefixURL == "" {
@@ -220,7 +218,7 @@ func TranslateCPEToCVE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	collectVulns bool,
 	startTime time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
@@ -299,40 +297,56 @@ func TranslateCPEToCVE(
 		}
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
+	// Batch insert software vulnerabilities.
+	allSoftwareVulns := make([]fleet.SoftwareVulnerability, 0, len(softwareVulns))
 	for _, vuln := range softwareVulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
-
-		// collect vuln only if inserted, otherwise we would send
-		// webhook requests for the same vulnerability over and over again until
-		// it is older than 2 days.
-		if collectVulns && ok {
-			newVulns = append(newVulns, vuln)
-		}
+		allSoftwareVulns = append(allSoftwareVulns, vuln)
 	}
 
+	newVulns, softwareInsertErr := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource)
+	if softwareInsertErr != nil {
+		logger.ErrorContext(ctx, "cpe processing error", "err", softwareInsertErr)
+	}
+	if !collectVulns {
+		newVulns = nil
+	}
+
+	// Batch insert OS vulnerabilities.
+	allOSVulns := make([]fleet.OSVulnerability, 0, len(osVulns))
 	for _, vuln := range osVulns {
-		_, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
+		allOSVulns = append(allOSVulns, vuln)
 	}
+	osInsertErr := false
+	if _, err := ds.InsertOSVulnerabilities(ctx, allOSVulns, fleet.NVDSource); err != nil {
+		logger.ErrorContext(ctx, "cpe processing error", "err", err)
+		osInsertErr = true
+	}
+
+	// Detect corrupted/empty CVE feeds. If we had CPE/OS inputs to match against but produced
+	// zero results across every feed file, the feed is almost certainly empty or corrupted
+	// (e.g., a failed/corrupted artifact from GitHub) — skip the deletes so we don't wipe
+	// legitimate existing software_cve rows that will be re-matched on the next good sync.
+	feedProducedNoData := len(allSoftwareVulns) == 0 && len(allOSVulns) == 0
 
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
-	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
+	// Skip cleanup when the corresponding insert failed to avoid deleting data with nothing to replace it.
+	if softwareInsertErr == nil && !feedProducedNoData {
+		if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
+			logger.ErrorContext(ctx, "error deleting out of date vulnerabilities", "err", err)
+		}
 	}
-	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
+	if !osInsertErr && !feedProducedNoData {
+		if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
+			logger.ErrorContext(ctx, "error deleting out of date OS vulnerabilities", "err", err)
+		}
+	}
+	if feedProducedNoData {
+		logger.ErrorContext(ctx, "NVD scan produced no matches with non-empty input; skipping deletes to preserve existing software_cve rows (feed may be corrupted)",
+			"software_cpes", len(parsed), "os_cpes", len(cpes), "feed_files", len(files))
 	}
 
 	return newVulns, nil
@@ -401,7 +415,7 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 
 func checkCVEs(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	cpeItems []itemWithNVDMeta,
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
@@ -413,10 +427,6 @@ func checkCVEs(
 
 	// Group dictionary by vendor using a map.
 	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
-	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
-	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
-	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
-	// Further optimization can be done by also using a map for product name comparison.
 	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
 	for key, vuln := range dict {
 		attrsArray := vuln.Config()
@@ -432,7 +442,12 @@ func checkCVEs(
 
 	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
 	for vendor, subDict := range dictGrouped {
+		// Build a product index per vendor so that cache.Get() narrows the
+		// dictionary to only CVEs matching the queried product name before
+		// running version-range matching.
+		idx := cvefeed.NewIndex(subDict)
 		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cache.Idx = idx
 		cacheGrouped[vendor] = cache
 	}
 
@@ -444,7 +459,7 @@ func checkCVEs(
 	var softwareMu sync.Mutex
 	var osMu sync.Mutex
 
-	logger = log.With(logger, "json_file", jsonFile)
+	logger = logger.With("json_file", jsonFile)
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
@@ -452,14 +467,14 @@ func checkCVEs(
 		go func() {
 			defer wg.Done()
 
-			logger := log.With(logger, "routine", goRoutineKey)
-			level.Debug(logger).Log("msg", "start")
+			logger := logger.With("routine", goRoutineKey)
+			logger.DebugContext(ctx, "start")
 
 			for {
 				select {
 				case CPEItem, more := <-CPEItemCh:
 					if !more {
-						level.Debug(logger).Log("msg", "done")
+						logger.DebugContext(ctx, "done")
 						return
 					}
 
@@ -504,7 +519,7 @@ func checkCVEs(
 
 							resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), cpeItem, dict, logger)
 							if err != nil {
-								level.Debug(logger).Log("err", err)
+								logger.DebugContext(ctx, "version end excluding error", "err", err)
 							}
 
 							if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
@@ -533,20 +548,20 @@ func checkCVEs(
 						}
 					}
 				case <-ctx.Done():
-					level.Debug(logger).Log("msg", "quitting")
+					logger.DebugContext(ctx, "quitting")
 					return
 				}
 			}
 		}()
 	}
 
-	level.Debug(logger).Log("msg", "pushing cpes")
+	logger.DebugContext(ctx, "pushing cpes")
 
 	for _, cpe := range cpeItems {
 		CPEItemCh <- cpe
 	}
 	close(CPEItemCh)
-	level.Debug(logger).Log("msg", "cpes pushed")
+	logger.DebugContext(ctx, "cpes pushed")
 	wg.Wait()
 
 	return foundSoftwareVulns, foundOSVulns, nil
@@ -576,9 +591,9 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
-	// The python extension is defined in two ways in the CPE database:
 	// 	cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*
 	//	cpe:2.3:a:microsoft:visual_studio_code:2024.2.1:*:*:*:*:python:*:*
+	//	cpe:2.3:a:microsoft:python:2020.4.0:*:*:*:*:visual_studio_code:*:*
 	for _, cpeItem := range cpeItems {
 		if cpeItem.TargetSW == "visual_studio_code" &&
 			cpeItem.Vendor == "microsoft" &&
@@ -587,6 +602,10 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2.Product = "visual_studio_code"
 			cpeItem2.TargetSW = "python"
 			cpeItems = append(cpeItems, &cpeItem2)
+
+			cpeItem3 := *cpeItem
+			cpeItem3.Product = "python"
+			cpeItems = append(cpeItems, &cpeItem3)
 		}
 	}
 
@@ -595,6 +614,35 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2 := *cpeItem
 			cpeItem2.Product = "vm_virtualbox"
 			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// The NVD CPE dictionary contains an invalid CPE for Ipswitch WhatsUp with product="whatsup",
+	// but CVE-2006-2354 references product="whatsup_professional".
+	// See https://github.com/fleetdm/fleet/issues/32662.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "ipswitch" && cpeItem.Product == "whatsup" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "whatsup_professional"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
+	// CPEs with platform-based target_sw (macos, windows) and may use different product
+	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name
+	// variations to match NVD's criteria.
+	// See https://github.com/fleetdm/fleet/issues/37957.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "pgadmin" &&
+			(cpeItem.Product == "pgadmin_4" || cpeItem.Product == "pgadmin" || cpeItem.Product == "pgadmin4") {
+			// Add aliases with product name variations and target_sw=postgresql
+			for _, productName := range []string{"pgadmin", "pgadmin_4", "pgadmin4"} {
+				newItem := *cpeItem
+				newItem.Product = productName
+				newItem.TargetSW = "postgresql"
+				cpeItems = append(cpeItems, &newItem)
+			}
 		}
 	}
 
@@ -643,7 +691,7 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 // Returns the versionEndExcluding string for the given CVE and host software meta
 // data, if it exists in the NVD feed.  This effectively gives us the version of the
 // software it needs to upgrade to in order to address the CVE.
-func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, logger kitlog.Logger) (string, error) {
+func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwareMeta *wfn.Attributes, dict cvefeed.Dictionary, logger *slog.Logger) (string, error) {
 	vuln, ok := dict[cve].(*feednvd.Vuln)
 	if !ok {
 		return "", nil
@@ -652,7 +700,7 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 	// Schema() maps to the JSON schema of the NVD feed for a given CVE
 	vulnSchema := vuln.Schema()
 	if vulnSchema == nil {
-		level.Error(logger).Log("msg", "error getting schema for CVE", "cve", cve)
+		logger.ErrorContext(ctx, "error getting schema for CVE", "cve", cve)
 		return "", nil
 	}
 
@@ -695,6 +743,10 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 
 		// ensure the product and vendor match
 		if attr.Product != hostSoftwareMeta.Product || attr.Vendor != hostSoftwareMeta.Vendor {
+			continue
+		}
+		if attr.SWEdition != wfn.Any && attr.SWEdition != hostSoftwareMeta.SWEdition &&
+			!(hostSoftwareMeta.SWEdition == wfn.Any && attr.SWEdition == wfn.NA) {
 			continue
 		}
 

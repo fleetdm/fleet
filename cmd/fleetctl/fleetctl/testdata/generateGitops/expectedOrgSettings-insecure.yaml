@@ -1,3 +1,7 @@
+activity_expiry_settings:
+  activity_expiry_enabled: false
+  activity_expiry_window: 30
+  preserve_host_activities_on_reenrollment: true
 certificate_authorities:
   custom_est_proxy:
   - name: some-est-name
@@ -43,6 +47,9 @@ features:
   detail_query_overrides:
     users:
     mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+  historical_data:
+    uptime: true
+    vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
   transparency_url: https://fleetdm.com/transparency
@@ -70,10 +77,10 @@ integrations:
       group_id: 123456789
       url: https://some-zendesk-url.com
 mdm:
-  apple_business_manager:
-    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      macos_team: "\U0001F4BB Workstations"
+  apple_business:
+    - ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.
   apple_server_url: http://some-apple-server-url.com
   end_user_authentication:
@@ -85,15 +92,15 @@ mdm:
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
     - location: Fleet Device Management Inc.
-      teams:
+      fleets:
         - "\U0001F4BB Workstations"
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
         - "\U0001F4F1\U0001F510 Personal mobile devices"
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: http://some-org-logo-url.com
-  org_logo_url_light_background: http://some-org-logo-url-light-background.com
+  org_logo_url_dark_mode: http://some-org-logo-url.com
+  org_logo_url_light_mode: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
   - secret: some-secret-number-one
@@ -105,9 +112,9 @@ server_settings:
     - 3
   deferred_save_host: false
   enable_analytics: true
-  live_query_disabled: false
-  query_report_cap: 1
-  query_reports_disabled: false
+  live_reporting_disabled: false
+  report_cap: 1
+  discard_reports_data: false
   scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
 sso_settings:
@@ -128,7 +135,6 @@ webhook_settings:
     destination_url: https://some-failing-policies-webhook-url.com
     enable_failing_policies_webhook: true
     host_batch_size: 2
-    policy_ids: []
   host_status_webhook:
     days_count: 5
     destination_url: https://some-host-status-webhook-url.com

@@ -1,10 +1,6 @@
 .os-settings {
-  @include vertical-page-tab-panel-layout;
+  @include flex-column-32px-gap;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
-
-  &__description {
-    margin: 0;
-  }
 
   &__side-nav {
     .side-nav__nav-list {
@@ -13,7 +9,7 @@
   }
 
   .side-nav__card-container {
-    > .custom-settings {
+    > .configuration-profiles {
       max-width: none;
     }
     @media (max-width: 1120px) {

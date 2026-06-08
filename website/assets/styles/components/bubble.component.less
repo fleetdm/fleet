@@ -1,0 +1,58 @@
+
+/**
+ * <bubble>
+ *
+ * App-wide styles for our bubbles.
+ */
+
+ [parasails-component='bubble'] {
+  span {
+    color: @core-fleet-black-75;
+    display: inline-block;
+    padding-left: 6px;
+    padding-right: 6px;
+    line-height: 24px;
+    vertical-align: middle;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: #fff;
+    border: 1px solid #C5C7D1;
+    font-weight: bold;
+    padding-top: 1px;
+    &.admin {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.maintainer {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.technician {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.observer {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.observer-plus {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.gitops {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+  }
+
+  &.role-link {
+    .transition(all 250ms);
+    display: inline-block;
+    &:hover {
+      span {
+        background-color: rgba(61, 182, 123, 40%);
+        border-color: rgba(61, 182, 123, 40%);
+      }
+    }
+  }
+}

@@ -1,9 +1,9 @@
 <Add>
   <!-- Okta needs this certificate deployed to the Users cert store. Using the ./Device LocURI will result in the device not being marked as managed -->
-  <!-- Name of SCEP node -->
+  <!-- SCEP node name - Fleet will replace with certificate ID -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">node</Format>
@@ -14,7 +14,7 @@
   <!-- Retry count for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryCount</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/RetryCount</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -26,7 +26,7 @@
   <!-- Retry delay for SCEP installation -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/RetryDelay</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/RetryDelay</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -38,7 +38,7 @@
   <!-- Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyUsage</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -50,7 +50,7 @@
   <!-- Key Length - min 2048 for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/KeyLength</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -62,7 +62,7 @@
   <!-- Hash Algorithm - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/HashAlgorithm</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -74,19 +74,19 @@
   <!-- CN - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/SubjectName</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
-    <Data>CN=$FLEET_VAR_HOST_UUID managementAttestation</Data>
+    <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation</Data>
   </Item>
 </Add>
 <Add>
   <!-- Extended Key Usage - keep default for Okta -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/EKUMapping</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -95,39 +95,47 @@
   </Item>
 </Add>
 <Add>
-  <!-- SCEP Server URL -->
+  <!-- SCEP Server URL - Fleet will replace this with your secret -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/ServerURL</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
-    <Data>{{yourScepUrl}}</Data>
+    <Data>$FLEET_SECRET_OKTA_SCEP_URL</Data>
   </Item>
 </Add>
 <Add>
-  <!-- SCEP Challenge - Does not need to be b64 -->
+  <!-- SCEP Challenge - Fleet will replace this with your secret -->
   <!-- Best practice is not to include special characters. Underscores will break deployment. SCEP: Certificate enroll failed. Result: (The string contains a non-printable character.) -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/Challenge</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
-    <Data>{{yourScepChallenge}}</Data>
+    <Data>$FLEET_SECRET_OKTA_SCEP_CHALLENGE</Data>
   </Item>
 </Add>
 <Add>
-  <!-- SCEP CA Thumbprint (SHA-256) - Download Okta CA (if using) and specify thumbprint here -->
+  <!-- SCEP CA Thumbprint (SHA-256) - Fleet will replace this with your secret -->
   <Item>
     <Target>
-      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{{yourCertName}}/Install/CAThumbprint</LocURI>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
     </Target>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
-    <Data>{{yourScepCAThumbprint}}</Data>
+    <Data>$FLEET_SECRET_OKTA_CA_THUMBPRINT</Data>
   </Item>
 </Add>
+<Exec>
+  <!-- Trigger SCEP enrollment - Fleet automatically uses the correct certificate ID -->
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+    </Target>
+  </Item>
+</Exec>

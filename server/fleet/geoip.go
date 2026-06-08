@@ -3,10 +3,9 @@ package fleet
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/oschwald/geoip2-golang"
 )
 
@@ -29,7 +28,7 @@ type GeoIP interface {
 
 type MaxMindGeoIP struct {
 	reader *geoip2.Reader
-	l      log.Logger
+	l      *slog.Logger
 }
 
 type NoOpGeoIP struct{}
@@ -38,7 +37,7 @@ func (n *NoOpGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 	return nil
 }
 
-func NewMaxMindGeoIP(logger log.Logger, path string) (*MaxMindGeoIP, error) {
+func NewMaxMindGeoIP(logger *slog.Logger, path string) (*MaxMindGeoIP, error) {
 	r, err := geoip2.Open(path)
 	if err != nil {
 		return nil, err
@@ -59,7 +58,7 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 	if err != nil && errors.Is(err, notCityDBError) {
 		resp, err := m.reader.Country(parseIP)
 		if err != nil {
-			level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
+			m.l.DebugContext(ctx, "failed to lookup location from mmdb file", "err", err)
 			return nil
 		}
 		if resp == nil {
@@ -69,7 +68,7 @@ func (m *MaxMindGeoIP) Lookup(ctx context.Context, ip string) *GeoLocation {
 		return &GeoLocation{CountryISO: resp.Country.IsoCode}
 	}
 	if err != nil {
-		level.Debug(m.l).Log("err", err, "msg", "failed to lookup location from mmdb file")
+		m.l.DebugContext(ctx, "failed to lookup location from mmdb file", "err", err)
 		return nil
 	}
 	return parseCity(resp)

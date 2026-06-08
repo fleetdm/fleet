@@ -12,7 +12,7 @@ const getTeamScriptsHandler = (
   const scripts = overrides.map((scriptOverride) =>
     createMockScript(scriptOverride)
   );
-  return http.get(baseUrl(`/scripts?team_id=${teamId}`), () =>
+  return http.get(baseUrl(`/scripts?fleet_id=${teamId}`), () =>
     HttpResponse.json({
       scripts,
     })

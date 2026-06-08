@@ -18,26 +18,46 @@ interface ICommandItemProps {
   onShowDetails: ShowCommandDetailsHandler;
 }
 
-const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const { command_status, request_type, updated_at } = command;
+const getStatusText = (command: ICommand): string => {
+  const { command_status, status } = command;
 
-  let statusVerb = "";
+  // Differentiate NotNow from regular Pending
+  if (status === "NotNow") {
+    return "is deferred";
+  }
+
   switch (command_status) {
     case "pending":
-      statusVerb = "will run";
-      break;
-    case "ran":
+      return "is pending";
     case "failed":
-      statusVerb = command_status;
-      break;
+      return "failed";
+    case "ran":
     default:
-      statusVerb = "ran";
+      return "was acknowledged";
   }
+};
+
+const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
+  const { request_type, updated_at, name, status } = command;
+
+  const statusText = getStatusText(command);
+  const willRetryText = status === "NotNow" ? " Fleet will try again." : "";
 
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onShowDetails(command);
   };
+
+  const activityText = name ? (
+    <>
+      The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
+      {willRetryText}
+    </>
+  ) : (
+    <>
+      The <b>{request_type}</b> command {statusText}.{willRetryText}
+    </>
+  );
 
   return (
     <FeedListItem
@@ -47,7 +67,7 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
       createdAt={new Date(updated_at)}
       onClickFeedItem={onShowCommandDetails}
     >
-      The <b>{request_type}</b> command {statusVerb}.
+      {activityText}
     </FeedListItem>
   );
 };

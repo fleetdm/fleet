@@ -1,4 +1,8 @@
 .conditional-access {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
   &__page-description {
     margin-bottom: $pad-large;
   }
@@ -28,5 +32,11 @@
         }
       }
     }
+  }
+
+  &__end-user-experience {
+      .section-header {
+          padding-bottom: 14px;
+      }
   }
 }

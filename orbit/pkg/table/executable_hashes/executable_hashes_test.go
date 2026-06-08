@@ -3,9 +3,9 @@
 package executable_hashes
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,70 +15,146 @@ import (
 )
 
 func TestGenerateWithExactPath(t *testing.T) {
-	dir := t.TempDir()
-	defer os.RemoveAll(dir)
-
-	path := filepath.Join(dir, "example.bin")
-	execPath := path
-	content := []byte("test file content for hashing")
-	require.NoError(t, os.WriteFile(path, content, 0o600))
-
-	h := sha256.New()
-	h.Write(content)
-	expectedHash := hex.EncodeToString(h.Sum(nil))
-
-	rows, err := Generate(context.Background(), table.QueryContext{
-		Constraints: map[string]table.ConstraintList{
-			colPath: {
-				Constraints: []table.Constraint{{
-					Expression: path,
-					Operator:   table.OperatorEquals,
-				}},
-			},
+	tests := []struct {
+		name           string
+		bundleName     string
+		executableName string
+		content        []byte
+	}{
+		{
+			name:           "ASCII app name",
+			bundleName:     "Test.app",
+			executableName: "Test",
+			content:        []byte("test file content for hashing"),
 		},
-	})
-	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	require.Equal(t, path, rows[0][colPath])
-	require.Equal(t, execPath, rows[0][colExecPath])
-	require.Equal(t, expectedHash, rows[0][colExecHash])
+		{
+			name:           "emoji app name",
+			bundleName:     "🖨️ Printer.app",
+			executableName: "🖨️ Printer",
+			content:        []byte("emoji executable content"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+
+			bundlePath := filepath.Join(dir, tt.bundleName)
+			contentsDir := filepath.Join(bundlePath, "Contents")
+			macosDir := filepath.Join(contentsDir, "MacOS")
+			require.NoError(t, os.MkdirAll(macosDir, 0o755))
+
+			infoPlistPath := filepath.Join(contentsDir, "Info.plist")
+			infoPlistContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>%s</string>
+</dict>
+</plist>`, tt.executableName)
+			require.NoError(t, os.WriteFile(infoPlistPath, []byte(infoPlistContent), 0o644))
+
+			execPath := filepath.Join(macosDir, tt.executableName)
+			require.NoError(t, os.WriteFile(execPath, tt.content, 0o644))
+
+			h := sha256.New()
+			h.Write(tt.content)
+			expectedHash := hex.EncodeToString(h.Sum(nil))
+
+			rows, err := Generate(t.Context(), table.QueryContext{
+				Constraints: map[string]table.ConstraintList{
+					colPath: {
+						Constraints: []table.Constraint{{
+							Expression: bundlePath,
+							Operator:   table.OperatorEquals,
+						}},
+					},
+				},
+			})
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			require.Equal(t, bundlePath, rows[0][colPath])
+			require.Equal(t, execPath, rows[0][colExecPath])
+			require.Equal(t, expectedHash, rows[0][colExecHash])
+		})
+	}
 }
 
 func TestGenerateWithWildcard(t *testing.T) {
 	dir := t.TempDir()
 	defer os.RemoveAll(dir)
 
-	testFiles := map[string][]byte{
-		"foo.bin": []byte("content of foo"),
-		"bar.bin": []byte("content of bar"),
-		"baz.bin": []byte("content of baz"),
+	testBundles := map[string]struct {
+		executableName string
+		content        []byte
+	}{
+		"Foo.app":      {"Foo", []byte("content of foo")},
+		"Bar.app":      {"Bar", []byte("content of bar")},
+		"Baz.service":  {"Baz", []byte("content of baz")},
+		"Bonk.service": {"Bonk", []byte("content of bonk")},
 	}
 
 	expectedHashByBundlePath := make(map[string]string)
+	expectedExecPathByBundlePath := make(map[string]string)
 
-	for filename, content := range testFiles {
-		path := filepath.Join(dir, filename)
-		require.NoError(t, os.WriteFile(path, content, 0o600))
+	// Create macOS app bundle structures
+	for bundleName, bundleInfo := range testBundles {
+		bundlePath := filepath.Join(dir, bundleName)
+		contentsDir := filepath.Join(bundlePath, "Contents")
+		macosDir := filepath.Join(contentsDir, "MacOS")
+		require.NoError(t, os.MkdirAll(macosDir, 0o755))
+
+		// Create Info.plist with CFBundleExecutable key
+		infoPlistPath := filepath.Join(contentsDir, "Info.plist")
+		infoPlistContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>%s</string>
+</dict>
+</plist>`, bundleInfo.executableName)
+		require.NoError(t, os.WriteFile(infoPlistPath, []byte(infoPlistContent), 0o644))
+
+		// Create the actual executable in Contents/MacOS/
+		execPath := filepath.Join(macosDir, bundleInfo.executableName)
+		require.NoError(t, os.WriteFile(execPath, bundleInfo.content, 0o644))
 
 		h := sha256.New()
-		h.Write(content)
-		expectedHashByBundlePath[path] = hex.EncodeToString(h.Sum(nil))
+		h.Write(bundleInfo.content)
+		expectedHashByBundlePath[bundlePath] = hex.EncodeToString(h.Sum(nil))
+		expectedExecPathByBundlePath[bundlePath] = execPath
 	}
 
-	rows, err := Generate(context.Background(), table.QueryContext{
+	rows, err := Generate(t.Context(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			colPath: {
 				Constraints: []table.Constraint{{
-					Expression: filepath.Join(dir, "%.bin"),
+					Expression: filepath.Join(dir, "%.app"),
 					Operator:   table.OperatorLike,
 				}},
 			},
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, rows, len(testFiles))
+	require.Len(t, rows, 2)
 
-	got := make(map[string]fileInfo, len(rows))
+	serviceRows, err := Generate(t.Context(), table.QueryContext{
+		Constraints: map[string]table.ConstraintList{
+			colPath: {
+				Constraints: []table.Constraint{{
+					Expression: filepath.Join(dir, "%.service"),
+					Operator:   table.OperatorLike,
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, serviceRows, 2)
+	rows = append(rows, serviceRows...)
+
+	got := make(map[string]fileInfo, 4)
 	for _, row := range rows {
 		got[row[colPath]] = fileInfo{
 			Path:       row[colPath],
@@ -87,11 +163,11 @@ func TestGenerateWithWildcard(t *testing.T) {
 		}
 	}
 
-	for path, expectedHash := range expectedHashByBundlePath {
-		require.Contains(t, got, path)
-		info := got[path]
-		require.Equal(t, path, info.Path)
-		require.Equal(t, path, info.ExecPath)
+	for bundlePath, expectedHash := range expectedHashByBundlePath {
+		require.Contains(t, got, bundlePath)
+		info := got[bundlePath]
+		require.Equal(t, bundlePath, info.Path)
+		require.Equal(t, expectedExecPathByBundlePath[bundlePath], info.ExecPath)
 		require.Equal(t, expectedHash, info.ExecSha256)
 	}
 }

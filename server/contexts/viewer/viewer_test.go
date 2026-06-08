@@ -186,7 +186,7 @@ func TestNewSystemContext(t *testing.T) {
 	require.NotNil(t, v.User, "user should be present in viewer")
 
 	// Verify the system user has the expected properties
-	assert.Equal(t, fleet.ActivityAutomationAuthor, v.User.Name, "system user name should match ActivityAutomationAuthor")
+	assert.Equal(t, systemUserName, v.User.Name, "system user name should match ActivityAutomationAuthor")
 	require.NotNil(t, v.User.GlobalRole, "system user should have a global role")
 	assert.Equal(t, fleet.RoleAdmin, *v.User.GlobalRole, "system user should have admin role")
 }

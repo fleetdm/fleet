@@ -80,185 +80,183 @@ const CertificateDetailsModal = ({
 
   return (
     <Modal className={baseClass} title="Certificate details" onExit={onExit}>
-      <>
-        <div className={`${baseClass}__content`}>
-          {showSubjectSection && (
-            <div className={`${baseClass}__section`}>
-              <h3>Subject name</h3>
-              <dl>
-                {subjectCountry && (
-                  <DataSet
-                    title="Country or region"
-                    value={<TooltipTruncatedText value={subjectCountry} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {subjectOrganization && (
-                  <DataSet
-                    title="Organization"
-                    value={<TooltipTruncatedText value={subjectOrganization} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {subjectOrganizationalUnit && (
-                  <DataSet
-                    title="Organizational unit"
-                    value={
-                      <TooltipTruncatedText value={subjectOrganizationalUnit} />
-                    }
-                    orientation="horizontal"
-                  />
-                )}
-                {subjectCommonName && (
-                  <DataSet
-                    title="Common name"
-                    value={<TooltipTruncatedText value={subjectCommonName} />}
-                    orientation="horizontal"
-                  />
-                )}
-              </dl>
-            </div>
-          )}
-          {showIssuerNameSection && (
-            <div className={`${baseClass}__section`}>
-              <h3>Issuer name</h3>
-              <dl>
-                {issuerCountry && (
-                  <DataSet
-                    title="Country or region"
-                    value={<TooltipTruncatedText value={issuerCountry} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {issuerOrganization && (
-                  <DataSet
-                    title="Organization"
-                    value={<TooltipTruncatedText value={issuerOrganization} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {issuerOrganizationalUnit && (
-                  <DataSet
-                    title="Organizational unit"
-                    value={
-                      <TooltipTruncatedText value={issuerOrganizationalUnit} />
-                    }
-                    orientation="horizontal"
-                  />
-                )}
-                {issuerCommonName && (
-                  <DataSet
-                    title="Common name"
-                    value={<TooltipTruncatedText value={issuerCommonName} />}
-                    orientation="horizontal"
-                  />
-                )}
-              </dl>
-            </div>
-          )}
-          {showValidityPeriodSection && (
-            <div className={`${baseClass}__section`}>
-              <h3>Validity period</h3>
-              <dl>
-                {not_valid_before && (
-                  <DataSet
-                    title="Not valid before"
-                    value={
-                      <TooltipTruncatedText
-                        value={monthDayYearFormat(not_valid_before)}
-                      />
-                    }
-                    orientation="horizontal"
-                  />
-                )}
-                {not_valid_after && (
-                  <DataSet
-                    title="Not valid after"
-                    value={
-                      <TooltipTruncatedText
-                        value={monthDayYearFormat(not_valid_after)}
-                      />
-                    }
-                    orientation="horizontal"
-                  />
-                )}
-              </dl>
-            </div>
-          )}
-          {showKeyInfoSection && (
-            <div className={`${baseClass}__section`}>
-              <h3>Key info</h3>
-              <dl>
-                {key_algorithm && (
-                  <DataSet
-                    title="Algorithm"
-                    value={<TooltipTruncatedText value={key_algorithm} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {!!key_strength && (
-                  <DataSet
-                    title="Key size"
-                    value={<TooltipTruncatedText value={key_strength} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {key_usage && (
-                  <DataSet
-                    title="Key usage"
-                    value={<TooltipTruncatedText value={key_usage} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {serial && (
-                  <DataSet
-                    title="Serial number (hex)"
-                    value={<TooltipTruncatedText value={serial} />}
-                    orientation="horizontal"
-                  />
-                )}
-                {serialDecimal && (
-                  <DataSet
-                    title="Serial number (decimal)"
-                    value={<TooltipTruncatedText value={serialDecimal} />}
-                    orientation="horizontal"
-                  />
-                )}
-              </dl>
-            </div>
-          )}
-          {/* will always show this section */}
+      <div className={`${baseClass}__content`}>
+        {showSubjectSection && (
           <div className={`${baseClass}__section`}>
-            <h3>Basic constraints</h3>
+            <h3>Subject name</h3>
+            <dl>
+              {subjectCountry && (
+                <DataSet
+                  title="Country or region"
+                  value={<TooltipTruncatedText value={subjectCountry} />}
+                  orientation="horizontal"
+                />
+              )}
+              {subjectOrganization && (
+                <DataSet
+                  title="Organization"
+                  value={<TooltipTruncatedText value={subjectOrganization} />}
+                  orientation="horizontal"
+                />
+              )}
+              {subjectOrganizationalUnit && (
+                <DataSet
+                  title="Organizational unit"
+                  value={
+                    <TooltipTruncatedText value={subjectOrganizationalUnit} />
+                  }
+                  orientation="horizontal"
+                />
+              )}
+              {subjectCommonName && (
+                <DataSet
+                  title="Common name"
+                  value={<TooltipTruncatedText value={subjectCommonName} />}
+                  orientation="horizontal"
+                />
+              )}
+            </dl>
+          </div>
+        )}
+        {showIssuerNameSection && (
+          <div className={`${baseClass}__section`}>
+            <h3>Issuer name</h3>
+            <dl>
+              {issuerCountry && (
+                <DataSet
+                  title="Country or region"
+                  value={<TooltipTruncatedText value={issuerCountry} />}
+                  orientation="horizontal"
+                />
+              )}
+              {issuerOrganization && (
+                <DataSet
+                  title="Organization"
+                  value={<TooltipTruncatedText value={issuerOrganization} />}
+                  orientation="horizontal"
+                />
+              )}
+              {issuerOrganizationalUnit && (
+                <DataSet
+                  title="Organizational unit"
+                  value={
+                    <TooltipTruncatedText value={issuerOrganizationalUnit} />
+                  }
+                  orientation="horizontal"
+                />
+              )}
+              {issuerCommonName && (
+                <DataSet
+                  title="Common name"
+                  value={<TooltipTruncatedText value={issuerCommonName} />}
+                  orientation="horizontal"
+                />
+              )}
+            </dl>
+          </div>
+        )}
+        {showValidityPeriodSection && (
+          <div className={`${baseClass}__section`}>
+            <h3>Validity period</h3>
+            <dl>
+              {not_valid_before && (
+                <DataSet
+                  title="Not valid before"
+                  value={
+                    <TooltipTruncatedText
+                      value={monthDayYearFormat(not_valid_before)}
+                    />
+                  }
+                  orientation="horizontal"
+                />
+              )}
+              {not_valid_after && (
+                <DataSet
+                  title="Not valid after"
+                  value={
+                    <TooltipTruncatedText
+                      value={monthDayYearFormat(not_valid_after)}
+                    />
+                  }
+                  orientation="horizontal"
+                />
+              )}
+            </dl>
+          </div>
+        )}
+        {showKeyInfoSection && (
+          <div className={`${baseClass}__section`}>
+            <h3>Key info</h3>
+            <dl>
+              {key_algorithm && (
+                <DataSet
+                  title="Algorithm"
+                  value={<TooltipTruncatedText value={key_algorithm} />}
+                  orientation="horizontal"
+                />
+              )}
+              {!!key_strength && (
+                <DataSet
+                  title="Key size"
+                  value={<TooltipTruncatedText value={key_strength} />}
+                  orientation="horizontal"
+                />
+              )}
+              {key_usage && (
+                <DataSet
+                  title="Key usage"
+                  value={<TooltipTruncatedText value={key_usage} />}
+                  orientation="horizontal"
+                />
+              )}
+              {serial && (
+                <DataSet
+                  title="Serial number (hex)"
+                  value={<TooltipTruncatedText value={serial} />}
+                  orientation="horizontal"
+                />
+              )}
+              {serialDecimal && (
+                <DataSet
+                  title="Serial number (decimal)"
+                  value={<TooltipTruncatedText value={serialDecimal} />}
+                  orientation="horizontal"
+                />
+              )}
+            </dl>
+          </div>
+        )}
+        {/* will always show this section */}
+        <div className={`${baseClass}__section`}>
+          <h3>Basic constraints</h3>
+          <dl>
+            <DataSet
+              title="Certificate authority"
+              value={
+                <TooltipTruncatedText
+                  value={certificate_authority ? "Yes" : "No"}
+                />
+              }
+              orientation="horizontal"
+            />
+          </dl>
+        </div>
+        {showSignatureSection && (
+          <div className={`${baseClass}__section`}>
+            <h3>Signature</h3>
             <dl>
               <DataSet
-                title="Certificate authority"
-                value={
-                  <TooltipTruncatedText
-                    value={certificate_authority ? "Yes" : "No"}
-                  />
-                }
+                title="Algorithm"
+                value={<TooltipTruncatedText value={signing_algorithm} />}
                 orientation="horizontal"
               />
             </dl>
           </div>
-          {showSignatureSection && (
-            <div className={`${baseClass}__section`}>
-              <h3>Signature</h3>
-              <dl>
-                <DataSet
-                  title="Algorithm"
-                  value={<TooltipTruncatedText value={signing_algorithm} />}
-                  orientation="horizontal"
-                />
-              </dl>
-            </div>
-          )}
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
-        </div>
-      </>
+        )}
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onExit}>Close</Button>
+      </div>
     </Modal>
   );
 };

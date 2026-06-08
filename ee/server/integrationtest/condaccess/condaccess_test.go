@@ -17,9 +17,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/smallstep/scep"
@@ -49,7 +50,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.BaseSuite.DS, []string{
+			defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
 				"conditional_access_scep_serials", "conditional_access_scep_certificates",
 			}...)
 			c.fn(t, s)
@@ -308,7 +309,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request using HTTP client directly to capture response
@@ -333,7 +334,7 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Check for SCEP-level failure

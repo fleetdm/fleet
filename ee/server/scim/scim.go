@@ -2,11 +2,14 @@ package scim
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/elimity-com/scim"
@@ -18,8 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -31,7 +32,7 @@ func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
 	svc fleet.Service,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -158,7 +159,7 @@ func RegisterSCIM(
 		},
 	}
 
-	scimLogger := kitlog.With(logger, "component", "SCIM")
+	scimLogger := logger.With("component", "SCIM")
 	resourceTypes := []scim.ResourceType{
 		{
 			ID:          optional.NewString("User"),
@@ -169,11 +170,53 @@ func RegisterSCIM(
 			SchemaExtensions: []scim.SchemaExtension{
 				{
 					Schema: schema.Schema{
+						// Fleet stores only `department`, but we declare the full RFC 7643
+						// §4.3 enterprise attribute set so the elimity SCIM library accepts
+						// (rather than 400s) PATCH payloads from IdPs that bundle these
+						// alongside `department`. The handler reads only what it needs and
+						// silently drops the rest — see the `default` branches in
+						// UserHandler.Patch.
 						Attributes: []schema.CoreAttribute{
 							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
 								Name:     "department",
 								Required: false,
 							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "employeeNumber",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "costCenter",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "organization",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "division",
+								Required: false,
+							})),
+							schema.ComplexCoreAttribute(schema.ComplexParams{
+								Name:        "manager",
+								Description: optional.NewString("The User's manager. A complex type that optionally allows service providers to represent organizational hierarchy by referencing the 'id' attribute of another User."),
+								SubAttributes: []schema.SimpleParams{
+									schema.SimpleStringParams(schema.StringParams{
+										Name: "value",
+									}),
+									schema.SimpleReferenceParams(schema.ReferenceParams{
+										Name:           "$ref",
+										ReferenceTypes: []schema.AttributeReferenceType{"User"},
+									}),
+									// `displayName` is ReadOnly per RFC 7643 §4.3. The elimity
+									// library silently strips ReadOnly sub-attrs from client
+									// input, so we don't need to tolerate it in the handler.
+									schema.SimpleStringParams(schema.StringParams{
+										Name:       "displayName",
+										Mutability: schema.AttributeMutabilityReadOnly(),
+									}),
+								},
+							}),
 						},
 						Description: optional.NewString("Enterprise User"),
 						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
@@ -182,7 +225,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, svc, scimLogger),
+			Handler: NewUserHandler(ds, svc.NewActivity, scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),
@@ -200,7 +243,7 @@ func RegisterSCIM(
 	}
 
 	serverOpts := []scim.ServerOption{
-		scim.WithLogger(&scimErrorLogger{Logger: scimLogger}),
+		scim.WithLogger(&scimErrorLogger{logger: scimLogger}),
 	}
 
 	server, err := scim.NewServer(serverArgs, serverOpts...)
@@ -216,10 +259,13 @@ func RegisterSCIM(
 		return err
 	}
 
+	dumpPayloadsEnabled := debugSCIMPayloadsEnabled()
+
 	// Apply middleware including OTEL instrumentation
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
+		handler = debugPayloadDumpMiddleware(scimLogger, dumpPayloadsEnabled, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
@@ -309,9 +355,55 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 	})
 }
 
+// debugSCIMPayloadsEnabled reports whether the FLEET_DEBUG_SCIM_PAYLOADS environment
+// variable is set to a truthy value.
+func debugSCIMPayloadsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("FLEET_DEBUG_SCIM_PAYLOADS"))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
+// debugPayloadDumpMiddleware logs the raw SCIM request body to scimLogger when enabled
+// is true. The full body is read into memory, written to the log, and then restored
+// for the downstream handler via a fresh io.ReadCloser.
+func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Handler) http.Handler {
+	if !enabled {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if r.Body == nil || r.Body == http.NoBody {
+			logger.WarnContext(ctx, "scim payload dump",
+				"method", r.Method, "path", r.URL.Path, "size", 0, "body", "")
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		if err != nil {
+			// Fail the request explicitly rather than passing an empty body to the
+			// downstream handler — that would surface as a confusing JSON parse
+			// error and mask the real read failure.
+			logger.ErrorContext(ctx, "scim payload dump: failed to read body — failing request to surface error",
+				"method", r.Method, "path", r.URL.Path, "err", err)
+			http.Error(w, "internal error reading request body", http.StatusInternalServerError)
+			return
+		}
+
+		logger.WarnContext(ctx, "scim payload dump",
+			"method", r.Method, "path", r.URL.Path,
+			"size", len(body), "body", string(body))
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		next.ServeHTTP(w, r)
+	})
+}
+
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
-func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.Handler) http.Handler {
+func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		multi := newMultiResponseWriter(w)
 		next.ServeHTTP(multi, r)
@@ -322,8 +414,7 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 			status = "success"
 		case multi.statusCode == http.StatusUnauthorized:
 			// We do not save unauthenticated error details; we simply log them.
-			level.Info(logger).Log(
-				"msg", "unauthenticated request",
+			logger.InfoContext(r.Context(), "unauthenticated request",
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,
@@ -349,7 +440,7 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 		default:
 			status = "error"
 			details = fmt.Sprintf("Unhandled status code: %d", multi.statusCode)
-			level.Error(logger).Log("msg", "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
+			logger.ErrorContext(r.Context(), "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
 		}
 		if len(details) > fleet.SCIMMaxFieldLength {
 			details = details[:fleet.SCIMMaxFieldLength]
@@ -359,12 +450,12 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 			Details: details,
 		})
 		if err != nil {
-			level.Error(logger).Log("msg", "failed to update last scim request", "err", err)
+			logger.ErrorContext(r.Context(), "failed to update last scim request", "err", err)
 		}
 	})
 }
 
-func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger, next http.Handler) http.Handler {
+func AuthorizationMiddleware(authorizer *authz.Authorizer, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := authorizer.Authorize(r.Context(), &fleet.ScimUser{}, fleet.ActionWrite)
 		if err != nil {
@@ -375,14 +466,14 @@ func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger,
 	})
 }
 
-func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, status int) {
+func errorHandler(w http.ResponseWriter, logger *slog.Logger, detail string, status int) {
 	scimErr := scimerrors.ScimError{
 		Status: status,
 		Detail: detail,
 	}
 	raw, err := json.Marshal(scimErr)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed marshaling scim error", "scimError", scimErr, "err", err)
+		logger.ErrorContext(context.TODO(), "failed marshaling scim error", "scimError", scimErr, "err", err)
 		return
 	}
 
@@ -390,20 +481,18 @@ func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, st
 	w.WriteHeader(scimErr.Status)
 	_, err = w.Write(raw)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed writing response", "err", err)
+		logger.ErrorContext(context.TODO(), "failed writing response", "err", err)
 	}
 }
 
 type scimErrorLogger struct {
-	kitlog.Logger
+	logger *slog.Logger
 }
 
 var _ scim.Logger = &scimErrorLogger{}
 
 func (l *scimErrorLogger) Error(args ...interface{}) {
-	level.Error(l.Logger).Log(
-		"error", fmt.Sprint(args...),
-	)
+	l.logger.ErrorContext(context.TODO(), fmt.Sprint(args...))
 }
 
 type multiResponseWriter struct {

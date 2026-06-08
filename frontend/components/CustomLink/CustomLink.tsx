@@ -5,7 +5,7 @@ import classnames from "classnames";
 import { Colors } from "styles/var/colors";
 
 interface ICustomLinkProps {
-  url: string;
+  url?: string;
   text: string;
   className?: string;
   /** open the link in a new tab

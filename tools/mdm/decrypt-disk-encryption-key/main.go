@@ -11,11 +11,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
+	"os"
 
-	"github.com/apex/log"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
@@ -27,6 +29,12 @@ func main() {
 		valueToDecrypt = flag.String("value-to-decrypt", "", "The base64-encoded value to decrypt (required).")
 	)
 	flag.Parse()
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	}))
 
 	if *certFile == "" || *keyFile == "" || *valueToDecrypt == "" {
 		flag.Usage()
@@ -45,12 +53,13 @@ func main() {
 		if uerr := errors.Unwrap(err); uerr != nil {
 			err = uerr
 		}
-		log.Fatalf("Error loading certificate: %v", err)
+		logger.ErrorContext(ctx, "loading certificate", "err", err)
+		return
 	}
 
 	decrypted, err := mdm.DecryptBase64CMS(*valueToDecrypt, cert.Leaf, cert.PrivateKey)
 	if err != nil {
-		log.Fatalf("Error decrypting value: %v", err)
+		logger.ErrorContext(ctx, "decrypting value", "err", err)
 	}
 	fmt.Printf("Decrypted value: %s\n", string(decrypted))
 }

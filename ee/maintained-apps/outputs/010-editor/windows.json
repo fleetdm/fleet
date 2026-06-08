@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "16.0.3",
+      "version": "16.0.4",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = '010 Editor 16.0.2 (64-bit)' AND publisher = 'SweetScape Software';"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software' AND version_compare(version, '16.0.4') < 0);"
       },
-      "installer_url": "https://download.sweetscape.com/010EditorWin64Installer16.0.3.exe",
+      "installer_url": "https://download.sweetscape.com/010EditorWin64Installer16.0.4.exe",
       "install_script_ref": "5764f801",
       "uninstall_script_ref": "07227ac7",
-      "sha256": "bfb77fd3e4a64cda7ccc9aef3ec968490be8b77a9ec4b7f273152072b103b28a",
+      "sha256": "36bae5d17aac1919ac3b66ce22954794b36a058b459290440a7fed9ff2b379be",
       "default_categories": [
         "Developer tools"
       ]

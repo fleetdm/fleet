@@ -9,17 +9,20 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 ## Okta
 
+> Okta added a built-in Fleet app and Fleet is testing it internally. Keep in mind that adding push groups will create new fleets. Currently, the best practice is to create a SAML app (instructions below).
+
 Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
 If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
-Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
+> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
 
-![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
+Once configured, you will need to retrieve the Identity Provider metadata URL either from **View Setup Instructions** from the **Identity Provider metadata** link within the application **Sign on** settings, or under the **SAML 2.0** section under **Metadata details**.
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
+
 
 ## Google Workspace
 
@@ -41,7 +44,7 @@ Create a new SAML app in Google Workspace:
 
 4. Configure the **Service provider details**:
     - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-    - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
+    - For Entity ID, use **the same unique identifier as you'll use [in Fleet](#fleet-configuration)** (e.g., `fleet`).
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
     - All other fields can be left blank.
@@ -92,7 +95,9 @@ On your Fleet server:
 
  ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png) 
 3. Enable SSO for a test user and try to log in with Entra.
-   
+	- Click the **Account** icon in the top right and select **Users**.
+	- Select a test user and choose **Actions** > **Edit**.
+	- Under **Authentication**, select **Single sign-on** and save.
 
 
 ## authentik
@@ -132,7 +137,7 @@ IdPs generally requires the following information:
 
 - Assertion Consumer Service - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring end user authentication, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
 
-- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
+- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration. In the other examples, we used `fleet`.
 
 - Name ID Format - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IdP setup to something like `email` or `EmailAddress`.
 
@@ -158,7 +163,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
-- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet.example.com`). This must match the Entity ID configured with the IdP.
+- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet`). This must match the Entity ID configured with the IdP.
 
 - **Metadata URL** - Obtain this value from your IdP. and is used by Fleet to
   issue authorization requests to the IdP.
@@ -172,14 +177,11 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is [coming soon](https://github.com/fleetdm/fleet/issues/15671).
+Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization. The new account's email and full name are copied from the user data in the SSO response.
+When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
-By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
-To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
-
-To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+By default, accounts created via JIT provisioning are assigned the [global observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below. Fleet will assign role updates everytime a user logs in.
 
 For this to work correctly make sure that:
 
@@ -198,13 +200,14 @@ For this to work correctly make sure that:
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
-- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
+- `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>`: Specifies fleet-level role for fleet with ID `<FLEET_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus` and `null`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
+Attribute values that are empty, whitespace-only, or omit the `<saml:AttributeValue>` element entirely are also treated as `null` and ignored.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
-NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both global users and belong to fleets.
 
 Following is the behavior that will take place on every SSO login:
 
@@ -239,7 +242,7 @@ Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 [...]
 ```
 
-Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fleet with ID `1` and `maintainer` in fleet with ID `2`:
 
 ```xml
 [...]
@@ -254,10 +257,10 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
   </saml2:Subject>
   [...]
   <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
-    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
       <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
     </saml2:Attribute>
-    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
       <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
     </saml2:Attribute>
   </saml2:AttributeStatement>
@@ -266,6 +269,18 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
 ```
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
+
+
+## Automatically deprovision Fleet users
+
+When SCIM is configured with your IdP, Fleet automatically deletes a user's Fleet account when the user is deleted or deactivated in the IdP.
+
+Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
+
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+
+No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
 
 ## Email two-factor authentication (2FA)
 
@@ -280,3 +295,4 @@ You can't edit the authentication method for your currently logged-in user. To e
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">
 <meta name="description" value="Learn how to configure single sign-on (SSO)">
+<meta name="keywordsForDocsearch" value="azure ad, just-in-time provisioning, deprovision users">

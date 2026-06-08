@@ -4,14 +4,47 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
+	"strconv"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/godbus/dbus/v5"
 	"github.com/rs/zerolog/log"
 )
 
 //go:embed icon_dark.png
-var iconDark []byte
+var iconDarkDefault []byte
+
+//go:embed icon_kde.png
+var iconKDE []byte
+
+var iconDark = getIcon()
+
+func getIcon() []byte {
+	if isKDE() {
+		return iconKDE
+	}
+	return iconDarkDefault
+}
+
+// isKDE reports whether the user with the active GUI session is running KDE
+// Plasma process.
+func isKDE() bool {
+	guiUser, err := user.LoggedInGuiUser()
+	if err != nil {
+		log.Debug().Err(err).Msg("isKDE: look up logged-in GUI user")
+		return false
+	}
+	if guiUser == nil {
+		return false
+	}
+	uid := strconv.FormatInt(guiUser.ID, 10)
+	if err := exec.Command("pgrep", "-u", uid, "-x", "plasmashell").Run(); err != nil {
+		return false
+	}
+	return true
+}
 
 func blockWaitForStopEvent(_ string) error {
 	log.Debug().Msg("communication channel helpers are not implemented for this platform")

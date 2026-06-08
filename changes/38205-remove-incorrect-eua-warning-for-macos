@@ -1,1 +1,0 @@
-- Removed a debug-level warning asserting that macOS devices were unauthenticated when enrolling to Fleet.

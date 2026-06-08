@@ -106,6 +106,7 @@ const LabelChooser = ({
   customTargetOptions = [],
   onSelectCustomTarget,
   onSelectLabel,
+  disableOptions,
 }: ILabelChooserProps) => {
   const getHelpText = (value?: string) => {
     if (dropdownHelpText) return dropdownHelpText;
@@ -121,6 +122,7 @@ const LabelChooser = ({
     return <DataError />;
   }
 
+  // Not using <EmptyState/> here as we want to include short string only
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
@@ -138,6 +140,7 @@ const LabelChooser = ({
           options={customTargetOptions}
           searchable={false}
           onChange={onSelectCustomTarget}
+          disabled={disableOptions}
         />
       )}
       <div className={`${baseClass}__description`}>
@@ -155,8 +158,10 @@ const LabelChooser = ({
                 value={!!selectedLabels[label.name]}
                 onChange={onSelectLabel}
                 parseTarget
-              />
-              <div className={`${baseClass}__label-name`}>{label.name}</div>
+                disabled={disableOptions}
+              >
+                {label.name}
+              </Checkbox>
             </div>
           );
         })}

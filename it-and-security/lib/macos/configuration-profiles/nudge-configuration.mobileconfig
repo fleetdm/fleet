@@ -144,7 +144,7 @@ If you have any questions or need any assistance, please reach out via #help-it 
 						<key>mainHeader</key>
 						<string>Required software update now available</string>
 						<key>subHeader</key>
-						<string>A friendly reminder from the IT &amp; Enablement team</string>
+						<string>A friendly reminder from the IT team</string>
 						<key>customDeferralButtonText</key>
 						<string>Custom</string>
 						<key>customDeferralDropdownText</key>

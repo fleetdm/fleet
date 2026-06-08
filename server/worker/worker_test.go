@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -56,7 +56,7 @@ func TestWorker(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -112,7 +112,7 @@ func TestWorkerRetries(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -188,7 +188,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -241,20 +241,17 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 
 func TestWorkerWithRealDatastore(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately, because a DB migration may create jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
-	oldDelayPerRetry := delayPerRetry
-	delayPerRetry = []time.Duration{
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
+	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
 	} // retry twice on the next cron, then not before an hour
-	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
-
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int
@@ -334,7 +331,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	require.Empty(t, jobs)
 
 	var failedJob fleet.Job
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &failedJob, "SELECT * FROM jobs WHERE id = ?", j2.ID)
 	})
 	require.Equal(t, 3, failedJob.Retries)

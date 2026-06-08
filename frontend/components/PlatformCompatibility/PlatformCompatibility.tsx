@@ -11,7 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
-  compatiblePlatforms: any[] | null;
+  compatiblePlatforms: QueryablePlatform[] | null;
   error: Error | null;
 }
 
@@ -51,8 +51,8 @@ const displayIncompatibilityText = (err: Error) => {
 const tipContent = (
   <>
     Estimated compatibility based on the tables <br />
-    used in the query. Querying iPhones, iPads, <br />
-    and Android hosts is not supported.
+    used in the query. Reports are not supported <br />
+    on iPhones, iPads, and Android hosts.
   </>
 );
 
@@ -76,7 +76,7 @@ const PlatformCompatibility = ({
 
       const liveQueryOnlyPlatform = (
         <TooltipWrapper
-          tipContent={`Only live queries are supported on ${platform}.`}
+          tipContent={`Only live reports are supported on ${platform}.`}
         >
           {platform}
         </TooltipWrapper>

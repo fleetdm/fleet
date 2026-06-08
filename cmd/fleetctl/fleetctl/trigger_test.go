@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -13,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,13 +55,13 @@ func TestTrigger(t *testing.T) {
 	os.Stdout = w
 
 	_, _ = testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
-		Logger: kitlog.NewNopLogger(),
+		Logger: slog.New(slog.DiscardHandler),
 		StartCronSchedules: []service.TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					s := schedule.New(ctx, name, instanceID, interval,
-						schedule.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
-						schedule.SetUpMockStatsStore(name),
+						scheduletest.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
+						scheduletest.SetUpMockStatsStore(name),
 						schedule.WithJob("test_job",
 							func(context.Context) error {
 								time.Sleep(100 * time.Millisecond)
@@ -76,7 +77,7 @@ func TestTrigger(t *testing.T) {
 		if c.delay != 0 {
 			time.Sleep(c.delay)
 		}
-		assert.Equal(t, "", RunAppForTest(t, c.args))
+		assert.Empty(t, runAppForTest(t, c.args))
 	}
 
 	os.Stdout = oldStdout

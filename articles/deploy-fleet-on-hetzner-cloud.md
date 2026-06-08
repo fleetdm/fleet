@@ -69,14 +69,12 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
 apt update
 apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1 # mysql:8.0.36 as of 2024/07/04
-
 ######################
 # MySQL (dockerized) #
 ######################
 
-# mysql:8.0.36 as of 2024/07/04
-docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1
+# mysql:8.0.44 as of 2026/03/03
+docker pull mysql@sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714
 
 # Create the Fleet MySQL data folder
 mkdir -p /etc/fleet
@@ -435,7 +433,7 @@ To run MySQL, we’ll have to do the following:
 We can pull the [official MySQL docker image](https://hub.docker.com/_/mysql) like so:
 
 ```sh
-$ docker pull mysql@sha256:134e2d1c7c517d05e5328a77aa5a165a314dc4c4116503e7e089494f4e398ab1 # mysql:8.0.36 as of 2024/07/04
+$ docker pull mysql@sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714 # mysql:8.0.44 as of 2026/03/03
 ```
 
 ### Create & enable a systemd unit for MySQL
@@ -702,7 +700,7 @@ Now that Fleet is running, visit your Fleet dashboard (i.e., `https://fleet.dom
 Now that you’re ready to use Fleet and have a host installed. Here's some next steps:
 
 - Take some time to get acclimatized to Fleet. [Learn how to use Fleet](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet) and [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) are both great places to start.
-- Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
+- Import Fleet's [library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
 - To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
 

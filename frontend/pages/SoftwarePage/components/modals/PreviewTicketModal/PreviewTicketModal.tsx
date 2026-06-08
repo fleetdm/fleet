@@ -46,20 +46,18 @@ const PreviewTicketModal = ({
       className={baseClass}
       width="large"
     >
-      <>
-        <p className="automations-learn-more">
-          Want to learn more about how automations in Fleet work?{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/automations"
-            text="Check out the Fleet documentation"
-            newTab
-          />
-        </p>
-        <div className={`${baseClass}__example`}>{screenshot}</div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+      <p className="automations-learn-more">
+        Want to learn more about how automations in Fleet work?{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/automations"
+          text="Check out the Fleet documentation"
+          newTab
+        />
+      </p>
+      <div className={`${baseClass}__example`}>{screenshot}</div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Close</Button>
+      </div>
     </Modal>
   );
 };

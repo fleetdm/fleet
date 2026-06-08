@@ -57,10 +57,6 @@ describe("DeleteSoftwareModal", () => {
   it("renders Android message when isAndroidApp is true", () => {
     renderModal({ isAndroidApp: true });
 
-    expect(
-      screen.getByText(
-        /Currently, software won't be deleted from self-service \(managed Google Play\) and won't be uninstalled from the hosts\./i
-      )
-    ).toBeVisible();
+    expect(screen.getByText(/will be uninstalled/i)).toBeVisible();
   });
 });

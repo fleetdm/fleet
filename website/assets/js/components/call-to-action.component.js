@@ -64,7 +64,7 @@ parasails.registerComponent('callToAction', {
     </div>
     <div purpose="default-cta" v-else>
       <a purpose="cta-button" href="/contact">Get a demo</a>
-      <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
+      <!-- <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button> -->
     </div>
   </div>
   `,

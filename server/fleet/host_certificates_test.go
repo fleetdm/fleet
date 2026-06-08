@@ -229,3 +229,140 @@ func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeHexEscapes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain ASCII unchanged",
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "cyrillic hex escapes",
+			input:    `\xD0\x90\xD0\x91`,
+			expected: "АБ",
+		},
+		{
+			name:     "mixed ASCII and hex escapes",
+			input:    `abc\xD0\x90def`,
+			expected: "abcАdef",
+		},
+		{
+			name:     "full DN string with hex escapes",
+			input:    `/O=\xD0\x90\xD0\x91/CN=\xD0\x92\xD0\x93`,
+			expected: "/O=АБ/CN=ВГ",
+		},
+		{
+			name:     "incomplete escape at end of string",
+			input:    `hello\x`,
+			expected: `hello\x`,
+		},
+		{
+			name:     "incomplete escape with one hex char at end",
+			input:    `hello\xD`,
+			expected: `hello\xD`,
+		},
+		{
+			name:     "invalid hex after backslash-x",
+			input:    `hello\xZZworld`,
+			expected: `hello\xZZworld`,
+		},
+		{
+			name:     "no escape sequences present",
+			input:    `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+			expected: `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+		},
+		{
+			name:     "backslash not followed by x",
+			input:    `hello\nworld`,
+			expected: `hello\nworld`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DecodeHexEscapes(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestDecodeUnicodeEscapes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain ASCII unchanged",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "BMP character",
+			input:    `\u00e9`,
+			expected: "é",
+		},
+		{
+			name:     "surrogate pair for printer emoji",
+			input:    `\ud83d\udda8\ufe0f Printer`,
+			expected: "🖨️ Printer",
+		},
+		{
+			name:     "mixed ASCII and escaped",
+			input:    `App \ud83d\ude00 Name`,
+			expected: "App 😀 Name",
+		},
+		{
+			name:     "literal backslash-n preserved",
+			input:    `app\nfile`,
+			expected: `app\nfile`,
+		},
+		{
+			name:     "literal backslash-t preserved",
+			input:    `app\tfile`,
+			expected: `app\tfile`,
+		},
+		{
+			name:     "incomplete escape at end of string",
+			input:    `hello\u00`,
+			expected: `hello\u00`,
+		},
+		{
+			name:     "unpaired high surrogate left as-is",
+			input:    `\ud83d hello`,
+			expected: `\ud83d hello`,
+		},
+		{
+			name:     "standalone low surrogate left as-is",
+			input:    `\udda8 hello`,
+			expected: `\udda8 hello`,
+		},
+		{
+			name:     "no escape sequences present",
+			input:    `/Users/test/Applications/Test.app`,
+			expected: `/Users/test/Applications/Test.app`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DecodeUnicodeEscapes(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}

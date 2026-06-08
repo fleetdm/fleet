@@ -33,7 +33,7 @@ describe("LocationModal", () => {
     expect(link).toBeVisible();
     expect(link).toHaveAttribute(
       "href",
-      "https://www.google.com/maps?q=44.9844,-93.2602"
+      "https://www.google.com/maps?q=-93.2602,44.9844"
     );
   });
 
@@ -149,7 +149,7 @@ describe("LocationModal", () => {
     expect(screen.getByRole("button", { name: "Lock" })).toBeVisible();
   });
 
-  it("renders Done footer button otherwise", () => {
+  it("renders Close footer button otherwise", () => {
     render(
       <LocationModal
         hostGeolocation={createMockHostGeolocation()}
@@ -160,6 +160,6 @@ describe("LocationModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 });

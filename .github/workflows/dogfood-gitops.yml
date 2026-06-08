@@ -1,19 +1,19 @@
-name: 'Apply latest configuration to dogfood with GitOps'
+name: "Apply latest configuration to dogfood with GitOps"
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'it-and-security/**'
-      - '.github/workflows/dogfood-gitops.yml'
+      - "it-and-security/**"
+      - ".github/workflows/dogfood-gitops.yml"
   pull_request:
     paths:
-      - 'it-and-security/**'
-      - '.github/workflows/dogfood-gitops.yml'
+      - "it-and-security/**"
+      - ".github/workflows/dogfood-gitops.yml"
   workflow_dispatch: # allows manual triggering
   schedule:
-  - cron: '0 6 * * *' # Nightly 6AM UTC
+    - cron: "0 6 * * *" # Nightly 6AM UTC
 
 # Prevent concurrent runs of this workflow, but allow all runs to finish.
 concurrency:
@@ -30,16 +30,18 @@ permissions:
 
 jobs:
   fleet-gitops:
-    timeout-minutes: 10
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout our repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
 
       - name: Checkout GitOps repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -47,9 +49,10 @@ jobs:
           repository: fleetdm/fleet-gitops
           ref: main
           path: fleet-gitops
+          persist-credentials: false
 
       - name: Apply latest configuration to Fleet
-        uses: ./fleet-gitops/.github/gitops-action
+        uses: ./fleet-gitops/.github/gitops-action-fleets
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
@@ -81,6 +84,13 @@ jobs:
           DOGFOOD_HOST_STATUS_WEBHOOK_URL: ${{ secrets.DOGFOOD_HOST_STATUS_WEBHOOK_URL }}
           DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
           DOGFOOD_TESTING_AND_QA_ENROLL_SECRET: ${{ secrets.DOGFOOD_TESTING_AND_QA_ENROLL_SECRET }}
+          DOGFOOD_OKTA_CA_CERTIFICATE: ${{ secrets.DOGFOOD_OKTA_CA_CERTIFICATE }}
+          DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_ANDROID_MANAGEMENT_HINT }}
+          DOGFOOD_OKTA_IOS_MANAGEMENT_HINT: ${{ secrets.DOGFOOD_OKTA_IOS_MANAGEMENT_HINT }}
+          DOGFOOD_OKTA_VERIFY_WINDOWS_URL: ${{ secrets.DOGFOOD_OKTA_VERIFY_WINDOWS_URL }}
+          DOGFOOD_ENTRA_TENANT_ID: ${{ secrets.DOGFOOD_ENTRA_TENANT_ID }}
+          DOGFOOD_OKTA_METADATA_URL_ADMINS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_ADMINS }}
+          DOGFOOD_OKTA_METADATA_URL_END_USERS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_END_USERS }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

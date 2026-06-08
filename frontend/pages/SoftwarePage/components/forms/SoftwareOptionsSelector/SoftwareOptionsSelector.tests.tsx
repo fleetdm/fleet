@@ -20,6 +20,15 @@ const defaultProps = {
   onClickPreviewEndUserExperience: jest.fn(),
 };
 
+const getSwitchByLabelText = (text: string) => {
+  const label = screen.getByText(text);
+  const wrapper = label.closest(".fleet-slider__wrapper");
+  if (!wrapper) throw new Error(`Wrapper not found for "${text}"`);
+  const btn = wrapper.querySelector('button[role="switch"]');
+  if (!btn) throw new Error(`Switch button not found for "${text}"`);
+  return btn as HTMLButtonElement;
+};
+
 describe("SoftwareOptionsSelector", () => {
   const renderComponent = (props = {}) => {
     return createCustomRenderer({ context: {} })(
@@ -27,148 +36,37 @@ describe("SoftwareOptionsSelector", () => {
     );
   };
 
-  it("calls onToggleSelfService when the self-service checkbox is toggled", () => {
+  it("calls onToggleSelfService when the self-service slider is toggled", () => {
     const onToggleSelfService = jest.fn();
     renderComponent({ onToggleSelfService });
 
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('div[role="checkbox"]');
-    if (selfServiceCheckbox) {
-      fireEvent.click(selfServiceCheckbox);
-    } else {
-      throw new Error("Self-service checkbox not found");
-    }
+    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    fireEvent.click(selfServiceSwitch);
 
     expect(onToggleSelfService).toHaveBeenCalledTimes(1);
-    expect(onToggleSelfService).toHaveBeenCalledWith(true);
+    // Slider calls onChange with no args
+    expect(onToggleSelfService).toHaveBeenCalledWith();
   });
 
-  it("calls onToggleAutomaticInstall when the automatic install checkbox is toggled", () => {
-    const onToggleAutomaticInstall = jest.fn();
-    renderComponent({ onToggleAutomaticInstall });
-
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('div[role="checkbox"]');
-    if (automaticInstallCheckbox) {
-      fireEvent.click(automaticInstallCheckbox);
-    } else {
-      throw new Error("Automatic install checkbox not found");
-    }
-
-    expect(onToggleAutomaticInstall).toHaveBeenCalledTimes(1);
-    expect(onToggleAutomaticInstall).toHaveBeenCalledWith(true);
-  });
-
-  it("enables self-service and disables automatic install checkboxes for iOS", () => {
+  it("enables self-service sliders for iOS", () => {
     renderComponent({ platform: "ios" });
 
-    // Targeting the checkbox elements directly
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
-
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    expect(selfServiceSwitch.disabled).toBe(false);
   });
 
-  it("enables self-service and disables automatic install checkboxes for iPadOS", () => {
+  it("enables self-service  for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
-    // Targeting the checkbox elements directly
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
-
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    expect(selfServiceSwitch.disabled).toBe(false);
   });
 
-  it("disables checkboxes when disableOptions is true", () => {
+  it("disables self-service when disableOptions is true", () => {
     renderComponent({ disableOptions: true });
 
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
+    const selfServiceSwitch = getSwitchByLabelText("Self-service");
 
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "true");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
-  });
-
-  it("renders the InfoBanner when automaticInstall is true and isCustomPackage is true", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: true,
-    });
-
-    expect(
-      screen.getByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("does not render the InfoBanner when automaticInstall is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: false },
-      isCustomPackage: true,
-    });
-
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
-  });
-
-  it("does not render the InfoBanner when isCustomPackage is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: false,
-    });
-
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
-  });
-
-  it("does not render automatic install checkbox when isEditingSoftware is true", () => {
-    renderComponent({ isEditingSoftware: true });
-
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
-  });
-
-  it("displays platform-specific message for iOS", () => {
-    renderComponent({ platform: "ios" });
-
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
-
-  it("displays platform-specific message for iPadOS", () => {
-    renderComponent({ platform: "ipados" });
-
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
-
-  it("does not render automatic install checkbox in edit mode", () => {
-    renderComponent({ isEditingSoftware: true });
-
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
+    expect(selfServiceSwitch.disabled).toBe(true);
   });
 });

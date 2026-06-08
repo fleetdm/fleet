@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
-	kitlog "github.com/go-kit/log"
 )
 
 // SetABMTokenMetadata uses the provided ABM token to fetch the associated
@@ -23,7 +23,7 @@ func SetABMTokenMetadata(
 	abmToken *fleet.ABMToken,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	renewal bool,
 ) error {
 	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
@@ -42,7 +42,7 @@ func SetDecryptedABMTokenMetadata(
 	decryptedToken *depclient.OAuth1Tokens,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	renewal bool,
 ) error {
 	depClient := NewDEPClient(depStorage, ds, logger)
@@ -72,7 +72,7 @@ func SetDecryptedABMTokenMetadata(
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
+				msg = "The Apple Business certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
 			}
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,

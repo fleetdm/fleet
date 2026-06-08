@@ -109,7 +109,11 @@ const TeamsDropdown = ({
   });
 
   const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<any, false, any>
+    props: DropdownIndicatorProps<
+      INumberDropdownOption,
+      false,
+      GroupBase<INumberDropdownOption>
+    >
   ) => {
     const { isFocused, selectProps } = props;
     const color =
@@ -200,6 +204,7 @@ const TeamsDropdown = ({
     singleValue: (baseStyles) => ({
       ...baseStyles,
       ...variableSingleValueStyles,
+      color: COLORS["core-fleet-black"],
       lineHeight: "normal",
       paddingLeft: 0,
       paddingRight: "8px",
@@ -219,7 +224,8 @@ const TeamsDropdown = ({
     }),
     menu: (baseStyles) => ({
       ...baseStyles,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",
@@ -252,6 +258,7 @@ const TeamsDropdown = ({
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
       margin: 0,
+      color: COLORS["core-fleet-black"],
     }),
     option: (baseStyles, state) => ({
       ...baseStyles,
@@ -282,7 +289,7 @@ const TeamsDropdown = ({
     <div className={dropdownWrapperClasses}>
       <Select<INumberDropdownOption, false>
         options={teamOptions}
-        placeholder="All teams"
+        placeholder="All fleets"
         onChange={(newValue) => {
           if (newValue) {
             onChange(newValue.value);
@@ -291,7 +298,7 @@ const TeamsDropdown = ({
         }}
         isDisabled={isDisabled}
         isSearchable
-        noOptionsMessage={() => "No matching teams"}
+        noOptionsMessage={() => "No matching fleets"}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,

@@ -1,1 +1,0 @@
-* Fixed a bug where failed software installs showed up in the host library page after transferring it to a team without that installer. 

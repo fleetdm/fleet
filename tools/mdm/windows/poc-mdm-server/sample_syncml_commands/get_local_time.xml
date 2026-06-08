@@ -1,8 +1,0 @@
-<Get>
-	<CmdID>xxcmdidxx</CmdID>
-	<Item>
-		<Target>
-			<LocURI>./DevDetail/Ext/Microsoft/LocalTime</LocURI>
-		</Target>
-	</Item>
-</Get>

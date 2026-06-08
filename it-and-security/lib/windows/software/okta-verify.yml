@@ -1,0 +1,5 @@
+url: $DOGFOOD_OKTA_VERIFY_WINDOWS_URL
+install_script:
+  path: ../scripts/okta_verify_install.ps1
+uninstall_script:
+  path: ../scripts/okta_verify_uninstall.ps1

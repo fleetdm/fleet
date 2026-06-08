@@ -4,15 +4,16 @@
     flex-direction: column;
     gap: $pad-large;
     padding-bottom: $pad-small;
-
-    .textarea-wrapper {
-      gap: $pad-small;
-    }
   }
 
-  // shortening the hight of the textarea
-  // so the modal height stays within the viewport
-  .textarea--code {
+  .input-field__textarea {
+    // shortening the height of the textarea
+    // so the modal height stays within the viewport
     max-height: 200px;
+    height: auto;
+    field-sizing: content;
+    overflow-y: auto;
+    background-color: $ui-off-white;
+    font-family: "SourceCodePro", $monospace;
   }
 }

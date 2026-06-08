@@ -1,4 +1,4 @@
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
@@ -31,7 +31,7 @@ export interface IGetDeviceSoftwareResponse {
   };
 }
 
-interface IGetDeviceDetailsRequest {
+interface IGetDeviceDetailsApiParams {
   token: string;
   exclude_software?: boolean;
 }
@@ -45,7 +45,7 @@ export interface IGetDeviceCertificatesResponse {
   count: number;
 }
 
-export interface IGetDeviceCertsRequestParams extends IListOptions {
+export interface IGetDeviceCertsApiParams extends IListOptions {
   token: string;
 }
 
@@ -67,7 +67,7 @@ export default {
   loadHostDetails: ({
     token,
     exclude_software,
-  }: IGetDeviceDetailsRequest): Promise<IDeviceUserResponse> => {
+  }: IGetDeviceDetailsApiParams): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
     let path = `${DEVICE_USER_DETAILS}/${token}`;
     if (exclude_software) {
@@ -165,7 +165,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetDeviceCertsRequestParams): Promise<IGetDeviceCertificatesResponse> => {
+  }: IGetDeviceCertsApiParams): Promise<IGetDeviceCertificatesResponse> => {
     const { DEVICE_CERTIFICATES } = endpoints;
     const path = `${DEVICE_CERTIFICATES(token)}?${buildQueryStringFromParams({
       page,
@@ -194,5 +194,10 @@ export default {
   getMdmManualEnrollUrl: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
+
+  bypassConditionalAccess: (token: string) => {
+    const { DEVICE_BYPASS_CONDITIONAL_ACCESS } = endpoints;
+    return sendRequest("POST", DEVICE_BYPASS_CONDITIONAL_ACCESS(token));
   },
 };

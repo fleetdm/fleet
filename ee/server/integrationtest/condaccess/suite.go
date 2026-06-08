@@ -1,6 +1,7 @@
 package condaccess
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
@@ -9,8 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,14 +37,14 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, configModifier fu
 		configModifier(&fleetCfg)
 	}
 
-	logger := log.NewLogfmtLogger(os.Stdout)
-	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &fleetCfg)
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(slogLogger.With("component", "conditional-access-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
+	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,
-		Logger:      logger,
+		Logger:      slogLogger,
 		ConditionalAccess: &service.ConditionalAccess{
 			SCEPStorage: condAccessSCEPDepot,
 		},
@@ -52,7 +52,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, configModifier fu
 
 	s := &Suite{
 		BaseSuite: integrationtest.BaseSuite{
-			Logger:   logger,
+			Logger:   slogLogger,
 			DS:       ds,
 			FleetCfg: fleetCfg,
 			Users:    users,

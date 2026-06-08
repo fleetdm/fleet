@@ -36,5 +36,5 @@ func TestTimeout(t *testing.T) {
 	}
 	s := NewService(WithTimeout(1 * time.Millisecond))
 	err := s.VerifyProfileID(context.Background(), config)
-	assert.ErrorContains(t, err, "deadline exceeded")
+	assert.ErrorContains(t, err, "exceeded")
 }

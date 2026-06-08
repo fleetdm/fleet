@@ -1,10 +1,8 @@
 .fleet-maintained-app-details-page {
-  &__back-to-add-software {
-    margin-bottom: $pad-medium;
-  }
+  @include vertical-page-layout;
 
-  h1 {
-    margin-bottom: $pad-large;
+  &__back-to-add-software {
+    align-self: start;
   }
 
   &__page-content {

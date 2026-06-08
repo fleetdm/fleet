@@ -31,7 +31,7 @@ const ScriptUploadModal = ({
     setShowLoading(true);
     try {
       await scriptAPI.uploadScript(selectedFile, currentTeamId);
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onSubmit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -40,10 +40,18 @@ const ScriptUploadModal = ({
     }
   };
 
-  const additionalInfo =
-    selectedFile && selectedFile.name.match(/\.sh$/)
-      ? 'On macOS and Linux, script will run according to the interpreter specified in the first line: "#!/bin/sh", "#!/bin/zsh", or "#!/bin/bash"'
-      : undefined;
+  const additionalInfo = (() => {
+    if (!selectedFile) {
+      return undefined;
+    }
+    if (selectedFile.name.match(/\.sh$/)) {
+      return 'On macOS and Linux, script will run according to the interpreter specified in the first line: "#!/bin/sh", "#!/bin/zsh", or "#!/bin/bash"';
+    }
+    if (selectedFile.name.match(/\.py$/)) {
+      return 'On macOS and Linux, Python scripts must start with a python shebang in the first line (for example, "#!/usr/bin/env python3" or "#!/usr/bin/python3").';
+    }
+    return undefined;
+  })();
 
   return (
     <Modal
@@ -52,27 +60,25 @@ const ScriptUploadModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        <div className={`${baseClass}__content`}>
-          <ScriptUploader
-            onFileSelected={(file) => setSelectedFile(file)}
-            selectedFile={selectedFile}
-            forModal
-          />
-        </div>
-        {additionalInfo && (
-          <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
-        )}
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onUploadFile}
-            disabled={!selectedFile || showLoading}
-            isLoading={showLoading}
-          >
-            Add script
-          </Button>
-        </div>
-      </>
+      <div className={`${baseClass}__content`}>
+        <ScriptUploader
+          onFileSelected={(file) => setSelectedFile(file)}
+          selectedFile={selectedFile}
+          forModal
+        />
+      </div>
+      {additionalInfo && (
+        <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      )}
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onUploadFile}
+          disabled={!selectedFile || showLoading}
+          isLoading={showLoading}
+        >
+          Add script
+        </Button>
+      </div>
     </Modal>
   );
 };

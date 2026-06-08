@@ -29,6 +29,7 @@ type ReleaseLister interface {
 type GitHubAPI interface {
 	Download(string) (string, error)
 	MSRCBulletins(context.Context) (map[MetadataFileName]string, error)
+	WinOfficeBulletin(context.Context) (MetadataFileName, string, error)
 	MacOfficeReleaseNotes(context.Context) (MetadataFileName, string, error)
 }
 
@@ -68,6 +69,27 @@ func (gh GitHubClient) Download(urlStr string) (string, error) {
 // stored in our Github NVD repo (https://github.com/fleetdm/nvd/releases)
 func (gh GitHubClient) MSRCBulletins(ctx context.Context) (map[MetadataFileName]string, error) {
 	return gh.list(ctx, mSRCFilePrefix, NewMSRCMetadata)
+}
+
+// WinOfficeBulletin returns the 'MetadataFilename' and 'download URL' of the latest Windows Office bulletin
+// stored in our Github NVD repo (https://github.com/fleetdm/nvd/releases)
+func (gh GitHubClient) WinOfficeBulletin(ctx context.Context) (MetadataFileName, string, error) {
+	resultMap, err := gh.list(ctx, winOfficePrefix, NewWinOfficeMetadata)
+	if err != nil {
+		return MetadataFileName{}, "", err
+	}
+
+	// Find the most recent bulletin
+	var latest MetadataFileName
+	var latestURL string
+	for k, v := range resultMap {
+		if latest.filename == "" || latest.Before(k) {
+			latest = k
+			latestURL = v
+		}
+	}
+
+	return latest, latestURL, nil
 }
 
 // MacOfficeReleaseNotes returns the 'MetadataFilename' and the 'download URL' of the latest Mac Office Release

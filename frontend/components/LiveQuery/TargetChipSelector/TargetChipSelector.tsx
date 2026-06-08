@@ -16,6 +16,7 @@ interface ITargetChipSelectorProps {
   onClick: (
     value: ISelectLabel | ISelectTeam
   ) => React.MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
 }
 
 const isBuiltInLabel = (
@@ -28,6 +29,7 @@ const TargetChipSelector = ({
   entity,
   isSelected,
   onClick,
+  disabled,
 }: ITargetChipSelectorProps): JSX.Element => {
   const displayText = (): string => {
     if (isBuiltInLabel(entity)) {
@@ -44,6 +46,7 @@ const TargetChipSelector = ({
     <button
       className="target-chip-selector"
       data-selected={isSelected}
+      disabled={disabled}
       onClick={(e) => onClick(entity)(e)}
     >
       <Icon name={isSelected ? "check" : "plus"} color="ui-fleet-black-75" />

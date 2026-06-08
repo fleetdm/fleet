@@ -10,9 +10,9 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
   NO_VERSION_OR_HOST_DATA_SOURCES,
-  IAppStoreApp,
 } from "interfaces/software";
 
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
@@ -20,6 +20,7 @@ import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import AddPatchPolicyModal from "../AddPatchPolicyModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -49,6 +50,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [showAddPatchPolicyModal, setShowAddPatchPolicyModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
@@ -56,6 +58,11 @@ const SoftwareSummaryCard = ({
     showEditAutoUpdateConfigModal,
     setShowEditAutoUpdateConfigModal,
   ] = useState(false);
+
+  const softwareDisplayName = getDisplayedSoftwareName(
+    softwareTitle.name,
+    softwareTitle.display_name
+  );
 
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
@@ -70,12 +77,12 @@ const SoftwareSummaryCard = ({
       <>
         <Card borderRadiusSize="xxlarge" className={baseClass}>
           <SoftwareDetailsSummary
-            displayName={softwareTitle.display_name || softwareTitle.name}
+            displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -104,13 +111,19 @@ const SoftwareSummaryCard = ({
     softwareInstaller,
     installerType,
     isIosOrIpadosApp,
+    isFleetMaintainedApp,
     isAndroidPlayStoreApp,
+    isAndroidPlayStoreWebApp,
     canManageSoftware,
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
+  const canEditConfiguration =
+    canManageSoftware &&
+    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
+  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
@@ -120,6 +133,7 @@ const SoftwareSummaryCard = ({
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
@@ -128,14 +142,14 @@ const SoftwareSummaryCard = ({
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions?.length ?? 0}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
@@ -148,12 +162,16 @@ const SoftwareSummaryCard = ({
           onClickEditSoftware={
             canEditSoftware ? onClickEditSoftware : undefined
           }
+          onClickAddPatchPolicy={
+            canPatchSoftware ? onClickAddPatchPolicy : undefined
+          }
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
+          patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
         />
         {showVersionsTable && (
           <TitleVersionsTable
@@ -178,7 +196,7 @@ const SoftwareSummaryCard = ({
           setIconUploadedAt={setIconUploadedAt}
           installerType={installerType}
           previewInfo={{
-            name: softwareTitle.display_name || softwareTitle.name,
+            name: softwareDisplayName,
             titleName: softwareTitle.name,
             type: formatSoftwareType(softwareTitle),
             source: softwareTitle.source,
@@ -191,7 +209,6 @@ const SoftwareSummaryCard = ({
       )}
       {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
-          router={router}
           softwareId={softwareId}
           teamId={teamId}
           softwareInstaller={softwareInstaller}
@@ -199,18 +216,28 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
         />
       )}
+      {showAddPatchPolicyModal && softwareInstallerOnTeam && (
+        <AddPatchPolicyModal
+          softwareId={softwareTitle.id}
+          teamId={teamId}
+          onSuccess={refetchSoftwareTitle}
+          onExit={() => setShowAddPatchPolicyModal(false)}
+        />
+      )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
-          softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareInstaller={softwareInstaller}
           softwareId={softwareId}
           teamId={teamId}
+          isApplePlatform={isIosOrIpadosApp}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
         />

@@ -29,7 +29,7 @@
     "analytics"
   ],
   "dependencies": {
-    "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/bigquery": "^8.2.0",
     "dotenv": "^17.2.3",
     "octokit": "^5.0.3"
   },
@@ -38,7 +38,10 @@
     "eslint": "^9.37.0",
     "jest": "^30.2.0"
   },
+  "overrides": {
+    "@tootallnate/once": "^3.0.1"
+  },
   "engines": {
-    "node": "20.18.1"
+    "node": "24.14.0"
   }
 }

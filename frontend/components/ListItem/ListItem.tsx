@@ -29,7 +29,7 @@ interface IListItemProps {
   /** The graphic you want to display for this list item. */
   graphic?: ISupportedGraphicNames;
   title: string | JSX.Element;
-  details: React.ReactNode;
+  details?: React.ReactNode;
   /** A collection of React Nodes that will render as list item actions. Can be
    * used to render buttons, links, etc.
    */
@@ -54,7 +54,7 @@ const ListItem = ({
         {graphic && <Graphic name={graphic} />}
         <div className={`${baseClass}__info`}>
           <span className={`${baseClass}__title`}>{title}</span>
-          <div className={`${baseClass}__details`}>{details}</div>
+          {details && <div className={`${baseClass}__details`}>{details}</div>}
         </div>
       </div>
       {actions && <div className={`${baseClass}__actions`}>{actions}</div>}

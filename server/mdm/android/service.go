@@ -15,14 +15,30 @@ type Service interface {
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
-	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
+	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
+	// LockAndroidHost issues an AMAPI LOCK command for the given host, persists the row in mdm_android_commands
+	// (status=pending), and writes host_mdm_actions.lock_ref. The device-side ack arrives asynchronously via Pub/Sub
+	// COMMAND notification and is applied by ProcessPubSubPush.
+	LockAndroidHost(ctx context.Context, hostID uint) error
+
+	// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD command with newPassword="". The work-profile (BYO)
+	// or device (COBO) passcode is cleared, not regenerated. Persists the row in mdm_android_commands but does NOT touch
+	// host_mdm_actions (clear passcode is a one-shot action with no UI lock/wipe state). Returns the Fleet-generated
+	// command_uuid so callers can correlate the API response with the persisted row via GetMDMAndroidCommandByUUID.
+	ClearAndroidPasscode(ctx context.Context, hostID uint) (commandUUID string, err error)
+
+	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the service layer reject BYO before reaching
+	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
+	WipeAndroidHost(ctx context.Context, hostID uint) error
+
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
+	RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 	// Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 	// not additive/PATCH semantics.
@@ -40,10 +56,13 @@ type Service interface {
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
 
-	// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+	// VerifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
 	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
 	VerifyExistingEnterpriseIfAny(ctx context.Context) error
+
+	// CreateAndroidWebApp creates a new web app for the given enterprise.
+	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
 }
 
 // /////////////////////////////////////////////

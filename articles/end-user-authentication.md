@@ -6,25 +6,25 @@ Fleet MDM server simplifies the macOS setup experience. With Fleet, organization
 
 ## Prerequisites
 
-To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business Manager (ABM)](https://business.apple.com/) linked to our Fleet MDM server.
+To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business (AB)](https://business.apple.com/) linked to our Fleet MDM server.
 
-### What is Apple Business Manager?
+### What is Apple Business?
 
-Apple Business Manager (ABM) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
+Apple Business (AB) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
 
 ![Mac mini in ABM](../website/assets/images/articles/end-user-authentication-mac-in-abm-1354x920@2x.png "Mac mini in ABM")
 
 ### Apple's ADE vs DEP
 
-Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business Manager, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
+Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
 
 ## Setting up end-user authentication
 
 The first step is to enable SAML (Security Assertion Markup Language) SSO for your IdP (Identity Provider). Follow the instructions from the [Single sign-on guide](https://fleetdm.com/docs/deploy/single-sign-on-sso). Use the URL ending with `/mdm/sso/callback.` Make sure to assign users to your SAML integration.
 
-You can [require users to authenticate with your IdP before using their Mac](https://fleetdm.com/guides/setup-experience#end-user-authentication). Note that setting up end-user authentication is done globally. However, enabling end-user authentication is done separately for each team. You may test end-user authentication in a separate team before rolling it out to the rest of your organization.
+You can [require users to authenticate with your IdP before using their Mac](https://fleetdm.com/guides/setup-experience#end-user-authentication). Note that setting up end-user authentication is done globally. However, enabling end-user authentication is done separately for each fleet. You may test end-user authentication in a separate fleet before rolling it out to the rest of your organization.
 
-With end-user authentication enabled for your team, Fleet sends the updated enrollment profile to Apple. This sync happens once a minute and can be adjusted with the [mdm.apple_dep_sync_periodicity](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-dep-sync-periodicity) server configuration setting. The relevant attribute of the [Apple enrollment profile](https://developer.apple.com/documentation/devicemanagement/profile) is `configuration_web_url`. Fleet sets it to `{server_url}/mdm/sso`.
+With end-user authentication enabled for your fleet, Fleet sends the updated enrollment profile to Apple. This sync happens once a minute and can be adjusted with the [mdm.apple_dep_sync_periodicity](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-dep-sync-periodicity) server configuration setting. The relevant attribute of the [Apple enrollment profile](https://developer.apple.com/documentation/devicemanagement/profile) is `configuration_web_url`. Fleet sets it to `{server_url}/mdm/sso`.
 
 ## macOS setup experience
 

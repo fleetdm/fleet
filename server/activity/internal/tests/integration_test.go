@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +22,7 @@ func TestIntegration(t *testing.T) {
 		{"ListActivitiesCursorPagination", testListActivitiesCursorPagination},
 		{"ListActivitiesFilters", testListActivitiesFilters},
 		{"ListActivitiesUserEnrichment", testListActivitiesUserEnrichment},
+		{"ListHostPastActivities", testListHostPastActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -36,9 +36,9 @@ func testListActivities(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert activities
-	s.InsertActivity(t, ptr.Uint(userID), "applied_spec_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "deleted_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "edited_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "edited_pack", map[string]any{})
 
 	result, statusCode := s.getActivities(t, "per_page=100")
 
@@ -57,7 +57,7 @@ func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
 
 	// Insert 5 activities
 	for i := range 5 {
-		s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
+		s.InsertActivity(t, &userID, "test_activity", map[string]any{"index": i})
 	}
 
 	// First page
@@ -83,9 +83,9 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert 3 activities
-	s.InsertActivity(t, ptr.Uint(userID), "applied_spec_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "deleted_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "edited_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "edited_pack", map[string]any{})
 
 	// Test cursor-based pagination with after=0
 	// Meta should be nil for cursor-based pagination (doesn't return metadata)
@@ -116,10 +116,10 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Insert activities with different types, times, and users
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_a", map[string]any{}, now.Add(-48*time.Hour))
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_a", map[string]any{}, now.Add(-24*time.Hour))
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_b", map[string]any{}, now)
-	s.InsertActivityWithTime(t, ptr.Uint(janeUserID), "type_a", map[string]any{}, now) // Jane's activity
+	s.InsertActivityWithTime(t, &johnUserID, "type_a", map[string]any{}, now.Add(-48*time.Hour))
+	s.InsertActivityWithTime(t, &johnUserID, "type_a", map[string]any{}, now.Add(-24*time.Hour))
+	s.InsertActivityWithTime(t, &johnUserID, "type_b", map[string]any{}, now)
+	s.InsertActivityWithTime(t, &janeUserID, "type_a", map[string]any{}, now) // Jane's activity
 
 	// Filter by type
 	result, _ := s.getActivities(t, "per_page=100&activity_type=type_a")
@@ -151,7 +151,7 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "John Doe", "john@example.com")
 
-	s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{})
+	s.InsertActivity(t, &userID, "test_activity", map[string]any{})
 
 	result, _ := s.getActivities(t, "per_page=100")
 	require.Len(t, result.Activities, 1)
@@ -164,4 +164,72 @@ func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
 	assert.Equal(t, "John Doe", *a.ActorFullName)
 	assert.NotNil(t, a.ActorEmail)
 	assert.Equal(t, "john@example.com", *a.ActorEmail)
+}
+
+func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
+	userID := s.insertUser(t, "admin", "admin@example.com")
+
+	// Create two hosts
+	hostA := s.insertHost(t, "host-a.example.com", nil)
+	hostB := s.insertHost(t, "host-b.example.com", nil)
+
+	// Create activities linked to different hosts
+	actA := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-a"})
+	actB := s.InsertActivity(t, &userID, "installed_software", map[string]any{"host": "host-a"})
+	actC := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-b"})
+
+	// Link activities to hosts
+	s.InsertHostActivity(t, hostA, actA)
+	s.InsertHostActivity(t, hostA, actB)
+	s.InsertHostActivity(t, hostB, actC)
+
+	t.Run("returns activities for specific host", func(t *testing.T) {
+		result, statusCode := s.getHostPastActivities(t, hostA, "per_page=100")
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Len(t, result.Activities, 2)
+		assert.NotNil(t, result.Meta)
+
+		// Verify order (newest first by default)
+		assert.Equal(t, "installed_software", result.Activities[0].Type)
+		assert.Equal(t, "ran_script", result.Activities[1].Type)
+
+		// Host B should only have its own activity
+		result, statusCode = s.getHostPastActivities(t, hostB, "per_page=100")
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Len(t, result.Activities, 1)
+		assert.Equal(t, "ran_script", result.Activities[0].Type)
+	})
+
+	t.Run("returns 404 for non-existent host", func(t *testing.T) {
+		_, statusCode := s.getHostPastActivities(t, 99999, "per_page=100")
+		assert.Equal(t, http.StatusNotFound, statusCode)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		host := s.insertHost(t, "pagination-host.example.com", nil)
+
+		// Insert 5 activities for the host
+		for i := range 5 {
+			actID := s.InsertActivity(t, &userID, "test_activity", map[string]any{"index": i})
+			s.InsertHostActivity(t, host, actID)
+		}
+
+		// First page
+		result, _ := s.getHostPastActivities(t, host, "per_page=2")
+		assert.Len(t, result.Activities, 2)
+		assert.True(t, result.Meta.HasNextResults)
+		assert.False(t, result.Meta.HasPreviousResults)
+
+		// Second page
+		result, _ = s.getHostPastActivities(t, host, "per_page=2&page=1")
+		assert.Len(t, result.Activities, 2)
+		assert.True(t, result.Meta.HasNextResults)
+		assert.True(t, result.Meta.HasPreviousResults)
+
+		// Last page
+		result, _ = s.getHostPastActivities(t, host, "per_page=2&page=2")
+		assert.Len(t, result.Activities, 1)
+		assert.False(t, result.Meta.HasNextResults)
+		assert.True(t, result.Meta.HasPreviousResults)
+	})
 }

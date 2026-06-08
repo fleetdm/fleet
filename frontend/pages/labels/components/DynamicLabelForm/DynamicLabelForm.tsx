@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 
 import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
@@ -91,9 +91,8 @@ const DynamicLabelForm = ({
     );
   };
 
-  const onLoad = (editor: IAceEditor) => {
+  const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
@@ -124,7 +123,7 @@ const DynamicLabelForm = ({
         onCancel={onCancel}
         immutableFields={
           teamName
-            ? ["teams", "queries", "platforms"]
+            ? ["fleets", "queries", "platforms"]
             : ["queries", "platforms"]
         }
         additionalFields={

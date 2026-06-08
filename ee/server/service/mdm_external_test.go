@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	ctx := license.NewContext(context.Background(), lic)
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	fleetConfig := config.FleetConfig{
 		MDM: config.MDMConfig{
 			AppleSCEPCertBytes: eeservice.TestCert,
@@ -100,10 +99,15 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
 	}
+	// Using a noop activity service since this test does not currently verify activity creation.
+	freeSvc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: mock.NoopNewActivityFunc,
+	})
 	svc, err := eeservice.NewService(
 		freeSvc,
 		ds,
@@ -187,9 +191,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			for _, team := range teamStore {
 				if team.Name == name {
@@ -197,6 +198,17 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 				}
 			}
 			return nil, ctxerr.Wrap(ctx, &eeservice.NotFoundError{})
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			for _, team := range teamStore {
+				if team.ID == excludeID {
+					continue
+				}
+				if strings.EqualFold(team.Name, name) {
+					return team, nil
+				}
+			}
+			return nil, nil
 		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamStore[id]
@@ -235,7 +247,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
@@ -243,9 +255,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+		apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 		require.NoError(t, err)
-		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+		certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 			_ sqlx.QueryerContext,
@@ -390,7 +402,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			asst := setupAsstByTeam[tmID]
 			if asst == nil {
-				return nil, eeservice.NotFoundError{}
+				return nil, &eeservice.NotFoundError{}
 			}
 			return asst, nil
 		}
@@ -401,6 +413,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.EqualValues(t, lastTeamID, *asst.TeamID)
 			setupAsstByTeam[*asst.TeamID] = asst
 			return asst, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 
 		// new team ("one - three") is created with bootstrap package and end user auth based on app config

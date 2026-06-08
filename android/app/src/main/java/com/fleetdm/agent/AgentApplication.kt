@@ -45,6 +45,18 @@ class AgentApplication : Application() {
         super.onCreate()
         Log.i(TAG, "Fleet agent process started")
 
+        FleetLog.initialize(this)
+
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            FleetLog.e("fleet-crash", "Uncaught exception on thread ${thread.name}", throwable)
+            if (defaultHandler != null) {
+                defaultHandler.uncaughtException(thread, throwable)
+            } else {
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
+        }
+
         // Initialize dependencies
         ApiClient.initialize(this)
         certificateOrchestrator = CertificateOrchestrator()
@@ -86,7 +98,7 @@ class AgentApplication : Application() {
                     Log.d(TAG, "MDM enrollment credentials not available")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error refreshing enrollment credentials", e)
+                FleetLog.e(TAG, "Error refreshing enrollment credentials", e)
             }
         }
     }

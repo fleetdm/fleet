@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
@@ -62,7 +61,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
     if (!smtpSenderAddress) {
       errors.sender_address = "SMTP sender address must be present";
     } else if (!validEmail(smtpSenderAddress)) {
-      errors.sender_address = `${smtpSenderAddress} is not a valid email`;
+      errors.sender_address = "SMTP sender address is not a valid email";
     }
 
     if (!smtpServer) {
@@ -87,7 +86,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
   } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
     // validations for valid submissions even when smtp not enabled, i.e., updating what will be
     // used once it IS enabled
-    errors.sender_address = `${smtpSenderAddress} is not a valid email`;
+    errors.sender_address = "SMTP sender address is not a valid email";
   }
 
   return errors;
@@ -196,6 +195,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.user_name}
           blockAutoComplete
+          ignore1password={false}
         />
         <InputField
           label="SMTP password"
@@ -207,6 +207,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.password}
           blockAutoComplete
+          ignore1password={false}
         />
         <Dropdown
           label="Auth method"
@@ -298,6 +299,13 @@ const Smtp = ({
             name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
             parseTarget
+            labelTooltipContent={
+              <>
+                To disable this setting, STARTTLS must first be disabled in{" "}
+                <strong>Organization settings</strong> &gt;{" "}
+                <strong>Advanced options</strong>.
+              </>
+            }
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>
@@ -327,7 +335,6 @@ const Smtp = ({
           {renderSmtpSection()}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent={

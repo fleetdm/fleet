@@ -9,9 +9,13 @@ import (
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
 	"microsoft-word/darwin":         {MicrosoftVersionFromReleaseNotes},
 	"microsoft-excel/darwin":        {MicrosoftVersionFromReleaseNotes},
+	"microsoft-outlook/darwin":      {MicrosoftVersionFromReleaseNotes},
+	"microsoft-powerpoint/darwin":   {MicrosoftVersionFromReleaseNotes},
+	"microsoft-onenote/darwin":      {MicrosoftVersionFromReleaseNotes},
 	"brave-browser/darwin":          {BraveVersionTransformer},
-	"whatsapp/darwin":               {WhatsAppVersionShortener},
+	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
+	"google-drive/darwin":           {GoogleDriveVersionShortener},
 	"1password/darwin":              {OnePasswordPKGInstaller},
 	"zoom/darwin":                   {ZoomPKGInstaller},
 	"slack/darwin":                  {SlackPKGInstaller},
@@ -21,6 +25,22 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"warp/darwin":                   {WarpDirectInstaller},
+	"android-studio/darwin":         {AndroidStudioVersionShortener},
+	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},
+	"opera/darwin":                  {OperaVersionShortener},
+	"twingate/darwin":               {TwingateVersionShortener},
+	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
+	"elgato-stream-deck/darwin":     {ElgatoStreamDeckVersionShortener},
+	"filemaker-pro/darwin":          {FileMakerProVersionShortener},
+	"royal-tsx/darwin":              {RoyalTSXVersionShortener},
+	"sublime-text/darwin":           {SublimeVersionTransformer},
+	"sublime-merge/darwin":          {SublimeVersionTransformer},
+	"mysqlworkbench/darwin":         {MySQLWorkbenchVersionTransformer},
+	"lens/darwin":                   {LensVersionTransformer},
+	"grammarly-desktop/darwin":      {GrammarlyDesktopVersionShortener},
+	"anka-virtualization/darwin":    {AnkaVersionShortener},
+	"pd/darwin":                     {PdVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
@@ -57,6 +77,15 @@ func ZoomPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMA
 	// Override installer URL to use Zoom's Universal PKG installer instead of Homebrew's DMG
 	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://zoom.us/client/latest/ZoomInstallerIT.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func WhatsAppInstallerURL(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to always use the specified URL
+	app.InstallerURL = "https://web.whatsapp.com/desktop/mac_native/release/?configuration=Release&src=whatsapp_downloads_page"
 	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
 	app.SHA256 = "no_check"
 

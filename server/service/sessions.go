@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -13,15 +14,14 @@ import (
 
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,15 +115,6 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 // Login
 ////////////////////////////////////////////////////////////////////////////////
 
-type loginResponse struct {
-	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
-	Token          string               `json:"token,omitempty"`
-	Err            error                `json:"error,omitempty"`
-}
-
-func (r loginResponse) Error() error { return r.Err }
-
 type loginMfaResponse struct {
 	Message string `json:"message"`
 	Err     error  `json:"error,omitempty"`
@@ -134,7 +125,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 func (r loginMfaResponse) Error() error { return r.Err }
 
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*contract.LoginRequest)
+	req := request.(*fleet.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)
@@ -143,7 +134,7 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 			return loginMfaResponse{Message: "We sent an email to you. Please click the magic link in the email to sign in."}, nil
 		}
 
-		return loginResponse{Err: err}, nil
+		return fleet.LoginResponse{Err: err}, nil
 	}
 	// Add viewer to context to allow access to service teams for list of available teams.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{
@@ -155,10 +146,23 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 		if errors.Is(err, fleet.ErrMissingLicense) {
 			availableTeams = []*fleet.TeamSummary{}
 		} else {
-			return loginResponse{Err: err}, nil
+			return fleet.LoginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+
+	// Calculate token expiration time if session duration is configured
+	var tokenExpiresAt *time.Time
+	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
+		expiresAt := time.Now().Add(sessionDuration).UTC()
+		tokenExpiresAt = &expiresAt
+	}
+
+	return fleet.LoginResponse{
+		User:           user,
+		AvailableTeams: availableTeams,
+		Token:          session.Key,
+		TokenExpiresAt: tokenExpiresAt,
+	}, nil
 }
 
 var (
@@ -180,7 +184,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		"op", "login",
 		"email", email,
 		"public_ip", publicip.FromContext(ctx),
-	), level.Info)
+	), slog.LevelInfo)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
@@ -228,6 +232,13 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		return nil, nil, sendingMFAEmail
 	}
 
+	// Do not allow login if on Fleet Free and the user has a Premium-only role.
+	if !license.IsPremium(ctx) {
+		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+	}
+
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
@@ -246,6 +257,10 @@ func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Sessio
 	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
 }
 
+func (svc *Service) GetSessionDuration(ctx context.Context) time.Duration {
+	return svc.config.Session.Duration
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Session create (second step of MFA)
 ////////////////////////////////////////////////////////////////////////////////
@@ -258,7 +273,7 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	req := request.(*sessionCreateRequest)
 	session, user, err := svc.CompleteMFA(ctx, req.Token)
 	if err != nil {
-		return loginResponse{Err: err}, nil
+		return fleet.LoginResponse{Err: err}, nil
 	}
 	// Add viewer to context to allow access to service teams for list of available teams.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{
@@ -270,10 +285,23 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		if errors.Is(err, fleet.ErrMissingLicense) {
 			availableTeams = []*fleet.TeamSummary{}
 		} else {
-			return loginResponse{Err: err}, nil
+			return fleet.LoginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+
+	// Calculate token expiration time if session duration is configured
+	var tokenExpiresAt *time.Time
+	if sessionDuration := svc.GetSessionDuration(ctx); sessionDuration > 0 {
+		expiresAt := time.Now().Add(sessionDuration).UTC()
+		tokenExpiresAt = &expiresAt
+	}
+
+	return fleet.LoginResponse{
+		User:           user,
+		AvailableTeams: availableTeams,
+		Token:          session.Key,
+		TokenExpiresAt: tokenExpiresAt,
+	}, nil
 }
 
 func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Session, *fleet.User, error) {
@@ -305,25 +333,19 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Sessi
 // Logout
 ////////////////////////////////////////////////////////////////////////////////
 
-type logoutResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r logoutResponse) Error() error { return r.Err }
-
 func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
-		return logoutResponse{Err: err}, nil
+		return fleet.LogoutResponse{Err: err}, nil
 	}
-	return logoutResponse{}, nil
+	return fleet.LogoutResponse{}, nil
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
 	// skipauth: Any user can always log out of their own session.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(ctx, slog.LevelInfo)
 
 	return svc.DestroySession(ctx)
 }
@@ -433,7 +455,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -564,6 +586,8 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 
 type callbackSSOResponse struct {
 	content string
+	token   string
+	expires time.Duration
 	Err     error `json:"error,omitempty"`
 }
 
@@ -574,6 +598,19 @@ func (r callbackSSOResponse) Html() string { return r.content }
 
 func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
+	if r.token != "" {
+		cookie := &http.Cookie{
+			Name:     "__Host-token",
+			Value:    r.token,
+			Path:     "/",
+			Secure:   cookieSecure,
+			SameSite: http.SameSiteLaxMode,
+		}
+		if r.expires > 0 {
+			cookie.Expires = time.Now().Add(r.expires).UTC()
+		}
+		http.SetCookie(w, cookie)
+	}
 }
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
@@ -588,7 +625,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}); err != nil {
 				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
 					"msg", "failed to generate failed login activity",
-				), level.Info)
+				), slog.LevelInfo)
 			}
 
 			var ssoErr *ssoError
@@ -608,7 +645,6 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		relayStateLoadPage := ` <html>
      <script type='text/javascript'>
      var redirectURL = {{ .RedirectURL }};
-     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
      window.location = redirectURL;
      </script>
      <body>
@@ -626,6 +662,8 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			return nil, err
 		}
 		resp.content = writer.String()
+		resp.token = session.Token
+		resp.expires = svc.GetSessionDuration(ctx)
 		return resp, nil
 	}
 }
@@ -662,7 +700,7 @@ func (svc *Service) InitSSOCallback(
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -733,6 +771,14 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		err := ctxerr.New(ctx, "user not configured to use sso")
 		return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountDisabled))
 	}
+
+	// Do not allow login if on Fleet Free and the user has a Premium-only role.
+	if !license.IsPremium(ctx) {
+		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
@@ -781,7 +827,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {

@@ -128,6 +128,9 @@ const (
 	MacOfficeReleaseNotesSource
 	CustomSource
 	GovalDictionarySource
+	WinOfficeSource
+	UbuntuOSVSource
+	RHELOSVSource
 )
 
 type VulnerabilityWithMetadata struct {
@@ -150,7 +153,7 @@ type VulnListOptions struct {
 	ListOptions      ListOptions `url:"list_options"`
 	IsEE             bool
 	ValidSortColumns []string
-	TeamID           *uint `query:"team_id,optional"`
+	TeamID           *uint `query:"team_id,optional" renameto:"fleet_id"`
 	KnownExploit     bool  `query:"exploit,optional"`
 }
 

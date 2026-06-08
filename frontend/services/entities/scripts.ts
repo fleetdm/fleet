@@ -6,11 +6,6 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import {
-  createMockBatchScriptSummary,
-  createMockScriptBatchHostResults,
-} from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
@@ -33,7 +28,7 @@ export interface IScriptsResponse {
 export interface IListScriptsApiParams {
   page?: number;
   per_page?: number;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IListScriptsQueryKey extends IListScriptsApiParams {
@@ -60,13 +55,13 @@ export interface IScriptResultResponse {
 /**
  * Request params for for GET /hosts/:id/scripts
  */
-export interface IHostScriptsRequestParams {
+export interface IHostScriptsApiParams {
   host_id: number;
   page?: number;
   per_page?: number;
 }
 
-export interface IHostScriptsQueryKey extends IHostScriptsRequestParams {
+export interface IHostScriptsQueryKey extends IHostScriptsApiParams {
   scope: "host_scripts";
 }
 
@@ -86,7 +81,7 @@ export interface IHostScriptsResponse {
  *
  * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#run-script-asynchronously
  */
-export interface IScriptRunRequest {
+export interface IScriptRunFormData {
   host_id: number;
   script_id: number; // script_id is not required by the API currently, but we require it here to ensure it is always provided
   // script_contents: string; // script_contents is only supported for the CLI currently
@@ -107,24 +102,24 @@ export interface IScriptBatchSupportedFilters {
   query?: string;
   label_id?: number;
   team_id?: number;
-  status: any; // TODO - improve upstream typing
+  status?: string; // TODO: More defined typing
 }
-interface IRunScriptBatchRequestBase {
+interface IRunScriptBatchFormDataBase {
   script_id: number;
   not_before?: string; // ISO 8601 date-time string
 }
 
-interface IByFilters extends IRunScriptBatchRequestBase {
+interface IByFilters extends IRunScriptBatchFormDataBase {
   host_ids?: never;
   filters: IScriptBatchSupportedFilters;
 }
 
-interface IByHostIds extends IRunScriptBatchRequestBase {
+interface IByHostIds extends IRunScriptBatchFormDataBase {
   host_ids: number[];
   filters?: never;
 }
 /** Request body for POST /scripts/run/batch */
-export type IRunScriptBatchRequest = IByFilters | IByHostIds;
+export type IRunScriptBatchFormData = IByFilters | IByHostIds;
 
 /** 202 successful response body for POST /scripts/run/batch */
 export interface IRunScriptBatchResponse {
@@ -183,7 +178,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
 }
 
 export interface IScriptBatchSummariesParams {
-  team_id: number;
+  fleet_id: number;
   status: ScriptBatchStatus;
   page: number;
   per_page: number;
@@ -227,7 +222,7 @@ export interface IScriptBatchHostResultsResponse
 }
 
 export default {
-  getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
+  getHostScripts({ host_id, page, per_page }: IHostScriptsApiParams) {
     const { HOST_SCRIPTS } = endpoints;
     const path = `${HOST_SCRIPTS(host_id)}?${buildQueryStringFromParams({
       page,
@@ -239,7 +234,7 @@ export default {
 
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...params })}`;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams(params)}`;
 
     return sendRequest("GET", path);
   },
@@ -256,7 +251,7 @@ export default {
     formData.append("script", file);
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
     }
 
     return sendRequest("POST", SCRIPTS, formData);
@@ -291,12 +286,12 @@ export default {
     return sendRequest("GET", SCRIPT_RESULT(executionId));
   },
 
-  runScript(request: IScriptRunRequest): Promise<IScriptRunResponse> {
+  runScript(request: IScriptRunFormData): Promise<IScriptRunResponse> {
     const { SCRIPT_RUN } = endpoints;
     return sendRequest("POST", SCRIPT_RUN, request);
   },
   runScriptBatch(
-    request: IRunScriptBatchRequest
+    request: IRunScriptBatchFormData
   ): Promise<IRunScriptBatchResponse> {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
@@ -327,7 +322,7 @@ export default {
   ): Promise<IScriptBatchSummariesResponse> {
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
-    }?${buildQueryStringFromParams({ ...params })}`;
+    }?${buildQueryStringFromParams(params)}`;
     return sendRequest("GET", path);
   },
   getScriptBatchHostResults(

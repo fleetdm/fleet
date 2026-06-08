@@ -8,8 +8,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import { ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
-  INewTeamUsersBody,
-  IRemoveTeamUserBody,
+  INewTeamUsersFormData,
+  IRemoveTeamUserFormData,
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
@@ -26,6 +26,7 @@ interface ILoadTeamsParams {
  */
 export interface ILoadTeamResponse {
   team: ITeamConfig;
+  fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
@@ -54,13 +55,19 @@ export interface IUpdateTeamFormData {
       deadline: string;
     };
     windows_updates?: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number; // days
+  };
+  features: {
+    historical_data: {
+      uptime: boolean;
+      vulnerabilities: boolean;
+    };
   };
 }
 
@@ -113,9 +120,10 @@ export default {
       integrations,
       mdm,
       host_expiry_settings,
+      features,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
-  ): Promise<ITeamConfig> => {
+  ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }
@@ -155,6 +163,9 @@ export default {
     if (host_expiry_settings) {
       requestBody.host_expiry_settings = host_expiry_settings;
     }
+    if (features) {
+      requestBody.features = features;
+    }
 
     return sendRequest("PATCH", path, requestBody);
   },
@@ -168,7 +179,7 @@ export default {
     return sendRequest("PATCH", path, data);
   },
 
-  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
+  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersFormData) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
@@ -183,7 +194,7 @@ export default {
   },
   removeUsers: (
     teamId: number | undefined,
-    removeUsers: IRemoveTeamUserBody
+    removeUsers: IRemoveTeamUserFormData
   ) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
@@ -210,9 +221,11 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    // The API only expects an array of objects with a "secret" property.
+    const payload = secrets.map((s) => pick(s, "secret"));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets });
+    return sendRequest("PATCH", path, { secrets: payload });
   },
 };

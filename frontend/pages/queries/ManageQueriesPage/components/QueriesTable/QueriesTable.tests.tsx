@@ -143,7 +143,7 @@ const renderAsPremiumGlobalAdmin = createCustomRenderer({
   },
 });
 describe("QueriesTable", () => {
-  it("Renders the page-wide empty state when no queries are present (free tier)", () => {
+  it("Renders the page-wide empty state when no reports are present (free tier)", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -170,15 +170,13 @@ describe("QueriesTable", () => {
 
     testData.forEach((tableProps) => {
       render(<QueriesTable {...tableProps} />);
-      expect(
-        screen.getByText("You don't have any queries")
-      ).toBeInTheDocument();
+      expect(screen.getByText("No reports yet")).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
   });
 
-  it("Renders the page-wide empty state when no queries are present (all teams)", () => {
+  it("Renders the page-wide empty state when no reports are present (all teams)", () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -198,14 +196,14 @@ describe("QueriesTable", () => {
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
       expect(
-        screen.getByText("You don't have any queries that apply to all teams")
+        screen.getByText("No reports apply to all fleets")
       ).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
   });
 
-  it("Renders the page-wide empty state when no queries are present (specific team)", () => {
+  it("Renders the page-wide empty state when no reports are present (specific team)", () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -224,12 +222,78 @@ describe("QueriesTable", () => {
 
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
-      expect(
-        screen.getByText("You don't have any queries that apply to this team")
-      ).toBeInTheDocument();
+      expect(screen.getByText("No reports for this fleet")).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
+  });
+
+  it("Renders generic empty state header in Primo mode (all fleets)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={undefined}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports apply to all fleets")
+    ).not.toBeInTheDocument();
+  });
+
+  it("Renders generic empty state header in Primo mode (specific team)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports for this fleet")
+    ).not.toBeInTheDocument();
   });
 
   it("Renders inherited global queries and team queries when viewing a team", async () => {
@@ -263,7 +327,7 @@ describe("QueriesTable", () => {
     });
   });
 
-  it("renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
+  it("renders the 'no-matching' empty state when a search string is entered that matches no reports", async () => {
     const testData: IQueriesTableProps = {
       queries: [],
       totalQueriesCount: 0,
@@ -281,7 +345,7 @@ describe("QueriesTable", () => {
     };
     // will have no context to get current user from
     renderAsPremiumGlobalAdmin(<QueriesTable {...testData} />);
-    expect(screen.getByText("No matching queries")).toBeInTheDocument();
+    expect(screen.getByText("No matching reports")).toBeInTheDocument();
   });
 
   it("Renders an observer can run badge and tooltip for a observer can run query", async () => {
@@ -322,7 +386,7 @@ describe("QueriesTable", () => {
       });
 
       expect(
-        screen.getByText("Observers can run this query.")
+        screen.getByText("Observers can run this report.")
       ).toBeInTheDocument();
     });
   });
@@ -362,7 +426,7 @@ describe("QueriesTable", () => {
       });
 
       expect(
-        screen.getByText("This query runs on all hosts.")
+        screen.getByText("This report runs on all hosts.")
       ).toBeInTheDocument();
     });
   });

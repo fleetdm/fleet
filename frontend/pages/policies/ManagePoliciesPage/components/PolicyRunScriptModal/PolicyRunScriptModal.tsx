@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import { useQuery } from "react-query";
+import { SingleValue } from "react-select-5";
 import { omit } from "lodash";
 
 import paths from "router/paths";
@@ -13,11 +14,13 @@ import scriptsAPI, {
 
 import { IScript } from "interfaces/script";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -34,6 +37,24 @@ interface IScriptDropdownField {
 }
 
 export type IPolicyRunScriptFormData = IFormPolicy[];
+
+export const getTrulyDirtyItems = (dirtyItems: IFormPolicy[]) =>
+  dirtyItems.filter((item) => {
+    // Original state from policy row as loaded into the list
+    const originalScriptId = item.run_script?.id ?? null;
+    const originallyEnabled = originalScriptId !== null;
+
+    // Current state from UI form
+    const nowEnabled = !!item.runScriptEnabled;
+    const nowScriptId = item.scriptIdToRun ?? null;
+
+    const turnedOn = !originallyEnabled && nowEnabled;
+    const turnedOff = originallyEnabled && !nowEnabled;
+    const scriptChanged =
+      originallyEnabled && nowEnabled && nowScriptId !== originalScriptId;
+
+    return turnedOn || turnedOff || scriptChanged;
+  });
 
 interface IPolicyRunScriptModal {
   onExit: () => void;
@@ -58,7 +79,7 @@ const PolicyRunScriptModal = ({
     [
       {
         scope: "scripts",
-        team_id: teamId,
+        fleet_id: teamId,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -70,9 +91,10 @@ const PolicyRunScriptModal = ({
   );
 
   const onUpdate = useCallback(() => {
-    if (paginatedListRef.current) {
-      onSubmit(paginatedListRef.current.getDirtyItems());
-    }
+    if (!paginatedListRef.current) return;
+
+    const dirtyItems = paginatedListRef.current.getDirtyItems();
+    onSubmit(getTrulyDirtyItems(dirtyItems));
   }, [onSubmit]);
 
   const onSelectPolicyScript = (
@@ -94,11 +116,6 @@ const PolicyRunScriptModal = ({
     };
   };
 
-  const availableScriptOptions = availableScripts?.map((script) => ({
-    label: script.name,
-    value: script.id,
-  }));
-
   const renderContent = () => {
     if (isAvailableScriptsError) {
       return <DataError />;
@@ -108,19 +125,22 @@ const PolicyRunScriptModal = ({
     }
     if (!availableScripts?.length) {
       return (
-        <div className={`${baseClass}__no-scripts`}>
-          <b>No scripts available for install</b>
-          <div>
-            Go to{" "}
-            <CustomLink
-              url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
-                team_id: teamId,
-              })}
-              text="Controls &gt; Scripts"
-            />{" "}
-            to add scripts to this team.
-          </div>
-        </div>
+        <EmptyState
+          header="No scripts available for install"
+          width="small"
+          info={
+            <div>
+              Go to{" "}
+              <CustomLink
+                url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
+                  fleet_id: teamId,
+                })}
+                text="Controls &gt; Scripts"
+              />{" "}
+              to add scripts to this fleet.
+            </div>
+          }
+        />
       );
     }
 
@@ -156,29 +176,49 @@ const PolicyRunScriptModal = ({
               renderItemRow={(item, onChange) => {
                 const formPolicy = {
                   ...item,
-                  runScriptEnabled: !!item.scriptIdToRun,
+                  runScriptEnabled: !!item.runScriptEnabled,
                 };
-                return item.runScriptEnabled ? (
+
+                const availableScriptOptions =
+                  availableScripts?.map((script) => ({
+                    label: script.name,
+                    value: String(script.id), // DropdownWrapper expects string value
+                  })) ?? [];
+
+                const handleScriptChange = (
+                  newValue: SingleValue<CustomOptionType>
+                ) => {
+                  const numericId = newValue?.value
+                    ? Number(newValue.value)
+                    : null;
+
+                  onChange(
+                    onSelectPolicyScript(item, {
+                      name: formPolicy.name,
+                      value: numericId ?? 0,
+                    })
+                  );
+                };
+
+                return formPolicy.runScriptEnabled ? (
                   <span
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                     }}
+                    className={`${baseClass}__dropdown-wrapper`}
                   >
-                    <Dropdown
-                      options={availableScriptOptions} // Options filtered for policy's platform(s)
-                      value={formPolicy.scriptIdToRun}
-                      onChange={({ value }: IScriptDropdownField) =>
-                        onChange(
-                          onSelectPolicyScript(item, {
-                            name: formPolicy.name,
-                            value,
-                          })
-                        )
+                    <DropdownWrapper
+                      options={availableScriptOptions}
+                      value={
+                        formPolicy.scriptIdToRun != null
+                          ? String(formPolicy.scriptIdToRun)
+                          : ""
                       }
+                      onChange={handleScriptChange}
                       placeholder="Select script"
                       className={`${baseClass}__script-dropdown`}
                       name={formPolicy.name}
-                      parseTarget
+                      isSearchable
                     />
                   </span>
                 ) : null;

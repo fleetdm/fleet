@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,8 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{}
@@ -33,7 +32,7 @@ var officeODTApps = map[string]bool{
 	"Microsoft Word":       true,
 }
 
-func postApplicationInstall(_ kitlog.Logger, _ string) error {
+func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
 }
 
@@ -52,7 +51,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -63,20 +62,30 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
+	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version, publisher
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
 	`
+	// The catalog name can differ from the registry DisplayName (e.g. catalog
+	// "Amazon Corretto 25" vs DisplayName "Amazon Corretto (x64)"). The
+	// unique_identifier is the value that should match programs.name, so search
+	// on it as well.
+	if uniqueIdentifier != "" && uniqueIdentifier != appName {
+		if err := validateSqlInput(uniqueIdentifier); err != nil {
+			return false, fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
+		}
+		query += `	OR LOWER(name) LIKE LOWER('%` + uniqueIdentifier + `%')`
+	}
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("executing osquery command: %w", err)
 	}
 
@@ -84,30 +93,35 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		Name            string `json:"name"`
 		InstallLocation string `json:"install_location"`
 		Version         string `json:"version"`
+		Publisher       string `json:"publisher"`
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
+		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
 	if len(results) > 0 {
 		for _, result := range results {
+			// Vendor is populated so name/version sanitizers that key off the
+			// publisher (e.g. JetBrains build-number normalization in
+			// MutateSoftwareOnIngestion) behave as they do in production.
 			software := &fleet.Software{
 				Name:    result.Name,
 				Version: result.Version,
 				Source:  "programs",
+				Vendor:  result.Publisher,
 			}
-			queries.MutateSoftwareOnIngestion(software, logger)
+			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
 			result.Name = software.Name
 
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
 			if appName == "Sublime Text" && result.Version == "" {
-				level.Info(logger).Log("msg", "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
+				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
 				return true, nil
 			}
 
@@ -116,7 +130,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 			// doesn't match the installed Office/Microsoft 365 app version, so we only verify
 			// that the app exists rather than checking the version.
 			if officeODTApps[appName] {
-				level.Info(logger).Log("msg", fmt.Sprintf("%s detected - skipping version check (ODT version doesn't match installed Office app version)", appName))
+				logger.InfoContext(ctx, fmt.Sprintf("%s detected - skipping version check (ODT version doesn't match installed Office app version)", appName))
 				return true, nil
 			}
 
@@ -132,6 +146,14 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
 			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
 			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
+
+			// Google Chrome auto-updates immediately after installation, so the
+			// installed version may be newer than the installer version. If
+			// version didn't match above, fall back to existence-only check.
+			if appName == "Google Chrome" {
+				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
 		}
@@ -170,7 +192,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 
 		if provisioned.DisplayName != "" || provisioned.PackageName != "" {
 			provisionedVersion := provisioned.Version
-			level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
+			logger.InfoContext(ctx, fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
 
 			// Normalize both versions for comparison
 			normalizedProvisioned := normalizeVersion(provisionedVersion)
@@ -188,6 +210,74 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 		}
 	}
 
+	// OpenAI Codex CLI is a portable zip: it does not register in programs. Detect the binary via osquery file + PE version.
+	if uniqueIdentifier == "Codex CLI" {
+		ok, err := codexCLIExistsFromFile(execTimeout, logger, appVersion, appPath)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func codexCLIExistsFromFile(ctx context.Context, logger *slog.Logger, appVersion, appPath string) (bool, error) {
+	candidates := make([]string, 0, 3)
+	if appPath != "" {
+		candidates = append(candidates, filepath.Join(appPath, "codex.exe"))
+	}
+	if pf := os.Getenv("ProgramFiles"); pf != "" {
+		candidates = append(candidates, filepath.Join(pf, "Codex CLI", "codex.exe"))
+	}
+	if la := os.Getenv("LOCALAPPDATA"); la != "" {
+		candidates = append(candidates, filepath.Join(la, "Programs", "Codex CLI", "codex.exe"))
+	}
+
+	seen := make(map[string]struct{})
+	for _, exePath := range candidates {
+		if _, dup := seen[exePath]; dup {
+			continue
+		}
+		seen[exePath] = struct{}{}
+
+		if err := validateSqlInput(exePath); err != nil {
+			continue
+		}
+
+		escaped := strings.ReplaceAll(exePath, "'", "''")
+		query := `SELECT file_version FROM file WHERE path = '` + escaped + `'`
+		cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
+			return false, fmt.Errorf("executing osquery file lookup: %w", err)
+		}
+
+		type fileResult struct {
+			FileVersion string `json:"file_version"`
+		}
+		var results []fileResult
+		if err := json.Unmarshal(output, &results); err != nil {
+			logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
+			return false, fmt.Errorf("parsing osquery JSON output: %w", err)
+		}
+		if len(results) == 0 || results[0].FileVersion == "" {
+			continue
+		}
+
+		fileVer := results[0].FileVersion
+		logger.InfoContext(ctx, fmt.Sprintf("Found Codex CLI binary at %s, file version: %s", exePath, fileVer))
+
+		if fileVer == appVersion ||
+			strings.HasPrefix(fileVer, appVersion+".") ||
+			strings.HasPrefix(appVersion, fileVer+".") {
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
@@ -198,7 +288,13 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Some installers (e.g. Visual Studio bootstrappers like vs_SSMS.exe)
+	// download a large payload at install time and legitimately take longer
+	// than a few minutes. Production allows up to 1 hour
+	// (pkgscripts.MaxHostSoftwareInstallExecutionTime); 10 minutes is a
+	// reasonable validator cap that covers large-payload installers without
+	// letting a hung script run indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	// Use custom execution with non-interactive flags for Windows

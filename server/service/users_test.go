@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -52,6 +53,14 @@ func TestUserAuth(t *testing.T) {
 		return nil, errors.New("AA")
 	}
 
+	ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+		return nil
+	}
+
+	ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+		return nil
+	}
+
 	userTeamMaintainerID := uint(999)
 	userGlobalMaintainerID := uint(888)
 	var self *fleet.User // to be set by tests
@@ -90,13 +99,11 @@ func TestUserAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+		return nil // Allow delete (multiple admins exist)
 	}
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil // Return 2 to allow operations that check for last admin
+	ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, user *fleet.User) error {
+		return nil // Allow save (multiple admins exist)
 	}
 
 	testCases := []struct {
@@ -454,10 +461,10 @@ func TestModifyUserEmail(t *testing.T) {
 		return user, nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
@@ -571,7 +578,7 @@ func TestMFAHandling(t *testing.T) {
 
 	payload.SSOEnabled = nil
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	_, _, err = svc.CreateUser(ctx, payload)
 	require.ErrorContains(t, err, "mail")
@@ -580,9 +587,6 @@ func TestMFAHandling(t *testing.T) {
 	ms.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		user.ID = 4
 		return user, nil
-	}
-	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	user, _, err := svc.CreateUser(ctx, payload)
 	require.NoError(t, err)
@@ -690,10 +694,10 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		return nil
 	}
 	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, notFoundErr{}
+		return nil, &notFoundErr{}
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
@@ -726,7 +730,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 }
 
 func TestUsersWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -739,7 +743,7 @@ func TestUsersWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -882,7 +886,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 }
 
 func TestPerformRequiredPasswordReset(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -933,7 +937,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 }
 
 func TestResetPassword(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
@@ -998,7 +1002,7 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 }
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1507,8 +1511,8 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
@@ -1525,22 +1529,15 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return adminUser, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil
-		}
-		ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.DeleteUser(ctx, adminUser.ID)
 		require.NoError(t, err)
-		assert.True(t, ds.DeleteUserFuncInvoked)
+		assert.True(t, ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("prevents deleting last global admin even if api-only user", func(t *testing.T) {
@@ -1555,8 +1552,8 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 			return apiOnlyAdmin, nil
 		}
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.DeleteUser(ctx, apiOnlyAdmin.ID)
@@ -1584,14 +1581,10 @@ func TestDeleteUserLastAdminProtection(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.DeleteUser(ctx, maintainerUser.ID)
 		require.NoError(t, err)
 		assert.True(t, ds.DeleteUserFuncInvoked)
-		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+		assert.False(t, ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 }
 
@@ -1610,8 +1603,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
@@ -1627,8 +1620,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 			return []*fleet.TeamSummary{{ID: 1}}, nil
@@ -1648,16 +1641,9 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
 		ds, svc, ctx := setupAdminTestContext(t, adminUser)
 		setupModifyUserMocks(ds, adminUser)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil
-		}
-		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleMaintainer),
 		})
@@ -1671,16 +1657,12 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		_, err := svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 		})
 		require.NoError(t, err)
-		// CountGlobalAdmins should NOT have been called since role isn't changing
-		assert.False(t, ds.CountGlobalAdminsFuncInvoked)
+		// SaveUserIfNotLastAdmin should NOT have been called since role isn't changing
+		assert.False(t, ds.SaveUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("prevents demoting last global admin even if api-only user", func(t *testing.T) {
@@ -1693,8 +1675,8 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 			apiOnly: true,
 		})
 		setupModifyUserMocks(ds, apiOnlyAdmin)
-		ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		ds.SaveUserIfNotLastAdminFunc = func(ctx context.Context, u *fleet.User) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		_, err := svc.ModifyUser(ctx, apiOnlyAdmin.ID, fleet.UserPayload{
@@ -1704,5 +1686,212 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		var argErr *fleet.InvalidArgumentError
 		require.ErrorAs(t, err, &argErr)
 		assert.Contains(t, err.Error(), "cannot demote the last global admin")
+	})
+}
+
+func TestModifyUserAPIOnlyStatusProtection(t *testing.T) {
+	setupModifyUserMocks := func(ds *mock.Store, targetUser *fleet.User) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return targetUser, nil
+		}
+	}
+
+	t.Run("cannot promote non-API user to API-only via api_only:true", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		regularUser := newAdminTestUser(&adminTestUserOpts{id: 2, email: "regular@example.com", apiOnly: false})
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, regularUser)
+
+		_, err := svc.ModifyUser(ctx, regularUser.ID, fleet.UserPayload{APIOnly: new(true)})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+	})
+
+	t.Run("cannot demote API-only user to non-API via api_only:false", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		apiUser := newAdminTestUser(&adminTestUserOpts{id: 2, email: "api@example.com", apiOnly: true})
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, apiUser)
+
+		_, err := svc.ModifyUser(ctx, apiUser.ID, fleet.UserPayload{APIOnly: new(false)})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+	})
+}
+
+func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
+	t.Run("ModifyUser with new password clears reset tokens and sessions", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		err := adminUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		_, err = svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			Password:    ptr.String(test.GoodPassword),
+			NewPassword: ptr.String(test.GoodPassword2),
+		})
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, adminUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, adminUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("ChangePassword clears reset tokens and sessions", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		err := adminUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		err = svc.ChangePassword(ctx, test.GoodPassword, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, adminUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, adminUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("ResetPassword clears reset tokens and sessions", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		targetUser := &fleet.User{
+			ID:    42,
+			Email: "user@example.com",
+		}
+		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		resetToken := "valid-reset-token" // #nosec G101 - test data
+		ds.FindPasswordResetByTokenFunc = func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+			if token == resetToken {
+				return &fleet.PasswordResetRequest{
+					UserID: targetUser.ID,
+					Token:  token,
+				}, nil
+			}
+			return nil, errors.New("token not found")
+		}
+
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			if id == targetUser.ID {
+				return targetUser, nil
+			}
+			return nil, errors.New("user not found")
+		}
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		err = svc.ResetPassword(ctx, resetToken, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		targetUser := &fleet.User{
+			ID:                       42,
+			Email:                    "user@example.com",
+			AdminForcedPasswordReset: true,
+		}
+		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		// CanPerformPasswordReset requires a session to be present.
+		ctx = viewer.NewContext(ctx, viewer.Viewer{
+			User:    targetUser,
+			Session: &fleet.Session{ID: 1, UserID: targetUser.ID},
+		})
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			return nil
+		}
+
+		_, err = svc.PerformRequiredPasswordReset(ctx, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
 	})
 }

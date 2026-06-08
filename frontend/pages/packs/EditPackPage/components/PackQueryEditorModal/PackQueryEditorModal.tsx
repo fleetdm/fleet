@@ -6,7 +6,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";

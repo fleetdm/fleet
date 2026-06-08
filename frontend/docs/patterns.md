@@ -94,22 +94,39 @@ const functionWithTableName = (tableName: string)=> {
 
 ```typescript
 // API interfaces should live in the relevant entities file.
-// Their names should be named to clarify what they are used for when interacting
-// with the API
+// Their names should clarify what they are used for when interacting with the
+// API. In service functions, prefer `formData` as the variable name for request
+// bodies to stay consistent with the *FormData interface naming convention.
 
 // should be defined in service/entities/hosts.ts
-interface IHostDetailsReponse {
+interface IHostDetailsResponse {
   ...
 }
 interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/teams.ts
-interface ICreateTeamPostBody {
+// should be defined in service/entities/users.ts
+interface IUpdateUserFormData {
   ...
 }
 
+// should be defined in service/entities/software.ts
+interface IGetSoftwareApiParams {
+  ...
+}
+interface ISoftwareCountResponse {
+  ...
+}
+
+// Use *FormData for form-driven bodies, *ApiParams/*QueryParams for request
+// params, *Response for responses, *QueryKey when typing a React Query key.
+// Avoid *Body, *PostBody, *Payload, *Request for API request bodies — use
+// *FormData instead, even for programmatic request bodies (e.g.
+// IDeleteQueriesFormData). One consistent suffix is easier to follow than
+// asking each dev to judge "is this form-driven enough?"
+// *PreviewPayload is fine for outgoing webhook shapes (matches the
+// "Preview payload" UI terminology).
 ```
 
 ## Utilities
@@ -128,6 +145,37 @@ export default {
   replaceNewLines
 }
 ```
+
+### Display names for software titles
+
+Software titles have two fields that look like a name:
+
+- `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
+- `display_name` — an optional custom name set per fleet by an admin
+
+**Never render `name` directly in the UI.** Always route software names through
+`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
+It prefers `display_name`, normalizes known awkward titles (e.g.
+`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
+default. This applies everywhere a software title is shown: table rows, dropdown
+options, modal text, activity feed entries, automation summaries, etc.
+
+```tsx
+// good
+label: getDisplayedSoftwareName(title.name, title.display_name),
+
+// bad — misses display_name and the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.name,
+
+// also bad — misses the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.display_name || title.name,
+```
+
+The same rule applies to any object shape that carries both fields
+(`ISoftwareTitle`, `ISoftwarePackage`, `IAppStoreApp`, `IHostSoftware`,
+`IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
+expectation: "All software names displayed by UI is ran through
+getDisplayedSoftwareName."
 
 ## Components
 
@@ -215,6 +263,7 @@ React.FormEvent<HTMLFormElement>` argument and, critically:
 handler's logic.
   - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
+- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
 
 ### Data validation
 
@@ -318,9 +367,28 @@ const PageOrComponent = (props) => {
 
 ## React context
 
-[React context](https://reactjs.org/docs/context.html) is a state management store. It stores
-data that is desired and allows for retrieval of that data in whatever component is in need.
-View currently working contexts in the [context directory](../context).
+[React context](https://reactjs.org/docs/context.html) is a way to share values across the
+component tree. Use context for app-wide state or derived UI state that multiple components
+need. For server state, use React Query for fetching, caching, and synchronization; some
+server-derived values may still be exposed through context after they are fetched or
+initialized. View currently working contexts in the [context directory](../context).
+
+```typescript
+// Consuming a context — destructure what you need from useContext
+const { renderFlash } = useContext(NotificationContext);
+const { currentUser, isPremiumTier } = useContext(AppContext);
+```
+
+### Context catalog
+
+| Context | Purpose | Use this when |
+|---|---|---|
+| `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
+| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
+| `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
+| `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
+| `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
+| `TableContext` | Coordinates table row selection resets across components | You need to clear selected rows in a data table after a bulk action |
 
 ## Fleet API calls
 
@@ -396,6 +464,23 @@ const PageOrComponent = (props) => {
 };
 ```
 
+##### Query keys
+
+The `queryKey` must list every parameter that the `queryFn` passes to the API. The `QueryClient` is a singleton shared across the app, so any parameter missing from the key causes cross-entity cache bleed (for example, data fetched for team A being served to team B).
+
+Rules:
+- Always use an array, even when there are no parameters — `useQuery(["me"], ...)`, not `useQuery("me", ...)`.
+- Every argument the `queryFn` forwards to the API must also appear in the key.
+
+Example:
+
+```ts
+useQuery(
+  ["aggregateProfileStatuses", teamId], // teamId is in the key...
+  () => mdmAPI.getProfilesStatusSummary(teamId) // ...because the API call receives it
+);
+```
+
 ### Handling API errors
 
 We pull the logic for handling error message into a `getErrorMessage` handler that lives in a sibling
@@ -458,6 +543,23 @@ const PageOrComponent = ({
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
 
+### Spacing
+
+Prefer `gap` over `margin` for spacing between sibling elements when they share a flex or grid parent (otherwise `gap` has no effect). We have layout mixins in
+`frontend/styles/var/mixins.scss` for common flex column patterns:
+
+| Mixin | Gap | Use for |
+|---|---|---|
+| `vertical-page-layout` | 24px | Top-level page content |
+| `vertical-card-layout` | 24px | Settings cards, OS settings panels |
+| `vertical-form-layout` | 24px | Form field groups |
+| `vertical-modal-layout` | 24px | Modal body content |
+| `vertical-page-tab-panel-layout` | 24px | Tab panel content |
+| `vertical-data-set-layout` | 16px | Definition lists, key-value field sets |
+
+All use `flex-direction: column`; the 24px value is `$gap-page-component`. For arbitrary
+spacing without a semantic name, use `flex-column-16px-gap` or `flex-column-32px-gap`.
+
 ### Modals
 
 1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
@@ -516,9 +618,8 @@ then the [app's context](#react-context) should be used.
 
 ### Reading and updating configs
 
-If you are dealing with a page that *updates* any kind of config, you'll want to access that config
-with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
-with a page that is only *reading* config values, get them from context.
+If you are dealing with a page that *updates* any kind of config, set the local
+config with the response of your update call to make sure it has the latest.
 
 ### Rendering flash messages
 

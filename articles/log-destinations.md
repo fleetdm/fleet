@@ -1,7 +1,7 @@
 # Log destinations
 
 Log destinations can be used in Fleet to log:
-- Schedule query result logs
+- Schedule report result logs
 - Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs)
 - Status logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
 
@@ -38,7 +38,7 @@ Snowflake provides instructions on setting up the destination tables and IAM rol
 
 How to send logs to Splunk:
 
-1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare the Splunk for Firehose data.
+1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare Splunk for Firehose data.
 
 2. Follow these [AWS instructions](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk) on how to enable Firehose to forward directly to Splunk.
 

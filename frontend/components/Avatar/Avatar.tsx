@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import classnames from "classnames";
 
 import { COLORS } from "styles/var/colors";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IFleetAvatarProps {
   className?: string;
@@ -94,7 +93,7 @@ const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
         cx="16"
         cy="16"
         r="15"
-        fill="white"
+        fill="none"
         stroke={COLORS["ui-fleet-black-50"]}
         strokeWidth="2"
       />
@@ -122,10 +121,6 @@ const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
     </svg>
   );
 };
-
-interface IDefaultAvatar {
-  className?: string;
-}
 
 const DefaultAvatar = ({ className }: IAPIOnlyAvatar) => {
   return (
@@ -201,7 +196,7 @@ const Avatar = ({
 
   const avatarClasses = classnames(baseClass, className, {
     [`${baseClass}--${size?.toLowerCase()}`]: !!size,
-    "has-white-background": !!hasWhiteBackground,
+    "has-white-background": !!hasWhiteBackground && !useApiOnlyAvatar,
   });
   const { gravatar_url } = user;
 

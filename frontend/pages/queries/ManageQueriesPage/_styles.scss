@@ -36,6 +36,10 @@
     }
   }
 
+  &__manage-automations-tooltip {
+    text-align: center;
+  }
+
   &__action-button-container {
     display: flex;
     gap: $pad-small;
@@ -143,11 +147,6 @@
           font-size: $xx-small;
         }
       }
-    }
-  }
-  .reveal-button {
-    .component__tooltip-wrapper__underline {
-      position: initial;
     }
   }
 }

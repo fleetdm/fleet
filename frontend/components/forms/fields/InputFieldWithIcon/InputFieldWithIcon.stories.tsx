@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 
-// @ts-ignore
 import InputFieldWithIcon from ".";
 
 // Define metadata for the story
@@ -95,7 +94,7 @@ export const WithTooltip: Story = {
 export const WithClearButton: Story = {
   args: {
     ...Default.args,
-    clearButton: action("clearButton"),
+    clearButton: true,
     value: "example@email.com",
   },
 };

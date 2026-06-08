@@ -15,7 +15,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -81,7 +80,7 @@ const GlobalHostStatusWebhook = ({
       if (!destination_url) {
         errors.destination_url = "Destination URL must be present";
       } else if (!validUrl({ url: destination_url })) {
-        errors.destination_url = `${destination_url} is not a valid URL`;
+        errors.destination_url = "Destination URL is not a valid URL";
       }
     }
 
@@ -235,7 +234,6 @@ const GlobalHostStatusWebhook = ({
             )}
           </div>
           <GitOpsModeTooltipWrapper
-            tipOffset={-8}
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"

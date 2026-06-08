@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -18,10 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
-	nanomdm_log "github.com/micromdm/nanolib/log"
 )
 
 // lockConflictError indicates a lock command already exists for the host
@@ -34,6 +33,10 @@ func (e lockConflictError) Error() string {
 }
 
 func (e lockConflictError) IsConflict() bool {
+	return true
+}
+
+func (e lockConflictError) IsClientError() bool {
 	return true
 }
 
@@ -53,25 +56,8 @@ type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
 	db     *sqlx.DB
-	logger log.Logger
+	logger *slog.Logger
 	ds     fleet.Datastore
-}
-
-type nanoMDMLogAdapter struct {
-	logger log.Logger
-}
-
-func (l nanoMDMLogAdapter) Info(args ...interface{}) {
-	level.Info(l.logger).Log(args...)
-}
-
-func (l nanoMDMLogAdapter) Debug(args ...interface{}) {
-	level.Debug(l.logger).Log(args...)
-}
-
-func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
-	wl := log.With(l.logger, args...)
-	return nanoMDMLogAdapter{logger: wl}
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -79,7 +65,7 @@ func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
 func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 	)
 	if err != nil {
@@ -99,7 +85,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.Duration) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(
 		nanomdm_mysql.WithDB(ds.primary.DB),
-		nanomdm_mysql.WithLogger(nanoMDMLogAdapter{logger: ds.logger}),
+		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
 	)
@@ -114,23 +100,78 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	}, nil
 }
 
+type pushCertStalenessCheck struct {
+	hash      string
+	updatedAt time.Time
+}
+
+// We store staleness check in-memory since it's a short-lived 5 minute time window.
+// And it also means some containers might rotate it faster than 5 minutes depending on the time.
+var (
+	pushCertStaleness   *pushCertStalenessCheck
+	pushCertStalenessMu sync.RWMutex
+)
+
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
+// Returns the push certificate and its MD5 checksum as the stale token.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
 ) (*tls.Certificate, string, error) {
-	cert, err := assets.APNSKeyPair(ctx, s.ds)
+	cert, checksum, err := assets.APNSKeyPair(ctx, s.ds)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "loading push certificate")
 	}
-	return cert, "0", nil
+	pushCertStalenessMu.Lock()
+	defer pushCertStalenessMu.Unlock()
+	checkInMemoryHash(checksum)
+	return cert, checksum, nil
+}
+
+// checkInMemoryHash checks the incoming hash agains the in-memory hash.
+// if criteria is met, it updates the in-memory hash with the new hash and updatedAt = now.
+func checkInMemoryHash(hash string) {
+	if pushCertStaleness == nil || pushCertStaleness.hash != hash || time.Since(pushCertStaleness.updatedAt) > 5*time.Minute {
+		// We will not call this unless we are stale, OR on new topic getting a provider, which means we should be fine to update here.
+		// Update on new hash, or if it's been more than 5 minutes since last update, to avoid fetching the cert on each stale check.
+		pushCertStaleness = &pushCertStalenessCheck{
+			hash:      hash,
+			updatedAt: time.Now(),
+		}
+	}
 }
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns `false` because the underlying datastore implementation makes sure that the token is always fresh.
+// Checks the provided stale token against the in-memory hash of the current push certificate. If they differ, the cert is stale.
+// If the token is the same, it checks if the certificate was last updated more than 5 minutes ago. If so, it re-fetches the certificate and updates the hash for future checks.
 func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
+	pushCertStalenessMu.RLock()
+	staleness := pushCertStaleness
+	pushCertStalenessMu.RUnlock()
+	if staleness == nil {
+		return true, nil
+	}
+	if staleness.hash != staleToken {
+		s.logger.InfoContext(ctx, "push certificate is stale", "topic", topic, "staleToken", staleToken, "currentHash", staleness.hash, "updatedAt", staleness.updatedAt)
+		return true, nil
+	}
+
+	// If updated at is more than 5 minutes ago, re-fetch and re-calculate the has for staleness
+	if time.Since(staleness.updatedAt) > 5*time.Minute {
+		_, checksum, err := assets.APNSKeyPair(ctx, s.ds)
+		if err != nil {
+			return false, fmt.Errorf("loading push certificate for staleness check: %w", err)
+		}
+		pushCertStalenessMu.Lock()
+		defer pushCertStalenessMu.Unlock()
+		checkInMemoryHash(checksum)
+		if checksum != staleToken {
+			s.logger.InfoContext(ctx, "push certificate is stale after re-checking", "topic", topic, "staleToken", staleToken, "newHash", checksum)
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
@@ -305,6 +346,15 @@ func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName strin
 // ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.
 func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
 	return s.ds.ExpandEmbeddedSecrets(ctx, document)
+}
+
+// ExpandHostSecrets expands host-scoped secrets in the document using the enrollment ID.
+func (s *NanoMDMStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	return s.ds.ExpandHostSecrets(ctx, document, enrollmentID)
+}
+
+func (s *NanoMDMStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	return s.ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg)
 }
 
 // ClearQueue in NanoMDMStorage overrides the implementation in

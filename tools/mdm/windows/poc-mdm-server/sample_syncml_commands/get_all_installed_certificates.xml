@@ -1,8 +1,0 @@
-<Get>
- <CmdID>xxcmdidxx</CmdID>
- <Item>
- <Target>
- <LocURI>./Vendor/MSFT/CertificateStore/Root/System?list=StructData</LocURI>
- </Target>
- </Item>
-</Get>

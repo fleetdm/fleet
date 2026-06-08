@@ -23,4 +23,8 @@
       background-color: $ui-fleet-black-50;
     }
   }
+
+  &__check {
+    transform: scale(0.85);
+  }
 }

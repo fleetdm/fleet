@@ -2,20 +2,24 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
+	"github.com/go-sql-driver/mysql"
 )
 
 type NotFoundError struct {
 	ID           uint
+	FleetID      uint
 	Name         string
 	Message      string
 	ResourceType string
 }
 
 // Compile-time interface check.
-var _ platform_http.NotFoundError = &NotFoundError{}
+var _ platform_errors.NotFoundError = &NotFoundError{}
 
 func NotFound(kind string) *NotFoundError {
 	return &NotFoundError{
@@ -26,6 +30,9 @@ func NotFound(kind string) *NotFoundError {
 func (e *NotFoundError) Error() string {
 	if e.ID != 0 {
 		return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
+	}
+	if e.FleetID != 0 {
+		return fmt.Sprintf("%s for fleet %d was not found in the datastore", e.ResourceType, e.FleetID)
 	}
 	if e.Name != "" {
 		return fmt.Sprintf("%s %s was not found in the datastore", e.ResourceType, e.Name)
@@ -41,7 +48,12 @@ func (e *NotFoundError) WithID(id uint) error {
 	return e
 }
 
-func (e *NotFoundError) WithName(name string) error {
+func (e *NotFoundError) WithFleetID(fleetID uint) error {
+	e.FleetID = fleetID
+	return e
+}
+
+func (e *NotFoundError) WithName(name string) *NotFoundError {
 	e.Name = name
 	return e
 }
@@ -65,4 +77,30 @@ func (e *NotFoundError) IsClientError() bool {
 // explicitly.
 func (e *NotFoundError) Is(other error) bool {
 	return other == sql.ErrNoRows
+}
+
+// MySQL error numbers for read-only conditions. These are not included in the
+// VividCortex/mysqlerr package, so we define them here.
+const (
+	// erReadOnlyTransaction is MySQL error 1792: Cannot execute statement in a READ ONLY transaction.
+	erReadOnlyTransaction = 1792
+	// erOptionPreventsStatement is MySQL error 1290: The MySQL server is running with the --read-only option.
+	erOptionPreventsStatement = 1290
+	// erReadOnlyMode is MySQL error 1836: Running in read-only mode.
+	erReadOnlyMode = 1836
+)
+
+// IsReadOnlyError returns true if the error is a MySQL error indicating that
+// the server is in read-only mode. This typically happens after an Aurora
+// failover when the primary has been demoted to a reader.
+func IsReadOnlyError(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	if errors.As(err, &mySQLErr) {
+		switch mySQLErr.Number {
+		case erReadOnlyTransaction, erOptionPreventsStatement, erReadOnlyMode:
+			return true
+		}
+	}
+	return false
 }

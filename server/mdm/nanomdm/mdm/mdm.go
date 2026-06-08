@@ -9,13 +9,17 @@ import (
 
 // Enrollment represents the various enrollment-related data sent with requests.
 type Enrollment struct {
-	AwaitingConfiguration bool   `plist:",omitempty"`
-	UDID                  string `plist:",omitempty"`
-	UserID                string `plist:",omitempty"`
-	UserShortName         string `plist:",omitempty"`
-	UserLongName          string `plist:",omitempty"`
-	EnrollmentID          string `plist:",omitempty"`
-	EnrollmentUserID      string `plist:",omitempty"`
+	UDID             string `plist:",omitempty"`
+	UserID           string `plist:",omitempty"`
+	UserShortName    string `plist:",omitempty"`
+	UserLongName     string `plist:",omitempty"`
+	EnrollmentID     string `plist:",omitempty"`
+	EnrollmentUserID string `plist:",omitempty"`
+}
+
+type TokenUpdateEnrollment struct {
+	Enrollment
+	AwaitingConfiguration bool `plist:",omitempty"`
 }
 
 // Identifier returns the unique identifier for the device for a given enrollment. UDID

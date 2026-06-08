@@ -72,10 +72,7 @@ export const getExtensionFromFileName = (fileName: string) => {
 /** This gets the platform display name from the file.
  * Includes nuance for .sh software installers only supported on Linux
  */
-export const getPlatformDisplayName = (
-  file: File,
-  isSoftwareInstaller = false
-) => {
+export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
@@ -88,19 +85,14 @@ export const getPlatformDisplayName = (
     );
   }
 
-  if (fileExt === "sh" && isSoftwareInstaller) {
-    // Currently, .sh files for software installers are only supported for Linux
-    return "Linux";
-  }
-
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File, isSoftwareInstaller = false) => {
+export const getFileDetails = (file: File) => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file, isSoftwareInstaller),
+    description: getPlatformDisplayName(file),
   };
 };
 

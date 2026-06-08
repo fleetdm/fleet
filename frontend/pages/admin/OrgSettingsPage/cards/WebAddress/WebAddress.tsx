@@ -5,7 +5,6 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -115,7 +114,6 @@ const WebAddress = ({
           disabled={gitOpsModeEnabled}
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

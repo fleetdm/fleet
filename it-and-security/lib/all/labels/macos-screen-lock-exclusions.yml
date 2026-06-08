@@ -1,0 +1,7 @@
+- name: macOS screen lock exclusions
+  description: |
+    Hosts in this label are excluded from the "macOS - Screen lock after inactivity (15 minutes or less)"
+    policy and the corresponding screen-lock-inactivity.mobileconfig configuration profile.
+    Add Fleet host IDs below to exclude a host (hardware_serial or uuid also work).
+  label_membership_type: manual
+  hosts: []

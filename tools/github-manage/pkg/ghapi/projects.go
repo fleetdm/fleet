@@ -23,7 +23,7 @@ var Aliases = map[string]int{
 	"orch":                  71,
 	"sec":                   97,
 	"g-security-compliance": 97,
-	"roadmap":               87,
+	"releases":              87,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
@@ -564,8 +564,8 @@ func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cach
 	return "", fmt.Errorf("issue #%d not found in project after searching all pages", issueNumber)
 }
 
-// getProjectItemFieldValue retrieves the value of a specific field for a project item.
-func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (string, error) {
+// GetProjectItemFieldValue retrieves the value of a specific field for a project item.
+func GetProjectItemFieldValue(itemID string, projectID int, fieldName string) (string, error) {
 	// Get the field information
 	field, err := LookupProjectFieldName(projectID, fieldName)
 	if err != nil {

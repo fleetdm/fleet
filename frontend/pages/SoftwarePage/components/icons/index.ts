@@ -3,16 +3,93 @@
 
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
+import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import Affinity from "./Affinity";
+import AmazonCorretto21 from "./AmazonCorretto21";
+import AmazonCorretto24 from "./AmazonCorretto24";
+import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonCorretto26 from "./AmazonCorretto26";
+import AmazonWorkspaces from "./AmazonWorkspaces";
+import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import Antigravity from "./Antigravity";
+import AntigravityIde from "./AntigravityIde";
+import AzulZulu25Jdk from "./AzulZulu25Jdk";
+import AzulZulu25Jre from "./AzulZulu25Jre";
+import Backblaze from "./Backblaze";
+import BeekeeperStudio from "./BeekeeperStudio";
+import BetterDisplay from "./BetterDisplay";
+import Bluej from "./Bluej";
+import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import CapCut from "./CapCut";
+import Cavalry from "./Cavalry";
+import Charles from "./Charles";
+import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
+import Cinc from "./Cinc";
+import ClaudeDevtools from "./ClaudeDevtools";
+import ClickShare from "./ClickShare";
+import Comet from "./Comet";
+import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import Cryptomator from "./Cryptomator";
+import DellCommandUpdate from "./DellCommandUpdate";
+import DellDisplayManager from "./DellDisplayManager";
+import DevinDesktop from "./DevinDesktop";
+import DfuBlasterPro from "./DfuBlasterPro";
+import DruvaInSync from "./DruvaInSync";
+import DuoDesktop from "./DuoDesktop";
+import FleetDesktop from "./FleetDesktop";
+import Gemini from "./Gemini";
+import GenesysCloud from "./GenesysCloud";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
+import GrooveOmniDialer from "./GrooveOmniDialer";
+import IbmNotifier from "./IbmNotifier";
+import IconComposer from "./IconComposer";
+import Iina from "./Iina";
+import Joplin from "./Joplin";
+import Kitty from "./Kitty";
+import Krita from "./Krita";
+import LastPass from "./LastPass";
+import LenovoDockManager from "./LenovoDockManager";
+import Marvel from "./Marvel";
+import Max from "./Max";
+import Microsoft365Copilot from "./Microsoft365Copilot";
+import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
+import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import MindManager from "./MindManager";
+import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
+import Nodejs from "./Nodejs";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
+import Ollama from "./Ollama";
+import OpenvpnConnect from "./OpenvpnConnect";
+import Pd from "./Pd";
+import PlantronicsHub from "./PlantronicsHub";
+import Postgresql15 from "./Postgresql15";
+import Postgresql16 from "./Postgresql16";
+import Postgresql17 from "./Postgresql17";
+import Postgresql18 from "./Postgresql18";
+import PowerAutomate from "./PowerAutomate";
+import PowerBi from "./PowerBi";
+import Plugdata from "./Plugdata";
+import PowerMonitor from "./PowerMonitor";
+import Powershell from "./Powershell";
+import Powertoys from "./Powertoys";
+import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
+import Proxyman from "./Proxyman";
+import Putty from "./Putty";
+import RealVncServer from "./RealVncServer";
+import Reaper from "./Reaper";
+import Rstudio from "./Rstudio";
+import RustDesk from "./RustDesk";
+import Secretive from "./Secretive";
+import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
-import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
@@ -20,6 +97,7 @@ import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
+import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
@@ -30,6 +108,7 @@ import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
+import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
 import Audacity from "./Audacity";
 import AvastSecureBrowser from "./AvastSecureBrowser";
@@ -58,7 +137,7 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
-import CompanyPortal from "./CompanyPortal";
+
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -128,7 +207,6 @@ import LuLu from "./LuLu";
 import Maccy from "./Maccy";
 import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
-import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
@@ -164,6 +242,8 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Python313 from "./Python313";
+import Python314 from "./Python314";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
@@ -175,6 +255,7 @@ import RubyMine from "./RubyMine";
 import RustRover from "./RustRover";
 import Safari from "./Safari";
 import Santa from "./Santa";
+import SfSymbols from "./SfSymbols";
 import Shottr from "./Shottr";
 import Signal from "./Signal";
 import Sketch from "./Sketch";
@@ -190,6 +271,7 @@ import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
+import Swiftdialog from "./Swiftdialog";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -199,19 +281,26 @@ import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
 import TextExpander from "./TextExpander";
+import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
+import TorBrowser from "./TorBrowser";
+import Tortoisegit from "./Tortoisegit";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import VcRedistX64 from "./VcRedistX64";
 import VirtualBox from "./VirtualBox";
+import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
+import Warp from "./Warp";
 import WebStorm from "./WebStorm";
 import Webex from "./Webex";
 import WhatsApp from "./WhatsApp";
@@ -220,15 +309,21 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winrar from "./Winrar";
+import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import XCreds from "./XCreds";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
+import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -240,55 +335,108 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
-  "adobe acrobat": AdobeAcrobat,
+  "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  affinity: Affinity,
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 21": AmazonCorretto21,
+  "amazon corretto 24": AmazonCorretto24,
+  "amazon corretto 25": AmazonCorretto25,
+  "amazon corretto 26": AmazonCorretto26,
   "amazon dcv": AmazonDCV,
+  "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
+  "another redis desktop manager": AnotherRedisDesktopManager,
+  antigravity: Antigravity,
+  "antigravity ide": AntigravityIde,
+  capcut: CapCut,
+  "dfu blaster pro": DfuBlasterPro,
+  "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
   appleAppStore: AppleAppStore,
   arc: Arc,
   archaeology: Archaeology,
+  "arduino ide": ArduinoIde,
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  "azul zulu 25 jdk": AzulZulu25Jdk,
+  "azul zulu 25 jre": AzulZulu25Jre,
+  backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
+  "beekeeper studio": BeekeeperStudio,
+  betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,
+  bluej: Bluej,
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  "burp suite community": BurpSuiteCommunity,
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  cavalry: Cavalry,
+  charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
+  "chrome remote desktop": ChromeRemoteDesktop,
+  "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  "claude-devtools": ClaudeDevtools,
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
+  clickshare: ClickShare,
   clion: CLion,
   clickup: ClickUp,
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  comet: Comet,
   "company portal": IntuneCompanyPortal,
+  "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  cryptomator: Cryptomator,
+  "dell command update": DellCommandUpdate,
+  "dell display manager": DellDisplayManager,
+  "devin desktop": DevinDesktop,
+  "duo desktop": DuoDesktop,
+  "fleet desktop": FleetDesktop,
+  gemini: Gemini,
+  "genesys cloud": GenesysCloud,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
+  "groove omnidialer": GrooveOmniDialer,
+  "ibm notifier": IbmNotifier,
+  "icon composer": IconComposer,
+  iina: Iina,
+  insyncclient: DruvaInSync,
+  joplin: Joplin,
+  kitty: Kitty,
+  krita: Krita,
+  lastpass: LastPass,
+  "lenovo dock manager": LenovoDockManager,
+  marvel: Marvel,
+  max: Max,
+  "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft 365 copilot": Microsoft365Copilot,
+  "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -341,15 +489,18 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mattermost: Mattermost,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft auto update": MicrosoftAutoUpdate,
+  mindmanager: MindManager,
   "mongodb compass": MongoDbCompass,
   "mozilla firefox": Firefox,
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
   goland: GoLand,
+  "google antigravity": Antigravity,
   "google chrome": ChromeApp,
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,
@@ -361,18 +512,20 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "logi options+": Logioptionsplus,
   loom: Loom,
   lulu: LuLu,
-  messenger: Messenger,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
   "microsoft teams": Teams,
+  "microsoft visual c++": VcRedistX64,
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   miro: Miro,
   "mysql workbench": MySqlWorkbench,
+  "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
+  "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
@@ -384,37 +537,63 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   obs: Obs,
   obsidian: Obsidian,
   "okta verify": OktaVerify,
+  ollama: Ollama,
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  pd: Pd,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  "plantronics hub": PlantronicsHub,
+  plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
+  "postgresql 15": Postgresql15,
+  "postgresql 16": Postgresql16,
+  "postgresql 17": Postgresql17,
+  "postgresql 18": Postgresql18,
   postman: Postman,
+  "power automate": PowerAutomate,
+  "power bi": PowerBi,
+  "power monitor": PowerMonitor,
+  powershell: Powershell,
+  powertoys: Powertoys,
+  prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
   protonvpn: ProtonVpn,
   proxifier: Proxifier,
+  proxyman: Proxyman,
+  putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "python 3.13": Python313,
+  "python 3.14": Python314,
   quip: Quip,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,
+  "realvnc server": RealVncServer,
+  reaper: Reaper,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
+  rstudio: Rstudio,
   rubymine: RubyMine,
+  rustdesk: RustDesk,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  secretive: Secretive,
+  "sequel ace": SequelAce,
+  "sf symbols": SfSymbols,
   shottr: Shottr,
   signal: Signal,
   sketch: Sketch,
@@ -431,6 +610,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
+  swiftdialog: Swiftdialog,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
@@ -441,20 +621,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   terminal: Terminal,
   teamviewer: TeamViewer,
   textexpander: TextExpander,
+  "the unarchiver": TheUnarchiver,
   thunderbird: Thunderbird,
   todoist: Todoist,
+  "tor browser": TorBrowser,
+  tortoisegit: Tortoisegit,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   utm: Utm,
   virtualbox: VirtualBox,
+  virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  vscodium: VsCodium,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
+  warp: Warp,
   webstorm: WebStorm,
   webex: Webex,
   whatsapp: WhatsApp,
@@ -462,13 +648,19 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winrar: Winrar,
+  winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  xcreds: XCreds,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zen: Zen,
   zeplin: Zeplin,
+  "zoom rooms": ZoomRooms,
+  zotero: Zotero,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
@@ -484,6 +676,7 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  android: AndroidOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
@@ -512,26 +705,6 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
 } as const;
-
-/**
- * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
- * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
- * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
- */
-const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
-  dict: T,
-  s: string
-) => {
-  s = s.trim().toLowerCase();
-  if (!s) {
-    return undefined;
-  }
-  // Sort keys by length (longest first) to prioritize more specific matches
-  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
-  const match = sortedKeys.find((k) => s.startsWith(k.trim().toLowerCase()));
-
-  return match ? (match as keyof T) : undefined;
-};
 
 /**
  * This strictly matches the provided name and source to a software icon, returning the icon if a match is found or

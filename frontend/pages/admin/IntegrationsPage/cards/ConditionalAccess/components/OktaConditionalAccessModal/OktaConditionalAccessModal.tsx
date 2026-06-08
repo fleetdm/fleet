@@ -8,7 +8,6 @@ import configAPI from "services/entities/config";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
@@ -287,110 +286,108 @@ const OktaConditionalAccessModal = ({
       className={baseClass}
       width="xlarge"
     >
-      <>
-        <form onSubmit={onSubmit} autoComplete="off">
-          <p className={`${baseClass}__instructions`}>
-            To configure Okta conditional access, follow the instructions in the{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-conditional-access`}
-              text="guide"
-              newTab
-            />
-          </p>
+      <form onSubmit={onSubmit} autoComplete="off">
+        <p className={`${baseClass}__instructions`}>
+          To configure Okta conditional access, follow the instructions in the{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-conditional-access`}
+            text="guide"
+            newTab
+          />
+        </p>
 
-          {/* IdP Signature Certificate Section */}
-          <div className={`${baseClass}__certificate-section`}>
-            <TooltipWrapper
-              tipContent="Upload this certificate in Okta when creating the Fleet IdP."
-              underline
-            >
-              Identity provider (IdP) signature certificate
-            </TooltipWrapper>
-            <br />
-            <Button
-              variant="inverse"
-              onClick={onDownloadSigningCert}
-              isLoading={isDownloadingCert}
-              disabled={isDownloadingCert}
-            >
-              Download certificate <Icon name="download" />
-            </Button>
-          </div>
+        {/* IdP Signature Certificate Section */}
+        <div className={`${baseClass}__certificate-section`}>
+          <TooltipWrapper
+            tipContent="Upload this certificate in Okta when creating the Fleet IdP."
+            underline
+          >
+            Identity provider (IdP) signature certificate
+          </TooltipWrapper>
+          <br />
+          <Button
+            variant="inverse"
+            onClick={onDownloadSigningCert}
+            isLoading={isDownloadingCert}
+            disabled={isDownloadingCert}
+          >
+            Download certificate <Icon name="download" />
+          </Button>
+        </div>
 
-          {/* User Scope Profile */}
-          <InputField
-            enableCopy
-            label="User scope profile"
-            readOnly
-            value={appleProfile}
-            type="textarea"
-          />
+        {/* User Scope Profile */}
+        <InputField
+          enableCopy
+          label="User scope profile"
+          readOnly
+          value={appleProfile}
+          type="textarea"
+        />
 
-          {/* Help text */}
-          <p className={`${baseClass}__field-instructions`}>
-            You can find the following fields in Okta after creating an IdP in{" "}
-            <strong>Security</strong> &gt; <strong>Identity Providers</strong>{" "}
-            &gt; <strong>SAML 2.0 IdP</strong>.
-          </p>
+        {/* Help text */}
+        <p className={`${baseClass}__field-instructions`}>
+          You can find the following fields in Okta after creating an IdP in{" "}
+          <strong>Security</strong> &gt; <strong>Identity Providers</strong>{" "}
+          &gt; <strong>SAML 2.0 IdP</strong>.
+        </p>
 
-          <InputField
-            label="IdP ID"
-            onChange={onInputChange}
-            name={OKTA_IDP_ID}
-            value={formData[OKTA_IDP_ID]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_IDP_ID]}
-          />
-          <InputField
-            label="Assertion consumer service URL"
-            onChange={onInputChange}
-            name={OKTA_ACS_URL}
-            value={formData[OKTA_ACS_URL]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_ACS_URL]}
-          />
-          <InputField
-            label="Audience URI"
-            onChange={onInputChange}
-            name={OKTA_AUDIENCE_URI}
-            value={formData[OKTA_AUDIENCE_URI]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_AUDIENCE_URI]}
-          />
-          <FileUploader
-            graphicName="file-pem"
-            title="Okta certificate"
-            message={
-              <>
-                Upload the certificate provided by Okta during the{" "}
-                <strong>Set Up Authenticator</strong> workflow
-              </>
-            }
-            internalError={formErrors[OKTA_CERTIFICATE]}
-            onFileUpload={onSelectFile}
-            buttonType="brand-inverse-icon"
-            buttonMessage="Upload"
-            accept=".pem,.crt,.cer,.cert"
-            fileDetails={certFile ? { name: certFile.name } : undefined}
-            onDeleteFile={onDeleteFile}
-          />
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              disabled={!!size(formErrors)}
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+        <InputField
+          label="IdP ID"
+          onChange={onInputChange}
+          name={OKTA_IDP_ID}
+          value={formData[OKTA_IDP_ID]}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors[OKTA_IDP_ID]}
+        />
+        <InputField
+          label="Assertion consumer service URL"
+          onChange={onInputChange}
+          name={OKTA_ACS_URL}
+          value={formData[OKTA_ACS_URL]}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors[OKTA_ACS_URL]}
+        />
+        <InputField
+          label="Audience URI"
+          onChange={onInputChange}
+          name={OKTA_AUDIENCE_URI}
+          value={formData[OKTA_AUDIENCE_URI]}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors[OKTA_AUDIENCE_URI]}
+        />
+        <FileUploader
+          graphicName="file-pem"
+          title="Okta certificate"
+          message={
+            <>
+              Upload the certificate provided by Okta during the{" "}
+              <strong>Set Up Authenticator</strong> workflow
+            </>
+          }
+          internalError={formErrors[OKTA_CERTIFICATE]}
+          onFileUpload={onSelectFile}
+          buttonType="brand-inverse-icon"
+          buttonMessage="Upload"
+          accept=".pem,.crt,.cer,.cert"
+          fileDetails={certFile ? { name: certFile.name } : undefined}
+          onDeleteFile={onDeleteFile}
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            disabled={!!size(formErrors)}
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

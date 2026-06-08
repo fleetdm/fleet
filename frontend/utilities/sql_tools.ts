@@ -1,5 +1,4 @@
-// @ts-ignore
-import { Parser } from "utilities/node-sql-parser/sqlite";
+import { Parser } from "node-sql-parser";
 import { intersection, isPlainObject, uniq } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
@@ -131,7 +130,7 @@ export const parseSqlTables = (
       }
 
       // Plain ol' tables.
-      if (node.table) {
+      if (node.table && node.type !== "column_ref") {
         results.push(node.table as string);
       }
     }

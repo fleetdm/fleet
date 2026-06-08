@@ -11,21 +11,28 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
+import { AutomationType } from "./team_policies";
 
-interface IPoliciesApiParams {
+export type GlobalPoliciesAutomationType = Exclude<
+  AutomationType,
+  "software" | "scripts" | "conditional_access" | "calendar"
+>;
+
+export interface IGlobalPoliciesApiQueryParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: GlobalPoliciesAutomationType;
 }
 
-export interface IPoliciesQueryKey extends IPoliciesApiParams {
+export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
   scope: "globalPolicies";
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query"> {
+  extends Pick<IGlobalPoliciesApiQueryParams, "query" | "automationType"> {
   scope: "policiesCount";
 }
 
@@ -68,7 +75,8 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-  }: IPoliciesApiParams): Promise<ILoadAllPoliciesResponse> => {
+    automationType,
+  }: IGlobalPoliciesApiQueryParams): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
     const queryParams = {
@@ -77,6 +85,7 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
+      automationType,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -87,11 +96,16 @@ export default {
   },
   getCount: ({
     query,
-  }: Pick<IPoliciesApiParams, "query">): Promise<IPoliciesCountResponse> => {
+    automationType,
+  }: Pick<
+    IGlobalPoliciesApiQueryParams,
+    "query" | "automationType"
+  >): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/count`;
     const queryParams = {
       query,
+      automationType,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

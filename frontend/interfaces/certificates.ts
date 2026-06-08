@@ -178,3 +178,38 @@ export const isCustomESTCertAuthority = (
     "password" in integration
   );
 };
+
+export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial[] => {
+  return [
+    {
+      id: 1,
+      name: "Test NDES SCEP Proxy",
+      type: "ndes_scep_proxy",
+    },
+    {
+      id: 2,
+      name: "Test DigiCert",
+      type: "digicert",
+    },
+    {
+      id: 3,
+      name: "Test Custom SCEP Proxy",
+      type: "custom_scep_proxy",
+    },
+    {
+      id: 4,
+      name: "Test Hydrant",
+      type: "hydrant",
+    },
+    {
+      id: 5,
+      name: "Test Smallstep",
+      type: "smallstep",
+    },
+    {
+      id: 6,
+      name: "Test Custom EST Proxy",
+      type: "custom_est_proxy",
+    },
+  ];
+};

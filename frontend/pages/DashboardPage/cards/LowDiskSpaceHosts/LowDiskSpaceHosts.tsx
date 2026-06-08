@@ -29,7 +29,7 @@ const LowDiskSpaceHosts = ({
     : PATHS.MANAGE_HOSTS;
   const path = getPathWithQueryParams(endpoint, {
     low_disk_space: lowDiskSpaceGb,
-    team_id: currentTeamId,
+    fleet_id: currentTeamId,
   });
 
   const tooltipText = notSupported

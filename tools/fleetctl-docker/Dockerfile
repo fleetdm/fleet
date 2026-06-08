@@ -6,7 +6,14 @@ RUN cargo install --locked --version 0.28.0 apple-codesign \
   && curl -sSf $transporter_url -o transporter_install.sh \
   && sh transporter_install.sh --target transporter --accept --noexec
 
-FROM debian:bookworm-slim@sha256:2424c1850714a4d94666ec928e24d86de958646737b1d113f5b2207be44d37d8
+FROM debian:trixie-slim@sha256:f6e2cfac5cf956ea044b4bd75e6397b4372ad88fe00908045e9a0d21712ae3ba
+
+LABEL maintainer="Fleet Developers"
+LABEL org.opencontainers.image.vendor="Fleet Device Management Inc."
+LABEL org.opencontainers.image.title="fleetctl"
+LABEL org.opencontainers.image.source="https://github.com/fleetdm/fleet"
+LABEL org.opencontainers.image.url="https://fleetdm.com"
+LABEL org.opencontainers.image.documentation="https://fleetdm.com/docs"
 
 ARG binpath=build/binary-bundle/linux/fleetctl
 

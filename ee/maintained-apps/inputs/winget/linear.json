@@ -1,0 +1,13 @@
+{
+  "name": "Linear",
+  "slug": "linear/windows",
+  "package_identifier": "LinearOrbit.Linear",
+  "unique_identifier": "Linear",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/linear_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/linear_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

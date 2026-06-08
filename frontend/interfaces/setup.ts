@@ -25,4 +25,6 @@ export interface ISetupStep {
   type: SetupStepType;
   error?: string | null;
   source?: SoftwareSource; // Software source (e.g., "sh_packages", "ps1_packages", "apps")
+  display_name?: string | null;
+  icon_url?: string | null;
 }

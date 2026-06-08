@@ -2,16 +2,16 @@
 package launcher
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	launcher "github.com/kolide/launcher/pkg/service"
-	grpc "google.golang.org/grpc"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	kithttp "github.com/go-kit/kit/transport/http"
+	launcher "github.com/kolide/launcher/pkg/service"
+	grpc "google.golang.org/grpc"
 )
 
 // Handler extends the grpc.Server, providing Handler that allows us to serve
@@ -23,10 +23,11 @@ type Handler struct {
 // New creates a gRPC server to handle remote requests from launcher.
 func New(
 	tls fleet.OsqueryService,
-	logger log.Logger,
+	logger *slog.Logger,
 	grpcServer *grpc.Server,
 	healthCheckers map[string]health.Checker,
 ) *Handler {
+	kitLogger := kitlogadapter.NewLogger(logger)
 	var svc launcher.KolideService
 	{
 		svc = &launcherWrapper{
@@ -34,22 +35,22 @@ func New(
 			logger:         logger,
 			healthCheckers: healthCheckers,
 		}
-		svc = launcher.LoggingMiddleware(logger)(svc)
+		svc = launcher.LoggingMiddleware(kitLogger)(svc)
 	}
 	endpoints := launcher.MakeServerEndpoints(svc)
-	server := launcher.NewGRPCServer(endpoints, logger)
+	server := launcher.NewGRPCServer(endpoints, kitLogger)
 	launcher.RegisterGRPCServer(grpcServer, server)
 	return &Handler{grpcServer}
 }
 
 // Handler will route gRPC traffic to the gRPC server, other http traffic
 // will be routed to normal http handler functions.
-func (hgprc *Handler) Handler(next http.Handler) http.Handler {
+func (hgrpc *Handler) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			ctx := r.Context()
 			ctx = kithttp.PopulateRequestContext(ctx, r)
-			hgprc.ServeHTTP(w, r.WithContext(ctx))
+			hgrpc.ServeHTTP(w, r.WithContext(ctx))
 		} else {
 			next.ServeHTTP(w, r)
 		}

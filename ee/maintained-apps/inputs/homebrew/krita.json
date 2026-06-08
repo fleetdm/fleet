@@ -1,0 +1,8 @@
+{
+  "name": "Krita",
+  "unique_identifier": "org.kde.krita",
+  "token": "krita",
+  "installer_format": "dmg",
+  "slug": "krita/darwin",
+  "default_categories": ["Productivity"]
+}

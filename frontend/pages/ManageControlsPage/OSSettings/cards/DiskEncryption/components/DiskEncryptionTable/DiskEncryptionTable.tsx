@@ -13,7 +13,7 @@ import diskEncryptionAPI, {
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import DataError from "components/DataError";
 
 import {
@@ -58,7 +58,7 @@ const DiskEncryptionTable = ({
 
       const queryParams = {
         [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: status?.value,
-        team_id: teamId,
+        fleet_id: teamId,
       };
       const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, queryParams);
 
@@ -90,7 +90,7 @@ const DiskEncryptionTable = ({
         disablePagination
         disableCount
         emptyComponent={() => (
-          <EmptyTable
+          <EmptyState
             header="No disk encryption status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."
@@ -99,6 +99,7 @@ const DiskEncryptionTable = ({
         // these 2 properties allow linking on click anywhere in the row
         disableMultiRowSelect
         onSelectSingleRow={onSelectSingleRow}
+        hideFooter
       />
     </div>
   );

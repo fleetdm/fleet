@@ -1,7 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -22,7 +22,7 @@ type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -87,10 +87,24 @@ export const generateTableConfig = (
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell
+          value={
+            cellProps.cell.value
+              ? cellProps.cell.value.toUpperCase()
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -108,10 +122,10 @@ export const generateTableConfig = (
 
     {
       accessor: "teams",
-      Header: "Teams",
+      Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {
@@ -134,6 +148,6 @@ export const generateTableConfig = (
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

@@ -103,6 +103,33 @@ export const hyphenateString = (str: string): string => {
   return str.trim().toLowerCase().replace(/\s+/g, "-");
 };
 
+/**
+ * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
+ * provided string starts with the key or undefined otherwise. Keys are sorted by length (longest first) to ensure
+ * more specific matches are checked before shorter, more general ones (e.g., "archaeology" before "arc").
+ */
+export const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
+  dict: T,
+  s: string
+) => {
+  s = s.trim().toLowerCase();
+  if (!s) {
+    return undefined;
+  }
+
+  const sortedKeys = Object.keys(dict).sort((a, b) => b.length - a.length);
+
+  const match = sortedKeys.find((rawKey) => {
+    const key = rawKey.trim().toLowerCase();
+    if (!key) return false;
+
+    // Treat keys as whole words at the start: exact match or followed by space
+    return s === key || s.startsWith(`${key} `);
+  });
+
+  return match ? (match as keyof T) : undefined;
+};
+
 export default {
   capitalize,
   capitalizeRole,
@@ -110,4 +137,5 @@ export default {
   strToBool,
   stripQuotes,
   isIncompleteQuoteQuery,
+  matchLoosePrefixToKey,
 };

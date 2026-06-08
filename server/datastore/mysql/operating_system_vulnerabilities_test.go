@@ -29,6 +29,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
 		{"DeleteOutOfDateOSVulnerabilities", testDeleteOutOfDateOSVulnerabilities},
+		{"DeleteOrphanedOSVulnerabilities", testDeleteOrphanedOSVulnerabilities},
 		{"TestListKernelsByOS", testListKernelsByOS},
 		{"TestKernelVulnsHostCount", testKernelVulnsHostCount},
 		{"RefreshOSVersionVulnerabilities", testRefreshOSVersionVulnerabilities},
@@ -364,6 +365,71 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []fleet.OSVulnerability{newVuln}, actual)
 }
 
+func testDeleteOrphanedOSVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hostWithOS := test.NewHost(t, ds, "host_with_os", "", "hwoskey", "hwosuuid", time.Now())
+	hostToRemove := test.NewHost(t, ds, "host_to_remove", "", "htroskey", "htrosuuid", time.Now())
+
+	// Create two operating systems via raw SQL.
+	resWithHost, err := ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO operating_systems (name, version, arch, kernel_version, platform) VALUES (?, ?, ?, ?, ?)",
+		"Ubuntu", "22.04", "x86_64", "5.15.0", "ubuntu",
+	)
+	require.NoError(t, err)
+	osWithHostID, err := resWithHost.LastInsertId()
+	require.NoError(t, err)
+
+	resOrphan, err := ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO operating_systems (name, version, arch, kernel_version, platform) VALUES (?, ?, ?, ?, ?)",
+		"Ubuntu", "20.04", "x86_64", "5.4.0", "ubuntu",
+	)
+	require.NoError(t, err)
+	osOrphanID, err := resOrphan.LastInsertId()
+	require.NoError(t, err)
+
+	// Associate hosts with their operating systems.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE os_id = VALUES(os_id)",
+		hostWithOS.ID, osWithHostID, hostToRemove.ID, osOrphanID,
+	)
+	require.NoError(t, err)
+
+	// Insert vulnerabilities for both operating systems.
+	_, err = ds.InsertOSVulnerability(ctx, fleet.OSVulnerability{OSID: uint(osWithHostID), CVE: "CVE-2024-100"}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+	_, err = ds.InsertOSVulnerability(ctx, fleet.OSVulnerability{OSID: uint(osOrphanID), CVE: "CVE-2024-200"}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+
+	// Remove the host, orphaning the OS.
+	err = ds.DeleteHost(ctx, hostToRemove.ID)
+	require.NoError(t, err)
+
+	// Verify both vulns exist before cleanup.
+	vulnsWithHost, err := ds.ListOSVulnerabilitiesByOS(ctx, uint(osWithHostID))
+	require.NoError(t, err)
+	require.Len(t, vulnsWithHost, 1)
+
+	vulnsOrphan, err := ds.ListOSVulnerabilitiesByOS(ctx, uint(osOrphanID))
+	require.NoError(t, err)
+	require.Len(t, vulnsOrphan, 1)
+
+	// Run orphan cleanup.
+	err = ds.DeleteOrphanedOSVulnerabilities(ctx)
+	require.NoError(t, err)
+
+	// Vulnerability for OS with a host should remain.
+	vulnsWithHost, err = ds.ListOSVulnerabilitiesByOS(ctx, uint(osWithHostID))
+	require.NoError(t, err)
+	require.Len(t, vulnsWithHost, 1)
+	require.Equal(t, "CVE-2024-100", vulnsWithHost[0].CVE)
+
+	// Vulnerability for orphaned OS should be deleted.
+	vulnsOrphan, err = ds.ListOSVulnerabilitiesByOS(ctx, uint(osOrphanID))
+	require.NoError(t, err)
+	require.Empty(t, vulnsOrphan)
+}
+
 func testListKernelsByOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -425,7 +491,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			name:     "RHEL with team",
 			team:     true,
 			host:     test.NewHost(t, ds, "host_fedora41", "", "hostkey_fedora41", "hostuuid_fedora41", time.Now(), test.WithPlatform("rhel")),
-			software: []fleet.Software{{Name: "kernel-core", Version: "6.11.4", Arch: "aarch64", Source: "rpm_packages", IsKernel: true}},
+			software: []fleet.Software{{Name: "kernel", Version: "6.11.4", Arch: "aarch64", Source: "rpm_packages", IsKernel: true}},
 			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0007"}},
 			vulnsByKernelVersion: map[string][]string{
 				"6.11.4": {"CVE-2025-0007"},
@@ -673,9 +739,9 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		var count uint
-		err := sqlx.GetContext(ctx, q, &count, "SELECT hosts_count FROM kernel_host_counts WHERE os_version_id = ?", os1.OSVersionID)
+		err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM kernel_host_counts WHERE os_version_id = ?", os1.OSVersionID)
 		require.NoError(t, err)
-		assert.Zero(t, count)
+		assert.Zero(t, count, "expected no rows in kernel_host_counts after all hosts with this kernel were deleted")
 		return nil
 	})
 

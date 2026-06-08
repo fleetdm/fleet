@@ -17,9 +17,10 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
+import Button from "components/buttons/Button";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
@@ -41,6 +42,9 @@ interface IHostSoftwareLibraryTableProps {
   page: number;
   pagePath: string;
   selfService: boolean;
+  teamId?: number;
+  canAddSoftware?: boolean;
+  onAddSoftware?: () => void;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -56,6 +60,9 @@ const HostSoftwareLibraryTable = ({
   selfService,
   page,
   pagePath,
+  teamId,
+  canAddSoftware,
+  onAddSoftware,
 }: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -85,6 +92,7 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        fleet_id: teamId,
         ...(selfService && { self_service: "true" }),
       };
 
@@ -125,6 +133,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
+      teamId,
       ...(value === "selfService" && { selfService: true }),
     };
 
@@ -139,28 +148,38 @@ const HostSoftwareLibraryTable = ({
 
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
+  const isTrulyEmpty = isSoftwareNotDetected && !selfService;
 
   const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
     return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
+  }, [count]);
 
   const memoizedEmptyComponent = useCallback(() => {
+    if (isTrulyEmpty) {
+      return (
+        <EmptyState
+          header="No software found"
+          info={
+            canAddSoftware
+              ? "Add software to install on this host."
+              : "No software has been added for this host."
+          }
+          primaryButton={
+            canAddSoftware ? (
+              <Button onClick={onAddSoftware} type="button">
+                Add software
+              </Button>
+            ) : undefined
+          }
+        />
+      );
+    }
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
-  }, [searchQuery]);
-
-  // Determines if a user should be able to filter or search in the table
-  const hasData = data && data.software.length > 0;
-  const hasQuery = searchQuery !== "";
-
-  const showFilterHeaders = hasData || hasQuery;
+  }, [searchQuery, isTrulyEmpty, canAddSoftware, onAddSoftware]);
 
   if (isAndroid(platform)) {
     return (
-      <EmptyTable
+      <EmptyState
         header="Installers are not supported for this host"
         info={
           <>
@@ -187,6 +206,7 @@ const HostSoftwareLibraryTable = ({
             )
           }
           variant="table-filter"
+          isDisabled={isTrulyEmpty}
         />
       </div>
     );
@@ -208,11 +228,12 @@ const HostSoftwareLibraryTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={showFilterHeaders}
+        searchable
+        disableSearch={isTrulyEmpty}
         manualSortBy
       />
     </div>

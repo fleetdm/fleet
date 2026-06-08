@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +20,11 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/smallstep/pkcs7"
 )
 
@@ -44,8 +45,16 @@ type CertManager interface {
 	// NewSTSAuthToken returns an STS auth token for the given UPN claim.
 	NewSTSAuthToken(upn string) (string, error)
 
+	// NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM
+	// device ID. Used to pass end-user authentication context to the orbit
+	// installer so the user is not prompted twice.
+	NewEUAToken(upn string, deviceID string) (string, error)
+
 	// GetSTSAuthTokenUPNClaim validates the given token and returns the UPN claim
 	GetSTSAuthTokenUPNClaim(token string) (string, error)
+
+	// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
+	GetEUATokenClaims(token string) (*EUATokenClaims, error)
 
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
@@ -65,8 +74,22 @@ type STSClaims struct {
 	jwt.RegisteredClaims
 }
 
+// euaJWTClaims is the internal JWT struct for signing/parsing EUA tokens.
+type euaJWTClaims struct {
+	UPN      string `json:"upn"`
+	DeviceID string `json:"device_id"`
+	jwt.RegisteredClaims
+}
+
+// EUATokenClaims is the validated result returned to callers of GetEUATokenClaims.
+type EUATokenClaims struct {
+	UPN      string
+	DeviceID string
+}
+
 type AzureData struct {
 	UPN        string
+	Audience   []string
 	TenantID   string
 	UniqueName string
 	SCP        string
@@ -184,8 +207,8 @@ func (m *manager) NewSTSAuthToken(upn string) (string, error) {
 
 	// Create claims with upn field populated
 	claims := STSClaims{
-		upn,
-		jwt.RegisteredClaims{
+		UPN: upn,
+		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
@@ -201,6 +224,80 @@ func (m *manager) NewSTSAuthToken(upn string) (string, error) {
 	}
 
 	return signedToken, nil
+}
+
+// NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM device ID.
+func (m *manager) NewEUAToken(upn string, deviceID string) (string, error) {
+	if m == nil {
+		return "", errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return "", errors.New("invalid identity certificate or private key")
+	}
+
+	if len(upn) == 0 {
+		return "", errors.New("invalid upn field")
+	}
+	if len(deviceID) == 0 {
+		return "", errors.New("invalid device_id field")
+	}
+
+	claims := euaJWTClaims{
+		UPN:      upn,
+		DeviceID: deviceID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   "EUAToken",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
+	signedToken, err := token.SignedString(m.identityPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign EUA token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
+// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
+func (m *manager) GetEUATokenClaims(tokenStr string) (*EUATokenClaims, error) {
+	if m == nil {
+		return nil, errors.New("windows mdm identity keypair was not configured")
+	}
+
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return nil, errors.New("invalid identity certificate or private key")
+	}
+
+	if len(tokenStr) == 0 {
+		return nil, errors.New("invalid EUA token")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenStr, &euaJWTClaims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return m.identityCert.PublicKey, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("there was an error parsing the EUA token claims: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*euaJWTClaims); ok && token.Valid {
+		if len(claims.UPN) == 0 {
+			return nil, errors.New("issue with UPN token claim")
+		}
+		if len(claims.DeviceID) == 0 {
+			return nil, errors.New("issue with device_id token claim")
+		}
+		return &EUATokenClaims{UPN: claims.UPN, DeviceID: claims.DeviceID}, nil
+	}
+
+	return nil, errors.New("issue with EUA token validation")
 }
 
 // GetSTSAuthToken validates the given token and returns the UPN claim
@@ -219,6 +316,9 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 
 	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
 	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return m.identityCert.PublicKey, nil
 	})
 	if err != nil {
@@ -258,7 +358,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	// Parse JWT token
 	jwksURI := "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 	var token *jwt.Token
-	FLEET_DEV_AZURE_JWT_JWKS_URI := os.Getenv("FLEET_DEV_AZURE_JWT_JWKS_URI")
+	FLEET_DEV_AZURE_JWT_JWKS_URI := dev_mode.Env("FLEET_DEV_AZURE_JWT_JWKS_URI")
 	if FLEET_DEV_AZURE_JWT_JWKS_URI != "" {
 		jwksURI = FLEET_DEV_AZURE_JWT_JWKS_URI
 	}
@@ -305,13 +405,20 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.Wrap(ctx, err, "parse error Azure JWT content")
 	}
 
-	// Parse JWT token
-	claims := token.Claims.(jwt.MapClaims)
+	return azureDataFromClaims(ctx, token.Claims.(jwt.MapClaims))
+}
 
-	// Get UPN claim
+// azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD JWT.
+func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, error) {
+	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username`,
+	// so fall back to it when `upn` is absent. The UPN is not part of the enrollment authorization decision
+	// (that is the `aud`, `tid`, `iss`, and `scp` claims); it is only used afterwards for identity correlation
+	// (device-user mapping, SCIM lookup, EUA token), all of which already guard against an empty value. A v2
+	// token may carry neither claim when the `profile` scope is absent, so treat UPN as optional rather than
+	// rejecting an otherwise-authorized token.
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {
-		return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
+		upnClaim, _ = claims["preferred_username"].(string)
 	}
 
 	// Get TenantID claim
@@ -320,11 +427,43 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.New(ctx, "invalid TenantID claim")
 	}
 
-	// Get UniqueName claim
-	uniqueNameClaim, ok := claims["unique_name"].(string)
-	if !ok {
-		return AzureData{}, ctxerr.New(ctx, "invalid UniqueName claim")
+	// Validate that tenant ID is a UUID and matches the issuer
+	if _, err := uuid.Parse(tenantIDClaim); err != nil {
+		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid TenantID claim format")
 	}
+	issuer, ok := claims["iss"].(string)
+	if !ok || len(issuer) == 0 {
+		return AzureData{}, ctxerr.New(ctx, "invalid Issuer claim")
+	}
+
+	// Depending on exactly how the Azure AD app is configured, the issuer claim
+	// may vary. Validate that the issuer contains the tenant ID.
+	issuerMatchesTenant := false
+	for _, expectedIssuer := range []string{fmt.Sprintf("https://sts.windows.net/%s/", tenantIDClaim), fmt.Sprintf("https://login.microsoftonline.com/%s/", tenantIDClaim)} {
+		if strings.HasPrefix(issuer, expectedIssuer) {
+			issuerMatchesTenant = true
+			break
+		}
+	}
+	if !issuerMatchesTenant {
+		return AzureData{}, ctxerr.New(ctx, "issuer claim does not match tenant ID")
+	}
+
+	audience := []string{}
+	singleAudience, ok := claims["aud"].(string)
+	if !ok {
+		multiAudience, ok := claims["aud"].([]string)
+		if ok {
+			audience = multiAudience
+		}
+	} else {
+		audience = append(audience, singleAudience)
+	}
+
+	// UniqueName comes from the v1-only `unique_name` claim (v2 tokens use `preferred_username` instead) and is not
+	// consumed anywhere downstream, so treat it as optional: capture it when present, but don't reject the token when
+	// it's absent (which is the case for v2 access tokens).
+	uniqueNameClaim, _ := claims["unique_name"].(string)
 
 	// Get SCP claim
 	azureSCPClaim, ok := claims["scp"].(string)
@@ -337,6 +476,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
+		Audience:   audience,
 	}, nil
 }
 

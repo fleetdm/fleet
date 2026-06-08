@@ -11,7 +11,7 @@ import (
 
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -32,7 +32,7 @@ func TestAndroid(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS)
+			defer mysqltest.TruncateTables(t, s.DS)
 			c.fn(t, s)
 		})
 	}
@@ -145,7 +145,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "Android enterprise", je.Errors[0]["base"])
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 
 		t.Run("if idp account does not exist", func(t *testing.T) {
@@ -158,7 +158,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "validating idp account existence", je.Errors[0]["base"])
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 
 		t.Run("if idp is required but not set", func(t *testing.T) {
@@ -169,7 +169,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		})
 
 		t.Cleanup(func() {
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 	})
 
@@ -190,6 +190,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
 			var enrollmentRequest enrollmentTokenRequest
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
@@ -198,7 +200,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
-				mysql.TruncateTables(t, s.DS)
+				mysqltest.TruncateTables(t, s.DS)
 			})
 		})
 
@@ -231,6 +233,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
 			var enrollmentRequest enrollmentTokenRequest
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
@@ -239,7 +243,63 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
-				mysql.TruncateTables(t, s.DS)
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is true", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=true", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is false", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=false", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
 			})
 		})
 	})

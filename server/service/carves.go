@@ -2,10 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -18,25 +24,14 @@ import (
 // List Carves
 ////////////////////////////////////////////////////////////////////////////////
 
-type listCarvesRequest struct {
-	ListOptions fleet.CarveListOptions `url:"carve_options"`
-}
-
-type listCarvesResponse struct {
-	Carves []fleet.CarveMetadata `json:"carves"`
-	Err    error                 `json:"error,omitempty"`
-}
-
-func (r listCarvesResponse) Error() error { return r.Err }
-
 func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listCarvesRequest)
+	req := request.(*fleet.ListCarvesRequest)
 	carves, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
-		return listCarvesResponse{Err: err}, nil
+		return fleet.ListCarvesResponse{Err: err}, nil
 	}
 
-	resp := listCarvesResponse{}
+	resp := fleet.ListCarvesResponse{}
 	for _, carve := range carves {
 		resp.Carves = append(resp.Carves, *carve)
 	}
@@ -55,25 +50,14 @@ func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) 
 // Get Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type getCarveRequest struct {
-	ID int64 `url:"id"`
-}
-
-type getCarveResponse struct {
-	Carve fleet.CarveMetadata `json:"carve"`
-	Err   error               `json:"error,omitempty"`
-}
-
-func (r getCarveResponse) Error() error { return r.Err }
-
 func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCarveRequest)
+	req := request.(*fleet.GetCarveRequest)
 	carve, err := svc.GetCarve(ctx, req.ID)
 	if err != nil {
-		return getCarveResponse{Err: err}, nil
+		return fleet.GetCarveResponse{Err: err}, nil
 	}
 
-	return getCarveResponse{Carve: *carve}, nil
+	return fleet.GetCarveResponse{Carve: *carve}, nil
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
@@ -88,26 +72,14 @@ func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadat
 // Get Carve Block
 ////////////////////////////////////////////////////////////////////////////////
 
-type getCarveBlockRequest struct {
-	ID      int64 `url:"id"`
-	BlockId int64 `url:"block_id"`
-}
-
-type getCarveBlockResponse struct {
-	Data []byte `json:"data"`
-	Err  error  `json:"error,omitempty"`
-}
-
-func (r getCarveBlockResponse) Error() error { return r.Err }
-
 func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCarveBlockRequest)
+	req := request.(*fleet.GetCarveBlockRequest)
 	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 	if err != nil {
-		return getCarveBlockResponse{Err: err}, nil
+		return fleet.GetCarveBlockResponse{Err: err}, nil
 	}
 
-	return getCarveBlockResponse{Data: data}, nil
+	return fleet.GetCarveBlockResponse{Data: data}, nil
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
@@ -140,29 +112,8 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 // Begin File Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type carveBeginRequest struct {
-	NodeKey    string `json:"node_key"`
-	BlockCount int64  `json:"block_count"`
-	BlockSize  int64  `json:"block_size"`
-	CarveSize  int64  `json:"carve_size"`
-	CarveId    string `json:"carve_id"`
-	RequestId  string `json:"request_id"`
-}
-
-func (r *carveBeginRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type carveBeginResponse struct {
-	SessionId string `json:"session_id"`
-	Success   bool   `json:"success,omitempty"`
-	Err       error  `json:"error,omitempty"`
-}
-
-func (r carveBeginResponse) Error() error { return r.Err }
-
 func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*carveBeginRequest)
+	req := request.(*fleet.CarveBeginRequest)
 
 	payload := fleet.CarveBeginPayload{
 		BlockCount: req.BlockCount,
@@ -174,10 +125,10 @@ func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	carve, err := svc.CarveBegin(ctx, payload)
 	if err != nil {
-		return carveBeginResponse{Err: err}, nil
+		return fleet.CarveBeginResponse{Err: err}, nil
 	}
 
-	return carveBeginResponse{SessionId: carve.SessionId, Success: true}, nil
+	return fleet.CarveBeginResponse{SessionId: carve.SessionId, Success: true}, nil
 }
 
 const (
@@ -212,6 +163,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 		return nil, newOsqueryError("carve_size does not match block_size and block_count")
 	}
 
+	// sessionId generated here is overriden if the carve store is S3 (in svc.carveStore.NewCarve).
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
 		return nil, newOsqueryError("internal error: generate session ID for carve: " + err.Error())
@@ -242,22 +194,178 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 // Receive Block for File Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type carveBlockRequest struct {
-	BlockId   int64  `json:"block_id"`
-	SessionId string `json:"session_id"`
-	RequestId string `json:"request_id"`
-	Data      []byte `json:"data"`
-}
+// decodeCarveBlockRequest is a service-local wrapper that owns the streaming
+// DecodeRequest used by the unauthenticated /osquery/carve/block endpoint.
+// The wrapper lives here (not in server/fleet) because it uses carvestorectx,
+// which imports server/fleet and would create a cycle.
+type decodeCarveBlockRequest struct{}
 
-type carveBlockResponse struct {
-	Success bool  `json:"success,omitempty"`
-	Err     error `json:"error,omitempty"`
-}
+// DecodeRequest for the /api/v1/osquery/carve/block endpoint performs raw JSON parsing
+// to prevent DoS attacks on this unauthenticated endpoint.
+// Carve block requests are authenticated by their "session_id" and "request_id".
+// The osquery API sends the "session_id" and "request_id" in the JSON object in the body that
+// also includes the "data" field with the actual "block". If Fleet parses the full JSON to extract
+// the "session_id" and "request_id" then attackers could DoS Fleet by sending big JSON documents.
+// To prevent such an attack, we rely on the stability of the osquery carve endpoints (they have been
+// stable for many years) and parse the body field by field. The "session_id" and "request_id" always
+// come before the "data" field; thus Fleet will extract "session_id" and "request_id", perform authentication
+// and if the credentials are valid parse and decode the "data" field.
+//
+// The Authorization: NodeKey <token> header (validated by the HTTP pre-auth
+// middleware) is treated as an additional short-circuit gate: a present-but-
+// invalid header rejects the request before this parser ever runs. When the
+// header is absent or valid, this parser still runs — the session/request_id
+// check remains the primary authentication mechanism. When the header is
+// valid, CarveBlock additionally verifies that the carve's host_id matches
+// the authenticated host.
+func (decodeCarveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
+	carveStore := carvestorectx.FromContext(ctx)
+	if carveStore == nil {
+		return nil, ctxerr.New(ctx, "missing carve store from context")
+	}
 
-func (r carveBlockResponse) Error() error { return r.Err }
+	newAuthRequiredError := func(err error) error {
+		// We don't want to return details to clients.
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
+	}
+
+	readUntil := func(maxToRead int, endChar byte) (string, error) {
+		var s strings.Builder
+		endCharFound := false
+		for i := 0; i <= maxToRead; i++ {
+			character := make([]byte, 1)
+			if _, err := req.Body.Read(character); err != nil {
+				return "", fmt.Errorf("failed to read character: %w", err)
+			}
+			if character[0] == endChar {
+				endCharFound = true
+				break
+			}
+			s.Write(character)
+		}
+		if !endCharFound {
+			return "", fmt.Errorf(`end character not found: %q`, s.String())
+		}
+		return s.String(), nil
+	}
+
+	// 1. Must start with {
+	delimiter := make([]byte, 1)
+	if _, err := req.Body.Read(delimiter); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("failed to read object start: %w", err))
+	}
+	if string(delimiter) != "{" {
+		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %q", string(delimiter)))
+	}
+	// 2. Must continue with "block_id":.
+	blockIDKey := make([]byte, 11)
+	if _, err := req.Body.Read(blockIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "block_id" key: %w`, err))
+	}
+	if string(blockIDKey) != `"block_id":` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "block_id":, got %q`, string(blockIDKey)))
+	}
+	// 3. Must continue with a number.
+	const maxNumberOfDigits = 19
+	blockIDStr, err := readUntil(maxNumberOfDigits, ',')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" field: %w`, err))
+	}
+	blockID, err := strconv.ParseInt(blockIDStr, 10, 64)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" format: %w`, err))
+	}
+	// 4. Must continue with "session_id":".
+	sessionIDKey := make([]byte, 14)
+	if _, err := req.Body.Read(sessionIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "session_id" key: %w`, err))
+	}
+	if string(sessionIDKey) != `"session_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "session_id":", got %q`, string(sessionIDKey)))
+	}
+	// 5. Must continue with a string (up to 255 chars).
+	const maxSizeSessionID = 255 // defined in DB
+	sessionID, err := readUntil(maxSizeSessionID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "session_id" field: %w`, err))
+	}
+	if sessionID == "" {
+		return nil, newAuthRequiredError(errors.New("empty session_id"))
+	}
+	// 6. Must continue with ,"request_id":".
+	requestIDKey := make([]byte, 15)
+	if _, err := req.Body.Read(requestIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "request_id" key: %w`, err))
+	}
+	if string(requestIDKey) != `,"request_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected ,"request_id":", got %q`, string(requestIDKey)))
+	}
+	// 7. Must continue with a string (up to 64 chars).
+	const maxSizeRequestID = 64 // defined in DB.
+	requestID, err := readUntil(maxSizeRequestID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "request_id" field: %w`, err))
+	}
+	if requestID == "" {
+		return nil, newAuthRequiredError(errors.New("empty request_id"))
+	}
+
+	//
+	// 8. Perform authentication before continuing with the read and parse of the "data" field.
+	//
+
+	carve, err := carveStore.CarveBySessionId(ctx, sessionID)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("carve by session ID: %w", err))
+	}
+	if requestID != carve.RequestId {
+		return nil, newAuthRequiredError(errors.New("request_id does not match session"))
+	}
+
+	//
+	// 9. At this point the request is authenticated.
+	//
+
+	// Must continue with ,"data":".
+	dataKey := make([]byte, 9)
+	if _, err := req.Body.Read(dataKey); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `failed to read "data" key`)
+	}
+	if string(dataKey) != `,"data":"` {
+		return nil, ctxerr.New(ctx, fmt.Sprintf(`expected ,"data":", got %s`, dataKey))
+	}
+
+	// 10. Must continue with a string with the base64 encoded data.
+	encodedData, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `read "data" field`)
+	}
+	if len(encodedData) < 2 {
+		return nil, ctxerr.New(ctx, `invalid "data" ending length`)
+	}
+	if ending := string(encodedData[len(encodedData)-2:]); ending != `"}` {
+		return nil, ctxerr.New(ctx, fmt.Sprintf(`invalid "data" ending: %s`, ending))
+	}
+	// 11. Skip ending `"}`
+	encodedData = encodedData[:len(encodedData)-2]
+	// 12. Decode the base64-encoded field.
+	data := make([]byte, base64.RawStdEncoding.DecodedLen(len(encodedData)))
+	n, err := base64.StdEncoding.Decode(data, encodedData)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "base64 decode block data")
+	}
+	data = data[:n]
+
+	return &fleet.CarveBlockRequest{
+		BlockId:   blockID,
+		SessionId: sessionID,
+		RequestId: requestID,
+		Data:      data,
+	}, nil
+}
 
 func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*carveBlockRequest)
+	req := request.(*fleet.CarveBlockRequest)
 
 	payload := fleet.CarveBlockPayload{
 		SessionId: req.SessionId,
@@ -268,18 +376,28 @@ func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	err := svc.CarveBlock(ctx, payload)
 	if err != nil {
-		return carveBlockResponse{Err: err}, nil
+		return fleet.CarveBlockResponse{Err: err}, nil
 	}
 
-	return carveBlockResponse{Success: true}, nil
+	return fleet.CarveBlockResponse{Success: true}, nil
 }
 
 func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayload) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	// Note host did not authenticate via node key. We need to authenticate them
-	// by the session ID and request ID
+	// Authentication on this endpoint is layered:
+	//  1. The streaming body parser (decodeCarveBlockRequest.DecodeRequest)
+	//     verifies session_id+request_id against the carve store.
+	//  2. When osquery.allow_body_auth_fallback=false, the HTTP pre-auth
+	//     middleware (osqueryCarveBlockHeaderPreAuth) is installed and
+	//     additionally validates a NodeKey header before the body is read,
+	//     stashing the authenticated host in ctx. The check below uses
+	//     that host to verify carve ownership — ensuring one host cannot
+	//     post blocks into another host's carve session.
+	//  3. With osquery.allow_body_auth_fallback=true (default), the
+	//     pre-auth middleware is not installed; no host ends up in ctx,
+	//     and the ownership check is skipped.
 	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find carve by session_id")
@@ -287,6 +405,14 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if payload.RequestId != carve.RequestId {
 		return errors.New("request_id does not match")
+	}
+
+	if host, ok := hostctx.FromContext(ctx); ok && host.ID != carve.HostId {
+		logging.WithExtras(ctx, "carve_host_id", carve.HostId, "authed_host_id", host.ID,
+			"reason", "carve host ownership mismatch")
+		ose := newOsqueryError("authentication error")
+		ose.StatusCode = http.StatusUnauthorized
+		return ose
 	}
 
 	// Request is now authenticated

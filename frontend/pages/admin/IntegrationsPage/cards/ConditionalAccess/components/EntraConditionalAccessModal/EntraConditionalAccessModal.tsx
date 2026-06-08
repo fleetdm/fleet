@@ -4,7 +4,6 @@ import { size } from "lodash";
 import { NotificationContext } from "context/notification";
 import conditionalAccessAPI from "services/entities/conditional_access";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
@@ -93,41 +92,39 @@ const EntraConditionalAccessModal = ({
       className={baseClass}
       width="large"
     >
-      <>
-        <form onSubmit={onSubmit} autoComplete="off">
-          <p className={`${baseClass}__instructions`}>
-            To configure Microsoft Entra conditional access, follow the
-            instructions in the{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/entra-conditional-access`}
-              text="guide"
-              newTab
-            />
-          </p>
-          <InputField
-            label="Microsoft Entra tenant ID"
-            helpText="You can find this in your Microsoft Entra admin center."
-            onChange={onInputChange}
-            name={MSETID}
-            value={formData[MSETID]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[MSETID]}
+      <form onSubmit={onSubmit} autoComplete="off">
+        <p className={`${baseClass}__instructions`}>
+          To configure Microsoft Entra conditional access, follow the
+          instructions in the{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/entra-conditional-access`}
+            text="guide"
+            newTab
           />
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              disabled={!!size(formErrors)}
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+        </p>
+        <InputField
+          label="Microsoft Entra tenant ID"
+          helpText="You can find this in your Microsoft Entra admin center."
+          onChange={onInputChange}
+          name={MSETID}
+          value={formData[MSETID]}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors[MSETID]}
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            disabled={!!size(formErrors)}
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

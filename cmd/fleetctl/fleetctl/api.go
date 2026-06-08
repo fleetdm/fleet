@@ -121,7 +121,7 @@ func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Wri
 	}
 
 	if cc.Address == "" {
-		return nil, errors.New("set the Fleet API address with: fleetctl config set --address https://localhost:8080")
+		return nil, errors.New("set the Fleet API address with: fleetctl config set --address https://fleet.example.com")
 	}
 
 	if runtime.GOOS == "windows" && cc.RootCA == "" && !cc.TLSSkipVerify {

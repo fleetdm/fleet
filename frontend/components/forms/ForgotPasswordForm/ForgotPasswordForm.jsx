@@ -41,12 +41,14 @@ class ForgotPasswordForm extends Component {
           label="Email"
           placeholder="Email"
           type="email"
+          ignore1Password={false}
         />
-        <div className="button-wrap">
+        <div className="button-wrap--center">
           <Button
             className={`${baseClass}__submit-btn`}
             type="submit"
             isLoading={isLoading}
+            size="wide"
           >
             Get instructions
           </Button>

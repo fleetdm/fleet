@@ -54,34 +54,32 @@ const CancelActivityModal = ({
       onExit={onExit}
       isContentDisabled={isCanceling}
     >
-      <>
-        <div className={`${baseClass}__content`}>
-          <p>
-            If the activity is happening on the host it will still complete.
-            Results won&apos;t appear in Fleet.
-          </p>
-          <ActivityItemComponent
-            tab="upcoming"
-            activity={activity}
-            onCancel={noop}
-            onShowDetails={noop}
-            isSoloActivity
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            disabled={isCanceling}
-            isLoading={isCanceling}
-            variant="alert"
-            onClick={onAttemptyCancel}
-          >
-            Cancel activity
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Back
-          </Button>
-        </div>
-      </>
+      <div className={`${baseClass}__content`}>
+        <p>
+          If the activity is happening on the host it will still complete.
+          Results won&apos;t appear in Fleet.
+        </p>
+        <ActivityItemComponent
+          tab="upcoming"
+          activity={activity}
+          onCancel={noop}
+          onShowDetails={noop}
+          isSoloActivity
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button
+          disabled={isCanceling}
+          isLoading={isCanceling}
+          variant="alert"
+          onClick={onAttemptyCancel}
+        >
+          Cancel activity
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Back
+        </Button>
+      </div>
     </Modal>
   );
 };

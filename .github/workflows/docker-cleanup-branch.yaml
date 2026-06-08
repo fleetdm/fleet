@@ -1,0 +1,86 @@
+name: Docker cleanup (branch deletion)
+
+on:
+  delete:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    # Only run for branch deletions (not tag deletions) in the fleetdm/fleet repo.
+    if: ${{ github.event.ref_type == 'branch' && github.repository == 'fleetdm/fleet' }}
+    runs-on: ubuntu-latest
+    environment: Docker Hub
+    steps:
+      - name: Sanitize branch name
+        id: sanitize
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          SANITIZED="${BRANCH//\//-}"
+          echo "TAG=$SANITIZED" >> $GITHUB_OUTPUT
+
+      - name: Skip protected branches
+        id: check_protected
+        env:
+          TAG: ${{ steps.sanitize.outputs.TAG }}
+        run: |
+          if [[ "$TAG" == "main" || "$TAG" == rc-minor-* || "$TAG" == rc-patch-* ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping cleanup for protected branch tag: $TAG"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete tag from Docker Hub
+        if: steps.check_protected.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.sanitize.outputs.TAG }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_ACCESS_TOKEN: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+        run: |
+          # Authenticate and get JWT
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_ACCESS_TOKEN\"}" \
+            | jq -r .token)
+
+          # Bail if the token is empty (authentication failed)
+          if [[ -z "$TOKEN" ]]; then
+            echo "Failed to authenticate with Docker Hub. Check credentials."
+            exit 1
+          fi
+
+          # Delete the tag (ignore 404 — tag may not exist)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            "https://hub.docker.com/v2/repositories/fleetdm/fleet/tags/${TAG}/" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if [[ "$HTTP_STATUS" == "204" ]]; then
+            echo "Deleted Docker Hub tag: $TAG"
+          elif [[ "$HTTP_STATUS" == "404" ]]; then
+            echo "Docker Hub tag not found (already deleted or never published): $TAG"
+          else
+            echo "Unexpected response from Docker Hub: HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Delete tag from Quay.io
+        if: steps.check_protected.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.sanitize.outputs.TAG }}
+          QUAY_REGISTRY_PASSWORD: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            "https://quay.io/api/v1/repository/fleetdm/fleet/tag/${TAG}" \
+            -H "Authorization: Bearer $QUAY_REGISTRY_PASSWORD")
+
+          if [[ "$HTTP_STATUS" == "204" || "$HTTP_STATUS" == "200" ]]; then
+            echo "Deleted Quay.io tag: $TAG"
+          elif [[ "$HTTP_STATUS" == "404" ]]; then
+            echo "Quay.io tag not found (already deleted or never published): $TAG"
+          else
+            echo "Unexpected response from Quay.io: HTTP $HTTP_STATUS"
+            exit 1
+          fi

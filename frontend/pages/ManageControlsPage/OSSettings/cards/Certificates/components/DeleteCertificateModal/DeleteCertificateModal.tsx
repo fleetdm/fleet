@@ -40,25 +40,23 @@ const DeleteCertificateModal = ({
 
   return (
     <Modal className={baseClass} title="Delete certificate" onExit={onExit}>
-      <>
-        <p>
-          This action will remove the <b>{name}</b> certificate from all hosts
-          assigned to this team.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onDelete}
-            isLoading={isUpdating}
-            disabled={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        This action will remove the <b>{name}</b> certificate from all hosts
+        assigned to this fleet.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onDelete}
+          isLoading={isUpdating}
+          disabled={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

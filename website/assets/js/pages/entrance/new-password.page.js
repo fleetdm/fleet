@@ -15,8 +15,20 @@ parasails.registerPage('new-password', {
 
     // Form rules
     formRules: {
-      password: {required: true, minLength: 8},
-      confirmPassword: {required: true, minLength: 8, sameAs: 'password'},
+      password: {
+        required: true,
+        minLength: 12,
+        maxLength: 48,
+        custom: (value)=>{
+          return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+        }
+      },
+      confirmPassword: {
+        required: true,
+        minLength: 12,
+        maxLength: 48,
+        sameAs: 'password',
+      },
     },
 
     // Server error state for the form

@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 )
@@ -69,6 +69,12 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 						<array>
 							<string>CN</string>
 							<string>{{.CertificateCN}}</string>
+						</array>
+					</array>
+					<array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
 						</array>
 					</array>
 				</array>
@@ -367,7 +373,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	challenge := secrets[0].Secret
 
 	// Get mTLS URL using ConditionalAccessIdPSSOURL
-	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to get mTLS URL")
 	}
@@ -386,7 +392,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		CACertBase64:     caCertBase64,
 		SCEPURL:          scepURL,
 		Challenge:        challenge,
-		CertificateCN:    "Fleet conditional access for Okta",
+		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
 		MTLSURL:          mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,

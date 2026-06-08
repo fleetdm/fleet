@@ -32,7 +32,7 @@ Headquartered in Australia, Deputy is rapidly expanding its global presence with
 They achieved this through:
 
 - API-Driven reporting and automation
-- Comprehensive device health querying
+- Comprehensive device health reporting
 - Enhanced endpoint visibility
 - Flexible deployment options
 
@@ -40,7 +40,7 @@ They achieved this through:
 
 Deputy’s Corporate Engineering team recognized the potential of automating routine compliance and reporting tasks. With Fleet, they streamlined their reporting workflows, enabling quick generation of [compliance](https://fleetdm.com/queries) reports and real-time tracking of device status. This automation significantly reduced manual effort and made it easier to respond to auditor requests for [ISO27001](https://www.iso.org/standard/75652.html) and [SOC2](https://en.wikipedia.org/wiki/System_and_Organization_Controls) compliance documentation.
 
-### Comprehensive device health querying
+### Comprehensive device health reporting
 
 With Fleet’s robust osquery capabilities and extensive library of pre-built queries, Deputy was able to ask questions about a device that was previously not available as easily. Engineers could now easily check the status of EDR tools, monitor memory-intensive processes, assess battery health and cycle counts, and much more - enabling them to quickly address issues as soon as they appeared in the helpdesk.
 

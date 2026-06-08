@@ -393,6 +393,11 @@ const (
 // It handles JSON marshaling/unmarshaling with support for masking sensitive data.
 // When marshaled in masked state, it serializes to just "********".
 // When unmarshaled, it accepts either "********" (indicating masked/preserve) or a JSON object.
+//
+// GitOps unknown-key validation is intentionally skipped for this type: users
+// typically paste the full Google service-account JSON blob (which contains many
+// keys beyond the two Fleet uses), and ValidateGoogleCalendarIntegrations still
+// enforces that client_email and private_key are present.
 type GoogleCalendarApiKey struct {
 	// Values contains the actual API key fields when not masked
 	Values map[string]string
@@ -566,7 +571,7 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 				)
 			}
 		}
-		if privateKey, ok := intg.ApiKey.Values["private_key"]; !ok {
+		if privateKey, ok := intg.ApiKey.Values[GoogleCalendarPrivateKey]; !ok {
 			invalid.Append(
 				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
 				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),

@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -44,13 +44,15 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		// Attach the authenticated viewer to the request context so downstream debug handlers can record who triggered an
+		// action (e.g. updating trace sampler settings).
+		next.ServeHTTP(w, r.WithContext(viewer.NewContext(r.Context(), *v)))
 	})
 }
 
 func jsonHandler(
-	logger kitlog.Logger,
-	jsonGenerator func(ctx context.Context) (interface{}, error),
+	logger *slog.Logger,
+	jsonGenerator func(ctx context.Context) (any, error),
 ) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		lc := &logging.LoggingContext{SkipUser: true} // The debug handler does not save the logged-in user.
@@ -71,7 +73,8 @@ func jsonHandler(
 		}
 		b, err := json.MarshalIndent(jsonData, "", "  ")
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			lc.SetErrs(err)
+			lc.Log(ctx, logger)
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -80,7 +83,7 @@ func jsonHandler(
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -92,6 +95,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
 	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
 	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
+	r.HandleFunc("/debug/trace_sampler", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		return ds.GetTraceSamplerSettings(ctx)
+	})).Methods(http.MethodGet)
+	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

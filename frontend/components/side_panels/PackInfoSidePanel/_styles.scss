@@ -1,11 +1,10 @@
 .pack-info-side-panel {
+  @include vertical-page-tab-panel-layout;
+
   &__title {
-    font-size: $medium;
-    font-weight: $regular;
+    font-size: $small;
+    font-weight: $bold;
     color: $core-fleet-black;
-    border-bottom: 1px solid $ui-fleet-black-10;
-    padding-bottom: 8px;
-    margin: 0 0 7px;
   }
 
   &__subtitle {
@@ -14,31 +13,31 @@
     color: $core-fleet-black;
   }
 
+  &__description {
+    @include vertical-page-tab-panel-layout;
+  }
+
+  h4 {
+    margin: 0;
+  }
+
   p,
   ul {
     font-size: $x-small;
-    color: $core-fleet-black;
-  }
-
-  p {
-    margin: 24px 0 24px 0;
+    color: $ui-fleet-black-75;
+    margin: 0;
+    padding: 0;
   }
 
   ul {
     margin-left: 16px;
-    padding-left: 0px;
-  }
-
-  li::marker {
-    color: $core-vibrant-blue;
   }
 
   dl {
     dt {
       font-weight: $bold;
       font-size: $x-small;
-      color: $core-fleet-black;
-      margin-bottom: 24px;
+      color: $ui-fleet-black-75;
 
       img {
         height: 16px;

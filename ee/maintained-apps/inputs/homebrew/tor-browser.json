@@ -1,0 +1,8 @@
+{
+  "name": "Tor Browser",
+  "slug": "tor-browser/darwin",
+  "unique_identifier": "org.torproject.torbrowser",
+  "token": "tor-browser",
+  "installer_format": "dmg",
+  "default_categories": ["Browsers"]
+}

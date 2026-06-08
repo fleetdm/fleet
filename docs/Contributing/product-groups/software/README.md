@@ -8,6 +8,7 @@ Fleet's Software functionality allows organizations to manage software across th
 
 ## Contents
 
+- [Fleet maintained app rollback](rollback-fleet-maintained-app-version.md)
 
 ## Related Resources
 

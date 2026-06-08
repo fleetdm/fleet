@@ -136,7 +136,7 @@ module.exports = {
       } else if(valueFromFormData === 'yes-recently-deployed') {
         psychologicalStage = '5 - Personally confident';
       } else {
-        psychologicalStage = '3 - Intrigued';
+        psychologicalStage = '2 - Aware';
       }
     } else {
       // If the user submitted any other step, we'll set variables using the answers to the previous questions.
@@ -164,7 +164,7 @@ module.exports = {
           }
         } else {
           if(valueFromFormData === 'no-use-case-yet') {
-            psychologicalStage = '3 - Intrigued';
+            psychologicalStage = '2 - Aware';
           } else {// Otherwise, they have a use case and will be set to stage 4.
             psychologicalStage = '4 - Has use case';
           }
@@ -190,7 +190,7 @@ module.exports = {
           // be selected,  we'll check the user's previous answers before changing their psyStage
           if(typeof questionnaireProgress['what-do-you-manage-mdm'] !== 'undefined' && questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
-            psychologicalStage = '3 - Intrigued';
+            psychologicalStage = '2 - Aware';
           } else {
             psychologicalStage = '4 - Has use case';
           }

@@ -19,10 +19,6 @@
     margin: $pad-small 0;
   }
 
-  .card {
-    margin-top: $pad-small;
-  }
-
   &__configuration {
     button {
       align-self: flex-end;
@@ -36,12 +32,18 @@
     font-size: $x-small;
   }
 
+  &__save-changes,
+  &__oauth-scopes {
+    @include vertical-form-layout;
+    padding-bottom: $pad-large;
+  }
+
   #oauth-scopes {
     font-family: "SourceCodePro", $monospace;
     color: $core-fleet-black;
     min-height: 82px;
+    min-width: 100%;
     padding: $pad-medium;
-    padding-right: $pad-xxlarge;
     resize: none;
   }
 

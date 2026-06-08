@@ -6,4 +6,9 @@
       justify-content: center;
     }
   }
+
+  &__filters {
+    display: flex;
+    gap: $gap-table-elements;
+  }
 }

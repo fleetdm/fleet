@@ -20,7 +20,7 @@ The following CIS benchmarks cannot be checked with a policy in Fleet:
 
 CIS has left the parameters of the following checks up to the benchmark implementer. CIS recommends that an organization make a conscious decision for these benchmarks, but does not make a specific recommendation.
 
-Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy query.
+Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy.
 The policy will be appended with a `-enabled` or `-disabled` label, such as `2.1.1.1-enabled`.
 
 - 2.1.1.1 Audit iCloud Keychain

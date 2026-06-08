@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
@@ -17,7 +19,7 @@ import (
 
 const (
 	filenameMaxLength           = 255
-	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
+	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s to set VPP apps\n"
 )
 
 type LabelUsage struct {
@@ -30,12 +32,13 @@ func gitopsCommand() *cli.Command {
 		flFilenames             cli.StringSlice
 		flDryRun                bool
 		flDeleteOtherTeams      bool
+		flAllowUnknownKeys      bool
 		flConcurrentIconUploads int
 		flConcurrentIconUpdates int
 	)
 	return &cli.Command{
 		Name:      "gitops",
-		Usage:     "Synchronize Fleet configuration with provided file. This command is intended to be used in a GitOps workflow.",
+		Usage:     "This command is used by Fleet's best practice GitOps workflow.",
 		UsageText: `fleetctl gitops [options]`,
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
@@ -46,16 +49,23 @@ func gitopsCommand() *cli.Command {
 				Usage:       "The file(s) with the GitOps configuration.",
 			},
 			&cli.BoolFlag{
-				Name:        "delete-other-teams",
-				EnvVars:     []string{"DELETE_OTHER_TEAMS"},
+				Name:        "delete-other-fleets",
+				Aliases:     []string{"delete-other-teams"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
 				Destination: &flDeleteOtherTeams,
-				Usage:       "Delete other teams not present in the GitOps configuration",
+				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
 			&cli.BoolFlag{
 				Name:        "dry-run",
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file(s), just validate",
+			},
+			&cli.BoolFlag{
+				Name:        "allow-unknown-keys",
+				EnvVars:     []string{"ALLOW_UNKNOWN_KEYS"},
+				Destination: &flAllowUnknownKeys,
+				Usage:       "Log unknown keys as warnings instead of failing with errors",
 			},
 			&cli.IntFlag{
 				Name:        "icons-concurrent-uploads",
@@ -76,8 +86,18 @@ func gitopsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			// Apply log topic overrides from CLI flags.
+			applyLogTopicFlags(c)
+
+			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
+			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
+
+			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
+
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
@@ -90,12 +110,20 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
 			}
+			// TODO - remove No Team in Fleet 5
+			noTeamFilesEncountered := 0
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
 					return errors.New("file name cannot be empty")
 				}
 				if len(filepath.Base(flFilename)) > filenameMaxLength {
 					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
+				}
+				if filepath.Base(flFilename) == "no-team.yml" || filepath.Base(flFilename) == "unassigned.yml" {
+					noTeamFilesEncountered++
+					if noTeamFilesEncountered > 1 {
+						return errors.New("Only one of `no-team.yml` or `unassigned.yml` can be provided. Use `unassigned.yml`; `no-team.yml` is deprecated.")
+					}
 				}
 			}
 
@@ -110,12 +138,6 @@ func gitopsCommand() *cli.Command {
 			}
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
-			}
-
-			// We need the controls from no-team.yml to apply them when applying the global app config.
-			noTeamControls, noTeamPresent, err := extractControlsForNoTeam(flFilenames, appConfig)
-			if err != nil {
-				return fmt.Errorf("extracting controls from no-team.yml: %w", err)
 			}
 
 			var originalABMConfig []any
@@ -171,6 +193,73 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
+			// Check if a no-team/unassigned file is present (by filename, before parsing).
+			prefetchNoTeamSoftware := false
+			for _, flFilename := range flFilenames.Value() {
+				fn := filepath.Base(flFilename)
+				if fn == "no-team.yml" || fn == "unassigned.yml" {
+					prefetchNoTeamSoftware = true
+					break
+				}
+			}
+
+			// When software is excepted from GitOps, pre-fetch server-side software
+			// for all existing teams (including "No team") so the parser can validate
+			// policy references, and DoGitOps can resolve policy title IDs. This must
+			// happen before extractControlsForNoTeam, which parses the no-team file
+			// and would otherwise fail validating policy software references.
+			if appConfig.GitOpsConfig.Exceptions.Software {
+				syntheticSoftwareByTeam := make(map[string]json.RawMessage)
+				// Pre-fetch for "No team" (unassigned hosts, teamID=0) if present.
+				if prefetchNoTeamSoftware {
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, 0)
+					if err != nil {
+						return fmt.Errorf("getting software for unassigned hosts: %w", err)
+					}
+					if softwareMap != nil {
+						raw, err := json.Marshal(softwareMap)
+						if err != nil {
+							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
+						}
+						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
+						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+					}
+				}
+				for teamName, teamID := range teamIDLookup {
+					if teamID == nil || *teamID == 0 {
+						continue // skip global and no-team/unassigned (handled above).
+					}
+					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
+					if err != nil {
+						return fmt.Errorf("getting software for team %q: %w", teamName, err)
+					}
+					if softwareMap == nil {
+						continue
+					}
+					raw, err := json.Marshal(softwareMap)
+					if err != nil {
+						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
+					}
+					syntheticSoftwareByTeam[teamName] = raw
+					teamsSoftwareInstallers[teamName] = installers
+					teamsVPPApps[teamName] = vppApps
+				}
+				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
+			}
+
+			// We need the controls from no-team.yml to apply them when applying the global app config.
+			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
+			if err != nil {
+				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
+			}
+			// Log a deprecation warning if the user is still using no-team.yml
+			if noTeamPresent && noTeamFilename == "no-team.yml" {
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logf("[!] no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'.\n")
+				}
+			}
+
 			// Used for keeping track of all label changes in this run.
 			labelChanges := make(map[string][]spec.LabelChange) // team name -> label changes
 
@@ -192,7 +281,7 @@ func gitopsCommand() *cli.Command {
 
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf, gitOpsOpts)
 				if err != nil {
 					return err
 				}
@@ -237,17 +326,41 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 				}
+				// When labels are excepted and the key is omitted, preserve
+				// existing labels (no-op). Otherwise delete/update as normal.
 				labelChanges[teamName] = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
+					appConfig.GitOpsConfig.Exceptions.Labels,
 				)
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
 			if noTeamPresent && !globalConfigLoaded {
-				return errors.New("global config must be provided alongside no-team.yml")
+				return fmt.Errorf("global config must be provided alongside %s", noTeamFilename)
+			}
+
+			// Fail fast if two YAML files in this run resolve to the same
+			// team name under MySQL's utf8mb4_unicode_ci collation.
+			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
+			for _, cf := range configs {
+				if cf.IsGlobalConfig || cf.Config.TeamName == nil {
+					continue
+				}
+				name := strings.TrimSpace(*cf.Config.TeamName)
+				key := norm.NFC.String(strings.ToLower(name))
+				if key == "" {
+					continue
+				}
+				if prev, ok := seenTeamNames[key]; ok {
+					return fmt.Errorf(
+						"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Fleet names must differ by more than letter case.",
+						prev, cf.Filename,
+					)
+				}
+				seenTeamNames[key] = cf.Filename
 			}
 
 			labelMoves, err := computeLabelMoves(labelChanges)
@@ -262,16 +375,32 @@ func gitopsCommand() *cli.Command {
 
 				if isGlobalConfig {
 					if noTeamControls.Set() && config.Controls.Set() {
-						return errors.New("'controls' cannot be set on both global config and on no-team.yml")
+						return fmt.Errorf("'controls' cannot be set on both global config and on %s", noTeamFilename)
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							return errors.New("'controls' must be set on global config or no-team.yml")
+							suggestion := ", no-team.yml or unassigned.yml"
+							if noTeamFilename != "" {
+								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
+							}
+							return fmt.Errorf("'controls' must be set on global config%s", suggestion)
 						}
 						return errors.New("'controls' must be set on global config")
 					}
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
+					}
+				}
+
+				// Targeting queries against labels is a Premium feature only
+				if !appConfig.License.IsPremium() {
+					for _, query := range config.Queries {
+						if len(query.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
+						}
+						if len(query.LabelsIncludeAll) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
+						}
 					}
 				}
 
@@ -290,7 +419,7 @@ func gitopsCommand() *cli.Command {
 				validLabelNames := make(map[string]struct{})
 				if globalLabelChanges, ok := labelChanges[spec.LabelAPIGlobalTeamName]; ok {
 					for _, label := range globalLabelChanges {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -305,7 +434,7 @@ func gitopsCommand() *cli.Command {
 				}
 				if config.CoercedTeamName() != spec.LabelAPIGlobalTeamName {
 					for _, label := range labelChanges[config.CoercedTeamName()] {
-						if label.Op == "+" || label.Op == "=" {
+						if label.Op == "+" || label.Op == "=" || label.Op == "~" {
 							validLabelNames[label.Name] = struct{}{}
 						}
 					}
@@ -378,7 +507,7 @@ func gitopsCommand() *cli.Command {
 					if hasMissingABMTeam {
 						if mdm, ok := config.OrgSettings["mdm"]; ok {
 							if mdmMap, ok := mdm.(map[string]any); ok {
-								if appleBM, ok := mdmMap["apple_business_manager"]; ok {
+								if appleBM, ok := mdmMap["apple_business"]; ok {
 									if bmSettings, ok := appleBM.([]any); ok {
 										originalABMConfig = bmSettings
 									}
@@ -386,7 +515,7 @@ func gitopsCommand() *cli.Command {
 
 								// If team is not found, we need to remove the AppleBMDefaultTeam from
 								// the global config, and then apply it after teams are processed
-								mdmMap["apple_business_manager"] = nil
+								mdmMap["apple_business"] = nil
 								mdmMap["apple_bm_default_team"] = ""
 							}
 						}
@@ -409,18 +538,19 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				// We cannot apply a VPP app to a new team until that team gets a VPP token.
-				// So, we create the team, then apply the VPP token, then apply VPP apps.
+				// Teams need a VPP token before VPP apps can be applied. When some VPP
+				// teams don't exist yet, the VPP config is temporarily removed from the
+				// global config, which clears all VPP token assignments. To avoid
+				// "No available VPP Token" errors, we defer app_store_apps for every
+				// team in the VPP config and re-apply them after tokens are reassigned.
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
-					for _, missingTeam := range missingVPPTeams {
-						if missingTeam == *config.TeamName {
-							missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
-								config:   config,
-								vppApps:  config.Software.AppStoreApps,
-								filename: flFilename,
-							})
-							config.Software.AppStoreApps = nil
-						}
+					if slices.Contains(vppTeams, *config.TeamName) {
+						missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
+							config:   config,
+							vppApps:  config.Software.AppStoreApps,
+							filename: flFilename,
+						})
+						config.Software.AppStoreApps = nil
 					}
 				}
 
@@ -438,6 +568,16 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
+				// Capture CAs before DoGitOps (which deletes the key from OrgSettings).
+				// DoGitOps processes CA creates/updates inline (with skipDeletes=true).
+				// CA deletions are always deferred to a post-op so that team configs can
+				// clean up certificate templates (which have FK references to CAs) first.
+				var deferredCAs any
+				if isGlobalConfig && !flDryRun {
+					deferredCAs = config.OrgSettings["certificate_authorities"]
+				}
+
 				assumptions, err := fleetClient.DoGitOps(
 					c.Context,
 					config,
@@ -454,6 +594,21 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+
+				// Schedule CA deletions as a post-op after all team configs have been processed.
+				if isGlobalConfig && !flDryRun {
+					allPostOps = append(allPostOps, func() error {
+						groupedCAs, caErr := fleet.ValidateCertificateAuthoritiesSpec(deferredCAs)
+						if caErr != nil {
+							return fmt.Errorf("invalid certificate_authorities: %w", caErr)
+						}
+						if caErr = fleetClient.ApplyCertificateAuthoritiesSpec(*groupedCAs, fleet.ApplySpecOptions{}, fleet.BatchApplyCertificateAuthoritiesOpts{}); caErr != nil {
+							return fmt.Errorf("applying certificate authorities: %w", caErr)
+						}
+						return nil
+					})
+				}
+
 				if config.TeamName != nil {
 					teamNames = append(teamNames, *config.TeamName)
 				} else {
@@ -507,7 +662,7 @@ func gitopsCommand() *cli.Command {
 							if usesLegacyABMConfig {
 								return fmt.Errorf("apple_bm_default_team %s cannot be deleted", team.Name)
 							}
-							return fmt.Errorf("apple_business_manager team %s cannot be deleted", team.Name)
+							return fmt.Errorf("apple_business team %s cannot be deleted", team.Name)
 						}
 						if slices.Contains(vppTeams, team.Name) {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
@@ -533,7 +688,7 @@ func gitopsCommand() *cli.Command {
 				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,
-					"no-team.yml",
+					noTeamFilename,
 					logf,
 					flDryRun,
 					nil,
@@ -619,6 +774,7 @@ func computeLabelChanges(
 	teamName string,
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
+	labelsExcepted bool,
 ) []spec.LabelChange {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
@@ -629,12 +785,12 @@ func computeLabelChanges(
 		}
 	}
 
-	// Handle the cases where the 'labels:' section is either nil (an empty 'labels:' section was specified,
-	// meaning remove-all) or an empty list (the 'labels:' section was not specified, so we do a no-op).
+	// If no labels are specified: either no-op if labels are excepted from GitOps,
+	// or else delete them all.
 	if len(specifiedLabels) == 0 {
-		op := "="
-		if specifiedLabels == nil {
-			op = "-"
+		op := "-"
+		if labelsExcepted {
+			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {
 			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
@@ -695,25 +851,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
-
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
 				}
+				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
+					return nil, fmt.Errorf("Couldn't edit configuration profiles. For profile '%s', only one of \"labels_include_all\" or \"labels_include_any\" can be included.", filepath.Base(setting.Path))
+				}
 				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
 					labels = setting.LabelsIncludeAll
 				}
-				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
+				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
-
-				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
+				labels = append(labels, setting.LabelsExcludeAny...)
+				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}
 	}
@@ -726,9 +877,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(softwarePackage.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
 			}
 			labels = softwarePackage.LabelsExcludeAny
+		}
+		if len(softwarePackage.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
+			}
+			labels = softwarePackage.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, softwarePackage.URL, "Software Package", result)
 	}
@@ -741,9 +898,15 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(vppApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
 			}
 			labels = vppApp.LabelsExcludeAny
+		}
+		if len(vppApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+			}
+			labels = vppApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 	}
@@ -755,30 +918,44 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(maintainedApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
 			}
 			labels = maintainedApp.LabelsExcludeAny
+		}
+		if len(maintainedApp.LabelsIncludeAll) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
+			}
+			labels = maintainedApp.LabelsIncludeAll
 		}
 		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}
 
-	// Get query label usage
+	// Get query label usage.
 	for _, query := range config.Queries {
-		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
+		if len(query.LabelsIncludeAny) > 0 && len(query.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Query '%s' has multiple label keys; please choose one of `labels_include_any` or `labels_include_all`.", query.Name)
+		}
+		labels := slices.Concat(query.LabelsIncludeAny, query.LabelsIncludeAll)
+		updateLabelUsage(labels, query.Name, "Query", result)
 	}
 
-	// Get policy label usage
+	// Get policy label usage.
 	for _, policy := range config.Policies {
-		var labels []string
+		nonEmptyScopes := 0
 		if len(policy.LabelsIncludeAny) > 0 {
-			labels = policy.LabelsIncludeAny
+			nonEmptyScopes++
+		}
+		if len(policy.LabelsIncludeAll) > 0 {
+			nonEmptyScopes++
 		}
 		if len(policy.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name)
-			}
-			labels = policy.LabelsExcludeAny
+			nonEmptyScopes++
 		}
+		if nonEmptyScopes > 1 {
+			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
+		}
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 
@@ -792,22 +969,23 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 	return nil, false
 }
 
-func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, error) {
+func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
-		if filepath.Base(flFilename) == "no-team.yml" {
+		fileName := filepath.Base(flFilename)
+		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
 			if !appConfig.License.IsPremium() {
 				// Message is printed in the next flFilenames loop to avoid printing it multiple times
 				break
 			}
 			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...any) {}, gitOpsOpts)
 			if err != nil {
-				return spec.GitOpsControls{}, false, err
+				return spec.GitOpsControls{}, false, fileName, err
 			}
-			return config.Controls, true, nil
+			return config.Controls, true, fileName, nil
 		}
 	}
-	return spec.GitOpsControls{}, false, nil
+	return spec.GitOpsControls{}, false, "", nil
 }
 
 // checkABMTeamAssignments validates the spec, and finds if:
@@ -822,7 +1000,10 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
 		if mdmMap, ok := mdm.(map[string]any); ok {
 			appleBMDT, hasLegacyConfig := mdmMap["apple_bm_default_team"]
-			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
+			// After ApplyDeprecatedKeyMappings runs, any legacy
+			// "apple_business_manager" key has already been migrated to
+			// "apple_business", so we only look up the new name here.
+			appleBM, hasNewConfig := mdmMap["apple_business"]
 
 			if hasLegacyConfig && hasNewConfig {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
@@ -866,7 +1047,7 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				if settingMap, ok := appleBM.([]any); ok {
 					for _, item := range settingMap {
 						if cfg, ok := item.(map[string]any); ok {
-							for _, teamConfigKey := range []string{"macos_team", "ios_team", "ipados_team"} {
+							for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet"} {
 								if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
 									// normalize for Unicode support
 									team = norm.NFC.String(team)
@@ -886,6 +1067,26 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 	return abmTeams, missingTeam, usesLegacyConfig, nil
 }
 
+// knownTeamNamesForTokenAssignment returns the set of team names that count as
+// "existing" when validating deferred ABM/VPP token assignments. A team is known
+// if it already exists in Fleet (returned by ListTeams, which by this point
+// includes any teams created earlier in this gitops run) or if it was processed
+// during this run (teamNames).
+func knownTeamNamesForTokenAssignment(teamNames []string, fleetClient *service.Client) (map[string]struct{}, error) {
+	teams, err := fleetClient.ListTeams("")
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]struct{}, len(teams)+len(teamNames))
+	for _, tm := range teams {
+		known[norm.NFC.String(tm.Name)] = struct{}{}
+	}
+	for _, name := range teamNames {
+		known[norm.NFC.String(name)] = struct{}{}
+	}
+	return known, nil
+}
+
 func applyABMTokenAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
@@ -903,11 +1104,18 @@ func applyABMTokenAssignmentIfNeeded(
 		return errors.New("using legacy config without any ABM teams defined")
 	}
 
+	knownTeams, err := knownTeamNamesForTokenAssignment(teamNames, fleetClient)
+	if err != nil {
+		return err
+	}
+
 	var appConfigUpdate map[string]map[string]any
 	if usesLegacyConfig {
 		appleBMDefaultTeam := abmTeamNames[0]
-		if !slices.Contains(teamNames, appleBMDefaultTeam) {
-			return fmt.Errorf("apple_bm_default_team team %q not found in team configs", appleBMDefaultTeam)
+		if !fleet.IsReservedTeamName(appleBMDefaultTeam) {
+			if _, ok := knownTeams[norm.NFC.String(appleBMDefaultTeam)]; !ok {
+				return fmt.Errorf("apple_bm_default_team team %q not found in team configs", appleBMDefaultTeam)
+			}
 		}
 		appConfigUpdate = map[string]map[string]any{
 			"mdm": {
@@ -916,14 +1124,17 @@ func applyABMTokenAssignmentIfNeeded(
 		}
 	} else {
 		for _, abmTeam := range abmTeamNames {
-			if !slices.Contains(teamNames, abmTeam) {
-				return fmt.Errorf("apple_business_manager team %q not found in team configs", abmTeam)
+			if fleet.IsReservedTeamName(abmTeam) {
+				continue
+			}
+			if _, ok := knownTeams[norm.NFC.String(abmTeam)]; !ok {
+				return fmt.Errorf("apple_business team %q not found in team configs", abmTeam)
 			}
 		}
 
 		appConfigUpdate = map[string]map[string]any{
 			"mdm": {
-				"apple_business_manager": originalMDMConfig,
+				"apple_business": originalMDMConfig,
 			},
 		}
 	}
@@ -957,14 +1168,14 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				if vppInterfaces, ok := vpp.([]any); ok {
 					for _, item := range vppInterfaces {
 						if itemMap, ok := item.(map[string]any); ok {
-							if teams, ok := itemMap["teams"].([]any); ok {
+							if teams, ok := itemMap["fleets"].([]any); ok {
 								for _, team := range teams {
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
-										// ListTeams doesn't return "No team", so account for it here
-										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam {
+										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
+										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}
@@ -988,14 +1199,20 @@ func applyVPPTokenAssignmentIfNeeded(
 	flDryRun bool,
 	fleetClient *service.Client,
 ) error {
-	var appConfigUpdate map[string]map[string]any
+	knownTeams, err := knownTeamNamesForTokenAssignment(teamNames, fleetClient)
+	if err != nil {
+		return err
+	}
 	for _, vppTeam := range vppTeamNames {
-		if !fleet.IsReservedTeamName(vppTeam) && !slices.Contains(teamNames, vppTeam) {
+		if fleet.IsReservedTeamName(vppTeam) {
+			continue
+		}
+		if _, ok := knownTeams[norm.NFC.String(vppTeam)]; !ok {
 			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
 		}
 	}
 
-	appConfigUpdate = map[string]map[string]any{
+	appConfigUpdate := map[string]map[string]any{
 		"mdm": {
 			"volume_purchasing_program": originalVPPConfig,
 		},

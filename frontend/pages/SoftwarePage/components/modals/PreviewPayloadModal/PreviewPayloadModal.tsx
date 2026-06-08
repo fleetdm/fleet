@@ -65,6 +65,7 @@ const PreviewPayloadModal = ({
     delete json.vulnerability.epss_probability;
     delete json.vulnerability.cvss_score;
     delete json.vulnerability.cisa_known_exploit;
+    delete json.vulnerability.cve_published;
   }
 
   return (
@@ -90,7 +91,7 @@ const PreviewPayloadModal = ({
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Close</Button>
         </div>
       </div>
     </Modal>

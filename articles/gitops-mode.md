@@ -2,9 +2,8 @@
 
 GitOps mode helps users avoid unexpected changes by preventing manual updates of [GitOps-configurable features](https://fleetdm.com/docs/configuration/yaml-files) in the UI.
 
-For example, if a user in the Fleet UI adds a query and then GitOps runs, the query will be deleted.
-GitOps mode helps avoid this by preventing the user from saving or editing the query in the first place
-(though does still allow running an ad-hoc live query):
+For example, if a user in the Fleet UI adds a report and then GitOps runs, the report will be deleted.
+GitOps mode helps avoid this by preventing the user from saving or editing the report in the first place:
 
 ![](../website/assets/images/articles/gitops-mode-disables-saving-queries-900x480@2x.png)
 

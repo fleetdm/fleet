@@ -2,6 +2,8 @@ package filesystem
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -61,33 +63,63 @@ func (s *SoftwareTitleIconStore) Get(ctx context.Context, iconID string) (io.Rea
 	return f, sz, nil
 }
 
-// Put stores a software title icon in the local filesystem.
+// Put stores a software title icon atomically: contents are streamed to a
+// temp file, fsync'd, then renamed into place. A crash mid-write leaves the
+// temp file for Cleanup to reap rather than a truncated final file.
 func (s *SoftwareTitleIconStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
-	path := s.pathForIcon(iconID)
+	finalPath := s.pathForIcon(iconID)
 
-	f, err := os.Create(path)
+	tmp, err := os.CreateTemp(filepath.Dir(finalPath), ".tmp-icon-*")
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating software title icon file in filesystem store")
+		return ctxerr.Wrap(ctx, err, "creating temp software title icon file in filesystem store")
 	}
-	defer f.Close()
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath) // no-op once Rename has consumed it
 
-	if _, err := io.Copy(f, content); err != nil {
+	if _, err := io.Copy(tmp, content); err != nil {
+		_ = tmp.Close()
 		return ctxerr.Wrap(ctx, err, "writing software title icon file in filesystem store")
 	}
-	if err := f.Close(); err != nil {
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return ctxerr.Wrap(ctx, err, "syncing software title icon file in filesystem store")
+	}
+	if err := tmp.Close(); err != nil {
 		return ctxerr.Wrap(ctx, err, "closing software title icon file in filesystem store")
+	}
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		return ctxerr.Wrap(ctx, err, "renaming software title icon file in filesystem store")
 	}
 	return nil
 }
 
-// Exists checks if a software title icon exists in the filesystem for the ID.
+// Exists reports whether the icon for iconID is present and intact. A file
+// that exists but is empty or whose SHA-256 doesn't match iconID is treated
+// as not-present, so callers fall through to a fresh upload rather than
+// trusting corrupted bytes.
 func (s *SoftwareTitleIconStore) Exists(ctx context.Context, iconID string) (bool, error) {
 	path := s.pathForIcon(iconID)
-	if _, err := os.Stat(path); err != nil {
+	info, err := os.Stat(path)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "looking up software title icon in filesystem store")
+	}
+	if info.Size() == 0 {
+		return false, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "opening software title icon for hash verification")
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "hashing software title icon for verification")
+	}
+	if hex.EncodeToString(h.Sum(nil)) != iconID {
+		return false, nil
 	}
 	return true, nil
 }

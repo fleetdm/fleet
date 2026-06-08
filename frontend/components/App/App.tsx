@@ -1,16 +1,17 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { AxiosError, AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
 
+import PATHS from "router/paths";
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken, clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import useDeepEffect from "hooks/useDeepEffect";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -18,7 +19,7 @@ import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
 import mdmAppleBMAPI, {
-  IGetAbmTokensResponse,
+  IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
@@ -115,18 +116,18 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     },
   });
 
-  // Get the ABM tokens
-  useQuery<IGetAbmTokensResponse, AxiosError>(
-    ["abm_tokens"],
+  // Get the Apple Business (AB) tokens
+  useQuery<IGetAbTokensResponse, AxiosError>(
+    ["ab_tokens"],
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: ({ abm_tokens }) => {
-        abm_tokens.length &&
+      onSuccess: ({ ab_tokens }) => {
+        ab_tokens.length &&
           setABMExpiry({
-            earliestExpiry: getEarliestExpiry(abm_tokens),
-            needsAbmTermsRenewal: abm_tokens.some(
+            earliestExpiry: getEarliestExpiry(ab_tokens),
+            needsAbmTermsRenewal: ab_tokens.some(
               (token) => token.terms_expired
             ),
           });
@@ -166,7 +167,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     }
   );
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const configResponse = await configAPI.loadAll();
       if (configResponse.sandbox_enabled) {
@@ -184,9 +185,9 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       setIsLoading(false);
     }
     return true;
-  };
+  }, [setConfig, setSandboxExpiry, setNoSandboxHosts]);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
@@ -206,34 +207,40 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       ) {
         return true;
       }
-      clearToken();
+      authToken.remove();
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
-        window.location.href = "/login";
+        window.location.href = PATHS.LOGIN;
       }
     }
     return true;
-  };
+  }, [
+    location?.pathname,
+    setCurrentUser,
+    setAvailableTeams,
+    setUserSettings,
+    fetchConfig,
+  ]);
 
   useEffect(() => {
-    if (authToken() && !location?.pathname.includes("/device/")) {
+    if (authToken.get() && !location?.pathname.includes("/device/")) {
       fetchCurrentUser();
     }
-  }, [location?.pathname]);
+  }, [location?.pathname, fetchCurrentUser]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // Also applies title to subpaths such as settings/organization/webaddress
     // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
-      location?.pathname.includes(item.path)
+      location?.pathname.startsWith(item.path)
     );
 
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
-  }, [location, config]);
+  }, [location?.pathname, config]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -252,7 +259,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setEnrollSecret(spec.secrets);
       } catch (error) {
         console.error(error);
-        return false;
       }
     };
 
@@ -263,6 +269,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderErrorOverlay = ({ error }: any) => {
     // @ts-ignore
     console.error(error);

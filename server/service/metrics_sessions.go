@@ -23,6 +23,10 @@ func (mw metricsMiddleware) Login(ctx context.Context, email string, password st
 	return user, session, err
 }
 
+func (mw metricsMiddleware) GetSessionDuration(ctx context.Context) time.Duration {
+	return mw.Service.GetSessionDuration(ctx)
+}
+
 func (mw metricsMiddleware) Logout(ctx context.Context) error {
 	var err error
 	defer func(begin time.Time) {

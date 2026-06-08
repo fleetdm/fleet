@@ -135,7 +135,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 
 type getSoftwareRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getSoftwareResponse struct {
@@ -170,7 +170,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -210,6 +210,21 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	}
 
 	return software, nil
+}
+
+func (svc *Service) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
+	if err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+
+	return swLite, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

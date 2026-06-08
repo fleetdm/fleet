@@ -248,8 +248,8 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 
 	tempDir := t.TempDir()
@@ -259,7 +259,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 0 queries from 2 2017 "Packs" into portable queries:`)
 	require.Contains(t, got, `visit https://example.com/packs/manage and disable all`)
 
@@ -315,21 +315,22 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{Name: "q1", Query: "select 1"},
 			{Name: "q2", Query: "select 2"},
 			{Name: "q3", Query: "select 3"},
-		}, 3, nil, nil
+		}, 3, 0, nil, nil
 	}
 
 	const expected = `
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: (converted from pack "p1", query "q1")
   discard_data: false
+  fleet: ""
   interval: 0
   logging: snapshot
   min_osquery_version: ""
@@ -337,14 +338,14 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select 1
-  team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
+  fleet: t1
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -352,14 +353,14 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
-  team: t1
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
+  fleet: t2
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -367,7 +368,6 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
-  team: t2
 ---
 `
 
@@ -379,7 +379,7 @@ spec:
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
 
 	content, err := os.ReadFile(outputFile)
@@ -402,9 +402,9 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	require.NoError(t, err)
 
 	// first try without the required output file flag
-	RunAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
+	runAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
 	// then try with the required flag but user is not admin
-	RunAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
+	runAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, "No 2017 \"Packs\" found.\n")
 
 	content, err := os.ReadFile(outputFile)

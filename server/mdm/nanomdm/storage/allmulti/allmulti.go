@@ -105,6 +105,16 @@ func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document s
 	return doc.(string), err
 }
 
+func (ms *MultiAllStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	// NOT IMPLEMENTED
+	return document, nil
+}
+
+func (ms *MultiAllStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, errorMsg string) error {
+	// NOT IMPLEMENTED
+	return nil
+}
+
 func (ms *MultiAllStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
 	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
 		return nil, s.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)

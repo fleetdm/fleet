@@ -15,11 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_ids"`
+	QueryIDs []uint `json:"query_ids" renameto:"report_ids"`
 	HostIDs  []uint `json:"host_ids"`
 }
 
@@ -47,13 +46,13 @@ type runLiveQueryResponse struct {
 	Summary summaryPayload `json:"summary"`
 	Err     error          `json:"error,omitempty"`
 
-	Results []fleet.QueryCampaignResult `json:"live_query_results"`
+	Results []fleet.QueryCampaignResult `json:"live_query_results" renameto:"live_report_results"`
 }
 
 func (r runLiveQueryResponse) Error() error { return r.Err }
 
 type runOneLiveQueryResponse struct {
-	QueryID            uint                `json:"query_id"`
+	QueryID            uint                `json:"query_id" renameto:"report_id"`
 	TargetedHostCount  int                 `json:"targeted_host_count"`
 	RespondedHostCount int                 `json:"responded_host_count"`
 	Results            []fleet.QueryResult `json:"results"`
@@ -265,8 +264,7 @@ func (svc *Service) RunLiveQueryDeadline(
 
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
-				level.Error(svc.logger).Log(
-					"msg", "new distributed query campaign",
+				svc.logger.ErrorContext(ctx, "new distributed query campaign",
 					"queryString", queryString,
 					"queryID", queryID,
 					"err", err,
@@ -283,8 +281,8 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer func() {
 				err := svc.CompleteCampaign(ctxWithoutCancel, campaign)
 				if err != nil {
-					level.Error(svc.logger).Log(
-						"msg", "completing campaign (sync)", "query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
+					svc.logger.ErrorContext(ctxWithoutCancel, "completing campaign (sync)",
+						"query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
 					)
 					resultsCh <- fleet.QueryCampaignResult{
 						QueryID: queryID,
@@ -296,8 +294,8 @@ func (svc *Service) RunLiveQueryDeadline(
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
-				level.Error(svc.logger).Log(
-					"msg", "get campaign reader", "query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
+				svc.logger.ErrorContext(ctx, "get campaign reader",
+					"query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
 				)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
@@ -314,7 +312,7 @@ func (svc *Service) RunLiveQueryDeadline(
 			perfStatsTracker := statsTracker{}
 			perfStatsTracker.saveStats, err = svc.ds.IsSavedQuery(ctx, campaign.QueryID)
 			if err != nil {
-				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
+				svc.logger.ErrorContext(ctx, "error checking saved query", "query.id", campaign.QueryID, "err", err)
 				perfStatsTracker.saveStats = false
 			}
 			totalHosts := campaign.Metrics.TotalHosts

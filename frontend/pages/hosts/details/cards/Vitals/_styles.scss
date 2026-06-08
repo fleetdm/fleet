@@ -1,6 +1,10 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  .date-tooltip {
+    cursor: pointer;
+  }
+
   .truncated-tooltip {
     .vitals-card__device-mapping__source {
       color: inherit;
@@ -50,6 +54,54 @@
     // at the larger screen widths we want to have 6 columns.
     @media (min-width: $break-xxl) {
       grid-template-columns: repeat(6, minmax(150px, 1fr));
+    }
+  }
+
+  // OS version with requirement icon + tooltip truncation
+  // MDM status may have an error icon if status is off
+  &__os-version,
+  &__mdm-status {
+    display: flex;
+    gap: $pad-xsmall;
+    min-width: 0;
+
+    // Prevent the error icon from shrinking
+    .icon {
+      flex-shrink: 0;
+    }
+  }
+
+  &__os-version-tooltip {
+    min-width: 0;
+
+    > .component__tooltip-wrapper__element {
+      overflow: hidden;
+    }
+  }
+
+  &__os-version-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__os-version {
+    display: flex;
+    gap: $pad-xsmall;
+
+    .component__tooltip-wrapper__element {
+      line-height: inherit;
+    }
+  }
+
+  &__mdm-status,
+  &__location {
+    dd {
+      display: flex;
+      gap: $pad-xsmall;
+      margin: -6px; // See underline under link and border with keyboard nav
+      padding: 6px; // See underline under link and border with keyboard nav
     }
   }
 

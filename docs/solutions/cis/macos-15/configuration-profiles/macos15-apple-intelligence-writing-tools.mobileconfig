@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Disable Apple Intelligence writing tools</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-apple-intelligence-writing-tools.check</string>
+			<key>PayloadUUID</key>
+			<string>B2C3D4E5-F6A7-8901-BCDE-F12345678901</string>
+			<key>allowWritingTools</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Disables Apple Intelligence writing tools to prevent AI-assisted text composition from processing organizational data. CIS macOS 15 benchmark.</string>
+	<key>PayloadDisplayName</key>
+	<string>[macOS 15] CIS - Ensure Apple Intelligence writing tools is disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.macos15.cis-apple-intelligence-writing-tools</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>B2C3D4E5-F6A7-8901-BCDE-F12345678902</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

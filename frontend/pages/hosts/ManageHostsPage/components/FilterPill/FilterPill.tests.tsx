@@ -1,7 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, within } from "@testing-library/react";
-
+import { render, screen, within, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import FilterPill from "./FilterPill";
@@ -21,8 +20,8 @@ describe("Filter Pill Component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a passed in string tooltip", () => {
-    render(
+  it("renders a passed in string tooltip", async () => {
+    const { user } = renderWithSetup(
       <FilterPill
         label="Test Pill"
         tooltipDescription="Test Tooltip"
@@ -30,11 +29,15 @@ describe("Filter Pill Component", () => {
       />
     );
 
-    expect(screen.getByText("Test Tooltip")).toBeInTheDocument();
+    await user.hover(screen.getByText("Test Pill"));
+    await waitFor(() => {
+      const tooltip = screen.getByText("Test Tooltip");
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
-  it("renders a passed in ReactNode tooltip", () => {
-    render(
+  it("renders a passed in ReactNode tooltip", async () => {
+    const { user } = renderWithSetup(
       <FilterPill
         label="Test Pill"
         tooltipDescription={<p>This is a ReactNode</p>}
@@ -42,7 +45,11 @@ describe("Filter Pill Component", () => {
       />
     );
 
-    expect(screen.getByText("This is a ReactNode")).toBeInTheDocument();
+    await user.hover(screen.getByText("Test Pill"));
+    await waitFor(() => {
+      const tooltip = screen.getByText("This is a ReactNode");
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it("calls the onCancel callback when a user clicks on the remove button", async () => {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -129,7 +129,7 @@ func TestEventForDifferentHost(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Integrations: fleet.Integrations{
@@ -208,7 +208,7 @@ func TestEventForDifferentHost(t *testing.T) {
 func TestCalendarEventsMultipleHosts(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -403,11 +403,11 @@ func (n notFoundErr) Error() string {
 func TestCalendarEvents1KHosts(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	var logger kitlog.Logger
+	var logger *slog.Logger
 	if os.Getenv("CALENDAR_TEST_LOGGING") != "" {
-		logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	} else {
-		logger = kitlog.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -704,6 +704,17 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil
 	}
 
+	// On Tuesdays during work hours, events get scheduled for the next 30-min
+	// slot today and can elapse before the second cron runs. deleteCalendarEvent
+	// then skips the calendar delete (eventInFuture is false) and events leak
+	// into the assertion below. Push StartTime/EndTime far enough out that the
+	// boundary can never be crossed during the test.
+	futureStart := time.Now().Add(24 * time.Hour)
+	for _, ev := range eventPerHost {
+		ev.StartTime = futureStart
+		ev.EndTime = futureStart.Add(30 * time.Minute)
+	}
+
 	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
@@ -715,7 +726,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 func TestEventBody(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(
 		func() {
 			calendar.ClearMockEvents()
