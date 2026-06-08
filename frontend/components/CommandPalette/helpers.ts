@@ -320,10 +320,15 @@ export const highlightMatches = (
   query: string
 ): IHighlightSegment[] => {
   if (!text) return [{ text: "", matched: false }];
-  const queryLower = query.toLowerCase().trim();
+  // NFD-decompose, drop combining marks, lowercase. Mirrors
+  // utf8mb4_unicode_ci's accent-insensitive folding so the highlighter
+  // never undershoots a row the backend surfaced.
+  const foldChar = (cp: string): string =>
+    cp.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const fold = (s: string): string => Array.from(s, foldChar).join("");
+  const queryLower = fold(query).trim();
   if (!queryLower) return [{ text, matched: false }];
 
-  const textLower = text.toLowerCase();
   // Always include the full query as one needle so phrase matches get
   // a contiguous highlight, plus each individual token for multi-token
   // queries.
@@ -332,12 +337,40 @@ export const highlightMatches = (
     if (tok) needles.add(tok);
   });
 
+  // Build textLower in lockstep with offset maps back to the original.
+  // Iterate by codepoint (not code unit) so supplementary-plane chars
+  // fold correctly — text[i].toLowerCase() on a lone surrogate is a
+  // no-op. Some folds change length (Turkish "İ" → "i", combining marks
+  // stripped from "Café" → "Cafe"); lowerToOrigStart/End translate
+  // matches back to original-text ranges.
+  let textLower = "";
+  const lowerToOrigStart: number[] = [];
+  const lowerToOrigEnd: number[] = [];
+  let origIdx = 0;
+  Array.from(text).forEach((cp) => {
+    const folded = foldChar(cp);
+    for (let j = 0; j < folded.length; j += 1) {
+      lowerToOrigStart.push(origIdx);
+      lowerToOrigEnd.push(origIdx + cp.length);
+    }
+    textLower += folded;
+    origIdx += cp.length;
+  });
+  // Sentinels for end-of-text alignment.
+  lowerToOrigStart.push(text.length);
+  lowerToOrigEnd.push(text.length);
+
   const ranges: Array<[number, number]> = [];
   needles.forEach((needle) => {
     let idx = textLower.indexOf(needle);
     while (idx !== -1) {
-      ranges.push([idx, idx + needle.length]);
-      idx = textLower.indexOf(needle, idx + needle.length);
+      const lowerEnd = idx + needle.length;
+      // Translate to original-text coords. lowerToOrigEnd already
+      // accounts for surrogate-pair widths and length-changing folds.
+      const origStart = lowerToOrigStart[idx];
+      const origEnd = lowerToOrigEnd[lowerEnd - 1];
+      ranges.push([origStart, origEnd]);
+      idx = textLower.indexOf(needle, lowerEnd);
     }
   });
 

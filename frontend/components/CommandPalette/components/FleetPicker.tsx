@@ -3,17 +3,21 @@ import { Command } from "cmdk";
 
 import { ITeamSummary } from "interfaces/team";
 
+import HighlightedLabel from "./HighlightedLabel";
+
 const baseClass = "command-palette";
 
 interface IFleetPickerProps {
   availableTeams?: ITeamSummary[];
   currentTeam?: ITeamSummary;
+  search: string;
   onSelect: (fleetId: number) => void;
 }
 
 const FleetPicker = ({
   availableTeams,
   currentTeam,
+  search,
   onSelect,
 }: IFleetPickerProps): JSX.Element => {
   return (
@@ -32,7 +36,7 @@ const FleetPicker = ({
                 isSelected ? ` ${baseClass}__item-label--selected` : ""
               }`}
             >
-              {fleet.name}
+              <HighlightedLabel text={fleet.name} query={search} />
             </span>
           </Command.Item>
         );

@@ -411,10 +411,27 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	external_refs.EnrichManifest(&out)
 
+	// The patch policy normally compares osquery's reported version against the
+	// winget PackageVersion. Some installers report a registry DisplayVersion in a
+	// different format (e.g. python.org reports "3.14.5150.0" for "3.14.5"), which
+	// breaks version_compare ordering. When opted in, compare against the
+	// DisplayVersion so the patch policy flags outdated installs correctly.
+	patchVersion := out.Version
+	if input.UseDisplayVersionForPatch {
+		displayVersion := firstDisplayVersion(selectedInstaller.AppsAndFeaturesEntries)
+		if displayVersion == "" {
+			displayVersion = firstDisplayVersion(m.AppsAndFeaturesEntries)
+		}
+		if displayVersion == "" {
+			return nil, ctxerr.New(ctx, "use_display_version_for_patch is set but no DisplayVersion found in winget manifest")
+		}
+		patchVersion = displayVersion
+	}
+
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
 		Platform:    "windows",
-		Version:     out.Version,
+		Version:     patchVersion,
 		ExistsQuery: out.Queries.Exists,
 	})
 	if err != nil {
@@ -426,6 +443,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 func escapeSQLParam(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// firstDisplayVersion returns the first non-empty DisplayVersion from a set of
+// AppsAndFeaturesEntries, or "" if none is present.
+func firstDisplayVersion(entries []appsAndFeaturesEntries) string {
+	for _, fe := range entries {
+		if v := strings.TrimSpace(fe.DisplayVersion); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
@@ -535,6 +563,12 @@ type inputApp struct {
 	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// ExistsQuery overrides the default programs-table exists query (e.g. portable zip installs).
 	ExistsQuery string `json:"exists_query,omitempty"`
+	// UseDisplayVersionForPatch makes the patch policy compare against the
+	// installer's registry DisplayVersion (from AppsAndFeaturesEntries) instead of
+	// the winget PackageVersion. Needed when the registry version format differs
+	// from the marketing version in a way that breaks version_compare ordering
+	// (e.g. python.org installers report "3.14.5150.0" for version "3.14.5").
+	UseDisplayVersionForPatch bool `json:"use_display_version_for_patch"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
@@ -572,9 +606,10 @@ type installerSwitches struct {
 }
 
 type appsAndFeaturesEntries struct {
-	Publisher   string `yaml:"Publisher"`
-	ProductCode string `yaml:"ProductCode"`
-	UpgradeCode string `yaml:"UpgradeCode"`
+	Publisher      string `yaml:"Publisher"`
+	ProductCode    string `yaml:"ProductCode"`
+	UpgradeCode    string `yaml:"UpgradeCode"`
+	DisplayVersion string `yaml:"DisplayVersion"`
 }
 
 type localeManifest struct {

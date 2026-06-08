@@ -5,26 +5,37 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import Affinity from "./Affinity";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import Antigravity from "./Antigravity";
+import AntigravityIde from "./AntigravityIde";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
+import BeekeeperStudio from "./BeekeeperStudio";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import CapCut from "./CapCut";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
+import Cinc from "./Cinc";
+import ClaudeDevtools from "./ClaudeDevtools";
+import ClickShare from "./ClickShare";
+import Comet from "./Comet";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Cryptomator from "./Cryptomator";
 import DellCommandUpdate from "./DellCommandUpdate";
 import DellDisplayManager from "./DellDisplayManager";
+import DevinDesktop from "./DevinDesktop";
+import DfuBlasterPro from "./DfuBlasterPro";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -32,6 +43,8 @@ import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
+import GrooveOmniDialer from "./GrooveOmniDialer";
+import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
@@ -41,6 +54,7 @@ import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
 import Max from "./Max";
+import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
 import MindManager from "./MindManager";
@@ -51,10 +65,17 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Pd from "./Pd";
 import PlantronicsHub from "./PlantronicsHub";
+import Postgresql15 from "./Postgresql15";
+import Postgresql16 from "./Postgresql16";
+import Postgresql17 from "./Postgresql17";
+import Postgresql18 from "./Postgresql18";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import PowerMonitor from "./PowerMonitor";
+import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
 import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
@@ -221,6 +242,8 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Python313 from "./Python313";
+import Python314 from "./Python314";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
@@ -286,6 +309,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winrar from "./Winrar";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
@@ -316,6 +340,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  affinity: Affinity,
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
@@ -329,6 +354,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "android studio": AndroidStudio,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
+  antigravity: Antigravity,
+  "antigravity ide": AntigravityIde,
+  capcut: CapCut,
+  "dfu blaster pro": DfuBlasterPro,
+  "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
@@ -346,6 +376,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
+  "beekeeper studio": BeekeeperStudio,
   betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
@@ -363,29 +394,36 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
   "chrome remote desktop": ChromeRemoteDesktop,
+  "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  "claude-devtools": ClaudeDevtools,
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
+  clickshare: ClickShare,
   clion: CLion,
   clickup: ClickUp,
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  comet: Comet,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   cryptomator: Cryptomator,
   "dell command update": DellCommandUpdate,
   "dell display manager": DellDisplayManager,
+  "devin desktop": DevinDesktop,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
+  "groove omnidialer": GrooveOmniDialer,
+  "ibm notifier": IbmNotifier,
   "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
@@ -397,6 +435,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   marvel: Marvel,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft remote help": MicrosoftRemoteHelp,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -456,6 +495,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
   goland: GoLand,
+  "google antigravity": Antigravity,
   "google chrome": ChromeApp,
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
@@ -507,15 +547,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  pd: Pd,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
   "plantronics hub": PlantronicsHub,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
+  "postgresql 15": Postgresql15,
+  "postgresql 16": Postgresql16,
+  "postgresql 17": Postgresql17,
+  "postgresql 18": Postgresql18,
   postman: Postman,
   "power automate": PowerAutomate,
   "power bi": PowerBi,
+  "power monitor": PowerMonitor,
+  powershell: Powershell,
   powertoys: Powertoys,
   prisma: Prisma,
   privileges: Privileges,
@@ -527,6 +574,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "python 3.13": Python313,
+  "python 3.14": Python314,
   quip: Quip,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
@@ -599,6 +648,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winrar: Winrar,
   winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,

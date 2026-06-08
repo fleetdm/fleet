@@ -1,0 +1,12 @@
+{
+  "name": "PostgreSQL 16",
+  "slug": "postgresql-16/windows",
+  "package_identifier": "PostgreSQL.PostgreSQL.16",
+  "unique_identifier": "PostgreSQL 16",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-16_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-16_uninstall.ps1"
+}

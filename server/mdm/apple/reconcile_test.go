@@ -31,118 +31,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHandlerIncludeAll(t *testing.T) {
-	t.Run("no labels -> false", func(t *testing.T) {
-		require.False(t, HandlerIncludeAll(nil, map[uint]struct{}{1: {}}))
-	})
-	t.Run("broken label -> false", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{{LabelID: nil}}
-		require.False(t, HandlerIncludeAll(labels, map[uint]struct{}{1: {}}))
-	})
-	t.Run("host missing a label -> false", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1))},
-			{LabelID: new(uint(2))},
-		}
-		require.False(t, HandlerIncludeAll(labels, map[uint]struct{}{1: {}}))
-	})
-	t.Run("host has all labels -> true", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1))},
-			{LabelID: new(uint(2))},
-		}
-		require.True(t, HandlerIncludeAll(labels, map[uint]struct{}{1: {}, 2: {}}))
-	})
-}
+// The include/exclude label handlers and the team + include/exclude logic of the dispatcher are platform-neutral and live in
+// server/mdm/reconcile, which owns their exhaustive unit tests. The Apple tests below cover only what is Apple-specific: the
+// platform gate, the threading of host fields (EffectiveTeamID, LabelUpdatedAt) through the Apple wrapper into the shared
+// dispatcher, the declarations-share-the-dispatcher drift contract, and the Apple compute/execute logic.
 
-func TestHandlerIncludeAny(t *testing.T) {
-	t.Run("no labels -> false", func(t *testing.T) {
-		require.False(t, HandlerIncludeAny(nil, map[uint]struct{}{}))
-	})
-	t.Run("broken labels are ignored", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: nil},
-			{LabelID: new(uint(2))},
-		}
-		require.True(t, HandlerIncludeAny(labels, map[uint]struct{}{2: {}}))
-	})
-	t.Run("host in no label -> false", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1))},
-			{LabelID: new(uint(2))},
-		}
-		require.False(t, HandlerIncludeAny(labels, map[uint]struct{}{3: {}}))
-	})
-	t.Run("host in one label -> true", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1))},
-			{LabelID: new(uint(2))},
-		}
-		require.True(t, HandlerIncludeAny(labels, map[uint]struct{}{1: {}}))
-	})
-}
-
-func TestHandlerExcludeAny(t *testing.T) {
-	host := &fleet.AppleHostReconcileInfo{
-		HostID:         100,
-		UUID:           "h1",
-		Platform:       "darwin",
-		LabelUpdatedAt: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC),
-	}
-
-	t.Run("empty labels -> false (nothing to exclude)", func(t *testing.T) {
-		require.False(t, HandlerExcludeAny(nil, host, map[uint]struct{}{}))
-	})
-	t.Run("broken label -> true (exclude)", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{{LabelID: nil}}
-		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
-	})
-	t.Run("host is in an excluded label -> true", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		}
-		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{1: {}}))
-	})
-	t.Run("host is not in any excluded label -> false", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{LabelID: new(uint(1)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-			{LabelID: new(uint(2)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-		}
-		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{99: {}}))
-	})
-	t.Run("dynamic label created after host's last scan -> true (exclude)", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{
-				LabelID:             new(uint(1)),
-				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-				LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
-			},
-		}
-		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
-	})
-	t.Run("host vital label created after host's last scan -> false (include)", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{
-				LabelID:             new(uint(1)),
-				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-				LabelMembershipType: int(fleet.LabelMembershipTypeHostVitals),
-			},
-		}
-		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
-	})
-	t.Run("manual label created after host's last scan -> still false (include)", func(t *testing.T) {
-		labels := []fleet.AppleProfileLabelRef{
-			{
-				LabelID:             new(uint(1)),
-				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-				LabelMembershipType: int(fleet.LabelMembershipTypeManual),
-			},
-		}
-		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
-	})
-}
-
-func TestEntityAppliesToHost_TeamAndPlatformGates(t *testing.T) {
+func TestEntityAppliesToHost_AppleWrapper(t *testing.T) {
 	host := &fleet.AppleHostReconcileInfo{
 		HostID:   1,
 		UUID:     "h1",
@@ -158,11 +52,39 @@ func TestEntityAppliesToHost_TeamAndPlatformGates(t *testing.T) {
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
 		require.True(t, EntityAppliesToHost(p, host, nil))
 	})
-	t.Run("non-apple platform -> false", func(t *testing.T) {
+	t.Run("non-apple platform -> false (Apple-only platform gate)", func(t *testing.T) {
 		linuxHost := *host
 		linuxHost.Platform = "linux"
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
 		require.False(t, EntityAppliesToHost(p, &linuxHost, nil))
+	})
+	// The shared package tests the dynamic-label timing rule itself; this case
+	// pins that the Apple wrapper threads host.LabelUpdatedAt into it, rather
+	// than e.g. a zero time.
+	t.Run("host.LabelUpdatedAt is threaded into the exclude-timing gate", func(t *testing.T) {
+		dynamicExcLabel := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(99)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC),
+		}
+		p := &fleet.AppleProfileForReconcile{
+			TeamID:        0,
+			IncludeMode:   fleet.AppleProfileIncludeAny,
+			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
+			ExcludeLabels: []fleet.AppleProfileLabelRef{dynamicExcLabel},
+		}
+		// Host scanned before the dynamic exclude label was created -> disqualified.
+		staleHost := &fleet.AppleHostReconcileInfo{
+			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
+			LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+		}
+		require.False(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}))
+		// Once the host's scan advances past the label's CreatedAt, it applies.
+		freshHost := &fleet.AppleHostReconcileInfo{
+			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
+			LabelUpdatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
+		}
+		require.True(t, EntityAppliesToHost(p, freshHost, map[uint]struct{}{1: {}}))
 	})
 }
 
@@ -218,107 +140,6 @@ func TestEntityAppliesToHost_DeclarationsShareSameDispatcher(t *testing.T) {
 				"PROFILE/DECLARATION DRIFT: same label config produced different results — AppleLabeledEntity contract broken")
 		})
 	}
-}
-
-// TestEntityAppliesToHost_CombinedIncludeExclude covers the combined
-// include+exclude targeting cases for both include modes.
-func TestEntityAppliesToHost_CombinedIncludeExclude(t *testing.T) {
-	host := &fleet.AppleHostReconcileInfo{
-		HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
-		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
-	}
-	excLabel := fleet.AppleProfileLabelRef{
-		LabelID:   new(uint(9)),
-		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-
-	t.Run("include_any + exclude_any", func(t *testing.T) {
-		p := &fleet.AppleProfileForReconcile{
-			TeamID:        0,
-			IncludeMode:   fleet.AppleProfileIncludeAny,
-			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}, {LabelID: new(uint(2))}},
-			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
-		}
-		// in include label, not in exclude -> applies
-		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
-		// in include label, also in exclude -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 9: {}}))
-		// not in any include label -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
-		// not in any label -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{}))
-	})
-
-	t.Run("include_all + exclude_any", func(t *testing.T) {
-		p := &fleet.AppleProfileForReconcile{
-			TeamID:        0,
-			IncludeMode:   fleet.AppleProfileIncludeAll,
-			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}, {LabelID: new(uint(2))}},
-			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
-		}
-		// in all include labels, not in exclude -> applies
-		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 2: {}}))
-		// in all include labels, also in exclude -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 2: {}, 9: {}}))
-		// missing one include label -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
-	})
-
-	t.Run("no include mode + exclude_any (pure exclude)", func(t *testing.T) {
-		p := &fleet.AppleProfileForReconcile{
-			TeamID:        0,
-			IncludeMode:   fleet.AppleProfileIncludeNone,
-			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
-		}
-		// not in exclude label -> applies
-		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
-		// in exclude label -> does not apply
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
-	})
-
-	t.Run("dynamic exclude label created after host.LabelUpdatedAt disqualifies until host rescans", func(t *testing.T) {
-		// host.LabelUpdatedAt is 2026-05-01; dynamic exclude label created after that
-		dynamicExcLabel := fleet.AppleProfileLabelRef{
-			LabelID:             new(uint(99)),
-			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
-			CreatedAt:           time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC),
-		}
-		p := &fleet.AppleProfileForReconcile{
-			TeamID:        0,
-			IncludeMode:   fleet.AppleProfileIncludeAny,
-			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
-			ExcludeLabels: []fleet.AppleProfileLabelRef{dynamicExcLabel},
-		}
-		// host is in include label and NOT a member of the exclude label, but the
-		// dynamic exclude label was created after label_updated_at -> disqualified
-		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
-
-		// once host.LabelUpdatedAt advances past the label's CreatedAt, the timing
-		// gate clears and the profile applies (host is not a member of the exclude label)
-		advancedHost := &fleet.AppleHostReconcileInfo{
-			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
-			LabelUpdatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
-		}
-		require.True(t, EntityAppliesToHost(p, advancedHost, map[uint]struct{}{1: {}}))
-	})
-}
-
-// TestEntityAppliesToHost_PureExcludeNoInclude confirms that a profile with
-// only exclude labels (no include mode) applies to all hosts that are NOT
-// members of any exclude label.
-func TestEntityAppliesToHost_PureExcludeNoInclude(t *testing.T) {
-	host := &fleet.AppleHostReconcileInfo{
-		HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
-		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
-	}
-	p := &fleet.AppleProfileForReconcile{
-		TeamID:        0,
-		IncludeMode:   fleet.AppleProfileIncludeNone,
-		ExcludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(5)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}},
-	}
-	require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{}))
-	require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
-	require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{5: {}}))
 }
 
 func TestComputeReconcileDeltas(t *testing.T) {

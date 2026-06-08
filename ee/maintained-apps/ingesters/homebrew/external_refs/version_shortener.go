@@ -74,3 +74,15 @@ func LensVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_ap
 	app.Version += "-latest"
 	return app, nil
 }
+
+// PdVersionTransformer converts Homebrew's Pd version scheme (e.g. "0.56-3") to
+// the dotted form macOS reports as bundle_short_version (e.g. "0.56.3").
+// Without this, osquery's version_compare treats "0.56-3" and "0.56.3" as
+// different versions and patch policy detection breaks.
+func PdVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Pd")
+	}
+	app.Version = strings.ReplaceAll(app.Version, "-", ".")
+	return app, nil
+}

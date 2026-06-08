@@ -1,0 +1,8 @@
+{
+  "name": "Affinity",
+  "slug": "affinity/darwin",
+  "unique_identifier": "com.canva.affinity",
+  "token": "affinity",
+  "installer_format": "zip",
+  "default_categories": ["Productivity"]
+}

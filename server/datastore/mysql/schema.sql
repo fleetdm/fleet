@@ -3357,11 +3357,14 @@ CREATE TABLE `windows_mdm_command_queue` (
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `acked_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`enrollment_id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
+  KEY `idx_win_mdm_cmd_queue_enrollment_acked` (`enrollment_id`,`acked_at`),
+  KEY `idx_win_mdm_cmd_queue_acked` (`acked_at`),
   CONSTRAINT `windows_mdm_command_queue_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `windows_mdm_command_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

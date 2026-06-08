@@ -1,0 +1,12 @@
+{
+  "name": "Jabra Direct",
+  "slug": "jabra-direct/windows",
+  "package_identifier": "Jabra.Direct",
+  "unique_identifier": "Jabra Direct",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/jabra-direct_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/jabra-direct_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

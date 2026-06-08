@@ -1114,12 +1114,17 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	var credsHash *[]byte
 	const testEnrollmentID uint = 123
+	// Captured before the local `syncml` string variable below shadows the syncml package.
+	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
 			HostUUID:        "host-uuid-123",
 			CredentialsHash: credsHash,
+			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
+			// the test); a device loaded with the flag at 0 skips the refresh entirely.
+			HasPendingCommands: true,
 		}, nil
 	}
 
@@ -1233,7 +1238,24 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
 	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 		require.Equal(t, testEnrollmentID, enrollmentID)
-		return []*fleet.MDMWindowsCommand{}, nil
+		// A still-pending internal poll-schedule Replace must NOT block the per-session refresh: the
+		// has_pending_commands flag excludes poll commands by definition, so the refresh gate must too.
+		return []*fleet.MDMWindowsCommand{
+			{
+				CommandUUID:  "poll-schedule-cmd-uuid",
+				RawCommand:   []byte(`<Replace><CmdID>poll-schedule-cmd-uuid</CmdID></Replace>`),
+				TargetLocURI: pollScheduleLocURI,
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+	// No NON-POLL pending commands means the session has drained the flag-relevant queue, so the service refreshes the
+	// denormalized has_pending_commands flag (at most once per session).
+	ds.MDMWindowsRefreshHasPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) error {
+		require.Equal(t, testEnrollmentID, enrollmentID)
+		return nil
 	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
@@ -1276,6 +1298,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	require.NotNil(t, res)
 
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
+		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {
