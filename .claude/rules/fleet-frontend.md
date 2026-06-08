@@ -83,6 +83,9 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
+## Software titles — display name
+Software titles carry both `name` (raw from the installer) and an optional `display_name` (admin-set per fleet). Never render `name` directly. Always go through `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — it prefers `display_name`, normalizes known awkward titles (e.g. `microsoft.companyportal` → `Company Portal`), and supplies a fallback. Applies anywhere a software title is shown: dropdown options, table rows, modal text, activity rows, automation summaries, sort keys, etc. Don't open-code `display_name || name`; that skips the normalization step. See `frontend/docs/patterns.md` → "Display names for software titles".
+
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
 - Elements: `` className={`${baseClass}__element-name`} ``
