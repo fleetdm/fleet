@@ -878,15 +878,15 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## U  (9)
 
-- [ ] `ua-connect` — UA Connect
-- [ ] `ukelele` — Ukelele
-- [ ] `ultimaker-cura` — UltiMaker Cura
-- [ ] `unclutter` — Unclutter
-- [ ] `unicodechecker` — UnicodeChecker
-- [ ] `unity-hub` — Unity Hub
-- [ ] `updf` — UPDF
-- [ ] `upscayl` — Upscayl
-- [ ] `usage-app` — Usage
+- [x] `ua-connect` — UA Connect
+- [x] `ukelele` — Ukelele
+- [x] `ultimaker-cura` — UltiMaker Cura
+- [x] `unclutter` — Unclutter
+- [x] `unicodechecker` — UnicodeChecker
+- [x] `unity-hub` — Unity Hub
+- [x] `updf` — UPDF
+- [x] `upscayl` — Upscayl
+- [x] `usage-app` — Usage
 
 ## V  (17)
 

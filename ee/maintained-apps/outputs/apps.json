@@ -8283,6 +8283,69 @@
       "description": "Typora is a configurable document editor that supports Markdown."
     },
     {
+      "name": "UA Connect",
+      "slug": "ua-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.uaudio.ua-connect",
+      "description": "UA Connect is a software installer and device manager for Universal Audio products."
+    },
+    {
+      "name": "Ukelele",
+      "slug": "ukelele/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sil.ukelele",
+      "description": "Ukelele is a unicode keyboard layout editor."
+    },
+    {
+      "name": "UltiMaker Cura",
+      "slug": "ultimaker-cura/darwin",
+      "platform": "darwin",
+      "unique_identifier": "nl.ultimaker.cura.dmg",
+      "description": "UltiMaker Cura is a 3D printer and slicing GUI."
+    },
+    {
+      "name": "Unclutter",
+      "slug": "unclutter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.softwareambience.Unclutter",
+      "description": "Unclutter is a desktop storage area for notes, files and pasteboard clips."
+    },
+    {
+      "name": "UnicodeChecker",
+      "slug": "unicodechecker/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.earthlingsoft.UnicodeChecker",
+      "description": "UnicodeChecker is an explore and convert Unicode."
+    },
+    {
+      "name": "Unity Hub",
+      "slug": "unity-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.unity3d.unityhub",
+      "description": "Unity Hub is a management tool for Unity."
+    },
+    {
+      "name": "UPDF",
+      "slug": "updf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superace.updf.mac",
+      "description": "UPDF is a PDF editor."
+    },
+    {
+      "name": "Upscayl",
+      "slug": "upscayl/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.upscayl.Upscayl",
+      "description": "Upscayl is an AI image upscaler."
+    },
+    {
+      "name": "Usage",
+      "slug": "usage-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mediaatelier.Usage",
+      "description": "Usage is a tracks application usage."
+    },
+    {
       "name": "UTM",
       "slug": "utm/darwin",
       "platform": "darwin",
