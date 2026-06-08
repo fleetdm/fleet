@@ -597,6 +597,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "CapCut",
+      "slug": "capcut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lemon.lvoverseas",
+      "description": "CapCut is a video editing and image design platform."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",

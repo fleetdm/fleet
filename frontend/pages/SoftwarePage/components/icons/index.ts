@@ -21,6 +21,7 @@ import BeekeeperStudio from "./BeekeeperStudio";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import CapCut from "./CapCut";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
@@ -352,6 +353,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
   "antigravity ide": AntigravityIde,
+  capcut: CapCut,
   "dfu blaster pro": DfuBlasterPro,
   "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
