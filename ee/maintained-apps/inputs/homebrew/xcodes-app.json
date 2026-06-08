@@ -1,0 +1,10 @@
+{
+  "name": "Xcodes",
+  "unique_identifier": "com.xcodesorg.xcodesapp",
+  "token": "xcodes-app",
+  "installer_format": "zip",
+  "slug": "xcodes-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

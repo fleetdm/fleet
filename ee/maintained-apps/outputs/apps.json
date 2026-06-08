@@ -8864,11 +8864,88 @@
       "description": "Wrike is a project management app."
     },
     {
+      "name": "xattred",
+      "slug": "xattred/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.eclecticlight.xattred",
+      "description": "xattred is an extended attribute editor."
+    },
+    {
+      "name": "XCA",
+      "slug": "xca/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.hohnstaedt.xca",
+      "description": "XCA is a x Certificate and Key management."
+    },
+    {
+      "name": "Xcodes",
+      "slug": "xcodes-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xcodesorg.xcodesapp",
+      "description": "Xcodes is an install and switch between multiple versions of Xcode."
+    },
+    {
       "name": "XCreds",
       "slug": "xcreds/darwin",
       "platform": "darwin",
       "unique_identifier": "com.twocanoes.xcreds",
       "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
+    },
+    {
+      "name": "X Lossless Decoder",
+      "slug": "xld/darwin",
+      "platform": "darwin",
+      "unique_identifier": "jp.tmkk.XLD",
+      "description": "X Lossless Decoder is a lossless audio decoder."
+    },
+    {
+      "name": "XMenu",
+      "slug": "xmenu/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devon-technologies.XMenu",
+      "description": "XMenu is an access folders, files or text snippets from the menu bar."
+    },
+    {
+      "name": "XMind",
+      "slug": "xmind/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.xmind.cathy.application",
+      "description": "XMind is a mind mapping and brainstorming tool."
+    },
+    {
+      "name": "Xmplify",
+      "slug": "xmplify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.com.moso.Xmplify",
+      "description": "Xmplify is a XML editor."
+    },
+    {
+      "name": "Xnapper",
+      "slug": "xnapper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devuap.beautyshotapp",
+      "description": "Xnapper is a screenshot tool."
+    },
+    {
+      "name": "XnSoft XnConvert",
+      "slug": "xnconvert/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xnview.XnConvert",
+      "description": "XnSoft XnConvert is an image-converter and resiser tool."
+    },
+    {
+      "name": "XnViewMP",
+      "slug": "xnviewmp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xnview.XnView",
+      "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
+    },
+    {
+      "name": "XQuartz",
+      "slug": "xquartz/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.macosforge.xquartz.X11",
+      "description": "XQuartz is an open-source version of the X.Org X Window System."
     },
     {
       "name": "Yubico Authenticator",

@@ -937,17 +937,17 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## X  (11)
 
-- [ ] `xattred` — xattred
-- [ ] `xca` — XCA
-- [ ] `xcodes-app` — Xcodes
-- [ ] `xld` — X Lossless Decoder
-- [ ] `xmenu` — XMenu
-- [ ] `xmind` — XMind
-- [ ] `xmplify` — Xmplify
-- [ ] `xnapper` — Xnapper
-- [ ] `xnconvert` — XnSoft XnConvert
-- [ ] `xnviewmp` — XnViewMP
-- [ ] `xquartz` — XQuartz
+- [x] `xattred` — xattred
+- [x] `xca` — XCA
+- [x] `xcodes-app` — Xcodes
+- [x] `xld` — X Lossless Decoder
+- [x] `xmenu` — XMenu
+- [x] `xmind` — XMind
+- [x] `xmplify` — Xmplify
+- [x] `xnapper` — Xnapper
+- [x] `xnconvert` — XnSoft XnConvert
+- [x] `xnviewmp` — XnViewMP
+- [x] `xquartz` — XQuartz
 
 ## Y  (6)
 
