@@ -1200,7 +1200,7 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 
 ```yaml
 org_settings:
-  vulnerability_settings:
+  vulnerability_exposure_historical_reporting:
     software_categories:
       - os
       - browser
