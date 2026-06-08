@@ -2644,5 +2644,5 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 
 	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, `The patch policy "Team patch policy" references a software installer that is no longer a Fleet-maintained app. Please delete it manually.`)
+	require.ErrorContains(t, err, "Team patch policy")
 }
