@@ -1388,6 +1388,13 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IBM Notifier",
+      "slug": "ibm-notifier/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ibm.cio.notifier",
+      "description": "IBM Notifier is an agent that displays custom notifications and alerts to end users on macOS."
+    },
+    {
       "name": "Icon Composer",
       "slug": "icon-composer/darwin",
       "platform": "darwin",
