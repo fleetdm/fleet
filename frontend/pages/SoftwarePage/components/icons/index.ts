@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AbletonLive12Suite from "./AbletonLive12Suite";
 import Affinity from "./Affinity";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
@@ -330,6 +331,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
+  "ableton live suite": AbletonLive12Suite,
   abstract: Abstract,
   "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
