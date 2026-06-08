@@ -38,10 +38,14 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 Write-Host "Found: $($uninstall.DisplayName) ($($uninstall.DisplayVersion))"
 Write-Host "Original UninstallString: $($uninstall.UninstallString)"
 
-# Close Office apps that could block the uninstaller.
+# Close Office suite apps that hold file locks and can block the uninstaller.
+# Deliberately limited to Click-to-Run suite components: standalone apps that
+# are commonly managed separately (new Teams, OneDrive) are NOT killed here, as
+# they aren't part of Microsoft 365 Apps and don't block OfficeClickToRun.exe —
+# force-stopping them would needlessly interrupt sync/calls.
 $officeProcesses = @(
     'WINWORD', 'EXCEL', 'POWERPNT', 'OUTLOOK', 'ONENOTE', 'MSACCESS',
-    'MSPUB', 'VISIO', 'WINPROJ', 'LYNC', 'TEAMS', 'ONEDRIVE'
+    'MSPUB', 'VISIO', 'WINPROJ', 'LYNC'
 )
 foreach ($proc in $officeProcesses) {
     Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue

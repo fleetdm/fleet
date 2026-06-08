@@ -1552,7 +1552,7 @@
       "name": "Microsoft Office",
       "slug": "microsoft-office/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft 365",
+      "unique_identifier": "Microsoft 365 Apps",
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
