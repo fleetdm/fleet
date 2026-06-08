@@ -49,26 +49,6 @@ func IsEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
 }
 
-// HandlerIncludeAll: see reconcile.HandlerIncludeAll.
-func HandlerIncludeAll(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	return reconcile.HandlerIncludeAll(labels, hostLabels)
-}
-
-// HandlerIncludeAny: see reconcile.HandlerIncludeAny.
-func HandlerIncludeAny(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	return reconcile.HandlerIncludeAny(labels, hostLabels)
-}
-
-// HandlerExcludeAny: see reconcile.HandlerExcludeAny. Returns true if the
-// host should be excluded, false if the host passes the exclude gate.
-func HandlerExcludeAny(
-	labels []fleet.AppleProfileLabelRef,
-	host *fleet.AppleHostReconcileInfo,
-	hostLabels map[uint]struct{},
-) bool {
-	return reconcile.HandlerExcludeAny(labels, host.LabelUpdatedAt, hostLabels)
-}
-
 // ComputeReconcileDeltas evaluates desired profile state for each host in
 // the input set using the SHARED dispatcher, then diffs against current
 // host_mdm_apple_profiles rows to produce install and remove sets.
