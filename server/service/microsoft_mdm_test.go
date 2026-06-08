@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -670,16 +671,24 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		if after != "" {
 			return nil, nil, nil, nil, nil
 		}
+		// Return hosts ascending by UUID to match the production query's
+		// `ORDER BY h.uuid`; a map-iteration order would be non-deterministic
+		// and could mask cursor/ordering bugs.
+		hostUUIDs := make([]string, 0, len(hostToProfile))
+		for hostUUID := range hostToProfile {
+			hostUUIDs = append(hostUUIDs, hostUUID)
+		}
+		sort.Strings(hostUUIDs)
 		var hosts []*fleet.WindowsHostReconcileInfo
 		var profiles []*fleet.WindowsProfileForReconcile
 		var teamID uint
-		for hostUUID, profile := range hostToProfile {
+		for _, hostUUID := range hostUUIDs {
 			teamID++
 			tid := teamID
 			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: tid, UUID: hostUUID, TeamID: &tid})
 			profiles = append(profiles, &fleet.WindowsProfileForReconcile{
-				ProfileUUID: profile.ProfileUUID,
-				ProfileName: profile.Name,
+				ProfileUUID: hostToProfile[hostUUID].ProfileUUID,
+				ProfileName: hostToProfile[hostUUID].Name,
 				TeamID:      tid,
 			})
 		}
@@ -1269,6 +1278,73 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 		delivered = append(delivered, b...)
 	}
 	require.ElementsMatch(t, allHosts, delivered)
+}
+
+// TestReconcileWindowsProfilesScanBudgetHaltsDrain exercises the scan-budget
+// branch of the drain loop: when the wall-clock budget is already exhausted,
+// the tick stops after the first scanned window and persists the cursor at the
+// last scanned host (it does NOT keep draining to the end of the fleet, and
+// does NOT reset the cursor). The next tick resumes from there.
+func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	savedBatch := reconcileWindowsProfilesBatchSize
+	savedCap := reconcileWindowsProfilesDeliveryCap
+	savedBudget := reconcileWindowsProfilesScanBudget
+	t.Cleanup(func() {
+		reconcileWindowsProfilesBatchSize = savedBatch
+		reconcileWindowsProfilesDeliveryCap = savedCap
+		reconcileWindowsProfilesScanBudget = savedBudget
+	})
+	// Small windows, generous delivery cap (so the cap never governs), and an
+	// already-expired scan budget so the loop halts after the first window.
+	reconcileWindowsProfilesBatchSize = 2
+	reconcileWindowsProfilesDeliveryCap = 1000
+	reconcileWindowsProfilesScanBudget = time.Nanosecond
+
+	allHosts := []string{"h0", "h1", "h2", "h3", "h4", "h5"}
+
+	var cursor string
+	var snapshotCalls int
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.MDM.WindowsEnabledAndConfigured = true
+		return cfg, nil
+	}
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) { return cursor, nil }
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+		cursor = c
+		return nil
+	}
+	// No profiles => no work; this test is purely about the scan/cursor
+	// mechanics, so execute is never reached.
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		snapshotCalls++
+		var hosts []*fleet.WindowsHostReconcileInfo
+		for i, h := range allHosts {
+			if h > after {
+				hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: h}) //nolint:gosec
+				if len(hosts) == batch {
+					break
+				}
+			}
+		}
+		return hosts, nil, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	// Only the first window was scanned (the budget halted the drain)...
+	require.Equal(t, 1, snapshotCalls)
+	// ...and the cursor advanced to the last scanned host, not reset to "".
+	require.Equal(t, "h1", cursor)
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {
