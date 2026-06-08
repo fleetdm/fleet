@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
@@ -36,7 +36,7 @@ interface ISelfServiceCategoriesPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string; team_id?: string };
+    query: { fleet_id?: string; team_id?: string; add_category?: string };
     hash?: string;
   };
 }
@@ -82,6 +82,19 @@ const SelfServiceCategoriesPage = ({
     !!isTeamMaintainer;
 
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Open the Add category modal via deep-link (e.g. from the command
+  // palette). Gate on the same predicate the in-page button uses so the
+  // param can't bypass admin/maintainer-only authoring. Strip the param
+  // either way so refreshes don't keep reopening the modal.
+  useEffect(() => {
+    if (location.query.add_category !== "1") return;
+    if (canManage) {
+      setShowAddModal(true);
+    }
+    const { add_category, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, canManage]);
   const [
     categoryToEdit,
     setCategoryToEdit,
