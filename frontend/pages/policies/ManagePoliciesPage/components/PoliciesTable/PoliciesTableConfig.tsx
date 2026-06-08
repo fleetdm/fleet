@@ -178,6 +178,7 @@ const AutomationsCell = ({
         fixedPositionStrategy
         tipOffset={8}
         tipContent={automations.map(({ name }) => name).join(", ")}
+        showArrow
       >
         {automations.length} automations
       </TooltipWrapper>

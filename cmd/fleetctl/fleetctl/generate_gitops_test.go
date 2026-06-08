@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	Categories       []fleet.SoftwareCategory
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -343,6 +344,13 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
 		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
 	}, nil
+}
+
+func (c MockClient) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	if teamID == 1 {
+		return c.Categories, nil
+	}
+	return nil, nil
 }
 
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -2575,4 +2583,33 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestGenerateGitopsEmitsSelfServiceCategories(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{Categories: []fleet.SoftwareCategory{
+		{ID: 10, Name: "🌎 Browsers", TeamID: 1},
+		{ID: 11, Name: "💼 Engineering", TeamID: 1},
+	}}
+	action := createGenerateGitopsAction(fleetClient)
+
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+	buf := new(bytes.Buffer)
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+
+	teamYAML, err := os.ReadFile(tempDir + "/fleets/team-a-👍.yml")
+	require.NoError(t, err)
+	assert.Contains(t, string(teamYAML), "self_service_categories:")
+	assert.Contains(t, string(teamYAML), "🌎 Browsers")
+	assert.Contains(t, string(teamYAML), "💼 Engineering")
+
+	// The fleet that returns no categories must NOT emit the key.
+	otherYAML, err := os.ReadFile(tempDir + "/fleets/unassigned.yml")
+	require.NoError(t, err)
+	assert.NotContains(t, string(otherYAML), "self_service_categories:")
 }

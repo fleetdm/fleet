@@ -22,6 +22,7 @@ const (
 	//
 
 	SoftwareNameMaxLength             = 255
+	SoftwareCategoryNameMaxLength     = 255
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
@@ -859,6 +860,65 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID   uint   `db:"id"`
-	Name string `db:"name"`
+	ID     uint   `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
+	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	UpdateCreateTimestamps
+}
+
+func (c *SoftwareCategory) AuthzType() string {
+	return "software_category"
+}
+
+func (c SoftwareCategory) Validate() error {
+	if c.Name == "" {
+		return NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(c.Name) > SoftwareCategoryNameMaxLength {
+		return NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", SoftwareCategoryNameMaxLength))
+	}
+	return nil
+}
+
+var DefaultSelfServiceCategoryNames = []string{
+	"🌎 Browsers",
+	"👬 Communication",
+	"🧰 Developer tools",
+	"💻 Productivity",
+	"🔐 Security",
+	"🛟 Support",
+}
+
+// Map the old default category names that don't include emojis to the new ones
+// that are stored in the database with emojis. This is required to not break
+// existing FMA manifests and GitOps files.
+var LegacySoftwareCategoryNames = map[string]string{
+	"Browsers":        "🌎 Browsers",
+	"Communication":   "👬 Communication",
+	"Developer tools": "🧰 Developer tools",
+	"Productivity":    "💻 Productivity",
+	"Security":        "🔐 Security",
+	"Utilities":       "🛟 Support",
+}
+
+func TranslateLegacySoftwareCategoryNames(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		if newName, ok := LegacySoftwareCategoryNames[n]; ok {
+			out[i] = newName
+		} else {
+			out[i] = n
+		}
+	}
+	return out
+}
+
+func SoftwareCategoryReferenceMatches(reference string, name string) bool {
+	if strings.EqualFold(reference, name) {
+		return true
+	}
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && strings.EqualFold(t, name) {
+		return true
+	}
+	return false
 }

@@ -1137,6 +1137,22 @@ func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeInstalledAllSelfServiceSoftware struct {
+	HostID                  uint    `json:"host_id"`
+	HostDisplayName         string  `json:"host_display_name"`
+	SelfServiceCategoryID   *uint   `json:"self_service_category_id"`
+	SelfServiceCategoryName *string `json:"self_service_category_name"`
+	SoftwareTitlesCount     uint    `json:"software_titles_count"`
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) ActivityName() string {
+	return "installed_all_self_service_software"
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivitySoftwareLabel struct {
 	Name string `json:"name"`
 	ID   uint   `json:"id"`
@@ -1981,4 +1997,34 @@ type ActivityTypeDeletedLabel struct {
 
 func (a ActivityTypeDeletedLabel) ActivityName() string {
 	return "deleted_label"
+}
+
+type ActivityTypeAddedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
+	return "added_self_service_category"
+}
+
+type ActivityTypeEditedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
+	return "edited_self_service_category"
+}
+
+type ActivityTypeDeletedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
+	return "deleted_self_service_category"
 }

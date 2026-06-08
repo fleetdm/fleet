@@ -94,6 +94,7 @@ type generateGitopsClient interface {
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
+	ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -2270,6 +2271,19 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 	if len(fmas) > 0 {
 		result["fleet_maintained_apps"] = fmas
+	}
+
+	categories, err := cmd.Client.ListSelfServiceCategories(teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting self-service categories: %s\n", err)
+		return nil, err
+	}
+	if len(categories) > 0 {
+		names := make([]string, 0, len(categories))
+		for _, c := range categories {
+			names = append(names, c.Name)
+		}
+		result["self_service_categories"] = names
 	}
 
 	return result, nil

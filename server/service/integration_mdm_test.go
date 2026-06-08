@@ -12826,7 +12826,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		if st.AppStoreApp.AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
 			var getSWTitle getSoftwareTitleResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(tmGood.ID))
-			s.Assert().ElementsMatch([]string{"Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
 			var labelNames []string
 			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
 				labelNames = append(labelNames, l.LabelName)
@@ -20823,13 +20823,13 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	}
 
 	// Add some categories
-	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_1")
 	require.NoError(t, err)
 
-	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_2")
 	require.NoError(t, err)
 
-	cat3, err := s.ds.NewSoftwareCategory(ctx, "test_category_3")
+	cat3, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_3")
 	require.NoError(t, err)
 
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
@@ -20858,9 +20858,15 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		SelfService:   ptr.Bool(true),
 	}
 
-	// Non-existent category, should fail
+	// Non-existent category is silently dropped
 	updatePayload.Categories = []string{"not_found"}
-	s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "some or all of the categories provided don't exist")
+	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Empty(t, getDeviceSw.Software[0].SoftwarePackage.Categories)
 
 	// Set some real categories
 	updatePayload.Categories = []string{cat1.Name, cat2.Name, cat2.Name} // duplicate category shouldn't fail
@@ -21002,7 +21008,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"Developer tools", "Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// test GitOps with Security and Utilities categories
 	s.DoJSON("POST",
@@ -21016,7 +21022,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"Security", "Utilities"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.ElementsMatch(t, []string{"🔐 Security", "🛟 Support"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// empty out categories via gitops
 	s.DoJSON("POST",
