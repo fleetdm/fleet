@@ -1182,7 +1182,7 @@ org_settings:
 
 ### vulnerability_exposure_historical_reporting
 
-The `vulnerability_settings` section lets you define filters for the **Vulnerability exposure** dashboard chart (risk registry). These filters control which software and vulnerabilities are included when calculating vulnerability exposure.
+The `vulnerability_exposure_historical_reporting` section lets you define filters for the **Vulnerability exposure** dashboard chart (risk registry). These filters control which software and vulnerabilities are included when calculating vulnerability exposure.
 
 - `software_categories` is a list of software categories to include in the vulnerability chart. Valid values are `os` (Operating system), `browser` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `microsoft_office` (Word, Excel, Powerpoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). If omitted, all categories are included.
 - `has_known_exploit` when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild (default: `false`).
