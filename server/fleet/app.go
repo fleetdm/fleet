@@ -620,14 +620,16 @@ func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
 		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
 	}
 
-	if mos.EndUserLocalAccountType.Set && mos.EndUserLocalAccountType.Value != "" {
-		if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
-			return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
-		}
-	} else {
-		if PrimaryAccountType(old.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
-			return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, old.EndUserLocalAccountType.Value))
-		}
+	accountType := mos.EndUserLocalAccountType
+	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
+		accountType = old.EndUserLocalAccountType
+	}
+	enableManagedLocalAccount := mos.EnableManagedLocalAccount
+	if !enableManagedLocalAccount.Set {
+		enableManagedLocalAccount = old.EnableManagedLocalAccount
+	}
+	if PrimaryAccountType(accountType.Value).RequiresLocalAdminAccount() && (!enableManagedLocalAccount.Valid || !enableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, accountType.Value))
 	}
 
 	return nil

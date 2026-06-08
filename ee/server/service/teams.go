@@ -359,7 +359,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set {
 				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
 			}
-			if payload.MDM.MacOSSetup.EndUserLocalAccountType.Value != "" {
+			if payload.MDM.MacOSSetup.EndUserLocalAccountType.Set {
 				team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
 			}
 		}
