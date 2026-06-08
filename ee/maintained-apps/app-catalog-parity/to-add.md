@@ -460,77 +460,77 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## M  (71)
 
-- [ ] `mac-monitor` — Mac Monitor
-- [ ] `mac-mouse-fix` — Mac Mouse Fix
-- [ ] `maccleaner-pro` — Nektony MacCleaner Pro
-- [ ] `macdown` — MacDown
-- [ ] `mace` — MACE
-- [ ] `macjournal` — MacJournal
-- [ ] `macpacker` — MacPacker
-- [ ] `macpass` — MacPass
-- [ ] `macpilot` — MacPilot
-- [ ] `macs-fan-control` — Macs Fan Control
-- [ ] `macsyzones` — MacsyZones
-- [ ] `mactracker` — Mactracker
-- [ ] `macvim-app` — MacVim
-- [ ] `macwhisper` — MacWhisper
-- [ ] `maestral` — Maestral
-- [ ] `magicquit` — MagicQuit
-- [ ] `mailmate` — MailMate
-- [ ] `mailspring` — Mailspring
-- [ ] `makemkv` — MakeMKV
-- [ ] `malwarebytes` — Malwarebytes for Mac
-- [ ] `mark-text` — MarkText
-- [ ] `marked-app` — Marked *
-- [ ] `markedit` — MarkEdit
-- [ ] `marsedit` — MarsEdit *
-- [ ] `marta` — Marta File Manager
-- [ ] `masscode` — massCode
-- [ ] `maxon` — Maxon App
-- [ ] `meetingbar` — MeetingBar
-- [ ] `megasync` — MEGAsync
-- [ ] `mellel` — Mellel *
-- [ ] `melodics` — Melodics
-- [ ] `memory` — Memory Tracker by Timely
-- [ ] `memory-cleaner` — Memory Cleaner
-- [ ] `memoryanalyzer` — Eclipse Memory Analyzer
-- [ ] `mendeley-reference-manager` — Mendeley Reference Manager
-- [ ] `menubar-stats` — MenuBar Stats
-- [ ] `menubarx` — MenubarX
-- [ ] `merlin-project` — Merlin Project
-- [ ] `microsoft-azure-storage-explorer` — Microsoft Azure Storage Explorer
-- [ ] `microsoft-openjdk@21` — Microsoft Build of OpenJDK
-- [ ] `middle` — Middle
-- [ ] `middleclick` — MiddleClick
-- [ ] `milanote` — Milanote
-- [ ] `mimecast` — Mimecast for Mac
-- [ ] `mimestream` — Mimestream
-- [ ] `min` — Min
-- [ ] `mindmac` — MindMac
-- [ ] `minisim` — MiniSim
-- [ ] `minstaller` — mInstaller
-- [ ] `mission-control-plus` — Mission Control Plus
-- [ ] `missive` — Missive
-- [ ] `mist` — Mist
-- [ ] `mixxx` — Mixxx
-- [ ] `mobirise` — Mobirise
-- [ ] `mockoon` — Mockoon
-- [ ] `modern-csv` — Modern CSV
-- [ ] `monitorcontrol` — MonitorControl
-- [ ] `moom` — Moom
-- [ ] `moonlight` — Moonlight
-- [ ] `morgen` — Morgen
-- [ ] `mos` — Mos
-- [ ] `mountain-duck` — Mountain Duck
-- [ ] `mqttx` — MQTTX
-- [ ] `mullvad-browser` — Mullvad Browser
-- [ ] `mullvad-vpn` — Mullvad VPN
-- [ ] `multitouch` — Multitouch
-- [ ] `mural` — MURAL
-- [ ] `murus` — Murus Firewall
-- [ ] `museeks` — Museeks
-- [ ] `musescore` — MuseScore
-- [ ] `mx-power-gadget` — Mx Power Gadget
+- [ ] `mac-monitor` — Mac Monitor  — **deferred — pkg: no .app**
+- [x] `mac-mouse-fix` — Mac Mouse Fix
+- [x] `maccleaner-pro` — Nektony MacCleaner Pro
+- [x] `macdown` — MacDown
+- [x] `mace` — MACE
+- [x] `macjournal` — MacJournal
+- [x] `macpacker` — MacPacker
+- [x] `macpass` — MacPass
+- [x] `macpilot` — MacPilot
+- [x] `macs-fan-control` — Macs Fan Control
+- [x] `macsyzones` — MacsyZones
+- [x] `mactracker` — Mactracker
+- [x] `macvim-app` — MacVim
+- [x] `macwhisper` — MacWhisper
+- [x] `maestral` — Maestral
+- [x] `magicquit` — MagicQuit
+- [ ] `mailmate` — MailMate  — **deferred — no .app in dmg**
+- [x] `mailspring` — Mailspring
+- [x] `makemkv` — MakeMKV
+- [x] `malwarebytes` — Malwarebytes for Mac
+- [x] `mark-text` — MarkText
+- [x] `marked-app` — Marked *
+- [x] `markedit` — MarkEdit
+- [x] `marsedit` — MarsEdit *
+- [x] `marta` — Marta File Manager
+- [x] `masscode` — massCode
+- [x] `maxon` — Maxon App
+- [x] `meetingbar` — MeetingBar
+- [x] `megasync` — MEGAsync
+- [x] `mellel` — Mellel *
+- [x] `melodics` — Melodics
+- [x] `memory` — Memory Tracker by Timely
+- [x] `memory-cleaner` — Memory Cleaner
+- [x] `memoryanalyzer` — Eclipse Memory Analyzer
+- [x] `mendeley-reference-manager` — Mendeley Reference Manager
+- [x] `menubar-stats` — MenuBar Stats
+- [x] `menubarx` — MenubarX
+- [x] `merlin-project` — Merlin Project
+- [x] `microsoft-azure-storage-explorer` — Microsoft Azure Storage Explorer
+- [x] `microsoft-openjdk@21` — Microsoft Build of OpenJDK
+- [x] `middle` — Middle
+- [x] `middleclick` — MiddleClick
+- [x] `milanote` — Milanote
+- [x] `mimecast` — Mimecast for Mac
+- [x] `mimestream` — Mimestream
+- [x] `min` — Min
+- [x] `mindmac` — MindMac
+- [x] `minisim` — MiniSim
+- [x] `minstaller` — mInstaller
+- [ ] `mission-control-plus` — Mission Control Plus  — **deferred — tar.gz unsupported**
+- [x] `missive` — Missive
+- [x] `mist` — Mist
+- [x] `mixxx` — Mixxx
+- [x] `mobirise` — Mobirise
+- [x] `mockoon` — Mockoon
+- [x] `modern-csv` — Modern CSV
+- [x] `monitorcontrol` — MonitorControl
+- [x] `moom` — Moom
+- [x] `moonlight` — Moonlight
+- [x] `morgen` — Morgen
+- [x] `mos` — Mos
+- [x] `mountain-duck` — Mountain Duck
+- [x] `mqttx` — MQTTX
+- [x] `mullvad-browser` — Mullvad Browser
+- [x] `mullvad-vpn` — Mullvad VPN
+- [x] `multitouch` — Multitouch
+- [x] `mural` — MURAL
+- [x] `murus` — Murus Firewall
+- [x] `museeks` — Museeks
+- [x] `musescore` — MuseScore
+- [x] `mx-power-gadget` — Mx Power Gadget
 
 ## N  (28)
 

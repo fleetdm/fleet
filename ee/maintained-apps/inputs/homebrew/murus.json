@@ -1,0 +1,10 @@
+{
+  "name": "Murus Firewall",
+  "unique_identifier": "it.murus.muruslibrary",
+  "token": "murus",
+  "installer_format": "zip",
+  "slug": "murus/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Min",
+  "unique_identifier": "com.electron.min",
+  "token": "min",
+  "installer_format": "zip",
+  "slug": "min/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

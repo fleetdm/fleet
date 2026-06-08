@@ -1,0 +1,10 @@
+{
+  "name": "Maxon App",
+  "unique_identifier": "net.maxon.app-manager",
+  "token": "maxon",
+  "installer_format": "zip",
+  "slug": "maxon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

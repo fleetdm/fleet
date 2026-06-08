@@ -1,0 +1,10 @@
+{
+  "name": "Microsoft Build of OpenJDK",
+  "unique_identifier": "net.java.openjdk.java",
+  "token": "microsoft-openjdk@21",
+  "installer_format": "pkg",
+  "slug": "microsoft-openjdk@21/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

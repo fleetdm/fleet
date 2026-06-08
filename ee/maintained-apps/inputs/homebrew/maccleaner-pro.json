@@ -1,0 +1,10 @@
+{
+  "name": "Nektony MacCleaner Pro",
+  "unique_identifier": "com.apple.pixelmator",
+  "token": "maccleaner-pro",
+  "installer_format": "dmg",
+  "slug": "maccleaner-pro/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

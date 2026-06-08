@@ -1,0 +1,10 @@
+{
+  "name": "MakeMKV",
+  "unique_identifier": "com.makemkv.MakeMKV",
+  "token": "makemkv",
+  "installer_format": "dmg",
+  "slug": "makemkv/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
