@@ -145,7 +145,7 @@ However, if you would like to manage your Chrome configuration by code, you can 
 - Explore additional Chrome policies in the [Chrome Enterprise Policy List](https://chromeenterprise.google/policies/).
 - Test policies in a staging environment before fleet-wide deployment.
 
-<meta name="articleTitle" value="Managing Google Chrome with Fleet">
+<meta name="articleTitle" value="Managing Google Chrome on Windows with Fleet">
 <meta name="authorFullName" value="Gray Williams">
 <meta name="authorGitHubUsername" value="GrayW">
 <meta name="category" value="guides">
