@@ -1623,7 +1623,7 @@ const ManageHostsPage = ({
 
         const columnIds = tableColumns
           .map((column) => (column.id ? column.id : ""))
-          // "selection" colum does not include any relevent data for the CSV
+          // "selection" column does not include any relevant data for the CSV
           // so we filter it out.
           .filter((element) => element !== "" && element !== "selection")
           // "agent" is a display-only column that coalesces orbit and osquery
