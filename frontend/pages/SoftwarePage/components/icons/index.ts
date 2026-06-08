@@ -13,6 +13,7 @@ import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
+import AntigravityIde from "./AntigravityIde";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -348,6 +349,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
+  "antigravity ide": AntigravityIde,
+  "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
