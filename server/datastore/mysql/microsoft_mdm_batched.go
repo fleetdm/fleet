@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -10,17 +11,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// listWindowsMDMHostsForReconcileBatchTransaction returns up to batchSize
-// Windows-MDM-enrolled hosts with uuid > afterHostUUID, ordered ascending by
-// uuid, along with the fields the batched reconciler needs to compute desired
-// state in memory.
+// listWindowsMDMHostsForReconcileBatchTransaction returns up to batchSize Windows-MDM-enrolled hosts with uuid > afterHostUUID,
+// ordered ascending by uuid, along with the fields the batched reconciler needs to compute the desired state in memory.
 //
-// Selection criteria mirror the host-side filters in the legacy desired-state
-// query (windowsMDMProfilesDesiredStateQuery): platform 'windows', an
-// mdm_windows_enrollments row, and a host_mdm row with enrolled = 1. The two
-// enrollment relationships are expressed as EXISTS subqueries rather than
-// JOINs so a host with more than one mdm_windows_enrollments row (the table
-// has no uniqueness on host_uuid) yields exactly one host record here.
+// platform 'windows', an mdm_windows_enrollments row, and a host_mdm row with enrolled = 1. The two enrollment relationships are
+// expressed as EXISTS subqueries rather than JOINs so a host with more than one mdm_windows_enrollments row (the table has no
+// uniqueness on host_uuid) yields exactly one host record here.
 func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
@@ -54,11 +50,9 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	return hosts, nil
 }
 
-// listWindowsProfilesForReconcileTransaction loads every Windows configuration
-// profile in the system, paired with its label assignments. Mirrors the Apple
-// listAppleProfilesForReconcileTransaction so the in-memory handlers apply the
-// same "broken-label" semantics as the legacy SQL: broken include-* profiles
-// do not apply, and broken profiles are exempted from removal.
+// listWindowsProfilesForReconcileTransaction loads every Windows configuration profile in the system, paired with its label
+// assignments. Mirrors the Apple listAppleProfilesForReconcileTransaction so the in-memory handlers apply the same "broken-label"
+// semantics and broken profiles are exempted from removal.
 func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
@@ -101,16 +95,11 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		out = append(out, p)
 	}
 
-	// Load label assignments, joining labels to get membership type and label
-	// creation time (needed by the exclude-any handler). Broken labels
-	// (label_id IS NULL after the LEFT JOIN, i.e. the label was deleted) are
-	// retained so the handlers can disqualify/exempt the profile.
+	// Load label assignments, joining labels to get membership type and label creation time (needed by the exclude-any handler).
+	// Broken labels (label_id IS NULL after the LEFT JOIN, i.e. the label was deleted) are retained so the handlers can
+	// disqualify/exempt the profile.
 	//
-	// Do not COALESCE label_created_at to a string literal — MySQL would
-	// coerce the result column to VARCHAR and the driver returns []uint8,
-	// which sql.NullTime cannot scan. The exclude-any handler already treats a
-	// zero CreatedAt as "no timing check", which is the natural outcome of a
-	// NULL → invalid NullTime → zero time.Time.
+	// Leave created_at un-COALESCE'd. NULL here means a broken (deleted) label and is intentional.
 	const labelStmt = `
 		SELECT
 			mcpl.windows_profile_uuid AS profile_uuid,
@@ -138,11 +127,9 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		return nil, ctxerr.Wrap(ctx, err, "list windows profile labels for reconcile")
 	}
 
-	// Per-profile include-mode discovery. Include labels for a single profile
-	// must share a single require_all value; the first include row sets the
-	// mode and later disagreements mark it mixed. Exclude rows always go to
-	// ExcludeLabels and have a single "exclude any" semantic. A profile may
-	// carry both an include set and an exclude set.
+	// Per-profile include-mode discovery. Include labels for a single profile must share a single require_all value; the first
+	// include row sets the mode and later disagreements mark it mixed. Exclude rows always go to ExcludeLabels and have a single
+	// "exclude any" semantic. A profile may carry both an include set and an exclude set.
 	type includeAccum struct {
 		set   bool
 		mode  fleet.MDMProfileIncludeMode
@@ -196,18 +183,19 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	for uuid, ia := range includeModes {
 		p := byUUID[uuid]
 		if p == nil {
-			// Unreachable: every includeModes key came from a label row whose
-			// profile UUID is in byUUID. Guard anyway to satisfy nil analysis.
+			// Unreachable: every includeModes key came from a label row whose profile UUID is in byUUID. Guard anyway to satisfy nil
+			// analysis.
 			continue
 		}
 		if ia.mixed {
-			// Defensive: include rows disagreed on require_all (should be
-			// impossible in production — the upsert path enforces a single
-			// mode). Drop the include set so we don't guess at intent; exclude
-			// labels (if any) are preserved.
+			// Defensive: include rows disagreed on require_all (should be impossible in production since the upsert path enforces a single mode).
+			// Drop the include set so we don't guess at intent; exclude labels (if any) are preserved.
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.MDMProfileIncludeNone
-			ds.logger.WarnContext(ctx, "windows profile has mixed include label modes; ignoring include labels", "profile_uuid", uuid, "team_id", p.TeamID)
+			errMsg := "windows profile has mixed include label modes; ignoring include labels"
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id",
+				p.TeamID)
+			ctxerr.Handle(ctx, errors.New(errMsg))
 			continue
 		}
 		p.IncludeMode = ia.mode
@@ -216,9 +204,12 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	return out, nil
 }
 
-// bulkGetHostMDMWindowsProfilesByUUIDsTransaction returns the current
-// host_mdm_windows_profiles rows for the given host UUIDs, grouped by host
-// UUID. Mirrors bulkGetHostMDMAppleProfilesByUUIDsTransaction.
+// bulkGetHostMDMWindowsProfilesByUUIDsTransaction returns the current host_mdm_windows_profiles rows for the given host UUIDs,
+// grouped by host UUID.
+//
+// The caller (GetWindowsProfileReconcileSnapshot) always passes the reconcile host window, bounded by
+// reconcileWindowsProfilesBatchSize (a per-tick read budget in the low thousands), which stays far under MySQL's ~65k
+// prepared-statement placeholder limit. The IN clause therefore fits in a single query and is intentionally not batched.
 func (ds *Datastore) bulkGetHostMDMWindowsProfilesByUUIDsTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
@@ -245,40 +236,30 @@ func (ds *Datastore) bulkGetHostMDMWindowsProfilesByUUIDsTransaction(
 		WHERE host_uuid IN (?)
 	`
 
-	const chunk = 5000
+	q, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build host mdm windows profiles query")
+	}
 
-	for i := 0; i < len(hostUUIDs); i += chunk {
-		end := min(i+chunk, len(hostUUIDs))
-		batch := hostUUIDs[i:end]
+	var rows []*fleet.MDMWindowsProfilePayload
+	if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host mdm windows profiles")
+	}
 
-		q, args, err := sqlx.In(stmt, batch)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "build host mdm windows profiles query")
-		}
-
-		var rows []*fleet.MDMWindowsProfilePayload
-		if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "select host mdm windows profiles")
-		}
-
-		for _, r := range rows {
-			out[r.HostUUID] = append(out[r.HostUUID], r)
-		}
+	for _, r := range rows {
+		out[r.HostUUID] = append(out[r.HostUUID], r)
 	}
 
 	return out, nil
 }
 
-// GetWindowsProfileReconcileSnapshot loads the four pieces of state the batched
-// Windows profile reconciler needs — the bounded host window, every profile
-// (with label assignments), host↔label memberships restricted to labels
-// referenced by those profiles, and current host_mdm_windows_profiles rows for
-// the hosts in the window. All reads run inside a single read-only transaction
-// so they observe one MySQL snapshot.
+// GetWindowsProfileReconcileSnapshot loads the four pieces of state the batched Windows profile reconciler needs — the bounded
+// host window, every profile (with label assignments), host↔label memberships restricted to labels referenced by those profiles,
+// and current host_mdm_windows_profiles rows for the hosts in the window. All reads run inside a single read-only transaction so
+// they observe one MySQL snapshot.
 //
-// When the host window is empty the remaining queries are skipped — the caller
-// short-circuits in that case anyway, and there's no point loading profiles or
-// memberships we won't use. Mirrors GetAppleProfileReconcileSnapshot.
+// When the host window is empty the remaining queries are skipped — the caller short-circuits in that case anyway, and there's no
+// point loading profiles or memberships we won't use. Mirrors GetAppleProfileReconcileSnapshot.
 func (ds *Datastore) GetWindowsProfileReconcileSnapshot(
 	ctx context.Context,
 	afterHostUUID string,
