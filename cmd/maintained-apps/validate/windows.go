@@ -145,8 +145,12 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// Office" that must not prevent the post-uninstall check from reporting
 			// the app as removed. The "Microsoft 365 Apps" prefix is used (not bare
 			// "Microsoft 365") so Store apps such as "Microsoft 365 Copilot" aren't
-			// treated as the Office suite.
+			// treated as the Office suite. The publisher guard mirrors the
+			// manifest's exists/patched queries (publisher = 'Microsoft
+			// Corporation'), so a third-party app that happens to match a name
+			// prefix can't bypass the version check.
 			if appName == "Microsoft Office" &&
+				result.Publisher == "Microsoft Corporation" &&
 				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
 					strings.HasPrefix(result.Name, "Microsoft Office")) {
 				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
