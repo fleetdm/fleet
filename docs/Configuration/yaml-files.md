@@ -1194,7 +1194,7 @@ The `vulnerability_settings` section lets you define filters for the **Vulnerabi
   - `max` is the maximum probability of exploit score to include (default: `100`).
 - `exclude_cves` is a list of specific CVE identifiers to exclude from the vulnerability chart.
 
-Can only be configured for "All fleets" (`org_settings`).
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
 #### Example
 
