@@ -3901,6 +3901,27 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "Kaleidoscope",
+      "slug": "kaleidoscope/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.kaleidoscope.v6",
+      "description": "Kaleidoscope is a spot and merge differences in text and image files or folders."
+    },
+    {
+      "name": "Kap",
+      "slug": "kap/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wulkano.kap",
+      "description": "Kap is an open-source screen recorder built with web technology."
+    },
+    {
+      "name": "Kdenlive",
+      "slug": "kdenlive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.Kdenlive",
+      "description": "Kdenlive is a free and Open Source Video Editor."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
@@ -3922,6 +3943,20 @@
       "description": "Keeper Password Manager is a password manager application and digital vault."
     },
     {
+      "name": "KeepingYouAwake",
+      "slug": "keepingyouawake/darwin",
+      "platform": "darwin",
+      "unique_identifier": "info.marcel-dierkes.KeepingYouAwake",
+      "description": "KeepingYouAwake is a tool to prevent the system from going into sleep mode."
+    },
+    {
+      "name": "KeeWeb",
+      "slug": "keeweb/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.antelle.keeweb",
+      "description": "KeeWeb is a password manager compatible with KeePass."
+    },
+    {
       "name": "Keka",
       "slug": "keka/darwin",
       "platform": "darwin",
@@ -3929,11 +3964,109 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "Keyboard Cowboy",
+      "slug": "keyboard-cowboy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zenangst.Keyboard-Cowboy",
+      "description": "Keyboard Cowboy is a keyboard shortcut utility."
+    },
+    {
+      "name": "Keyboard Maestro",
+      "slug": "keyboard-maestro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stairways.keyboardmaestro.editor",
+      "description": "Keyboard Maestro is an automation software."
+    },
+    {
+      "name": "KeyboardCleanTool",
+      "slug": "keyboardcleantool/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hegenberg.KeyboardCleanTool",
+      "description": "KeyboardCleanTool is a blocks all Keyboard and TouchBar input."
+    },
+    {
+      "name": "KeyCastr",
+      "slug": "keycastr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.github.keycastr",
+      "description": "KeyCastr is an open-source keystroke visualiser."
+    },
+    {
+      "name": "KeyClu",
+      "slug": "keyclu/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.0804Team.KeyClu",
+      "description": "KeyClu is a tool to find shortcuts for any installed application."
+    },
+    {
+      "name": "KeyStore Explorer",
+      "slug": "keystore-explorer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kse.keystore-explorer",
+      "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
+    },
+    {
+      "name": "KiCad",
+      "slug": "kicad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apple.pixelmator",
+      "description": "KiCad is an electronics design automation suite."
+    },
+    {
+      "name": "Kiro CLI",
+      "slug": "kiro-cli/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.kiro.cli",
+      "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
+    },
+    {
+      "name": "kiro",
+      "slug": "kiro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.kiro.desktop",
+      "description": "kiro is an agent-centric IDE with spec-driven development."
+    },
+    {
       "name": "kitty",
       "slug": "kitty/darwin",
       "platform": "darwin",
       "unique_identifier": "net.kovidgoyal.kitty",
       "description": "kitty is a fast, feature-rich, GPU-based terminal emulator."
+    },
+    {
+      "name": "Klokki",
+      "slug": "klokki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.klokki-launcher",
+      "description": "Klokki is an automatic time-tracking solution."
+    },
+    {
+      "name": "KNIME Analytics Platform",
+      "slug": "knime/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.knime.product",
+      "description": "KNIME Analytics Platform is a software to create and productionise data science."
+    },
+    {
+      "name": "KnockKnock",
+      "slug": "knockknock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.objective-see.KnockKnock",
+      "description": "KnockKnock is a tool to show what is persistently installed on the computer."
+    },
+    {
+      "name": "Kobo",
+      "slug": "kobo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kobo.Analytics",
+      "description": "Kobo is a desktop reader for Kobo eBooks."
+    },
+    {
+      "name": "Krisp",
+      "slug": "krisp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.krisp.krispMac",
+      "description": "Krisp is a noise cancelling application."
     },
     {
       "name": "Krita",

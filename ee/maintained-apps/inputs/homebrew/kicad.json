@@ -1,0 +1,10 @@
+{
+  "name": "KiCad",
+  "unique_identifier": "com.apple.pixelmator",
+  "token": "kicad",
+  "installer_format": "dmg",
+  "slug": "kicad/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

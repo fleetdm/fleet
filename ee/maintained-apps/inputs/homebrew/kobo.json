@@ -1,0 +1,10 @@
+{
+  "name": "Kobo",
+  "unique_identifier": "com.kobo.Analytics",
+  "token": "kobo",
+  "installer_format": "dmg",
+  "slug": "kobo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

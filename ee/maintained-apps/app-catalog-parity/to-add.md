@@ -398,27 +398,27 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## K  (21)
 
-- [ ] `kaleidoscope` — Kaleidoscope
-- [ ] `kap` — Kap
-- [ ] `karabiner-elements` — Karabiner Elements
-- [ ] `kdenlive` — Kdenlive
-- [ ] `keepingyouawake` — KeepingYouAwake
-- [ ] `keeweb` — KeeWeb
-- [ ] `keybase` — Keybase
-- [ ] `keyboard-cowboy` — Keyboard Cowboy
-- [ ] `keyboard-maestro` — Keyboard Maestro
-- [ ] `keyboardcleantool` — KeyboardCleanTool
-- [ ] `keycastr` — KeyCastr
-- [ ] `keyclu` — KeyClu
-- [ ] `keystore-explorer` — KeyStore Explorer
-- [ ] `kicad` — KiCad
-- [ ] `kiro` — kiro
-- [ ] `kiro-cli` — Kiro CLI
-- [ ] `klokki` — Klokki
-- [ ] `knime` — KNIME Analytics Platform
-- [ ] `knockknock` — KnockKnock
-- [ ] `kobo` — Kobo
-- [ ] `krisp` — Krisp
+- [x] `kaleidoscope` — Kaleidoscope
+- [x] `kap` — Kap
+- [ ] `karabiner-elements` — Karabiner Elements  — **deferred — generator failed**
+- [x] `kdenlive` — Kdenlive
+- [x] `keepingyouawake` — KeepingYouAwake
+- [x] `keeweb` — KeeWeb
+- [ ] `keybase` — Keybase  — **deferred — generator failed**
+- [x] `keyboard-cowboy` — Keyboard Cowboy
+- [x] `keyboard-maestro` — Keyboard Maestro
+- [x] `keyboardcleantool` — KeyboardCleanTool
+- [x] `keycastr` — KeyCastr
+- [x] `keyclu` — KeyClu
+- [x] `keystore-explorer` — KeyStore Explorer
+- [x] `kicad` — KiCad
+- [x] `kiro` — kiro
+- [x] `kiro-cli` — Kiro CLI
+- [x] `klokki` — Klokki
+- [x] `knime` — KNIME Analytics Platform
+- [x] `knockknock` — KnockKnock
+- [x] `kobo` — Kobo
+- [x] `krisp` — Krisp
 
 ## L  (35)
 
