@@ -1338,7 +1338,7 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 
 // TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick covers the core drain behavior the other tests don't: when the delivery
 // cap spans several scan windows, one tick reads window after window (cheap indexed reads) accumulating delivered hosts until the
-// cap bites mid-window. With scanBatch=2 and cap=5 over 6 hosts that all need work, tick 1 makes 3 snapshot reads (delivering
+// cap is reached mid-window. With scanBatch=2 and cap=5 over 6 hosts that all need work, tick 1 makes 3 snapshot reads (delivering
 // 2+2+1) and stops at the 5th host; tick 2 delivers the remainder and resets the cursor.
 func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 	ctx := context.Background()

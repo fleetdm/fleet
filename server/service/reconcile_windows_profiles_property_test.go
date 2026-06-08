@@ -14,25 +14,20 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Property-based tests for the cursor state machine in
-// ReconcileWindowsProfiles. These cover invariants that emerge across many
-// cron ticks (coverage, monotonicity, failure semantics) which the existing
-// table-driven tests cannot exercise directly.
+// Property-based tests for the cursor state machine in ReconcileWindowsProfiles. These cover invariants that emerge across many
+// cron ticks (coverage, monotonicity, failure semantics) which the existing table-driven tests cannot exercise directly.
 //
-// The reconciler walks every enrolled Windows host via GetWindowsProfileReconcileSnapshot
-// and drains successive windows within a tick until a budget is hit. To pin
-// the cursor protocol to a deterministic one-window-per-tick cadence, these
-// tests set the delivery cap equal to the scan batch and make every host have
-// exactly one pending install (one global, label-less profile + empty current
-// state). The scan budget is set large so only the delivery cap governs.
+// The reconciler walks every enrolled Windows host via GetWindowsProfileReconcileSnapshot and drains successive windows within a
+// tick until a budget is hit. To pin the cursor protocol to a deterministic one-window-per-tick cadence, these tests set the
+// delivery cap equal to the scan batch and make every host have exactly one pending install (one global, label-less profile +
+// empty current state). The scan budget is set large so only the delivery cap governs.
 //
 // Run with more checks:
 //   go test -run TestPBT_ReconcileWindowsProfiles ./server/service/ -args -rapid.checks=2000
 
-// cursorFakeState is the in-memory model the fake datastore exposes to the
-// cron. It mirrors only what ReconcileWindowsProfiles depends on: a sorted set
-// of enrolled host UUIDs, the persisted Redis-style cursor, and a per-host
-// visit counter so tests can assert coverage.
+// cursorFakeState is the in-memory model the fake datastore exposes to the cron. It mirrors only what ReconcileWindowsProfiles
+// depends on: a sorted set of enrolled host UUIDs, the persisted Redis-style cursor, and a per-host visit counter so tests can
+// assert coverage.
 type cursorFakeState struct {
 	cursor    string
 	pending   []string // sorted ascending; the enrolled Windows host universe the snapshot pages through
@@ -40,13 +35,17 @@ type cursorFakeState struct {
 	cursorSet int // number of times SetMDMWindowsReconcileCursor was called
 }
 
-// newCursorFakeDS wires a mock.Store with funcs that route to cursorFakeState
-// and stubs every other DS method ReconcileWindowsProfiles calls so the body
-// runs end-to-end without enqueueing real work. The snapshot returns the
-// windowed hosts plus a single global profile so every host computes as one
-// install; the existence pre-check then reports the profile gone, so execute
-// short-circuits without commands. That keeps the property tests focused on
-// the cursor protocol while still driving the delivery-cap accounting.
+// newCursorFakeDS wires a mock.Store with funcs that route to cursorFakeState and stubs every other DS method
+// ReconcileWindowsProfiles calls so the body runs end-to-end without enqueueing real work. The snapshot returns the windowed
+// hosts plus a single global profile so every host computes as one install; the existence pre-check then reports the profile
+// gone, so execute short-circuits without commands. That keeps the property tests focused on the cursor protocol while still
+// driving the delivery-cap accounting.
+//
+// COUPLING NOTE: the fake never actually enqueues, so the delivery cap is reached only because ReconcileWindowsProfiles counts
+// intended work (pre-execute workHosts), not actual deliveries. If that accounting is ever changed to count only
+// actually-scheduled hosts (the deferred CodeRabbit/Copilot review point), this fake would report zero delivered, the cap would
+// never be reached, and the one-window-per-tick assumption these tests rely on (plus the coverage/monotonic/advance assertions)
+// would break. The fake would then need to actually deliver work to keep driving the cap.
 func newCursorFakeDS(initialHosts []string) (*mock.Store, *cursorFakeState) {
 	sorted := slices.Clone(initialHosts)
 	slices.Sort(sorted)
@@ -88,9 +87,8 @@ func newCursorFakeDS(initialHosts []string) (*mock.Store, *cursorFakeState) {
 		if len(window) == 0 {
 			return nil, nil, nil, nil, nil
 		}
-		// One global, label-less profile so every host in the window computes
-		// as exactly one install (current state is empty). This makes the
-		// per-tick delivery cap bite once per host.
+		// One global, label-less profile so every host in the window computes as exactly one install (current state is empty), so
+		// each host counts once against the per-tick delivery cap.
 		profiles := []*fleet.WindowsProfileForReconcile{
 			{ProfileUUID: "p-global", ProfileName: "Global", TeamID: 0, Checksum: []byte("c")},
 		}
@@ -99,33 +97,29 @@ func newCursorFakeDS(initialHosts []string) (*mock.Store, *cursorFakeState) {
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 		return map[string]fleet.MDMWindowsProfileContents{}, nil
 	}
-	// Report the profile as gone so the install loop short-circuits without
-	// enqueueing commands; the cursor protocol is unaffected.
+	// Report the profile as gone so the install loop short-circuits without enqueueing commands; the cursor protocol is unaffected.
 	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, uuids []string) (map[string]struct{}, error) {
 		return map[string]struct{}{}, nil
 	}
-	// The body unconditionally calls these two upserts at the end of every
-	// window it executes (even with an empty payload). Stub them as no-ops.
+	// The body unconditionally calls these two upserts at the end of every window it executes (even with an empty payload). Stub them
+	// as no-ops.
 	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		return nil
 	}
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		return nil
 	}
-	// GetGroupedCertificateAuthorities is called whenever a window has work.
-	// Return a zero-value struct so the dependent maps are empty and the rest
-	// of the body short-circuits.
+	// GetGroupedCertificateAuthorities is called whenever a window has work. Return a zero-value struct so the dependent maps are
+	// empty and the rest of the body short-circuits.
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 	return ds, state
 }
 
-// pbtBudgetOverride installs property-test-scoped budgets on the package-level
-// reconciler tunables. The single t.Cleanup restores the original values once
-// the whole test (across all rapid trials) finishes; per-trial reassignments
-// inside the rapid.Check closure overwrite each other, which is the desired
-// behavior. Tests set the delivery cap equal to the scan batch (one window per
+// pbtBudgetOverride installs property-test-scoped budgets on the package-level reconciler tunables. The single t.Cleanup restores
+// the original values once the whole test (across all rapid trials) finishes; per-trial reassignments inside the rapid.Check
+// closure overwrite each other, which is the desired behavior. Tests set the delivery cap equal to the scan batch (one window per
 // tick) and leave the scan budget large so only the cap governs.
 func pbtBudgetOverride(t *testing.T) {
 	t.Helper()
@@ -139,31 +133,26 @@ func pbtBudgetOverride(t *testing.T) {
 	})
 }
 
-// pbtSetBudgets pins the per-trial budgets: scan batch == delivery cap (one
-// window of delivered work per tick) and a large scan budget so wall clock
-// never ends a tick early.
+// pbtSetBudgets pins the per-trial budgets: scan batch == delivery cap (one window of delivered work per tick) and a large scan
+// budget so wall clock never ends a tick early.
 func pbtSetBudgets(batch int) {
 	reconcileWindowsProfilesBatchSize = batch
 	reconcileWindowsProfilesDeliveryCap = batch
 	reconcileWindowsProfilesScanBudget = time.Hour
 }
 
-// hostGen draws short distinct strings; only their relative lexicographic
-// order matters to the cursor protocol, not that they look like real UUIDs.
+// hostGen draws short distinct strings; only their relative lexicographic order matters to the cursor protocol.
 var hostGen = rapid.StringMatching(`[a-z]{1,8}`)
 
 // pbtLogger discards everything
 var pbtLogger = slog.New(slog.DiscardHandler)
 
-// TestPBT_ReconcileWindowsProfilesCoverage verifies that for any stable
-// population of enrolled hosts, the cursor protocol reaches a state where every
-// host has been visited and the cursor has returned to "" within a bounded
-// number of ticks. The bound is ⌈N/B⌉+2 to absorb the extra "empty pass after
-// exact-multiple full pass" tick.
+// TestPBT_ReconcileWindowsProfilesCoverage verifies that for any stable population of enrolled hosts, the cursor protocol reaches
+// a state where every host has been visited and the cursor has returned to "" within a bounded number of ticks. The bound is
+// ⌈N/B⌉+2 to absorb the extra "empty pass after exact-multiple full pass" tick.
 //
-// We stop ticking as soon as that joint state is reached because any further
-// tick restarts the pass (cursor moves back off ""), which would make a
-// fixed-tick-count assertion brittle.
+// We stop ticking as soon as that joint state is reached because any further tick restarts the pass (cursor moves back off ""),
+// which would make a fixed-tick-count assertion brittle.
 func TestPBT_ReconcileWindowsProfilesCoverage(t *testing.T) {
 	pbtBudgetOverride(t)
 	rapid.Check(t, func(rt *rapid.T) {
@@ -202,10 +191,9 @@ func TestPBT_ReconcileWindowsProfilesCoverage(t *testing.T) {
 	})
 }
 
-// TestPBT_ReconcileWindowsProfilesMonotonic verifies that within a pass the
-// cursor strictly increases between two consecutive non-reset ticks. Reset
-// transitions ("" -> non-empty starting fresh, or non-empty -> "" at end of
-// pass) are allowed and expected.
+// TestPBT_ReconcileWindowsProfilesMonotonic verifies that within a pass the cursor strictly increases between two consecutive
+// non-reset ticks. Reset transitions ("" -> non-empty starting fresh, or non-empty -> "" at end of pass) are allowed and
+// expected.
 func TestPBT_ReconcileWindowsProfilesMonotonic(t *testing.T) {
 	pbtBudgetOverride(t)
 	rapid.Check(t, func(rt *rapid.T) {
@@ -231,20 +219,16 @@ func TestPBT_ReconcileWindowsProfilesMonotonic(t *testing.T) {
 	})
 }
 
-// TestPBT_ReconcileWindowsProfilesFailureNoAdvance verifies the universal
-// invariant "any body failure leaves the cursor untouched." The cron's
-// SetCursor write is gated by a named-return-aware defer that skips on error,
-// and commitCursor only advances past a fully-delivered window, so a failure
-// in the first window never persists a cursor. rapid randomly samples across
-// pre-execute and in-execute failure points so a regression in either path
-// surfaces here.
+// TestPBT_ReconcileWindowsProfilesFailureNoAdvance verifies the universal invariant "any body failure leaves the cursor
+// untouched." The cron's SetCursor write is gated by a named-return-aware defer that skips on error, and commitCursor only
+// advances past a fully-delivered window, so a failure in the first window never persists a cursor. rapid randomly samples across
+// pre-execute and in-execute failure points so a regression in either path surfaces here.
 func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 	pbtBudgetOverride(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		batch := rapid.IntRange(1, 10).Draw(rt, "batchSize")
-		// Need at least one host so the snapshot returns a non-empty window
-		// when it succeeds; otherwise the cron takes the empty-pop early
-		// return and does not exercise the failure path we want.
+		// Need at least one host so the snapshot returns a non-empty window when it succeeds; otherwise the cron takes the empty-pop
+		// early return and does not exercise the failure path we want.
 		hosts := rapid.SliceOfNDistinct(hostGen, 1, 30, rapid.ID[string]).Draw(rt, "hosts")
 		failurePoint := rapid.SampledFrom([]string{
 			"GetWindowsProfileReconcileSnapshot", // pre-execute
@@ -255,11 +239,9 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 		pbtSetBudgets(batch)
 
 		ds, state := newCursorFakeDS(hosts)
-		// Seed a non-empty cursor so "cursor untouched on failure" is a real
-		// assertion rather than trivially-true on the empty default. "0" sorts
-		// before any value hostGen can produce ([a-z]{1,8}), so the snapshot
-		// still returns the first window and the cron reaches the injected
-		// failure point.
+		// Seed a non-empty cursor so "cursor untouched on failure" is a real assertion rather than trivially-true on the empty default.
+		// "0" sorts before any value hostGen can produce ([a-z]{1,8}), so the snapshot still returns the first window and the cron
+		// reaches the injected failure point.
 		const initialCursor = "0"
 		state.cursor = initialCursor
 		simErr := errors.New("simulated failure at " + failurePoint)
@@ -298,11 +280,57 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 	})
 }
 
-// TestPBT_ReconcileWindowsProfilesCursorAdvanceMatchesLastVisited verifies the
-// per-tick cursor invariant: with delivery cap == scan batch and every host
-// having work, each tick delivers exactly one window, so after a non-empty tick
-// the cursor equals the lexicographically last host in that window (full batch),
-// or it is "" (short batch, signaling end of pass).
+// TestPBT_ReconcileWindowsProfilesFailureNoAdvanceMultiWindow extends the no-advance-on-error invariant into the multi-window
+// drain regime: with the delivery cap set high so one tick drains several windows, a failure on a LATER window (after earlier
+// windows in the same tick already succeeded) must still leave the cursor untouched. This guards against a regression that
+// persists per-window progress mid-tick (e.g. moving SetCursor inside the loop), which the single-window FailureNoAdvance test
+// above cannot catch because there the failing window is always the first.
+func TestPBT_ReconcileWindowsProfilesFailureNoAdvanceMultiWindow(t *testing.T) {
+	pbtBudgetOverride(t)
+	rapid.Check(t, func(rt *rapid.T) {
+		batch := rapid.IntRange(1, 5).Draw(rt, "batchSize")
+		// At least 6 hosts (> max batch) guarantees the tick spans >= 2 windows.
+		hosts := rapid.SliceOfNDistinct(hostGen, 6, 40, rapid.ID[string]).Draw(rt, "hosts")
+		numWindows := (len(hosts) + batch - 1) / batch
+		failWindow := rapid.IntRange(2, numWindows).Draw(rt, "failWindow")
+
+		// Large cap and scan budget so neither ends the tick early; only the injected failure stops it, after failWindow-1 successful
+		// windows.
+		reconcileWindowsProfilesBatchSize = batch
+		reconcileWindowsProfilesDeliveryCap = 1_000_000
+		reconcileWindowsProfilesScanBudget = time.Hour
+
+		ds, state := newCursorFakeDS(hosts)
+		const initialCursor = "0"
+		state.cursor = initialCursor
+
+		// Every window has work, so GetMDMWindowsProfilesContents is called once per window. Fail the failWindow-th call; earlier windows
+		// succeed.
+		simErr := errors.New("simulated failure")
+		contentsCalls := 0
+		ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+			contentsCalls++
+			if contentsCalls == failWindow {
+				return nil, simErr
+			}
+			return map[string]fleet.MDMWindowsProfileContents{}, nil
+		}
+
+		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger)
+		require.Errorf(rt, err, "failure on window %d/%d did not propagate", failWindow, numWindows)
+		// Confirms earlier windows really ran (so the precondition isn't vacuous).
+		require.Equalf(rt, failWindow, contentsCalls,
+			"expected to reach window %d before failing (N=%d, B=%d)", failWindow, len(hosts), batch)
+		require.Equalf(rt, initialCursor, state.cursor,
+			"cursor advanced despite failure on window %d after %d successful windows", failWindow, failWindow-1)
+		require.Equalf(rt, 0, state.cursorSet,
+			"SetMDMWindowsReconcileCursor called despite mid-tick failure on window %d", failWindow)
+	})
+}
+
+// TestPBT_ReconcileWindowsProfilesCursorAdvanceMatchesLastVisited verifies the per-tick cursor invariant: with delivery cap ==
+// scan batch and every host having work, each tick delivers exactly one window, so after a non-empty tick the cursor equals the
+// lexicographically last host in that window (full batch), or it is "" (short batch, signaling end of pass).
 func TestPBT_ReconcileWindowsProfilesCursorAdvanceMatchesLastVisited(t *testing.T) {
 	pbtBudgetOverride(t)
 	rapid.Check(t, func(rt *rapid.T) {
@@ -315,8 +343,8 @@ func TestPBT_ReconcileWindowsProfilesCursorAdvanceMatchesLastVisited(t *testing.
 		ds, state := newCursorFakeDS(hosts)
 		ctx := t.Context()
 
-		// Walk the population by ticks; at each step, predict the window from
-		// sorted/cursor and check the resulting cursor matches the rule.
+		// Walk the population by ticks; at each step, predict the window from sorted/cursor and check the resulting cursor matches the
+		// rule.
 		seen := 0
 		for seen < len(sorted) {
 			expectedWindow := sorted[seen:min(seen+batch, len(sorted))]

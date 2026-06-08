@@ -3605,7 +3605,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 // windowsHostsWithWork returns the host UUIDs that have at least one install or remove in this window, in the order hosts are
 // given (ascending by uuid). The drain loop uses this both to count delivered hosts against the cap and to pick the contiguous
-// prefix to deliver when the cap bites mid-window.
+// prefix to deliver when the cap is reached mid-window.
 func windowsHostsWithWork(hosts []*fleet.WindowsHostReconcileInfo, toInstall, toRemove []*fleet.MDMWindowsProfilePayload) []string {
 	work := make(map[string]struct{})
 	for _, p := range toInstall {
