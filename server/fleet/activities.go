@@ -416,6 +416,7 @@ func (a ActivityTypeMDMEnrolled) ActivityName() string {
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
+	HostID           uint    `json:"host_id"`
 	HostSerial       string  `json:"host_serial"`
 	EnrollmentID     *string `json:"enrollment_id"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -425,6 +426,16 @@ type ActivityTypeMDMUnenrolled struct {
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
 	return "mdm_unenrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the host record was already deleted at unenroll time) so the global activity is
+// still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMUnenrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedMacOSMinVersion struct {
@@ -924,6 +935,7 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipedHost) ActivityName() string {
@@ -937,6 +949,7 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 type ActivityTypeWipeFailedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipeFailedHost) ActivityName() string {
@@ -1851,6 +1864,22 @@ type ActivityTypeDeletedMicrosoftEntraTenant struct {
 
 func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
 	return "deleted_microsoft_entra_tenant"
+}
+
+type ActivityTypeAddedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraClientID) ActivityName() string {
+	return "added_microsoft_entra_client_id"
+}
+
+type ActivityTypeDeletedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
+	return "deleted_microsoft_entra_client_id"
 }
 
 type ActivityTypeEditedEnrollSecrets struct {

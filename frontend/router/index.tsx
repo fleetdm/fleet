@@ -171,7 +171,7 @@ const routes = (
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to="/dashboard" />
+          <IndexRedirect to="dashboard" />
           <Route path="dashboard" component={DashboardPage}>
             <Route path="linux" component={DashboardPage} />
             <Route path="mac" component={DashboardPage} />

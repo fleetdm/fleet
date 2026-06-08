@@ -97,6 +97,7 @@ export interface IMdmConfig {
     grace_period_days: number | null;
   };
   windows_entra_tenant_ids: string[] | null;
+  windows_entra_client_ids: string[] | null;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config

@@ -34,6 +34,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
@@ -42,6 +43,9 @@ import (
 )
 
 const maxRequestLogSize = 10240
+
+// devDetailSMBIOSSerialNumberURI is the OMA-DM LocURI for the device's SMBIOS serial number.
+const devDetailSMBIOSSerialNumberURI = "./DevDetail/Ext/Microsoft/SMBIOSSerialNumber"
 
 type SoapRequestContainer struct {
 	Data   *fleet.SoapRequest
@@ -957,6 +961,57 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
+// hasAuthorizedAzureAudience reports whether any audience value in an Entra-issued JWT is authorized for Windows
+// automatic enrollment. An audience is authorized if either:
+//   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
+//     GUID), compared case-insensitively after trimming
+//   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
+//
+// The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
+// known client ID nor a URL is ignored, so a token with multiple audiences is authorized if any one of them matches.
+// serverHost is the expected host including any port; callers pass url.URL.Host.
+func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs []string) bool {
+	clientIDSet := make(map[string]struct{}, len(clientIDs))
+	for _, id := range clientIDs {
+		clientIDSet[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
+	}
+	for _, aud := range audiences {
+		// v2 token: `aud` is the application client ID (a GUID).
+		if _, ok := clientIDSet[strings.ToLower(strings.TrimSpace(aud))]; ok {
+			return true
+		}
+		// v1 token: `aud` is a URL whose host must match the Fleet server URL's. The audience may have multiple values
+		// and not everything in it will be a URL, and that's OK. Compare the full host (host:port) case-insensitively:
+		// per RFC 3986 the host is case-insensitive, but the port must match so a token for a different port on the same
+		// hostname is not authorized.
+		audURL, err := url.Parse(aud)
+		if err != nil {
+			continue
+		}
+		if audURL.Host != "" && strings.EqualFold(audURL.Host, serverHost) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAuthorizedAzureTenant reports whether the token's tenant (the `tid` claim) matches one of the configured Entra
+// tenant IDs. The comparison is case-insensitive after trimming: Entra emits `tid` in lower-case, but validation
+// accepts configured tenant IDs in either case (it does not normalize them), so a tenant ID pasted with upper-case
+// hex digits must still authorize enrollment instead of silently failing to match the lower-cased claim.
+func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
+	tokenTenant = strings.TrimSpace(tokenTenant)
+	if tokenTenant == "" {
+		return false
+	}
+	for _, id := range tenantIDs {
+		if strings.EqualFold(strings.TrimSpace(id), tokenTenant) {
+			return true
+		}
+	}
+	return false
+}
+
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
 // returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
 // host uuid will be an empty string).
@@ -1044,27 +1099,16 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
-		hasExpectedAudience := false
-		for _, aud := range tokenData.Audience {
-			audURL, err := url.Parse(aud)
-			// The Audience may have multiple values and not everything in the aud will be a URL and that's OK
-			if err != nil {
-				continue
-			}
-			if audURL.Host == expectedURLParsed.Host {
-				hasExpectedAudience = true
-				break
-			}
-		}
-		if !hasExpectedAudience {
-			// Log bad audiences here for debugging
+		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Host, appConfig.MDM.WindowsEntraClientIDs.Value) {
+			// Log bad audiences here for debugging.
 			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
 				"expected_host", expectedURLParsed.Host,
+				"configured_client_ids", strings.Join(appConfig.MDM.WindowsEntraClientIDs.Value, ","),
 				"token_audiences", strings.Join(tokenData.Audience, ","),
 			)
 			return "", "", 0, ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
-		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
+		if !hasAuthorizedAzureTenant(entraTenantIDs, tokenData.TenantID) {
 			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
 			)
@@ -1496,10 +1540,6 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 		return isPresent, nil
 	}
 
-	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
-	// host table. This new check should look into command results table and extract the value of
-	// ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber for the given DeviceID and use that for hosts
-	// table lookup
 	return true, nil
 }
 
@@ -1695,6 +1735,69 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 	return nil
 }
 
+// tryLinkUnlinkedEnrollmentFromDevDetail scans an incoming SyncML message for a Results command answering an earlier
+// Get for ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber, and if found, looks up the host by hardware_serial and links
+// the enrollment to it. Returns true if a linkage was established.
+//
+// Any error is non-fatal: this is the primary linkage path but osquery direct-ingest still runs as a backstop, and the
+// Get is reinjected on every subsequent session until linkage succeeds.
+func (svc *Service) tryLinkUnlinkedEnrollmentFromDevDetail(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) bool {
+	if reqMsg == nil {
+		return false
+	}
+	// A SyncML Results command can carry multiple Items; the device may include the SMBIOSSerialNumber alongside other
+	// DevDetail values in a single response. Scan every item in every Results command, not just Items[0], or a serial
+	// returned in a later position is missed and the Get gets reinjected forever.
+	var serial string
+scan:
+	for _, op := range reqMsg.GetOrderedCmds() {
+		if op.Verb != mdm_types.CmdResults {
+			continue
+		}
+		for _, item := range op.Cmd.Items {
+			if item.Source == nil || *item.Source != devDetailSMBIOSSerialNumberURI {
+				continue
+			}
+			if item.Data == nil {
+				continue
+			}
+			candidate := strings.TrimSpace(item.Data.Content)
+			// Skip empty or well-known placeholder serials (whitebox/consumer BIOS defaults, un-sysprepped VM
+			// templates). Such devices fall back to the osquery directIngestMDMDeviceIDWindows backstop, which links by
+			// the unique MDMDeviceID instead.
+			if fleet.IsPlaceholderHardwareSerial(candidate) {
+				continue
+			}
+			serial = candidate
+			break scan
+		}
+	}
+	if serial == "" {
+		return false
+	}
+	// Require the primary DB: the hosts row may have been inserted seconds ago by osquery enroll, just before this
+	// first SyncML management session arrived. A replica-lag read would return a false NotFound and delay linkage to a
+	// later session, defeating the point of this path.
+	host, err := svc.ds.WindowsHostLiteByHardwareSerial(ctxdb.RequirePrimary(ctx, true), serial)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by serial failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+		}
+		// NotFound means the host hasn't enrolled in osquery yet (hosts row not created yet); we'll retry next session.
+		return false
+	}
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	// Always refresh in-memory HostUUID after a successful link attempt.
+	enrolledDevice.HostUUID = host.UUID
+	return updated
+}
+
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device.
 // enrolledDevice is the enrollment resolved upstream by isTrustedRequest and
@@ -1721,6 +1824,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
+						HostPlatform:    host.Platform,
 					}); err != nil {
 						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
 							"host_id", host.ID, "err", err)
@@ -1801,6 +1905,14 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
+	// If this enrollment isn't linked yet, try to link it using a DevDetail/SMBIOSSerialNumber Result the device may
+	// have included in this message (in response to a Get we sent during a previous session). If the link succeeds,
+	// enrolledDevice.HostUUID is updated in memory so downstream callers (ESP coordination, saveResponse, etc.) in this
+	// same request see the linked state instead of waiting for the next session.
+	if enrolledDevice.HostUUID == "" {
+		svc.tryLinkUnlinkedEnrollmentFromDevDetail(ctx, enrolledDevice, reqMsg)
+	}
+
 	// List of CmdRef that need to be re-issued as <Replace> commands
 	// However it's a list of nested Command IDs, and not something we can use directly for command_uuid in windows_mdm_commands
 	alreadyExistsCmdIDs := []string{}
@@ -1840,6 +1952,20 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	err = saveResponse(topLevelExists)
 	if err != nil {
 		return nil, err
+	}
+
+	// If this enrollment is still unlinked after processing the incoming message, ask the device for its SMBIOS serial
+	// on the next round-trip. This is the primary linkage mechanism: it lets the server populate
+	// mdm_windows_enrollments.host_uuid in one SyncML round-trip instead of waiting for osquery's distributed-read
+	// cycle (~10s) to backfill via directIngestMDMDeviceIDWindows. The Get is idempotent and reinjected each session
+	// until linkage succeeds; osquery direct-ingest remains as a backstop for hosts that never reply to DevDetail.
+	//
+	// The Get uses a stable fleet-internal CmdID instead of a fresh UUID so that MDMWindowsSaveResponse can recognize
+	// and skip it when checking for "unmatched Windows MDM commands".
+	if enrolledDevice.HostUUID == "" {
+		get := newSyncMLCmdGet(devDetailSMBIOSSerialNumberURI)
+		get.CmdID = mdm_types.CmdID{Value: fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"}
+		responseCmds = append(responseCmds, get)
 	}
 
 	return responseCmds, nil
@@ -1886,21 +2012,27 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 	return topLevelExists, nil
 }
 
-// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment.
-func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, error) {
+// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
+// when everything still pending (if anything) is an internal poll-schedule Replace.
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
-		return nil, fmt.Errorf("getting incoming cmds %w", err)
+		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
 
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
+	onlyPollCmdsPending := true
 	for _, pendingCmd := range pendingCmds {
+		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
+		if !isPollCmd {
+			onlyPollCmdsPending = false
+		}
 		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {
@@ -1912,7 +2044,7 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		}
 	}
 
-	return cmds, nil
+	return cmds, onlyPollCmdsPending, nil
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -1978,12 +2110,40 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
+		// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd can be woken on demand, so we can stop
+		// the aggressive default 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
+		// session.
+		if enrolledDevice.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationNone {
+			if err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice); err != nil {
+				return nil, fmt.Errorf("poll schedule reconcile error: %w", err)
+			}
+		}
+
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
+
+		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when everything still
+		// pending (if anything) is an internal poll-schedule Replace, which the flag's definition excludes. While
+		// non-poll commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session
+		// messages skip the recompute entirely.
+		//
+		// The HasPendingCommands gate (as loaded at session start) keeps idle check-ins at zero writer-side statements:
+		// when the flag was already 0 and nothing is pending, there is no 1 -> 0 transition to record. A flag stranded
+		// at 1 by an aborted session still self-heals - it loads as 1 on the next session and the refresh runs. A
+		// mid-session enqueue that flips 0 -> 1 after this row was loaded needs no refresh either: its commands are
+		// genuinely pending, so 1 is already correct. Best-effort: a failed refresh only delays the flag flip until
+		// the next session, so log and continue rather than failing the device's response.
+		if onlyPollCmdsPending && enrolledDevice.HasPendingCommands {
+			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
+				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+			}
+		}
 
 		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
 		// so we don't leak ESP state to unauthenticated devices.
@@ -2007,6 +2167,67 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	return msg, nil
+}
+
+const (
+	// windowsMDMFastPollIntervalMinutes mirrors NewDMClientProvisioningData's provisioned IntervalForFirstSetOfRetries: the aggressive poll
+	// used until a host is known to support on-demand sync.
+	windowsMDMFastPollIntervalMinutes = "1"
+	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. 480 minutes (8 hours) matches Intune's
+	// default check-in cadence. Steady-state command latency comes from the on-demand wake; this interval only bounds the fallback latency
+	// if a wake ever fails, so a longer value trades a larger worst-case fallback for less polling load.
+	windowsMDMRelaxedPollIntervalMinutes = "480"
+)
+
+// buildPollScheduleCommand builds an MDMWindowsCommand that Replaces the DMClient Poll interval with the value for the given schedule
+// (relaxed vs the aggressive default). It is enqueued like any other Windows MDM command, so the command queue handles delivery, automatic
+// re-delivery until acknowledged, and ack recording.
+func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
+	interval := windowsMDMFastPollIntervalMinutes
+	if relaxed {
+		interval = windowsMDMRelaxedPollIntervalMinutes
+	}
+	cmdUUID := uuid.NewString()
+	cmd := newSyncMLCmdInt(fleet.CmdReplace, syncml.DMClientPollIntervalLocURI, interval)
+	cmd.CmdID = mdm_types.CmdID{Value: cmdUUID}
+	rawCommand, err := xml.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal poll schedule command: %w", err)
+	}
+	return &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   rawCommand,
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
+	}, nil
+}
+
+// reconcileWindowsMDMPollSchedule relaxes (or restores) the device's DMClient poll schedule based on whether its fleetd can be woken on
+// demand. Capable hosts get a relaxed poll, so steady-state command delivery is driven by the on-demand wake instead of frequent polling
+// (the server-load reduction); non-capable hosts stay on the fast poll.
+//
+// It enqueues the poll Replace through the standard Windows MDM command queue. poll_schedule_relaxed records only the
+// INTENDED schedule, so a command is enqueued exactly once per intended change (and excluded from the
+// pending-command/wake signal, so tuning the poll does not itself request a wake).
+func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
+	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
+	// this hot management path does no extra DB lookups.
+	desiredRelaxed := device.FleetdSyncCapable
+	if desiredRelaxed == device.PollScheduleRelaxed {
+		// Intended schedule already matches; any still-undelivered Replace is re-sent by the command queue.
+		return nil
+	}
+
+	cmd, err := buildPollScheduleCommand(desiredRelaxed)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
+	}
+	// Enqueue the Replace and record the intended schedule atomically.
+	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+	}
+	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
+	return nil
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.
@@ -2784,10 +3005,10 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return err
 	}
 
-	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device here.
-	// Note that we currently do the Enrollment->Host mapping during the next
-	// refetch of the host
+	// For Azure (automatic) enrollments, hostUUID is empty here because the WSTEP RequestSecurityToken does not carry
+	// any identifier that maps to hosts.uuid. The enrollment row is inserted unlinked; processIncomingMDMCmds asks the
+	// device for its SMBIOS serial number on the first management session and links the row when the device replies.
+	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
 	displayName := reqDeviceName
 	var serial string
 	if hostUUID != "" {
@@ -3181,6 +3402,14 @@ func newSyncMLCmdNode(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
 	cmdFormat := "node"
 	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, nil)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdGet creates a SyncML Get command targeting the given OMA-DM LocURI. Get commands have no data, format, or
+// type on the request; the device fills those in on the corresponding Results response.
+func newSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
+	verb := fleet.CmdGet
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&verb, nil, item)
 }
 
 // newSyncMLCmdInt creates a new SyncML command with text data

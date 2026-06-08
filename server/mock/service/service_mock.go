@@ -498,7 +498,7 @@ type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string)
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) (string, error)
 
-type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, err error)
+type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, err error)
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
@@ -512,9 +512,9 @@ type AddAppStoreAppFunc func(ctx context.Context, teamID *uint, appTeam fleet.VP
 
 type UpdateAppStoreAppFunc func(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error)
 
-type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, teamID *uint) ([]byte, error)
+type GetInHouseAppManifestFunc func(ctx context.Context, titleID uint, token string) ([]byte, error)
 
-type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error)
+type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error)
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
@@ -576,9 +576,9 @@ type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*flee
 
 type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error)
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, error)
 
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
@@ -746,7 +746,7 @@ type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID str
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error)
+type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, error)
 
 type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, filename string) error
 
@@ -760,7 +760,7 @@ type LinuxHostDiskEncryptionStatusFunc func(ctx context.Context, host fleet.Host
 
 type GetMDMLinuxProfilesSummaryFunc func(ctx context.Context, teamId *uint) (fleet.MDMProfilesSummary, error)
 
-type NewMDMAndroidConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error)
+type NewMDMAndroidConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error)
 
 type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
@@ -3997,7 +3997,7 @@ func (s *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string,
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmName, payloads, dryRun)
 }
 
-func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, err error) {
+func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, err error) {
 	s.mu.Lock()
 	s.GetBatchSetSoftwareInstallersResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4046,18 +4046,18 @@ func (s *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *u
 	return s.UpdateAppStoreAppFunc(ctx, titleID, teamID, payload)
 }
 
-func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, teamID *uint) ([]byte, error) {
+func (s *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, token string) ([]byte, error) {
 	s.mu.Lock()
 	s.GetInHouseAppManifestFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppManifestFunc(ctx, titleID, teamID)
+	return s.GetInHouseAppManifestFunc(ctx, titleID, token)
 }
 
-func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (s *Service) GetInHouseAppPackage(ctx context.Context, titleID uint, token string) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	s.mu.Lock()
 	s.GetInHouseAppPackageFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppPackageFunc(ctx, titleID, teamID)
+	return s.GetInHouseAppPackageFunc(ctx, titleID, token)
 }
 
 func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
@@ -4270,18 +4270,18 @@ func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) 
 	return s.GetHostDEPAssignmentDetailsFunc(ctx, hostID)
 }
 
-func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
+func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleConfigProfileFunc(ctx, teamID, data, labels, labelsMembershipMode)
+	return s.NewMDMAppleConfigProfileFunc(ctx, teamID, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 }
 
-func (s *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
+func (s *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, teamID, data, labels, name, labelsMembershipMode)
+	return s.NewMDMAppleDeclarationFunc(ctx, teamID, data, labelsInclude, name, labelsMembershipMode, labelsExcludeAny)
 }
 
 func (s *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
@@ -4865,11 +4865,11 @@ func (s *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMWindowsConfigProfileFunc(ctx, teamID, profileName, data, labels, labelsMembershipMode)
+	return s.NewMDMWindowsConfigProfileFunc(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 }
 
 func (s *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
@@ -4914,11 +4914,11 @@ func (s *Service) GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) 
 	return s.GetMDMLinuxProfilesSummaryFunc(ctx, teamId)
 }
 
-func (s *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+func (s *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAndroidConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAndroidConfigProfileFunc(ctx, teamID, profileName, data, labels, labelsMembershipMode)
+	return s.NewMDMAndroidConfigProfileFunc(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 }
 
 func (s *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {

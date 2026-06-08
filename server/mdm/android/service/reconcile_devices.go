@@ -96,6 +96,7 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 				serial = hosts[0].HardwareSerial
 			}
 			if aerr := newActivityFn(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostID:           dev.HostID,
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,

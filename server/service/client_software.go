@@ -86,39 +86,39 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
-			return nil, errors.New(resp.Message)
+			return nil, nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:
-			return matchPackageIcons(softwareInstallers, resp.Packages), nil
+			return matchPackageIcons(softwareInstallers, resp.Packages), resp.DeletedPackages, nil
 		default:
-			return nil, fmt.Errorf("unknown status: %q", resp.Status)
+			return nil, nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
 }

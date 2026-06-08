@@ -126,7 +126,11 @@ Fleet added support for [scripting and management capabilities](https://fleetdm.
 ### 2024: Fleet is growing globally 
 Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the world's most powerful computers). 
 
-<!-- 2024: and implement "zero trust" faster -->
+### 2025: Android support
+After growing revenue 6x during the previous two years, Fleet raised its Series B funding round, bringing total funding up to $52M, and announced support for Android devices.
+
+### 2026: Mainstream adoption
+Of the 8 most anticipated IPOs in 2026, over half are Fleet customers.
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 

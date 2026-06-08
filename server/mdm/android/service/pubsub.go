@@ -271,6 +271,7 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 		displayName = hosts[0].DisplayName()
 	}
 	if err := svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+		HostID:           ah.Host.ID,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
 		Platform:         "android",
@@ -422,6 +423,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 				serial = hosts[0].HardwareSerial
 			}
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostID:           host.Host.ID,
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -576,6 +578,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				serial = hosts[0].HardwareSerial
 			}
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostID:           host.Host.ID,
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -626,7 +629,18 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
-		host.TeamID = enrollSecret.GetTeamID()
+		if err == nil {
+			host.TeamID = enrollSecret.GetTeamID()
+		}
+
+		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
+		hostKey := getAndroidHostKey(device)
+		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
+			ctxerr.Handle(ctx, err)
+		} else if found {
+			host.TeamID = priorTeamID
+		}
 
 		if enrollmentTokenRequest.IdpUUID != "" {
 			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
@@ -857,6 +871,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	// If the device was previously known restore the last-known team instead of the enrollment secret's default.
+	teamID := enrollSecret.GetTeamID()
+	hostKey := getAndroidHostKey(device)
+	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
+		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
+		ctxerr.Handle(ctx, tlErr)
+	} else if found {
+		teamID = priorTeamID
+	}
+
 	deviceID, err := svc.getDeviceID(ctx, device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
@@ -877,7 +901,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			TeamID:                    enrollSecret.GetTeamID(),
+			TeamID:                    teamID,
 			ComputerName:              getComputerName(device, idpFullname),
 			Hostname:                  getComputerName(device, idpFullname),
 			Platform:                  "android",
@@ -940,12 +964,12 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	// Create pending certificate templates for this newly enrolled host.
-	// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
-	teamID := uint(0)
-	if enrollSecret.GetTeamID() != nil {
-		teamID = *enrollSecret.GetTeamID()
+	// Use certTeamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+	certTeamID := uint(0)
+	if teamID != nil {
+		certTeamID = *teamID
 	}
-	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, teamID); err != nil {
+	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, certTeamID); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
 		return ctxerr.Wrap(ctx, err, "creating pending certificate templates for new host")
 	}

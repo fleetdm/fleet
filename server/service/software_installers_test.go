@@ -635,6 +635,10 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return []fleet.SoftwarePackageResponse{}, nil
 	}
 
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+
 	baseDir := getPathRelative("./testdata/software-installers/")
 
 	// start the web server that will serve the installer
@@ -663,7 +667,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

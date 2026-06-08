@@ -307,7 +307,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 	return nil
 }
 
-func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
+func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomFileVault bool) error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
@@ -318,7 +318,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFile
 	}
 
 	// then screen the payload content for reserved identifiers, names, and types
-	return cp.Mobileconfig.ScreenPayloads(allowCustomOSUpdatesAndFileVault)
+	return cp.Mobileconfig.ScreenPayloads(allowCustomFileVault)
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -465,49 +465,26 @@ func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
 	return *h.TeamID
 }
 
-// AppleProfileIncludeMode indicates how a profile's include-labels gate
-// applicability to a host. Independent of exclude-labels, which always
-// have "exclude any" semantics. A single profile may carry both include
-// labels (with one consistent mode) and exclude labels.
-type AppleProfileIncludeMode int
+// AppleProfileIncludeMode aliases the platform-neutral include mode; see
+// MDMProfileIncludeMode in mdm_reconcile.go.
+type AppleProfileIncludeMode = MDMProfileIncludeMode
 
 const (
-	// AppleProfileIncludeNone means the profile has no include labels —
-	// applicability is determined entirely by team, platform, and any
-	// exclude labels present.
-	AppleProfileIncludeNone AppleProfileIncludeMode = iota
-	// AppleProfileIncludeAll requires the host to be a member of every
-	// (non-broken) include label.
-	AppleProfileIncludeAll
-	// AppleProfileIncludeAny requires the host to be a member of at
-	// least one include label.
-	AppleProfileIncludeAny
+	AppleProfileIncludeNone = MDMProfileIncludeNone
+	AppleProfileIncludeAll  = MDMProfileIncludeAll
+	AppleProfileIncludeAny  = MDMProfileIncludeAny
 )
 
-// AppleProfileLabelRef is a single label reference attached to a profile.
-// A nil LabelID means the label was deleted (the assignment is "broken").
-type AppleProfileLabelRef struct {
-	LabelID   *uint
-	CreatedAt time.Time
-	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic,
-	// 1=manual. Needed by the exclude-any handler so dynamic labels that
-	// were created after a host's last label_updated_at are treated as
-	// "results not yet reported" instead of "host is not a member".
-	LabelMembershipType int
-}
+// AppleProfileLabelRef aliases the platform-neutral label reference; see
+// MDMProfileLabelRef in mdm_reconcile.go.
+type AppleProfileLabelRef = MDMProfileLabelRef
 
-// AppleLabeledEntity is the minimal view of a label-gated Apple MDM
-// entity (profile or declaration) that the team/platform/label dispatcher
-// and the per-mode handlers need. The same dispatcher and handlers run
-// against both AppleProfileForReconcile and AppleDeclarationForReconcile
-// so the rules cannot drift between the two reconcilers.
-type AppleLabeledEntity interface {
-	GetTeamID() uint
-	GetIncludeMode() AppleProfileIncludeMode
-	GetIncludeLabels() []AppleProfileLabelRef
-	GetExcludeLabels() []AppleProfileLabelRef
-	HasBrokenLabel() bool
-}
+// AppleLabeledEntity aliases the platform-neutral label-gated entity view;
+// see MDMLabeledEntity in mdm_reconcile.go. Both AppleProfileForReconcile
+// and AppleDeclarationForReconcile implement it so the same dispatcher and
+// handlers run against both Apple reconcilers as well as other platforms'
+// reconcilers.
+type AppleLabeledEntity = MDMLabeledEntity
 
 // AppleProfileForReconcile is the profile data needed by the batched
 // reconciler to compute desired state per host in memory.
@@ -539,7 +516,7 @@ func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { r
 // exempt from removal (matches legacy behaviour: a profile with a broken
 // label is never auto-removed from a host that already has it).
 func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(p.IncludeLabels) || anyAppleLabelBroken(p.ExcludeLabels)
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
 // AppleDeclarationForReconcile is the declaration data needed by the
@@ -580,18 +557,7 @@ func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef
 
 // HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
 func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(d.IncludeLabels) || anyAppleLabelBroken(d.ExcludeLabels)
-}
-
-// anyAppleLabelBroken reports whether any label reference has a nil
-// LabelID (the label was deleted, leaving the assignment "broken").
-func anyAppleLabelBroken(labels []AppleProfileLabelRef) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return true
-		}
-	}
-	return false
+	return anyMDMLabelBroken(d.IncludeLabels) || anyMDMLabelBroken(d.ExcludeLabels)
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -728,13 +694,13 @@ type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
 	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
-	// server in Apple Busines Manager (AB).
+	// server in Apple Business (AB).
 	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
-	// MDM server in Apple Busines Manager (AB).
+	// MDM server in Apple Business (AB).
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
-	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
+	// ABMTokenID is the ID of the AB token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id" renameto:"ab_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
@@ -951,15 +917,8 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment":             {},
 }
 
-func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
+func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
-
-	// Check against types we don't allow
-	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		if !allowCustomOSUpdatesAndFileVault {
-			return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
-		}
-	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
 		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")

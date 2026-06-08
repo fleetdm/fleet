@@ -163,12 +163,6 @@
     line-height: 1;
   }
 
-  &__shortcut-sep {
-    font-size: $xxx-small;
-    color: $ui-fleet-black-50;
-    user-select: none;
-  }
-
   &__list {
     // ~8 items visible before scrolling
     max-height: 320px;
@@ -296,6 +290,16 @@
     &--selected {
       font-weight: $bold;
     }
+  }
+
+  // Highlighted span over the characters the user actually typed (Best
+  // match rendering wraps matched ranges in <mark>). Subtle treatment —
+  // weight + color shift, no yellow background — so it reads as emphasis
+  // rather than a sticky-note.
+  &__item-label-match {
+    background: transparent;
+    color: inherit;
+    font-weight: $bold;
   }
 
   &__item-more {

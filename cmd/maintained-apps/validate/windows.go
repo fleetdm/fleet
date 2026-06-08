@@ -267,7 +267,13 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Some installers (e.g. Visual Studio bootstrappers like vs_SSMS.exe)
+	// download a large payload at install time and legitimately take longer
+	// than a few minutes. Production allows up to 1 hour
+	// (pkgscripts.MaxHostSoftwareInstallExecutionTime); 10 minutes is a
+	// reasonable validator cap that covers large-payload installers without
+	// letting a hung script run indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	// Use custom execution with non-interactive flags for Windows
