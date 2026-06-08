@@ -890,23 +890,23 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## V  (17)
 
-- [ ] `vanilla` — Vanilla
-- [ ] `vellum` — Vellum
-- [ ] `veracrypt` — VeraCrypt
-- [ ] `vernier-spectral-analysis` — Vernier Spectral Analysis
-- [ ] `versions` — Versions
-- [ ] `via` — VIA
-- [ ] `vimcal` — Vimcal
-- [ ] `visual-paradigm` — Visual Paradigm
-- [ ] `vivaldi` — Vivaldi
-- [ ] `vivid-app` — Vivid
-- [ ] `viz` — Viz
-- [ ] `vnote` — VNote
-- [ ] `voiceink` — VoiceInk
-- [ ] `vpn-tracker-365` — VPN Tracker 365
-- [ ] `vuescan` — VueScan
-- [ ] `vyprvpn` — VyprVPN
-- [ ] `vysor` — Vysor
+- [x] `vanilla` — Vanilla
+- [x] `vellum` — Vellum
+- [x] `veracrypt` — VeraCrypt
+- [x] `vernier-spectral-analysis` — Vernier Spectral Analysis
+- [x] `versions` — Versions
+- [x] `via` — VIA
+- [x] `vimcal` — Vimcal
+- [x] `visual-paradigm` — Visual Paradigm
+- [ ] `vivaldi` — Vivaldi  — **deferred — unsupported installer format**
+- [x] `vivid-app` — Vivid
+- [x] `viz` — Viz
+- [x] `vnote` — VNote
+- [x] `voiceink` — VoiceInk
+- [x] `vpn-tracker-365` — VPN Tracker 365
+- [x] `vuescan` — VueScan
+- [x] `vyprvpn` — VyprVPN
+- [x] `vysor` — Vysor
 
 ## W  (24)
 
