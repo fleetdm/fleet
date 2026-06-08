@@ -114,6 +114,20 @@
       "description": "Adobe DNG Conver is a DNG file converter."
     },
     {
+      "name": "Affinity",
+      "slug": "affinity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.canva.affinity",
+      "description": "Affinity is an image editing and design software."
+    },
+    {
+      "name": "Affinity",
+      "slug": "affinity/windows",
+      "platform": "windows",
+      "unique_identifier": "Affinity",
+      "description": "Affinity is an image editing and design software."
+    },
+    {
       "name": "Aircall",
       "slug": "aircall/darwin",
       "platform": "darwin",
@@ -146,6 +160,13 @@
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
       "unique_identifier": "com.amazon.Amazon-Chime",
+      "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
+    },
+    {
+      "name": "Amazon Chime",
+      "slug": "amazon-chime/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Chime",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
@@ -240,6 +261,27 @@
       "description": "Another Redis Desktop Manager is a GUI client for Redis."
     },
     {
+      "name": "Google Antigravity IDE",
+      "slug": "antigravity-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.antigravity-ide",
+      "description": "Google Antigravity is an AI coding agent IDE."
+    },
+    {
+      "name": "Google Antigravity IDE",
+      "slug": "antigravity-ide/windows",
+      "platform": "windows",
+      "unique_identifier": "Antigravity IDE",
+      "description": "Google Antigravity is an AI coding agent IDE."
+    },
+    {
+      "name": "Google Antigravity",
+      "slug": "antigravity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.antigravity",
+      "description": "Google Antigravity is an agent orchestration platform."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
@@ -268,6 +310,13 @@
       "description": "Arc is a productivity-focused browser."
     },
     {
+      "name": "Arc",
+      "slug": "arc/windows",
+      "platform": "windows",
+      "unique_identifier": "Arc",
+      "description": "Arc is a productivity-focused browser."
+    },
+    {
       "name": "Archaeology",
       "slug": "archaeology/darwin",
       "platform": "darwin",
@@ -279,6 +328,13 @@
       "slug": "arduino-ide/darwin",
       "platform": "darwin",
       "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/windows",
+      "platform": "windows",
+      "unique_identifier": "Arduino IDE",
       "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
     },
     {
@@ -380,6 +436,20 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "Beekeeper Studio",
+      "slug": "beekeeper-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.beekeeperstudio.desktop",
+      "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
+    },
+    {
+      "name": "Beekeeper Studio",
+      "slug": "beekeeper-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Beekeeper Studio",
+      "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
+    },
+    {
       "name": "BetterDisplay",
       "slug": "betterdisplay/darwin",
       "platform": "darwin",
@@ -427,6 +497,13 @@
       "platform": "windows",
       "unique_identifier": "Blender",
       "description": "Blender is a 3D creation suite."
+    },
+    {
+      "name": "BlueJ",
+      "slug": "bluej/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.bluej.BlueJ",
+      "description": "BlueJ is a free Java development environment designed for beginners."
     },
     {
       "name": "BlueJ",
@@ -485,6 +562,13 @@
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.install4j.9806-1938-4586-6531.70",
+      "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
       "name": "calibre",
       "slug": "calibre/darwin",
       "platform": "darwin",
@@ -527,6 +611,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "CapCut",
+      "slug": "capcut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lemon.lvoverseas",
+      "description": "CapCut is a video editing and image design platform."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
@@ -562,6 +653,13 @@
       "description": "Chrome Remote Desktop is an app that allows admins to help troubleshoot through the Google Chrome browser."
     },
     {
+      "name": "Cinc Workstation",
+      "slug": "cinc/windows",
+      "platform": "windows",
+      "unique_identifier": "Cinc Workstation",
+      "description": "Cinc Workstation is an open-source distribution of Chef Workstation that bundles the tools needed to author, test, and manage Chef Infra cookbooks and configurations."
+    },
+    {
       "name": "Cisco Jabber",
       "slug": "cisco-jabber/darwin",
       "platform": "darwin",
@@ -581,6 +679,13 @@
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Claude DevTools",
+      "slug": "claude-devtools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.claudecode.context",
+      "description": "Claude DevTools is an app to visualise and analyse Claude Code session executions."
     },
     {
       "name": "Claude",
@@ -609,6 +714,13 @@
       "platform": "darwin",
       "unique_identifier": "com.getcleanshot.app",
       "description": "CleanShot X is a screen capturing tool."
+    },
+    {
+      "name": "ClickShare",
+      "slug": "clickshare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barco.clickshare.updater",
+      "description": "ClickShare is a wireless screen sharing client for Barco conferencing systems."
     },
     {
       "name": "ClickUp",
@@ -658,6 +770,20 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Comet",
+      "slug": "comet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.perplexity.comet",
+      "description": "Comet is a web browser with an integrated AI assistant from Perplexity."
+    },
+    {
+      "name": "Comet",
+      "slug": "comet/windows",
+      "platform": "windows",
+      "unique_identifier": "Comet",
+      "description": "Comet is a web browser with an integrated AI assistant from Perplexity."
     },
     {
       "name": "Connect Fonts",
@@ -856,6 +982,20 @@
       "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
     },
     {
+      "name": "Devin Desktop",
+      "slug": "devin-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.exafunction.windsurf",
+      "description": "Devin Desktop is an agentic IDE with an AI agent command center, formerly known as Windsurf."
+    },
+    {
+      "name": "DFU Blaster Pro",
+      "slug": "dfu-blaster-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twocanoes.DFU-Blaster-Pro",
+      "description": "DFU Blaster Pro is a utility for putting Apple silicon Macs into DFU mode for restore."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -975,6 +1115,13 @@
       "description": "Egnyte is a client for the Egnyte cloud storage service."
     },
     {
+      "name": "Egnyte",
+      "slug": "egnyte/windows",
+      "platform": "windows",
+      "unique_identifier": "Egnyte Desktop App",
+      "description": "Egnyte is a client for the Egnyte cloud storage service."
+    },
+    {
       "name": "Elgato Control Center",
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
@@ -982,10 +1129,24 @@
       "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
+      "name": "Elgato Control Center",
+      "slug": "elgato-control-center/windows",
+      "platform": "windows",
+      "unique_identifier": "Elgato Control Center",
+      "description": "Elgato Control Center is an app to control your Elgato key lights."
+    },
+    {
       "name": "Elgato Stream Deck",
       "slug": "elgato-stream-deck/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elgato.StreamDeck",
+      "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+    },
+    {
+      "name": "Elgato Stream Deck",
+      "slug": "elgato-stream-deck/windows",
+      "platform": "windows",
+      "unique_identifier": "Elgato Stream Deck",
       "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
@@ -1248,11 +1409,25 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Groove OmniDialer",
+      "slug": "groove-omnidialer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.dialer",
+      "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
       "unique_identifier": "co.zeit.hyper",
       "description": "Hyper is a terminal built on web technologies."
+    },
+    {
+      "name": "IBM Notifier",
+      "slug": "ibm-notifier/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ibm.cio.notifier",
+      "description": "IBM Notifier is an agent that displays custom notifications and alerts to end users on macOS."
     },
     {
       "name": "Icon Composer",
@@ -1276,10 +1451,24 @@
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
     },
     {
+      "name": "iMazing Profile Editor",
+      "slug": "imazing-profile-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing Profile Editor",
+      "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
       "name": "iMazing",
       "slug": "imazing/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazing3Mac",
+      "description": "iMazing is an iPhone management application."
+    },
+    {
+      "name": "iMazing",
+      "slug": "imazing/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing",
       "description": "iMazing is an iPhone management application."
     },
     {
@@ -1357,6 +1546,13 @@
       "slug": "jabra-direct/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jabra.directonline",
+      "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
+    },
+    {
+      "name": "Jabra Direct",
+      "slug": "jabra-direct/windows",
+      "platform": "windows",
+      "unique_identifier": "Jabra Direct",
       "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
     },
     {
@@ -1438,6 +1634,13 @@
     },
     {
       "name": "LastPass",
+      "slug": "lastpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lastpass.lastpassmacdesktop",
+      "description": "LastPass is a password manager."
+    },
+    {
+      "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
       "unique_identifier": "LastPass",
@@ -1469,6 +1672,13 @@
       "slug": "libreoffice/darwin",
       "platform": "darwin",
       "unique_identifier": "org.libreoffice.script",
+      "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
+      "name": "LibreOffice",
+      "slug": "libreoffice/windows",
+      "platform": "windows",
+      "unique_identifier": "LibreOffice",
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
@@ -1556,6 +1766,13 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "Microsoft 365 Copilot",
+      "slug": "microsoft-365-copilot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.m365copilot",
+      "description": "Microsoft 365 Copilot is an AI-powered productivity assistant that integrates with Microsoft 365 apps."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -1620,6 +1837,13 @@
     },
     {
       "name": "Microsoft Remote Help",
+      "slug": "microsoft-remote-help/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.remotehelp",
+      "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
+    },
+    {
+      "name": "Microsoft Remote Help",
       "slug": "microsoft-remote-help/windows",
       "platform": "windows",
       "unique_identifier": "Remote Help",
@@ -1630,6 +1854,13 @@
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.teams2",
+      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
+    },
+    {
+      "name": "Microsoft Teams",
+      "slug": "microsoft-teams/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
@@ -1644,6 +1875,13 @@
       "slug": "mindmanager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mindjet.mindmanager.25",
+      "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
+      "name": "MindManager",
+      "slug": "mindmanager/windows",
+      "platform": "windows",
+      "unique_identifier": "MindManager",
       "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
     },
     {
@@ -1700,6 +1938,13 @@
       "slug": "nextcloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nextcloud.desktopclient",
+      "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
+    },
+    {
+      "name": "Nextcloud",
+      "slug": "nextcloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Nextcloud",
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
@@ -1864,6 +2109,13 @@
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
+      "name": "OneDrive",
+      "slug": "onedrive/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OneDrive",
+      "description": "OneDrive is Microsoft's cloud storage client."
+    },
+    {
       "name": "OpenVPN Connect",
       "slug": "openvpn-connect/darwin",
       "platform": "darwin",
@@ -1911,6 +2163,13 @@
       "platform": "darwin",
       "unique_identifier": "com.parallels.desktop.console",
       "description": "Parallels Desktop is virtualization software."
+    },
+    {
+      "name": "Pd",
+      "slug": "pd/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.puredata.pd.pd-gui",
+      "description": "Pd (Pure Data) is a visual programming language for creating interactive computer music and multimedia works."
     },
     {
       "name": "pgAdmin 4",
@@ -1962,6 +2221,34 @@
       "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
+      "name": "PostgreSQL 15",
+      "slug": "postgresql-15/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 15",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
+      "name": "PostgreSQL 16",
+      "slug": "postgresql-16/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 16",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
+      "name": "PostgreSQL 17",
+      "slug": "postgresql-17/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 17",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
+      "name": "PostgreSQL 18",
+      "slug": "postgresql-18/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 18",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -1988,6 +2275,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "Power Monitor",
+      "slug": "power-monitor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "corp.sap.PowerMonitor",
+      "description": "Power Monitor is an app that reports power adapter and battery status."
     },
     {
       "name": "PowerShell",
@@ -2057,6 +2351,13 @@
       "slug": "proxifier/darwin",
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
+      "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "Proxifier",
+      "slug": "proxifier/windows",
+      "platform": "windows",
+      "unique_identifier": "Proxifier",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
@@ -2148,6 +2449,13 @@
       "slug": "reaper/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cockos.reaper",
+      "description": "REAPER is a digital audio production application."
+    },
+    {
+      "name": "REAPER",
+      "slug": "reaper/windows",
+      "platform": "windows",
+      "unique_identifier": "REAPER",
       "description": "REAPER is a digital audio production application."
     },
     {
@@ -2347,6 +2655,13 @@
       "description": "Spotify is a music streaming app."
     },
     {
+      "name": "SQL Server Management Studio",
+      "slug": "sql-server-management-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "SQL Server Management Studio 22",
+      "description": "SQL Server Management Studio (SSMS) is an integrated environment for managing SQL Server and Azure SQL infrastructure. It provides tools to configure, monitor, and administer database instances, and to build and run queries and scripts."
+    },
+    {
       "name": "Stats",
       "slug": "stats/darwin",
       "platform": "darwin",
@@ -2431,6 +2746,13 @@
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
+      "name": "TablePlus",
+      "slug": "tableplus/windows",
+      "platform": "windows",
+      "unique_identifier": "TablePlus",
+      "description": "TablePlus is a native GUI tool for relational databases."
+    },
+    {
       "name": "Tailscale",
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
@@ -2477,6 +2799,13 @@
       "slug": "teleport-connect/darwin",
       "platform": "darwin",
       "unique_identifier": "gravitational.teleport.connect",
+      "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
+    },
+    {
+      "name": "Teleport Connect",
+      "slug": "teleport-connect/windows",
+      "platform": "windows",
+      "unique_identifier": "Teleport Connect",
       "description": "Teleport Connect is a developer-friendly browser for cloud infrastructure."
     },
     {
@@ -2641,6 +2970,13 @@
       "description": "Viscosity is an OpenVPN client with AppleScript support."
     },
     {
+      "name": "Viscosity",
+      "slug": "viscosity/windows",
+      "platform": "windows",
+      "unique_identifier": "Viscosity",
+      "description": "Viscosity is an OpenVPN client for secure VPN connections."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -2676,10 +3012,24 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
+      "name": "VNC Server",
+      "slug": "vnc-server/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Server",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
+      "description": "VNC Viewer is a remote desktop application focusing on security."
+    },
+    {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
@@ -2760,11 +3110,11 @@
       "description": "Windows App helps you connect to Windows from your Mac."
     },
     {
-      "name": "Windsurf",
-      "slug": "windsurf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.exafunction.windsurf",
-      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+      "name": "Windows App",
+      "slug": "windows-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Windows App",
+      "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
       "name": "Windsurf",
@@ -2772,6 +3122,13 @@
       "platform": "windows",
       "unique_identifier": "Windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "WinRAR",
+      "slug": "winrar/windows",
+      "platform": "windows",
+      "unique_identifier": "WinRAR",
+      "description": "WinRAR is a file archiver utility for Windows. It creates and extracts RAR and ZIP archives and supports compression, encryption, and splitting archives into volumes."
     },
     {
       "name": "WinSCP",
@@ -2799,6 +3156,13 @@
       "slug": "wrike/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
+      "description": "Wrike is a project management app."
+    },
+    {
+      "name": "Wrike",
+      "slug": "wrike/windows",
+      "platform": "windows",
+      "unique_identifier": "Wrike for Windows (64 bit)",
       "description": "Wrike is a project management app."
     },
     {
@@ -2842,6 +3206,13 @@
       "platform": "windows",
       "unique_identifier": "Zed",
       "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zen Browser",
+      "slug": "zen-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Zen Browser (x64 en-US)",
+      "description": "Zen Browser is a Gecko based web browser."
     },
     {
       "name": "Zen Browser",
