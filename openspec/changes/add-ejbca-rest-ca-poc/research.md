@@ -362,36 +362,65 @@ is deferred — small follow-up, same backend.
   Mac. Workaround documented in the dev guide's Troubleshooting
   section: pre-extract to PEM with openssl, then use curl with
   `--cert/--key` on the PEM files.
-- **End-to-end happy path verified.** With (a) openssl subprocess
-  decode in place, (b) `REST Certificate Management` enabled, (c)
-  `ejbca.local` in `/etc/hosts`, (d) the Management CA in Fleet's
-  trust bundle field, (e) the Fleet service cert bound to a custom
-  admin role with appropriate access rules: Add CA via Fleet's UI
-  completes, the connection probe (`GET /v1/ca/status`) returns 200,
-  and the EJBCA CA row lands in Fleet's database. The per-host
-  enrollment path (`pkcs10enroll`) is unit-tested for UPN SAN
-  encoding but hasn't yet been exercised against real EJBCA via the
-  MDM profile-delivery flow — pending Phase 10 / manual verification.
-- **MDM profile Fleet-var support has TWO checkpoints, not one.**
-  Phase 6's `preprocessProfileContents` handles the *runtime*
-  expansion path (per-host enrollment when the profile is delivered).
-  Separately, there's an *upload-time* validator in
-  `server/service/mdm_profiles.go` that maintains an allow-list of
-  Fleet-var prefixes accepted in `.mobileconfig` uploads and tracks
-  DATA+PASSWORD pair completeness per CA via `*VarsFound` structs.
-  The original Phase 6 spec didn't separate these two concerns, so
-  the upload validator wasn't extended for EJBCA in the initial
-  implementation. Uploading the test profile failed with "Fleet
-  variable $FLEET_VAR_EJBCA_… is not supported in configuration
-  profiles" before the runtime path ever ran. Resolved by adding an
-  `EJBCAVarsFound` struct (mirrors `DigiCertVarsFound`), a fifth
-  `additionalEJBCAValidation` parameter to
-  `validateProfileCertificateAuthorityVariables` (nil in POC), and
-  the EJBCA prefix entries in the upload allow-list. The full
-  production implementation should also implement
-  `additionalEJBCAValidation` to mirror DigiCert's structural check
-  that the vars only appear inside a `com.apple.security.pkcs12`
-  payload.
+- **End-to-end happy path verified, including per-host enrollment.**
+  With (a) openssl subprocess decode in place, (b)
+  `REST Certificate Management` enabled, (c) `ejbca.local` in
+  `/etc/hosts`, (d) the Management CA in Fleet's trust bundle
+  field, (e) the Fleet service cert bound to a custom admin role
+  with appropriate access rules: Add CA via Fleet's UI completes,
+  the connection probe (`GET /v1/ca/status`) returns 200, the EJBCA
+  CA row lands in Fleet's database, and a `.mobileconfig` referencing
+  `$FLEET_VAR_EJBCA_DATA_<name>` / `_PASSWORD_<name>` pushed to a
+  macOS host triggers a real `pkcs10enroll` against EJBCA over mTLS,
+  receives the issued cert, wraps + delivers it via MDM, and the
+  host installs the cert into its keychain. The full happy path
+  works end-to-end against `keyfactor/ejbca-ce` 9.x.
+- **MDM profile Fleet-var support has FOUR registration points,
+  not one.** This is the most important lesson from the end-to-end
+  test pass and likely the highest-risk gap for the production
+  implementation (#30986) to miss. The original Phase 6 design
+  identified only the runtime expander; testing surfaced three
+  additional code sites that any new CA-data variable needs to be
+  registered in. For EJBCA the full list is:
+
+  1. **Runtime expander** —
+     `server/mdm/apple/profile_processor.go` `preprocessProfileContents`.
+     Recognizes the `FLEET_VAR_<CA>_DATA_/PASSWORD_` prefixes in
+     profile content, calls the per-CA enrollment service per host,
+     substitutes the base64-encoded PFX and password into the XML.
+     This is the only one Phase 6 originally captured.
+  2. **Upload allow-list** —
+     `server/service/apple_mdm.go` `validateConfigProfileFleetVariables`.
+     Lists every prefix that's accepted in an uploaded `.mobileconfig`.
+     Missing entry surfaces as `"Fleet variable $FLEET_VAR_<…> is not
+     supported in configuration profiles"` at upload time, before any
+     of the rest of the pipeline runs.
+  3. **Upload structural validator** —
+     `server/service/mdm_profiles.go`
+     `validateProfileCertificateAuthorityVariables`. Confirms each
+     referenced CA name exists in `groupedCAs` and tracks DATA +
+     PASSWORD pair completeness per-CA via a `*VarsFound` struct
+     (we added `EJBCAVarsFound` mirroring `DigiCertVarsFound`).
+     Takes a per-CA "additional structural validator" callback (e.g.
+     `additionalDigiCertValidation` enforces vars only appear inside
+     `com.apple.security.pkcs12` payloads); POC passes nil for
+     `additionalEJBCAValidation`, leaving that as a follow-up.
+  4. **Plist pre-parse scrubber** —
+     `server/variables/variables.go` `ProfileDataVariableRegex`.
+     Apple's plist parser strict-validates that `<data>` field
+     contents are base64; a literal `$FLEET_VAR_..._DATA_X` is not.
+     This regex matches the placeholder in `<data>` fields so it
+     can be stripped (or substituted with placeholder base64) before
+     the plist parser runs. Missing entry surfaces as `"failed to
+     parse config profile: ... plist: error parsing XML property
+     list: illegal base64 data at input byte 0"` at upload time,
+     even before the upload allow-list runs.
+
+  All four were extended during POC implementation; testing surfaced
+  #2, #3, and #4 in sequence because they fail in that order during
+  upload processing. **The production implementation must keep these
+  in lockstep** — adding a new CA-data variable to one without the
+  others is a latent failure mode.
 - **Enrollment code: required by API, not authenticating in our config.**
   Verified by reading `SignSessionBean.java` in the EJBCA source: the
   backend rejects `password=null` for any CA with `useUserStorage=true`

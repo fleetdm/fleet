@@ -153,24 +153,37 @@ this is a learning POC, not a production ship.
         add `CAConfigEJBCA` and tracking. Noted inline.
 - [x] Existing `preprocessProfileContents` tests updated to pass a real
       ejbca service instead of nil (satisfies nilaway flow analysis).
-- [x] **Follow-up discovered during end-to-end testing**: there's a
-      separate upload-time validator distinct from the runtime expander.
-      `validateConfigProfileFleetVariables` (server/service/apple_mdm.go)
-      maintains an allow-list of Fleet-var prefixes accepted in
-      `.mobileconfig` uploads, and
-      `validateProfileCertificateAuthorityVariables`
-      (server/service/mdm_profiles.go) tracks DATA+PASSWORD pair
-      completeness per CA via `*VarsFound` structs. Both needed EJBCA
-      support — without them an upload of an otherwise-valid profile is
-      rejected at validate-time with "Fleet variable $FLEET_VAR_EJBCA_…
-      is not supported in configuration profiles", before the runtime
-      expander ever runs. Added: `EJBCAVarsFound` struct mirroring
-      `DigiCertVarsFound` (DATA+PASSWORD pair check), an `ejbca` case
-      in the switch, a 5th parameter `additionalEJBCAValidation` (POC
-      passes nil — structural pkcs12-payload check is a follow-up),
-      and the EJBCA prefix entries in the upload allow-list. The
-      Windows-profile and test callers were updated to pass nil for
-      the new parameter.
+- [x] **Follow-up registration points discovered during end-to-end
+      testing.** Phase 6 originally registered EJBCA in only one of
+      four places that need to know about the `FLEET_VAR_EJBCA_*`
+      prefixes. The full set (documented in research.md → "Confirmed
+      during end-to-end testing"):
+
+      1. *Runtime expander* (originally captured) —
+         `server/mdm/apple/profile_processor.go`
+         `preprocessProfileContents`.
+      2. *Upload allow-list* —
+         `server/service/apple_mdm.go`
+         `validateConfigProfileFleetVariables`. Without it, upload
+         fails with "Fleet variable $FLEET_VAR_EJBCA_… is not
+         supported in configuration profiles".
+      3. *Upload structural validator* —
+         `server/service/mdm_profiles.go`
+         `validateProfileCertificateAuthorityVariables`. Tracks
+         DATA + PASSWORD pair completeness via `*VarsFound`. Added
+         `EJBCAVarsFound` (mirrors `DigiCertVarsFound`) and a fifth
+         `additionalEJBCAValidation` parameter (nil in POC).
+      4. *Plist pre-parse scrubber* —
+         `server/variables/variables.go` `ProfileDataVariableRegex`.
+         Without it, upload fails with "illegal base64 data at
+         input byte 0" because Apple's plist parser rejects a
+         non-base64 placeholder in `<data>` fields. Regex extended
+         to match `EJBCA_DATA_*` alongside `DIGICERT_DATA_*`.
+
+      Windows-profile and test callers updated to pass nil for the
+      new structural-validator parameter. End-to-end test verified
+      against `keyfactor/ejbca-ce`: profile uploads, host enrolls,
+      cert installs.
 
 ## 7. Endpoints
 
@@ -238,10 +251,18 @@ Frontend lint + prettier + TypeScript compile all clean.
 
 ## 10. Manual verification (POC success criteria)
 
-- [ ] All five proposal success criteria are demonstrably true on a
-      developer machine.
+- [x] **Happy path verified end-to-end against `keyfactor/ejbca-ce`**:
+      Add CA via Fleet UI succeeds, VerifyConnection probe returns 200,
+      DB row lands. A `.mobileconfig` referencing
+      `$FLEET_VAR_EJBCA_DATA_<name>` / `_PASSWORD_<name>` pushed to a
+      macOS host triggers a real `pkcs10enroll` against EJBCA over
+      mTLS, the issued cert is wrapped + delivered via MDM, and the
+      host installs the cert into its keychain.
 - [ ] Customer auth-decision questions are answered and captured.
-- [ ] Run the full new dev guide from scratch on a clean machine.
+      Tracked in research.md "Decisions confirmed with customer" table.
+- [ ] Run the full new dev guide from scratch on a clean machine —
+      verifies the prerequisites + EJBCA setup steps are complete and
+      reproducible.
 
 ## 11. Skipped on purpose (call out in PR description)
 

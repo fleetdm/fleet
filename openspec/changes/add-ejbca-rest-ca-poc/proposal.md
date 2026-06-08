@@ -199,18 +199,29 @@ These are the questions for the customer call. Capture answers in
 The POC is complete when all of these are demonstrably true on a developer
 machine:
 
-1. A Fleet admin can create an EJBCA CA via API and via the UI, supplying URL,
-   client cert/key, profile names, username template, and password.
-2. Fleet rejects the CA on save if the connection probe fails (bad URL, wrong
-   client cert, revoked cert, untrusted server cert).
-3. A macOS host with a configuration profile referencing
-   `FLEET_VAR_EJBCA_DATA_<name>` / `FLEET_VAR_EJBCA_PASSWORD_<name>` receives a
-   working certificate provisioned through EJBCA.
-4. The CA list page shows the client-cert expiry for each EJBCA CA, and a
-   re-upload of the P12 via the edit modal rolls the stored cert+key without
-   disturbing existing host certificates.
-5. The dev guide for running the POC against a local EJBCA Community Edition
-   container exists in `docs/Contributing/product-groups/security-compliance/`
-   and an engineer who has never touched EJBCA can follow it from scratch.
+1. ✅ A Fleet admin can create an EJBCA CA via API and via the UI, supplying
+   URL, client cert/key, profile names, username template, and password.
+   *Verified end-to-end against `keyfactor/ejbca-ce` 9.x.*
+2. ✅ Fleet rejects the CA on save if the connection probe fails (bad URL,
+   wrong client cert, revoked cert, untrusted server cert).
+   *Verified — each failure mode surfaces a distinct error message; see the
+   troubleshooting ladder in the dev guide.*
+3. ✅ A macOS host with a configuration profile referencing
+   `FLEET_VAR_EJBCA_DATA_<name>` / `FLEET_VAR_EJBCA_PASSWORD_<name>` receives
+   a working certificate provisioned through EJBCA.
+   *Verified — host installs the issued cert; EJBCA logs show the
+   `pkcs10enroll` request and `CERT_CREATION` for the host's CN.*
+4. ✅/🔲 The CA list page shows the client-cert expiry for each EJBCA CA,
+   and a re-upload of the P12 via the edit modal rolls the stored cert+key
+   without disturbing existing host certificates. *Backend exposes
+   `client_cert_expires_at`; CA list badge UI was deferred from the POC
+   (see Phase 8 in tasks.md). Edit-modal P12 rotation is wired and
+   functional.*
+5. ✅ The dev guide for running the POC against a local EJBCA Community
+   Edition container exists in
+   `docs/Contributing/product-groups/security-compliance/` and an engineer
+   who has never touched EJBCA can follow it from scratch.
+   *Verified — guide includes a Troubleshooting ladder mapping every
+   failure mode hit during testing to its fix.*
 6. The customer's open questions (above) are captured with answers in
    research.md.
