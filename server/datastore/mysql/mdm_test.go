@@ -56,7 +56,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
-		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
@@ -66,6 +65,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestOktaCACleanupTargetForInstallCommand", testOktaCACleanupTargetForInstallCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
@@ -1475,6 +1475,20 @@ func testBatchSetMDMProfilesSoftwareUpdateTracking(t *testing.T, ds *Datastore) 
 	require.False(t, appleConfigured)
 }
 
+// simulateBrokenLabel nulls label_id in profile and declaration label tables for the
+// given label name, simulating the broken-label state that previously occurred automatically
+// via ON DELETE SET NULL (now ON DELETE RESTRICT prevents label deletion while referenced).
+func simulateBrokenLabel(t *testing.T, ds *Datastore, ctx context.Context, labelName string) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_name = ?`, labelName); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_name = ?`, labelName)
+		return err
+	})
+}
+
 func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1653,10 +1667,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
 		require.NoError(t, err)
 	}
-	// delete label 3, 4 and 8 so that profiles D, E and G are broken
-	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
-	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	// null label references to simulate profiles D, E and G being broken
+	// (FK is now RESTRICT so we can no longer delete a referenced label)
+	for _, lbl := range []*fleet.Label{labels[3], labels[4], labels[8]} {
+		simulateBrokenLabel(t, ds, ctx, lbl.Name)
+	}
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
 			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
@@ -2368,9 +2383,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
@@ -2869,9 +2890,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Now delete label, we shouldn't see the related profile
-		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, label.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, label.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
@@ -3477,9 +3504,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			// Delete the label — the FK ON DELETE SET NULL sets label_id to NULL
-			// in the mdm_configuration_profile_labels row.
+			// Simulate the label being deleted: nullify label_id in the join table
+			// first (RESTRICT FK now blocks direct delete), then remove the label row.
+			// The test then re-creates a label with the same name to verify the
+			// broken-link upsert path.
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, origLabel.ID); err != nil {
+					return err
+				}
 				_, err := tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, origLabel.ID)
 				return err
 			})
@@ -4687,15 +4719,10 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	// delete labels 0, 2, 3, and 6, breaking all profiles
-	err = ds.DeleteLabel(ctx, labels[0].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[3].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
-	err = ds.DeleteLabel(ctx, labels[6].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
+	// null label references to break all profiles (FK is now RESTRICT so we can no longer delete referenced labels)
+	for _, lbl := range []*fleet.Label{labels[0], labels[2], labels[3], labels[6]} {
+		simulateBrokenLabel(t, ds, ctx, lbl.Name)
+	}
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
@@ -4739,20 +4766,6 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		},
 		androidHost2: {},
 	})
-}
-
-// TODO(MHJ): Marked for deletion
-func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	var hostUUIDs []string
-	// The bug this test was built to reproduce is visible down to ~16400 hosts; keeping this at 66k for scale testing
-	for range 66000 {
-		hostUUIDs = append(hostUUIDs, uuid.NewString())
-	}
-
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesForTests(ctx, hostUUIDs, nil)
-	require.NoError(t, err)
 }
 
 // testBulkSetPendingDefersWindowsReconciliation verifies the production
@@ -6191,6 +6204,88 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testOktaCACleanupTargetForInstallCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(t *testing.T, suffix, platform string) *fleet.Host {
+		t.Helper()
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("okta-cleanup-osq-" + suffix),
+			NodeKey:         ptr.String("okta-cleanup-nk-" + suffix),
+			UUID:            "okta-cleanup-host-" + suffix,
+			Hostname:        "okta-cleanup-" + suffix,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	insertHostProfile := func(t *testing.T, hostUUID, identifier, commandUUID string) {
+		t.Helper()
+		// host_mdm_apple_profiles has no FK to mdm_apple_configuration_profiles,
+		// so we can insert the host-profile row directly with a fresh
+		// profile_uuid per sub-test and avoid the (team_id, identifier)
+		// unique-key conflict that comes from reusing the Okta CA identifier.
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       uuid.NewString(),
+			ProfileIdentifier: identifier,
+			HostUUID:          hostUUID,
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeUser,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       commandUUID,
+		}}))
+	}
+
+	t.Run("okta CA profile + per-user enrollment present: returns target", func(t *testing.T) {
+		host := newHost(t, "happy", "darwin")
+		nanoEnroll(t, ds, host, true) // creates Device + User enrollment with user_short_name = "alice"
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		got, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, host.ID, got.HostID)
+		require.Equal(t, "alice", got.UserShortName)
+	})
+
+	t.Run("non-Okta profile identifier: ok=false", func(t *testing.T) {
+		host := newHost(t, "wrong-id", "darwin")
+		nanoEnroll(t, ds, host, true)
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, "com.example.unrelated", cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("okta profile + only device-channel enrollment: ok=false", func(t *testing.T) {
+		host := newHost(t, "no-user-chan", "darwin")
+		nanoEnroll(t, ds, host, false) // Device-only enrollment, no nano_users row
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("unknown command: ok=false, no error", func(t *testing.T) {
+		host := newHost(t, "no-cmd", "darwin")
+		nanoEnroll(t, ds, host, true)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, "no-such-cmd")
+		require.NoError(t, err)
+		require.False(t, ok)
 	})
 }
 

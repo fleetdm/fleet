@@ -378,7 +378,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -388,7 +388,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, false)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		// The gate fails before the profile is inserted.
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -399,7 +399,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
@@ -414,7 +414,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{}, nil
 		}
 
-		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, p)
 		assert.True(t, ds.TeamMDMConfigFuncInvoked)
@@ -427,7 +427,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			ac.MDM.WindowsUpdates = configuredSettings()
 		})
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		// The gate fails before the profile is inserted.
@@ -441,7 +441,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 			return &fleet.TeamMDM{WindowsUpdates: configuredSettings()}, nil
 		}
 
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)

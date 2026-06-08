@@ -238,7 +238,6 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          ignore1password
         />
         <InputField
           name="description"

@@ -162,7 +162,8 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "digicert",
                   "ndes",
                   "smallstep",
-                  "scep",
+                  "ca",
+                  "cert",
                 ],
               },
               {
@@ -176,6 +177,10 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "ndes",
                   "smallstep",
                   "pki",
+                  "create certificate authority",
+                  "new certificate authority",
+                  "create ca",
+                  "new ca",
                 ],
               },
             ]
@@ -184,13 +189,13 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           id: "settings-int-identity-provider",
           label: "Identity provider (IdP)",
           path: paths.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
-          keywords: ["okta", "entra", "azure ad"],
+          keywords: ["okta", "entra", "azure ad", "directory", "ldap"],
         },
         {
           id: "settings-int-host-status-webhook",
           label: "Host status webhook",
           path: paths.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
-          keywords: ["offline", "missing hosts", "notification"],
+          keywords: ["offline", "missing hosts", "notification", "alerts"],
         },
         // Conditional access is Premium-only.
         ...(isPremiumTier

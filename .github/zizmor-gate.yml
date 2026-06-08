@@ -12,23 +12,18 @@
 # .github/zizmor.yml, so a plain `zizmor .` run still reports the full backlog locally.
 
 rules:
-  artipacked: # 125 findings
-    disable: true
-  cache-poisoning: # 16 findings
-    disable: true
-  dependabot-cooldown: # 2 findings
-    disable: true
-  excessive-permissions: # 20 findings
-    disable: true
-  known-vulnerable-actions: # 418 findings (online audit)
-    disable: true
-  misfeature: # 11 findings
-    disable: true
-  ref-version-mismatch: # 44 findings (online audit)
-    disable: true
-  secrets-inherit: # 5 findings
-    disable: true
+  # The misfeature rule stays ENABLED so new workflows are still checked; we only waive the
+  # specific Windows signing/build workflows below. Their findings are all `shell: cmd` notices:
+  # zizmor cannot introspect CMD scripts, so it emits a Low-severity analysis-limitation note
+  # rather than a real finding, and these workflows require the Windows CMD shell. Matching is by
+  # filename, so keep these names unique.
+  misfeature:
+    ignore:
+      - build-fleetctl-msi.yml
+      - code-sign-windows.yml
+      - e2e-agent.yml
+      - fleet-and-orbit.yml
+      - generate-osqueryd-targets.yml
+      - goreleaser-fleet.yaml
   template-injection: # 234 findings
-    disable: true
-  unpinned-uses: # 31 findings
     disable: true

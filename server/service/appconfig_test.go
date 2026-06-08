@@ -2409,3 +2409,47 @@ func TestDiffStringSlices(t *testing.T) {
 		})
 	}
 }
+
+// TestModifyAppConfigClearBootstrapPackageAlreadyDeleted verifies that clearing
+// a bootstrap package via ModifyAppConfig succeeds even when the actual package
+// row has already been deleted (e.g. via the GUI), leaving a stale URL in
+// appconfig.
+func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
+	ds := new(mock.Store)
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		MDM: fleet.MDM{
+			MacOSSetup: fleet.MacOSSetup{
+				// Stale URL: the DB row is gone but appconfig still has it.
+				BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	// The bootstrap package row was already deleted via the GUI.
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, newNotFoundError()
+	}
+
+	raw := []byte(`{"mdm":{"macos_setup":{"bootstrap_package":""}}}`)
+	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+}

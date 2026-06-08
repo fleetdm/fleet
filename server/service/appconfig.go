@@ -1133,7 +1133,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			// The package may have already been deleted via the GUI while the
+			// appconfig JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+			}
 		}
 	}
 
@@ -1680,30 +1684,7 @@ func (svc *Service) validateMDM(
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
-	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
-		for i, prof := range customSettings {
-			count := 0
-			for _, b := range []bool{
-				len(prof.Labels) > 0,
-				len(prof.LabelsIncludeAll) > 0,
-				len(prof.LabelsIncludeAny) > 0,
-				len(prof.LabelsExcludeAny) > 0,
-			} {
-				if b {
-					count++
-				}
-			}
-			if count > 1 {
-				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
-			}
-			if len(prof.Labels) > 0 {
-				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
-				customSettings[i].Labels = nil
-			}
-		}
-	}
-	checkCustomSettings("macos", mdm.MacOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
 
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
@@ -1713,7 +1694,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
 
 	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
 	if !oldMdm.AndroidEnabledAndConfigured {
@@ -1724,7 +1705,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-	checkCustomSettings("android", mdm.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
@@ -1987,7 +1968,7 @@ func (svc *Service) validateABMAssignments(
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
 			return nil, nil
 		}
 
@@ -2020,13 +2001,13 @@ func (svc *Service) validateABMAssignments(
 		for _, bm := range mdm.AppleBusinessManager.Value {
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
 				}
 			}
 
 			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
-				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
 				return nil, nil
 			}
 

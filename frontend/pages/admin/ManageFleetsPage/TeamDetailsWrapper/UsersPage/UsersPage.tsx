@@ -150,7 +150,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         );
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
-          window.location.href = "/";
+          window.location.href = PATHS.ROOT;
         }
       })
       .catch(() =>
@@ -319,7 +319,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
                 (thisTeam) => thisTeam.id === teamIdForApi
               );
               if (selectedTeam && selectedTeam[0].role !== "admin") {
-                window.location.href = "/";
+                window.location.href = PATHS.ROOT;
               }
             } else {
               refetchUsers();

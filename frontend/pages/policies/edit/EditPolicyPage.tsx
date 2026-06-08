@@ -15,7 +15,6 @@ import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import policiesAPI from "services/entities/policies";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import statusAPI from "services/entities/status";
 import PATHS from "router/paths";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
@@ -206,35 +205,6 @@ const PolicyPage = ({
     );
   }
 
-  // Fetch team config to determine "Other" automations (webhooks/integrations)
-  const { data: teamData } = useQuery<ILoadTeamResponse, Error>(
-    ["teams", teamIdForApi],
-    () => teamsAPI.load(teamIdForApi),
-    {
-      enabled:
-        isRouteOk &&
-        teamIdForApi !== undefined &&
-        teamIdForApi > 0 &&
-        storedPolicy?.type === "patch",
-      staleTime: 5000,
-    }
-  );
-
-  let currentAutomatedPolicies: number[] = [];
-  if (teamData?.team) {
-    const {
-      webhook_settings: { failing_policies_webhook: webhook },
-      integrations,
-    } = teamData.team;
-    const isIntegrationEnabled =
-      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
-      false;
-    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-      currentAutomatedPolicies = webhook?.policy_ids || [];
-    }
-  }
-
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
@@ -326,7 +296,6 @@ const PolicyPage = ({
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
       teamIdForApi,
-      currentAutomatedPolicies,
     };
 
     return <QueryEditor {...queryEditorOpts} />;

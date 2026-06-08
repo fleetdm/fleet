@@ -12,6 +12,10 @@ interface ITooltipTruncatedTextCellProps {
   className?: string;
   tooltipPosition?: "top" | "bottom" | "left" | "right";
   isMobileView?: boolean;
+  /** Pass-through to TooltipWrapper. Set to `true` when the truncated text
+   * lives inside an `overflow: hidden` ancestor — the default `absolute`
+   * positioning can misplace the tooltip in that case. */
+  fixedPositionStrategy?: boolean;
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -22,6 +26,7 @@ const TooltipTruncatedText = ({
   className,
   tooltipPosition = "top",
   isMobileView = false,
+  fixedPositionStrategy = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -39,6 +44,7 @@ const TooltipTruncatedText = ({
       showArrow
       tipContent={tooltip ?? value}
       isMobileView={isMobileView}
+      fixedPositionStrategy={fixedPositionStrategy}
     >
       <div className={`${baseClass}__text-value`} ref={ref}>
         {value}

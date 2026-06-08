@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "17.10-1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'PostgreSQL 17' AND publisher = 'PostgreSQL Global Development Group';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 17' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '17.10-1') < 0);"
+      },
+      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-17.10-1-windows-x64.exe",
+      "install_script_ref": "a335a7d0",
+      "uninstall_script_ref": "b5dcc995",
+      "sha256": "c0728faccc95ced5a280efdc32413fe35764b2302670eec72569b0fd41ac3513",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "a335a7d0": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# EnterpriseDB (BitRock InstallBuilder) installer. Switches from the winget\n# manifest: --mode unattended for a non-interactive install, --unattendedmodeui\n# none to suppress all progress UI. Installs per-machine under\n# C:\\Program Files\\PostgreSQL\\17 and registers in HKLM Add/Remove Programs.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--mode\", \"unattended\", \"--unattendedmodeui\", \"none\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b5dcc995": "$displayNameLike = \"PostgreSQL 17*\"\n$publisher = \"PostgreSQL Global Development Group\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n# Registry uninstall strings come in three shapes; parse defensively. The EDB\n# uninstaller (uninstall-postgresql.exe) lives under a path with spaces\n# (\"C:\\Program Files\\PostgreSQL\\17\\...\") and is typically quoted.\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# BitRock uninstaller silent switch.\nif ($existingArgs -notmatch '(?i)--mode\\s+unattended') {\n    $existingArgs = (\"$existingArgs --mode unattended\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

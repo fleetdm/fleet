@@ -7358,20 +7358,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), fleet.GetCarveRequest{}, http.StatusForbidden, &fleet.GetCarveResponse{})
 
 	// Attempt to search hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusForbidden, &searchTargetsResponse{})
+	}, http.StatusForbidden, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusForbidden, &countTargetsResponse{})
+	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	//
 	// Start running permission tests with user gitops2 (which is a GitOps use for team t1).
@@ -7594,20 +7594,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to search hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusForbidden, &searchTargetsResponse{})
+	}, http.StatusForbidden, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusForbidden, &countTargetsResponse{})
+	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	// Listing software titles for the team it owns is allowed.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
@@ -7684,7 +7684,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// Upload a valid secret
 	secretValue := "abc123"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_TEST_RUN_HOST_SCRIPT",
@@ -7692,7 +7692,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// create a valid script execution request
@@ -31206,12 +31206,35 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
 
-	// Second fail (fail→fail): continuous policy re-queues, default does not.
+	// Second fail (fail→fail) within the policy update interval: the continuous policy
+	// is throttled. A successful install requests a host refetch that re-runs policies
+	// immediately, so without throttling this would be a tight install→refetch→re-run
+	// loop. It must NOT re-queue until the interval elapses.
+	submitPolicyResult(continuousPolicy.ID, false)
+	require.Never(t, func() bool {
+		return countInstallsFor(continuousPolicy.ID) != 1
+	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+
+	// Age the last successful install past the policy update interval; the next failing
+	// result must re-queue (the retry happens on the next interval). The cooldown is
+	// keyed per host+installer (GetHostLastInstallData), and both policies share this
+	// installer, so age every install for it rather than only the continuous policy's.
+	ageInstaller := func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE host_software_installs SET updated_at = NOW() - INTERVAL 2 HOUR
+				WHERE host_id = ? AND software_installer_id = ?
+			`, host.ID, installerID)
+			return err
+		})
+	}
+	ageInstaller()
 	submitPolicyResult(continuousPolicy.ID, false)
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must fire on every failing result")
+		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must re-fire after the cooldown elapses")
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
+
 	submitPolicyResult(transitionPolicy.ID, false)
 	// Poll for a window so a delayed enqueue doesn't slip past a one-shot check.
 	require.Never(t, func() bool {

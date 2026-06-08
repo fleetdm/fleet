@@ -21,16 +21,21 @@ export type ITokenTeam = {
   name: string;
 };
 
-export interface IMdmAbmToken {
+export type ITokenFleet = {
+  fleet_id: number;
+  name: string;
+};
+
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: ITokenTeam;
-  ios_team: ITokenTeam;
-  ipados_team: ITokenTeam;
+  macos_fleet: ITokenFleet;
+  ios_fleet: ITokenFleet;
+  ipados_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {

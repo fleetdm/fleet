@@ -1099,10 +1099,11 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
-				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
+				installers, deletedInstallers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
 				}
+				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
 			}
 		}
@@ -1967,17 +1968,18 @@ func (c *Client) DoGitOps(
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if appConfig.License.IsPremium() {
+			changeManagementURL := strings.TrimRight(appConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
 			if exceptions.Labels && incoming.LabelsPresent {
-				return nil, errors.New(
-					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 			if exceptions.Secrets && incoming.SecretsPresent {
-				return nil, errors.New(
-					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-				return nil, errors.New(
-					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 		}
 	}
@@ -2139,8 +2141,8 @@ func (c *Client) DoGitOps(
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
-			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
-				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			if _, ok := mdmAppConfig["apple_business"]; !ok {
+				mdmAppConfig["apple_business"] = []any{}
 			}
 		}
 
@@ -2827,10 +2829,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareInstallers, deletedInstallers, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
+	logSoftwareDeletions(logFn, deletedInstallers, dryRun)
 
 	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'Unassigned'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
@@ -2842,6 +2845,19 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied software packages for unassigned hosts\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+// logSoftwareDeletions prints one message per software package that a batch
+// set deleted (real run) or would delete (dry run), following the per-item
+// deletion message pattern used for labels and policies.
+func logSoftwareDeletions(logFn func(format string, args ...any), deleted []fleet.DeletedSoftwarePackage, dryRun bool) {
+	for _, pkg := range deleted {
+		if dryRun {
+			logFn("[-] would've deleted software - %s\n", pkg.DisplayName)
+		} else {
+			logFn("[-] deleted software - %s\n", pkg.DisplayName)
+		}
+	}
 }
 
 // extractFailingPoliciesWebhook extracts and processes failing policies webhook settings from a map
