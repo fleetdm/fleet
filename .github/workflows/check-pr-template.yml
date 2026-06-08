@@ -1,0 +1,20 @@
+name: Check PR template
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+permissions:
+  pull-requests: read
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR body contains the PR template
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          marker="QA'd all new/changed functionality manually"
+          if ! grep -qF "$marker" <<< "$BODY"; then
+            echo "::error::PR description is missing the PR template. Please fill in .github/pull_request_template.md (expected line: \"$marker\")."
+            exit 1
+          fi
+          echo "PR template present."
