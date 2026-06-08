@@ -275,6 +275,7 @@ const SoftwareAppStoreVpp = ({
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            teamId={currentTeamId}
             isIosOrIpadosApp={isIosOrIpadosApp}
           />
         )}

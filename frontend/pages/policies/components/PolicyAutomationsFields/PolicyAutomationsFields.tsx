@@ -30,6 +30,7 @@ import {
   getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
@@ -218,7 +219,7 @@ const PolicyAutomationsFields = forwardRef<
     const softwareOptions: CustomOptionType[] = useMemo(
       () =>
         (softwareTitlesData?.software_titles ?? []).map((t) => ({
-          label: t.name,
+          label: getDisplayedSoftwareName(t.name, t.display_name),
           value: String(t.id),
           helpText: generateSoftwareOptionHelpText(t),
         })),

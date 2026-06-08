@@ -152,6 +152,8 @@ interface IPackageFormProps {
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -175,6 +177,7 @@ const PackageForm = ({
   defaultCategories,
   className,
   gitopsCompatible = false,
+  teamId,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
@@ -420,6 +423,7 @@ const PackageForm = ({
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }
+      teamId={teamId}
     />
   );
 

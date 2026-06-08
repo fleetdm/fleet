@@ -2012,21 +2012,27 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 	return topLevelExists, nil
 }
 
-// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment.
-func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, error) {
+// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
+// when everything still pending (if anything) is an internal poll-schedule Replace.
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
-		return nil, fmt.Errorf("getting incoming cmds %w", err)
+		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
 
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
+	onlyPollCmdsPending := true
 	for _, pendingCmd := range pendingCmds {
+		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
+		if !isPollCmd {
+			onlyPollCmdsPending = false
+		}
 		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {
@@ -2038,7 +2044,7 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		}
 	}
 
-	return cmds, nil
+	return cmds, onlyPollCmdsPending, nil
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -2114,11 +2120,30 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
+
+		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when everything still
+		// pending (if anything) is an internal poll-schedule Replace, which the flag's definition excludes. While
+		// non-poll commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session
+		// messages skip the recompute entirely.
+		//
+		// The HasPendingCommands gate (as loaded at session start) keeps idle check-ins at zero writer-side statements:
+		// when the flag was already 0 and nothing is pending, there is no 1 -> 0 transition to record. A flag stranded
+		// at 1 by an aborted session still self-heals - it loads as 1 on the next session and the refresh runs. A
+		// mid-session enqueue that flips 0 -> 1 after this row was loaded needs no refresh either: its commands are
+		// genuinely pending, so 1 is already correct. Best-effort: a failed refresh only delays the flag flip until
+		// the next session, so log and continue rather than failing the device's response.
+		if onlyPollCmdsPending && enrolledDevice.HasPendingCommands {
+			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
+				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+			}
+		}
 
 		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
 		// so we don't leak ESP state to unauthenticated devices.

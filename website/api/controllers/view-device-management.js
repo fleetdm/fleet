@@ -39,7 +39,7 @@ module.exports = {
         'Eric Tan',
         'matt carr',
         'Nico Waisman',
-        'Dan Grzelak',
+        'Adam Pippert',
         'Philip Chotipradit',
         'Roger Cantrell',
         'Chayce O\'Neal',

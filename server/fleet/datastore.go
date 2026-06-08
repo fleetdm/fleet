@@ -820,16 +820,29 @@ type Datastore interface {
 	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
 	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
+	// Software categories — per-fleet, user-managed categories used to group
+	// software (e.g. for the self-service UI).
+	ListSoftwareCategories(ctx context.Context, teamID uint) ([]SoftwareCategory, error)
+	SoftwareCategory(ctx context.Context, id uint) (*SoftwareCategory, error)
 	// NewSoftwareCategory creates a new category for software.
-	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
-	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
-	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
-	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+	NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*SoftwareCategory, error)
+	// BatchNewSoftwareCategories inserts multiple categories for a fleet.
+	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
+	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
+	DeleteSoftwareCategory(ctx context.Context, id uint) error
+	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.
+	GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error)
+	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 	// Only categories that exist in the database are included in the map.
-	GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error)
+	GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
 	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
+
+	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
+	// to queue for the host's "install all" action, in alphabetical order, optionally
+	// scoped to a category.
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -2147,6 +2160,11 @@ type Datastore interface {
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
+
+	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.
+	// Called at most once per OMA-DM session, when the pending-commands fetch comes back empty (the session has drained
+	// the queue and the flag may flip to 0); mid-session messages skip it since the flag provably stays 1.
+	MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error
 
 	// MDMWindowsSaveResponse saves a full response for the given enrollment.
 	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) (*MDMWindowsSaveResponseResult, error)

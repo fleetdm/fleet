@@ -2820,12 +2820,15 @@ CREATE TABLE `software` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(63) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_software_categories_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `idx_software_categories_team_id_name` (`team_id`,`name`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `software_categories` VALUES (2,'Browsers'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity'),(5,'Security'),(6,'Utilities');
+INSERT INTO `software_categories` VALUES (1,'💻 Productivity',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(2,'🌎 Browsers',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(3,'👬 Communication',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(4,'🧰 Developer tools',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(5,'🔐 Security',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(6,'🛟 Support',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (
@@ -3354,11 +3357,14 @@ CREATE TABLE `windows_mdm_command_queue` (
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `acked_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`enrollment_id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
+  KEY `idx_win_mdm_cmd_queue_enrollment_acked` (`enrollment_id`,`acked_at`),
+  KEY `idx_win_mdm_cmd_queue_acked` (`acked_at`),
   CONSTRAINT `windows_mdm_command_queue_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `windows_mdm_command_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
