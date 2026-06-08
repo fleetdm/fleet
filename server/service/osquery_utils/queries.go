@@ -2468,7 +2468,7 @@ var (
 			// "Python 3.14.5 (64-bit)" -> "3.14.5".
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" &&
-					strings.Contains(s.Vendor, "Python Software Foundation") &&
+					strings.Contains(strings.ToLower(s.Vendor), "python software foundation") &&
 					pythonNameVersion.MatchString(s.Name)
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {

@@ -449,8 +449,8 @@ func escapeSQLParam(s string) string {
 // AppsAndFeaturesEntries, or "" if none is present.
 func firstDisplayVersion(entries []appsAndFeaturesEntries) string {
 	for _, fe := range entries {
-		if fe.DisplayVersion != "" {
-			return fe.DisplayVersion
+		if v := strings.TrimSpace(fe.DisplayVersion); v != "" {
+			return v
 		}
 	}
 	return ""
