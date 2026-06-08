@@ -242,6 +242,27 @@ var vulnerabilitiesCMOrderKeys = map[string]struct{}{
 	"cve_published":      {},
 }
 
+// vulnerabilitiesOuterOrderKeys maps user-facing order keys to column
+// expressions valid in the OUTER query of buildListVulnerabilitiesSQL, where
+// the paginated inner query is aliased as `p`. The inner query uses
+// vulnerabilitiesAllowedOrderKeys (vhc.*), but the `vhc` alias is out of scope
+// in the outer SELECT, so the restated outer ORDER BY needs these outer-scope
+// references instead. Every sortable column is projected by the inner query
+// (cve_meta columns are included whenever they're the order key, see
+// needCMInInner), so all references go through `p` regardless of IsEE — the
+// outer `cm` join only exists for EE and only supplies `description`.
+var vulnerabilitiesOuterOrderKeys = common_mysql.OrderKeyAllowlist{
+	"cve":                    "p.cve",
+	"cvss_score":             "p.cvss_score",
+	"epss_probability":       "p.epss_probability",
+	"cisa_known_exploit":     "p.cisa_known_exploit",
+	"cve_published":          "p.cve_published",
+	"host_count":             "p.hosts_count",
+	"hosts_count":            "p.hosts_count",
+	"host_count_updated_at":  "p.hosts_count_updated_at",
+	"hosts_count_updated_at": "p.hosts_count_updated_at",
+}
+
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
@@ -387,14 +408,16 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 	// The optimizer may not preserve the inner ORDER BY when wrapped in an
 	// outer SELECT, so restate the sort. The inner has already limited rows
 	// to the page, so this re-sort is bounded to perPage rows. Tie-break on
-	// p.cve so within-page order matches the inner's secondary sort.
-	if orderCol, ok := vulnerabilitiesAllowedOrderKeys[opt.ListOptions.OrderKey]; ok && orderCol != "" {
+	// p.cve so within-page order matches the inner's secondary sort. Use the
+	// outer-scope allowlist: the inner is aliased `p` and cve_meta is re-joined
+	// as `cm`, so the inner's `vhc.*` references are out of scope here.
+	if orderCol, ok := vulnerabilitiesOuterOrderKeys[opt.ListOptions.OrderKey]; ok && orderCol != "" {
 		direction := "ASC"
 		if opt.ListOptions.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
 		outer.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderCol, direction))
-		if orderCol != "cve" {
+		if orderCol != "p.cve" {
 			outer.WriteString(", p.cve ASC")
 		}
 	}
