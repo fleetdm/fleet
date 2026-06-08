@@ -947,6 +947,13 @@
       "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
     },
     {
+      "name": "Microsoft Access",
+      "slug": "microsoft-access/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Access",
+      "description": "Microsoft Access is a database management system for building and managing desktop databases."
+    },
+    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -989,6 +996,13 @@
       "description": "Microsoft OneNote is a digital note taking app."
     },
     {
+      "name": "Microsoft OneNote",
+      "slug": "microsoft-onenote/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OneNote",
+      "description": "Microsoft OneNote is a digital note taking app."
+    },
+    {
       "name": "Microsoft Outlook",
       "slug": "microsoft-outlook/darwin",
       "platform": "darwin",
@@ -996,10 +1010,24 @@
       "description": "Microsoft Outlook is an email client."
     },
     {
+      "name": "Microsoft Outlook",
+      "slug": "microsoft-outlook/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Outlook",
+      "description": "Microsoft Outlook is an email client."
+    },
+    {
       "name": "Microsoft PowerPoint",
       "slug": "microsoft-powerpoint/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Powerpoint",
+      "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
+    },
+    {
+      "name": "Microsoft PowerPoint",
+      "slug": "microsoft-powerpoint/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft PowerPoint",
       "description": "Microsoft PowerPoint empowers you to create clean slideshow presentations and intricate pitch decks."
     },
     {
@@ -1014,6 +1042,13 @@
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Word",
+      "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
+    },
+    {
+      "name": "Microsoft Word",
+      "slug": "microsoft-word/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Word",
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {

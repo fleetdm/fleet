@@ -1,0 +1,15 @@
+{
+  "name": "Microsoft PowerPoint",
+  "slug": "microsoft-powerpoint/windows",
+  "package_identifier": "Microsoft.OfficeDeploymentTool",
+  "unique_identifier": "Microsoft PowerPoint",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_powerpoint_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_powerpoint_uninstall.ps1"
+}
