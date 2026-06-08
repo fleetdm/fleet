@@ -237,7 +237,11 @@ sudo docker compose ps
 
 ## Complete the Fleet setup wizard
 
-You can configure and use Fleet once all of the Docker containers are healthy and the deployment is online. Navigate to the FQDN or IP address of the Fleet server (e.g., https://fleet.your-domain.com). The installation wizard will automatically display a user setup window and will walk you through all of the steps necessary to set up Fleet.
+You can configure and use Fleet once all of the Docker containers are healthy and the deployment is online. Navigate to the FQDN or IP address of the Fleet server (e.g., https://fleet.your-domain.com). 
+
+The default configuration sets `FLEET_SERVER_TLS=true`, so use `https://` in the URL (visiting over `http://` would return a "Client sent an HTTP request to an HTTPS server" error from Fleet). Because the certificate is self-signed, your browser will show a security warning the first time you connect. This is expected. Accept the warning to continue.
+
+The installation wizard will automatically display a user setup window and will walk you through all of the steps necessary to set up Fleet.
 
 These steps include:
 
