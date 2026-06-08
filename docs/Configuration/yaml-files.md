@@ -1180,6 +1180,44 @@ org_settings:
       host_batch_size: 0
 ```
 
+### vulnerability_settings
+
+The `vulnerability_settings` section lets you define filters for the **Vulnerability exposure** dashboard chart (risk registry). These filters control which software and vulnerabilities are included when calculating vulnerability exposure.
+
+- `software_categories` is a list of software categories to include in the vulnerability chart. Valid values are `os` (Operating system), `browser` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `microsoft_office` (Word, Excel, Powerpoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). If omitted, all categories are included.
+- `has_known_exploit` when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild (default: `false`).
+- `severity` filters vulnerabilities by CVSS v3 severity score (range 0.0 to 10.0 in 0.1 increments):
+  - `min` is the minimum CVSS v3 score to include (default: `0`).
+  - `max` is the maximum CVSS v3 score to include (default: `10`).
+- `probability_of_exploit` filters vulnerabilities by probability of exploit score (range 0 to 100):
+  - `min` is the minimum probability of exploit score to include (default: `0`).
+  - `max` is the maximum probability of exploit score to include (default: `100`).
+- `exclude_cves` is a list of specific CVE identifiers to exclude from the vulnerability chart.
+
+Can only be configured for "All fleets" (`org_settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  vulnerability_settings:
+    software_categories:
+      - os
+      - browser
+      - microsoft_office
+      - adobe
+    has_known_exploit: true
+    severity:
+      min: 9
+      max: 10
+    probability_of_exploit:
+      min: 0
+      max: 100
+    exclude_cves:
+      - CVE-2025-50897
+      - CVE-2025-76306
+```
+
 ### mdm
 
 #### apple_business
