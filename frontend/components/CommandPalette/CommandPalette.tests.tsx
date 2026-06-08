@@ -19,9 +19,25 @@ const setPlatform = (value: string) => {
     configurable: true,
   });
 };
-const originalPlatform = window.navigator.platform;
+// Capture the original descriptor so afterEach can fully restore it —
+// not just the value. Otherwise our `configurable: true` override leaks
+// into other tests and can mask future descriptor-sensitive bugs.
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  window.navigator,
+  "platform"
+);
 beforeEach(() => setPlatform("MacIntel"));
-afterEach(() => setPlatform(originalPlatform));
+afterEach(() => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(
+      window.navigator,
+      "platform",
+      originalPlatformDescriptor
+    );
+  } else {
+    delete (window.navigator as { platform?: string }).platform;
+  }
+});
 
 const adminRender = createCustomRenderer({
   withBackendMock: true,
@@ -115,10 +131,7 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await user.keyboard("{Control>}k{/Control}");
 
-      await new Promise((r) => setTimeout(r, 0));
-      expect(
-        screen.queryByPlaceholderText(/search/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
     });
 
     it("Ctrl+K opens the palette on non-macOS platforms", async () => {
@@ -136,10 +149,7 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await user.keyboard("{Meta>}k{/Meta}");
 
-      await new Promise((r) => setTimeout(r, 0));
-      expect(
-        screen.queryByPlaceholderText(/search/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
     });
 
     it("closes on Escape", async () => {
@@ -266,8 +276,6 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
 
-      // Wait a tick to let any (incorrect) state update flush.
-      await new Promise((r) => setTimeout(r, 0));
       expect(
         screen.queryByPlaceholderText("Search a fleet...")
       ).not.toBeInTheDocument();
@@ -290,7 +298,6 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
 
-      await new Promise((r) => setTimeout(r, 0));
       expect(
         screen.queryByPlaceholderText("Search a fleet...")
       ).not.toBeInTheDocument();
