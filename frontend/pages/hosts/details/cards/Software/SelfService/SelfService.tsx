@@ -643,10 +643,6 @@ const SoftwareSelfService = ({
     !selfServiceData?.software.length &&
     !selfServiceData?.meta.has_previous_results &&
     queryParams.query === "";
-  const isEmptySearch =
-    !selfServiceData?.software.length &&
-    !selfServiceData?.meta.has_previous_results &&
-    queryParams.query !== "";
 
   const tableConfig = useMemo(() => {
     return generateSoftwareTableHeaders({
@@ -676,6 +672,7 @@ const SoftwareSelfService = ({
     return (
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -684,11 +681,11 @@ const SoftwareSelfService = ({
         isError={isError}
         isFetching={isFetching}
         isEmpty={isEmpty}
-        isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
         isMobileView={isMobileView}
         onClickInstallAction={onClickInstallAction}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
     );
 
@@ -704,6 +701,7 @@ const SoftwareSelfService = ({
       />
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -712,9 +710,10 @@ const SoftwareSelfService = ({
         isError={isError}
         isFetching={isFetching}
         isEmpty={isEmpty}
-        isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
+        onClickInstallAction={onClickInstallAction}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
       {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal

@@ -20,7 +20,9 @@
 
   &__checkboxes {
     display: flex;
-    max-height: 189px; // Fits 5 options before scrolling
+    // 210px shows about 4.5 rows so the last row is half-visible, hinting
+    // there is more to scroll to
+    max-height: 210px;
     flex-direction: column;
     border-radius: $border-radius;
     border: 1px solid $ui-fleet-black-10;
