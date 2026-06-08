@@ -5,15 +5,19 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import Affinity from "./Affinity";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonWorkspaces from "./AmazonWorkspaces";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
+import Antigravity from "./Antigravity";
+import AntigravityIde from "./AntigravityIde";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
+import BeekeeperStudio from "./BeekeeperStudio";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
@@ -21,6 +25,7 @@ import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import Cinc from "./Cinc";
+import ClaudeDevtools from "./ClaudeDevtools";
 import ClickShare from "./ClickShare";
 import Comet from "./Comet";
 import ConnectFonts from "./ConnectFonts";
@@ -29,6 +34,7 @@ import Cryptomator from "./Cryptomator";
 import DellCommandUpdate from "./DellCommandUpdate";
 import DellDisplayManager from "./DellDisplayManager";
 import DevinDesktop from "./DevinDesktop";
+import DfuBlasterPro from "./DfuBlasterPro";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -37,6 +43,7 @@ import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import GrooveOmniDialer from "./GrooveOmniDialer";
+import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
 import Iina from "./Iina";
 import Joplin from "./Joplin";
@@ -58,6 +65,10 @@ import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
 import PlantronicsHub from "./PlantronicsHub";
+import Postgresql15 from "./Postgresql15";
+import Postgresql16 from "./Postgresql16";
+import Postgresql17 from "./Postgresql17";
+import Postgresql18 from "./Postgresql18";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
@@ -325,6 +336,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  affinity: Affinity,
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
@@ -338,6 +350,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "android studio": AndroidStudio,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
+  antigravity: Antigravity,
+  "antigravity ide": AntigravityIde,
+  "dfu blaster pro": DfuBlasterPro,
+  "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
@@ -355,6 +371,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
+  "beekeeper studio": BeekeeperStudio,
   betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
@@ -376,6 +393,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
+  "claude-devtools": ClaudeDevtools,
   cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
   "cleanshot x": CleanShotX,
@@ -400,6 +418,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   "groove omnidialer": GrooveOmniDialer,
+  "ibm notifier": IbmNotifier,
   "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
@@ -471,6 +490,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "github desktop": GitHubDesktop,
   gitkraken: GitKraken,
   goland: GoLand,
+  "google antigravity": Antigravity,
   "google chrome": ChromeApp,
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
@@ -528,6 +548,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "plantronics hub": PlantronicsHub,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
+  "postgresql 15": Postgresql15,
+  "postgresql 16": Postgresql16,
+  "postgresql 17": Postgresql17,
+  "postgresql 18": Postgresql18,
   postman: Postman,
   "power automate": PowerAutomate,
   "power bi": PowerBi,

@@ -1,0 +1,12 @@
+{
+  "name": "iMazing",
+  "slug": "imazing/windows",
+  "package_identifier": "DigiDNA.iMazing",
+  "unique_identifier": "iMazing",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing_uninstall.ps1"
+}

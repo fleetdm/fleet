@@ -1,0 +1,8 @@
+{
+  "name": "DFU Blaster Pro",
+  "unique_identifier": "com.twocanoes.DFU-Blaster-Pro",
+  "token": "dfu-blaster-pro",
+  "installer_format": "dmg",
+  "slug": "dfu-blaster-pro/darwin",
+  "default_categories": ["Utilities"]
+}
