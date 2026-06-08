@@ -500,6 +500,13 @@
     },
     {
       "name": "BlueJ",
+      "slug": "bluej/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.bluej.BlueJ",
+      "description": "BlueJ is a free Java development environment designed for beginners."
+    },
+    {
+      "name": "BlueJ",
       "slug": "bluej/windows",
       "platform": "windows",
       "unique_identifier": "BlueJ",
@@ -552,6 +559,13 @@
       "slug": "burp-suite-community/windows",
       "platform": "windows",
       "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.install4j.9806-1938-4586-6531.70",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
@@ -1606,6 +1620,13 @@
     },
     {
       "name": "LastPass",
+      "slug": "lastpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lastpass.lastpassmacdesktop",
+      "description": "LastPass is a password manager."
+    },
+    {
+      "name": "LastPass",
       "slug": "lastpass/windows",
       "platform": "windows",
       "unique_identifier": "LastPass",
@@ -2436,6 +2457,13 @@
       "platform": "darwin",
       "unique_identifier": "com.lemonmojo.RoyalTSX.App",
       "description": "Royal TSX is a remote management solution."
+    },
+    {
+      "name": "RStudio",
+      "slug": "rstudio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rstudio.desktop",
+      "description": "RStudio is an integrated development environment (IDE) for the R programming language."
     },
     {
       "name": "RStudio",
