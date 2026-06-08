@@ -42,6 +42,7 @@ import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
+import Git from "./Git";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import GrooveOmniDialer from "./GrooveOmniDialer";
@@ -54,6 +55,7 @@ import Krita from "./Krita";
 import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
+import MicrosoftOffice from "./MicrosoftOffice";
 import Max from "./Max";
 import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
@@ -82,6 +84,7 @@ import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import R from "./R";
 import RealVncServer from "./RealVncServer";
 import Reaper from "./Reaper";
 import Rstudio from "./Rstudio";
@@ -422,6 +425,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
+  git: Git,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   "groove omnidialer": GrooveOmniDialer,
@@ -435,6 +439,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lastpass: LastPass,
   "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
+  "microsoft office": MicrosoftOffice,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
@@ -579,6 +584,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   quip: Quip,
+  "r for windows": R,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,
