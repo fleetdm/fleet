@@ -64,7 +64,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
-	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
@@ -289,111 +288,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
-	// Set common configuration for all logging.
-	loggingConfig := logging.Config{
-		Filesystem: logging.FilesystemConfig{
-			EnableLogRotation:    config.Filesystem.EnableLogRotation,
-			EnableLogCompression: config.Filesystem.EnableLogCompression,
-			MaxSize:              config.Filesystem.MaxSize,
-			MaxAge:               config.Filesystem.MaxAge,
-			MaxBackups:           config.Filesystem.MaxBackups,
-		},
-		Webhook: logging.WebhookConfig{},
-		Firehose: logging.FirehoseConfig{
-			Region:           config.Firehose.Region,
-			EndpointURL:      config.Firehose.EndpointURL,
-			AccessKeyID:      config.Firehose.AccessKeyID,
-			SecretAccessKey:  config.Firehose.SecretAccessKey,
-			StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
-			StsExternalID:    config.Firehose.StsExternalID,
-		},
-		Kinesis: logging.KinesisConfig{
-			Region:           config.Kinesis.Region,
-			EndpointURL:      config.Kinesis.EndpointURL,
-			AccessKeyID:      config.Kinesis.AccessKeyID,
-			SecretAccessKey:  config.Kinesis.SecretAccessKey,
-			StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
-			StsExternalID:    config.Kinesis.StsExternalID,
-		},
-		Lambda: logging.LambdaConfig{
-			Region:           config.Lambda.Region,
-			AccessKeyID:      config.Lambda.AccessKeyID,
-			SecretAccessKey:  config.Lambda.SecretAccessKey,
-			StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
-			StsExternalID:    config.Lambda.StsExternalID,
-		},
-		PubSub: logging.PubSubConfig{
-			Project: config.PubSub.Project,
-		},
-		KafkaREST: logging.KafkaRESTConfig{
-			ProxyHost:        config.KafkaREST.ProxyHost,
-			ContentTypeValue: config.KafkaREST.ContentTypeValue,
-			Timeout:          config.KafkaREST.Timeout,
-		},
-		Nats: logging.NatsConfig{
-			Server:            config.Nats.Server,
-			CredFile:          config.Nats.CredFile,
-			NKeyFile:          config.Nats.NKeyFile,
-			TLSClientCertFile: config.Nats.TLSClientCrtFile,
-			TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
-			CACertFile:        config.Nats.CACrtFile,
-			Compression:       config.Nats.Compression,
-			JetStream:         config.Nats.JetStream,
-			Timeout:           config.Nats.Timeout,
-		},
-	}
-
-	// Set specific configuration to osqueryd status logs.
-	loggingConfig.Plugin = config.Osquery.StatusLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
-	loggingConfig.Webhook.URL = config.Webhook.StatusURL
-	loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
-	loggingConfig.Lambda.Function = config.Lambda.StatusFunction
-	loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
-	loggingConfig.PubSub.AddAttributes = false // only used by result logs
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
-	loggingConfig.Nats.Subject = config.Nats.StatusSubject
-
-	osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd status logging")
-	}
-
-	// Set specific configuration to osqueryd result logs.
-	loggingConfig.Plugin = config.Osquery.ResultLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
-	loggingConfig.Webhook.URL = config.Webhook.ResultURL
-	loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
-	loggingConfig.Lambda.Function = config.Lambda.ResultFunction
-	loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
-	loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
-	loggingConfig.Nats.Subject = config.Nats.ResultSubject
-
-	osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd result logging")
-	}
-
-	var auditLogger fleet.JSONLogger
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		// Set specific configuration to audit logs.
-		loggingConfig.Plugin = config.Activity.AuditLogPlugin
-		loggingConfig.Filesystem.LogFile = config.Filesystem.AuditLogFile
-		loggingConfig.Firehose.StreamName = config.Firehose.AuditStream
-		loggingConfig.Kinesis.StreamName = config.Kinesis.AuditStream
-		loggingConfig.Lambda.Function = config.Lambda.AuditFunction
-		loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
-		loggingConfig.PubSub.AddAttributes = false // only used by result logs
-		loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
-		loggingConfig.Nats.Subject = config.Nats.AuditSubject
-
-		auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger)
-		if err != nil {
-			initFatal(err, "initializing audit logging")
-		}
+	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)
+	if osquerydStatusLogger == nil || osquerydResultLogger == nil {
+		initFatal(errors.New("osquery loggers were nil after initialization"), "initializing osqueryd logging")
+		return
 	}
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
