@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -1058,4 +1060,42 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
 			"require_all=false should early-return before listing setup-experience results")
 	})
+}
+
+// TestSaveHostSoftwareInstallResultSetupExperienceIntermediateFailureDoesNotCancel verifies the "retry before cancel" guarantee:
+// an intermediate install failure (retries_remaining > 0, i.e. the on-device retry loop still has attempts left) is recorded but
+// does NOT update the setup-experience item or cancel the rest of setup. The setup item is only failed/canceled on the final
+// failure (retries_remaining == 0), which is exercised for the RequireAllSoftwareWindows case in
+// TestSetupExperienceStatus's "windows software install failure with require_all_software_windows=true" subtest. A policy-gated
+// item produces a normal ForSetupExperience install, so it inherits exactly this behavior.
+func TestSaveHostSoftwareInstallResultSetupExperienceIntermediateFailureDoesNotCancel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+	})
+
+	host := &fleet.Host{ID: 2, UUID: "win-uuid", Platform: "windows", OsqueryHostID: ptr.String("win-setup-osquery")}
+
+	// On an intermediate failure the handler records the intermediate result and returns early, before any setup-experience or
+	// cancel logic. Only CreateIntermediateInstallFailureRecord should be touched.
+	ds.CreateIntermediateInstallFailureRecordFunc = func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
+		require.Equal(t, "win-setup-exec", result.InstallUUID)
+		return "intermediate", nil
+	}
+
+	hctx := hostctx.NewContext(ctx, host)
+	err := svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "win-setup-exec",
+		InstallScriptExitCode: new(1),
+		InstallScriptOutput:   ptr.String("transient failure"),
+		RetriesRemaining:      2, // on-device retries remain -> intermediate
+	})
+	require.NoError(t, err)
+	require.True(t, ds.CreateIntermediateInstallFailureRecordFuncInvoked, "intermediate failure must be recorded")
+	// The setup-experience item must NOT be touched and setup must NOT be canceled while retries remain. These mock funcs are
+	// left unset, so if the handler tried to call them the test would panic; assert their invoked-flags are false for clarity.
+	require.False(t, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked, "setup item must not be updated on an intermediate failure")
+	require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "setup must not be canceled while retries remain")
+	require.False(t, ds.SetHostSoftwareInstallResultFuncInvoked, "terminal result handling must not run on an intermediate failure")
 }

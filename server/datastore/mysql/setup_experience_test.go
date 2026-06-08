@@ -40,6 +40,7 @@ func TestSetupExperience(t *testing.T) {
 		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
 		{"PolicyGate", testSetupExperiencePolicyGate},
 		{"PolicyGateResultLookups", testSetupExperiencePolicyGateResultLookups},
+		{"PolicyGateInstallInheritsSetupRetries", testSetupExperiencePolicyGateInstallInheritsSetupRetries},
 	}
 
 	for _, c := range cases {
@@ -2424,4 +2425,79 @@ func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, queries, "a policy whose platform scope excludes the windows host must not be returned")
 	})
+}
+
+// testSetupExperiencePolicyGateInstallInheritsSetupRetries verifies the retry linchpin: an install whose execution is linked to a
+// non-terminal setup-experience row (which is exactly what the policy-gated install path produces) is returned by
+// GetSoftwareInstallDetails with MaxRetries = setupExperienceSoftwareInstallsRetries (3 attempts). This is what gives a gated
+// install the same device-side retry treatment as an un-gated setup-experience install. A non-setup install gets MaxRetries 0.
+func testSetupExperiencePolicyGateInstallInheritsSetupRetries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Retry User", "retry-user@example.com", true)
+	host := test.NewHost(t, ds, "retry-host", "10.0.0.9", "retry-key", "retry-uuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("installer"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo install",
+		InstallerFile:   tfr,
+		StorageID:       "retry-storage",
+		Filename:        "RetryApp.msi",
+		Title:           "RetryApp",
+		Version:         "1.0",
+		Source:          "programs",
+		UserID:          user.ID,
+		Platform:        "windows",
+		Extension:       "msi",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM software_installers WHERE id = ?", installerID)
+	})
+
+	// Insert a setup-experience install execution. PolicyID on the install is NULL: setup experience owns the install, so it is
+	// a normal ForSetupExperience install, not a policy-automation install (this mirrors the gated install path).
+	execID := "gated-setup-exec"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, e := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, installer_filename, version, software_title_id, software_title_name)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			execID, host.ID, installerID, "RetryApp.msi", "1.0", titleID, "RetryApp")
+		return e
+	})
+
+	// Link a still-running, policy-gated setup-experience row to that execution.
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: "retry-gate", Query: "SELECT 1;"})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, e := q.ExecContext(ctx, `
+			INSERT INTO setup_experience_status_results
+				(host_uuid, name, status, software_installer_id, host_software_installs_execution_id, policy_id)
+			VALUES (?, ?, 'running', ?, ?, ?)`,
+			*host.OsqueryHostID, "RetryApp", installerID, execID, policy.ID)
+		return e
+	})
+
+	// The linked install inherits the setup-experience retry count (3 attempts = 1 + setupExperienceSoftwareInstallsRetries).
+	details, err := ds.GetSoftwareInstallDetails(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, setupExperienceSoftwareInstallsRetries, details.MaxRetries)
+
+	// Control: an install NOT linked to a non-terminal setup-experience row gets no setup-experience retries.
+	otherExecID := "non-setup-exec"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, e := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, installer_filename, version, software_title_id, software_title_name)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			otherExecID, host.ID, installerID, "RetryApp.msi", "1.0", titleID, "RetryApp")
+		return e
+	})
+	details, err = ds.GetSoftwareInstallDetails(ctx, otherExecID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), details.MaxRetries)
 }
