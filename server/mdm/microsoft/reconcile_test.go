@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// installSet / removeSet collapse the delta slices into sets of
-// "hostUUID|profileUUID" keys so assertions don't depend on slice order.
-func installSet(payloads []*fleet.MDMWindowsProfilePayload) map[string]struct{} {
+// deltaSet collapses a delta slice (install or remove) into a set of "hostUUID|profileUUID" keys so assertions don't depend on
+// slice order.
+func deltaSet(payloads []*fleet.MDMWindowsProfilePayload) map[string]struct{} {
 	out := make(map[string]struct{}, len(payloads))
 	for _, p := range payloads {
 		out[p.HostUUID+"|"+p.ProfileUUID] = struct{}{}
@@ -20,10 +20,8 @@ func installSet(payloads []*fleet.MDMWindowsProfilePayload) map[string]struct{} 
 
 func key(hostUUID, profileUUID string) string { return hostUUID + "|" + profileUUID }
 
-// TestComputeWindowsReconcileDeltasInstallRules covers each branch of the
-// install WHERE clause (windowsProfilesToInstallQuery) as an independent
-// subtest. The host is a no-team host with one global, label-less profile;
-// only the current host_mdm_windows_profiles row varies between cases.
+// TestComputeWindowsReconcileDeltasInstallRules covers install scenarios. The host is a no-team host with one global, label-less
+// profile; only the current host_mdm_windows_profiles row varies between cases.
 func TestComputeWindowsReconcileDeltasInstallRules(t *testing.T) {
 	host := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h1", TeamID: nil}
 	desiredChecksum := []byte("checksum-A")
@@ -126,7 +124,7 @@ func TestComputeWindowsReconcileDeltasInstallRules(t *testing.T) {
 			)
 			require.Empty(t, toRemove)
 			if tc.wantInstall {
-				require.Contains(t, installSet(toInstall), key("h1", "p1"))
+				require.Contains(t, deltaSet(toInstall), key("h1", "p1"))
 				// install payload carries the desired profile's content.
 				require.Equal(t, p.Checksum, toInstall[0].Checksum)
 			} else {
@@ -136,10 +134,8 @@ func TestComputeWindowsReconcileDeltasInstallRules(t *testing.T) {
 	}
 }
 
-// TestComputeWindowsReconcileDeltasRemoveRules covers the remove WHERE clause
-// (windowsProfilesToRemoveQuery): current rows with no desired-state match are
-// removed, except rows already processing a remove and except broken-label
-// profiles.
+// TestComputeWindowsReconcileDeltasRemoveRules covers the remove scenarios: current rows with no desired-state match are removed,
+// except rows already processing a remove and except broken-label profiles.
 func TestComputeWindowsReconcileDeltasRemoveRules(t *testing.T) {
 	host := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h1", TeamID: nil}
 
@@ -151,7 +147,7 @@ func TestComputeWindowsReconcileDeltasRemoveRules(t *testing.T) {
 	}{
 		{
 			name:       "current install not desired is removed",
-			current:    &fleet.MDMWindowsProfilePayload{ProfileUUID: "gone", HostUUID: "h1", ProfileName: "Gone", OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified)},
+			current:    &fleet.MDMWindowsProfilePayload{ProfileUUID: "gone", HostUUID: "h1", ProfileName: "Gone", OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified), Detail: "prior detail", CommandUUID: "cmd-1"},
 			wantRemove: true,
 		},
 		{
@@ -188,8 +184,15 @@ func TestComputeWindowsReconcileDeltasRemoveRules(t *testing.T) {
 			require.Empty(t, toInstall)
 			if tc.wantRemove {
 				require.Len(t, toRemove, 1)
-				require.Equal(t, "gone", toRemove[0].ProfileUUID)
-				require.Equal(t, "h1", toRemove[0].HostUUID)
+				got := toRemove[0]
+				require.Equal(t, "gone", got.ProfileUUID)
+				require.Equal(t, "h1", got.HostUUID)
+				// Remove payloads carry these fields straight from the current row, matching the legacy remove query's SELECT list.
+				require.Equal(t, tc.current.ProfileName, got.ProfileName)
+				require.Equal(t, tc.current.OperationType, got.OperationType)
+				require.Equal(t, tc.current.Status, got.Status)
+				require.Equal(t, tc.current.Detail, got.Detail)
+				require.Equal(t, tc.current.CommandUUID, got.CommandUUID)
 			} else {
 				require.Empty(t, toRemove)
 			}
@@ -197,9 +200,8 @@ func TestComputeWindowsReconcileDeltasRemoveRules(t *testing.T) {
 	}
 }
 
-// TestComputeWindowsReconcileDeltasTeamGating verifies that a host only
-// receives profiles for its own team — team_id=0 is its own scope, a teamed
-// host does not inherit global profiles.
+// TestComputeWindowsReconcileDeltasTeamGating verifies that a host only receives profiles for its own team; team_id=0 is its own
+// scope, a teamed host does not inherit global profiles.
 func TestComputeWindowsReconcileDeltasTeamGating(t *testing.T) {
 	globalProfile := &fleet.WindowsProfileForReconcile{ProfileUUID: "pg", ProfileName: "global", TeamID: 0, Checksum: []byte("c")}
 	teamProfile := &fleet.WindowsProfileForReconcile{ProfileUUID: "pt", ProfileName: "team", TeamID: 5, Checksum: []byte("c")}
@@ -221,7 +223,7 @@ func TestComputeWindowsReconcileDeltasTeamGating(t *testing.T) {
 	)
 	require.Empty(t, toRemove)
 
-	got := installSet(toInstall)
+	got := deltaSet(toInstall)
 	require.Contains(t, got, key("h-global", "pg"))
 	require.Contains(t, got, key("h-team", "pt"))
 	require.NotContains(t, got, key("h-global", "pt"))
@@ -229,11 +231,9 @@ func TestComputeWindowsReconcileDeltasTeamGating(t *testing.T) {
 	require.Len(t, got, 2)
 }
 
-// TestComputeWindowsReconcileDeltasLabelMatrix confirms the compute routes the
-// label gates through the shared dispatcher: include-all, include-any,
-// exclude-any, combined include+exclude, broken labels, and dynamic-label
-// timing. The handlers themselves are unit-tested in server/mdm/reconcile;
-// here we assert the desired-state membership for representative cases.
+// TestComputeWindowsReconcileDeltasLabelMatrix confirms the compute routes the label gates through the shared dispatcher:
+// include-all, include-any, exclude-any, combined include+exclude, broken labels, and dynamic-label timing. The handlers
+// themselves are unit-tested in server/mdm/reconcile; here we assert the desired-state membership for representative cases.
 func TestComputeWindowsReconcileDeltasLabelMatrix(t *testing.T) {
 	hostLabels := map[uint]map[uint]struct{}{
 		1: {10: {}, 11: {}}, // host 1 is a member of labels 10 and 11
@@ -328,9 +328,8 @@ func TestComputeWindowsReconcileDeltasLabelMatrix(t *testing.T) {
 		{
 			name: "exclude-any dynamic label created after host scan disqualifies",
 			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
-				// host is NOT a member of label 50, but the dynamic label was
-				// created after the host's last label scan, so results are not
-				// yet reported and the host is treated as excluded.
+				// host is NOT a member of label 50, but the dynamic label was created after the host's last label scan, so results are not yet
+				// reported and the host is treated as excluded.
 				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: time.Now().Add(time.Hour), LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)}},
 			},
 			wantInstall: false,
@@ -339,6 +338,34 @@ func TestComputeWindowsReconcileDeltasLabelMatrix(t *testing.T) {
 			name: "exclude-any dynamic label created before host scan passes",
 			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
 				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: oldLabel, LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)}},
+			},
+			wantInstall: true,
+		},
+		{
+			name: "include-any + exclude-any: in an include, not in exclude installs",
+			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
+				IncludeMode:   fleet.MDMProfileIncludeAny,
+				IncludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(10))}, {LabelID: new(uint(99))}},
+				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(98))}},
+			},
+			wantInstall: true,
+		},
+		{
+			name: "include-any + exclude-any: in an include AND in exclude does not install",
+			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
+				IncludeMode:   fleet.MDMProfileIncludeAny,
+				IncludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(10))}},
+				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(11))}},
+			},
+			wantInstall: false,
+		},
+		{
+			// Deliberate cross-platform decision (see server/mdm/reconcile): the exclude-any timing safeguard applies only to dynamic labels.
+			// A host_vitals exclude label created after the host's last scan does NOT disqualify, so the profile still installs, unlike a
+			// dynamic label in the same situation above.
+			name: "exclude-any host_vitals label created after host scan still installs",
+			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
+				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: time.Now().Add(time.Hour), LabelMembershipType: int(fleet.LabelMembershipTypeHostVitals)}},
 			},
 			wantInstall: true,
 		},
@@ -355,10 +382,52 @@ func TestComputeWindowsReconcileDeltasLabelMatrix(t *testing.T) {
 			)
 			require.Empty(t, toRemove)
 			if tc.wantInstall {
-				require.Contains(t, installSet(toInstall), key("h1", "p"))
+				require.Contains(t, deltaSet(toInstall), key("h1", "p"))
 			} else {
 				require.Empty(t, toInstall)
 			}
 		})
 	}
+}
+
+// TestComputeWindowsReconcileDeltasMultipleProfilesPerHost exercises the per-host loop building install AND remove sets in a
+// single call: one host whose team has a profile to install and a profile already in the desired/installed state (no-op), while
+// also carrying a current row for a profile no longer desired (remove). This is the realistic shape the
+// single-profile/single-direction cases above don't cover.
+func TestComputeWindowsReconcileDeltasMultipleProfilesPerHost(t *testing.T) {
+	host := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h1", TeamID: nil}
+	checksum := []byte("c")
+
+	profilesByTeam := map[uint][]*fleet.WindowsProfileForReconcile{
+		0: {
+			{ProfileUUID: "p-install", ProfileName: "Install", TeamID: 0, Checksum: checksum},
+			{ProfileUUID: "p-noop", ProfileName: "NoOp", TeamID: 0, Checksum: checksum},
+		},
+	}
+	currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{
+		"h1": {
+			// already installed and matching -> neither install nor remove.
+			{ProfileUUID: "p-noop", HostUUID: "h1", Checksum: checksum, OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified)},
+			// installed but no longer desired (not in profilesByTeam) -> remove.
+			{ProfileUUID: "p-remove", HostUUID: "h1", ProfileName: "Remove", Checksum: checksum, OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified)},
+		},
+	}
+
+	toInstall, toRemove := ComputeWindowsReconcileDeltas(
+		[]*fleet.WindowsHostReconcileInfo{host},
+		nil,
+		currentByHost,
+		profilesByTeam,
+		nil,
+	)
+
+	install := deltaSet(toInstall)
+	require.Len(t, install, 1)
+	require.Contains(t, install, key("h1", "p-install"))
+	require.NotContains(t, install, key("h1", "p-noop"))
+
+	remove := deltaSet(toRemove)
+	require.Len(t, remove, 1)
+	require.Contains(t, remove, key("h1", "p-remove"))
+	require.NotContains(t, remove, key("h1", "p-noop"))
 }
