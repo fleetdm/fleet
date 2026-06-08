@@ -8,6 +8,21 @@ import CommandPalette from "./CommandPalette";
 // cmdk uses scrollIntoView which JSDOM doesn't implement
 Element.prototype.scrollIntoView = jest.fn();
 
+// CommandPalette branches on navigator.platform to pick the modifier
+// (Cmd on macOS, Ctrl elsewhere). jsdom's default is an empty string,
+// which would make the whole suite run as "non-Mac" and break every
+// {Meta>}…{/Meta} keyboard test. Default the suite to Mac and override
+// per-test when we specifically want to exercise the non-Mac branch.
+const setPlatform = (value: string) => {
+  Object.defineProperty(window.navigator, "platform", {
+    value,
+    configurable: true,
+  });
+};
+const originalPlatform = window.navigator.platform;
+beforeEach(() => setPlatform("MacIntel"));
+afterEach(() => setPlatform(originalPlatform));
+
 const adminRender = createCustomRenderer({
   withBackendMock: true,
   context: {
@@ -93,6 +108,38 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    });
+
+    it("Ctrl+K does NOT open the palette on macOS (Cmd is required)", async () => {
+      // Ctrl+K is readline kill-line on macOS — we must not hijack it.
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        screen.queryByPlaceholderText(/search/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+K opens the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+K does NOT open the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}k{/Meta}");
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        screen.queryByPlaceholderText(/search/i)
+      ).not.toBeInTheDocument();
     });
 
     it("closes on Escape", async () => {
@@ -213,6 +260,40 @@ describe("CommandPalette", () => {
           screen.getByPlaceholderText("Search a fleet...")
         ).toBeInTheDocument();
       });
+    });
+
+    it("Ctrl+Shift+F does NOT open switch-fleet on macOS (Cmd is required)", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      // Wait a tick to let any (incorrect) state update flush.
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+Shift+F opens switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+Shift+F does NOT open switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
     });
 
     it("Escape returns to root from a sub-page instead of closing", async () => {
