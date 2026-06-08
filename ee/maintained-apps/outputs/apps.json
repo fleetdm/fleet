@@ -111,7 +111,14 @@
       "slug": "adobe-dng-converter/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.DNGConverter",
-      "description": "Adobe DNG Conver is a DNG file converter."
+      "description": "Adobe DNG Converter is a utility that converts camera raw files into the DNG raw image format."
+    },
+    {
+      "name": "Adobe DNG Converter",
+      "slug": "adobe-dng-converter/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe DNG Converter",
+      "description": "Adobe DNG Converter is a utility that converts camera raw files into the DNG raw image format."
     },
     {
       "name": "Affinity",
@@ -734,6 +741,13 @@
       "slug": "clockify/darwin",
       "platform": "darwin",
       "unique_identifier": "coing.ClockifyDesktop",
+      "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
+    },
+    {
+      "name": "Clockify Desktop",
+      "slug": "clockify/windows",
+      "platform": "windows",
+      "unique_identifier": "Clockify",
       "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
     },
     {
@@ -2177,6 +2191,13 @@
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
       "description": "Open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open-source tool for working with containers and Kubernetes."
     },
     {
       "name": "PostgreSQL 15",
