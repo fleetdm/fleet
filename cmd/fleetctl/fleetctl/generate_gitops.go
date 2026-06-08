@@ -1614,6 +1614,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		if policy.PatchSoftware != nil {
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+			if cachedSWTitle.MaintainedAppID == 0 {
+				return nil, fmt.Errorf("The patch policy %q references a software installer that is no longer a Fleet-maintained app. Please delete it manually.", policy.Name)
+			}
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
 			if err != nil {
