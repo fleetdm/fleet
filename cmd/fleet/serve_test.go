@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -1551,8 +1550,7 @@ func TestInitOrgLogoStore(t *testing.T) {
 	// With no software installers bucket configured, the store falls back to
 	// the database-backed implementation. NewOrgLogoStore does no DB work at
 	// construction, so a zero-value Datastore is enough to verify selection.
-	store := initOrgLogoStore(t.Context(), config.S3Config{}, &mysql.Datastore{}, logger)
-	require.NotNil(t, store)
-	_, isS3 := store.(*s3.OrgLogoStore)
-	require.False(t, isS3, "expected the database-backed store, not S3")
+	ds := &mysql.Datastore{}
+	store := initOrgLogoStore(t.Context(), config.S3Config{}, ds, logger)
+	require.IsType(t, ds.NewOrgLogoStore(), store)
 }

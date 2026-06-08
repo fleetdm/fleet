@@ -58,11 +58,8 @@ func (s *orgLogoStore) Delete(ctx context.Context, mode fleet.OrgLogoMode) error
 
 func (s *orgLogoStore) Exists(ctx context.Context, mode fleet.OrgLogoMode) (bool, error) {
 	var exists bool
-	err := sqlx.GetContext(ctx, s.ds.reader(ctx), &exists, `SELECT 1 FROM org_logo WHERE mode = ?`, string(mode))
+	err := sqlx.GetContext(ctx, s.ds.reader(ctx), &exists, `SELECT EXISTS(SELECT 1 FROM org_logo WHERE mode = ?)`, string(mode))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
 		return false, ctxerr.Wrap(ctx, err, "checking org logo existence")
 	}
 	return exists, nil
