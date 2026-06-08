@@ -40,6 +40,10 @@ type allCounts struct {
 	IDPUserCount int
 	IDPHostCount int
 	IDPDSN       string
+
+	// CAsDSN is the MySQL DSN used by the CA seeder. CAs > 0 also writes
+	// directly to MySQL, bypassing the service layer's URL validation.
+	CAsDSN string
 }
 
 func defaultAllCounts() allCounts {
@@ -60,6 +64,7 @@ func defaultAllCounts() allCounts {
 		IDPUserCount:    0,
 		IDPHostCount:    0,
 		IDPDSN:          "fleet:insecure@tcp(localhost:3306)/fleet",
+		CAsDSN:          "fleet:insecure@tcp(localhost:3306)/fleet",
 	}
 }
 
@@ -105,7 +110,10 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 	}
 
 	if counts.CAs > 0 {
-		report(seed.CAs(nil, log, counts.CAs))
+		report(seed.CAs(context.Background(), log, seed.CAOptions{
+			DSN:   counts.CAsDSN,
+			Count: counts.CAs,
+		}))
 	}
 
 	if counts.ActivityBatches > 0 {
@@ -170,6 +178,12 @@ func newAllCmd() *cobra.Command {
 			if v, _ := cmd.Flags().GetString("idp-dsn"); v != "" {
 				counts.IDPDSN = v
 			}
+			if v, _ := cmd.Flags().GetInt("cas"); v > 0 {
+				counts.CAs = v
+			}
+			if v, _ := cmd.Flags().GetString("cas-dsn"); v != "" {
+				counts.CAsDSN = v
+			}
 			return runAll(c, theme, counts)
 		},
 	}
@@ -181,5 +195,7 @@ func newAllCmd() *cobra.Command {
 	cmd.Flags().Int("idp-user-count", 0, "Seed N users with IDP accounts via direct MySQL (0 = skip)")
 	cmd.Flags().Int("idp-host-count", 5, "How many hosts to assign IDP accounts to (round-robin); only used when --idp-user-count > 0")
 	cmd.Flags().String("idp-dsn", "", "MySQL DSN for the IDP seeder (default fleet:insecure@tcp(localhost:3306)/fleet)")
+	cmd.Flags().Int("cas", 0, "Seed N batches of fake certificate authorities via direct MySQL (0 = skip)")
+	cmd.Flags().String("cas-dsn", "", "MySQL DSN for the CA seeder (default fleet:insecure@tcp(localhost:3306)/fleet)")
 	return cmd
 }

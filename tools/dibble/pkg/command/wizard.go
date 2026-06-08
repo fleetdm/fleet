@@ -130,7 +130,7 @@ func runWizard(root *cobra.Command) error {
 		{"software (titles, no upload)", "software", false, false},
 		{"activities (direct MySQL, non-idempotent)", "activities", true, false},
 		{"idp (direct MySQL, links users + hosts)", "idp", false, false},
-		{"cas (placeholder)", "cas", false, false},
+		{"cas (direct MySQL, non-idempotent)", "cas", false, false},
 	}
 	labels := make([]string, len(entities))
 	defaults := []string{}
