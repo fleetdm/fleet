@@ -3,6 +3,7 @@ package cron
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/googleapi"
 )
 
 var defaultCalendarConfig = config.CalendarConfig{Periodicity: 5 * time.Minute}
@@ -201,7 +204,7 @@ func TestEventForDifferentHost(t *testing.T) {
 	}
 
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
-	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger, &mock.MockActivityService{})
 	require.NoError(t, err)
 }
 
@@ -376,7 +379,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	}
 
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
-	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger, &mock.MockActivityService{})
 	require.NoError(t, err)
 
 	eventsMu.Lock()
@@ -667,7 +670,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 	distributedLock := redis_lock.NewLock(pool)
-	err := cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
+	err := cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger, &mock.MockActivityService{})
 	require.NoError(t, err)
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
@@ -715,7 +718,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		ev.EndTime = futureStart.Add(30 * time.Minute)
 	}
 
-	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
+	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger, &mock.MockActivityService{})
 	require.NoError(t, err)
 
 	createdCalendarEvents = calendar.ListGoogleMockEvents()
@@ -965,7 +968,7 @@ func TestEventBody(t *testing.T) {
 	}
 
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
-	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger, &mock.MockActivityService{})
 	require.NoError(t, err)
 
 	numberOfEvents := 7
@@ -997,4 +1000,72 @@ func TestEventBody(t *testing.T) {
 			assert.Contains(t, eventBody, fleet.CalendarDefaultResolution)
 		}
 	}
+}
+
+// TestRecordCalendarFailureActivity verifies that a calendar (maintenance
+// window) automation failure caused by the remote calendar provider is
+// recorded as one activity per failing policy, while internal errors and
+// the success path record nothing.
+func TestRecordCalendarFailureActivity(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	type recorded struct {
+		acts []fleet.ActivityTypeFailedCalendarPolicyAutomation
+	}
+	newRecorder := func(r *recorded) activity_api.NewActivityService {
+		return &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
+			require.Nil(t, user)
+			act, ok := activity.(fleet.ActivityTypeFailedCalendarPolicyAutomation)
+			require.True(t, ok)
+			r.acts = append(r.acts, act)
+			return nil
+		}}
+	}
+
+	t.Run("googleapi error records one activity per failing policy", func(t *testing.T) {
+		var r recorded
+		host := fleet.HostPolicyMembershipData{HostID: 100, FailingPolicyIDs: "10,20"}
+		err := &googleapi.Error{Code: 403, Message: "Rate Limit Exceeded", Body: `{"error":"rateLimitExceeded"}`}
+
+		recordCalendarFailureActivity(ctx, newRecorder(&r), host, err, logger)
+
+		require.Len(t, r.acts, 2)
+		for _, act := range r.acts {
+			require.Equal(t, []uint{100}, act.HostIDList)
+			require.Equal(t, 403, act.StatusCode)
+			require.JSONEq(t, `{"error":"rateLimitExceeded"}`, act.ErrorResponse)
+		}
+		require.Equal(t, uint(10), r.acts[0].PolicyID)
+		require.Equal(t, uint(20), r.acts[1].PolicyID)
+	})
+
+	t.Run("invalid_grant oauth error is recorded", func(t *testing.T) {
+		var r recorded
+		host := fleet.HostPolicyMembershipData{HostID: 101, FailingPolicyIDs: "10"}
+		err := fmt.Errorf("configure: %w", errors.New("oauth2: cannot fetch token: 400 Bad Request\nResponse: {\n  \"error\": \"invalid_grant\"\n}"))
+
+		recordCalendarFailureActivity(ctx, newRecorder(&r), host, err, logger)
+
+		require.Len(t, r.acts, 1)
+		require.Equal(t, uint(10), r.acts[0].PolicyID)
+		require.Equal(t, 0, r.acts[0].StatusCode)
+		require.Contains(t, r.acts[0].ErrorResponse, "invalid_grant")
+	})
+
+	t.Run("internal error records nothing", func(t *testing.T) {
+		var r recorded
+		host := fleet.HostPolicyMembershipData{HostID: 102, FailingPolicyIDs: "10"}
+
+		recordCalendarFailureActivity(ctx, newRecorder(&r), host, errors.New("create calendar event on db: boom"), logger)
+
+		require.Empty(t, r.acts)
+	})
+
+	t.Run("nil activity function is a no-op", func(t *testing.T) {
+		host := fleet.HostPolicyMembershipData{HostID: 104, FailingPolicyIDs: "10"}
+		require.NotPanics(t, func() {
+			recordCalendarFailureActivity(ctx, nil, host, &googleapi.Error{Code: 500}, logger)
+		})
+	})
 }

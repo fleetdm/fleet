@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -2558,14 +2559,15 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	for _, policyID := range conditionalAccessPolicyIDs {
 		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
 	}
+	var failingCAIDs []uint
 	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
 		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
 			// Ignore results for policies that are not for conditional access.
 			continue
 		}
 		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			failingCAIDs = append(failingCAIDs, incomingPolicyID)
 			hostIsCompliantInFleet = false
-			break
 		}
 	}
 
@@ -2575,7 +2577,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet, failingCAIDs)
 
 	return nil
 }
@@ -2586,6 +2588,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) {
 	go func() {
 		logger := svc.logger.With(
@@ -2595,7 +2598,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant, failingPolicyIDs); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2612,6 +2615,7 @@ func (svc *Service) setHostConditionalAccess(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	failingPolicyIDs []uint,
 ) error {
 	ctx := context.Background()
 
@@ -2648,6 +2652,7 @@ func (svc *Service) setHostConditionalAccess(
 		time.Now().UTC(),
 	)
 	if err != nil {
+		recordConditionalAccessFailureActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, err, logger)
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
 
@@ -2664,6 +2669,12 @@ func (svc *Service) setHostConditionalAccess(
 		startTime := time.Now()
 		for range time.Tick(conditionalAccessSetWaitTime) {
 			if time.Since(startTime) > timeout {
+				// No failure activity is recorded here. SetComplianceStatus
+				// succeeded (we have a MessageID), so the push was accepted by
+				// the remote provider; we just could not confirm completion
+				// within the expected window. Recording a
+				// failed_conditional_access_policy_automation here would
+				// misrepresent an in-flight async operation as a rejection.
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
 			logger.DebugContext(ctx, "get compliance status message wait")
@@ -2697,6 +2708,58 @@ func (svc *Service) setHostConditionalAccess(
 	}
 
 	return nil
+}
+
+// recordConditionalAccessFailureActivity records a
+// failed_conditional_access_policy_automation activity for the given host when
+// a compliance push to the remote provider fails. One activity is recorded per
+// failing conditional-access policy (policies the host is currently failing,
+// not all CA policies configured for the team), capturing the remote status
+// code and response body when available. Failures to record are logged and
+// swallowed so they don't mask the original error.
+func recordConditionalAccessFailureActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	hostID uint,
+	policyIDs []uint,
+	err error,
+	logger *slog.Logger,
+) {
+	if newActivitySvc == nil || len(policyIDs) == 0 {
+		return
+	}
+
+	var statusCode int
+	if sc, ok := errors.AsType[interface {
+		error
+		StatusCode() int
+	}](err); ok {
+		statusCode = sc.StatusCode()
+	}
+
+	errResponse := ""
+	if b, ok := errors.AsType[interface {
+		error
+		Body() string
+	}](err); ok {
+		errResponse = b.Body()
+	}
+	if errResponse == "" {
+		// network-level failures (e.g. connection refused) have no server
+		// response; fall back to the error message.
+		errResponse = err.Error()
+	}
+	for _, policyID := range policyIDs {
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedConditionalAccessPolicyAutomation{
+			PolicyID:      policyID,
+			HostIDList:    []uint{hostID},
+			StatusCode:    statusCode,
+			ErrorResponse: errResponse,
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record conditional access policy automation failure activity",
+				"policy_id", policyID, "host_id", hostID, "err", actErr)
+		}
+	}
 }
 
 func (svc *Service) maybeDebugHost(

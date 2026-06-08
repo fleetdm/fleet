@@ -1,10 +1,121 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestFailedPolicyAutomationActivities(t *testing.T) {
+	t.Run("webhook", func(t *testing.T) {
+		act := ActivityTypeFailedWebhookPolicyAutomation{
+			PolicyID:      7,
+			HostIDList:    []uint{10, 20, 30},
+			StatusCode:    500,
+			ErrorResponse: "internal server error",
+		}
+
+		assert.Equal(t, "failed_webhook_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 7, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "internal server error", got["error_response"])
+	})
+
+	t.Run("jira", func(t *testing.T) {
+		act := ActivityTypeFailedJiraPolicyAutomation{
+			PolicyID:      8,
+			HostIDList:    []uint{11},
+			ErrorResponse: "401 Unauthorized",
+		}
+
+		assert.Equal(t, "failed_jira_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{11}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 8, got["policy_id"])
+		assert.Equal(t, "401 Unauthorized", got["error_response"])
+		// no status_code field for jira/zendesk
+		_, hasStatus := got["status_code"]
+		assert.False(t, hasStatus)
+	})
+
+	t.Run("zendesk", func(t *testing.T) {
+		act := ActivityTypeFailedZendeskPolicyAutomation{
+			PolicyID:      9,
+			HostIDList:    []uint{12, 13},
+			ErrorResponse: "422: {\"error\":\"RecordInvalid\"}",
+		}
+
+		assert.Equal(t, "failed_zendesk_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{12, 13}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 9, got["policy_id"])
+		assert.Equal(t, "422: {\"error\":\"RecordInvalid\"}", got["error_response"])
+		// no status_code field for zendesk
+		_, hasStatus := got["status_code"]
+		assert.False(t, hasStatus)
+	})
+
+	t.Run("calendar", func(t *testing.T) {
+		act := ActivityTypeFailedCalendarPolicyAutomation{
+			PolicyID:      14,
+			HostIDList:    []uint{42},
+			StatusCode:    403,
+			ErrorResponse: "Rate Limit Exceeded",
+		}
+
+		assert.Equal(t, "failed_calendar_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{42}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 14, got["policy_id"])
+		assert.EqualValues(t, 403, got["status_code"])
+		assert.Equal(t, "Rate Limit Exceeded", got["error_response"])
+	})
+
+	t.Run("conditional access", func(t *testing.T) {
+		act := ActivityTypeFailedConditionalAccessPolicyAutomation{
+			PolicyID:      15,
+			HostIDList:    []uint{43},
+			StatusCode:    500,
+			ErrorResponse: "500: upstream error",
+		}
+
+		assert.Equal(t, "failed_conditional_access_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "500: upstream error", got["error_response"])
+	})
+}
 
 // TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext exercises the
 // scenario where a VPP install is attempted during setup experience for a

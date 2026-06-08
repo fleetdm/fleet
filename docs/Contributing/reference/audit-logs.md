@@ -2807,6 +2807,97 @@ This activity contains the following fields:
 }
 ```
 
+## failed_webhook_policy_automation
+
+Generated when a failing policy webhook automation errors out.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation failed.
+- "status_code": HTTP status code returned by the remote server (omitted if the request never reached the server).
+- "error_response": The response body returned by the remote server (or the error message for connection-level failures).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 500,
+  "error_response": "internal server error"
+}
+```
+
+## failed_jira_policy_automation
+
+Generated when a failing policy Jira automation can no longer create the ticket after all retries are exhausted.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation failed.
+- "error_response": The error returned by Jira (including the response body when available).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "error_response": "create issue: request failed. Status code: 401"
+}
+```
+
+## failed_zendesk_policy_automation
+
+Generated when a failing policy Zendesk automation can no longer create the ticket after all retries are exhausted.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation failed.
+- "error_response": The error returned by Zendesk (including the response body when available).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "error_response": "422: {\"error\":\"RecordInvalid\"}"
+}
+```
+
+## failed_calendar_policy_automation
+
+Generated when a failing policy calendar (maintenance window) automation is rejected by the remote calendar provider. It is associated with the host the calendar automation failed for (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the calendar policy whose automation failed.
+- "status_code": HTTP status code returned by the remote provider (omitted for OAuth/token errors that carry no HTTP status).
+- "error_response": The response body or message returned by the remote provider.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 403,
+  "error_response": "Rate Limit Exceeded"
+}
+```
+
+## failed_conditional_access_policy_automation
+
+Generated when a failing policy conditional access automation fails to push the host's compliance status to the remote provider. It is associated with the host the automation failed for (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the conditional-access policy whose automation failed.
+- "status_code": HTTP status code returned by the remote provider (omitted if the request never reached the server).
+- "error_response": The response body returned by the remote provider (or the error message for connection-level failures).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 500,
+  "error_response": "500: upstream error"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

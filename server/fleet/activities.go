@@ -1666,6 +1666,119 @@ func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
 	return "canceled_script_batch"
 }
 
+// ActivityTypeFailedWebhookPolicyAutomation is recorded when a failing-policy
+// webhook automation send is rejected by the remote server. One activity is
+// recorded per failed batch POST and is associated with every host in that
+// batch.
+type ActivityTypeFailedWebhookPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) ActivityName() string {
+	return "failed_webhook_policy_automation"
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedJiraPolicyAutomation is recorded when a failing-policy Jira
+// automation can no longer create the ticket after the worker exhausts its
+// retries. It is associated with every host the failing-policy job targeted.
+type ActivityTypeFailedJiraPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedJiraPolicyAutomation) ActivityName() string {
+	return "failed_jira_policy_automation"
+}
+
+func (a ActivityTypeFailedJiraPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedJiraPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedZendeskPolicyAutomation is recorded when a failing-policy
+// Zendesk automation can no longer create the ticket after the worker exhausts
+// its retries. It is associated with every host the failing-policy job
+// targeted.
+type ActivityTypeFailedZendeskPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedZendeskPolicyAutomation) ActivityName() string {
+	return "failed_zendesk_policy_automation"
+}
+
+func (a ActivityTypeFailedZendeskPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedZendeskPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedCalendarPolicyAutomation is recorded when a failing-policy
+// calendar (maintenance window) automation is rejected by the remote calendar
+// provider while the events cron processes a host. One activity is recorded per
+// failing calendar policy the host belongs to, associated with that host.
+type ActivityTypeFailedCalendarPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedCalendarPolicyAutomation) ActivityName() string {
+	return "failed_calendar_policy_automation"
+}
+
+func (a ActivityTypeFailedCalendarPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedCalendarPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedConditionalAccessPolicyAutomation is recorded when a
+// failing-policy conditional access automation fails to push the host's
+// compliance status to the remote provider. One activity is recorded per
+// conditional-access policy configured for the host's team, associated with
+// that host.
+type ActivityTypeFailedConditionalAccessPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) ActivityName() string {
+	return "failed_conditional_access_policy_automation"
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeAddedConditionalAccessIntegrationMicrosoft struct{}
 
 func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() string {

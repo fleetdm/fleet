@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	jira "github.com/andygrunwald/go-jira"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -278,6 +279,54 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
+	})
+}
+
+func TestJiraOnFinalFailure(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("failing policy records activity", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		j := &Jira{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
+				require.Nil(t, user)
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(jiraArgs{FailingPolicy: &failingPolicyArgs{
+			PolicyID: 5,
+			Hosts:    []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}, {ID: 2, Hostname: "h2"}},
+		}})
+		require.NoError(t, err)
+
+		require.NoError(t, j.OnFinalFailure(ctx, args, "create issue: 401 Unauthorized"))
+
+		require.Len(t, recorded, 1)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedJiraPolicyAutomation)
+		require.True(t, ok)
+		require.Equal(t, uint(5), act.PolicyID)
+		require.Equal(t, []uint{1, 2}, act.HostIDList)
+		require.Equal(t, "create issue: 401 Unauthorized", act.ErrorResponse)
+	})
+
+	t.Run("vuln job records nothing", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		j := &Jira{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity fleet.ActivityDetails) error {
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(jiraArgs{Vulnerability: &vulnArgs{CVE: "CVE-2024-1"}})
+		require.NoError(t, err)
+
+		require.NoError(t, j.OnFinalFailure(ctx, args, "boom"))
+		require.Empty(t, recorded)
 	})
 }
 

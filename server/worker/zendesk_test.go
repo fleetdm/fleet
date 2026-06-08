@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -18,6 +19,54 @@ import (
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
+
+func TestZendeskOnFinalFailure(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("failing policy records activity", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		z := &Zendesk{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
+				require.Nil(t, user)
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(zendeskArgs{FailingPolicy: &failingPolicyArgs{
+			PolicyID: 6,
+			Hosts:    []fleet.PolicySetHost{{ID: 3, Hostname: "h3"}},
+		}})
+		require.NoError(t, err)
+
+		require.NoError(t, z.OnFinalFailure(ctx, args, `422: {"error":"RecordInvalid"}`))
+
+		require.Len(t, recorded, 1)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedZendeskPolicyAutomation)
+		require.True(t, ok)
+		require.Equal(t, uint(6), act.PolicyID)
+		require.Equal(t, []uint{3}, act.HostIDList)
+		require.Equal(t, `422: {"error":"RecordInvalid"}`, act.ErrorResponse)
+	})
+
+	t.Run("vuln job records nothing", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		z := &Zendesk{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity fleet.ActivityDetails) error {
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(zendeskArgs{Vulnerability: &vulnArgs{CVE: "CVE-2024-2"}})
+		require.NoError(t, err)
+
+		require.NoError(t, z.OnFinalFailure(ctx, args, "boom"))
+		require.Empty(t, recorded)
+	})
+}
 
 func TestZendeskRun(t *testing.T) {
 	ds := new(mock.Store)

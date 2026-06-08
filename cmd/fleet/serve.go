@@ -764,14 +764,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, activitySvc)
 	}); err != nil {
 		initFatal(err, "failed to register automations schedule")
 	}
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc, activitySvc)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
@@ -935,7 +935,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				} else {
 					config.Calendar.Periodicity = 5 * time.Minute
 				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
+				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger, activitySvc)
 			},
 		); err != nil {
 			initFatal(err, "failed to register calendar schedule")

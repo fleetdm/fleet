@@ -1,0 +1,1 @@
+- Added per-host activity log entries when policy automations fail to reach their remote provider (webhook, Jira, Zendesk, Google Calendar, and Microsoft conditional access).

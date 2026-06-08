@@ -12,6 +12,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -120,10 +122,11 @@ type ZendeskClient interface {
 
 // Zendesk is the job processor for zendesk integrations.
 type Zendesk struct {
-	FleetURL      string
-	Datastore     fleet.Datastore
-	Log           *slog.Logger
-	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
+	FleetURL       string
+	Datastore      fleet.Datastore
+	Log            *slog.Logger
+	NewClientFunc  func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
+	NewActivitySvc activity_api.NewActivityService
 
 	// mu protects concurrent access to clientsCache, so that the job processor
 	// can potentially be run concurrently.
@@ -262,6 +265,29 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	default:
 		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
 	}
+}
+
+// OnFinalFailure records a failed_zendesk_policy_automation host activity once
+// the worker has exhausted all retries for a failing-policy job. Vulnerability
+// jobs are ignored as they are not host- or policy-scoped.
+func (z *Zendesk) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+	if z.NewActivitySvc == nil {
+		return nil
+	}
+
+	var args zendeskArgs
+	if err := json.Unmarshal(argsJSON, &args); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal args")
+	}
+	if args.FailingPolicy == nil {
+		return nil
+	}
+
+	return z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedZendeskPolicyAutomation{
+		PolicyID:      args.FailingPolicy.PolicyID,
+		HostIDList:    args.FailingPolicy.hostIDs(),
+		ErrorResponse: str.TruncateErrorResponse(jobErr),
+	})
 }
 
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
