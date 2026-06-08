@@ -378,6 +378,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Name = input.Name
 	out.Slug = input.Slug
+	out.InstallerArch = input.InstallerArch
 	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.DefaultCategories = input.DefaultCategories

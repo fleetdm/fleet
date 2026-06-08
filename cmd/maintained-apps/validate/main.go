@@ -122,6 +122,7 @@ func run(cfg *Config) error {
 	appWithError := []string{}
 	appWithWarning := []string{}
 	frozenApps := []string{}
+	archSkippedApps := []string{}
 	for _, app := range apps {
 		if app.Platform != cfg.operatingSystem {
 			continue
@@ -146,6 +147,20 @@ func run(cfg *Config) error {
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
+
+		// Skip apps whose installer architecture doesn't match this runner's CPU.
+		// Windows installers are architecture-specific: an arm64 package fails with
+		// ERROR_INSTALL_PLATFORM_UNSUPPORTED (1633) on an x64 host and vice versa.
+		// CI runs each architecture on a matching runner, so an app destined for a
+		// different architecture is skipped (not failed) on this one.
+		if len(appJson.Versions) > 0 {
+			if installerArch := appJson.Versions[0].InstallerArch; !installerArchMatchesHost(installerArch) {
+				appLogger.InfoContext(ctx, fmt.Sprintf("App installer architecture '%s' does not match runner architecture '%s', skipping validation...", installerArch, runtime.GOARCH))
+				archSkippedApps = append(archSkippedApps, app.Name)
+				continue
+			}
+		}
+
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
@@ -270,6 +285,9 @@ func run(cfg *Config) error {
 	if len(frozenApps) > 0 {
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped: %v", frozenApps))
 	}
+	if len(archSkippedApps) > 0 {
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped due to a CPU architecture mismatch with this runner (%s): %v", runtime.GOARCH, archSkippedApps))
+	}
 	errorSet := make(map[string]bool, len(appWithError))
 	for _, name := range appWithError {
 		errorSet[name] = true
@@ -284,7 +302,7 @@ func run(cfg *Config) error {
 		cfg.logger.WarnContext(ctx, fmt.Sprintf("Some apps were validated with warnings: %v", warningsOnly))
 	}
 
-	if successfulApps == totalApps-len(frozenApps) {
+	if successfulApps == totalApps-len(frozenApps)-len(archSkippedApps) {
 		// All apps were successfully validated!
 		cfg.logger.InfoContext(ctx, fmt.Sprintf("All %d apps were successfully validated.", totalApps))
 		return nil
@@ -483,6 +501,40 @@ func detectApplicationChange(installationSearchDirectory string, appListPre, app
 	}
 
 	return "", false // no change detected
+}
+
+// installerArchMatchesHost reports whether an installer built for installerArch
+// can be installed and validated on the current runner's CPU architecture.
+//
+// Windows installers are architecture-specific: an arm64 package returns
+// ERROR_INSTALL_PLATFORM_UNSUPPORTED (1633) on an x64 host, and vice versa. CI
+// runs arm64 apps on an arm64 runner and x64/x86 apps on an x64 runner; this
+// guard makes the validator skip any app that doesn't match the host it happens
+// to be running on (e.g. the manual "validate all" job, which runs on x64).
+//
+// An empty installerArch matches any host, preserving behavior for manifests
+// generated before the installer_arch field existed.
+func installerArchMatchesHost(installerArch string) bool {
+	if strings.TrimSpace(installerArch) == "" {
+		return true
+	}
+	return normalizeArch(installerArch) == normalizeArch(runtime.GOARCH)
+}
+
+// normalizeArch maps the various spellings of a CPU architecture (winget's
+// "x64"/"x86" and Go's "amd64"/"386", plus common aliases) to a single
+// canonical token so they can be compared.
+func normalizeArch(a string) string {
+	switch strings.ToLower(strings.TrimSpace(a)) {
+	case "x64", "amd64", "x86_64", "x86-64":
+		return "amd64"
+	case "x86", "386", "i386":
+		return "386"
+	case "arm64", "aarch64":
+		return "arm64"
+	default:
+		return strings.ToLower(strings.TrimSpace(a))
+	}
 }
 
 func validateSqlInput(input string) error {
