@@ -1,8 +1,0 @@
-{
-  "name": "RStudio",
-  "slug": "rstudio/darwin",
-  "unique_identifier": "com.rstudio.desktop",
-  "token": "rstudio",
-  "installer_format": "dmg",
-  "default_categories": ["Developer tools"]
-}

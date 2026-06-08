@@ -2460,13 +2460,6 @@
     },
     {
       "name": "RStudio",
-      "slug": "rstudio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rstudio.desktop",
-      "description": "RStudio is an integrated development environment (IDE) for the R programming language."
-    },
-    {
-      "name": "RStudio",
       "slug": "rstudio/windows",
       "platform": "windows",
       "unique_identifier": "RStudio",
