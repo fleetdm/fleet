@@ -3810,6 +3810,34 @@
       "description": "Jabra Direct is an app to optimise and personalise your Jabra headset."
     },
     {
+      "name": "Jami",
+      "slug": "jami/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.ring",
+      "description": "Jami is a decentralised instant messenger and softphone."
+    },
+    {
+      "name": "jamovi",
+      "slug": "jamovi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.jamovi.jamovi",
+      "description": "jamovi is a statistical software."
+    },
+    {
+      "name": "JASP",
+      "slug": "jasp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.jasp-stats.JASP",
+      "description": "JASP is a statistical analysis application."
+    },
+    {
+      "name": "Jellyfin",
+      "slug": "jellyfin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "Jellyfin.Server",
+      "description": "Jellyfin is a media system."
+    },
+    {
       "name": "JetBrains Toolbox",
       "slug": "jetbrains-toolbox/darwin",
       "platform": "darwin",
@@ -3824,6 +3852,20 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "Jiggler",
+      "slug": "jiggler/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stick.app.jiggler",
+      "description": "Jiggler is a keep your computer awake."
+    },
+    {
+      "name": "Jitsi Meet",
+      "slug": "jitsi-meet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.jitsi.jitsi-meet",
+      "description": "Jitsi Meet is a secure video conferencing app."
+    },
+    {
       "name": "Joplin",
       "slug": "joplin/darwin",
       "platform": "darwin",
@@ -3836,6 +3878,27 @@
       "platform": "windows",
       "unique_identifier": "Joplin",
       "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
+    },
+    {
+      "name": "Ice",
+      "slug": "jordanbaird-ice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jordanbaird.Ice",
+      "description": "Ice is a menu bar manager."
+    },
+    {
+      "name": "Julia",
+      "slug": "julia-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.Julia",
+      "description": "Julia is an app for programming language for technical computing."
+    },
+    {
+      "name": "Jump Desktop",
+      "slug": "jump-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.p5sys.jump.mac.viewer.web",
+      "description": "Jump Desktop is a remote desktop application."
     },
     {
       "name": "KeePassXC",

@@ -383,18 +383,18 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## J  (12)
 
-- [ ] `jami` — Jami
-- [ ] `jamie` — Jamie *
-- [ ] `jamovi` — jamovi
-- [ ] `jasp` — JASP
-- [ ] `jellyfin` — Jellyfin
-- [ ] `jiggler` — Jiggler
-- [ ] `jitsi-meet` — Jitsi Meet
-- [ ] `jordanbaird-ice` — Ice
-- [ ] `julia-app` — Julia
-- [ ] `jump-desktop` — Jump Desktop
-- [ ] `jumpcut` — Jumpcut
-- [ ] `jumpshare` — Jumpshare
+- [x] `jami` — Jami
+- [ ] `jamie` — Jamie *  — **deferred — tar.gz unsupported**
+- [x] `jamovi` — jamovi
+- [x] `jasp` — JASP
+- [x] `jellyfin` — Jellyfin
+- [x] `jiggler` — Jiggler
+- [x] `jitsi-meet` — Jitsi Meet
+- [x] `jordanbaird-ice` — Ice
+- [x] `julia-app` — Julia
+- [x] `jump-desktop` — Jump Desktop
+- [ ] `jumpcut` — Jumpcut  — **deferred — unsupported installer format**
+- [ ] `jumpshare` — Jumpshare  — **deferred — unsupported installer format**
 
 ## K  (21)
 
