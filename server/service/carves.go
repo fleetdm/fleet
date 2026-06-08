@@ -24,25 +24,14 @@ import (
 // List Carves
 ////////////////////////////////////////////////////////////////////////////////
 
-type listCarvesRequest struct {
-	ListOptions fleet.CarveListOptions `url:"carve_options"`
-}
-
-type listCarvesResponse struct {
-	Carves []fleet.CarveMetadata `json:"carves"`
-	Err    error                 `json:"error,omitempty"`
-}
-
-func (r listCarvesResponse) Error() error { return r.Err }
-
 func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listCarvesRequest)
+	req := request.(*fleet.ListCarvesRequest)
 	carves, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
-		return listCarvesResponse{Err: err}, nil
+		return fleet.ListCarvesResponse{Err: err}, nil
 	}
 
-	resp := listCarvesResponse{}
+	resp := fleet.ListCarvesResponse{}
 	for _, carve := range carves {
 		resp.Carves = append(resp.Carves, *carve)
 	}
@@ -61,25 +50,14 @@ func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) 
 // Get Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type getCarveRequest struct {
-	ID int64 `url:"id"`
-}
-
-type getCarveResponse struct {
-	Carve fleet.CarveMetadata `json:"carve"`
-	Err   error               `json:"error,omitempty"`
-}
-
-func (r getCarveResponse) Error() error { return r.Err }
-
 func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCarveRequest)
+	req := request.(*fleet.GetCarveRequest)
 	carve, err := svc.GetCarve(ctx, req.ID)
 	if err != nil {
-		return getCarveResponse{Err: err}, nil
+		return fleet.GetCarveResponse{Err: err}, nil
 	}
 
-	return getCarveResponse{Carve: *carve}, nil
+	return fleet.GetCarveResponse{Carve: *carve}, nil
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
@@ -94,26 +72,14 @@ func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadat
 // Get Carve Block
 ////////////////////////////////////////////////////////////////////////////////
 
-type getCarveBlockRequest struct {
-	ID      int64 `url:"id"`
-	BlockId int64 `url:"block_id"`
-}
-
-type getCarveBlockResponse struct {
-	Data []byte `json:"data"`
-	Err  error  `json:"error,omitempty"`
-}
-
-func (r getCarveBlockResponse) Error() error { return r.Err }
-
 func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCarveBlockRequest)
+	req := request.(*fleet.GetCarveBlockRequest)
 	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 	if err != nil {
-		return getCarveBlockResponse{Err: err}, nil
+		return fleet.GetCarveBlockResponse{Err: err}, nil
 	}
 
-	return getCarveBlockResponse{Data: data}, nil
+	return fleet.GetCarveBlockResponse{Data: data}, nil
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
@@ -146,29 +112,8 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 // Begin File Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type carveBeginRequest struct {
-	NodeKey    string `json:"node_key"`
-	BlockCount int64  `json:"block_count"`
-	BlockSize  int64  `json:"block_size"`
-	CarveSize  int64  `json:"carve_size"`
-	CarveId    string `json:"carve_id"`
-	RequestId  string `json:"request_id"`
-}
-
-func (r *carveBeginRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type carveBeginResponse struct {
-	SessionId string `json:"session_id"`
-	Success   bool   `json:"success,omitempty"`
-	Err       error  `json:"error,omitempty"`
-}
-
-func (r carveBeginResponse) Error() error { return r.Err }
-
 func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*carveBeginRequest)
+	req := request.(*fleet.CarveBeginRequest)
 
 	payload := fleet.CarveBeginPayload{
 		BlockCount: req.BlockCount,
@@ -180,10 +125,10 @@ func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	carve, err := svc.CarveBegin(ctx, payload)
 	if err != nil {
-		return carveBeginResponse{Err: err}, nil
+		return fleet.CarveBeginResponse{Err: err}, nil
 	}
 
-	return carveBeginResponse{SessionId: carve.SessionId, Success: true}, nil
+	return fleet.CarveBeginResponse{SessionId: carve.SessionId, Success: true}, nil
 }
 
 const (
@@ -249,19 +194,11 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 // Receive Block for File Carve
 ////////////////////////////////////////////////////////////////////////////////
 
-type carveBlockRequest struct {
-	BlockId   int64  `json:"block_id"`
-	SessionId string `json:"session_id"`
-	RequestId string `json:"request_id"`
-	Data      []byte `json:"data"`
-}
-
-type carveBlockResponse struct {
-	Success bool  `json:"success,omitempty"`
-	Err     error `json:"error,omitempty"`
-}
-
-func (r carveBlockResponse) Error() error { return r.Err }
+// decodeCarveBlockRequest is a service-local wrapper that owns the streaming
+// DecodeRequest used by the unauthenticated /osquery/carve/block endpoint.
+// The wrapper lives here (not in server/fleet) because it uses carvestorectx,
+// which imports server/fleet and would create a cycle.
+type decodeCarveBlockRequest struct{}
 
 // DecodeRequest for the /api/v1/osquery/carve/block endpoint performs raw JSON parsing
 // to prevent DoS attacks on this unauthenticated endpoint.
@@ -281,7 +218,7 @@ func (r carveBlockResponse) Error() error { return r.Err }
 // check remains the primary authentication mechanism. When the header is
 // valid, CarveBlock additionally verifies that the carve's host_id matches
 // the authenticated host.
-func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
+func (decodeCarveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	carveStore := carvestorectx.FromContext(ctx)
 	if carveStore == nil {
 		return nil, ctxerr.New(ctx, "missing carve store from context")
@@ -419,7 +356,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 	data = data[:n]
 
-	return &carveBlockRequest{
+	return &fleet.CarveBlockRequest{
 		BlockId:   blockID,
 		SessionId: sessionID,
 		RequestId: requestID,
@@ -428,7 +365,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 }
 
 func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*carveBlockRequest)
+	req := request.(*fleet.CarveBlockRequest)
 
 	payload := fleet.CarveBlockPayload{
 		SessionId: req.SessionId,
@@ -439,10 +376,10 @@ func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	err := svc.CarveBlock(ctx, payload)
 	if err != nil {
-		return carveBlockResponse{Err: err}, nil
+		return fleet.CarveBlockResponse{Err: err}, nil
 	}
 
-	return carveBlockResponse{Success: true}, nil
+	return fleet.CarveBlockResponse{Success: true}, nil
 }
 
 func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayload) error {
@@ -450,7 +387,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	svc.authz.SkipAuthorization(ctx)
 
 	// Authentication on this endpoint is layered:
-	//  1. The streaming body parser (carveBlockRequest.DecodeRequest)
+	//  1. The streaming body parser (decodeCarveBlockRequest.DecodeRequest)
 	//     verifies session_id+request_id against the carve store.
 	//  2. When osquery.allow_body_auth_fallback=false, the HTTP pre-auth
 	//     middleware (osqueryCarveBlockHeaderPreAuth) is installed and

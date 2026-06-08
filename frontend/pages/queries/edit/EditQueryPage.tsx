@@ -24,7 +24,7 @@ import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
 import {
   IGetQueryResponse,
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { IConfig } from "interfaces/config";
@@ -259,42 +259,40 @@ const EditQueryPage = ({
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);
 
-  const onSubmitNewQuery = debounce(
-    async (formData: ICreateQueryRequestBody) => {
-      setIsQuerySaving(true);
-      try {
-        const { query } = await queryAPI.create(formData);
-        router.push(
-          getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
-            fleet_id: query.team_id,
-            host_id: hostId,
-          })
+  const onSubmitNewQuery = debounce(async (formData: ICreateQueryFormData) => {
+    setIsQuerySaving(true);
+    try {
+      const { query } = await queryAPI.create(formData);
+      router.push(
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
+          fleet_id: query.team_id,
+          host_id: hostId,
+        })
+      );
+      renderFlash("success", "Report created.");
+      setBackendValidators({});
+    } catch (createError) {
+      if (getErrorReason(createError).includes("already exists")) {
+        const teamErrorText =
+          teamNameForQuery && apiTeamIdForQuery !== 0
+            ? `the ${teamNameForQuery} fleet`
+            : "all fleets";
+        setBackendValidators({
+          name: `A report with that name already exists for ${teamErrorText}.`,
+        });
+      } else {
+        renderFlash(
+          "error",
+          "Something went wrong creating your report. Please try again."
         );
-        renderFlash("success", "Report created.");
         setBackendValidators({});
-      } catch (createError) {
-        if (getErrorReason(createError).includes("already exists")) {
-          const teamErrorText =
-            teamNameForQuery && apiTeamIdForQuery !== 0
-              ? `the ${teamNameForQuery} fleet`
-              : "all fleets";
-          setBackendValidators({
-            name: `A report with that name already exists for ${teamErrorText}.`,
-          });
-        } else {
-          renderFlash(
-            "error",
-            "Something went wrong creating your report. Please try again."
-          );
-          setBackendValidators({});
-        }
-      } finally {
-        setIsQuerySaving(false);
       }
+    } finally {
+      setIsQuerySaving(false);
     }
-  );
+  });
 
-  const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
+  const onUpdateQuery = async (formData: ICreateQueryFormData) => {
     if (!queryId) {
       return false;
     }

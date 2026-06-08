@@ -231,7 +231,7 @@ func (mc Mobileconfig) HasPayloadType(payloadType string) (bool, error) {
 	return false, nil
 }
 
-func (mc *Mobileconfig) ScreenPayloads(allowCustomOSUpdatesAndFileVault bool) error {
+func (mc *Mobileconfig) ScreenPayloads(allowCustomFileVault bool) error {
 	pct, err := mc.payloadSummary()
 	if err != nil {
 		// don't error if there's nothing for us to screen.
@@ -263,7 +263,7 @@ func (mc *Mobileconfig) ScreenPayloads(allowCustomOSUpdatesAndFileVault bool) er
 		for _, t := range screenedTypes {
 			switch t {
 			case FleetFileVaultPayloadType, FleetRecoveryKeyEscrowPayloadType:
-				if !allowCustomOSUpdatesAndFileVault {
+				if !allowCustomFileVault {
 					return errors.New(DiskEncryptionProfileRestrictionErrMsg)
 				}
 			case FleetCustomSettingsPayloadType:
@@ -271,7 +271,7 @@ func (mc *Mobileconfig) ScreenPayloads(allowCustomOSUpdatesAndFileVault bool) er
 				if err != nil {
 					return fmt.Errorf("checking for FDEVileVaultOptions payload: %w", err)
 				}
-				if contains && !allowCustomOSUpdatesAndFileVault {
+				if contains && !allowCustomFileVault {
 					return errors.New(DiskEncryptionProfileRestrictionErrMsg)
 				}
 			default:

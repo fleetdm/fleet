@@ -58,9 +58,9 @@ const AddCertModal = ({
     subjectAlternativeName: "",
   });
   // Server-side validation errors keyed by form field; cleared when the user
-  // edits the corresponding input. Today only SAN can come back with a
-  // field-targeted 422; other fields fall through to the generic flash.
+  // edits the corresponding input.
   const [serverErrors, setServerErrors] = useState<{
+    name?: string;
     subjectAlternativeName?: string;
   }>({});
 
@@ -102,6 +102,9 @@ const AddCertModal = ({
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
     setFormData(updatedFormData);
+    if (update.name === "name" && serverErrors.name) {
+      setServerErrors((prev) => ({ ...prev, name: undefined }));
+    }
     if (
       update.name === "subjectAlternativeName" &&
       serverErrors.subjectAlternativeName
@@ -145,8 +148,15 @@ const AddCertModal = ({
       const sanReason = getErrorReason(e, {
         nameEquals: "subject_alternative_name",
       });
+      const nameConflict = getErrorReason(e, {
+        reasonIncludes: "already exists",
+      });
       if (sanReason) {
         setServerErrors({ subjectAlternativeName: sanReason });
+      } else if (nameConflict) {
+        setServerErrors({
+          name: "Name is already used by another certificate.",
+        });
       } else {
         renderFlash("error", "Couldn't add certificate. Please try again.");
       }
@@ -170,12 +180,11 @@ const AddCertModal = ({
           label="Name"
           value={formData.name}
           onChange={onInputChange}
-          error={formValidation.name?.message}
+          error={serverErrors.name ?? formValidation.name?.message}
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
           autofocus
-          ignore1password
         />
         <DropdownWrapper
           label="Certificate authority (CA)"

@@ -219,6 +219,18 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.Store.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
+		return nil, false, nil
+	}
+	ds.Store.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		return nil
+	}
+	ds.Store.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return nil, &notFoundError{}
+	}
+	ds.Store.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, &notFoundError{}
+	}
 	return &ds
 }
 

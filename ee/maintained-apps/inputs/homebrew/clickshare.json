@@ -1,0 +1,8 @@
+{
+  "name": "ClickShare",
+  "unique_identifier": "com.barco.clickshare.updater",
+  "token": "clickshare",
+  "installer_format": "zip",
+  "slug": "clickshare/darwin",
+  "default_categories": ["Communication"]
+}

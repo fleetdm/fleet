@@ -82,7 +82,7 @@ Determining the Linux distributions that you will support involves balancing the
 
 Once you understand these needs, you can research and develop a Linux device management solution. Ideally, this solution will have native Linux support for popular distributions. This will ensure that the adoption of Linux devices enables your users and IT teams instead of hindering them.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact?utm_source=Fleet&utm_medium=OS&utm_campaign=2026_05-OS-Linux_desktop).
+To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="Which Linux distributions should your organization support?">
 <meta name="authorFullName" value="Anthony Critelli">

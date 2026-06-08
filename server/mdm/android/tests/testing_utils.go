@@ -88,6 +88,14 @@ func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostI
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
+func (ds *AndroidDSWithMock) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
+	return ds.Datastore.GetAndroidDeviceLastTeamID(ctx, enterpriseSpecificID)
+}
+
+func (ds *AndroidDSWithMock) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+	return ds.Datastore.UpdateTeamIDOnAndroidDevices(ctx, hostUUIDs, teamID)
+}
+
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
 func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil

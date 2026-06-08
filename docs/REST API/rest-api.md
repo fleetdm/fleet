@@ -939,7 +939,7 @@ List certificate added to Fleet. Currently, they can only be added via GitOps.
 
 | Name      | Type    | In   | Description                                                    |
 | ----------| ------- | ---- | -------------------------------------------------------------- |
-| fleet      | string  | query | _Available in Fleet Premium_. The fleet ID to filter profiles. |
+| fleet_id   | integer | query | _Available in Fleet Premium_. The fleet ID to filter certificate templates. If not specified, this defaults to "Unassigned". |
 | page      | integer | query | Page number of the results to fetch.                          |
 | per_page  | integer | query | Results per page.                                             |
 | order_key | string  | query | What to order results by. Allowed field is `id`. |
@@ -1456,8 +1456,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Delete organization logo](#delete-organization-logo)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Update global enroll secrets](#update-global-enroll-secrets)
-- [Get fleet enroll secrets](#get-fleet-enroll-secrets)
-- [Update fleet enroll secrets](#update-fleet-enroll-secrets)
+- [Get fleet-level enroll secrets](#get-fleet-level-enroll-secrets)
+- [Update fleet-level enroll secrets](#update-fleet-level-enroll-secrets)
 - [Get version](#get-version)
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
@@ -2950,7 +2950,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get fleet enroll secrets
+### Get fleet-level enroll secrets
 
 Returns the fleet's enroll secrets.
 
@@ -2982,7 +2982,7 @@ None.
 ```
 
 
-### Update fleet enroll secrets
+### Update fleet-level enroll secrets
 
 Replaces all existing enroll secrets for a fleet.
 
@@ -5042,6 +5042,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| macos_applications | boolean | query | If `true`, filters to only include software at the top level of the `/Applications` folder. This parameter applies only to macOS hosts, and is ignored for hosts on other platforms. Default is `false`.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
@@ -5060,137 +5061,140 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 
 ```json
 {
-  "count": 3,
+  "count": 1,
   "software": [
     {
-      "id": 121,
-      "name": "Google Chrome.app",
+      "id": 936,
+      "name": "Google Chrome",
       "icon_url": null,
-      "software_package": {
-        "name": "GoogleChrome.pkg",
-        "platform": "darwin",
-        "version": "125.12.0.3",
-        "self_service": true,
-        "last_install": {
-          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-          "installed_at": "2024-05-15T15:23:57Z"
-        }
-      },
-      "app_store_app": null,
       "source": "apps",
-      "status": "failed_install",
+      "extension_for": "",
+      "status": null,
       "installed_versions": [
         {
-          "version": "121.0",
+          "version": "149.0.7827.54",
           "bundle_identifier": "com.google.Chrome",
-          "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Google Chrome.app"],
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/Applications/Google Chrome.app"
+          ],
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
               "team_identifier": "EQHXZ8M8AV",
-              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
-              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
-              "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": 134,
-      "name": "Falcon.app",
-      "icon_url": null,
-      "software_package": {
-        "name": "FalconSensor-6.44.pkg",
-        "platform": "darwin",
-        "self_service": false,
-        "last_install": null,
-        "last_uninstall": {
-          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
-          "uninstalled_at": "2024-05-15T15:23:57Z"
-        }
-      },
-      "app_store_app": null,
-      "source": "",
-      "status": "pending_uninstall",
-      "installed_versions": [],
-    },
-    {
-      "id": 147,
-      "name": "Logic Pro",
-      "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
-      "software_package": null,
-      "app_store_app": {
-        "app_store_id": "1091189122",
-        "platform": "darwin",
-        "version": "2.04",
-        "self_service": false,
-        "last_install": {
-          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
-          "installed_at": "2024-05-15T15:23:57Z"
-        },
-      },
-      "source": "apps",
-      "status": "installed",
-      "installed_versions": [
-        {
-          "version": "118.0",
-          "bundle_identifier": "com.apple.logic10",
-          "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234"],
-          "installed_paths": ["/Applications/Logic Pro.app"],
-          "signature_information": [
-            {
-              "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": "",
-              "hash_sha256": null,
+              "hash_sha256": "ce484e67c58b18313382e9fe2e225df52fb20b5f",
               "executable_sha256": null,
               "executable_path": null
             }
-          ]
-        }
-      ]
-    },
-    {
-      "id": 150,
-      "name": "GitHub Copilot",
-      "software_package": null,
-      "app_store_app": null,
-      "source": "jetbrains_plugins",
-      "extension_for": "goland",
-      "installed_versions": [
-        {
-          "version": "1.2.3",
-          "vulnerabilities": [],
-          "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "name": "MyCustomApp",
-      "software_package": {
-        "name": "MyCustomApp-1.12.ipa",
-        "platform": "ios",
-        "version": "1.12",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null
-      },
-      "app_store_app": null,
-      "versions_count": 1,
-      "source": "ios_apps",
-      "hosts_count": 48,
-      "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": null
+          ],
+          "last_opened_at": "2026-06-04T15:22:36Z"
         }
       ],
+      "display_name": "",
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "automatic_install_policies": null,
+        "version": "149.0.7827.54",
+        "platform": "darwin",
+        "self_service": true,
+        "last_install": null,
+        "last_uninstall": null,
+        "package_url": null,
+        "categories": [
+          "Browsers"
+        ]
+      },
+      "app_store_app": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's software by Fleet Desktop token
+
+`GET /api/v1/fleet/device/:token/software`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
+| self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
+| vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `"name"`. Default is `"name"`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+
+On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
+
+On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
+
+Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+#### Example
+
+`GET /api/v1/fleet/device/:token/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1,
+  "software": [
+    {
+      "id": 936,
+      "name": "Google Chrome",
+      "icon_url": null,
+      "source": "apps",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "149.0.7827.54",
+          "bundle_identifier": "com.google.Chrome",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/Applications/Google Chrome.app"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "ce484e67c58b18313382e9fe2e225df52fb20b5f",
+              "executable_sha256": null,
+              "executable_path": null
+            }
+          ],
+          "last_opened_at": "2026-06-04T15:22:36Z"
+        }
+      ],
+      "display_name": "",
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "automatic_install_policies": null,
+        "version": "149.0.7827.54",
+        "platform": "darwin",
+        "self_service": true,
+        "last_install": null,
+        "last_uninstall": null,
+        "package_url": null,
+        "categories": [
+          "Browsers"
+        ]
+      },
+      "app_store_app": null
     }
   ],
   "meta": {
@@ -5894,7 +5898,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
-## Bypass host's conditional access
+### Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
@@ -5904,7 +5908,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token        | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 
 #### Example 
@@ -5915,7 +5919,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-## Clear host passcode
+### Clear host passcode
 
 _Available in Fleet Premium._
 
@@ -5968,9 +5972,9 @@ Rotates the managed local account password for a host.
 
 `204`
 
-## Get host's managed account password
+### Get host's managed account password
 
-Retrieves the managed account password for a host.
+Retrieves the managed account password for a macOS host.
 
 The host will only return a password if its managed account password status is "Verified".
 
@@ -8025,11 +8029,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
 | page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
 | per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -8042,7 +8046,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/commands?per_page=5`
+`GET /api/v1/fleet/commands?host_identifier=A1B2C3D4-E5F6-7890-1234-567890ABCDEF&per_page=5`
 
 ##### Default response
 
@@ -8050,27 +8054,31 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "count": null,
   "results": [
     {
-      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
-      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "a3650ec9-6dd0-40e9-b5d8-feffe9939461",
       "status": "Acknowledged",
       "command_status": "ran",
-      "updated_at": "2023-04-04:00:00Z",
-      "request_type": "ProfileList",
+      "updated_at": "2026-03-20T19:45:27Z",
+      "request_type": "DeclarativeManagement",
       "name": null,
-      "hostname": "mycomputer"
+      "hostname": "Mac-mini.local"
     },
     {
-      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
-      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
-      "status": "200",
-      "command_status": "ran",
-      "updated_at": "2023-05-04:00:00Z",
-      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "97ceaa39-eadc-4953-98a8-2ffe72ab120d",
+      "status": "Error",
+      "command_status": "failed",
+      "updated_at": "2026-03-24T21:37:32Z",
+      "request_type": "InstallProfile",
       "name": null,
-      "hostname": "myhost"
+      "hostname": "Mac-mini.local"
     }
   ]
 }
@@ -10756,159 +10764,65 @@ Get a list of all software.
 
 ```json
 {
-  "counts_updated_at": "2022-01-01 12:32:00",
-  "count": 3,
+  "counts_updated_at": "2026-06-04T12:34:56Z",
+  "count": 2,
   "software_titles": [
     {
-      "id": 12,
-      "name": "Firefox.app",
-      "display_name": "Firefox",
-      "icon_url":"/api/latest/fleet/software/titles/12/icon?fleet_id=3",
-      "display_name": "",
-      "software_package": {
-        "platform": "darwin",
-        "fleet_maintained_app_id": 42,
-        "name": "FirefoxInstall.pkg",
-        "version": "125.6",
-        "self_service": true,
-        "patch_policy": {
-          "id": 122,
-          "name": "Firefox up to date"
-        },
-        "automatic_install_policies": [
+      "id": 2792,
+      "name": "Slack",
+      "icon_url": null,
+      "source": "apps",
+      "extension_for": "",
+      "browser": "",
+      "hosts_count": 5,
+      "versions_count": 4,
+      "versions": [
           {
-            "id": 343,
-            "name": "[Install software] Firefox.app",
-            "type": "dynamic",
+              "id": 515953,
+              "version": "4.39.88",
+              "vulnerabilities": null
+          },
+          {
+              "id": 610801,
+              "version": "4.47.72",
+              "vulnerabilities": null
           }
-        ],
-      },
-      "app_store_app": null,
-      "versions_count": 3,
-      "source": "apps",
-      "hosts_count": 48,
-      "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        },
-        {
-          "id": 124,
-          "version": "3.4",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        },
-        {
-          "id": 12,
-          "version": "1.13",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        }
       ],
-      "bundle_identifier": "org.mozilla.firefox",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-    },
-    {
-      "id": 22,
-      "name": "Google Chrome.app",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 5,
-      "source": "apps",
-      "hosts_count": 345,
-      "versions": [
-        {
-          "id": 331,
-          "version": "118.1",
-          "vulnerabilities": ["CVE-2023-1234"]
-        },
-        {
-          "id": 332,
-          "version": "119.0",
-          "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"]
-        },
-        {
-          "id": 334,
-          "version": "119.4",
-          "vulnerabilities": ["CVE-2023-1133", "CVE-2023-2224"]
-        },
-        {
-          "id": 348,
-          "version": "121.5",
-          "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
-        },
-      ],
-      "bundle_identifier": "com.google.Chrome",
-      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
-    },
-    {
-      "id": 32,
-      "name": "1Password – Password Manager",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 1,
-      "source": "chrome_extensions",
-      "browser": "chrome",
-      "extension_for": "chrome",
-      "hosts_count": 345,
-      "versions": [
-        {
-          "id": 4242,
-          "version": "2.3.7",
-          "vulnerabilities": []
-        }
-      ]
-    },
-    {
-      "id": 77,
-      "name": "Prettier",
-      "icon_url": null,
-      "display_name": "",
-      "software_package": null,
-      "app_store_app": null,
-      "versions_count": 2,
-      "source": "jetbrains_plugin",
-      "extensions_for": "goland",
-      "hosts_count": 19,
-      "versions": [
-        {
-          "id": 6501,
-          "version": "232.1.0",
-          "vulnerabilities": []
-        },
-        {
-          "id": 6502,
-          "version": "241.2.1",
-          "vulnerabilities": []
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "name": "MyCustomApp",
       "software_package": {
-        "name": "MyCustomApp-1.12.ipa",
-        "platform": "ios",
-        "version": "1.12",
-        "self_service": false,
-        "automatic_install_policies": null,
-        "last_install": null,
-        "last_uninstall": null
+          "name": "Slack-4.50.128-macOS.pkg",
+          "automatic_install_policies": null,
+          "version": "4.50.128",
+          "platform": "darwin",
+          "self_service": false,
+          "last_install": null,
+          "last_uninstall": null,
+          "package_url": ""
       },
       "app_store_app": null,
+      "bundle_identifier": "com.tinyspeck.slackmacgap",
+      "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+      "display_name": ""
+    },
+    {
+      "id": 2618,
+      "name": "Raycast",
+      "icon_url": null,
+      "source": "apps",
+      "extension_for": "",
+      "browser": "",
+      "hosts_count": 1,
       "versions_count": 1,
-      "source": "ios_apps",
-      "hosts_count": 48,
       "versions": [
-        {
-          "id": 123,
-          "version": "1.12",
-          "vulnerabilities": null
-        }
+          {
+              "id": 651354,
+              "version": "1.104.19",
+              "vulnerabilities": null
+          }
       ],
+      "software_package": null,
+      "app_store_app": null,
+      "bundle_identifier": "com.raycast.macos",
+      "display_name": ""
     }
   ],
   "meta": {
@@ -11093,7 +11007,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/12?fleet_id=3`
+`GET /api/v1/fleet/software/titles/2792?fleet_id=3`
 
 ##### Default response
 
@@ -11102,258 +11016,101 @@ Returns information about the specified software. By default, `versions` are sor
 ```json
 {
   "software_title": {
-    "id": 12,
-    "name": "Google Chrome.app",
-    "display_name": "Google Chrome",
-    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
-    "display_name": "",
-    "bundle_identifier": "com.google.Chrome",
+    "id": 2792,
+    "name": "Slack",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/f7/27/90f727be-835b-54ad-4d9d-8b597e63e321/electron.png/512x512bb.png",
+    "source": "apps",
+    "extension_for": "",
+    "browser": "",
+    "hosts_count": 5,
+    "versions_count": 4,
+    "versions": [
+        {
+            "id": 515953,
+            "version": "4.39.88",
+            "vulnerabilities": null,
+            "hosts_count": 1
+        },
+        {
+            "id": 610801,
+            "version": "4.47.72",
+            "vulnerabilities": null,
+            "hosts_count": 2
+        }
+    ],
+    "counts_updated_at": "2026-06-04T17:23:45Z",
     "software_package": {
-      "name": "GoogleChrome.pkg",
-      "version": "143.0.7499.193",
-      "categories": ["Productivity"],
-      "platform": "darwin",
-      "fleet_maintained_app_id": 42,
-      "fleet_maintained_versions": [
-        {
-          "id": 1,
-          "version": "143.0.7499.193"
+        "team_id": 310,
+        "title_id": 2792,
+        "name": "Slack-4.50.128-macOS.pkg",
+        "icon_url": null,
+        "version": "4.50.128",
+        "platform": "darwin",
+        "uploaded_at": "2026-06-04T17:29:09.155424Z",
+        "installer_id": 36817,
+        "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+        "pre_install_query": "",
+        "post_install_script": "",
+        "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
+        "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+        "status": {
+            "installed": 0,
+            "pending_install": 1,
+            "failed_install": 0,
+            "pending_uninstall": 0,
+            "failed_uninstall": 0
         },
-        {
-          "id": 2,
-          "version": "142.0.7444.176"
-        },
-      ],
-      "installer_id": 23,
-      "team_id": 3,
-      "uploaded_at": "2024-04-01T14:22:58Z",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
-      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-      "uninstall_script": "/Library/CS/falconctl uninstall",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
-          "type": "dynamic"
-        }
-      ],
-      "status": {
-        "installed": 3,
-        "pending_install": 1,
-        "failed_install": 0,
-        "pending_uninstall": 2,
-        "failed_uninstall": 1
-      }
+        "self_service": false,
+        "url": "",
+        "fleet_maintained_app_id": null,
+        "automatic_install_policies": null,
+        "labels_include_any": null,
+        "labels_exclude_any": null,
+        "labels_include_all": null,
+        "categories": null,
+        "display_name": "",
+        "patch_policy": null,
+        "fleet_id": 310
     },
     "app_store_app": null,
-    "counts_updated_at": "2024-11-03T22:39:36Z",
-    "source": "apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "142.0.7444.176",
-        "vulnerabilities": ["CVE-2023-1234"],
-        "hosts_count": 37
-      },
-      {
-        "id": 124,
-        "version": "141.0.7444.170",
-        "vulnerabilities": ["CVE-2023-4321"],
-        "hosts_count": 7
-      },
-      {
-        "id": 127,
-        "version": "138.0.7655.171",
-        "vulnerabilities": ["CVE-2023-7654"],
-        "hosts_count": 4
-      }
-    ]
+    "bundle_identifier": "com.tinyspeck.slackmacgap",
+    "display_name": ""
   }
 }
 ```
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Example (app store app)
+For in-house iOS apps, the `software_package` field is populated with package information.
 
-`GET /api/v1/fleet/software/titles/15?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
+For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
 
 ```json
 {
-  "software_title": {
-    "id": 15,
-    "name": "Logic Pro",
-    "display_name": "",
-    "icon_url": "/api/latest/fleet/software/titles/15/icon?fleet_id=3",
-    "display_name": "",
-    "bundle_identifier": "com.apple.logic10",
-    "software_package": null,
-    "auto_update_enabled": true,
-    "auto_update_window_start": "00:00",
-    "auto_update_window_end": "02:00",
-    "app_store_app": {
-      "name": "Logic Pro",
-      "categories": [],
-      "app_store_id": 1091189122,
-      "platform": "darwin",
-      "latest_version": "2.04",
-      "created_at": "2024-04-01T14:22:58Z",
-      "self_service": true,
-      "automatic_install_policies": [
-        {
-          "id": 345,
-          "name": "[Install software] Logic Pro",
-          "type": "dynamic"
-        }
-      ],
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "status": {
-        "installed": 3,
-        "pending": 1,
-        "failed": 2,
-      }
+  "app_store_app": {
+    "app_store_id": "361285480",
+    "platform": "darwin",
+    "name": "Keynote: Design Presentations",
+    "latest_version": "15.2.1",
+    "status": {
+      "installed": 13,
+      "pending": 0,
+      "failed": 2
     },
-    "source": "ios_apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "2.04",
-        "vulnerabilities": [],
-        "hosts_count": 24
-      }
-    ]
+    "self_service": true,
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "labels_include_all": null,
+    "created_at": "2026-01-28T21:49:04.145909Z",
+    "categories": [
+      "Productivity"
+    ],
+    "display_name": "Keynote"
   }
 }
 ```
 
-`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `fleet_id` is specified in the request.
-
-#### Example (Play Store app)
-
-`GET /api/v1/fleet/software/titles/16`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "software_title": {
-    "id": 16,
-    "name": "Zoom Workplace",
-    "icon_url": null,
-    "display_name": "",
-    "application_id": "us.zoom.videomeetings",
-    "counts_updated_at": "2025-08-29T10:23:48Z",
-    "software_package": null,
-    "app_store_app": {
-      "app_store_id": "us.zoom.videomeetings",
-      "platform": "android",
-      "name": "Zoom Workplace",
-      "icon_url": "https://lh3.googleusercontent.com/yZsmiNjmji3ZoOuLthoVvptLB9cZ0vCmitcky4OUXNcEFV3IEQkrBD2uu5kuWRF5_ERA",
-      "status": {
-        "installed": 1,
-        "pending": 0,
-        "failed": 0
-      },
-      "self_service": false,
-      "automatic_install_policies": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "created_at": "2025-08-15T00:55:03.96954Z",
-      "categories": null
-    },
-    "source": "android_apps",
-    "hosts_count": 72,
-    "versions_count": 1,
-    "versions": [
-      {
-        "id": 333,
-        "version": "6.5.10.32613",
-        "vulnerabilities": null,
-        "hosts_count": 24
-      }
-    ]
-  }
-}
-```
-
-
-#### Example (in-house iOS app)
-
-`GET /api/v1/fleet/software/titles/24?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "software_title": {
-    "id": 12,
-    "name": "MyCustomApp",
-    "software_package": {
-      "name": "MyCustomApp-1.12.ipa",
-      "platform": "ios",
-      "fleet_maintained_id": null,
-      "version": "1.12",
-      "self_service": false,
-      "automatic_install_policies": null,
-      "categories": null,
-      "uploaded_at": "2025-08-15T00:55:03.96954Z",
-      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9",
-      "title_id": 12,
-      "team_id": 3,
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      },
-      "installer_id": 332,
-      "install_script": null,
-      "uninstall_script": null,
-      "post_install_script": null,
-      "pre_install_query": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-    },
-    "app_store_app": null,
-    "versions_count": 1,
-    "source": "ios_apps",
-    "hosts_count": 48,
-    "versions": [
-      {
-        "id": 123,
-        "version": "1.12",
-        "vulnerabilities": null
-      }
-    ]
-  }
-}
-```
 ### Get software version
 
 Returns information about the specified software version.
@@ -11584,31 +11341,30 @@ labels_exclude_any="QA"
 ```json
 {
   "software_package": {
-    "title_id": 123,
-    "name": "FalconSensor-6.44.pkg",
+    "team_id": 310,
+    "title_id": 2792,
+    "name": "Slack-4.50.128-macOS.pkg",
     "icon_url": null,
-    "categories": null,
-    "display_name": "",
-    "version": "6.44",
+    "version": "4.50.128",
     "platform": "darwin",
-    "fleet_maintained_app_id": 42,
-    "installer_id": 23,
-    "team_id": 3,
-    "uploaded_at": "2024-04-01T14:22:58Z",
-    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
+    "uploaded_at": "2026-06-04T17:43:46.125681Z",
+    "installer_id": 36818,
+    "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+    "pre_install_query": "",
+    "post_install_script": "",
+    "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
+    "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+    "self_service": false,
     "url": "",
+    "fleet_maintained_app_id": null,
     "automatic_install_policies": null,
     "labels_include_any": null,
     "labels_exclude_any": null,
-    "status": {
-      "installed": 0,
-      "pending": 0,
-      "failed": 0
-    }
+    "labels_include_all": null,
+    "categories": null,
+    "display_name": "",
+    "patch_policy": null,
+    "fleet_id": 310
   }
 }
 ```
@@ -11673,26 +11429,37 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 ```json
 {
   "software_installer": {
-    "name": "FalconSensor-6.44.pkg",
-    "display_name": "CrowdStrike agent",
+    "team_id": 310,
+    "title_id": 2792,
+    "name": "Slack-4.45.64-macOS.pkg",
     "icon_url": null,
-    "categories": null,
-    "version": "6.44",
+    "version": "4.45.64",
     "platform": "darwin",
-    "fleet_maintained_app_id": 42,
-    "installer_id": 23,
-    "team_id": 3,
-    "uploaded_at": "2024-04-01T14:22:58Z",
-    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
+    "uploaded_at": "2026-06-04T17:47:23Z",
+    "installer_id": 36818,
+    "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+    "pre_install_query": "",
+    "post_install_script": "",
+    "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
+    "hash_sha256": "dff5434f8ef573f108ec6a48f19ab56c76985178e152ae45de9a575634f849e2",
     "status": {
       "installed": 0,
-      "pending": 0,
-      "failed": 0
-    }
+      "pending_install": 0,
+      "failed_install": 0,
+      "pending_uninstall": 0,
+      "failed_uninstall": 0
+    },
+    "self_service": false,
+    "url": "",
+    "fleet_maintained_app_id": null,
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "labels_include_all": null,
+    "categories": null,
+    "display_name": "",
+    "patch_policy": null,
+    "fleet_id": 310
   }
 }
 ```
@@ -11873,7 +11640,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
+| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -12146,7 +11913,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 {
   "fleet_maintained_app_id": 3,
   "team_id": 2,
-  "ensure": "present"
+  "automatic_install": true
 }
 ```
 
@@ -12236,8 +12003,6 @@ Body: <blob>
 ```
 
 ### Install software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -12676,7 +12441,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Create fleet](#create-fleet)
 - [Update fleet](#update-fleet)
 - [Add users to fleet](#add-users-to-fleet)
-- [Update fleet's agent options](#update-fleets-agent-options)
+- [Update fleet-level agent options](#update-fleets-agent-options)
 - [Delete fleet](#delete-fleet)
 
 ### List fleets
@@ -13581,7 +13346,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Update fleet's agent options
+### Update fleet-level agent options
 
 _Available in Fleet Premium_
 

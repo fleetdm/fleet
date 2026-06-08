@@ -52,11 +52,10 @@ spec:
   platform: darwin
   description: Retrieves the disk encryption status of a macOS device.
   query: |
-    SELECT 
-      1 
-    FROM disk_encryption 
-    WHERE user_uuid IS NOT "" 
-    AND filevault_status = 'on' LIMIT 1
+    SELECT
+      1
+    FROM disk_encryption
+    WHERE filevault_status = 'on' LIMIT 1
   bash: fdesetup status | grep -q "FileVault is On" && echo 1 || echo 0
   purpose: Informational
   tags: built-in
@@ -335,7 +334,7 @@ spec:
   description: Retrieves the encrypted FileVault recovery key for managed macOS devices.
   query: |
     WITH
-        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
       SELECT encrypted, filevault_key FROM de LEFT JOIN fv
   discovery: filevault_prk
@@ -350,7 +349,7 @@ spec:
   description: Retrieves the encrypted FileVault recovery key and checks for related file data on managed macOS devices.
   query: |
     WITH
-        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
       SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
   discovery: filevault_prk # TODO: this query's discovery query also checks for file_lines.

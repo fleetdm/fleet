@@ -414,6 +414,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			setupAsstByTeam[*asst.TeamID] = asst
 			return asst, nil
 		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
 
 		// new team ("one - three") is created with bootstrap package and end user auth based on app config
 		team, err := svc.GetOrCreatePreassignTeam(ctx, preassignGroups)

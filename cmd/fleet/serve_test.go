@@ -1236,6 +1236,9 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
+	ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+		return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := fleet.AppConfig{}
 		appCfg.MDM.EnabledAndConfigured = true
@@ -1312,6 +1315,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+		// The cron must pass a filter that includes fleet/team-scoped labels,
+		// otherwise host vitals labels on a team never get populated (#46869). An
+		// empty TeamFilter (nil User) falls back to global-only labels in
+		// applyLabelTeamFilter, so require a global-admin user here.
+		require.NotNil(t, filter.User, "cron must pass a user-scoped filter so team labels are included")
+		require.True(t, filter.User.HasAnyGlobalRole(), "cron must use a global-admin filter to see all team labels")
 		return labels, nil
 	}
 

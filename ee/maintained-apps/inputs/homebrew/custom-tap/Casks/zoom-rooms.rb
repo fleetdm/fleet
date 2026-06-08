@@ -1,6 +1,6 @@
 cask "zoom-rooms" do
-  version "7.0.0.12322"
-  sha256 "c35229e6066732aec7f26b762d0f2d43ab7b8270e512fbabe5bbb77a9c714bbc"
+  version "7.0.5.12655"
+  sha256 "8fb2ab355a5bdd0acdae3c6e0f10d8d41556a3011478f4faf6198dcad96dd0d1"
 
   url "https://cdn.zoom.us/prod/#{version}/ZoomRooms.pkg"
   name "Zoom Rooms"

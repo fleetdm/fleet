@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "10.19.0.19950",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %' AND version_compare(version, '10.19.0.19950') < 0);"
+      },
+      "installer_url": "https://link.gotomeeting.com/latest-msi",
+      "install_script_ref": "36ce6af0",
+      "uninstall_script_ref": "f5235386",
+      "sha256": "4188e7735eabcc313c7f56111bd13e8b524ba0ab872d6042de69e08657cec3b9",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "36ce6af0": "# GoToMeeting MSI machine-wide install.\n#   G2MINSTALLFORALLUSERS=1 installs for all users (the installer defaults to\n#   per-user, G2MINSTALLFORALLUSERS=0). Fleet runs elevated, so this produces a\n#   machine-wide install.\n\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\" G2MINSTALLFORALLUSERS=1\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "f5235386": "# Uninstall for GoToMeeting.\n#\n# The winget installer is the GoToMeeting \"Setup\" bootstrapper (ARPSYSTEMCOMPONENT=1,\n# so it hides itself from Programs and Features). It installs the actual GoToMeeting\n# app, which self-registers a separate, visible uninstall entry (DisplayName like\n# \"GoToMeeting <version>\") whose uninstaller is G2MUninstall.exe.\n#\n# We locate that entry and run G2MUninstall.exe directly.\n\n$softwareNameLike = \"GoToMeeting*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $null\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike) {\n        $selected = $key\n        break\n    }\n}\n\nif (-not $selected) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# Best-effort: stop running GoToMeeting processes so the uninstaller doesn't\n# fail on locked files.\nforeach ($proc in @(\"g2mstart\", \"g2mlauncher\", \"g2mcomm\", \"g2muicore\", \"g2mupdate\", \"GoToMeeting\", \"GoTo\")) {\n    Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\n\n# Extract just the uninstaller exe path from whichever registry string is\n# available; we supply the silent switches ourselves.\n$uninstallCommand = if ($selected.QuietUninstallString) {\n    $selected.QuietUninstallString\n} else {\n    $selected.UninstallString\n}\n\nif (-not $uninstallCommand) {\n    Write-Host \"Selected entry has no UninstallString: $($selected.DisplayName)\"\n    Exit 1\n}\n\n$exePath = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"') {\n    # Quoted path\n    $exePath = $matches[1]\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)') {\n    # Unquoted path that may contain spaces (e.g. \"C:\\Program Files (x86)\\...\")\n    $exePath = $matches[1]\n} else {\n    Throw \"Could not parse uninstaller path from: $uninstallCommand\"\n}\n\n# Vendor-documented silent uninstall switches. /ForAllUsers matches the\n# machine-wide install (G2MINSTALLFORALLUSERS=1); /silent is the correct silent\n# switch (NOT /S, which G2MUninstall.exe ignores).\n$uninstallArgs = \"/uninstall /ForAllUsers /silent\"\n\nWrite-Host \"Selected entry DisplayName: $($selected.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\n$process = Start-Process -FilePath $exePath -ArgumentList $uninstallArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n# Treat msiexec-style reboot-required success codes as success.\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

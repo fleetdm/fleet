@@ -120,6 +120,7 @@
       "apple_server_url": "",
       "apple_bm_enabled_and_configured": false,
       "enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
       "volume_purchasing_program": null,
       "windows_enabled_and_configured": false,
@@ -147,6 +148,7 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "windows_entra_tenant_ids": null,
+      "windows_entra_client_ids": null,
       "windows_require_bitlocker_pin": null,
       "apple_require_hardware_attestation": false,
       "macos_migration": {

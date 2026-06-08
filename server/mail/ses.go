@@ -20,11 +20,15 @@ type fleetSESSender interface {
 }
 
 type sesSender struct {
-	client    fleetSESSender
-	sourceArn string
+	client       fleetSESSender
+	sourceArn    string
+	senderDomain string
 }
 
-func getFromSES(e fleet.Email) (string, error) {
+func getFromSES(e fleet.Email, senderDomain string) (string, error) {
+	if senderDomain != "" {
+		return fmt.Sprintf("From: do-not-reply@%s\r\n", senderDomain), nil
+	}
 	serverURL, err := url.Parse(e.ServerURL)
 	if err != nil || len(serverURL.Host) == 0 {
 		return "", fmt.Errorf("failed to parse server url %s err: %w", e.ServerURL, err)
@@ -36,7 +40,9 @@ func (s *sesSender) SendEmail(ctx context.Context, e fleet.Email) error {
 	if s.client == nil {
 		return errors.New("ses sender not configured")
 	}
-	msg, err := getMessageBody(e, getFromSES)
+	msg, err := getMessageBody(e, func(e fleet.Email) (string, error) {
+		return getFromSES(e, s.senderDomain)
+	})
 	if err != nil {
 		return err
 	}
@@ -47,7 +53,7 @@ func (s *sesSender) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 	return s.client != nil
 }
 
-func NewSESSender(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, sourceArn string) (*sesSender, error) {
+func NewSESSender(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, sourceArn, senderDomain string) (*sesSender, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// The service endpoint is deprecated, but we still set it
@@ -86,8 +92,9 @@ func NewSESSender(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternal
 	sesClient := ses.NewFromConfig(conf)
 
 	return &sesSender{
-		client:    sesClient,
-		sourceArn: sourceArn,
+		client:       sesClient,
+		sourceArn:    sourceArn,
+		senderDomain: senderDomain,
 	}, nil
 }
 
