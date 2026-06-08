@@ -8,12 +8,12 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## #  (6)
 
-- [ ] `1password-cli` — 1Password CLI
-- [ ] `4k-slideshow-maker` — 4K Slideshow Maker
-- [ ] `4k-stogram` — 4K Stogram
-- [ ] `4k-video-downloader` — 4K Video Downloader
-- [ ] `4k-video-to-mp3` — 4K Video to MP3
-- [ ] `4k-youtube-to-mp3` — 4K YouTube to MP3
+- [ ] `1password-cli` — 1Password CLI  — **deferred — no .app in zip**
+- [x] `4k-slideshow-maker` — 4K Slideshow Maker
+- [x] `4k-stogram` — 4K Stogram
+- [x] `4k-video-downloader` — 4K Video Downloader
+- [x] `4k-video-to-mp3` — 4K Video to MP3
+- [x] `4k-youtube-to-mp3` — 4K YouTube to MP3
 
 ## A  (51)
 
