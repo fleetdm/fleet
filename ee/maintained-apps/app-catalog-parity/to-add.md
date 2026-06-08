@@ -826,55 +826,55 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## T  (49)
 
-- [ ] `tabby` — Tabby
-- [ ] `tableau-prep` — Tableau Prep
-- [ ] `tableau-public` — Tableau Public
-- [ ] `tableau-reader` — Tableau Reader
-- [ ] `tabtab` — TabTab
-- [ ] `tabula` — Tabula
-- [ ] `taccy` — Taccy
-- [ ] `tageditor` — Tag Editor
-- [ ] `taskade` — Taskade
-- [ ] `taskbar` — Taskbar
-- [ ] `teacode` — TeaCode
-- [ ] `teamviewer-host` — TeamViewer Host
-- [ ] `teamviewer-quicksupport` — TeamViewer QuickSupport
-- [ ] `termius` — Termius
-- [ ] `tex-live-utility` — TeX Live Utility
-- [ ] `texshop` — TeXShop
-- [ ] `textmate` — TextMate
-- [ ] `thaw` — Thaw
-- [ ] `thorium` — Thorium Reader
-- [ ] `threema` — Threema
-- [ ] `thumbsup` — ThumbsUp
-- [ ] `ticktick` — TickTick
-- [ ] `tidal` — TIDAL
-- [ ] `tiles` — Sempliva Tiles
-- [ ] `timer` — Timer
-- [ ] `timescribe` — TimeScribe
-- [ ] `timing` — Timing
-- [ ] `tofu` — Tofu
-- [ ] `tomatobar` — TomatoBar
-- [ ] `topaz-gigapixel-ai` — Topaz Gigapixel AI
-- [ ] `topaz-photo-ai` — Topaz Photo AI
-- [ ] `topaz-video-ai` — Topaz Video AI
-- [ ] `topnotch` — TopNotch
-- [ ] `tradingview` — TradingView Desktop
-- [ ] `transfer` — Transfer
-- [ ] `transmission` — Transmission
-- [ ] `tresorit` — Tresorit
-- [ ] `trex` — TRex
-- [ ] `trezor-suite` — TREZOR Suite
-- [ ] `tribler` — Tribler
-- [ ] `tripmode` — TripMode
-- [ ] `tuist` — Tuist
-- [ ] `tuple` — Tuple
-- [ ] `tuta-mail` — Tuta Mail
-- [ ] `twine-app` — Twine
-- [ ] `twobird` — Twobird
-- [ ] `typeface` — Typeface
-- [ ] `typinator` — Typinator
-- [ ] `typora` — Typora
+- [x] `tabby` — Tabby
+- [x] `tableau-prep` — Tableau Prep
+- [x] `tableau-public` — Tableau Public
+- [x] `tableau-reader` — Tableau Reader
+- [x] `tabtab` — TabTab
+- [x] `tabula` — Tabula
+- [x] `taccy` — Taccy
+- [x] `tageditor` — Tag Editor
+- [x] `taskade` — Taskade
+- [x] `taskbar` — Taskbar
+- [x] `teacode` — TeaCode
+- [x] `teamviewer-host` — TeamViewer Host
+- [x] `teamviewer-quicksupport` — TeamViewer QuickSupport
+- [x] `termius` — Termius
+- [x] `tex-live-utility` — TeX Live Utility
+- [x] `texshop` — TeXShop
+- [ ] `textmate` — TextMate  — **deferred — no .app in dmg**
+- [x] `thaw` — Thaw
+- [x] `thorium` — Thorium Reader
+- [x] `threema` — Threema
+- [x] `thumbsup` — ThumbsUp
+- [x] `ticktick` — TickTick
+- [x] `tidal` — TIDAL
+- [x] `tiles` — Sempliva Tiles
+- [x] `timer` — Timer
+- [x] `timescribe` — TimeScribe
+- [x] `timing` — Timing
+- [x] `tofu` — Tofu
+- [x] `tomatobar` — TomatoBar
+- [x] `topaz-gigapixel-ai` — Topaz Gigapixel AI
+- [x] `topaz-photo-ai` — Topaz Photo AI
+- [x] `topaz-video-ai` — Topaz Video AI
+- [x] `topnotch` — TopNotch
+- [x] `tradingview` — TradingView Desktop
+- [x] `transfer` — Transfer
+- [x] `transmission` — Transmission
+- [x] `tresorit` — Tresorit
+- [x] `trex` — TRex
+- [x] `trezor-suite` — TREZOR Suite
+- [x] `tribler` — Tribler
+- [x] `tripmode` — TripMode
+- [ ] `tuist` — Tuist  — **deferred — no .app in zip**
+- [x] `tuple` — Tuple
+- [x] `tuta-mail` — Tuta Mail
+- [x] `twine-app` — Twine
+- [x] `twobird` — Twobird
+- [x] `typeface` — Typeface
+- [x] `typinator` — Typinator
+- [x] `typora` — Typora
 
 ## U  (9)
 

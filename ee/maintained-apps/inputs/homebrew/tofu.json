@@ -1,0 +1,10 @@
+{
+  "name": "Tofu",
+  "unique_identifier": "com.asagoo.tofu",
+  "token": "tofu",
+  "installer_format": "dmg",
+  "slug": "tofu/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

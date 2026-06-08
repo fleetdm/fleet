@@ -1,0 +1,10 @@
+{
+  "name": "TeamViewer QuickSupport",
+  "unique_identifier": "com.teamviewer.TeamViewerQS",
+  "token": "teamviewer-quicksupport",
+  "installer_format": "dmg",
+  "slug": "teamviewer-quicksupport/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

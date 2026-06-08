@@ -1,0 +1,10 @@
+{
+  "name": "TeamViewer Host",
+  "unique_identifier": "com.teamviewer.teamviewer.preferences",
+  "token": "teamviewer-host",
+  "installer_format": "dmg",
+  "slug": "teamviewer-host/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
