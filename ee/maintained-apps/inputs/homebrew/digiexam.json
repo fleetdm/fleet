@@ -1,0 +1,10 @@
+{
+  "name": "digiexam",
+  "unique_identifier": "se.digiexam.DigiExam",
+  "token": "digiexam",
+  "installer_format": "dmg",
+  "slug": "digiexam/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

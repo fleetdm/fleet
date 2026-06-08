@@ -177,54 +177,54 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## D  (48)
 
-- [ ] `daisydisk` — DaisyDisk
-- [ ] `dangerzone` — Dangerzone
-- [ ] `darkmodebuddy` — DarkModeBuddy
-- [ ] `darktable` — darktable
-- [ ] `dataflare` — Dataflare
-- [ ] `datagraph` — DataGraph
-- [ ] `dataspell` — DataSpell
-- [ ] `dayflow` — Dayflow
-- [ ] `dbgate` — DbGate
-- [ ] `dbvisualizer` — DbVisualizer
-- [ ] `debookee` — Debookee
-- [ ] `deckset` — Deckset
-- [ ] `deezer` — Deezer
-- [ ] `default-folder-x` — Default Folder X
-- [ ] `descript` — Descript
-- [ ] `deskpad` — DeskPad
-- [ ] `desktime` — DeskTime
-- [ ] `devknife` — DevKnife
-- [ ] `devonsphere-express` — DEVONsphere Express
-- [ ] `devonthink` — DEVONthink
-- [ ] `devtoys` — DevToys
-- [ ] `devutils` — DevUtils
-- [ ] `diashapes` — Dia
-- [ ] `dictionaries` — Dictionaries
-- [ ] `diffusionbee` — Diffusion Bee
-- [ ] `digiexam` — digiexam
-- [ ] `digikam` — digiKam
-- [ ] `disk-drill` — Disk Drill
-- [ ] `dockdoor` — DockDoor
-- [ ] `dockfix` — DockFix
-- [ ] `dockside` — Dockside
-- [ ] `dockview` — DockView
-- [ ] `doppler-app` — Doppler
-- [ ] `dot` — Dot
-- [ ] `doughnut` — Doughnut
-- [ ] `downie` — Downie *
-- [ ] `drata-agent` — Drata Agent
-- [ ] `drawbot` — DrawBot
-- [ ] `drivedx` — DriveDX
-- [ ] `dropdmg` — DropDMG
-- [ ] `droplr` — Droplr
-- [ ] `dropshare` — Dropshare *
-- [ ] `dropzone` — Dropzone *
-- [ ] `duckduckgo` — DuckDuckGo
-- [ ] `duet` — Duet
-- [ ] `dupeguru` — dupeGuru
-- [ ] `dymo-connect` — Dymo Connect
-- [ ] `dynalist` — Dynalist
+- [x] `daisydisk` — DaisyDisk
+- [x] `dangerzone` — Dangerzone
+- [x] `darkmodebuddy` — DarkModeBuddy
+- [x] `darktable` — darktable
+- [x] `dataflare` — Dataflare
+- [x] `datagraph` — DataGraph
+- [x] `dataspell` — DataSpell
+- [x] `dayflow` — Dayflow
+- [x] `dbgate` — DbGate
+- [x] `dbvisualizer` — DbVisualizer
+- [x] `debookee` — Debookee
+- [x] `deckset` — Deckset
+- [x] `deezer` — Deezer
+- [x] `default-folder-x` — Default Folder X
+- [x] `descript` — Descript
+- [x] `deskpad` — DeskPad
+- [x] `desktime` — DeskTime
+- [x] `devknife` — DevKnife
+- [x] `devonsphere-express` — DEVONsphere Express
+- [x] `devonthink` — DEVONthink
+- [x] `devtoys` — DevToys
+- [x] `devutils` — DevUtils
+- [x] `diashapes` — Dia
+- [x] `dictionaries` — Dictionaries
+- [x] `diffusionbee` — Diffusion Bee
+- [x] `digiexam` — digiexam
+- [x] `digikam` — digiKam
+- [x] `disk-drill` — Disk Drill
+- [x] `dockdoor` — DockDoor
+- [x] `dockfix` — DockFix
+- [x] `dockside` — Dockside
+- [x] `dockview` — DockView
+- [x] `doppler-app` — Doppler
+- [x] `dot` — Dot
+- [x] `doughnut` — Doughnut
+- [x] `downie` — Downie *
+- [x] `drata-agent` — Drata Agent
+- [x] `drawbot` — DrawBot
+- [x] `drivedx` — DriveDX
+- [x] `dropdmg` — DropDMG
+- [x] `droplr` — Droplr
+- [x] `dropshare` — Dropshare *
+- [x] `dropzone` — Dropzone *
+- [x] `duckduckgo` — DuckDuckGo
+- [x] `duet` — Duet
+- [x] `dupeguru` — dupeGuru
+- [x] `dymo-connect` — Dymo Connect
+- [x] `dynalist` — Dynalist
 
 ## E  (29)
 

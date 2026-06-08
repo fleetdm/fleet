@@ -1,0 +1,10 @@
+{
+  "name": "Doppler",
+  "unique_identifier": "co.brushedtype.doppler-macos",
+  "token": "doppler-app",
+  "installer_format": "zip",
+  "slug": "doppler-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

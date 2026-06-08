@@ -1,0 +1,10 @@
+{
+  "name": "Dia",
+  "unique_identifier": "dia-installer.de",
+  "token": "diashapes",
+  "installer_format": "dmg",
+  "slug": "diashapes/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
