@@ -1,0 +1,9 @@
+{
+   "name": "Pd",
+   "slug": "pd/darwin",
+   "unique_identifier": "org.puredata.pd.pd-gui",
+   "token": "pd",
+   "installer_format": "zip",
+   "default_categories": ["Developer tools"],
+   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/pd-install.sh"
+}

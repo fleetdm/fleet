@@ -611,6 +611,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "CapCut",
+      "slug": "capcut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lemon.lvoverseas",
+      "description": "CapCut is a video editing and image design platform."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
@@ -2151,6 +2158,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Pd",
+      "slug": "pd/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.puredata.pd.pd-gui",
+      "description": "Pd (Pure Data) is a visual programming language for creating interactive computer music and multimedia works."
+    },
+    {
       "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
@@ -2625,6 +2639,13 @@
       "platform": "windows",
       "unique_identifier": "Spotify",
       "description": "Spotify is a music streaming app."
+    },
+    {
+      "name": "SQL Server Management Studio",
+      "slug": "sql-server-management-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "SQL Server Management Studio 22",
+      "description": "SQL Server Management Studio (SSMS) is an integrated environment for managing SQL Server and Azure SQL infrastructure. It provides tools to configure, monitor, and administer database instances, and to build and run queries and scripts."
     },
     {
       "name": "Stats",
