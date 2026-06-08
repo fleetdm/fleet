@@ -1,0 +1,10 @@
+{
+  "name": "Box Tools",
+  "unique_identifier": "com.Box.Box-Edit",
+  "token": "box-tools",
+  "installer_format": "dmg",
+  "slug": "box-tools/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

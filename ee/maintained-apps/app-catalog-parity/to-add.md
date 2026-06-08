@@ -71,47 +71,47 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## B  (41)
 
-- [ ] `background-music` — Background Music
-- [ ] `backlog` — Backlog
-- [ ] `badgeify` — Badgeify
-- [ ] `balsamiq-wireframes` — Balsamiq Wireframes
-- [ ] `bambu-studio` — Bambu Studio
-- [ ] `bartender` — Bartender *
-- [ ] `batfi` — BatFi
-- [ ] `bdash` — Bdash
-- [ ] `beaver-notes` — Beaver Notes
-- [ ] `beeper` — Beeper
-- [ ] `bettermouse` — BetterMouse
-- [ ] `bettertouchtool` — BetterTouchTool
-- [ ] `betterzip` — BetterZip
-- [ ] `bezel` — Bezel
-- [ ] `bibdesk` — BibDesk
-- [ ] `binance` — Binance
-- [ ] `binary-ninja-free` — Binary Ninja
-- [ ] `biscuit` — Biscuit
-- [ ] `bitbox` — BitBox
-- [ ] `bitrix24` — Bitrix24
-- [ ] `bitwig-studio` — Bitwig Studio
-- [ ] `bleunlock` — BLEUnlock
-- [ ] `blip` — blip
-- [ ] `blockblock` — BlockBlock
-- [ ] `bluewallet` — BlueWallet
-- [ ] `blurscreen` — BlurScreen
-- [ ] `boltai` — BoltAI 2
-- [ ] `bome-network` — Bome Network
-- [ ] `boom-3d` — Boom 3D
-- [ ] `boop` — Boop
-- [ ] `boost-note` — Boostnote.Next
-- [ ] `box-tools` — Box Tools
-- [ ] `breaktimer` — BreakTimer
-- [ ] `bricklink-partdesigner` — PartDesigner
-- [ ] `bricklink-studio` — Studio
-- [ ] `browserstacklocal` — BrowserStack Local Testing
-- [ ] `bunch` — Bunch
-- [ ] `busycal` — BusyCal
-- [ ] `busycontacts` — BusyContacts
-- [ ] `buttercup` — Buttercup
-- [ ] `buzz` — Buzz
+- [x] `background-music` — Background Music
+- [x] `backlog` — Backlog
+- [x] `badgeify` — Badgeify
+- [x] `balsamiq-wireframes` — Balsamiq Wireframes
+- [x] `bambu-studio` — Bambu Studio
+- [x] `bartender` — Bartender *
+- [x] `batfi` — BatFi
+- [x] `bdash` — Bdash
+- [x] `beaver-notes` — Beaver Notes
+- [x] `beeper` — Beeper
+- [x] `bettermouse` — BetterMouse
+- [x] `bettertouchtool` — BetterTouchTool
+- [x] `betterzip` — BetterZip
+- [x] `bezel` — Bezel
+- [x] `bibdesk` — BibDesk
+- [x] `binance` — Binance
+- [x] `binary-ninja-free` — Binary Ninja
+- [x] `biscuit` — Biscuit
+- [x] `bitbox` — BitBox
+- [x] `bitrix24` — Bitrix24
+- [x] `bitwig-studio` — Bitwig Studio
+- [x] `bleunlock` — BLEUnlock
+- [x] `blip` — blip
+- [ ] `blockblock` — BlockBlock  — **deferred — cask ships only BlockBlock Installer.app (installer stub), not the resident app bundle**
+- [x] `bluewallet` — BlueWallet
+- [x] `blurscreen` — BlurScreen
+- [x] `boltai` — BoltAI 2
+- [x] `bome-network` — Bome Network
+- [x] `boom-3d` — Boom 3D
+- [x] `boop` — Boop
+- [x] `boost-note` — Boostnote.Next
+- [x] `box-tools` — Box Tools
+- [x] `breaktimer` — BreakTimer
+- [x] `bricklink-partdesigner` — PartDesigner
+- [x] `bricklink-studio` — Studio
+- [ ] `browserstacklocal` — BrowserStack Local Testing  — **deferred — ships as .tar.gz CLI binary, unsupported FMA installer format**
+- [x] `bunch` — Bunch
+- [ ] `busycal` — BusyCal  — **deferred — cask is a .pkg nested inside a .zip, no direct app bundle**
+- [x] `busycontacts` — BusyContacts
+- [x] `buttercup` — Buttercup
+- [x] `buzz` — Buzz
 
 ## C  (59)
 

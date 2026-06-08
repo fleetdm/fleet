@@ -1,0 +1,10 @@
+{
+  "name": "Backlog",
+  "unique_identifier": "com.electron.backlog",
+  "token": "backlog",
+  "installer_format": "zip",
+  "slug": "backlog/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Binary Ninja",
+  "unique_identifier": "com.vector35.binaryninja",
+  "token": "binary-ninja-free",
+  "installer_format": "dmg",
+  "slug": "binary-ninja-free/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

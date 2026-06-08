@@ -1,0 +1,10 @@
+{
+  "name": "BrickLink PartDesigner",
+  "unique_identifier": "com.BrickLink.PartDesigner",
+  "token": "bricklink-partdesigner",
+  "installer_format": "pkg",
+  "slug": "bricklink-partdesigner/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
