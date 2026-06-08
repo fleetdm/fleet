@@ -58,7 +58,10 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		team.ID = uint(id) //nolint:gosec // dismiss G115
 		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
-		return saveTeamSecretsDB(ctx, tx, team)
+		if err := saveTeamSecretsDB(ctx, tx, team); err != nil {
+			return err
+		}
+		return batchNewSoftwareCategoriesDB(ctx, tx, team.ID, fleet.DefaultSelfServiceCategoryNames)
 	})
 	if err != nil {
 		return nil, err
@@ -147,6 +150,7 @@ var teamRefs = []string{
 	"software_title_icons",
 	"software_title_display_names",
 	"vpp_app_configurations",
+	"software_categories",
 }
 
 // teamLabelsRefs are the tables that could be referenced by team labels that

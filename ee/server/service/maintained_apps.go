@@ -9,13 +9,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -180,28 +180,12 @@ func (svc *Service) AddFleetMaintainedApp(
 		PatchQuery:            app.PatchQuery,
 	}
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	// Get the mapping of category names to IDs, filtering out categories that don't exist
-	// This allows apps to be added even if some categories (like "Security" or "Utilities")
-	// don't exist in older versions of Fleet.
-	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, payload.Categories)
+	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
+		return 0, ctxerr.Wrap(ctx, err, "filtering fleet-maintained app categories")
 	}
-
-	// Filter payload.Categories to only include categories that exist in the database
-	var existingCategories []string
-	var existingCategoryIDs []uint
-	for _, catName := range payload.Categories {
-		if catID, exists := categoryMap[catName]; exists {
-			existingCategories = append(existingCategories, catName)
-			existingCategoryIDs = append(existingCategoryIDs, catID)
-		}
-	}
-
-	// Update payload with only the existing categories
-	payload.Categories = existingCategories
-	payload.CategoryIDs = existingCategoryIDs
+	payload.Categories = categories
+	payload.CategoryIDs = catIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)

@@ -502,6 +502,8 @@ type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName st
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
+type SelfServiceInstallAllSoftwareTitlesFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) error
+
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error)
@@ -849,6 +851,16 @@ type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uin
 type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error)
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
+
+type ListSoftwareCategoriesFunc func(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error)
+
+type ListSelfServiceSoftwareCategoriesForHostFunc func(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error)
+
+type NewSoftwareCategoryFunc func(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error)
+
+type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
+
+type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
 
 type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
 
@@ -1652,6 +1664,9 @@ type Service struct {
 	SelfServiceInstallSoftwareTitleFunc        SelfServiceInstallSoftwareTitleFunc
 	SelfServiceInstallSoftwareTitleFuncInvoked bool
 
+	SelfServiceInstallAllSoftwareTitlesFunc        SelfServiceInstallAllSoftwareTitlesFunc
+	SelfServiceInstallAllSoftwareTitlesFuncInvoked bool
+
 	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
 	HasSelfServiceSoftwareInstallersFuncInvoked bool
 
@@ -2173,6 +2188,21 @@ type Service struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	ListSoftwareCategoriesFunc        ListSoftwareCategoriesFunc
+	ListSoftwareCategoriesFuncInvoked bool
+
+	ListSelfServiceSoftwareCategoriesForHostFunc        ListSelfServiceSoftwareCategoriesForHostFunc
+	ListSelfServiceSoftwareCategoriesForHostFuncInvoked bool
+
+	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
+	NewSoftwareCategoryFuncInvoked bool
+
+	UpdateSoftwareCategoryFunc        UpdateSoftwareCategoryFunc
+	UpdateSoftwareCategoryFuncInvoked bool
+
+	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
+	DeleteSoftwareCategoryFuncInvoked bool
 
 	UploadOrgLogoFunc        UploadOrgLogoFunc
 	UploadOrgLogoFuncInvoked bool
@@ -3981,6 +4011,13 @@ func (s *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fle
 	return s.SelfServiceInstallSoftwareTitleFunc(ctx, host, softwareTitleID)
 }
 
+func (s *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+	s.mu.Lock()
+	s.SelfServiceInstallAllSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SelfServiceInstallAllSoftwareTitlesFunc(ctx, host, categoryID)
+}
+
 func (s *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
 	s.mu.Lock()
 	s.HasSelfServiceSoftwareInstallersFuncInvoked = true
@@ -5197,6 +5234,41 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.ListSoftwareCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareCategoriesFunc(ctx, teamID)
+}
+
+func (s *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context, host *fleet.Host) ([]fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.ListSelfServiceSoftwareCategoriesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSelfServiceSoftwareCategoriesForHostFunc(ctx, host)
+}
+
+func (s *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.NewSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewSoftwareCategoryFunc(ctx, teamID, name)
+}
+
+func (s *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.UpdateSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareCategoryFunc(ctx, id, name)
+}
+
+func (s *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSoftwareCategoryFunc(ctx, id)
 }
 
 func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {
