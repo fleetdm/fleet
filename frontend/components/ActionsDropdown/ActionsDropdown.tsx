@@ -345,6 +345,13 @@ const ActionsDropdown = ({
         {...(usePortal && {
           menuPortalTarget: document.body,
           menuPosition: "fixed" as const,
+          // A fixed-position portaled menu is pinned to the viewport, so it
+          // would detach from its row on scroll. Close it instead (unless the
+          // scroll originates from within the menu itself).
+          closeMenuOnScroll: (event: Event) =>
+            !(event.target as HTMLElement)?.closest?.(
+              `.${baseClass}-select__menu-list`
+            ),
         })}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
