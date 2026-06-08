@@ -1,0 +1,10 @@
+{
+  "name": "Pencil",
+  "unique_identifier": "vn.evolus.pencil",
+  "token": "pencil",
+  "installer_format": "dmg",
+  "slug": "pencil/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

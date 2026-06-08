@@ -1,0 +1,10 @@
+{
+  "name": "Proton Pass",
+  "unique_identifier": "me.proton.pass.electron",
+  "token": "proton-pass",
+  "installer_format": "dmg",
+  "slug": "proton-pass/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Permute",
+  "unique_identifier": "com.charliemonroe.Permute-4",
+  "token": "permute",
+  "installer_format": "dmg",
+  "slug": "permute/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "ProtoPie",
+  "unique_identifier": "io.protopie",
+  "token": "protopie",
+  "installer_format": "dmg",
+  "slug": "protopie/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

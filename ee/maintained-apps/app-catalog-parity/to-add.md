@@ -604,64 +604,64 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## P  (58)
 
-- [ ] `pacifist` — Pacifist
-- [ ] `packages` — Packages
-- [ ] `pale-moon` — Pale Moon
-- [ ] `paletro` — Paletro
-- [ ] `parallels-client` — Parallels Client
-- [ ] `parsec` — Parsec
-- [ ] `pastebot` — Pastebot
-- [ ] `path-finder` — Path Finder
-- [ ] `pcoipclient` — Teradici PCoIP Software Client for macOS
-- [ ] `pdf-expert` — PDF Expert
-- [ ] `pdf-pals` — PDF Pals
-- [ ] `pdfsam-basic` — PDFsam Basic
-- [ ] `pearcleaner` — Pearcleaner
-- [ ] `pencil` — Pencil
-- [ ] `perimeter81` — Perimeter 81
-- [ ] `permute` — Permute *
-- [ ] `philips-hue-sync` — Philips Hue Sync
-- [ ] `phoenix` — Phoenix
-- [ ] `phoenix-slides` — Phoenix Slides
-- [ ] `photosrevive` — PhotosRevive
-- [ ] `photostickies` — PhotoStickies
-- [ ] `pibar` — PiBar
-- [ ] `picview` — PicView
-- [ ] `piezo` — Piezo
-- [ ] `pika` — Pika
-- [ ] `pingplotter` — PingPlotter
-- [ ] `piphero` — PiPHero
-- [ ] `pitch` — Pitch
-- [ ] `pixelsnap` — PixelSnap *
-- [ ] `platypus` — Platypus
-- [ ] `plex` — Plex
-- [ ] `plex-htpc` — Plex HTPC
-- [ ] `plex-media-server` — Plex Media Server
-- [ ] `plistedit-pro` — PlistEdit Pro
-- [ ] `popchar` — PopChar X
-- [ ] `popclip` — PopClip
-- [ ] `popsql` — PopSQL
-- [ ] `portfolioperformance` — Portfolio Performance
-- [ ] `positron` — Positron
-- [ ] `postgres-app` — Postgres
-- [ ] `postico` — Postico *
-- [ ] `powerphotos` — PowerPhotos
-- [ ] `preform` — PreForm
-- [ ] `principle` — Principle
-- [ ] `prism` — GraphPad Prism *
-- [ ] `private-internet-access` — Private Internet Access
-- [ ] `prizmo` — Prizmo
-- [ ] `processing` — Processing
-- [ ] `processspy` — ProcessSpy
-- [ ] `pronotes` — ProNotes
-- [ ] `propresenter` — ProPresenter
-- [ ] `proton-drive` — Proton Drive
-- [ ] `proton-mail-bridge` — Proton Mail Bridge
-- [ ] `proton-meet` — Proton Meet
-- [ ] `proton-pass` — Proton Pass
-- [ ] `protopie` — ProtoPie
-- [ ] `pulsar` — Pulsar
-- [ ] `purevpn` — PureVPN
+- [x] `pacifist` — Pacifist
+- [x] `packages` — Packages
+- [x] `pale-moon` — Pale Moon
+- [x] `paletro` — Paletro
+- [x] `parallels-client` — Parallels Client
+- [x] `parsec` — Parsec
+- [x] `pastebot` — Pastebot
+- [x] `path-finder` — Path Finder
+- [x] `pcoipclient` — Teradici PCoIP Software Client for macOS
+- [x] `pdf-expert` — PDF Expert
+- [x] `pdf-pals` — PDF Pals
+- [x] `pdfsam-basic` — PDFsam Basic
+- [x] `pearcleaner` — Pearcleaner
+- [x] `pencil` — Pencil
+- [x] `perimeter81` — Perimeter 81
+- [x] `permute` — Permute *
+- [x] `philips-hue-sync` — Philips Hue Sync
+- [ ] `phoenix` — Phoenix  — **deferred — unsupported installer format**
+- [x] `phoenix-slides` — Phoenix Slides
+- [x] `photosrevive` — PhotosRevive
+- [x] `photostickies` — PhotoStickies
+- [x] `pibar` — PiBar
+- [x] `picview` — PicView
+- [x] `piezo` — Piezo
+- [x] `pika` — Pika
+- [x] `pingplotter` — PingPlotter
+- [x] `piphero` — PiPHero
+- [x] `pitch` — Pitch
+- [x] `pixelsnap` — PixelSnap *
+- [x] `platypus` — Platypus
+- [x] `plex` — Plex
+- [x] `plex-htpc` — Plex HTPC
+- [x] `plex-media-server` — Plex Media Server
+- [x] `plistedit-pro` — PlistEdit Pro
+- [x] `popchar` — PopChar X
+- [x] `popclip` — PopClip
+- [x] `popsql` — PopSQL
+- [x] `portfolioperformance` — Portfolio Performance
+- [x] `positron` — Positron
+- [x] `postgres-app` — Postgres
+- [x] `postico` — Postico *
+- [x] `powerphotos` — PowerPhotos
+- [x] `preform` — PreForm
+- [x] `principle` — Principle
+- [x] `prism` — GraphPad Prism *
+- [x] `private-internet-access` — Private Internet Access
+- [x] `prizmo` — Prizmo
+- [x] `processing` — Processing
+- [x] `processspy` — ProcessSpy
+- [x] `pronotes` — ProNotes
+- [x] `propresenter` — ProPresenter
+- [x] `proton-drive` — Proton Drive
+- [x] `proton-mail-bridge` — Proton Mail Bridge
+- [x] `proton-meet` — Proton Meet
+- [x] `proton-pass` — Proton Pass
+- [x] `protopie` — ProtoPie
+- [x] `pulsar` — Pulsar
+- [x] `purevpn` — PureVPN
 
 ## Q  (6)
 

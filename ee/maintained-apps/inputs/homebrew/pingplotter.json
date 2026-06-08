@@ -1,0 +1,10 @@
+{
+  "name": "PingPlotter",
+  "unique_identifier": "com.pingman.pingplotter.mac",
+  "token": "pingplotter",
+  "installer_format": "zip",
+  "slug": "pingplotter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

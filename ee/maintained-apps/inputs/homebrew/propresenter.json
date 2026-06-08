@@ -1,0 +1,10 @@
+{
+  "name": "ProPresenter",
+  "unique_identifier": "com.renewedvision.ProPresenter21",
+  "token": "propresenter",
+  "installer_format": "zip",
+  "slug": "propresenter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
