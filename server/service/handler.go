@@ -922,6 +922,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/uninstall/{software_title_id}", submitDeviceSoftwareUninstall, fleetDeviceSoftwareUninstallRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint, getDeviceSoftwareInstallResultsRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
+	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/self_service_categories", getDeviceSelfServiceCategoriesEndpoint, getDeviceSelfServiceCategoriesRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
