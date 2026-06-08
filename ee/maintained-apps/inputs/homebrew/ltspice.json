@@ -1,0 +1,10 @@
+{
+  "name": "LTspice",
+  "unique_identifier": "com.analog.LTspice.App",
+  "token": "ltspice",
+  "installer_format": "pkg",
+  "slug": "ltspice/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

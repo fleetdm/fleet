@@ -1,0 +1,10 @@
+{
+  "name": "Licensed",
+  "unique_identifier": "com.asagoo.licensed",
+  "token": "licensed-app",
+  "installer_format": "dmg",
+  "slug": "licensed-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

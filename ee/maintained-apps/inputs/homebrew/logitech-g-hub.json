@@ -1,0 +1,10 @@
+{
+  "name": "Logitech G HUB",
+  "unique_identifier": "com.logi.ghub",
+  "token": "logitech-g-hub",
+  "installer_format": "zip",
+  "slug": "logitech-g-hub/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

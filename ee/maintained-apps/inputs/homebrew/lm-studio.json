@@ -1,0 +1,10 @@
+{
+  "name": "LM Studio",
+  "unique_identifier": "ai.elementlabs.lmstudio",
+  "token": "lm-studio",
+  "installer_format": "dmg",
+  "slug": "lm-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

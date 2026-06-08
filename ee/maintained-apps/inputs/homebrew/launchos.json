@@ -1,0 +1,10 @@
+{
+  "name": "LaunchOS",
+  "unique_identifier": "app.remixdesign.LaunchOS",
+  "token": "launchos",
+  "installer_format": "dmg",
+  "slug": "launchos/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

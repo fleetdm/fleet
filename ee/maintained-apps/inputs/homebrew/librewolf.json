@@ -1,0 +1,10 @@
+{
+  "name": "LibreWolf",
+  "unique_identifier": "io.gitlab.librewolf-community.librewolf",
+  "token": "librewolf",
+  "installer_format": "dmg",
+  "slug": "librewolf/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

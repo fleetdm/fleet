@@ -422,41 +422,41 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## L  (35)
 
-- [ ] `lapce` — Lapce
-- [ ] `lasso-app` — Lasso
-- [ ] `last-window-quits` — Last Window Quits
-- [ ] `latest` — Latest
-- [ ] `launchbar` — LaunchBar
-- [ ] `launchcontrol` — LaunchControl
-- [ ] `launchos` — LaunchOS
-- [ ] `librecad` — LibreCAD
-- [ ] `libreoffice` — LibreOffice
-- [ ] `librewolf` — LibreWolf
-- [ ] `licensed-app` — Licensed
-- [ ] `lifesize` — lifesize
-- [ ] `lightburn` — LightBurn
-- [ ] `linearmouse` — LinearMouse
-- [ ] `lingon-x` — Lingon X *
-- [ ] `lm-studio` — LM Studio
-- [ ] `lo-rain` — lo-rain
-- [ ] `local` — Local
-- [ ] `localsend` — LocalSend
-- [ ] `locationsimulator` — LocationSimulator
-- [ ] `logitech-g-hub` — Logitech G HUB
-- [ ] `logseq` — Logseq
-- [ ] `lookaway` — LookAway
-- [ ] `loop` — Loop
-- [ ] `loopback` — Loopback
-- [ ] `losslesscut` — LosslessCut
-- [ ] `loupedeck` — Loupdeck
-- [ ] `low-profile` — Low Profile
-- [ ] `ltspice` — LTspice
-- [ ] `lunacy` — Lunacy
-- [ ] `lunar` — Lunar
-- [ ] `lunasea` — LunaSea
-- [ ] `lunatask` — Lunatask
-- [ ] `lycheeslicer` — Lychee Slicer
-- [ ] `lyx` — LyX
+- [x] `lapce` — Lapce
+- [x] `lasso-app` — Lasso
+- [x] `last-window-quits` — Last Window Quits
+- [x] `latest` — Latest
+- [x] `launchbar` — LaunchBar
+- [ ] `launchcontrol` — LaunchControl  — **deferred — unsupported installer format**
+- [x] `launchos` — LaunchOS
+- [x] `librecad` — LibreCAD
+- [x] `libreoffice` — LibreOffice
+- [x] `librewolf` — LibreWolf
+- [x] `licensed-app` — Licensed
+- [x] `lifesize` — lifesize
+- [x] `lightburn` — LightBurn
+- [x] `linearmouse` — LinearMouse
+- [x] `lingon-x` — Lingon X *
+- [x] `lm-studio` — LM Studio
+- [x] `lo-rain` — lo-rain
+- [x] `local` — Local
+- [x] `localsend` — LocalSend
+- [x] `locationsimulator` — LocationSimulator
+- [x] `logitech-g-hub` — Logitech G HUB
+- [x] `logseq` — Logseq
+- [x] `lookaway` — LookAway
+- [x] `loop` — Loop
+- [x] `loopback` — Loopback
+- [x] `losslesscut` — LosslessCut
+- [x] `loupedeck` — Loupdeck
+- [x] `low-profile` — Low Profile
+- [x] `ltspice` — LTspice
+- [x] `lunacy` — Lunacy
+- [x] `lunar` — Lunar
+- [x] `lunasea` — LunaSea
+- [x] `lunatask` — Lunatask
+- [x] `lycheeslicer` — Lychee Slicer
+- [x] `lyx` — LyX
 
 ## M  (71)
 

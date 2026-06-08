@@ -1,0 +1,10 @@
+{
+  "name": "Loupdeck",
+  "unique_identifier": "com.loupedeck.Loupedeck2",
+  "token": "loupedeck",
+  "installer_format": "dmg",
+  "slug": "loupedeck/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
