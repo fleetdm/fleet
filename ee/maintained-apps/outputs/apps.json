@@ -3157,8 +3157,8 @@
       "platform": "darwin",
       "unique_identifier": "com.github.CopilotForXcode",
       "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
-    ),
-    (
+    },
+    {
       "name": "Git",
       "slug": "git/windows",
       "platform": "windows",
