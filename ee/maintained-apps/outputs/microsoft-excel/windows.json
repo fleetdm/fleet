@@ -1,11 +1,11 @@
 {
   "versions": [
     {
-      "version": "16.0.19426.20170",
+      "version": "16.0.19929.20090",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Excel' AND publisher = 'Microsoft Corporation';"
       },
-      "installer_url": "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19426-20170.exe",
+      "installer_url": "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19929-20090.exe",
       "install_script_ref": "18ece7ec",
       "uninstall_script_ref": "f5205026",
       "sha256": "no_check",

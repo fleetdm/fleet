@@ -21,6 +21,18 @@ import (
 
 var preInstalled = []string{}
 
+// officeODTApps are Microsoft Office apps installed via the Office Deployment Tool (ODT).
+// Their installed version (the Microsoft 365 build) never matches the ODT installer version,
+// so the validator verifies existence only and skips the version comparison for these.
+var officeODTApps = map[string]bool{
+	"Microsoft Access":     true,
+	"Microsoft Excel":      true,
+	"Microsoft OneNote":    true,
+	"Microsoft Outlook":    true,
+	"Microsoft PowerPoint": true,
+	"Microsoft Word":       true,
+}
+
 func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
@@ -99,12 +111,12 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 				return true, nil
 			}
 
-			// Microsoft Excel installed via Office Deployment Tool (ODT) has a different version
-			// than the ODT installer version. The ODT version (e.g., 16.0.19426.20170) doesn't match
-			// the installed Excel version (e.g., the Office/Microsoft 365 version).
-			// We only verify that Excel exists rather than checking the version.
-			if appName == "Microsoft Excel" {
-				level.Info(logger).Log("msg", "Microsoft Excel detected - skipping version check (ODT version doesn't match installed Excel version)")
+			// Microsoft Office apps installed via the Office Deployment Tool (ODT) report a
+			// different version than the ODT installer. The ODT version (e.g., 16.0.19929.20090)
+			// doesn't match the installed Office/Microsoft 365 app version, so we only verify
+			// that the app exists rather than checking the version.
+			if officeODTApps[appName] {
+				level.Info(logger).Log("msg", fmt.Sprintf("%s detected - skipping version check (ODT version doesn't match installed Office app version)", appName))
 				return true, nil
 			}
 

@@ -3,7 +3,7 @@
   "slug": "microsoft-excel/windows",
   "package_identifier": "Microsoft.OfficeDeploymentTool",
   "unique_identifier": "Microsoft Excel",
-  "installer_arch": "x64",
+  "installer_arch": "x86",
   "installer_type": "exe",
   "installer_scope": "machine",
   "ignore_hash": true,
