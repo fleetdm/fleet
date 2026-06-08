@@ -203,12 +203,13 @@ SELECT
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
 	-- policy_id: the team policy whose install-software automation points at this installer (lowest id on ties), used as a gate
-	-- during setup experience. teamID 0 ("No team") maps to policies.team_id IS NULL via NULLIF so global policies gate No-team
-	-- hosts. Only Windows/Linux are gated; the platform guard keeps this NULL on Apple platforms.
+	-- during setup experience. Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller (the automation's
+	-- lookup): "No team" policies and installers both use 0, so a No-team host (teamID 0) is gated by its team_id = 0 policy.
+	-- Only Windows/Linux are gated; the platform guard keeps this NULL on Apple platforms.
 	(SELECT MIN(p.id)
 		FROM policies p
 		WHERE p.software_installer_id = si.id
-		AND p.team_id <=> NULLIF(?, 0)
+		AND p.team_id = ?
 		AND ? IN ('windows', 'linux')) AS policy_id,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si

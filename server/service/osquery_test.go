@@ -4980,3 +4980,65 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, installCalled, "newly-failing VPP install should fire regardless of cooldown")
 }
+
+// TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience verifies that a failing install-software policy does
+// NOT enqueue an automation install while the host is in setup experience (setup experience performs that install itself), and
+// that it installs normally otherwise.
+func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{ID: policyID, InstallerID: installerID}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "windows"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) { return true, nil }
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	t.Run("suppressed when the policy gates an in-setup item", func(t *testing.T) {
+		insertCalled = false
+		ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+			return []uint{policyID}, nil
+		}
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
+		require.False(t, insertCalled, "policy automation must be suppressed during setup experience")
+	})
+
+	t.Run("fires when the host is not in setup experience", func(t *testing.T) {
+		insertCalled = false
+		ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+			return nil, nil
+		}
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
+		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
+	})
+
+	t.Run("empty setup uuid skips the suppression lookup entirely", func(t *testing.T) {
+		insertCalled = false
+		ds.GetSetupExperiencePolicyIDsForHostFuncInvoked = false
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+		require.True(t, insertCalled)
+		require.False(t, ds.GetSetupExperiencePolicyIDsForHostFuncInvoked, "no setup-experience lookup when uuid is empty")
+	})
+}

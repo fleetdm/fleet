@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -37,6 +38,8 @@ func TestSetupExperience(t *testing.T) {
 		{"EnqueueSetupExperienceItemsWithDisplayName", testEnqueueSetupExperienceItemsWithDisplayName},
 		{"UpdateStatusGuardsTerminalStates", testUpdateStatusGuardsTerminalStates},
 		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
+		{"PolicyGate", testSetupExperiencePolicyGate},
+		{"PolicyGateResultLookups", testSetupExperiencePolicyGateResultLookups},
 	}
 
 	for _, c := range cases {
@@ -1587,7 +1590,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			HostUUID:            hostUUID,
 			Name:                "Test Software",
 			Status:              fleet.SetupExperienceStatusPending,
-			SoftwareInstallerID: ptr.Uint(installerID),
+			SoftwareInstallerID: &installerID,
 			SoftwareTitleID:     installer.TitleID,
 			Source:              ptr.String("apps"),
 		},
@@ -2195,4 +2198,230 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 	require.Len(t, rows, 2)
 	require.False(t, rows[0].InSetup, "cached inactive v1.0 must not be marked install_during_setup")
 	require.True(t, rows[1].InSetup, "active v2.0 should be marked install_during_setup")
+}
+
+// testSetupExperiencePolicyGate verifies that EnqueueSetupExperienceItems records the gating policy_id on Windows/Linux
+// setup-experience software rows (and only those), and that GetSetupExperiencePolicyIDsForHost returns the host's non-terminal
+// gating policy IDs.
+func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "PG User", "pg-user@example.com", true)
+
+	storageCounter := 0
+	newSetupInstaller := func(title, platform, ext, source string, teamID *uint) uint {
+		storageCounter++
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("installer"), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "echo install",
+			InstallerFile:   tfr,
+			StorageID:       fmt.Sprintf("pg-storage-%d", storageCounter),
+			Filename:        title + "." + ext,
+			Title:           title,
+			Version:         "1.0",
+			Source:          source,
+			UserID:          user.ID,
+			TeamID:          teamID,
+			Platform:        platform,
+			Extension:       ext,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", id)
+			return e
+		})
+		return id
+	}
+
+	// readPolicyIDs returns a map of software-item name -> recorded policy_id for the host's setup-experience rows.
+	readPolicyIDs := func(hostUUID string) map[string]*uint {
+		var rows []struct {
+			Name     string `db:"name"`
+			PolicyID *uint  `db:"policy_id"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, "SELECT name, policy_id FROM setup_experience_status_results WHERE host_uuid = ?", hostUUID)
+		})
+		out := map[string]*uint{}
+		for _, r := range rows {
+			out[r.Name] = r.PolicyID
+		}
+		return out
+	}
+
+	t.Run("windows installer with associated team policy records policy_id", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-win-associated"})
+		require.NoError(t, err)
+		installerID := newSetupInstaller("WinGated", "windows", "msi", "programs", &team.ID)
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "win-gate",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		hostUUID := "win-associated-" + uuid.NewString()
+		enabled, err := ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", hostUUID, team.ID)
+		require.NoError(t, err)
+		require.True(t, enabled)
+
+		ids := readPolicyIDs(hostUUID)
+		require.Contains(t, ids, "WinGated")
+		require.NotNil(t, ids["WinGated"])
+		require.Equal(t, policy.ID, *ids["WinGated"])
+
+		// GetSetupExperiencePolicyIDsForHost returns the gating policy while the item is pending.
+		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{policy.ID}, gated)
+
+		// Once the item is terminal, it is no longer returned (the gate is done).
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx, "UPDATE setup_experience_status_results SET status = 'success' WHERE host_uuid = ?", hostUUID)
+			return e
+		})
+		gated, err = ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Empty(t, gated)
+	})
+
+	t.Run("windows installer without an associated policy is not gated", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-win-none"})
+		require.NoError(t, err)
+		newSetupInstaller("WinUngated", "windows", "msi", "programs", &team.ID)
+
+		hostUUID := "win-ungated-" + uuid.NewString()
+		_, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", hostUUID, team.ID)
+		require.NoError(t, err)
+
+		ids := readPolicyIDs(hostUUID)
+		require.Contains(t, ids, "WinUngated")
+		require.Nil(t, ids["WinUngated"])
+
+		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Empty(t, gated)
+	})
+
+	t.Run("macOS installer with an associated policy is never gated", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-mac"})
+		require.NoError(t, err)
+		installerID := newSetupInstaller("MacApp", "darwin", "pkg", "apps", &team.ID)
+		_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "mac-gate",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		hostUUID := "mac-" + uuid.NewString()
+		_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+		require.NoError(t, err)
+
+		ids := readPolicyIDs(hostUUID)
+		require.Contains(t, ids, "MacApp")
+		require.Nil(t, ids["MacApp"], "Apple-platform setup-experience items must never be policy-gated")
+	})
+
+	t.Run("No-team host is gated by a global policy", func(t *testing.T) {
+		// global installer (global_or_team_id = 0) and a No-team policy (team_id NULL).
+		installerID := newSetupInstaller("NoTeamGated", "windows", "msi", "programs", nil)
+		policy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user.ID, fleet.PolicyPayload{
+			Name:                "no-team-gate",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		hostUUID := "no-team-" + uuid.NewString()
+		_, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", hostUUID, 0)
+		require.NoError(t, err)
+
+		ids := readPolicyIDs(hostUUID)
+		require.Contains(t, ids, "NoTeamGated")
+		require.NotNil(t, ids["NoTeamGated"], "global policy must gate a No-team host (teamID 0 maps to team_id IS NULL)")
+		require.Equal(t, policy.ID, *ids["NoTeamGated"])
+	})
+}
+
+// testSetupExperiencePolicyGateResultLookups verifies GetSetupExperiencePolicyResult freshness handling and
+// PolicyQueriesForHostFiltered scoping.
+func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "PG2 User", "pg2-user@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-lookups"})
+	require.NoError(t, err)
+
+	enrolledAt := time.Now().UTC().Truncate(time.Second)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "pg-lookup-host",
+		OsqueryHostID:  new("pg-lookup-osquery"),
+		NodeKey:        new("pg-lookup-nodekey"),
+		UUID:           "pg-lookup-uuid",
+		Platform:       "windows",
+		TeamID:         &team.ID,
+		LastEnrolledAt: enrolledAt,
+	})
+	require.NoError(t, err)
+
+	policyPass, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "pass", Query: "SELECT 1;", Platform: "windows"})
+	require.NoError(t, err)
+	policyFail, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "fail", Query: "SELECT 1;", Platform: "windows"})
+	require.NoError(t, err)
+	policyOther, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "other", Query: "SELECT 1;", Platform: "windows"})
+	require.NoError(t, err)
+
+	t.Run("GetSetupExperiencePolicyResult freshness", func(t *testing.T) {
+		// No membership row yet -> nil (still waiting).
+		res, err := ds.GetSetupExperiencePolicyResult(ctx, host.ID, policyPass.ID, enrolledAt)
+		require.NoError(t, err)
+		require.Nil(t, res)
+
+		// A fresh passing result (updated_at >= enrolledAt) is returned.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx,
+				"INSERT INTO policy_membership (policy_id, host_id, passes, updated_at) VALUES (?, ?, 1, ?)",
+				policyPass.ID, host.ID, enrolledAt.Add(time.Minute))
+			return e
+		})
+		res, err = ds.GetSetupExperiencePolicyResult(ctx, host.ID, policyPass.ID, enrolledAt)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.True(t, *res)
+
+		// A stale result (updated_at < enrolledAt, i.e. from a previous enrollment) is ignored.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx,
+				"INSERT INTO policy_membership (policy_id, host_id, passes, updated_at) VALUES (?, ?, 0, ?)",
+				policyFail.ID, host.ID, enrolledAt.Add(-time.Hour))
+			return e
+		})
+		res, err = ds.GetSetupExperiencePolicyResult(ctx, host.ID, policyFail.ID, enrolledAt)
+		require.NoError(t, err)
+		require.Nil(t, res, "a result recorded before last_enrolled_at must be treated as stale")
+	})
+
+	t.Run("PolicyQueriesForHostFiltered returns only requested in-scope policies", func(t *testing.T) {
+		// Restrict to policyPass and policyFail; policyOther must not be returned.
+		queries, err := ds.PolicyQueriesForHostFiltered(ctx, host, []uint{policyPass.ID, policyFail.ID})
+		require.NoError(t, err)
+		require.Len(t, queries, 2)
+		require.Contains(t, queries, fmt.Sprint(policyPass.ID))
+		require.Contains(t, queries, fmt.Sprint(policyFail.ID))
+		require.NotContains(t, queries, fmt.Sprint(policyOther.ID))
+
+		// Empty input -> empty result (no full-team fallback).
+		queries, err = ds.PolicyQueriesForHostFiltered(ctx, host, nil)
+		require.NoError(t, err)
+		require.Empty(t, queries)
+	})
+
+	t.Run("PolicyQueriesForHostFiltered excludes a platform-scoped-out policy (out-of-scope fallback)", func(t *testing.T) {
+		darwinOnly, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "darwin-only", Query: "SELECT 1;", Platform: "darwin"})
+		require.NoError(t, err)
+		queries, err := ds.PolicyQueriesForHostFiltered(ctx, host, []uint{darwinOnly.ID})
+		require.NoError(t, err)
+		require.Empty(t, queries, "a policy whose platform scope excludes the windows host must not be returned")
+	})
 }

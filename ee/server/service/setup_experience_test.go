@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -306,5 +307,153 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 			err := svc.SetSetupExperienceSoftware(ctx, platform, 0, []uint{1, 2})
 			require.NoError(t, err)
 		}
+	})
+}
+
+// TestSetupExperienceNextStepPolicyGated covers the policy-gated (Windows/Linux) branch of SetupExperienceNextStep: the policy is
+// used only as a gate (pass -> skip, fail -> install via the normal ForSetupExperience path), the item is held running while
+// awaiting a fresh result, and an out-of-scope gating policy falls back to installing.
+func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	hostUUID := "win-osquery"
+	installerID := uint(7)
+	policyID := uint(99)
+
+	host := &fleet.Host{
+		UUID:          "win-uuid",
+		OsqueryHostID: ptr.String(hostUUID),
+		Platform:      "windows",
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) { return true, nil }
+
+	var items []*fleet.SetupExperienceStatusResult
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return items, nil
+	}
+
+	var installs []fleet.HostSoftwareInstallOptions
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		installs = append(installs, opts)
+		return "gated-install-uuid", nil
+	}
+	var updates []*fleet.SetupExperienceStatusResult
+	ds.UpdateSetupExperienceStatusResultFunc = func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+		updates = append(updates, status)
+		return nil
+	}
+
+	// Defaults; individual subtests override.
+	var policyResult *bool
+	ds.GetSetupExperiencePolicyResultFunc = func(ctx context.Context, hostID, gotPolicyID uint, since time.Time) (*bool, error) {
+		return policyResult, nil
+	}
+	var deliverable map[string]string
+	ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
+		return deliverable, nil
+	}
+
+	reset := func() {
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
+		installs = nil
+		updates = nil
+		policyResult = nil
+		deliverable = nil
+	}
+
+	gatedPending := func() []*fleet.SetupExperienceStatusResult {
+		return []*fleet.SetupExperienceStatusResult{{
+			HostUUID:            hostUUID,
+			Name:                "GatedApp",
+			SoftwareInstallerID: &installerID,
+			PolicyID:            &policyID,
+			Status:              fleet.SetupExperienceStatusPending,
+		}}
+	}
+
+	t.Run("policy passes -> skipped (success, no install)", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = new(true)
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked, "passing policy must not install")
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
+		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("policy fails -> install via ForSetupExperience path (no PolicyID on the install)", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = new(false)
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.Len(t, installs, 1)
+		require.True(t, installs[0].ForSetupExperience, "gated install must run as a setup-experience install")
+		require.Nil(t, installs[0].PolicyID, "setup experience owns the install; it must not be a policy-automation install")
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("no result yet, policy in scope -> stays running, no install", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = nil
+		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("no result, policy out of scope -> falls back to installing", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = nil
+		deliverable = map[string]string{} // out of scope: not deliverable
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.Len(t, installs, 1)
+		require.True(t, installs[0].ForSetupExperience)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
+	})
+
+	t.Run("running gated item awaiting policy is re-checked each poll", func(t *testing.T) {
+		reset()
+		// Already running, no install execution yet -> awaiting-policy phase.
+		items = []*fleet.SetupExperienceStatusResult{{
+			HostUUID:            hostUUID,
+			Name:                "GatedApp",
+			SoftwareInstallerID: &installerID,
+			PolicyID:            &policyID,
+			Status:              fleet.SetupExperienceStatusRunning,
+		}}
+		policyResult = new(true) // result now available
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
 	})
 }
