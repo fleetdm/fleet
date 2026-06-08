@@ -1,0 +1,10 @@
+{
+  "name": "NameChanger",
+  "unique_identifier": "com.mrrsoftware.NameChanger",
+  "token": "namechanger",
+  "installer_format": "zip",
+  "slug": "namechanger/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

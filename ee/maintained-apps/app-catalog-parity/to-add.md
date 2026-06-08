@@ -534,34 +534,34 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## N  (28)
 
-- [ ] `nagstamon` — Nagstamon
-- [ ] `name-mangler` — Name Mangler
-- [ ] `namechanger` — NameChanger
-- [ ] `naps2` — NAPS2
-- [ ] `native-access` — Native Access *
-- [ ] `ndi-tools` — NDI Tools
-- [ ] `neo-network-utility` — Neo Network Utility
-- [ ] `neofinder` — NeoFinder
-- [ ] `netiquette` — Netiquette
-- [ ] `netnewswire` — NetNewsWire
-- [ ] `netron` — Netron
-- [ ] `netspot` — NetSpot
-- [ ] `nextcloud-talk` — Nextcloud Talk Desktop
-- [ ] `nightfall` — Nightfall
-- [ ] `nitro-pdf-pro` — Nitro PDF Pro
-- [ ] `nocturnal` — Nocturnal
-- [ ] `nomad-menu` — NoMAD
-- [ ] `nordlayer` — NordLayer
-- [ ] `nosql-workbench` — NoSQL Workbench
-- [ ] `notchnook` — NotchNook
-- [ ] `notepadexe` — Notepad.exe
-- [ ] `notesnook` — Notesnook
-- [ ] `notesollama` — NotesOllama
-- [ ] `noun-project` — Noun Project
-- [ ] `novabench` — Novabench
-- [ ] `nucleo` — Nucleo
-- [ ] `numi` — Numi
-- [ ] `nvidia-geforce-now` — NVIDIA GeForce NOW
+- [x] `nagstamon` — Nagstamon
+- [x] `name-mangler` — Name Mangler
+- [x] `namechanger` — NameChanger
+- [x] `naps2` — NAPS2
+- [x] `native-access` — Native Access *
+- [x] `ndi-tools` — NDI Tools
+- [x] `neo-network-utility` — Neo Network Utility
+- [x] `neofinder` — NeoFinder
+- [x] `netiquette` — Netiquette
+- [x] `netnewswire` — NetNewsWire
+- [x] `netron` — Netron
+- [x] `netspot` — NetSpot
+- [x] `nextcloud-talk` — Nextcloud Talk Desktop
+- [x] `nightfall` — Nightfall
+- [x] `nitro-pdf-pro` — Nitro PDF Pro
+- [x] `nocturnal` — Nocturnal
+- [x] `nomad-menu` — NoMAD
+- [x] `nordlayer` — NordLayer
+- [x] `nosql-workbench` — NoSQL Workbench
+- [x] `notchnook` — NotchNook
+- [x] `notepadexe` — Notepad.exe
+- [x] `notesnook` — Notesnook
+- [x] `notesollama` — NotesOllama
+- [x] `noun-project` — Noun Project
+- [x] `novabench` — Novabench
+- [x] `nucleo` — Nucleo
+- [x] `numi` — Numi
+- [x] `nvidia-geforce-now` — NVIDIA GeForce NOW
 
 ## O  (36)
 

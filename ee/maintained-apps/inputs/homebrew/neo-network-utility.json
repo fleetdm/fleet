@@ -1,0 +1,10 @@
+{
+  "name": "Neo Network Utility",
+  "unique_identifier": "com.devon-technologies.network-utility",
+  "token": "neo-network-utility",
+  "installer_format": "zip",
+  "slug": "neo-network-utility/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

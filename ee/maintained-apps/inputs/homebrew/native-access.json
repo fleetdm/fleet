@@ -1,0 +1,10 @@
+{
+  "name": "Native Access",
+  "unique_identifier": "com.native-instruments.nativeaccess2",
+  "token": "native-access",
+  "installer_format": "zip",
+  "slug": "native-access/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
