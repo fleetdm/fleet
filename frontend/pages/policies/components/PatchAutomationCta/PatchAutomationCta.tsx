@@ -27,24 +27,21 @@ const PatchAutomationCta = ({
   isAddingAutomation,
 }: IPatchAutomationCtaProps): JSX.Element | null => {
   const isPatchPolicy = storedPolicy.type === "patch";
-  const hasPatchSoftware = !!storedPolicy.patch_software;
   const hasSoftwareAutomation = !!storedPolicy.install_software;
 
   if (
     !isPatchPolicy ||
-    !hasPatchSoftware ||
+    !storedPolicy.patch_software ||
     hasSoftwareAutomation ||
     !canEditPolicy
   ) {
     return null;
   }
 
-  const patchSoftwareName = storedPolicy.patch_software
-    ? getDisplayedSoftwareName(
-        storedPolicy.patch_software.name,
-        storedPolicy.patch_software.display_name
-      )
-    : "";
+  const patchSoftwareName = getDisplayedSoftwareName(
+    storedPolicy.patch_software.name,
+    storedPolicy.patch_software.display_name
+  );
 
   return (
     <div className={baseClass}>
