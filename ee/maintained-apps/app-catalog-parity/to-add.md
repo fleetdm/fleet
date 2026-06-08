@@ -260,49 +260,49 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## F  (43)
 
-- [ ] `fantastical` — Fantastical
-- [ ] `far2l` — far2l
-- [ ] `farrago` — Farrago
-- [ ] `fastmail` — Fastmail
-- [ ] `fastscripts` — FastScripts *
-- [ ] `fathom` — Fathom
-- [ ] `fellow` — Fellow
-- [ ] `ferdium` — Ferdium
-- [ ] `fetch-app` — Fetch
-- [ ] `ff-works` — ff·Works *
-- [ ] `fig` — fig
-- [ ] `file-juicer` — File Juicer
-- [ ] `filen` — Filen
-- [ ] `fing` — Fing Desktop
-- [ ] `firealpaca` — Fire Alpaca
-- [ ] `firefly-iota-desktop` — Firefly
-- [ ] `firefly-shimmer` — Firefly Shimmer
-- [ ] `firefox@developer-edition` — Mozilla Firefox Developer Edition
-- [ ] `fission` — Fission
-- [ ] `flexoptix` — FLEXOPTIX App
-- [ ] `flotato` — Flotato
-- [ ] `flowvision` — FlowVision
-- [ ] `fluid` — Fluid
-- [ ] `flux-app` — f.lux
-- [ ] `focusrite-control-2` — Focusrite Control 2
-- [ ] `folx` — Folx
-- [ ] `font-go` — Go
-- [ ] `font-medio` — Medio
-- [ ] `fontbase` — FontBase
-- [ ] `fontforge-app` — FontForge
-- [ ] `fontlab` — Fontlab *
-- [ ] `forecast` — Forecast
-- [ ] `forklift` — ForkLift *
-- [ ] `framer` — Framer
-- [ ] `franz` — Franz
-- [ ] `free-download-manager` — Free Download Manager
-- [ ] `free-ruler` — Free Ruler
-- [ ] `freecad` — FreeCAD
-- [ ] `freefilesync` — FreeFileSync
-- [ ] `fsmonitor` — FSMonitor
-- [ ] `fujitsu-scansnap-home` — ScanSnap Home
-- [ ] `funter` — Funter
-- [ ] `fuse-t` — FUSE-T
+- [x] `fantastical` — Fantastical
+- [x] `far2l` — far2l
+- [x] `farrago` — Farrago
+- [x] `fastmail` — Fastmail
+- [x] `fastscripts` — FastScripts *
+- [ ] `fathom` — Fathom  — **deferred — no .app in dmg**
+- [x] `fellow` — Fellow
+- [x] `ferdium` — Ferdium
+- [x] `fetch-app` — Fetch
+- [x] `ff-works` — ff·Works *
+- [x] `fig` — fig
+- [x] `file-juicer` — File Juicer
+- [x] `filen` — Filen
+- [x] `fing` — Fing Desktop
+- [x] `firealpaca` — Fire Alpaca
+- [x] `firefly-iota-desktop` — Firefly
+- [x] `firefly-shimmer` — Firefly Shimmer
+- [x] `firefox@developer-edition` — Mozilla Firefox Developer Edition
+- [x] `fission` — Fission
+- [x] `flexoptix` — FLEXOPTIX App
+- [x] `flotato` — Flotato
+- [x] `flowvision` — FlowVision
+- [x] `fluid` — Fluid
+- [x] `flux-app` — f.lux
+- [x] `focusrite-control-2` — Focusrite Control 2
+- [x] `folx` — Folx
+- [ ] `font-go` — Go  — **deferred — tar.gz unsupported**
+- [ ] `font-medio` — Medio  — **deferred — no .app in zip**
+- [x] `fontbase` — FontBase
+- [x] `fontforge-app` — FontForge
+- [x] `fontlab` — Fontlab *
+- [x] `forecast` — Forecast
+- [x] `forklift` — ForkLift *
+- [x] `framer` — Framer
+- [x] `franz` — Franz
+- [x] `free-download-manager` — Free Download Manager
+- [x] `free-ruler` — Free Ruler
+- [x] `freecad` — FreeCAD
+- [x] `freefilesync` — FreeFileSync
+- [x] `fsmonitor` — FSMonitor
+- [x] `fujitsu-scansnap-home` — ScanSnap Home
+- [x] `funter` — Funter
+- [x] `fuse-t` — FUSE-T
 
 ## G  (29)
 

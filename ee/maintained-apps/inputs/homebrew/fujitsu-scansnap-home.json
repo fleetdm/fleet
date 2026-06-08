@@ -1,0 +1,10 @@
+{
+  "name": "ScanSnap Home",
+  "unique_identifier": "com.fujitsu.pfu.ScanSnapHome",
+  "token": "fujitsu-scansnap-home",
+  "installer_format": "dmg",
+  "slug": "fujitsu-scansnap-home/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

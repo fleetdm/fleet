@@ -1,0 +1,10 @@
+{
+  "name": "Free Ruler",
+  "unique_identifier": "com.pascal.freeruler",
+  "token": "free-ruler",
+  "installer_format": "zip",
+  "slug": "free-ruler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

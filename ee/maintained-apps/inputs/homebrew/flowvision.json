@@ -1,0 +1,10 @@
+{
+  "name": "FlowVision",
+  "unique_identifier": "netdcy.FlowVision",
+  "token": "flowvision",
+  "installer_format": "zip",
+  "slug": "flowvision/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

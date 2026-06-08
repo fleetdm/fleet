@@ -1,0 +1,10 @@
+{
+  "name": "Flotato",
+  "unique_identifier": "com.mortenjust.flotato",
+  "token": "flotato",
+  "installer_format": "zip",
+  "slug": "flotato/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

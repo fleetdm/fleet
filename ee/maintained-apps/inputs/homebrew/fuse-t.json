@@ -1,0 +1,10 @@
+{
+  "name": "FUSE-T",
+  "unique_identifier": "org.fuse-t.core.1.2.7",
+  "token": "fuse-t",
+  "installer_format": "pkg",
+  "slug": "fuse-t/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

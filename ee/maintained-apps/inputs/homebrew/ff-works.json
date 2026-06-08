@@ -1,0 +1,10 @@
+{
+  "name": "ff\u00b7Works",
+  "unique_identifier": "com.osbytes.ffworks5",
+  "token": "ff-works",
+  "installer_format": "dmg",
+  "slug": "ff-works/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
