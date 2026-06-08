@@ -16,6 +16,7 @@ import Antigravity from "./Antigravity";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
+import BeekeeperStudio from "./BeekeeperStudio";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
@@ -364,6 +365,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
+  "beekeeper studio": BeekeeperStudio,
   betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
