@@ -17,57 +17,57 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## A  (51)
 
-- [ ] `a-better-finder-rename` — A Better Finder Rename *
-- [ ] `abbyy-finereader-pdf` — ABBYY FineReader PDF
-- [ ] `acorn` — Acorn *
-- [ ] `activedock` — ActiveDock *
-- [ ] `activitywatch` — ActivityWatch
-- [ ] `actual` — Actual
-- [ ] `adguard` — AdGuard
-- [ ] `adlock` — AdLock
-- [ ] `advanced-renamer` — Advanced Renamer
-- [ ] `affinity-designer` — Affinity Designer 2
-- [ ] `affinity-designer@1` — Affinity Designer
-- [ ] `affinity-photo` — Affinity Photo 2
-- [ ] `affinity-photo@1` — Affinity Photo
-- [ ] `affinity-publisher` — Affinity Publisher 2
-- [ ] `affinity-publisher@1` — Affinity Publisher
-- [ ] `airbuddy` — AirBuddy
-- [ ] `airdroid` — AirDroid
-- [ ] `airfoil` — Airfoil
-- [ ] `airparrot` — AirParrot *
-- [ ] `airserver` — AirServer
-- [ ] `airtable` — Airtable
-- [ ] `airy` — Airy
-- [ ] `akiflow` — Akiflow
-- [ ] `alacritty` — Alacritty
-- [ ] `alcove` — Alcove
-- [ ] `aldente` — AlDente
-- [ ] `alfred` — Alfred
-- [ ] `alloy` — Alloy
-- [ ] `alt-tab` — AltTab
-- [ ] `altair-graphql-client` — Altair GraphQL Client
-- [ ] `amadeus-pro` — Amadeus Pro
-- [ ] `amadine` — Amadine
-- [ ] `amethyst` — Amethyst
-- [ ] `amie` — Amie
-- [ ] `android-file-transfer` — Android File Transfer
-- [ ] `angry-ip-scanner` — Angry IP Scanner
-- [ ] `antinote` — Antinote
-- [ ] `anydo` — Any.do
-- [ ] `anytype` — Anytype
-- [ ] `apidog` — Apidog
-- [ ] `app-fair` — App Fair
-- [ ] `appflowy` — AppFlowy
-- [ ] `appium-inspector` — Appium Inspector GUI
-- [ ] `applite` — Applite
-- [ ] `archi` — Archi
-- [ ] `asset-catalog-tinkerer` — Asset Catalog Tinkerer
-- [ ] `atext` — aText
-- [ ] `audio-hijack` — Audio Hijack *
-- [ ] `autodesk-fusion` — Autodesk Fusion 360
-- [ ] `aviatrix-vpn-client` — Aviatrix VPN Client
-- [ ] `axure-rp` — Axure RP *
+- [x] `a-better-finder-rename` — A Better Finder Rename *
+- [x] `abbyy-finereader-pdf` — ABBYY FineReader PDF
+- [x] `acorn` — Acorn *
+- [x] `activedock` — ActiveDock *
+- [x] `activitywatch` — ActivityWatch
+- [x] `actual` — Actual
+- [x] `adguard` — AdGuard
+- [x] `adlock` — AdLock
+- [x] `advanced-renamer` — Advanced Renamer
+- [x] `affinity-designer` — Affinity Designer 2
+- [x] `affinity-designer@1` — Affinity Designer
+- [x] `affinity-photo` — Affinity Photo 2
+- [x] `affinity-photo@1` — Affinity Photo
+- [x] `affinity-publisher` — Affinity Publisher 2
+- [x] `affinity-publisher@1` — Affinity Publisher
+- [x] `airbuddy` — AirBuddy
+- [x] `airdroid` — AirDroid
+- [x] `airfoil` — Airfoil
+- [x] `airparrot` — AirParrot *
+- [x] `airserver` — AirServer
+- [x] `airtable` — Airtable
+- [x] `airy` — Airy
+- [x] `akiflow` — Akiflow
+- [x] `alacritty` — Alacritty
+- [x] `alcove` — Alcove
+- [x] `aldente` — AlDente
+- [ ] `alfred` — Alfred  — **deferred — ships as .tar.gz, unsupported FMA installer format (dmg/pkg/zip only)**
+- [x] `alloy` — Alloy
+- [x] `alt-tab` — AltTab
+- [x] `altair-graphql-client` — Altair GraphQL Client
+- [x] `amadeus-pro` — Amadeus Pro
+- [x] `amadine` — Amadine
+- [x] `amethyst` — Amethyst
+- [x] `amie` — Amie
+- [x] `android-file-transfer` — Android File Transfer
+- [x] `angry-ip-scanner` — Angry IP Scanner
+- [x] `antinote` — Antinote
+- [x] `anydo` — Any.do
+- [x] `anytype` — Anytype
+- [x] `apidog` — Apidog
+- [x] `app-fair` — App Fair
+- [x] `appflowy` — AppFlowy
+- [x] `appium-inspector` — Appium Inspector GUI
+- [x] `applite` — Applite
+- [x] `archi` — Archi
+- [x] `asset-catalog-tinkerer` — Asset Catalog Tinkerer
+- [x] `atext` — aText
+- [x] `audio-hijack` — Audio Hijack *
+- [ ] `autodesk-fusion` — Autodesk Fusion 360  — **deferred — installer is a streamer/bootstrapper (Install Autodesk Fusion.app), not a real app bundle**
+- [x] `aviatrix-vpn-client` — Aviatrix VPN Client
+- [x] `axure-rp` — Axure RP *
 
 ## B  (41)
 

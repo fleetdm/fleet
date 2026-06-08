@@ -1,0 +1,10 @@
+{
+  "name": "Airfoil",
+  "unique_identifier": "com.rogueamoeba.Airfoil",
+  "token": "airfoil",
+  "installer_format": "zip",
+  "slug": "airfoil/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

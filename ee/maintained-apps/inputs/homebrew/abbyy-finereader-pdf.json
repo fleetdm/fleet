@@ -1,0 +1,10 @@
+{
+  "name": "ABBYY FineReader PDF",
+  "unique_identifier": "com.abbyy.finereader.pdf",
+  "token": "abbyy-finereader-pdf",
+  "installer_format": "dmg",
+  "slug": "abbyy-finereader-pdf/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

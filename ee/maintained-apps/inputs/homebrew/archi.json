@@ -1,0 +1,10 @@
+{
+  "name": "Archi",
+  "unique_identifier": "com.archimatetool.editor",
+  "token": "archi",
+  "installer_format": "dmg",
+  "slug": "archi/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

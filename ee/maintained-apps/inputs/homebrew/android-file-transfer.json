@@ -1,0 +1,10 @@
+{
+  "name": "Android File Transfer",
+  "unique_identifier": "com.google.android.mtpviewer",
+  "token": "android-file-transfer",
+  "installer_format": "dmg",
+  "slug": "android-file-transfer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
