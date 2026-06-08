@@ -3157,6 +3157,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.CopilotForXcode",
       "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
+    ),
+    (
+      "name": "Git",
+      "slug": "git/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git is a free and open source distributed version control system designed to handle everything from small to very large projects."
     },
     {
       "name": "GitHub Desktop",
@@ -4132,6 +4139,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft Office",
+      "slug": "microsoft-office/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft 365 Apps",
+      "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
+    },
+    {
       "name": "Microsoft OneNote",
       "slug": "microsoft-onenote/darwin",
       "platform": "darwin",
@@ -4739,6 +4753,13 @@
       "platform": "darwin",
       "unique_identifier": "com.quip.Desktop",
       "description": "Quip is a tool for teams to create living documents."
+    },
+    {
+      "name": "R for Windows",
+      "slug": "r/windows",
+      "platform": "windows",
+      "unique_identifier": "R for Windows",
+      "description": "R is a free software environment for statistical computing and graphics."
     },
     {
       "name": "Rancher Desktop",

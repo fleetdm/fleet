@@ -498,3 +498,107 @@ describe("SelfServiceCategoriesPage", () => {
     });
   });
 });
+
+describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
+  const deepLinkProps = (router: ReturnType<typeof createMockRouter>) => ({
+    router,
+    location: {
+      pathname: "/software/library/categories",
+      search: "?fleet_id=1&add_category=1",
+      query: { fleet_id: "1", add_category: "1" },
+      hash: "",
+    },
+  });
+
+  beforeEach(() => {
+    renderFlash.mockClear();
+  });
+
+  it("opens the Add category modal for managers and strips the param", async () => {
+    mockServer.use(emptySelfServiceCategoriesHandler);
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+
+    await getOpenModal();
+
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: "/software/library/categories",
+      query: { fleet_id: "1" },
+    });
+  });
+
+  it("reopens the modal on a second deep-link after the first was closed", async () => {
+    mockServer.use(emptySelfServiceCategoriesHandler);
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const cleanProps = {
+      router,
+      location: {
+        pathname: "/software/library/categories",
+        search: "?fleet_id=1",
+        query: { fleet_id: "1" },
+        hash: "",
+      },
+    };
+
+    // Round 1: deep-link in.
+    const { user, rerender } = render(
+      <SelfServiceCategoriesPage {...deepLinkProps(router)} />
+    );
+    await getOpenModal();
+
+    // Simulate the effect's router.replace landing us back at the clean URL.
+    rerender(<SelfServiceCategoriesPage {...cleanProps} />);
+
+    // User dismisses the modal.
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(document.querySelector(".modal__modal_container")).toBeNull();
+    });
+
+    // Round 2: palette pushes the deep-link again (new location object).
+    rerender(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+    await getOpenModal();
+  });
+
+  it("does not open the modal for non-managers but still strips the param", async () => {
+    mockServer.use(emptySelfServiceCategoriesHandler);
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: false,
+          isGlobalMaintainer: false,
+          isTeamAdmin: false,
+          isTeamMaintainer: false,
+          currentUser: createMockUser({ global_role: "observer" }),
+          availableTeams: [mockTeam],
+          setCurrentTeam: jest.fn(),
+        },
+        notification: { renderFlash, hideFlash: jest.fn() },
+      },
+    });
+
+    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: "/software/library/categories",
+        query: { fleet_id: "1" },
+      });
+    });
+
+    expect(document.querySelector(".modal__modal_container")).toBeNull();
+  });
+});

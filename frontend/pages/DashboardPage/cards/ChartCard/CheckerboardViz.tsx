@@ -81,10 +81,14 @@ const CheckerboardViz = ({
     const nonZeroValues = data.map((d) => d.value).filter((p) => p > 0);
     const minVal = nonZeroValues.length ? Math.min(...nonZeroValues) : 0;
     const maxVal = nonZeroValues.length ? Math.max(...nonZeroValues) : 0;
-    const range = maxVal - minVal || 1; // avoid divide-by-zero
+    const range = maxVal - minVal;
 
     getColorLevel = (cell: ICellData): number => {
       if (cell.value === 0) return 0;
+      // When every non-zero cell shares the same value there's no range to
+      // grade against, so render them all at the brightest level rather than
+      // the dimmest.
+      if (range === 0) return 5;
       const scaled = ((cell.value - minVal) / range) * 5;
       // Level zero is reserved for real 0, so ensure we return
       // something between 1 and 5.
