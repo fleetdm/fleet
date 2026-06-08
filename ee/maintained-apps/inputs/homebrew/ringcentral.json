@@ -1,0 +1,10 @@
+{
+  "name": "RingCentral",
+  "unique_identifier": "com.ringcentral.glip",
+  "token": "ringcentral",
+  "installer_format": "pkg",
+  "slug": "ringcentral/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

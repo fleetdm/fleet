@@ -674,46 +674,46 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## R  (40)
 
-- [ ] `r-app` — R
-- [ ] `radio-silence` — Radio Silence
-- [ ] `raindropio` — Raindrop.io
-- [ ] `rambox` — Rambox
-- [ ] `rapidweaver` — RapidWeaver
-- [ ] `raspberry-pi-imager` — Raspberry Pi Imager
-- [ ] `rawtherapee` — RawTherapee
-- [ ] `readest` — Readest
-- [ ] `recents` — Recents
-- [ ] `rectangle-pro` — Rectangle Pro
-- [ ] `recut` — Recut
-- [ ] `redcine-x-pro` — REDCINE-X PRO
-- [ ] `redis-pro` — redis-pro
-- [ ] `reflector` — Reflector *
-- [ ] `reminders-menubar` — Reminders MenuBar
-- [ ] `remote-buddy` — Remote Buddy *
-- [ ] `remote-desktop-manager` — Remote Desktop Manager
-- [ ] `reqable` — Reqable
-- [ ] `requestly` — Requestly
-- [ ] `retcon` — Retcon
-- [ ] `retroarch` — RetroArch
-- [ ] `retrobatch` — Retrobatch
-- [ ] `rewritebar` — RewriteBar
-- [ ] `rightfont` — RightFont
-- [ ] `ringcentral` — RingCentral
-- [ ] `rive` — Rive
-- [ ] `riverside-studio` — Riverside Studio
-- [ ] `rize` — Rize
-- [ ] `robofont` — RoboFont
-- [ ] `roboform` — RoboForm
-- [ ] `rocket` — Rocket
-- [ ] `rocket-chat` — Rocket.Chat
-- [ ] `rocket-typist` — Rocket Typist
-- [ ] `rocketman-choices-packager` — Rocketman Choices Packager
-- [ ] `rode-central` — Rode Central
-- [ ] `rode-connect` — Rode Connect
-- [ ] `rodecaster` — RODECaster App
-- [ ] `roon` — Roon
-- [ ] `rsyncui` — RsyncUI
-- [ ] `runjs` — RunJS
+- [x] `r-app` — R
+- [x] `radio-silence` — Radio Silence
+- [x] `raindropio` — Raindrop.io
+- [x] `rambox` — Rambox
+- [x] `rapidweaver` — RapidWeaver
+- [x] `raspberry-pi-imager` — Raspberry Pi Imager
+- [ ] `rawtherapee` — RawTherapee  — **deferred — no .app in zip**
+- [x] `readest` — Readest
+- [x] `recents` — Recents
+- [x] `rectangle-pro` — Rectangle Pro
+- [x] `recut` — Recut
+- [x] `redcine-x-pro` — REDCINE-X PRO
+- [x] `redis-pro` — redis-pro
+- [x] `reflector` — Reflector *
+- [x] `reminders-menubar` — Reminders MenuBar
+- [x] `remote-buddy` — Remote Buddy *
+- [x] `remote-desktop-manager` — Remote Desktop Manager
+- [x] `reqable` — Reqable
+- [x] `requestly` — Requestly
+- [x] `retcon` — Retcon
+- [x] `retroarch` — RetroArch
+- [x] `retrobatch` — Retrobatch
+- [x] `rewritebar` — RewriteBar
+- [x] `rightfont` — RightFont
+- [x] `ringcentral` — RingCentral
+- [x] `rive` — Rive
+- [x] `riverside-studio` — Riverside Studio
+- [x] `rize` — Rize
+- [x] `robofont` — RoboFont
+- [x] `roboform` — RoboForm
+- [x] `rocket` — Rocket
+- [x] `rocket-chat` — Rocket.Chat
+- [x] `rocket-typist` — Rocket Typist
+- [x] `rocketman-choices-packager` — Rocketman Choices Packager
+- [ ] `rode-central` — Rode Central  — **deferred — zip wraps .pkg (nested installer)**
+- [x] `rode-connect` — Rode Connect
+- [x] `rodecaster` — RODECaster App
+- [x] `roon` — Roon
+- [x] `rsyncui` — RsyncUI
+- [x] `runjs` — RunJS
 
 ## S  (106)
 

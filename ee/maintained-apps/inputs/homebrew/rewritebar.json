@@ -1,0 +1,10 @@
+{
+  "name": "RewriteBar",
+  "unique_identifier": "com.m91michel.rewritebar",
+  "token": "rewritebar",
+  "installer_format": "zip",
+  "slug": "rewritebar/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -6470,11 +6470,39 @@
       "description": "qView is an image viewer."
     },
     {
+      "name": "R",
+      "slug": "r-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.R-project.R",
+      "description": "R is an environment for statistical computing and graphics."
+    },
+    {
       "name": "R for Windows",
       "slug": "r/windows",
       "platform": "windows",
       "unique_identifier": "R for Windows",
       "description": "R is a free software environment for statistical computing and graphics."
+    },
+    {
+      "name": "Radio Silence",
+      "slug": "radio-silence/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.radiosilenceapp.client",
+      "description": "Radio Silence is a network monitor and firewall."
+    },
+    {
+      "name": "Raindrop.io",
+      "slug": "raindropio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.raindrop.macapp",
+      "description": "Raindrop.io is an all-in-one bookmark manager."
+    },
+    {
+      "name": "Rambox",
+      "slug": "rambox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rambox",
+      "description": "Rambox is a workspace simplifier - to organize your workspace and boost your productivity."
     },
     {
       "name": "Rancher Desktop",
@@ -6498,11 +6526,32 @@
       "description": "RapidAPI is an HTTP client that helps testing and describing APIs."
     },
     {
+      "name": "RapidWeaver",
+      "slug": "rapidweaver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realmacsoftware.rapidweaver8",
+      "description": "RapidWeaver is a web design software."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.imagingutility",
+      "description": "Raspberry Pi Imager is an app for imaging utility to install operating systems to a microSD card."
+    },
+    {
       "name": "Raycast",
       "slug": "raycast/darwin",
       "platform": "darwin",
       "unique_identifier": "com.raycast.macos",
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
+    },
+    {
+      "name": "Readest",
+      "slug": "readest/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bilingify.readest",
+      "description": "Readest is an ebook reader."
     },
     {
       "name": "REAPER",
@@ -6519,11 +6568,116 @@
       "description": "REAPER is a digital audio production application."
     },
     {
+      "name": "Recents",
+      "slug": "recents/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lapier.Recents",
+      "description": "Recents is a file launcher."
+    },
+    {
+      "name": "Rectangle Pro",
+      "slug": "rectangle-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Hookshot",
+      "description": "Rectangle Pro is a window snapping tool."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
+      "name": "Recut",
+      "slug": "recut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinywins.recut",
+      "description": "Recut is a tool to remove silence from videos and automatically generate a cut list."
+    },
+    {
+      "name": "REDCINE-X PRO",
+      "slug": "redcine-x-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.red.RED-Tether",
+      "description": "REDCINE-X PRO is a transcode and manipulate REDCODE RAW footage."
+    },
+    {
+      "name": "redis-pro",
+      "slug": "redis-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cmushroom.redis-pro",
+      "description": "redis-pro is a redis desktop."
+    },
+    {
+      "name": "Reflector",
+      "slug": "reflector/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.squirrels.Reflector-4",
+      "description": "Reflector is a wireless screen-mirroring application."
+    },
+    {
+      "name": "Reminders MenuBar",
+      "slug": "reminders-menubar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "br.com.damascenorafael.reminders-menubar",
+      "description": "Reminders MenuBar is a simple menu bar app to view and interact with reminders."
+    },
+    {
+      "name": "Remote Buddy",
+      "slug": "remote-buddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.iospirit.RemoteBuddy",
+      "description": "Remote Buddy is a tool to control apps and web videos from your phone."
+    },
+    {
+      "name": "Remote Desktop Manager",
+      "slug": "remote-desktop-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devolutions.remotedesktopmanager",
+      "description": "Remote Desktop Manager is a centralises all remote connections on a single platform."
+    },
+    {
+      "name": "Reqable",
+      "slug": "reqable/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.reqable.macosx",
+      "description": "Reqable is an advanced API Debugging Proxy."
+    },
+    {
+      "name": "Requestly",
+      "slug": "requestly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.requestly.beta",
+      "description": "Requestly is an intercept and modify HTTP requests."
+    },
+    {
+      "name": "Retcon",
+      "slug": "retcon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "garden.lemon.Retcon",
+      "description": "Retcon is a drag-and-drop Git history editor."
+    },
+    {
+      "name": "RetroArch",
+      "slug": "retroarch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.libretro.RetroArch",
+      "description": "RetroArch is a frontend for emulators, game engines and media players (OpenGL graphics API)."
+    },
+    {
+      "name": "Retrobatch",
+      "slug": "retrobatch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.flyingmeat.Retrobatch",
+      "description": "Retrobatch is a batch image processor."
+    },
+    {
+      "name": "RewriteBar",
+      "slug": "rewritebar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.m91michel.rewritebar",
+      "description": "RewriteBar is an AI-powered writing assistant."
     },
     {
       "name": "Rider",
@@ -6540,6 +6694,104 @@
       "description": "Rider is a .NET IDE by JetBrains."
     },
     {
+      "name": "RightFont",
+      "slug": "rightfont/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rightfontapp.RightFont5",
+      "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
+    },
+    {
+      "name": "RingCentral",
+      "slug": "ringcentral/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ringcentral.glip",
+      "description": "RingCentral is a team messaging, video meetings, and business phone."
+    },
+    {
+      "name": "Rive",
+      "slug": "rive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.rive.editor",
+      "description": "Rive is a tool to design tool that creates functional graphics."
+    },
+    {
+      "name": "Riverside Studio",
+      "slug": "riverside-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "RVS-Riverside.fm-Mac",
+      "description": "Riverside Studio is a podcast and video recorder."
+    },
+    {
+      "name": "Rize",
+      "slug": "rize/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.rize",
+      "description": "Rize is an AI time tracker."
+    },
+    {
+      "name": "RoboFont",
+      "slug": "robofont/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.typemytype.robofont4",
+      "description": "RoboFont is a font editor."
+    },
+    {
+      "name": "RoboForm",
+      "slug": "roboform/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SiberSystems.RoboForm",
+      "description": "RoboForm is a password manager and form filler application."
+    },
+    {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/darwin",
+      "platform": "darwin",
+      "unique_identifier": "chat.rocket",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
+      "name": "Rocket Typist",
+      "slug": "rocket-typist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.witt-software.Rocket-Typist-3",
+      "description": "Rocket Typist is a text expander for common phrases."
+    },
+    {
+      "name": "Rocket",
+      "slug": "rocket/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.matthewpalmer.Rocket",
+      "description": "Rocket is an emoji picker optimised for blind people."
+    },
+    {
+      "name": "Rocketman Choices Packager",
+      "slug": "rocketman-choices-packager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tech.rocketman.ChoicesPackager",
+      "description": "Rocketman Choices Packager is a utility for customising installer package choices."
+    },
+    {
+      "name": "Rode Connect",
+      "slug": "rode-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rode.rodeconnect",
+      "description": "Rode Connect is an app for podcasting software."
+    },
+    {
+      "name": "RODECaster App",
+      "slug": "rodecaster/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rode.rodecastercomp",
+      "description": "RODECaster App is an easily manage your RØDECaster or Streamer X setup."
+    },
+    {
+      "name": "Roon",
+      "slug": "roon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.roon.Roon",
+      "description": "Roon is a music player."
+    },
+    {
       "name": "Royal TSX",
       "slug": "royal-tsx/darwin",
       "platform": "darwin",
@@ -6554,6 +6806,13 @@
       "description": "RStudio is an integrated development environment (IDE) for the R programming language."
     },
     {
+      "name": "RsyncUI",
+      "slug": "rsyncui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "no.blogspot.RsyncUI",
+      "description": "RsyncUI is a GUI for rsync."
+    },
+    {
       "name": "RubyMine",
       "slug": "rubymine/darwin",
       "platform": "darwin",
@@ -6566,6 +6825,13 @@
       "platform": "windows",
       "unique_identifier": "RubyMine",
       "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
+      "name": "RunJS",
+      "slug": "runjs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.lukehaas.runjs",
+      "description": "RunJS is a JavaScript playground that auto-evaluates as code is typed."
     },
     {
       "name": "RustDesk",
