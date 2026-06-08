@@ -55,6 +55,7 @@ import Krita from "./Krita";
 import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
+import MicrosoftOffice from "./MicrosoftOffice";
 import Max from "./Max";
 import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
@@ -438,6 +439,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lastpass: LastPass,
   "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
+  "microsoft office": MicrosoftOffice,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
