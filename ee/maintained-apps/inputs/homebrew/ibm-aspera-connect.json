@@ -1,0 +1,10 @@
+{
+  "name": "IBM Aspera Connect",
+  "unique_identifier": "com.aspera.connect",
+  "token": "ibm-aspera-connect",
+  "installer_format": "pkg",
+  "slug": "ibm-aspera-connect/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

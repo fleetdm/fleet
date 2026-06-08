@@ -364,22 +364,22 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## I  (16)
 
-- [ ] `i1profiler` — i1Profiler
-- [ ] `ibm-aspera-connect` — IBM Aspera Connect
-- [ ] `iconjar` — IconJar
-- [ ] `idagio` — IDAGIO
-- [ ] `iexplorer` — iExplorer
-- [ ] `imagej` — ImageJ
-- [ ] `imageoptim` — ImageOptim
-- [ ] `imazing-converter` — iMazing Converter
-- [ ] `imhex` — ImHex
-- [ ] `input-source-pro` — Input Source Pro
-- [ ] `insta360-studio` — Insta360 Studio
-- [ ] `integrity` — Integrity
-- [ ] `intellidock` — IntelliDock
-- [ ] `invesalius` — InVesalius
-- [ ] `istherenet` — IsThereNet
-- [ ] `itsycal` — Itsycal
+- [x] `i1profiler` — i1Profiler
+- [x] `ibm-aspera-connect` — IBM Aspera Connect
+- [x] `iconjar` — IconJar
+- [x] `idagio` — IDAGIO
+- [x] `iexplorer` — iExplorer
+- [x] `imagej` — ImageJ
+- [ ] `imageoptim` — ImageOptim  — **deferred — unsupported installer format**
+- [x] `imazing-converter` — iMazing Converter
+- [x] `imhex` — ImHex
+- [x] `input-source-pro` — Input Source Pro
+- [x] `insta360-studio` — Insta360 Studio
+- [x] `integrity` — Integrity
+- [x] `intellidock` — IntelliDock
+- [x] `invesalius` — InVesalius
+- [x] `istherenet` — IsThereNet
+- [x] `itsycal` — Itsycal
 
 ## J  (12)
 

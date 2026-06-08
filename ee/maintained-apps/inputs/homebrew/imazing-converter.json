@@ -1,0 +1,10 @@
+{
+  "name": "iMazing Converter",
+  "unique_identifier": "com.DigiDNA.iMazingHEICConverterMac",
+  "token": "imazing-converter",
+  "installer_format": "dmg",
+  "slug": "imazing-converter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

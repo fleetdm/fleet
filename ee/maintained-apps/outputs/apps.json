@@ -3572,6 +3572,20 @@
       "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
     },
     {
+      "name": "i1Profiler",
+      "slug": "i1profiler/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.x-rite.i1Profiler",
+      "description": "i1Profiler is an automation and creative controls for photographers and designers."
+    },
+    {
+      "name": "IBM Aspera Connect",
+      "slug": "ibm-aspera-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.aspera.connect",
+      "description": "IBM Aspera Connect is a facilitate uploads and downloads with an Aspera transfer server."
+    },
+    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
@@ -3586,11 +3600,46 @@
       "description": "Icon Composer is an Apple tool to create multi-platform icons."
     },
     {
+      "name": "IconJar",
+      "slug": "iconjar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.iconjar.iconjar",
+      "description": "IconJar is an icon organiser."
+    },
+    {
+      "name": "IDAGIO",
+      "slug": "idagio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.idagio.desktop",
+      "description": "IDAGIO is a classical music streaming app."
+    },
+    {
+      "name": "iExplorer",
+      "slug": "iexplorer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macroplant.iExplorer",
+      "description": "iExplorer is an iOS device backup software and file manager."
+    },
+    {
       "name": "IINA",
       "slug": "iina/darwin",
       "platform": "darwin",
       "unique_identifier": "com.colliderli.iina",
       "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
+      "name": "ImageJ",
+      "slug": "imagej/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ImageJ",
+      "description": "ImageJ is an image Processing and Analysis in Java."
+    },
+    {
+      "name": "iMazing Converter",
+      "slug": "imazing-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingHEICConverterMac",
+      "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
     },
     {
       "name": "iMazing Profile Editor",
@@ -3621,6 +3670,13 @@
       "description": "iMazing is an iPhone management application."
     },
     {
+      "name": "ImHex",
+      "slug": "imhex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.WerWolv.ImHex",
+      "description": "ImHex is a hex editor for reverse engineers."
+    },
+    {
       "name": "Inkscape",
       "slug": "inkscape/darwin",
       "platform": "darwin",
@@ -3635,6 +3691,13 @@
       "description": "Inkscape is a vector graphics editor."
     },
     {
+      "name": "Input Source Pro",
+      "slug": "input-source-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.runjuu.Input-Source-Pro",
+      "description": "Input Source Pro is a tool for multi-language users."
+    },
+    {
       "name": "Insomnia",
       "slug": "insomnia/darwin",
       "platform": "darwin",
@@ -3647,6 +3710,27 @@
       "platform": "windows",
       "unique_identifier": "Insomnia",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
+      "name": "Insta360 Studio",
+      "slug": "insta360-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.insta360.studio",
+      "description": "Insta360 Studio is a video and photo editor."
+    },
+    {
+      "name": "Integrity",
+      "slug": "integrity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.peacockmedia.integrity",
+      "description": "Integrity is a tool to scan a website checking for broken links."
+    },
+    {
+      "name": "IntelliDock",
+      "slug": "intellidock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.mightymac.IntelliDock",
+      "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
       "name": "IntelliJ IDEA CE",
@@ -3684,11 +3768,32 @@
       "description": "Microsoft Intune Company Portal is the app for accessing company resources and managing devices in a secure environment."
     },
     {
+      "name": "InVesalius",
+      "slug": "invesalius/darwin",
+      "platform": "darwin",
+      "unique_identifier": "br.gov.cti.invesalius",
+      "description": "InVesalius is a 3D medical imaging reconstruction software."
+    },
+    {
+      "name": "IsThereNet",
+      "slug": "istherenet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lowtechguys.IsThereNet",
+      "description": "IsThereNet is a your internet connection status at a glance."
+    },
+    {
       "name": "iTerm2",
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
       "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Itsycal",
+      "slug": "itsycal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mowglii.ItsycalApp",
+      "description": "Itsycal is a menu bar calendar."
     },
     {
       "name": "Jabra Direct",
