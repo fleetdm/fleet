@@ -34,6 +34,7 @@ import Cryptomator from "./Cryptomator";
 import DellCommandUpdate from "./DellCommandUpdate";
 import DellDisplayManager from "./DellDisplayManager";
 import DevinDesktop from "./DevinDesktop";
+import DfuBlasterPro from "./DfuBlasterPro";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -350,6 +351,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
   "antigravity ide": AntigravityIde,
+  "dfu blaster pro": DfuBlasterPro,
   "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
