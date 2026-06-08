@@ -1,0 +1,10 @@
+{
+  "name": "Tumult Hype",
+  "unique_identifier": "com.tumult.Hype4",
+  "token": "hype",
+  "installer_format": "dmg",
+  "slug": "hype/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -338,29 +338,29 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## H  (23)
 
-- [ ] `hammerspoon` — Hammerspoon
-- [ ] `handbrake-app` — HandBrake
-- [ ] `hazel` — Hazel
-- [ ] `hazeover` — HazeOver
-- [ ] `helium` — Helium
-- [ ] `hex-fiend` — Hex Fiend
-- [ ] `hey-desktop` — HEY
-- [ ] `hiddenbar` — Hidden Bar
-- [ ] `hides` — Hides
-- [ ] `hidock` — HiDock
-- [ ] `highlight-ai` — Highlight
-- [ ] `hive-app` — Hive
-- [ ] `hma-vpn` — HMA! VPN
-- [ ] `home-assistant` — Home Assistant
-- [ ] `homerow` — Homerow
-- [ ] `hoppscotch` — Hoppscotch
-- [ ] `hot` — Hot
-- [ ] `houdahspot` — HoudahSpot
-- [ ] `hp-easy-admin` — HP Easy Admin
-- [ ] `hubstaff` — Hubstaff
-- [ ] `huly` — Huly
-- [ ] `hype` — Tumult Hype *
-- [ ] `hyperkey` — Hyperkey
+- [x] `hammerspoon` — Hammerspoon
+- [x] `handbrake-app` — HandBrake
+- [x] `hazel` — Hazel
+- [x] `hazeover` — HazeOver
+- [x] `helium` — Helium
+- [x] `hex-fiend` — Hex Fiend
+- [x] `hey-desktop` — HEY
+- [x] `hiddenbar` — Hidden Bar
+- [x] `hides` — Hides
+- [x] `hidock` — HiDock
+- [x] `highlight-ai` — Highlight
+- [x] `hive-app` — Hive
+- [ ] `hma-vpn` — HMA! VPN  — **deferred — no .app in dmg**
+- [x] `home-assistant` — Home Assistant
+- [x] `homerow` — Homerow
+- [x] `hoppscotch` — Hoppscotch
+- [x] `hot` — Hot
+- [x] `houdahspot` — HoudahSpot
+- [x] `hp-easy-admin` — HP Easy Admin
+- [x] `hubstaff` — Hubstaff
+- [x] `huly` — Huly
+- [x] `hype` — Tumult Hype *
+- [x] `hyperkey` — Hyperkey
 
 ## I  (16)
 
