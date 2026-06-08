@@ -5,6 +5,7 @@ import { IPolicy } from "interfaces/policy";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "patch-automation-cta";
 
@@ -26,22 +27,21 @@ const PatchAutomationCta = ({
   isAddingAutomation,
 }: IPatchAutomationCtaProps): JSX.Element | null => {
   const isPatchPolicy = storedPolicy.type === "patch";
-  const hasPatchSoftware = !!storedPolicy.patch_software;
   const hasSoftwareAutomation = !!storedPolicy.install_software;
 
   if (
     !isPatchPolicy ||
-    !hasPatchSoftware ||
+    !storedPolicy.patch_software ||
     hasSoftwareAutomation ||
     !canEditPolicy
   ) {
     return null;
   }
 
-  const patchSoftwareName =
-    storedPolicy.patch_software?.display_name ||
-    storedPolicy.patch_software?.name ||
-    "";
+  const patchSoftwareName = getDisplayedSoftwareName(
+    storedPolicy.patch_software.name,
+    storedPolicy.patch_software.display_name
+  );
 
   return (
     <div className={baseClass}>

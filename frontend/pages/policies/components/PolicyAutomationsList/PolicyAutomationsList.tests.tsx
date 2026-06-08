@@ -61,6 +61,43 @@ describe("PolicyAutomationsList", () => {
       expect(screen.queryByText("No automations")).not.toBeInTheDocument();
     });
 
+    it("prefers install_software.display_name over name", () => {
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: {
+              name: "Zoom.pkg",
+              display_name: "Zoom Workplace",
+              software_title_id: 42,
+            },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByText("Zoom Workplace")).toBeInTheDocument();
+      expect(screen.queryByText("Zoom.pkg")).not.toBeInTheDocument();
+    });
+
+    it("normalizes well-known software names via the display helper", () => {
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: {
+              name: "Microsoft.CompanyPortal",
+              software_title_id: 42,
+            },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByText("Company Portal")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Microsoft.CompanyPortal")
+      ).not.toBeInTheDocument();
+    });
+
     it("forwards the custom software icon_url to SoftwareIcon", () => {
       const iconUrl = ENDPOINTS.SOFTWARE_ICON(42);
       render(
