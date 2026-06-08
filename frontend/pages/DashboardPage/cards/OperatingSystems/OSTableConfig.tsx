@@ -31,7 +31,7 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { isLinuxLike } from "interfaces/platform";
+import { isVulnUnsupportedPlatform } from "interfaces/platform";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
@@ -119,11 +119,7 @@ const generateDefaultTableHeaders = (
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
-      if (
-        platform !== "darwin" &&
-        platform !== "windows" &&
-        !isLinuxLike(platform)
-      ) {
+      if (isVulnUnsupportedPlatform(platform)) {
         return (
           <TooltipWrapper
             tipContent={
