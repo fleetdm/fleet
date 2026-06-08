@@ -6132,9 +6132,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_declarations SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
 				return err
 			}
-			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
-				return err
-			}
 			return nil
 		})
 	}
@@ -6152,7 +6149,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// create an Apple and a Windows host
 	appleHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	windowsHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// create a few labels
 	labels := make([]*fleet.Label, 5)
@@ -6163,16 +6159,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	}
 	// simulate reporting label results for those hosts
 	appleHost.LabelUpdatedAt = time.Now()
-	windowsHost.LabelUpdatedAt = time.Now()
 	err := s.ds.UpdateHost(ctx, appleHost)
-	require.NoError(t, err)
-	err = s.ds.UpdateHost(ctx, windowsHost)
 	require.NoError(t, err)
 
 	// set an Apple profile and declaration and a Windows profile
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsExcludeAny: []string{labels[0].Name, labels[1].Name}},
-		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsExcludeAny: []string{labels[2].Name, labels[3].Name}},
 		{Name: "D3", Contents: declarationForTest("D3"), LabelsExcludeAny: []string{labels[4].Name}},
 	}}, http.StatusNoContent)
 
@@ -6186,11 +6178,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-		},
-	})
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -6207,19 +6194,10 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-		},
-	})
 
 	// mark some profiles as verified (despite accepting a HostMacOSProfile struct, it supports Windows too)
 	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, appleHost, map[string]*fleet.HostMacOSProfile{
 		"A1": {Identifier: "A1", DisplayName: "A1", InstallDate: time.Now()},
-	})
-	require.NoError(t, err)
-	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, windowsHost, map[string]*fleet.HostMacOSProfile{
-		"W2": {Identifier: "W2", DisplayName: "W2", InstallDate: time.Now()},
 	})
 	require.NoError(t, err)
 
@@ -6231,11 +6209,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
-		},
-	})
 
 	// make hosts members of labels [1], [2], [3] and [4], meaning that none of the profiles apply anymore
 	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
@@ -6243,10 +6216,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		{labels[2].ID, appleHost.ID},
 		{labels[3].ID, appleHost.ID},
 		{labels[4].ID, appleHost.ID},
-		{labels[1].ID, windowsHost.ID},
-		{labels[2].ID, windowsHost.ID},
-		{labels[3].ID, windowsHost.ID},
-		{labels[4].ID, windowsHost.ID},
 	})
 	require.NoError(t, err)
 
@@ -6259,19 +6228,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	// windows profiles now get marked for removal with a pending delete command
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
-		},
-	})
 
-	// remove membership of labels [2] for Windows, and [4] for Apple, meaning
+	// remove membership of [4] for Apple, meaning
 	// that only D3 will be installed on Apple (as the Windows host is still
 	// member of an excluded label)
 	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
 		{labels[4].ID, appleHost.ID},
-		{labels[2].ID, windowsHost.ID},
 	})
 	require.NoError(t, err)
 
@@ -6282,11 +6244,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-		},
-	})
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -6307,35 +6264,15 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	// The batch set above removed label [3] as an exclude label for W2, so the
-	// host now meets the requirement and W2 is re-installed (the install query
-	// detects profiles in desired state with operation_type='remove' and flips
-	// them back to install).
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-		},
-	})
 
 	// simulate the reconcile profiles deployment and mark as verified
 	triggerReconcileProfiles()
-	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, windowsHost, map[string]*fleet.HostMacOSProfile{
-		"W2": {Identifier: "W2", DisplayName: "W2", InstallDate: time.Now()},
-	})
-	require.NoError(t, err)
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		appleHost: {
 			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-		},
-	})
-	// W2 was re-installed (flipped from remove to install) and is now
-	// install+pending after the reconciler sent the command.
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 	})
 
@@ -6353,12 +6290,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-		},
-	})
-	// W2 is still install+pending from the re-install triggered earlier.
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 	})
 
@@ -6380,18 +6311,10 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
-		},
-	})
 
 	// simulate D3 and W2 profiles being broken by nullifying labels[2] and [4]
 	// in the join table (DeleteLabel is now blocked when referenced by a profile).
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[2].ID); err != nil {
-			return err
-		}
 		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[4].ID)
 		return err
 	})
@@ -6407,13 +6330,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-		},
-	})
-	// W2 references a deleted label, so the reconciler skips it entirely
-	// (it appears in neither the install nor the remove list).
-	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {
-			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 	})
 }

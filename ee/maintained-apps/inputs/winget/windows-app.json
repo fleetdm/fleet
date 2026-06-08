@@ -1,0 +1,12 @@
+{
+  "name": "Windows App",
+  "slug": "windows-app/windows",
+  "package_identifier": "Microsoft.WindowsApp",
+  "unique_identifier": "Windows App",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/windows-app_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/windows-app_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}

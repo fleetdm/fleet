@@ -623,6 +623,8 @@ type MacOSSetup struct {
 	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
+// Validate checks the payload is in a valid state.
+// If needed to compare against old values (for partial patches) use ValidateAgainst instead.
 func (mos *MacOSSetup) Validate() error {
 	if mos == nil {
 		return nil
@@ -638,6 +640,35 @@ func (mos *MacOSSetup) Validate() error {
 
 	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
 		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
+	}
+
+	return nil
+}
+
+// ValidateAgainst checks the payload is in a valid state, comparing against old values if needed for partial patches.
+func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	accountType := mos.EndUserLocalAccountType
+	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
+		accountType = old.EndUserLocalAccountType
+	}
+	enableManagedLocalAccount := mos.EnableManagedLocalAccount
+	if !enableManagedLocalAccount.Set {
+		enableManagedLocalAccount = old.EnableManagedLocalAccount
+	}
+	if PrimaryAccountType(accountType.Value).RequiresLocalAdminAccount() && (!enableManagedLocalAccount.Valid || !enableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, accountType.Value))
 	}
 
 	return nil
