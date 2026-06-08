@@ -1,0 +1,10 @@
+{
+  "name": "yWorks yEd",
+  "unique_identifier": "com.yworks.yEd",
+  "token": "yed",
+  "installer_format": "dmg",
+  "slug": "yed/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -951,12 +951,12 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## Y  (6)
 
-- [ ] `yaak` — Yaak
-- [ ] `yacreader` — YACReader
-- [ ] `yattee` — Yattee
-- [ ] `yed` — yWorks yEd
-- [ ] `yippy` — Yippy
-- [ ] `yt-music` — YouTube Music
+- [x] `yaak` — Yaak
+- [x] `yacreader` — YACReader
+- [x] `yattee` — Yattee
+- [x] `yed` — yWorks yEd
+- [x] `yippy` — Yippy
+- [x] `yt-music` — YouTube Music
 
 ## Z  (5)
 
