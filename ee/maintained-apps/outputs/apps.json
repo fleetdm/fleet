@@ -6855,11 +6855,102 @@
       "description": "Rust IDE by JetBrains."
     },
     {
+      "name": "SABnzbd",
+      "slug": "sabnzbd/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sabnzbd.sabnzbd",
+      "description": "SABnzbd is a binary newsreader."
+    },
+    {
+      "name": "Safe Exam Browser",
+      "slug": "safe-exam-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.safeexambrowser.SafeExamBrowser",
+      "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
+    },
+    {
+      "name": "Salesforce CLI",
+      "slug": "salesforce-cli/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.salesforce.cli",
+      "description": "Salesforce CLI is a CLI tools for Salesforce."
+    },
+    {
+      "name": "SaneSideButtons",
+      "slug": "sanesidebuttons/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.janhuelsmann.sanesidebuttons",
+      "description": "SaneSideButtons is a menu bar app that enables system-wide navigation using side mouse buttons."
+    },
+    {
       "name": "Santa",
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "SC Menu",
+      "slug": "sc-menu/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ttinc.sc-menu",
+      "description": "SC Menu is a simple smartcard menu item."
+    },
+    {
+      "name": "Scratch",
+      "slug": "scratch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "edu.mit.scratch.scratch-desktop",
+      "description": "Scratch is a programmes interactive stories, games, and animations."
+    },
+    {
+      "name": "Screaming Frog SEO Spider",
+      "slug": "screaming-frog-seo-spider/darwin",
+      "platform": "darwin",
+      "unique_identifier": "uk.co.screamingfrog.seo.spider",
+      "description": "Screaming Frog SEO Spider is a SEO site audit tool."
+    },
+    {
+      "name": "Screen Studio",
+      "slug": "screen-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.timpler.screenstudio",
+      "description": "Screen Studio is a screen recorder and editor."
+    },
+    {
+      "name": "Screenflick",
+      "slug": "screenflick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.araeliumgroup.screenflick",
+      "description": "Screenflick is a screen recorder with audio."
+    },
+    {
+      "name": "ScreenFlow",
+      "slug": "screenflow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.telestream.screenflow.globallibrary",
+      "description": "ScreenFlow is a screen recording and video editing software."
+    },
+    {
+      "name": "ScreenFocus",
+      "slug": "screenfocus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apptorium.ScreenFocus-dm",
+      "description": "ScreenFocus is a tool to manage multiple screens."
+    },
+    {
+      "name": "Scribus",
+      "slug": "scribus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.scribus",
+      "description": "Scribus is a free and open-source page layout program."
+    },
+    {
+      "name": "Scrivener",
+      "slug": "scrivener/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.literatureandlatte.scrivener3",
+      "description": "Scrivener is a word processing software with a typewriter style."
     },
     {
       "name": "Secretive",
@@ -6869,11 +6960,60 @@
       "description": "Secretive is a fully native Mac app that lets you protect and manage SSH keys with your Mac's Secure Enclave."
     },
     {
+      "name": "SecureSafe",
+      "slug": "securesafe/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dswiss.securesafe.sync",
+      "description": "SecureSafe is a highly secure online storage with password manager."
+    },
+    {
+      "name": "SelfControl",
+      "slug": "selfcontrol/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.eyebeam.SelfControl",
+      "description": "SelfControl is a tool to block your own access to distracting websites."
+    },
+    {
+      "name": "Send to Kindle",
+      "slug": "send-to-kindle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazon.SendToKindle",
+      "description": "Send to Kindle is a tool for sending personal documents to Kindles from Macs."
+    },
+    {
+      "name": "Sensei",
+      "slug": "sensei/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.cindori.Sensei",
+      "description": "Sensei is a monitors the computer system and optimises its performance."
+    },
+    {
       "name": "Sequel Ace",
       "slug": "sequel-ace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sequelace.SequelAce",
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
+    },
+    {
+      "name": "Servo",
+      "slug": "servo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.servo.ServoShell",
+      "description": "Servo is a parallel browser engine."
+    },
+    {
+      "name": "Session",
+      "slug": "session/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.loki-project.messenger-desktop",
+      "description": "Session is an onion routing based messenger."
+    },
+    {
+      "name": "Setapp",
+      "slug": "setapp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.setapp.DesktopClient.SetappAgent",
+      "description": "Setapp is a collection of apps available by subscription."
     },
     {
       "name": "SF Symbols",
@@ -6883,11 +7023,81 @@
       "description": "SF Symbols is an app that provides consistent, highly configurable symbols for apps."
     },
     {
+      "name": "Shapr3D",
+      "slug": "shapr3d/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.shapr3d.shapr",
+      "description": "Shapr3D is a 3D CAD software."
+    },
+    {
+      "name": "ShareFile",
+      "slug": "sharefile/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.citrixfiles.ens.service",
+      "description": "ShareFile is a client for the Progress ShareFile storage service."
+    },
+    {
+      "name": "Shift",
+      "slug": "shift/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rdbrck.shift",
+      "description": "Shift is a workstation to streamline your accounts, apps, and workflows."
+    },
+    {
+      "name": "Shifty",
+      "slug": "shifty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.natethompson.Shifty",
+      "description": "Shifty is a menu bar app that provides more control over Night Shift."
+    },
+    {
+      "name": "Sproutcube Shortcat",
+      "slug": "shortcat/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sproutcube.Shortcat",
+      "description": "Sproutcube Shortcat is an app that enables mouse-free UI interaction."
+    },
+    {
+      "name": "Shotcut",
+      "slug": "shotcut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.meltytech.Shotcut",
+      "description": "Shotcut is a video editor."
+    },
+    {
       "name": "Shottr",
       "slug": "shottr/darwin",
       "platform": "darwin",
       "unique_identifier": "cc.ffitch.shottr",
       "description": "Shottr is a screenshot measurement and annotation tool."
+    },
+    {
+      "name": "ShurePlus MOTIV",
+      "slug": "shureplus-motiv/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.shure.motiv.desktop",
+      "description": "ShurePlus MOTIV is an additional features and controls for Shure MV7 and MV88+ microphones."
+    },
+    {
+      "name": "Shutter Encoder",
+      "slug": "shutter-encoder/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.paulpacifico.shutterencoder",
+      "description": "Shutter Encoder is a video, audio and image converter."
+    },
+    {
+      "name": "SideNotes",
+      "slug": "sidenotes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apptorium.SideNotes-paddle",
+      "description": "SideNotes is an app for note-taking application."
+    },
+    {
+      "name": "SigmaOS",
+      "slug": "sigmaos/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sigmaos.sigmaos.macos",
+      "description": "SigmaOS is a web browser."
     },
     {
       "name": "Signal",
@@ -6904,11 +7114,67 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
+      "name": "SilentKnight",
+      "slug": "silentknight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.eclecticlight.SilentKnight",
+      "description": "SilentKnight is an automatically checks computer's security."
+    },
+    {
+      "name": "Silhouette Studio",
+      "slug": "silhouette-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.silhouettesoftware.Silhouette-Studio",
+      "description": "Silhouette Studio is a tool to design software for Silhouette cutting machines."
+    },
+    {
+      "name": "Simple Comic",
+      "slug": "simple-comic/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ToWatchList.SimpleComic",
+      "description": "Simple Comic is a comic viewer/reader."
+    },
+    {
+      "name": "SimpleDEMViewer",
+      "slug": "simpledemviewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "jp.jizoh.SDVr8",
+      "description": "SimpleDEMViewer is a digital Elevation Model viewer."
+    },
+    {
+      "name": "SiriMote",
+      "slug": "sirimote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
+      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
+    },
+    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
       "unique_identifier": "com.bohemiancoding.sketch3",
       "description": "Sketch is a digital design and prototyping platform."
+    },
+    {
+      "name": "SketchUp",
+      "slug": "sketchup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sketchup.LayOut.2026",
+      "description": "SketchUp is a 3D modeling software used to create and manipulate 3D models."
+    },
+    {
+      "name": "Skim",
+      "slug": "skim/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.sourceforge.skim-app.skim.bookmarks",
+      "description": "Skim is a PDF reader and note-taking application."
+    },
+    {
+      "name": "Slab",
+      "slug": "slab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.slab.slab",
+      "description": "Slab is a knowledge management for organisations."
     },
     {
       "name": "Slack",
@@ -6925,6 +7191,55 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
+      "name": "3D Slicer",
+      "slug": "slicer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.slicer.slicer",
+      "description": "3D Slicer is a medical image processing and visualization system."
+    },
+    {
+      "name": "Slidepad",
+      "slug": "slidepad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.slidepad.slidepad",
+      "description": "Slidepad is a slide over browser."
+    },
+    {
+      "name": "Sloth",
+      "slug": "sloth/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sveinbjorn.Sloth",
+      "description": "Sloth is a displays all open files and sockets in use by all running processes."
+    },
+    {
+      "name": "Smartsheet",
+      "slug": "smartsheet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smartsheet.desktopapp",
+      "description": "Smartsheet is a spreadsheet-style project management solution."
+    },
+    {
+      "name": "SmartSVN",
+      "slug": "smartsvn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.syntevo.smartsvn",
+      "description": "SmartSVN is a subversion client."
+    },
+    {
+      "name": "SmoothScroll",
+      "slug": "smoothscroll/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.galambalazs.SmoothScroll",
+      "description": "SmoothScroll is a smooth mouse scrolling utility."
+    },
+    {
+      "name": "Smultron",
+      "slug": "smultron/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.peterborgapps.Smultron14",
+      "description": "Smultron is a general-purpose text editor."
+    },
+    {
       "name": "Snagit",
       "slug": "snagit/darwin",
       "platform": "darwin",
@@ -6937,6 +7252,97 @@
       "platform": "windows",
       "unique_identifier": "Snagit 2026",
       "description": "Snagit is screen capture software."
+    },
+    {
+      "name": "SnapMotion",
+      "slug": "snapmotion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jeremyvizzini.snapmotion-paddle",
+      "description": "SnapMotion is an extract images from videos."
+    },
+    {
+      "name": "SnowSQL",
+      "slug": "snowflake-snowsql/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.snowflake.snowsql",
+      "description": "SnowSQL is a command-line client for connecting to Snowflake."
+    },
+    {
+      "name": "Sococo",
+      "slug": "sococo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.sococo",
+      "description": "Sococo is an online workplace client."
+    },
+    {
+      "name": "Sonic Visualiser",
+      "slug": "sonic-visualiser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sonicvisualiser.SonicVisualiser",
+      "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
+    },
+    {
+      "name": "SonoBus",
+      "slug": "sonobus/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Sonosaurus.SonoBus",
+      "description": "SonoBus is a high-quality network audio streaming."
+    },
+    {
+      "name": "Sonos S1",
+      "slug": "sonos-s1-controller/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sonos.macController",
+      "description": "Sonos S1 is a controller for Gen 1 Sonos products."
+    },
+    {
+      "name": "Sonos S2",
+      "slug": "sonos/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sonos.macController2",
+      "description": "Sonos S2 is a tool to control your Sonos system."
+    },
+    {
+      "name": "PS Remote Play",
+      "slug": "sony-ps-remote-play/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.playstation.RemotePlay",
+      "description": "PS Remote Play is an application to control your PlayStation 4 or PlayStation 5."
+    },
+    {
+      "name": "Soulver",
+      "slug": "soulver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.soulver.mac",
+      "description": "Soulver is a notepad with a built-in calculator."
+    },
+    {
+      "name": "Sound Control",
+      "slug": "sound-control/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.staticz.SoundControl",
+      "description": "Sound Control is a per-app audio controls."
+    },
+    {
+      "name": "SoundSiphon",
+      "slug": "sound-siphon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.staticz.SoundSiphon3",
+      "description": "SoundSiphon is an app audio capture."
+    },
+    {
+      "name": "SoundAnchor",
+      "slug": "soundanchor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.kopiro.soundanchor",
+      "description": "SoundAnchor is an audio device utility."
+    },
+    {
+      "name": "SoundSource",
+      "slug": "soundsource/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rogueamoeba.soundsource",
+      "description": "SoundSource is a sound and audio controller."
     },
     {
       "name": "Sourcetree",
@@ -6953,6 +7359,27 @@
       "description": "SourceTree is a graphical client for Git version control."
     },
     {
+      "name": "SpamSieve",
+      "slug": "spamsieve/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.c-command.SpamSieve",
+      "description": "SpamSieve is a spam filtering extension for e-mail clients."
+    },
+    {
+      "name": "Spectra",
+      "slug": "spectra-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.spectra.dev",
+      "description": "Spectra is an OpenSpec document management desktop app."
+    },
+    {
+      "name": "Spitfire Audio",
+      "slug": "spitfire-audio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.spitfireaudio.spitfireaudio",
+      "description": "Spitfire Audio is a tool to download manager for Spitfire audio libraries."
+    },
+    {
       "name": "Splashtop Business",
       "slug": "splashtop-business/darwin",
       "platform": "darwin",
@@ -6965,6 +7392,13 @@
       "platform": "darwin",
       "unique_identifier": "com.splashtop.Splashtop-Streamer",
       "description": "Splashtop Streamer is used to connect to and control computers."
+    },
+    {
+      "name": "Splice",
+      "slug": "splice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.splice.Splice",
+      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
     },
     {
       "name": "Spotify",
@@ -6981,11 +7415,88 @@
       "description": "Spotify is a music streaming app."
     },
     {
+      "name": "Spyder",
+      "slug": "spyder/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.spyder-ide.Spyder-6",
+      "description": "Spyder is a scientific Python IDE."
+    },
+    {
       "name": "SQL Server Management Studio",
       "slug": "sql-server-management-studio/windows",
       "platform": "windows",
       "unique_identifier": "SQL Server Management Studio 22",
       "description": "SQL Server Management Studio (SSMS) is an integrated environment for managing SQL Server and Azure SQL infrastructure. It provides tools to configure, monitor, and administer database instances, and to build and run queries and scripts."
+    },
+    {
+      "name": "Sqlectron",
+      "slug": "sqlectron/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sqlectron.gui",
+      "description": "Sqlectron is a SQL client."
+    },
+    {
+      "name": "SQLPro for MSSQL",
+      "slug": "sqlpro-for-mssql/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankinsoft.osx.tinysqlstudio",
+      "description": "SQLPro for MSSQL is a microsoft SQL Server database client."
+    },
+    {
+      "name": "SQLPro for MySQL",
+      "slug": "sqlpro-for-mysql/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankinsoft.osx.mysql",
+      "description": "SQLPro for MySQL is a MySQL & MariaDB database client."
+    },
+    {
+      "name": "SQLPro for Postgres",
+      "slug": "sqlpro-for-postgres/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankinsoft.osx.SQLProPostgres",
+      "description": "SQLPro for Postgres is a lightweight PostgreSQL database client."
+    },
+    {
+      "name": "SQLPro for SQLite",
+      "slug": "sqlpro-for-sqlite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankinsoft.osx.sqliteprofessional",
+      "description": "SQLPro for SQLite is an advanced sqlite editor."
+    },
+    {
+      "name": "SQLPro Studio",
+      "slug": "sqlpro-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankinsoft.osx.sqlprostudio",
+      "description": "SQLPro Studio is a database management tool."
+    },
+    {
+      "name": "squash",
+      "slug": "squash/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realmacsoftware.squash3",
+      "description": "squash is a batch image processor, resiser, and converter."
+    },
+    {
+      "name": "SSH Config Editor",
+      "slug": "ssh-config-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.hejki.osx.sshce",
+      "description": "SSH Config Editor is a tool for managing the OpenSSH ssh client configuration file."
+    },
+    {
+      "name": "Standard Notes",
+      "slug": "standard-notes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.standardnotes.standardnotes",
+      "description": "Standard Notes is a free, open-source, and completely encrypted notes app."
+    },
+    {
+      "name": "StarUML",
+      "slug": "staruml/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.staruml.staruml",
+      "description": "StarUML is a software modeller."
     },
     {
       "name": "Stats",
@@ -7009,6 +7520,48 @@
       "description": "Steam is a video game digital distribution service."
     },
     {
+      "name": "SteerMouse",
+      "slug": "steermouse/darwin",
+      "platform": "darwin",
+      "unique_identifier": "jp.plentycom.app.SteerMouse",
+      "description": "SteerMouse is a tool to customise mouse buttons, wheels and cursor speed."
+    },
+    {
+      "name": "Stellarium",
+      "slug": "stellarium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.stellarium.Stellarium",
+      "description": "Stellarium is a tool to render realistic skies in real time on the screen."
+    },
+    {
+      "name": "Stillcolor",
+      "slug": "stillcolor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.makkuk.Stillcolor",
+      "description": "Stillcolor is a tool to disable temporal dithering on Apple Silicon Macs."
+    },
+    {
+      "name": "Stretchly",
+      "slug": "stretchly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.hovancik.stretchly",
+      "description": "Stretchly is a break time reminder app."
+    },
+    {
+      "name": "Studio 3T",
+      "slug": "studio-3t/darwin",
+      "platform": "darwin",
+      "unique_identifier": "3t.enterprise.mongochef",
+      "description": "Studio 3T is an IDE, client, and GUI for MongoDB."
+    },
+    {
+      "name": "SubEthaEdit",
+      "slug": "subethaedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.codingmonkeys.SubEthaEdit.MacFULL",
+      "description": "SubEthaEdit is a plain text and source editor."
+    },
+    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
@@ -7030,11 +7583,74 @@
       "description": "Sublime Text is a text editor for code, markup, and prose."
     },
     {
+      "name": "Sunsama",
+      "slug": "sunsama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sunsama.native-app",
+      "description": "Sunsama is a daily planner and calendar."
+    },
+    {
+      "name": "Super Productivity",
+      "slug": "super-productivity/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.super-productivity.app",
+      "description": "Super Productivity is a to-do list and time tracker."
+    },
+    {
+      "name": "SuperCollider",
+      "slug": "supercollider/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.sourceforge.supercollider",
+      "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
+    },
+    {
+      "name": "Superhuman",
+      "slug": "superhuman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superhuman.mail",
+      "description": "Superhuman is an email client."
+    },
+    {
+      "name": "Superkey",
+      "slug": "superkey/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Superkey",
+      "description": "Superkey is a tool to search and click text anywhere on screen."
+    },
+    {
+      "name": "Superlist",
+      "slug": "superlist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "group.com.superlist.superlist.firebase",
+      "description": "Superlist is a collaborative to-do list app."
+    },
+    {
+      "name": "superwhisper",
+      "slug": "superwhisper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superduper.superwhisper",
+      "description": "superwhisper is a dictation tool including LLM reformatting."
+    },
+    {
+      "name": "Support Companion",
+      "slug": "supportcompanion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.macadmins.SupportCompanion",
+      "description": "Support Companion is a provides utility and support tools."
+    },
+    {
       "name": "Surfshark",
       "slug": "surfshark/darwin",
       "platform": "darwin",
       "unique_identifier": "com.surfshark.vpnclient.macos.direct",
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "Surge",
+      "slug": "surge/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nssurge.surge-mac",
+      "description": "Surge is a network toolbox."
     },
     {
       "name": "Suspicious Package",
@@ -7044,11 +7660,102 @@
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
+      "name": "Swift Quit",
+      "slug": "swift-quit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "onebadidea.Swift-Quit",
+      "description": "Swift Quit is an enable Windows-like program quitting when all windows are closed."
+    },
+    {
+      "name": "Swift Shift",
+      "slug": "swift-shift/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pablopunk.Swift-Shift",
+      "description": "Swift Shift is a window manager."
+    },
+    {
+      "name": "SwiftBar",
+      "slug": "swiftbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ameba.SwiftBar",
+      "description": "SwiftBar is a menu bar customization tool."
+    },
+    {
       "name": "swiftDialog",
       "slug": "swiftdialog/darwin",
       "platform": "darwin",
       "unique_identifier": "au.csiro.dialog",
       "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
+    },
+    {
+      "name": "Swifty",
+      "slug": "swifty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.swifty",
+      "description": "Swifty is an offline password manager tool."
+    },
+    {
+      "name": "Swish",
+      "slug": "swish/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.highlyopinionated.swish",
+      "description": "Swish is a tool to control windows and applications right from your trackpad."
+    },
+    {
+      "name": "Switch Audio Converter",
+      "slug": "switch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nchsoftware.switch",
+      "description": "Switch Audio Converter is a multiple format audio file converter."
+    },
+    {
+      "name": "Sync",
+      "slug": "sync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sync.desktop",
+      "description": "Sync is a store, share and access files from anywhere."
+    },
+    {
+      "name": "SyncMate",
+      "slug": "syncmate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.eltima.SyncMate.com.eltima.SyncMateService",
+      "description": "SyncMate is an all-in-one sync tool."
+    },
+    {
+      "name": "Syncovery",
+      "slug": "syncovery/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.company.Syncovery",
+      "description": "Syncovery is a file synchronisation and backup software."
+    },
+    {
+      "name": "Syncthing",
+      "slug": "syncthing-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.xor-gate.syncthing-macosx",
+      "description": "Syncthing is a real time file synchronisation software."
+    },
+    {
+      "name": "Synology Assistant",
+      "slug": "synologyassistant/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.synology.DSAssistant",
+      "description": "Synology Assistant is a tool to manage Synology NAS's across a LAN."
+    },
+    {
+      "name": "Syntax Highlight",
+      "slug": "syntax-highlight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sbarex.SourceCodeSyntaxHighlight",
+      "description": "Syntax Highlight is a quicklook extension for source files."
+    },
+    {
+      "name": "SystHist",
+      "slug": "systhist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.eclecticlight.SystHist",
+      "description": "SystHist is a lists full system and security update installation history."
     },
     {
       "name": "Tableau Desktop",

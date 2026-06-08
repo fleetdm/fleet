@@ -1,0 +1,10 @@
+{
+  "name": "SketchUp",
+  "unique_identifier": "com.sketchup.LayOut.2026",
+  "token": "sketchup",
+  "installer_format": "dmg",
+  "slug": "sketchup/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

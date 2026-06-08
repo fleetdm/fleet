@@ -1,0 +1,10 @@
+{
+  "name": "Switch Audio Converter",
+  "unique_identifier": "com.nchsoftware.switch",
+  "token": "switch",
+  "installer_format": "zip",
+  "slug": "switch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

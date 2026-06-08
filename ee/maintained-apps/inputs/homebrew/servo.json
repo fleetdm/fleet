@@ -1,0 +1,10 @@
+{
+  "name": "Servo",
+  "unique_identifier": "org.servo.ServoShell",
+  "token": "servo",
+  "installer_format": "dmg",
+  "slug": "servo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

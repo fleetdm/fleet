@@ -1,0 +1,10 @@
+{
+  "name": "SilentKnight",
+  "unique_identifier": "co.eclecticlight.SilentKnight",
+  "token": "silentknight",
+  "installer_format": "zip",
+  "slug": "silentknight/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

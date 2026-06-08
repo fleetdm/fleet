@@ -717,112 +717,112 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## S  (106)
 
-- [ ] `sabnzbd` — SABnzbd
-- [ ] `safe-exam-browser` — Safe Exam Browser
-- [ ] `salesforce-cli` — Salesforce CLI
-- [ ] `sanesidebuttons` — SaneSideButtons
-- [ ] `sc-menu` — SC Menu
-- [ ] `scratch` — Scratch
-- [ ] `screaming-frog-seo-spider` — Screaming Frog SEO Spider
-- [ ] `screen-studio` — Screen Studio
-- [ ] `screenflick` — Screenflick
-- [ ] `screenflow` — ScreenFlow *
-- [ ] `screenfocus` — ScreenFocus
-- [ ] `scribus` — Scribus
-- [ ] `scrivener` — Scrivener *
-- [ ] `scroll-reverser` — Scroll Reverser
-- [ ] `securesafe` — SecureSafe
-- [ ] `selfcontrol` — SelfControl
-- [ ] `send-to-kindle` — Send to Kindle
-- [ ] `sensei` — Sensei
-- [ ] `sentinel` — Sentinel
-- [ ] `servo` — Servo
-- [ ] `session` — Session
-- [ ] `setapp` — Setapp
-- [ ] `shapr3d` — Shapr3D
-- [ ] `sharefile` — ShareFile
-- [ ] `shift` — Shift
-- [ ] `shifty` — Shifty
-- [ ] `shortcat` — Sproutcube Shortcat
-- [ ] `shotcut` — Shotcut
-- [ ] `shureplus-motiv` — ShurePlus MOTIV
-- [ ] `shutter-encoder` — Shutter Encoder
-- [ ] `sidenotes` — SideNotes
-- [ ] `sigil` — Sigil
-- [ ] `sigmaos` — SigmaOS
-- [ ] `silentknight` — SilentKnight
-- [ ] `silhouette-studio` — Silhouette Studio
-- [ ] `simple-comic` — Simple Comic
-- [ ] `simpledemviewer` — SimpleDEMViewer
-- [ ] `sirimote` — SiriMote
-- [ ] `sketchup` — SketchUp *
-- [ ] `skim` — Skim
-- [ ] `slab` — Slab
-- [ ] `slicer` — 3D Slicer
-- [ ] `slidepad` — Slidepad
-- [ ] `sloth` — Sloth
-- [ ] `smartsheet` — Smartsheet
-- [ ] `smartsvn` — SmartSVN
-- [ ] `smoothscroll` — SmoothScroll
-- [ ] `smultron` — Smultron *
-- [ ] `snapmotion` — SnapMotion
-- [ ] `snowflake-snowsql` — SnowSQL
-- [ ] `soapui` — SmartBear SoapUI
-- [ ] `sococo` — Sococo
-- [ ] `sonic-visualiser` — Sonic Visualiser
-- [ ] `sonobus` — SonoBus
-- [ ] `sonos` — Sonos S2
-- [ ] `sonos-s1-controller` — Sonos S1
-- [ ] `sony-ps-remote-play` — PS Remote Play
-- [ ] `soulver` — Soulver *
-- [ ] `sound-control` — Sound Control
-- [ ] `sound-siphon` — SoundSiphon *
-- [ ] `soundanchor` — SoundAnchor
-- [ ] `soundsource` — SoundSource
-- [ ] `spamsieve` — SpamSieve
-- [ ] `spectra-app` — Spectra
-- [ ] `spitfire-audio` — Spitfire Audio
-- [ ] `splice` — Splice
-- [ ] `spyder` — Spyder *
-- [ ] `sqlectron` — Sqlectron
-- [ ] `sqlpro-for-mssql` — SQLPro for MSSQL
-- [ ] `sqlpro-for-mysql` — SQLPro for MySQL
-- [ ] `sqlpro-for-postgres` — SQLPro for Postgres
-- [ ] `sqlpro-for-sqlite` — SQLPro for SQLite
-- [ ] `sqlpro-studio` — SQLPro Studio
-- [ ] `squash` — squash *
-- [ ] `ssh-config-editor` — SSH Config Editor
-- [ ] `standard-notes` — Standard Notes
-- [ ] `staruml` — StarUML
-- [ ] `steermouse` — SteerMouse
-- [ ] `stellarium` — Stellarium
-- [ ] `stillcolor` — Stillcolor
-- [ ] `stolendata-mpv` — mpv
-- [ ] `stretchly` — Stretchly
-- [ ] `studio-3t` — Studio 3T
-- [ ] `subethaedit` — SubEthaEdit
-- [ ] `sunsama` — Sunsama
-- [ ] `super-productivity` — Super Productivity
-- [ ] `supercollider` — SuperCollider
-- [ ] `superhuman` — Superhuman
-- [ ] `superkey` — Superkey
-- [ ] `superlist` — Superlist
-- [ ] `superwhisper` — superwhisper
-- [ ] `supportcompanion` — Support Companion
-- [ ] `surge` — Surge
-- [ ] `swift-quit` — Swift Quit
-- [ ] `swift-shift` — Swift Shift
-- [ ] `swiftbar` — SwiftBar
-- [ ] `swifty` — Swifty
-- [ ] `swish` — Swish
-- [ ] `switch` — Switch Audio Converter
-- [ ] `sync` — Sync
-- [ ] `syncmate` — SyncMate
-- [ ] `syncovery` — Syncovery
-- [ ] `syncthing-app` — Syncthing
-- [ ] `synologyassistant` — Synology Assistant
-- [ ] `syntax-highlight` — Syntax Highlight
-- [ ] `systhist` — SystHist
+- [x] `sabnzbd` — SABnzbd
+- [x] `safe-exam-browser` — Safe Exam Browser
+- [x] `salesforce-cli` — Salesforce CLI
+- [x] `sanesidebuttons` — SaneSideButtons
+- [x] `sc-menu` — SC Menu
+- [x] `scratch` — Scratch
+- [x] `screaming-frog-seo-spider` — Screaming Frog SEO Spider
+- [x] `screen-studio` — Screen Studio
+- [x] `screenflick` — Screenflick
+- [x] `screenflow` — ScreenFlow *
+- [x] `screenfocus` — ScreenFocus
+- [x] `scribus` — Scribus
+- [x] `scrivener` — Scrivener *
+- [ ] `scroll-reverser` — Scroll Reverser  — **deferred — no cask JSON from formulae.brew.sh**
+- [x] `securesafe` — SecureSafe
+- [x] `selfcontrol` — SelfControl
+- [x] `send-to-kindle` — Send to Kindle
+- [x] `sensei` — Sensei
+- [ ] `sentinel` — Sentinel  — **deferred — no .app in zip**
+- [x] `servo` — Servo
+- [x] `session` — Session
+- [x] `setapp` — Setapp
+- [x] `shapr3d` — Shapr3D
+- [x] `sharefile` — ShareFile
+- [x] `shift` — Shift
+- [x] `shifty` — Shifty
+- [x] `shortcat` — Sproutcube Shortcat
+- [x] `shotcut` — Shotcut
+- [x] `shureplus-motiv` — ShurePlus MOTIV
+- [x] `shutter-encoder` — Shutter Encoder
+- [x] `sidenotes` — SideNotes
+- [ ] `sigil` — Sigil  — **deferred — undetected format**
+- [x] `sigmaos` — SigmaOS
+- [x] `silentknight` — SilentKnight
+- [x] `silhouette-studio` — Silhouette Studio
+- [x] `simple-comic` — Simple Comic
+- [x] `simpledemviewer` — SimpleDEMViewer
+- [x] `sirimote` — SiriMote
+- [x] `sketchup` — SketchUp *
+- [x] `skim` — Skim
+- [x] `slab` — Slab
+- [x] `slicer` — 3D Slicer
+- [x] `slidepad` — Slidepad
+- [x] `sloth` — Sloth
+- [x] `smartsheet` — Smartsheet
+- [x] `smartsvn` — SmartSVN
+- [x] `smoothscroll` — SmoothScroll
+- [x] `smultron` — Smultron *
+- [x] `snapmotion` — SnapMotion
+- [x] `snowflake-snowsql` — SnowSQL
+- [ ] `soapui` — SmartBear SoapUI  — **deferred — installer-stub (SoapUI 5.9.1 Installer.app)**
+- [x] `sococo` — Sococo
+- [x] `sonic-visualiser` — Sonic Visualiser
+- [x] `sonobus` — SonoBus
+- [x] `sonos` — Sonos S2
+- [x] `sonos-s1-controller` — Sonos S1
+- [x] `sony-ps-remote-play` — PS Remote Play
+- [x] `soulver` — Soulver *
+- [x] `sound-control` — Sound Control
+- [x] `sound-siphon` — SoundSiphon *
+- [x] `soundanchor` — SoundAnchor
+- [x] `soundsource` — SoundSource
+- [x] `spamsieve` — SpamSieve
+- [x] `spectra-app` — Spectra
+- [x] `spitfire-audio` — Spitfire Audio
+- [x] `splice` — Splice
+- [x] `spyder` — Spyder *
+- [x] `sqlectron` — Sqlectron
+- [x] `sqlpro-for-mssql` — SQLPro for MSSQL
+- [x] `sqlpro-for-mysql` — SQLPro for MySQL
+- [x] `sqlpro-for-postgres` — SQLPro for Postgres
+- [x] `sqlpro-for-sqlite` — SQLPro for SQLite
+- [x] `sqlpro-studio` — SQLPro Studio
+- [x] `squash` — squash *
+- [x] `ssh-config-editor` — SSH Config Editor
+- [x] `standard-notes` — Standard Notes
+- [x] `staruml` — StarUML
+- [x] `steermouse` — SteerMouse
+- [x] `stellarium` — Stellarium
+- [x] `stillcolor` — Stillcolor
+- [ ] `stolendata-mpv` — mpv  — **deferred — unsupported installer format**
+- [x] `stretchly` — Stretchly
+- [x] `studio-3t` — Studio 3T
+- [x] `subethaedit` — SubEthaEdit
+- [x] `sunsama` — Sunsama
+- [x] `super-productivity` — Super Productivity
+- [x] `supercollider` — SuperCollider
+- [x] `superhuman` — Superhuman
+- [x] `superkey` — Superkey
+- [x] `superlist` — Superlist
+- [x] `superwhisper` — superwhisper
+- [x] `supportcompanion` — Support Companion
+- [x] `surge` — Surge
+- [x] `swift-quit` — Swift Quit
+- [x] `swift-shift` — Swift Shift
+- [x] `swiftbar` — SwiftBar
+- [x] `swifty` — Swifty
+- [x] `swish` — Swish
+- [x] `switch` — Switch Audio Converter
+- [x] `sync` — Sync
+- [x] `syncmate` — SyncMate
+- [x] `syncovery` — Syncovery
+- [x] `syncthing-app` — Syncthing
+- [x] `synologyassistant` — Synology Assistant
+- [x] `syntax-highlight` — Syntax Highlight
+- [x] `systhist` — SystHist
 
 ## T  (49)
 
