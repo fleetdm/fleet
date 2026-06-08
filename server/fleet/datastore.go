@@ -2164,6 +2164,11 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
+	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.
+	// Called at most once per OMA-DM session, when the pending-commands fetch comes back empty (the session has drained
+	// the queue and the flag may flip to 0); mid-session messages skip it since the flag provably stays 1.
+	MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error
+
 	// MDMWindowsSaveResponse saves a full response for the given enrollment.
 	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) (*MDMWindowsSaveResponseResult, error)
 

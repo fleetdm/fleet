@@ -1763,7 +1763,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates.minimum_version", v)
 	}
 
-	if err := mdm.MacOSSetup.Validate(); err != nil {
+	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate

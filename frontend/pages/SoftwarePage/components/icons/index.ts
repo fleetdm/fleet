@@ -21,6 +21,7 @@ import BeekeeperStudio from "./BeekeeperStudio";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import CapCut from "./CapCut";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
@@ -64,6 +65,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Pd from "./Pd";
 import PlantronicsHub from "./PlantronicsHub";
 import Postgresql15 from "./Postgresql15";
 import Postgresql16 from "./Postgresql16";
@@ -240,6 +242,8 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Python313 from "./Python313";
+import Python314 from "./Python314";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
@@ -352,6 +356,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
   "antigravity ide": AntigravityIde,
+  capcut: CapCut,
   "dfu blaster pro": DfuBlasterPro,
   "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
@@ -542,6 +547,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  pd: Pd,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
@@ -568,6 +574,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "python 3.13": Python313,
+  "python 3.14": Python314,
   quip: Quip,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
