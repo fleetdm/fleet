@@ -202,6 +202,14 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	-- policy_id: the team policy whose install-software automation points at this installer (lowest id on ties), used as a gate
+	-- during setup experience. teamID 0 ("No team") maps to policies.team_id IS NULL via NULLIF so global policies gate No-team
+	-- hosts. Only Windows/Linux are gated; the platform guard keeps this NULL on Apple platforms.
+	(SELECT MIN(p.id)
+		FROM policies p
+		WHERE p.software_installer_id = si.id
+		AND p.team_id <=> NULLIF(?, 0)
+		AND ? IN ('windows', 'linux')) AS policy_id,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
@@ -241,7 +249,9 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		// Placeholder order: host_uuid, policy_id subquery (teamID, fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
+		// deb-distro check, rpm-distro check.
+		softwareArgs = append(softwareArgs, hostUUID, teamID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
@@ -255,6 +265,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
+	NULL AS policy_id,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
@@ -288,9 +299,10 @@ INSERT INTO setup_experience_status_results (
 	name,
 	status,
 	software_installer_id,
-	vpp_app_team_id
+	vpp_app_team_id,
+	policy_id
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_id FROM (
 	%s
 ) AS combined
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
@@ -645,6 +657,7 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
+	sesr.policy_id,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
@@ -714,6 +727,23 @@ ORDER BY sesr.id
 	}
 
 	return results, nil
+}
+
+// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal (pending/running)
+// setup-experience software items. These are the only policies setup experience un-skips during setup; all other team policies
+// stay skipped so unrelated automations do not fire mid-setup. Returns an empty slice when the host has no policy-gated items.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
+	const stmt = `
+SELECT DISTINCT policy_id
+FROM setup_experience_status_results
+WHERE host_uuid = ?
+	AND policy_id IS NOT NULL
+	AND status IN ('pending', 'running')`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+	}
+	return ids, nil
 }
 
 func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {

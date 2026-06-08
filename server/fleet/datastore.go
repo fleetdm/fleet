@@ -939,6 +939,14 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
+	// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs. It is used to un-skip only the
+	// setup-experience-gating policies for a host in setup experience, rather than the host's entire team policy set.
+	PolicyQueriesForHostFiltered(ctx context.Context, host *Host, policyIDs []uint) (map[string]string, error)
+
+	// GetSetupExperiencePolicyResult returns the host's fresh (recorded at or after `since`) pass/fail result for the given
+	// gating policy, or nil if there is no fresh definitive result yet. Used by setup experience to gate an install.
+	GetSetupExperiencePolicyResult(ctx context.Context, hostID, policyID uint, since time.Time) (*bool, error)
+
 	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
 	// 	- Returns hosts of the team that are failing one or more of the provided policies.
@@ -2872,6 +2880,10 @@ type Datastore interface {
 
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
+
+	// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal setup-experience
+	// software items, i.e. the only policies setup experience should run during setup.
+	GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error

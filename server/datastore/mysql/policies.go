@@ -1199,6 +1199,75 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	return results, nil
 }
 
+// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs. It is used to un-skip only the
+// setup-experience-gating policies for a host in setup experience, instead of distributing the host's entire (possibly large)
+// team policy set. It reuses the exact platform/label scoping of PolicyQueriesForHost, so an associated policy whose scope
+// excludes the host yields no query (setup experience then falls back to installing the item rather than waiting forever).
+func (ds *Datastore) PolicyQueriesForHostFiltered(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
+	if len(policyIDs) == 0 {
+		return map[string]string{}, nil
+	}
+	if host.FleetPlatform() == "" {
+		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
+	}
+	stmt := `
+		SELECT p.id, p.query
+		FROM policies p
+		LEFT JOIN (
+			SELECT pl.policy_id,
+				MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 THEN 1 ELSE 0 END) AS has_include_any,
+				MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_include_any,
+				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS include_all_count,
+				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
+				MAX(CASE WHEN pl.exclude = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude
+			FROM policy_labels pl
+			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
+			GROUP BY pl.policy_id
+		) pl_agg ON pl_agg.policy_id = p.id
+		WHERE
+			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
+			p.id IN (?) AND
+			(p.platforms = '' OR FIND_IN_SET(?, p.platforms)) AND
+			(COALESCE(pl_agg.has_include_any, 0) = 0 OR pl_agg.host_in_include_any = 1) AND
+			(COALESCE(pl_agg.include_all_count, 0) = 0 OR pl_agg.host_include_all_count = pl_agg.include_all_count) AND
+			COALESCE(pl_agg.host_in_exclude, 0) = 0
+`
+	stmt, args, err := sqlx.In(stmt, host.ID, host.TeamID, policyIDs, host.FleetPlatform())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build filtered policy queries statement")
+	}
+	var rows []struct {
+		ID    string `db:"id"`
+		Query string `db:"query"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting filtered policies for host")
+	}
+	results := make(map[string]string, len(rows))
+	for _, row := range rows {
+		results[row.ID] = row.Query
+	}
+	return results, nil
+}
+
+// GetSetupExperiencePolicyResult returns the host's fresh pass/fail result for the given gating policy. "Fresh" means recorded at
+// or after `since` (the host's last enrollment time), so a stale result from a previous enrollment is ignored. Returns nil when
+// there is no fresh, definitive (passes IS NOT NULL) result yet, which tells setup experience to keep waiting.
+func (ds *Datastore) GetSetupExperiencePolicyResult(ctx context.Context, hostID, policyID uint, since time.Time) (*bool, error) {
+	const stmt = `
+SELECT passes
+FROM policy_membership
+WHERE host_id = ? AND policy_id = ? AND passes IS NOT NULL AND updated_at >= ?`
+	var passes bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &passes, stmt, hostID, policyID, since); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy result")
+	}
+	return &passes, nil
+}
+
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
 	if args.Type != fleet.PolicyTypePatch {

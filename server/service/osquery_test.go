@@ -3547,6 +3547,11 @@ func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 
+	// No policy-gated setup-experience items for this host, so during setup experience no policy queries are distributed.
+	ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+		return nil, nil
+	}
+
 	ctx = hostctx.NewContext(ctx, host)
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
@@ -4863,32 +4868,32 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	// Continuous re-fire with a recent successful install => throttled.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-10*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.False(t, insertCalled, "continuous install should be throttled within the policy update interval")
 
 	// Continuous re-fire after the interval elapsed => fires.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-2*time.Hour))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire once the cooldown elapses")
 
 	// Newly failing (pass→fail) bypasses the cooldown even with a recent install.
 	insertCalled = false
 	setLastInstall(&installed, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, map[uint]struct{}{policyID: {}}))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, insertCalled, "newly-failing install should fire regardless of cooldown")
 
 	// A recent FAILED install does not throttle: only successful installs request the
 	// refetch that drives the loop, and failures are retried via the dedicated path.
 	insertCalled = false
 	setLastInstall(&failedInstall, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install failed")
 
 	// A recent install with nil status (installed then removed) does not throttle.
 	insertCalled = false
 	setLastInstall(nil, now.Add(-1*time.Minute))
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install has no resolved status")
 
 	// No prior install => fires.
@@ -4896,7 +4901,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, failing, noNewlyFailing))
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "install should fire when there is no prior install")
 }
 
