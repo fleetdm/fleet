@@ -2130,6 +2130,27 @@
       "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
+      "name": "PostgreSQL 15",
+      "slug": "postgresql-15/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 15",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
+      "name": "PostgreSQL 16",
+      "slug": "postgresql-16/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 16",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
+      "name": "PostgreSQL 17",
+      "slug": "postgresql-17/windows",
+      "platform": "windows",
+      "unique_identifier": "PostgreSQL 17",
+      "description": "PostgreSQL is a powerful, open source object-relational database system."
+    },
+    {
       "name": "PostgreSQL 18",
       "slug": "postgresql-18/windows",
       "platform": "windows",
