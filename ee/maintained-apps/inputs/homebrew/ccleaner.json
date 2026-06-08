@@ -1,0 +1,10 @@
+{
+  "name": "Piriform CCleaner",
+  "unique_identifier": "com.piriform.ccleaner",
+  "token": "ccleaner",
+  "installer_format": "dmg",
+  "slug": "ccleaner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

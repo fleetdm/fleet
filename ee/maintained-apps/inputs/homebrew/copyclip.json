@@ -1,0 +1,10 @@
+{
+  "name": "CopyClip",
+  "unique_identifier": "com.fiplab.copyclip3",
+  "token": "copyclip",
+  "installer_format": "zip",
+  "slug": "copyclip/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

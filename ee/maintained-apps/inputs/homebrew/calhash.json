@@ -1,0 +1,10 @@
+{
+  "name": "CalHash",
+  "unique_identifier": "com.titanium.Calhash",
+  "token": "calhash",
+  "installer_format": "dmg",
+  "slug": "calhash/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

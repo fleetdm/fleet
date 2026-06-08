@@ -115,65 +115,65 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## C  (59)
 
-- [ ] `cacher` — Cacher
-- [ ] `caffeine` — Caffeine
-- [ ] `calhash` — CalHash
-- [ ] `calibrite-profiler` — calibrite PROFILER
-- [ ] `calmly-writer` — Calmly Writer
-- [ ] `camo-studio` — Camo Studio
-- [ ] `camunda-modeler` — Camunda Modeler
-- [ ] `cap` — Cap
-- [ ] `capacities` — Capacities
-- [ ] `captain` — Captain
-- [ ] `captin` — Captin
-- [ ] `capto` — Capto
-- [ ] `carbon-copy-cloner` — Carbon Copy Cloner
-- [ ] `cardhop` — Cardhop
-- [ ] `ccleaner` — Piriform CCleaner
-- [ ] `cellprofiler` — CellProfiler
-- [ ] `chalk` — Chalk
-- [ ] `charmstone` — Charmstone
-- [ ] `chatwise` — ChatWise
-- [ ] `chatwork` — ChatWork
-- [ ] `cheetah3d` — Cheetah3D
-- [ ] `cherry-studio` — Cherry Studio
-- [ ] `chime` — Chime
-- [ ] `chipmunk` — Chipmunk Log Analyzer & Viewer
-- [ ] `choosy` — Choosy
-- [ ] `chrome-remote-desktop-host` — Chrome Remote Desktop
-- [ ] `cisco-proximity` — Cisco Proximity
-- [ ] `cleanclip` — CleanClip
-- [ ] `clipbook` — ClipBook
-- [ ] `clipgrab` — ClipGrab
-- [ ] `clipy` — Clipy
-- [ ] `clocker` — Clocker
-- [ ] `clop` — Clop
-- [ ] `cloudmounter` — Eltima CloudMounter
-- [ ] `cmake-app` — CMake
-- [ ] `cmux` — cmux
-- [ ] `coconutbattery` — coconutBattery
-- [ ] `codeedit` — CodeEdit
-- [ ] `coderunner` — CodeRunner
-- [ ] `codex` — Codex
-- [ ] `codexbar` — CodexBar
-- [ ] `codexmonitor` — CodexMonitor
-- [ ] `cog-app` — Cog
-- [ ] `colorsnapper` — ColorSnapper 2
-- [ ] `colour-contrast-analyser` — Colour Contrast Analyser
-- [ ] `comfyui` — ComfyUI
-- [ ] `command-tab-plus` — Command-Tab Plus *
-- [ ] `commander` — Commander
-- [ ] `commander-one` — Commander One
-- [ ] `companion` — Bitfocus Companion
-- [ ] `conductor` — Conductor
-- [ ] `copilot-money` — Copilot
-- [ ] `copyclip` — CopyClip *
-- [ ] `cork` — Cork
-- [ ] `crossover` — CrossOver
-- [ ] `crystalfetch` — Crystalfetch
-- [ ] `cursorsense` — CursorSense
-- [ ] `cursr` — Cursr
-- [ ] `customshortcuts` — CustomShortcuts
+- [x] `cacher` — Cacher
+- [x] `caffeine` — Caffeine
+- [x] `calhash` — CalHash
+- [x] `calibrite-profiler` — calibrite PROFILER
+- [x] `calmly-writer` — Calmly Writer
+- [x] `camo-studio` — Camo Studio
+- [x] `camunda-modeler` — Camunda Modeler
+- [ ] `cap` — Cap  — **deferred — tar.gz unsupported**
+- [x] `capacities` — Capacities
+- [x] `captain` — Captain
+- [x] `captin` — Captin
+- [x] `capto` — Capto
+- [x] `carbon-copy-cloner` — Carbon Copy Cloner
+- [x] `cardhop` — Cardhop
+- [x] `ccleaner` — Piriform CCleaner
+- [x] `cellprofiler` — CellProfiler
+- [x] `chalk` — Chalk
+- [x] `charmstone` — Charmstone
+- [x] `chatwise` — ChatWise
+- [x] `chatwork` — ChatWork
+- [x] `cheetah3d` — Cheetah3D
+- [x] `cherry-studio` — Cherry Studio
+- [x] `chime` — Chime
+- [ ] `chipmunk` — Chipmunk Log Analyzer & Viewer  — **deferred — tar.gz unsupported**
+- [x] `choosy` — Choosy
+- [x] `chrome-remote-desktop-host` — Chrome Remote Desktop
+- [x] `cisco-proximity` — Cisco Proximity
+- [x] `cleanclip` — CleanClip
+- [x] `clipbook` — ClipBook
+- [x] `clipgrab` — ClipGrab
+- [x] `clipy` — Clipy
+- [x] `clocker` — Clocker
+- [x] `clop` — Clop
+- [x] `cloudmounter` — Eltima CloudMounter
+- [x] `cmake-app` — CMake
+- [x] `cmux` — cmux
+- [x] `coconutbattery` — coconutBattery
+- [x] `codeedit` — CodeEdit
+- [x] `coderunner` — CodeRunner
+- [ ] `codex` — Codex  — **deferred — tar.gz unsupported**
+- [x] `codexbar` — CodexBar
+- [ ] `codexmonitor` — CodexMonitor  — **deferred — unsupported installer format**
+- [x] `cog-app` — Cog
+- [x] `colorsnapper` — ColorSnapper 2
+- [x] `colour-contrast-analyser` — Colour Contrast Analyser
+- [ ] `comfyui` — ComfyUI  — **deferred — no .app in zip**
+- [x] `command-tab-plus` — Command-Tab Plus *
+- [x] `commander` — Commander
+- [x] `commander-one` — Commander One
+- [x] `companion` — Bitfocus Companion
+- [ ] `conductor` — Conductor  — **deferred — tar.gz unsupported**
+- [x] `copilot-money` — Copilot
+- [x] `copyclip` — CopyClip *
+- [x] `cork` — Cork
+- [x] `crossover` — CrossOver
+- [x] `crystalfetch` — Crystalfetch
+- [x] `cursorsense` — CursorSense
+- [x] `cursr` — Cursr
+- [x] `customshortcuts` — CustomShortcuts
 
 ## D  (48)
 

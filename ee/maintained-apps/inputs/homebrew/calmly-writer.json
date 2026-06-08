@@ -1,0 +1,10 @@
+{
+  "name": "Calmly Writer",
+  "unique_identifier": "calmlywriter",
+  "token": "calmly-writer",
+  "installer_format": "dmg",
+  "slug": "calmly-writer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

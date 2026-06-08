@@ -1,0 +1,10 @@
+{
+  "name": "Capacities",
+  "unique_identifier": "io.capacities.app",
+  "token": "capacities",
+  "installer_format": "dmg",
+  "slug": "capacities/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
