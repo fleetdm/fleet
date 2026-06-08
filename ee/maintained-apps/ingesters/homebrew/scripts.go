@@ -198,9 +198,10 @@ func sortUninstall(artifacts []*brewUninstall) {
 }
 
 // shellSingleQuote wraps s in single quotes for safe use as a single shell
-// token, escaping any embedded single quotes using the POSIX `'\''` idiom.
-// Cask-supplied paths can contain apostrophes (e.g. "Cycling '74"), which would
-// otherwise prematurely close the quote and produce a syntax error.
+// token, escaping any embedded single quote by closing the quote, emitting an
+// escaped quote, and reopening (the standard POSIX idiom). Cask-supplied paths
+// can contain apostrophes (e.g. "Cycling '74"), which would otherwise
+// prematurely close the quote and produce a syntax error.
 func shellSingleQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
