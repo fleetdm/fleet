@@ -30,6 +30,12 @@ interface IActionsDropdownProps {
   menuPlacement?: "top" | "bottom" | "auto";
   variant?: "button" | "brand-button" | "small-button";
   buttonLabel?: string;
+  /**
+   * Render the menu in a portal attached to `document.body` so it isn't
+   * clipped by an ancestor with `overflow` set (e.g. a horizontally
+   * scrollable table). Defaults to `false` to preserve existing behavior.
+   */
+  usePortal?: boolean;
 }
 
 const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
@@ -124,6 +130,7 @@ const ActionsDropdown = ({
   menuPlacement = "bottom",
   variant,
   buttonLabel,
+  usePortal = false,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -267,6 +274,12 @@ const ActionsDropdown = ({
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
     }),
+    // Only applies when `usePortal` is set. Keeps the portaled menu above
+    // table chrome (sticky headers, etc.) while staying below modals (1000).
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 999,
+    }),
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
@@ -329,6 +342,10 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        {...(usePortal && {
+          menuPortalTarget: document.body,
+          menuPosition: "fixed" as const,
+        })}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>

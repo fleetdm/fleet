@@ -182,6 +182,9 @@ const generateTableHeaders = (
             dropdown={{
               options: dropdownOptions,
               onChange: (value: string) => onClickAction(value, label),
+              // The labels table is horizontally scrollable, so render the
+              // menu in a portal to avoid it being clipped inside the table.
+              usePortal: true,
             }}
           />
         );

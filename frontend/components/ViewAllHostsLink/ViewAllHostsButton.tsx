@@ -26,7 +26,13 @@ interface IHostLinkProps {
   /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
   /** When provided, replaces View all hosts button with ActionDropdown */
-  dropdown?: { options: IDropdownOption[]; onChange: (value: string) => void };
+  dropdown?: {
+    options: IDropdownOption[];
+    onChange: (value: string) => void;
+    /** Render the dropdown menu in a body portal so it isn't clipped by a
+     * scrollable table ancestor. */
+    usePortal?: boolean;
+  };
 }
 
 const baseClass = "view-all-hosts-button";
@@ -73,6 +79,7 @@ const ViewAllHostsButton = ({
         placeholder={customText || "Actions"}
         variant="small-button"
         menuAlign="right"
+        usePortal={dropdown.usePortal}
       />
     );
   }
