@@ -1283,6 +1283,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git",
+      "slug": "git/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git is a free and open source distributed version control system designed to handle everything from small to very large projects."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -2422,6 +2429,13 @@
       "platform": "darwin",
       "unique_identifier": "com.quip.Desktop",
       "description": "Quip is a tool for teams to create living documents."
+    },
+    {
+      "name": "R for Windows",
+      "slug": "r/windows",
+      "platform": "windows",
+      "unique_identifier": "R for Windows",
+      "description": "R is a free software environment for statistical computing and graphics."
     },
     {
       "name": "Rancher Desktop",
