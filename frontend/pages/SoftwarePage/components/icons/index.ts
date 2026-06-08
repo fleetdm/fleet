@@ -337,6 +337,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   "antigravity ide": AntigravityIde,
+  "google antigravity ide": AntigravityIde,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
