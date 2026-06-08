@@ -1207,12 +1207,12 @@ org_settings:
       - microsoft_office
       - adobe
     has_known_exploit: true
-    severity:
-      min: 9
-      max: 10
     probability_of_exploit:
       min: 0
       max: 100
+    severity:
+      min: 9
+      max: 10
     exclude_cves:
       - CVE-2025-50897
       - CVE-2025-76306
