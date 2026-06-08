@@ -65,6 +65,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Pd from "./Pd";
 import PlantronicsHub from "./PlantronicsHub";
 import Postgresql15 from "./Postgresql15";
 import Postgresql16 from "./Postgresql16";
@@ -544,6 +545,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  pd: Pd,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
