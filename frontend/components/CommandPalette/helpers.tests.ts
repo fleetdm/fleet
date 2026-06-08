@@ -450,6 +450,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("add-vpp-app");
       expect(ids).not.toContain("add-android-app-store-app");
       expect(ids).not.toContain("add-custom-package");
+      expect(ids).not.toContain("add-self-service-category");
       expect(ids).not.toContain("add-script");
       expect(ids).not.toContain("add-custom-variable");
     });
@@ -466,6 +467,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("add-vpp-app");
       expect(ids).toContain("add-android-app-store-app");
       expect(ids).toContain("add-custom-package");
+      expect(ids).toContain("add-self-service-category");
       expect(ids).toContain("add-script");
       expect(ids).toContain("add-custom-variable");
     });
@@ -498,6 +500,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("add-vpp-app");
       expect(ids).not.toContain("add-android-app-store-app");
       expect(ids).not.toContain("add-custom-package");
+      expect(ids).not.toContain("add-self-service-category");
       // Sanity: non-software write actions still surface.
       expect(ids).toContain("add-hosts");
     });
