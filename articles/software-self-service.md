@@ -36,7 +36,7 @@ _Available in Fleet Premium_
 
 Self-service categories group software on each fleet so end users can browse and install software by category on the **My device > Self-service** page.
 
-When a new fleet is created, Fleet seeds it with the following default categories that you can rename or delete: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**. Category names support emojis (which become part of the name) and can be up to 255 characters long.
+Category names support emojis (which become part of the name) and can be up to 255 characters long.
 
 To manage categories for a fleet:
 
