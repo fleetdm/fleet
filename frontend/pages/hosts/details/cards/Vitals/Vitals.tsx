@@ -470,7 +470,12 @@ const Vitals = ({
           <DataSet
             key="supervised"
             title="Supervised"
-            value={vitalsData.supervised ? "Yes" : "No"}
+            value={
+              {
+                true: "Yes",
+                false: "No",
+              }[String(vitalsData.supervised)] ?? DEFAULT_EMPTY_CELL_VALUE
+            }
           />
         ),
       });
