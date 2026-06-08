@@ -36,6 +36,7 @@ type FMAManifestApp struct {
 	DefaultCategories  []string   `json:"default_categories"`
 	Frozen             bool       `json:"-"`
 	UpgradeCode        string     `json:"upgrade_code,omitempty"`
+	InstallerArch string `json:"installer_arch,omitempty"`
 }
 
 func (a *FMAManifestApp) Platform() string {

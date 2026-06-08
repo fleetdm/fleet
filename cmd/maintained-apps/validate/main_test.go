@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -124,5 +125,53 @@ func TestValidateSqlInput(t *testing.T) {
 				t.Errorf("expected validation error for `%s`, but got no error", tc.input)
 			}
 		})
+	}
+}
+
+func TestNormalizeArch(t *testing.T) {
+	cases := map[string]string{
+		"x64":     "amd64",
+		"X64":     "amd64",
+		"amd64":   "amd64",
+		"x86_64":  "amd64",
+		"x86":     "386",
+		"386":     "386",
+		"i386":    "386",
+		"arm64":   "arm64",
+		"ARM64":   "arm64",
+		"aarch64": "arm64",
+		" arm64 ": "arm64",
+	}
+	for in, want := range cases {
+		require.Equal(t, want, normalizeArch(in), "normalizeArch(%q)", in)
+	}
+}
+
+func TestInstallerArchMatchesHost(t *testing.T) {
+	// An empty arch always matches (backward compatibility with manifests
+	// generated before the installer_arch field existed).
+	require.True(t, installerArchMatchesHost(""))
+	require.True(t, installerArchMatchesHost("   "))
+
+	// The host's own architecture matches regardless of spelling.
+	host := normalizeArch(runtime.GOARCH)
+	switch host {
+	case "amd64":
+		require.True(t, installerArchMatchesHost("x64"))
+		require.True(t, installerArchMatchesHost("amd64"))
+		require.False(t, installerArchMatchesHost("arm64"))
+		require.False(t, installerArchMatchesHost("x86"))
+	case "arm64":
+		require.True(t, installerArchMatchesHost("arm64"))
+		require.False(t, installerArchMatchesHost("x64"))
+		require.False(t, installerArchMatchesHost("x86"))
+	case "386":
+		require.True(t, installerArchMatchesHost("x86"))
+		require.False(t, installerArchMatchesHost("x64"))
+		require.False(t, installerArchMatchesHost("arm64"))
+	default:
+		// Unknown host arch: only an exactly-matching token should pass.
+		require.True(t, installerArchMatchesHost(runtime.GOARCH))
+		require.False(t, installerArchMatchesHost("definitely-not-an-arch"))
 	}
 }

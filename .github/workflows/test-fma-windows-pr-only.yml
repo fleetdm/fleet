@@ -31,6 +31,11 @@ jobs:
     env:
       LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
     runs-on: windows-latest
+    # Expose the ARM64 Windows apps detected in this PR so the dedicated
+    # windows-11-arm job below only spins up when there is ARM64 work to do.
+    outputs:
+      has_arm_windows_apps: ${{ steps.classify-arch.outputs.has_arm_windows_apps }}
+      arm_windows_slugs: ${{ steps.classify-arch.outputs.arm_windows_slugs }}
 
     steps:
       - name: Harden Runner
@@ -163,8 +168,52 @@ jobs:
           }
         shell: pwsh
 
+      - name: Classify Windows apps by architecture
+        id: classify-arch
+        run: |
+          # Split the changed Windows apps into ARM64 vs non-ARM64 (x64/x86) by
+          # reading installer_arch from each app's winget input file. ARM64
+          # installers cannot run on this x64 runner (they fail with
+          # ERROR_INSTALL_PLATFORM_UNSUPPORTED / 1633), so they are validated on a
+          # separate windows-11-arm job; x64/x86 apps stay on this runner.
+          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
+          $windowsSlugs = @()
+          if ("${{ steps.check-changes.outputs.has_changes }}" -eq "true" -and $changedAppsJson) {
+            $windowsSlugs = @($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
+          }
+
+          # Build a slug -> installer_arch map from the winget input files.
+          $archBySlug = @{}
+          $inputsDir = "fleet\ee\maintained-apps\inputs\winget"
+          if (Test-Path $inputsDir) {
+            Get-ChildItem -Path $inputsDir -Filter *.json -File | ForEach-Object {
+              try { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json } catch { return }
+              if ($j.slug) { $archBySlug[$j.slug] = ("" + $j.installer_arch).ToLower() }
+            }
+          }
+
+          $armSlugs = @()
+          $nonArmSlugs = @()
+          foreach ($slug in $windowsSlugs) {
+            if ($archBySlug[$slug] -eq 'arm64') { $armSlugs += $slug } else { $nonArmSlugs += $slug }
+          }
+
+          # Serialize explicitly so a single slug still encodes as a JSON array
+          # (Windows PowerShell unwraps single-element arrays via ConvertTo-Json).
+          $armJson = "[" + (($armSlugs | ForEach-Object { $_ | ConvertTo-Json -Compress }) -join ",") + "]"
+          $nonArmJson = "[" + (($nonArmSlugs | ForEach-Object { $_ | ConvertTo-Json -Compress }) -join ",") + "]"
+
+          Write-Host "ARM64 Windows apps: $armJson"
+          Write-Host "Non-ARM64 Windows apps: $nonArmJson"
+
+          "has_arm_windows_apps=$(if ($armSlugs.Count -gt 0) {'true'} else {'false'})" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "arm_windows_slugs=$armJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "has_nonarm_windows_apps=$(if ($nonArmSlugs.Count -gt 0) {'true'} else {'false'})" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "nonarm_windows_slugs=$nonArmJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        shell: pwsh
+
       - name: Install osquery windows
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
+        if: steps.classify-arch.outputs.has_nonarm_windows_apps == 'true'
         run: |
           Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
           curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
@@ -489,25 +538,22 @@ jobs:
         shell: powershell
 
       - name: Filter apps.json and verify changed apps
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
+        if: steps.classify-arch.outputs.has_nonarm_windows_apps == 'true'
         run: |
           cd fleet
           # Set GITHUB_WORKSPACE to current directory so scripts can find files
           $env:GITHUB_WORKSPACE = (Get-Location).Path
 
-          # Filter changed apps to only include windows platform
-          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
-          $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
-
-          # Build a JSON array of the windows slugs. Construct it explicitly so a single
-          # slug still serializes as an array (Windows PowerShell unwraps single-element
-          # arrays via ConvertTo-Json), and write it to a BOM-free file. We then pass the
-          # file PATH -- not the JSON string -- to the bash script: forwarding a quoted
-          # JSON string across the PowerShell -> bash argument boundary mangles the
-          # embedded quotes under Windows PowerShell 5.1, which breaks jq --argjson.
-          $slugsArray = @($windowsSlugs)
-          $windowsSlugsJson = "[" + (($slugsArray | ForEach-Object { $_ | ConvertTo-Json -Compress }) -join ",") + "]"
-          Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
+          # Validate only the non-ARM64 (x64/x86) Windows apps on this runner.
+          # ARM64 apps are handled by the dedicated windows-11-arm job below; the
+          # non-ARM64 slug list is produced by the "Classify Windows apps by
+          # architecture" step as a JSON array string. We write it to a BOM-free
+          # file and pass the file PATH -- not the JSON string -- to the bash
+          # script: forwarding a quoted JSON string across the PowerShell -> bash
+          # argument boundary mangles the embedded quotes under Windows PowerShell
+          # 5.1, which breaks jq --argjson.
+          $windowsSlugsJson = '${{ steps.classify-arch.outputs.nonarm_windows_slugs }}'
+          Write-Host "Filtering apps.json for non-ARM64 slugs: $windowsSlugsJson"
 
           $windowsSlugsFile = Join-Path $env:TEMP "windows-slugs-$(New-Guid).json"
           Set-Content -Path $windowsSlugsFile -Value $windowsSlugsJson -Encoding ascii -NoNewline
@@ -544,3 +590,93 @@ jobs:
         # Use Windows PowerShell 5.1 (not pwsh): when validating the PowerShell FMA we
         # uninstall PowerShell 7 in the step above, so pwsh.exe may not be available here.
         shell: powershell
+
+  # Dedicated ARM64 validation. This job only runs when the PR changed one or
+  # more ARM64 Windows FMAs (gated by the job-level `if` below), so the billable
+  # windows-11-arm runner is not started for x64/x86-only changes. ARM64
+  # installers fail with ERROR_INSTALL_PLATFORM_UNSUPPORTED (1633) on the x64
+  # runner, so they must be installed and validated on native ARM64 hardware.
+  test-fma-pr-only-arm:
+    needs: test-fma-pr-only
+    if: needs.test-fma-pr-only.outputs.has_arm_windows_apps == 'true'
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    runs-on: windows-11-arm
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.ref }}
+          path: fleet
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: "fleet/go.mod"
+
+      - name: Install osquery windows
+        run: |
+          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
+          # osquery does not ship a native Windows ARM64 build; the x86_64 build
+          # runs under x64 emulation on Windows 11 on ARM. A 64-bit (emulated)
+          # osquery process reads the native 64-bit registry view, so it sees the
+          # ARP entries written by ARM64 installers.
+          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
+          Expand-Archive -Path osquery.zip -DestinationPath osquery
+          Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
+          $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName
+          echo "Adding to PATH: $osqueryPath"
+          echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Filter apps.json and verify changed ARM64 apps
+        run: |
+          cd fleet
+          $env:GITHUB_WORKSPACE = (Get-Location).Path
+
+          # ARM64 Windows slugs detected by the classify step in the x64 job.
+          $armSlugsJson = '${{ needs.test-fma-pr-only.outputs.arm_windows_slugs }}'
+          Write-Host "Filtering apps.json for ARM64 slugs: $armSlugsJson"
+
+          # Write the slug list to a BOM-free file and pass the PATH to the bash
+          # script (mirrors the x64 job; avoids PowerShell -> bash quote mangling).
+          $armSlugsFile = Join-Path $env:TEMP "arm-windows-slugs-$(New-Guid).json"
+          Set-Content -Path $armSlugsFile -Value $armSlugsJson -Encoding ascii -NoNewline
+          $armSlugsFileForBash = $armSlugsFile -replace '\\', '/'
+
+          # Backup original apps.json
+          Copy-Item -Path "ee\maintained-apps\outputs\apps.json" -Destination "ee\maintained-apps\outputs\apps.json.backup"
+
+          # Create filtered apps.json
+          $filteredAppsJson = Join-Path $env:TEMP "filtered-apps-$(New-Guid).json"
+          bash .github/scripts/filter-apps-json.sh "$armSlugsFileForBash" "$filteredAppsJson"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: filter-apps-json.sh failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          if (-not (Test-Path $filteredAppsJson)) {
+            Write-Host "Error: Filtered apps.json was not created at $filteredAppsJson"
+            exit 1
+          }
+
+          # Replace apps.json with filtered version
+          Move-Item -Path $filteredAppsJson -Destination "ee\maintained-apps\outputs\apps.json" -Force
+
+          # Run validation. The validator skips any app whose installer_arch does
+          # not match this runner (arm64), so only the ARM64 apps are installed.
+          ls "C:\Program Files"
+          go run ./cmd/maintained-apps/validate
+
+          # Restore original apps.json
+          Move-Item -Path "ee\maintained-apps\outputs\apps.json.backup" -Destination "ee\maintained-apps\outputs\apps.json" -Force
+        shell: pwsh
