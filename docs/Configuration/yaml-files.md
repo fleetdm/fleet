@@ -1203,7 +1203,7 @@ org_settings:
   vulnerability_exposure_historical_reporting:
     software_categories:
       - os
-      - browser
+      - browsers
       - microsoft_office
       - adobe
     has_known_exploit: true
