@@ -1,0 +1,10 @@
+{
+  "name": "Eclipse IDE for Java Developers",
+  "unique_identifier": "epp.package.java",
+  "token": "eclipse-java",
+  "installer_format": "dmg",
+  "slug": "eclipse-java/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

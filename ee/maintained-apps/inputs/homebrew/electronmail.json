@@ -1,0 +1,10 @@
+{
+  "name": "ElectronMail",
+  "unique_identifier": "github.comvladimiryElectronMail",
+  "token": "electronmail",
+  "installer_format": "dmg",
+  "slug": "electronmail/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "EA App",
+  "unique_identifier": "com.ea.EACefSubProcessRenderer",
+  "token": "ea",
+  "installer_format": "dmg",
+  "slug": "ea/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

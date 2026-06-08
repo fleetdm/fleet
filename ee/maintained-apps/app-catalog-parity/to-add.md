@@ -228,35 +228,35 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## E  (29)
 
-- [ ] `ea` — EA App
-- [ ] `eaglefiler` — EagleFiler
-- [ ] `easydict` — Easydict
-- [ ] `easyfind` — EasyFind
-- [ ] `eclipse-cpp` — Eclipse IDE for C/C++ Developers
-- [ ] `eclipse-dsl` — Eclipse IDE for Java and DSL Developers
-- [ ] `eclipse-java` — Eclipse IDE for Java Developers
-- [ ] `eclipse-modeling` — Eclipse Modeling Tools
-- [ ] `electronmail` — ElectronMail
-- [ ] `electrum` — Electrum
-- [ ] `element` — Element
-- [ ] `elephas` — Elephas
-- [ ] `elgato-camera-hub` — Elgato Camera Hub
-- [ ] `elgato-capture-device-utility` — Elgato Capture Device Utility
-- [ ] `elgato-game-capture-hd` — Elgato Game Capture HD
-- [ ] `elgato-wave-link` — Elgato Wave Link
-- [ ] `elmedia-player` — Elmedia Player
-- [ ] `emacs-app` — Emacs
-- [ ] `emclient` — eM Client
-- [ ] `enpass` — Enpass
-- [ ] `ente` — Ente
-- [ ] `ente-auth` — Ente Auth
-- [ ] `epic-games` — Epic Games Launcher
-- [ ] `equinox` — Equinox
-- [ ] `espanso` — Espanso
-- [ ] `etrecheckpro` — EtreCheck
-- [ ] `exifcleaner` — ExifCleaner
-- [ ] `exifrenamer` — ExifRenamer
-- [ ] `extradock` — ExtraDock
+- [x] `ea` — EA App
+- [x] `eaglefiler` — EagleFiler
+- [x] `easydict` — Easydict
+- [x] `easyfind` — EasyFind
+- [x] `eclipse-cpp` — Eclipse IDE for C/C++ Developers
+- [x] `eclipse-dsl` — Eclipse IDE for Java and DSL Developers
+- [x] `eclipse-java` — Eclipse IDE for Java Developers
+- [x] `eclipse-modeling` — Eclipse Modeling Tools
+- [x] `electronmail` — ElectronMail
+- [x] `electrum` — Electrum
+- [x] `element` — Element
+- [x] `elephas` — Elephas
+- [x] `elgato-camera-hub` — Elgato Camera Hub
+- [x] `elgato-capture-device-utility` — Elgato Capture Device Utility
+- [x] `elgato-game-capture-hd` — Elgato Game Capture HD
+- [x] `elgato-wave-link` — Elgato Wave Link
+- [x] `elmedia-player` — Elmedia Player
+- [x] `emacs-app` — Emacs
+- [x] `emclient` — eM Client
+- [x] `enpass` — Enpass
+- [x] `ente` — Ente
+- [x] `ente-auth` — Ente Auth
+- [x] `epic-games` — Epic Games Launcher
+- [x] `equinox` — Equinox
+- [x] `espanso` — Espanso
+- [x] `etrecheckpro` — EtreCheck
+- [x] `exifcleaner` — ExifCleaner
+- [x] `exifrenamer` — ExifRenamer
+- [x] `extradock` — ExtraDock
 
 ## F  (43)
 

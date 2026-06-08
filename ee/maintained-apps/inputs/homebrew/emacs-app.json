@@ -1,0 +1,10 @@
+{
+  "name": "Emacs",
+  "unique_identifier": "org.gnu.Emacs",
+  "token": "emacs-app",
+  "installer_format": "dmg",
+  "slug": "emacs-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

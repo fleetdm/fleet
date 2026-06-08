@@ -1,0 +1,10 @@
+{
+  "name": "Eclipse IDE for Java and DSL Developers",
+  "unique_identifier": "epp.package.dsl",
+  "token": "eclipse-dsl",
+  "installer_format": "dmg",
+  "slug": "eclipse-dsl/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

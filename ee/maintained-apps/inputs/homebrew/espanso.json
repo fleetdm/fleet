@@ -1,0 +1,10 @@
+{
+  "name": "Espanso",
+  "unique_identifier": "com.federicoterzi.espanso",
+  "token": "espanso",
+  "installer_format": "zip",
+  "slug": "espanso/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

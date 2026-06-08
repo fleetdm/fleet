@@ -1,0 +1,10 @@
+{
+  "name": "Eclipse Modeling Tools",
+  "unique_identifier": "epp.package.modeling",
+  "token": "eclipse-modeling",
+  "installer_format": "dmg",
+  "slug": "eclipse-modeling/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
