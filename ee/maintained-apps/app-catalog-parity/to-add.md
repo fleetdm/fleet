@@ -910,30 +910,30 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## W  (24)
 
-- [ ] `waterfox` — Waterfox
-- [ ] `wave` — Wave Terminal
-- [ ] `wavebox` — Wavebox
-- [ ] `wealthfolio` — Wealthfolio
-- [ ] `weasis` — Weasis
-- [ ] `webcatalog` — WebCatalog
-- [ ] `wechat` — WeChat for Mac
-- [ ] `weektodo` — WeekToDo
-- [ ] `wezterm` — WezTerm
-- [ ] `whatroute` — WhatRoute
-- [ ] `whisky` — Whisky
-- [ ] `whispering` — Whispering
-- [ ] `wifiman` — WiFiman Desktop
-- [ ] `windowkeys` — WindowKeys
-- [ ] `wins` — Wins
-- [ ] `wire` — Wire
-- [ ] `wispr-flow` — Wispr Flow
-- [ ] `witch` — Witch
-- [ ] `wondershare-edrawmax` — EdrawMax
-- [ ] `wondershare-filmora` — Wondershare Filmora
-- [ ] `wordservice` — WordService
-- [ ] `workflowy` — WorkFlowy
-- [ ] `worksheet-crafter` — Worksheet Crafter
-- [ ] `workspaces` — Workspaces
+- [x] `waterfox` — Waterfox
+- [x] `wave` — Wave Terminal
+- [x] `wavebox` — Wavebox
+- [x] `wealthfolio` — Wealthfolio
+- [x] `weasis` — Weasis
+- [x] `webcatalog` — WebCatalog
+- [x] `wechat` — WeChat for Mac
+- [x] `weektodo` — WeekToDo
+- [x] `wezterm` — WezTerm
+- [x] `whatroute` — WhatRoute
+- [x] `whisky` — Whisky
+- [x] `whispering` — Whispering
+- [x] `wifiman` — WiFiman Desktop
+- [x] `windowkeys` — WindowKeys
+- [x] `wins` — Wins
+- [ ] `wire` — Wire  — **deferred — generator could not ingest the cask**
+- [x] `wispr-flow` — Wispr Flow
+- [x] `witch` — Witch
+- [x] `wondershare-edrawmax` — EdrawMax
+- [x] `wondershare-filmora` — Wondershare Filmora
+- [x] `wordservice` — WordService
+- [x] `workflowy` — WorkFlowy
+- [x] `worksheet-crafter` — Worksheet Crafter
+- [x] `workspaces` — Workspaces
 
 ## X  (11)
 

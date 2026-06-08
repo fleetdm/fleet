@@ -8605,6 +8605,48 @@
       "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
     },
     {
+      "name": "Waterfox",
+      "slug": "waterfox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.waterfoxproject.waterfox",
+      "description": "Waterfox is a web browser."
+    },
+    {
+      "name": "Wave Terminal",
+      "slug": "wave/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.commandline.waveterm",
+      "description": "Wave Terminal is a terminal emulator."
+    },
+    {
+      "name": "Wavebox",
+      "slug": "wavebox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.wavebox.wavebox",
+      "description": "Wavebox is a web browser."
+    },
+    {
+      "name": "Wealthfolio",
+      "slug": "wealthfolio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.teymz.wealthfolio",
+      "description": "Wealthfolio is an investment portfolio tracker."
+    },
+    {
+      "name": "Weasis",
+      "slug": "weasis/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.weasis.launcher",
+      "description": "Weasis is a free DICOM viewer for displaying and analyzing medical images."
+    },
+    {
+      "name": "WebCatalog",
+      "slug": "webcatalog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.webcatalog.jordan",
+      "description": "WebCatalog is a tool to run web apps like desktop apps."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -8633,11 +8675,67 @@
       "description": "JavaScript IDE by JetBrains."
     },
     {
+      "name": "WeChat for Mac",
+      "slug": "wechat/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tencent.xinWeChat",
+      "description": "WeChat for Mac is a free messaging and calling application."
+    },
+    {
+      "name": "WeekToDo",
+      "slug": "weektodo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "weektodo-app.netlify.app",
+      "description": "WeekToDo is a weekly planner app focused on privacy."
+    },
+    {
+      "name": "WezTerm",
+      "slug": "wezterm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.wez.wezterm",
+      "description": "WezTerm is a GPU-accelerated cross-platform terminal emulator and multiplexer."
+    },
+    {
+      "name": "WhatRoute",
+      "slug": "whatroute/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.whatroute.whatroute2",
+      "description": "WhatRoute is a network diagnostic utility."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp is WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Whisky",
+      "slug": "whisky/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.isaacmarovitz.Whisky",
+      "description": "Whisky is a wine wrapper built with SwiftUI."
+    },
+    {
+      "name": "Whispering",
+      "slug": "whispering/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bradenwong.whispering",
+      "description": "Whispering is an audio transcription that works with local and cloud models."
+    },
+    {
+      "name": "WiFiman Desktop",
+      "slug": "wifiman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ui.wifiman-desktop",
+      "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
+    },
+    {
+      "name": "WindowKeys",
+      "slug": "windowkeys/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apptorium.WindowKeys",
+      "description": "WindowKeys is an app for window-tiling keyboard shortcuts."
     },
     {
       "name": "Windows App",
@@ -8668,6 +8766,13 @@
       "description": "WinRAR is a file archiver utility for Windows. It creates and extracts RAR and ZIP archives and supports compression, encryption, and splitting archives into volumes."
     },
     {
+      "name": "Wins",
+      "slug": "wins/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cools.wins.main",
+      "description": "Wins is a window manager."
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",
@@ -8687,6 +8792,62 @@
       "platform": "windows",
       "unique_identifier": "Wireshark",
       "description": "Wireshark is a network protocol analyzer."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.wispr-flow",
+      "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Witch",
+      "slug": "witch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.manytricks.witchdaemon",
+      "description": "Witch is a switch apps, windows, or tabs."
+    },
+    {
+      "name": "EdrawMax",
+      "slug": "wondershare-edrawmax/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.edrawsoft.edrawmax",
+      "description": "EdrawMax is a diagram software."
+    },
+    {
+      "name": "Wondershare Filmora",
+      "slug": "wondershare-filmora/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.wondershare.filmoramac",
+      "description": "Wondershare Filmora is a video editor."
+    },
+    {
+      "name": "WordService",
+      "slug": "wordservice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.grunenberg.WordService",
+      "description": "WordService is a tool that provides commands for working with selected text."
+    },
+    {
+      "name": "WorkFlowy",
+      "slug": "workflowy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.workflowy.desktop",
+      "description": "WorkFlowy is an app for notetaking tool."
+    },
+    {
+      "name": "Worksheet Crafter",
+      "slug": "worksheet-crafter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+      "description": "Worksheet Crafter is a worksheet and lesson material creator."
+    },
+    {
+      "name": "Workspaces",
+      "slug": "workspaces/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apptorium.Workspaces2-paddle",
+      "description": "Workspaces is a workspace organising app."
     },
     {
       "name": "Wrike",

@@ -1,0 +1,10 @@
+{
+  "name": "Worksheet Crafter",
+  "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+  "token": "worksheet-crafter",
+  "installer_format": "pkg",
+  "slug": "worksheet-crafter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
