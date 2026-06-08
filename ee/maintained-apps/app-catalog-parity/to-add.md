@@ -665,12 +665,12 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## Q  (6)
 
-- [ ] `qgis` — QGIS
-- [ ] `qlab` — QLab
-- [ ] `qlmarkdown` — sbarex QLMarkdown
-- [ ] `qobuz` — Qobuz
-- [ ] `qspace-pro` — QSpace Pro
-- [ ] `qview` — qView
+- [ ] `qgis` — QGIS  — **deferred — download timeout**
+- [x] `qlab` — QLab
+- [x] `qlmarkdown` — sbarex QLMarkdown
+- [x] `qobuz` — Qobuz
+- [x] `qspace-pro` — QSpace Pro
+- [x] `qview` — qView
 
 ## R  (40)
 
