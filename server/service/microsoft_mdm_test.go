@@ -671,26 +671,36 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		if after != "" {
 			return nil, nil, nil, nil, nil
 		}
-		// Return hosts ascending by UUID to match the production query's
-		// `ORDER BY h.uuid`; a map-iteration order would be non-deterministic
-		// and could mask cursor/ordering bugs.
+		// Emit ONE profile row per unique ProfileUUID (the real snapshot is
+		// profile-scoped, not per-host). Each unique profile gets its own team,
+		// and every host that maps to that profile is placed in that team, so
+		// ComputeWindowsReconcileDeltas fans the single profile out to all its
+		// hosts — exercising shared-profile grouping the way production does.
+		// Hosts are returned ascending by UUID to match `ORDER BY h.uuid`.
 		hostUUIDs := make([]string, 0, len(hostToProfile))
 		for hostUUID := range hostToProfile {
 			hostUUIDs = append(hostUUIDs, hostUUID)
 		}
 		sort.Strings(hostUUIDs)
+		teamByProfile := make(map[string]uint, len(hostToProfile))
 		var hosts []*fleet.WindowsHostReconcileInfo
 		var profiles []*fleet.WindowsProfileForReconcile
-		var teamID uint
+		var nextHostID uint
 		for _, hostUUID := range hostUUIDs {
-			teamID++
-			tid := teamID
-			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: tid, UUID: hostUUID, TeamID: &tid})
-			profiles = append(profiles, &fleet.WindowsProfileForReconcile{
-				ProfileUUID: hostToProfile[hostUUID].ProfileUUID,
-				ProfileName: hostToProfile[hostUUID].Name,
-				TeamID:      tid,
-			})
+			profile := hostToProfile[hostUUID]
+			tid, ok := teamByProfile[profile.ProfileUUID]
+			if !ok {
+				tid = uint(len(teamByProfile) + 1)
+				teamByProfile[profile.ProfileUUID] = tid
+				profiles = append(profiles, &fleet.WindowsProfileForReconcile{
+					ProfileUUID: profile.ProfileUUID,
+					ProfileName: profile.Name,
+					TeamID:      tid,
+				})
+			}
+			nextHostID++
+			hostID, teamID := nextHostID, tid
+			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: hostID, UUID: hostUUID, TeamID: &teamID})
 		}
 		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
