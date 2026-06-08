@@ -443,6 +443,13 @@
       "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
     },
     {
+      "name": "Beekeeper Studio",
+      "slug": "beekeeper-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Beekeeper Studio",
+      "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
+    },
+    {
       "name": "BetterDisplay",
       "slug": "betterdisplay/darwin",
       "platform": "darwin",
