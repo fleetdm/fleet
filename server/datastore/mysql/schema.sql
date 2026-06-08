@@ -434,7 +434,9 @@ CREATE TABLE `cve_meta` (
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
   `published` timestamp NULL DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  PRIMARY KEY (`cve`)
+  PRIMARY KEY (`cve`),
+  KEY `idx_cve_meta_exploit` (`cisa_known_exploit`,`cve`),
+  KEY `idx_cve_meta_cvss_score` (`cvss_score`,`cve`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2344,6 +2346,15 @@ CREATE TABLE `operating_systems` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `org_logo` (
+  `mode` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data` mediumblob NOT NULL,
+  `uploaded_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`mode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `osquery_options` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `override_type` int NOT NULL,
@@ -3347,7 +3358,8 @@ CREATE TABLE `vulnerability_host_counts` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `global_stats` tinyint(1) NOT NULL DEFAULT '0',
-  UNIQUE KEY `cve_team_id_global_stats` (`cve`,`team_id`,`global_stats`)
+  UNIQUE KEY `cve_team_id_global_stats` (`cve`,`team_id`,`global_stats`),
+  KEY `idx_vhc_scope_cve` (`global_stats`,`team_id`,`host_count`,`cve`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
