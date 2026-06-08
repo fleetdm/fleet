@@ -651,16 +651,39 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 
-	// The cron's batched path picks a host window first, then calls the
-	// scoped listings for that window. For the mock, return all host UUIDs
-	// from hostToProfile so the rest of the reconciler runs against the
-	// same set the test wants.
-	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-		hostUUIDs := make([]string, 0, len(hostToProfile))
-		for hostUUID := range hostToProfile {
-			hostUUIDs = append(hostUUIDs, hostUUID)
+	// The cron's batched path loads a snapshot (hosts + profiles + current
+	// state) per window and computes install/remove deltas in memory. Return
+	// every host from hostToProfile in a single window, each paired with its
+	// profile under a unique team_id so ComputeWindowsReconcileDeltas maps each
+	// host to exactly its mapped profile (regardless of whether two hosts share
+	// a profile). Empty current state => every mapped profile is a fresh
+	// install, matching the legacy listInstall fixture. The `after != ""` guard
+	// keeps these single-tick tests from looping (everything is delivered in
+	// the first window).
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
 		}
-		return hostUUIDs, nil
+		var hosts []*fleet.WindowsHostReconcileInfo
+		var profiles []*fleet.WindowsProfileForReconcile
+		var teamID uint
+		for hostUUID, profile := range hostToProfile {
+			teamID++
+			tid := teamID
+			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: tid, UUID: hostUUID, TeamID: &tid})
+			profiles = append(profiles, &fleet.WindowsProfileForReconcile{
+				ProfileUUID: profile.ProfileUUID,
+				ProfileName: profile.Name,
+				TeamID:      tid,
+			})
+		}
+		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
 
 	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
@@ -1094,8 +1117,14 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 				setCalls++
 				return nil
 			}
-			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
-				return nil, nil
+			ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+				[]*fleet.WindowsHostReconcileInfo,
+				[]*fleet.WindowsProfileForReconcile,
+				map[uint]map[uint]struct{},
+				map[string][]*fleet.MDMWindowsProfilePayload,
+				error,
+			) {
+				return nil, nil, nil, nil, nil
 			}
 
 			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
@@ -1103,6 +1132,143 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 			require.Equal(t, tc.wantFinalCursor, cursor)
 		})
 	}
+}
+
+// TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick exercises the
+// within-tick drain loop's delivery cap: with a large scan window but a small
+// per-tick delivery cap, a bulk change (every enrolled host needs the same
+// profile) is throttled to deliveryCap hosts per tick, the cursor advances only
+// to the last delivered host, and successive ticks drain the remainder until
+// the host space is exhausted (cursor resets to ""). This preserves the
+// writer-pressure smoothing the legacy 2000-host batch provided.
+func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	savedBatch := reconcileWindowsProfilesBatchSize
+	savedCap := reconcileWindowsProfilesDeliveryCap
+	savedBudget := reconcileWindowsProfilesScanBudget
+	t.Cleanup(func() {
+		reconcileWindowsProfilesBatchSize = savedBatch
+		reconcileWindowsProfilesDeliveryCap = savedCap
+		reconcileWindowsProfilesScanBudget = savedBudget
+	})
+	// Large scan window (the whole fleet fits), small delivery cap, no wall-clock limit.
+	reconcileWindowsProfilesBatchSize = 100
+	reconcileWindowsProfilesDeliveryCap = 3
+	reconcileWindowsProfilesScanBudget = time.Hour
+
+	allHosts := []string{"h00", "h01", "h02", "h03", "h04", "h05", "h06", "h07", "h08", "h09"}
+	const profileUUID = "shared-profile"
+
+	var cursor string
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.MDM.WindowsEnabledAndConfigured = true
+		return cfg, nil
+	}
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) { return cursor, nil }
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+		cursor = c
+		return nil
+	}
+	// delivered tracks hosts that already received the profile. Their current
+	// state then matches the desired state, so they no longer compute as work —
+	// modeling how the real upsert flips rows to pending/verified. This lets a
+	// later pass over the whole fleet be a true no-op instead of re-delivering.
+	deliveredHosts := map[string]struct{}{}
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		var hosts []*fleet.WindowsHostReconcileInfo
+		for i, h := range allHosts {
+			if h > after {
+				hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: h}) //nolint:gosec
+				if len(hosts) == batch {
+					break
+				}
+			}
+		}
+		if len(hosts) == 0 {
+			return nil, nil, nil, nil, nil
+		}
+		// One global, label-less profile every host needs.
+		profiles := []*fleet.WindowsProfileForReconcile{
+			{ProfileUUID: profileUUID, ProfileName: "Shared", TeamID: 0, Checksum: []byte("c")},
+		}
+		currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{}
+		for _, h := range hosts {
+			if _, ok := deliveredHosts[h.UUID]; ok {
+				currentByHost[h.UUID] = []*fleet.MDMWindowsProfilePayload{{
+					ProfileUUID:   profileUUID,
+					HostUUID:      h.UUID,
+					Checksum:      []byte("c"),
+					OperationType: fleet.MDMOperationTypeInstall,
+					Status:        &fleet.MDMDeliveryVerified,
+				}}
+			}
+		}
+		return hosts, profiles, nil, currentByHost, nil
+	}
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{
+			profileUUID: {SyncML: []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`), Checksum: []byte("c")},
+		}, nil
+	}
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, uuids []string) (map[string]struct{}, error) {
+		return map[string]struct{}{profileUUID: {}}, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error { return nil }
+	var deliveredBatches [][]string
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		deliveredBatches = append(deliveredBatches, append([]string{}, hostUUIDs...))
+		for _, h := range hostUUIDs {
+			deliveredHosts[h] = struct{}{}
+		}
+		return nil
+	}
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+
+	// Tick 1: deliver first 3 hosts, cursor advances to the last delivered host.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h02", cursor)
+	require.Equal(t, [][]string{{"h00", "h01", "h02"}}, deliveredBatches)
+
+	// Tick 2: next 3 hosts.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h05", cursor)
+
+	// Tick 3: next 3 hosts.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h08", cursor)
+
+	// Tick 4: final host (short window) drains and resets the cursor.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Tick 5: empty fleet pass, cursor stays reset.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Every host was delivered exactly once across the ticks.
+	var delivered []string
+	for _, b := range deliveredBatches {
+		delivered = append(delivered, b...)
+	}
+	require.ElementsMatch(t, allHosts, delivered)
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {

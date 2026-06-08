@@ -3435,21 +3435,49 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-// reconcileWindowsProfilesBatchSize bounds how many distinct hosts the
-// Windows MDM reconciliation cron processes per tick. The cron uses a
-// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
-// page through the pending-work universe in batches, smoothing the
-// writer pressure that an unbounded reconciliation generates during
-// bulk events like team transfers.
+// reconcileWindowsProfilesBatchSize is the scan window: how many enrolled
+// Windows hosts the reconciler reads per snapshot. Snapshot reads are cheap
+// (indexed, no set-difference), so within a single tick the drain loop pages
+// through many windows until a budget is hit.
 //
-// var rather than const so property-based tests can shrink the batch size
+// var rather than const so property-based tests can shrink the batch size.
 var reconcileWindowsProfilesBatchSize = 2000
 
+// reconcileWindowsProfilesDeliveryCap bounds how many distinct hosts the cron
+// schedules for install/remove per tick. It governs the bulk case: once this
+// many hosts have been delivered work, the tick stops even if scan budget
+// remains, advancing the cursor only to the last delivered host so the
+// remainder resumes next tick. This preserves the writer-pressure smoothing
+// the legacy reconciler got from its 2000-host batch — a bulk change is spread
+// across ~ceil(hosts/cap) ticks. Set <= 0 to disable the cap (drain the whole
+// fleet, bounded only by the scan budget).
+//
+// var rather than const so tests can override it.
+var reconcileWindowsProfilesDeliveryCap = 2000
+
+// reconcileWindowsProfilesScanBudget is the wall-clock budget for a single
+// tick's drain loop. It governs the sparse/idle case: a no-work pass over the
+// whole fleet completes within one tick, collapsing single-change latency from
+// ceil(hosts/batch) x interval to roughly the actual work time. ~24s of the
+// 30s cron interval leaves headroom for the final batch's writes.
+//
+// var rather than const so tests can override it.
+var reconcileWindowsProfilesScanBudget = 24 * time.Second
+
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
-// Named return so the deferred SetCursor block below sees the actual
-// function exit error. With a named return, every `return X`
-// assigns X to the named err before the defer fires, so any failure
-// path correctly skips the cursor write.
+//
+// It walks every enrolled Windows host via a host_uuid cursor (persisted in
+// Redis through the mysqlredis wrapper), loading a bounded snapshot per
+// window, computing install/remove deltas in memory (no set-difference SQL),
+// and executing them. Within one tick it drains successive windows until
+// either the delivery cap or the scan budget is hit, or the host space is
+// exhausted (which resets the cursor for the next pass).
+//
+// Named return so the deferred SetCursor block sees the actual function-exit
+// error: the cursor is persisted only on a clean (err == nil) tick, so any
+// failure leaves the cursor untouched and the next tick re-scans from the same
+// point. Re-scanning is cheap and idempotent — delivered work is now pending,
+// so it no longer computes as work.
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -3459,89 +3487,162 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return nil
 	}
 
-	// Read the cursor; on error, treat as start-of-pass and continue. A
-	// stale or missing cursor is harmless because the listing predicates
-	// filter out hosts whose state already matches desired state.
-	cursor, err := ds.GetMDMWindowsReconcileCursor(ctx)
-	if err != nil {
-		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning",
-			"err", err)
-		cursor = ""
+	// Read the cursor; on error, treat as start-of-pass and continue. A stale
+	// or missing cursor is harmless because the in-memory diff installs only
+	// what actually differs from current state.
+	entryCursor, cerr := ds.GetMDMWindowsReconcileCursor(ctx)
+	if cerr != nil {
+		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning", "err", cerr)
+		entryCursor = ""
 	}
 
-	hostUUIDs, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, cursor, reconcileWindowsProfilesBatchSize)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing next pending Windows MDM hosts")
-	}
+	cursor := entryCursor
+	// commitCursor is the cursor value to persist at tick end. It advances
+	// only past windows that were fully delivered; the deferred write fires
+	// only when err == nil, so an error leaves the cursor untouched.
+	commitCursor := entryCursor
 
-	if len(hostUUIDs) == 0 {
-		// Either no work, or we've reached the end of the cursor pass.
-		// Reset to "" so the next tick starts from the beginning.
-		//
-		// Decision: cursor write failures here (and in the deferred
-		// advance below) are logged-and-swallowed rather than returned
-		// as tick failures.
-		if cursor != "" {
-			logger.InfoContext(ctx, "windows MDM reconcile pass complete; resetting cursor",
-				"cursor", cursor)
-			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
-				// We assume a transient Redis failure here.
-				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
-			}
-		}
-		return nil
-	}
-
-	// Compute the next cursor before processing so we can advance after a
-	// successful pass. If we got fewer than the batch size, the next tick
-	// should restart from the beginning.
-	var nextCursor string
-	if len(hostUUIDs) >= reconcileWindowsProfilesBatchSize {
-		nextCursor = hostUUIDs[len(hostUUIDs)-1]
-	}
-
-	// Only log when the cursor is actually in play - i.e. the pending
-	// universe didn't fit in a single tick. The four state combos:
-	//   cursor=="", nextCursor!=""  - starting a multi-tick pass
-	//   cursor!="", nextCursor!=""  - continuing mid-pass
-	//   cursor!="", nextCursor==""  - completing the final tick of a pass
-	//   cursor=="", nextCursor==""  - silent: the entire universe fit in
-	//                                 this one tick, no cursor needed
-	if cursor != "" || nextCursor != "" {
-		logger.InfoContext(ctx, "windows MDM reconcile tick using cursor",
-			"cursor", cursor,
-			"next_cursor", nextCursor,
-			"batch_size", reconcileWindowsProfilesBatchSize,
-			"hosts_in_batch", len(hostUUIDs),
-		)
-	}
-
-	toInstall, err := ds.ListMDMWindowsProfilesToInstallForHosts(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to install")
-	}
-	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
-	}
-
-	// On any error during the body below, leave the cursor where it was.
-	// The next tick will retry the same host window. The body's writes
-	// flip status from NULL to 'pending' on success, which removes those
-	// rows from the listing on retry, so a partial failure converges.
-	//
-	// Skip the write when the cursor isn't changing (steady-state ticks
-	// where the entire pending universe fit in one batch: cursor="",
-	// nextCursor=""). Mirrors the empty-result branch's `cursor != ""`
-	// guard above.
 	defer func() {
-		if err == nil && cursor != nextCursor {
-			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, nextCursor); cerr != nil {
-				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", cerr)
+		if err == nil && commitCursor != entryCursor {
+			if serr := ds.SetMDMWindowsReconcileCursor(ctx, commitCursor); serr != nil {
+				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", serr)
 			}
 		}
 	}()
 
+	deadline := time.Now().Add(reconcileWindowsProfilesScanBudget)
+	deliveredHosts := 0
+
+	for {
+		hosts, allProfiles, hostLabels, currentByHost, serr := ds.GetWindowsProfileReconcileSnapshot(ctx, cursor, reconcileWindowsProfilesBatchSize)
+		if serr != nil {
+			err = ctxerr.Wrap(ctx, serr, "loading windows profile reconcile snapshot")
+			return err
+		}
+
+		if len(hosts) == 0 {
+			// Reached the end of the host space (or empty fleet): reset the
+			// cursor so the next pass restarts from the beginning.
+			commitCursor = ""
+			return nil
+		}
+
+		profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile, 4)
+		profilesWithBrokenLabel := make(map[string]struct{})
+		for _, p := range allProfiles {
+			profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+			if p.HasBrokenLabel() {
+				profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+			}
+		}
+
+		toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+
+		// Apply the per-tick delivery cap at host granularity. Hosts come back
+		// ascending by uuid, so capping keeps a contiguous prefix of the
+		// work-hosts and the cursor can resume at the last delivered host.
+		workHosts := windowsHostsWithWork(hosts, toInstall, toRemove)
+		advanceTo := hosts[len(hosts)-1].UUID
+		fullBatch := len(hosts) >= reconcileWindowsProfilesBatchSize
+
+		partial := false
+		if reconcileWindowsProfilesDeliveryCap > 0 {
+			// Invariant: deliveredHosts < cap here — we return below as soon as
+			// it reaches the cap — so remaining >= 1.
+			remaining := reconcileWindowsProfilesDeliveryCap - deliveredHosts
+			if len(workHosts) > remaining {
+				allowed := make(map[string]struct{}, remaining)
+				for _, h := range workHosts[:remaining] {
+					allowed[h] = struct{}{}
+				}
+				toInstall = filterWindowsPayloadsByHost(toInstall, allowed)
+				toRemove = filterWindowsPayloadsByHost(toRemove, allowed)
+				advanceTo = workHosts[remaining-1] // resume after the last delivered host
+				workHosts = workHosts[:remaining]
+				partial = true
+			}
+		}
+
+		if len(toInstall) > 0 || len(toRemove) > 0 {
+			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove); eerr != nil {
+				err = eerr
+				return err
+			}
+		}
+		deliveredHosts += len(workHosts)
+
+		// Advance only after a successful execute.
+		commitCursor = advanceTo
+		cursor = advanceTo
+
+		switch {
+		case partial:
+			// Delivery cap hit mid-window; the un-delivered remainder resumes
+			// next tick from cursor = advanceTo.
+			return nil
+		case !fullBatch:
+			// Short window => end of the host space; reset for the next pass.
+			commitCursor = ""
+			return nil
+		case reconcileWindowsProfilesDeliveryCap > 0 && deliveredHosts >= reconcileWindowsProfilesDeliveryCap:
+			// Delivery cap reached exactly at a window boundary.
+			return nil
+		case time.Now().After(deadline):
+			// Scan budget exhausted; resume next tick from cursor = advanceTo.
+			return nil
+		}
+		// Otherwise keep draining the next window within this tick.
+	}
+}
+
+// windowsHostsWithWork returns the host UUIDs that have at least one install or
+// remove in this window, in the order hosts are given (ascending by uuid). The
+// drain loop uses this both to count delivered hosts against the cap and to
+// pick the contiguous prefix to deliver when the cap bites mid-window.
+func windowsHostsWithWork(hosts []*fleet.WindowsHostReconcileInfo, toInstall, toRemove []*fleet.MDMWindowsProfilePayload) []string {
+	work := make(map[string]struct{})
+	for _, p := range toInstall {
+		work[p.HostUUID] = struct{}{}
+	}
+	for _, p := range toRemove {
+		work[p.HostUUID] = struct{}{}
+	}
+	ordered := make([]string, 0, len(work))
+	for _, h := range hosts {
+		if _, ok := work[h.UUID]; ok {
+			ordered = append(ordered, h.UUID)
+		}
+	}
+	return ordered
+}
+
+// filterWindowsPayloadsByHost returns only the payloads whose HostUUID is in
+// the allowed set, preserving order. Used to trim a window's deltas to the
+// hosts that fit under the per-tick delivery cap.
+func filterWindowsPayloadsByHost(payloads []*fleet.MDMWindowsProfilePayload, allowed map[string]struct{}) []*fleet.MDMWindowsProfilePayload {
+	out := make([]*fleet.MDMWindowsProfilePayload, 0, len(payloads))
+	for _, p := range payloads {
+		if _, ok := allowed[p.HostUUID]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline
+// against the in-memory toInstall / toRemove sets produced by
+// ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard,
+// bulk command pre-build for non-variable profiles, per-host variable
+// expansion, LocURI-protected <Delete> generation, host-profile upserts, and
+// managed-certificate bookkeeping. This is the legacy reconciler body verbatim,
+// now invoked once per (capped) window by the drain loop above.
+func executeWindowsProfileReconcileBatch(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	appConfig *fleet.AppConfig,
+	toInstall, toRemove []*fleet.MDMWindowsProfilePayload,
+) error {
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
