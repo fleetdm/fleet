@@ -2292,19 +2292,12 @@ type Datastore interface {
 	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
 	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
-	// GetWindowsProfileReconcileSnapshot returns a consistent snapshot of the
-	// state needed by the batched Windows profile reconciler: the bounded host
-	// window (afterHostUUID, batchSize), every Windows profile with its label
-	// assignments, host↔label memberships for labels referenced by those
-	// profiles, and current host_mdm_windows_profiles rows for the host window.
-	// All reads run inside a single read-only MySQL transaction so they
-	// observe one snapshot. If the host window is empty the remaining slices
-	// and maps are nil. See ReconcileWindowsProfiles.
-	GetWindowsProfileReconcileSnapshot(
-		ctx context.Context,
-		afterHostUUID string,
-		batchSize int,
-	) (
+	// GetWindowsProfileReconcileSnapshot returns a consistent snapshot of the state needed by the batched Windows profile reconciler:
+	// the bounded host window (afterHostUUID, batchSize), every Windows profile with its label assignments, host↔label memberships
+	// for labels referenced by those profiles, and current host_mdm_windows_profiles rows for the host window. All reads run inside a
+	// single read-only MySQL transaction so they observe one snapshot. If the host window is empty the remaining slices and maps are
+	// nil. See ReconcileWindowsProfiles.
+	GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (
 		hosts []*WindowsHostReconcileInfo,
 		allProfiles []*WindowsProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},

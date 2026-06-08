@@ -258,13 +258,14 @@ func (ds *Datastore) bulkGetHostMDMWindowsProfilesByUUIDsTransaction(
 // and current host_mdm_windows_profiles rows for the hosts in the window. All reads run inside a single read-only transaction so
 // they observe one MySQL snapshot.
 //
+// The read-only REPEATABLE READ transaction is load-bearing, not incidental: it makes the desired-state inputs (profiles, labels,
+// memberships) and the current state (host_mdm_windows_profiles) coherent at one instant, so a concurrent admin mutation (e.g.
+// deleting a profile, which also deletes its host rows) cannot produce a torn diff with spurious install/remove targets. Do not
+// pull these reads out of the transaction (e.g. to load profiles once per tick) without weighing that consistency loss.
+//
 // When the host window is empty the remaining queries are skipped — the caller short-circuits in that case anyway, and there's no
 // point loading profiles or memberships we won't use. Mirrors GetAppleProfileReconcileSnapshot.
-func (ds *Datastore) GetWindowsProfileReconcileSnapshot(
-	ctx context.Context,
-	afterHostUUID string,
-	batchSize int,
-) (
+func (ds *Datastore) GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (
 	hosts []*fleet.WindowsHostReconcileInfo,
 	allProfiles []*fleet.WindowsProfileForReconcile,
 	hostLabels map[uint]map[uint]struct{},

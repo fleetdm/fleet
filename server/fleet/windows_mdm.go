@@ -585,11 +585,9 @@ type MDMWindowsProfileContents struct {
 	Checksum []byte `db:"checksum"`
 }
 
-// WindowsHostReconcileInfo is a per-host record used by the batched Windows
-// profile reconciler. It contains only the fields needed to decide which
-// profiles should be installed on the host given its team and label
-// membership. Mirrors AppleHostReconcileInfo, minus the Apple-only platform /
-// device-enrollment fields — every host in this set is platform 'windows'.
+// WindowsHostReconcileInfo is a per-host record used by the batched Windows profile reconciler. It contains only the fields
+// needed to decide which profiles should be installed on the host given its team and label membership. Mirrors
+// AppleHostReconcileInfo
 type WindowsHostReconcileInfo struct {
 	HostID         uint      `db:"id"`
 	UUID           string    `db:"uuid"`
@@ -597,12 +595,8 @@ type WindowsHostReconcileInfo struct {
 	LabelUpdatedAt time.Time `db:"label_updated_at"`
 }
 
-// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own
-// team (the "no team" / global scope), NOT a fallback for teamed hosts: a
-// host with team_id=5 matches profiles with team_id=5 only, it does not also
-// inherit team_id=0 profiles. Equality between EffectiveTeamID and a
-// profile's team_id is the correct match check. See
-// AppleHostReconcileInfo.EffectiveTeamID.
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own team (the "no team" / global scope). Equality between
+// EffectiveTeamID and a profile's team_id is the correct match check. See AppleHostReconcileInfo.EffectiveTeamID.
 func (h *WindowsHostReconcileInfo) EffectiveTeamID() uint {
 	if h.TeamID == nil {
 		return 0
@@ -610,15 +604,12 @@ func (h *WindowsHostReconcileInfo) EffectiveTeamID() uint {
 	return *h.TeamID
 }
 
-// WindowsProfileForReconcile is the profile data needed by the batched Windows
-// reconciler to compute desired state per host in memory. The label-gating
-// fields mirror AppleProfileForReconcile exactly so the same shared dispatcher
-// and handlers (server/mdm/reconcile) run against both platforms — there is no
-// second copy of the team / label logic to fall out of sync.
+// WindowsProfileForReconcile is the profile data needed by the batched Windows reconciler to compute desired state per host in
+// memory. The label-gating fields mirror AppleProfileForReconcile exactly so the same shared dispatcher and handlers
+// (server/mdm/reconcile) run against both platforms.
 //
-// Include and exclude labels are stored separately so a profile can carry
-// both: applicability becomes (include gate passes) AND (exclude gate passes),
-// with each gate skipped when its slice is empty.
+// Include and exclude labels are stored separately so a profile can carry both: applicability becomes (include gate passes) AND
+// (exclude gate passes), with each gate skipped when its slice is empty.
 type WindowsProfileForReconcile struct {
 	ProfileUUID      string
 	ProfileName      string
@@ -630,7 +621,6 @@ type WindowsProfileForReconcile struct {
 	ExcludeLabels    []MDMProfileLabelRef
 }
 
-// MDMLabeledEntity implementation.
 func (p *WindowsProfileForReconcile) GetTeamID() uint                       { return p.TeamID }
 func (p *WindowsProfileForReconcile) GetIncludeMode() MDMProfileIncludeMode { return p.IncludeMode }
 func (p *WindowsProfileForReconcile) GetIncludeLabels() []MDMProfileLabelRef {
@@ -640,11 +630,8 @@ func (p *WindowsProfileForReconcile) GetExcludeLabels() []MDMProfileLabelRef {
 	return p.ExcludeLabels
 }
 
-// HasBrokenLabel reports whether any include or exclude label on the profile
-// references a deleted label. Used to keep broken-label profiles exempt from
-// removal (matches legacy behaviour: a profile with a broken label is never
-// auto-removed from a host that already has it). See
-// AppleProfileForReconcile.HasBrokenLabel.
+// HasBrokenLabel reports whether any include or exclude label on the profile references a deleted label. Used to keep
+// broken-label profiles exempt from removal. See AppleProfileForReconcile.HasBrokenLabel.
 func (p *WindowsProfileForReconcile) HasBrokenLabel() bool {
 	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
