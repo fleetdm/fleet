@@ -730,16 +730,20 @@ ORDER BY sesr.id
 	return results, nil
 }
 
-// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal (pending/running)
-// setup-experience software items. These are the only policies setup experience un-skips during setup; all other team policies
-// stay skipped so unrelated automations do not fire mid-setup. Returns an empty slice when the host has no policy-gated items.
+// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's setup-experience software items that are
+// still awaiting their policy result: non-terminal (pending/running) AND with no install enqueued yet
+// (host_software_installs_execution_id IS NULL). These are the only policies setup experience un-skips during setup; all other
+// team policies stay skipped so unrelated automations do not fire mid-setup. Once an item moves to the install phase its gating
+// policy is no longer re-run (and the install-window double-install is already prevented by the pending-install guard in
+// processSoftwareForNewlyFailingPolicies). Returns an empty slice when the host has no awaiting policy-gated items.
 func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
 	const stmt = `
 SELECT DISTINCT policy_id
 FROM setup_experience_status_results
 WHERE host_uuid = ?
 	AND policy_id IS NOT NULL
-	AND status IN ('pending', 'running')`
+	AND status IN ('pending', 'running')
+	AND host_software_installs_execution_id IS NULL`
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")

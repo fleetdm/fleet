@@ -379,6 +379,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 // policy's scope excludes the host (it will never run), the item falls back to installing rather than waiting forever.
 func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, host *fleet.Host, sw *fleet.SetupExperienceStatusResult) error {
 	// Mark running (in-memory); the single persist below holds the softwareRunning==0 guard so no other item starts while we wait.
+	alreadyRunning := sw.Status == fleet.SetupExperienceStatusRunning
 	sw.Status = fleet.SetupExperienceStatusRunning
 
 	passes, err := svc.ds.GetSetupExperiencePolicyResult(ctx, host.ID, *sw.PolicyID, host.LastEnrolledAt)
@@ -399,6 +400,11 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 				"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
 			return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
 		}
+		// Persist the pending->running transition only once. On later polls the item is already running with no install yet and
+		// nothing has changed, so skip the redundant UPDATE to avoid write amplification while waiting for the policy result.
+		if alreadyRunning {
+			return nil
+		}
 		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
 
 	case *passes:
@@ -406,12 +412,30 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 		sw.Status = fleet.SetupExperienceStatusSuccess
 		svc.logger.DebugContext(ctx, "setup experience gating policy passed; skipping install",
 			"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
-		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
+		if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+			return err
+		}
+		return svc.clearPolicyClockAfterGatedResult(ctx, host)
 
 	default:
 		// Policy failed (app missing or outdated): install via the normal setup-experience path.
-		return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
+		if err := svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw); err != nil {
+			return err
+		}
+		return svc.clearPolicyClockAfterGatedResult(ctx, host)
 	}
+}
+
+// clearPolicyClockAfterGatedResult resets the host's "last reported policies" clock after a gating policy result was consumed
+// during setup experience. During setup only the gated subset of policies is distributed/reported, which advances the host-wide
+// policy_updated_at and would otherwise delay the host's remaining policies by up to a full policy update interval once setup
+// ends. Resetting it makes the full policy set re-run promptly after setup. (No-op-safe: callers only invoke this when a real
+// policy result was consumed, not for the out-of-scope fallback where no gating policy actually ran.)
+func (svc *Service) clearPolicyClockAfterGatedResult(ctx context.Context, host *fleet.Host) error {
+	if err := svc.ds.ClearHostPolicyUpdatedAt(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host policy clock after setup experience gating result")
+	}
+	return nil
 }
 
 // enqueueSetupExperienceSoftwareInstall enqueues a software installer item the same way an un-gated setup-experience item is

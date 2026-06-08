@@ -2272,14 +2272,26 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.NotNil(t, ids["WinGated"])
 		require.Equal(t, policy.ID, *ids["WinGated"])
 
-		// GetSetupExperiencePolicyIDsForHost returns the gating policy while the item is pending.
+		// GetSetupExperiencePolicyIDsForHost returns the gating policy while the item is pending (awaiting its result).
 		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
 		require.NoError(t, err)
 		require.Equal(t, []uint{policy.ID}, gated)
 
-		// Once the item is terminal, it is no longer returned (the gate is done).
+		// Once the item moves to the install phase (running with an install execution id), its policy is no longer returned: the
+		// gate is resolved, so the policy must not be re-distributed during the install.
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, e := q.ExecContext(ctx, "UPDATE setup_experience_status_results SET status = 'success' WHERE host_uuid = ?", hostUUID)
+			_, e := q.ExecContext(ctx,
+				"UPDATE setup_experience_status_results SET status = 'running', host_software_installs_execution_id = 'exec-1' WHERE host_uuid = ?", hostUUID)
+			return e
+		})
+		gated, err = ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Empty(t, gated, "an item already installing must not have its gating policy re-distributed")
+
+		// Likewise, once terminal it is not returned.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx,
+				"UPDATE setup_experience_status_results SET status = 'success', host_software_installs_execution_id = NULL WHERE host_uuid = ?", hostUUID)
 			return e
 		})
 		gated, err = ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
@@ -2355,10 +2367,11 @@ func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	enrolledAt := time.Now().UTC().Truncate(time.Second)
+	osqueryID, nodeKey := "pg-lookup-osquery", "pg-lookup-nodekey"
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "pg-lookup-host",
-		OsqueryHostID:  new("pg-lookup-osquery"),
-		NodeKey:        new("pg-lookup-nodekey"),
+		OsqueryHostID:  &osqueryID,
+		NodeKey:        &nodeKey,
 		UUID:           "pg-lookup-uuid",
 		Platform:       "windows",
 		TeamID:         &team.ID,
@@ -2424,6 +2437,42 @@ func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
 		queries, err := ds.PolicyQueriesForHostFiltered(ctx, host, []uint{darwinOnly.ID})
 		require.NoError(t, err)
 		require.Empty(t, queries, "a policy whose platform scope excludes the windows host must not be returned")
+	})
+
+	t.Run("ClearHostPolicyMembershipForPolicies removes only the given policies", func(t *testing.T) {
+		// Seed membership for two policies.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx,
+				"INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?, ?, 1), (?, ?, 1) "+
+					"ON DUPLICATE KEY UPDATE passes = VALUES(passes)",
+				policyFail.ID, host.ID, policyOther.ID, host.ID)
+			return e
+		})
+		require.NoError(t, ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, []uint{policyFail.ID}))
+
+		var remaining []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &remaining, "SELECT policy_id FROM policy_membership WHERE host_id = ? ORDER BY policy_id", host.ID)
+		})
+		require.NotContains(t, remaining, policyFail.ID, "cleared policy's membership must be gone")
+		require.Contains(t, remaining, policyOther.ID, "other policies' membership must be untouched")
+
+		// Empty input is a no-op.
+		require.NoError(t, ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, nil))
+	})
+
+	t.Run("ClearHostPolicyUpdatedAt resets the host policy clock to the stale sentinel", func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx, "UPDATE hosts SET policy_updated_at = NOW() WHERE id = ?", host.ID)
+			return e
+		})
+		require.NoError(t, ds.ClearHostPolicyUpdatedAt(ctx, host.ID))
+
+		var updatedAt time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &updatedAt, "SELECT policy_updated_at FROM hosts WHERE id = ?", host.ID)
+		})
+		require.True(t, updatedAt.Before(enrolledAt), "policy_updated_at must be reset to a stale value so the full policy set re-runs")
 	})
 }
 

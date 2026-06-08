@@ -947,6 +947,14 @@ type Datastore interface {
 	// gating policy, or nil if there is no fresh definitive result yet. Used by setup experience to gate an install.
 	GetSetupExperiencePolicyResult(ctx context.Context, hostID, policyID uint, since time.Time) (*bool, error)
 
+	// ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies, so the next report
+	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
+	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
+
+	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
+	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
+	ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error
+
 	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
 	// 	- Returns hosts of the team that are failing one or more of the provided policies.

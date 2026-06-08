@@ -680,6 +680,10 @@ type PolicyQueriesForHostFilteredFunc func(ctx context.Context, host *fleet.Host
 
 type GetSetupExperiencePolicyResultFunc func(ctx context.Context, hostID uint, policyID uint, since time.Time) (*bool, error)
 
+type ClearHostPolicyMembershipForPoliciesFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
+
+type ClearHostPolicyUpdatedAtFunc func(ctx context.Context, hostID uint) error
+
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
@@ -3058,6 +3062,12 @@ type DataStore struct {
 
 	GetSetupExperiencePolicyResultFunc        GetSetupExperiencePolicyResultFunc
 	GetSetupExperiencePolicyResultFuncInvoked bool
+
+	ClearHostPolicyMembershipForPoliciesFunc        ClearHostPolicyMembershipForPoliciesFunc
+	ClearHostPolicyMembershipForPoliciesFuncInvoked bool
+
+	ClearHostPolicyUpdatedAtFunc        ClearHostPolicyUpdatedAtFunc
+	ClearHostPolicyUpdatedAtFuncInvoked bool
 
 	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
 	GetTeamHostsPolicyMembershipsFuncInvoked bool
@@ -7447,6 +7457,20 @@ func (s *DataStore) GetSetupExperiencePolicyResult(ctx context.Context, hostID u
 	s.GetSetupExperiencePolicyResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSetupExperiencePolicyResultFunc(ctx, hostID, policyID, since)
+}
+
+func (s *DataStore) ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.ClearHostPolicyMembershipForPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostPolicyMembershipForPoliciesFunc(ctx, hostID, policyIDs)
+}
+
+func (s *DataStore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ClearHostPolicyUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostPolicyUpdatedAtFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error) {

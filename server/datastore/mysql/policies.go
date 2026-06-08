@@ -1250,6 +1250,45 @@ func (ds *Datastore) PolicyQueriesForHostFiltered(ctx context.Context, host *fle
 	return results, nil
 }
 
+// ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies. Setup experience calls
+// this at enqueue time for its gating policies so that the next time the host reports them, RecordPolicyQueryExecutions writes a
+// fresh row (value changed from absent) and advances policy_membership.updated_at. Without this, a re-enrolled host whose policy
+// result is unchanged from a previous enrollment would never advance updated_at (it tracks "last state change", not "last
+// reported"), and GetSetupExperiencePolicyResult would treat the result as perpetually stale, hanging setup.
+func (ds *Datastore) ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error {
+	if len(policyIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`DELETE FROM policy_membership WHERE host_id = ? AND policy_id IN (?)`, hostID, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build clear host policy membership statement")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host policy membership for policies")
+	}
+	return nil
+}
+
+// ClearHostPolicyUpdatedAt resets the host's per-host "last reported policies" timestamp to the same stale sentinel new hosts
+// get, so the host's full policy set is re-distributed promptly on its next checkin. Setup experience calls this after a gating
+// policy result is consumed: during setup only the gated subset of policies is reported, which would otherwise advance this
+// timestamp and delay the host's other policies by up to a full policy update interval once setup ends.
+//
+// This fully handles the default (synchronous) policy-recording mode. When async policy collection is enabled
+// (osquery.enable_async_host_processing for policy_membership), the async collector persists pending results and re-stamps
+// policy_updated_at on its own interval, so this reset can be superseded and the post-setup full-policy run may still wait out
+// the policy update interval (a bounded, self-healing delay). Clearing the Redis "last reported" epoch alone would not fix that,
+// because the collector re-stamps the timestamp from the pending results it flushes; avoiding it would require a per-host
+// "do not stamp" signal the collector does not have. Given async policy collection is opt-in and the delay is bounded and
+// self-healing, that deeper change is intentionally out of scope here.
+func (ds *Datastore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
+	const stmt = `UPDATE hosts SET policy_updated_at = '2000-01-01 00:00:00' WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host policy_updated_at")
+	}
+	return nil
+}
+
 // GetSetupExperiencePolicyResult returns the host's fresh pass/fail result for the given gating policy. "Fresh" means recorded at
 // or after `since` (the host's last enrollment time), so a stale result from a previous enrollment is ignored. Returns nil when
 // there is no fresh, definitive (passes IS NOT NULL) result yet, which tells setup experience to keep waiting.

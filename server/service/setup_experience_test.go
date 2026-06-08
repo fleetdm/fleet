@@ -1084,10 +1084,11 @@ func TestSaveHostSoftwareInstallResultSetupExperienceIntermediateFailureDoesNotC
 	}
 
 	hctx := hostctx.NewContext(ctx, host)
+	exitCode := 1
 	err := svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "win-setup-exec",
-		InstallScriptExitCode: new(1),
+		InstallScriptExitCode: &exitCode,
 		InstallScriptOutput:   ptr.String("transient failure"),
 		RetriesRemaining:      2, // on-device retries remain -> intermediate
 	})

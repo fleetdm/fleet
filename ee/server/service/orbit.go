@@ -380,6 +380,12 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 			return nil, ctxerr.Wrap(ctx, err, "check for policy-gated setup experience items")
 		}
 		if len(gatedPolicyIDs) > 0 {
+			// Clear any stale membership for the gating policies so the next report writes a fresh result and advances
+			// policy_membership.updated_at. policy_membership.updated_at tracks "last state change", not "last reported", so a
+			// re-enrolled host whose result is unchanged would otherwise look perpetually stale and hang setup.
+			if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, gatedPolicyIDs); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "clearing stale policy membership for setup experience gating")
+			}
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "requesting refetch for policy-gated setup experience")
 			}

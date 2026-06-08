@@ -350,6 +350,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	}
 
 	// Defaults; individual subtests override.
+	policyPasses, policyFails := true, false
 	var policyResult *bool
 	ds.GetSetupExperiencePolicyResultFunc = func(ctx context.Context, hostID, gotPolicyID uint, since time.Time) (*bool, error) {
 		return policyResult, nil
@@ -358,10 +359,13 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
 		return deliverable, nil
 	}
+	// Resetting the host policy clock after a gating result is consumed (so the host's other policies re-run promptly post-setup).
+	ds.ClearHostPolicyUpdatedAtFunc = func(ctx context.Context, hostID uint) error { return nil }
 
 	reset := func() {
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
 		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
+		ds.ClearHostPolicyUpdatedAtFuncInvoked = false
 		installs = nil
 		updates = nil
 		policyResult = nil
@@ -381,7 +385,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	t.Run("policy passes -> skipped (success, no install)", func(t *testing.T) {
 		reset()
 		items = gatedPending()
-		policyResult = new(true)
+		policyResult = &policyPasses
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -390,12 +394,13 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
 		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+		require.True(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "consuming a gating result must reset the host policy clock")
 	})
 
 	t.Run("policy fails -> install via ForSetupExperience path (no PolicyID on the install)", func(t *testing.T) {
 		reset()
 		items = gatedPending()
-		policyResult = new(false)
+		policyResult = &policyFails
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -406,6 +411,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
+		require.True(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "consuming a gating result must reset the host policy clock")
 	})
 
 	t.Run("no result yet, policy in scope -> stays running, no install", func(t *testing.T) {
@@ -421,6 +427,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no result consumed yet; policy clock must not be reset")
 	})
 
 	t.Run("no result, policy out of scope -> falls back to installing", func(t *testing.T) {
@@ -435,6 +442,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, installs, 1)
 		require.True(t, installs[0].ForSetupExperience)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "out-of-scope fallback ran no gating policy; policy clock must not be reset")
 	})
 
 	t.Run("running gated item awaiting policy is re-checked each poll", func(t *testing.T) {
@@ -447,7 +455,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			PolicyID:            &policyID,
 			Status:              fleet.SetupExperienceStatusRunning,
 		}}
-		policyResult = new(true) // result now available
+		policyResult = &policyPasses // result now available
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -455,5 +463,26 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
+	})
+
+	t.Run("already-running awaiting item with no result yet does not write again", func(t *testing.T) {
+		reset()
+		// Already running, no install execution yet, and still no policy result -> nothing changed, so we must not re-persist
+		// the same running state on every poll (avoids write amplification while waiting).
+		items = []*fleet.SetupExperienceStatusResult{{
+			HostUUID:            hostUUID,
+			Name:                "GatedApp",
+			SoftwareInstallerID: &installerID,
+			PolicyID:            &policyID,
+			Status:              fleet.SetupExperienceStatusRunning,
+		}}
+		policyResult = nil
+		deliverable = map[string]string{"99": "SELECT 1;"} // in scope, just not reported yet
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.False(t, ds.UpdateSetupExperienceStatusResultFuncInvoked, "must not re-write unchanged running state on every poll")
 	})
 }
