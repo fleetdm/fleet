@@ -1,1 +1,0 @@
-- Fixes an issue where the checkerboard would be colored based on relative percentages rather than relative absolute value.
