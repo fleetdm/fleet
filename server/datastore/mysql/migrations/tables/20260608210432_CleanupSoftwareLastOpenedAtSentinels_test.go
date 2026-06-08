@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260608181142(t *testing.T) {
+func TestUp_20260608210432(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Sentinel value: 1980-01-01 UTC (315532800), an app that was never opened.
