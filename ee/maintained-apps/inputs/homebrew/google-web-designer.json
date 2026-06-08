@@ -1,0 +1,10 @@
+{
+  "name": "Google Web Designer",
+  "unique_identifier": "com.google.WebDesigner",
+  "token": "google-web-designer",
+  "installer_format": "dmg",
+  "slug": "google-web-designer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "GraphicConverter",
+  "unique_identifier": "com.lemkesoft.graphicconverter12",
+  "token": "graphicconverter",
+  "installer_format": "zip",
+  "slug": "graphicconverter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

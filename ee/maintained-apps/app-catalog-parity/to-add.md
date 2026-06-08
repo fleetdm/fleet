@@ -306,35 +306,35 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## G  (29)
 
-- [ ] `garmin-express` — Garmin Express
-- [ ] `gather` — Gather Town
-- [ ] `gdevelop` — GDevelop
-- [ ] `geany` — Geany
-- [ ] `geekbench` — Geekbench *
-- [ ] `gemini` — Gemini *
-- [ ] `gephi` — Gephi
-- [ ] `gifox` — gifox
-- [ ] `gitbutler` — GitButler
-- [ ] `gitfinder` — GitFinder
-- [ ] `gitfox` — Gitfox
-- [ ] `github-copilot-for-xcode` — GitHub Copilot for Xcode
-- [ ] `gitify` — Gitify
-- [ ] `gitup-app` — GitUp
-- [ ] `glyphs` — Glyphs *
-- [ ] `go2shell` — Go2Shell
-- [ ] `godot` — Godot Engine
-- [ ] `godspeed` — Godspeed
-- [ ] `gog-galaxy` — GOG Galaxy
-- [ ] `goodsync` — GoodSync
-- [ ] `google-ads-editor` — Google Ads Editor
-- [ ] `google-earth-pro` — Google Earth Pro
-- [ ] `google-web-designer` — Google Web Designer
-- [ ] `gosign` — GoSign Desktop
-- [ ] `gpodder` — gPodder
-- [ ] `grandperspective` — GrandPerspective
-- [ ] `graphicconverter` — GraphicConverter *
-- [ ] `grids` — Grids
-- [ ] `gyazo` — Nota Gyazo GIF
+- [x] `garmin-express` — Garmin Express
+- [x] `gather` — Gather Town
+- [x] `gdevelop` — GDevelop
+- [x] `geany` — Geany
+- [x] `geekbench` — Geekbench *
+- [x] `gemini` — Gemini *
+- [x] `gephi` — Gephi
+- [x] `gifox` — gifox
+- [ ] `gitbutler` — GitButler  — **deferred — tar.gz unsupported**
+- [x] `gitfinder` — GitFinder
+- [x] `gitfox` — Gitfox
+- [x] `github-copilot-for-xcode` — GitHub Copilot for Xcode
+- [x] `gitify` — Gitify
+- [x] `gitup-app` — GitUp
+- [x] `glyphs` — Glyphs *
+- [x] `go2shell` — Go2Shell
+- [x] `godot` — Godot Engine
+- [x] `godspeed` — Godspeed
+- [x] `gog-galaxy` — GOG Galaxy
+- [x] `goodsync` — GoodSync
+- [x] `google-ads-editor` — Google Ads Editor
+- [x] `google-earth-pro` — Google Earth Pro
+- [x] `google-web-designer` — Google Web Designer
+- [x] `gosign` — GoSign Desktop
+- [x] `gpodder` — gPodder
+- [x] `grandperspective` — GrandPerspective
+- [x] `graphicconverter` — GraphicConverter *
+- [x] `grids` — Grids
+- [x] `gyazo` — Nota Gyazo GIF
 
 ## H  (23)
 

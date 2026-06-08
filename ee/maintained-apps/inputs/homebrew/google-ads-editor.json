@@ -1,0 +1,10 @@
+{
+  "name": "Google Ads Editor",
+  "unique_identifier": "com.google.googleadseditor",
+  "token": "google-ads-editor",
+  "installer_format": "dmg",
+  "slug": "google-ads-editor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Gitfox",
+  "unique_identifier": "com.bytieful.Gitfox-retail",
+  "token": "gitfox",
+  "installer_format": "zip",
+  "slug": "gitfox/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

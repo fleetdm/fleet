@@ -1,0 +1,10 @@
+{
+  "name": "gifox",
+  "unique_identifier": "com.gifox.gifox2",
+  "token": "gifox",
+  "installer_format": "dmg",
+  "slug": "gifox/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
