@@ -1795,6 +1795,13 @@
     },
     {
       "name": "Microsoft Remote Help",
+      "slug": "microsoft-remote-help/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.remotehelp",
+      "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
+    },
+    {
+      "name": "Microsoft Remote Help",
       "slug": "microsoft-remote-help/windows",
       "platform": "windows",
       "unique_identifier": "Remote Help",
