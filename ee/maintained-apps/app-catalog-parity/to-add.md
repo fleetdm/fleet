@@ -960,8 +960,8 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## Z  (5)
 
-- [ ] `zappy` — Zappy
-- [ ] `zettlr` — Zettlr
-- [ ] `zight` — Zight
-- [ ] `zulip` — Zulip
-- [ ] `zwift` — Zwift
+- [x] `zappy` — Zappy
+- [x] `zettlr` — Zettlr
+- [x] `zight` — Zight
+- [x] `zulip` — Zulip
+- [x] `zwift` — Zwift
