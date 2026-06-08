@@ -2826,9 +2826,9 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
-			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
-			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
+			{"unsigned.pkg", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
+			{"invalid.tar.gz", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
+			{"wrong-toc.pkg", errors.New("verifying bootstrap package: checking package signature: decompressing TOC: unexpected EOF")},
 		}
 
 		for _, c := range cases {
