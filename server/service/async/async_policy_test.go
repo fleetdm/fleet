@@ -529,6 +529,49 @@ func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store
 	require.Equal(t, 0, count)
 }
 
+func testResetHostPolicyReportedAtAsync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{ID: 1, Platform: "linux", PolicyUpdatedAt: lastYear}
+	yes := true
+	results := map[uint]*bool{1: &yes}
+	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostUpdateBatch:        3,
+			AsyncHostDeleteBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
+	})
+
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+	defer conn.Do("DEL", keyList, keyTs) //nolint:errcheck
+
+	// Reporting policies sets the "last reported" epoch in redis, which GetHostPolicyReportedAt then returns over the (older)
+	// mysql PolicyUpdatedAt.
+	require.NoError(t, task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil))
+	require.WithinDuration(t, now, task.GetHostPolicyReportedAt(ctx, host), time.Second)
+
+	// Resetting deletes the epoch key, so GetHostPolicyReportedAt falls back to the (stale) mysql clock -> policies are due again.
+	require.NoError(t, task.ResetHostPolicyReportedAt(ctx, host.ID))
+	_, err := redigo.Int64(conn.Do("GET", keyTs))
+	require.ErrorIs(t, err, redigo.ErrNil, "reported epoch key must be deleted")
+	require.True(t, task.GetHostPolicyReportedAt(ctx, host).Equal(lastYear))
+}
+
+func testResetHostPolicyReportedAtSync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	// async policy membership disabled -> there is no redis epoch to clear; reset is a no-op and must not error.
+	task := NewTask(ds, pool, clock.C, nil)
+	require.NoError(t, task.ResetHostPolicyReportedAt(ctx, 1))
+}
+
 func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 	ctx := context.Background()
 

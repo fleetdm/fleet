@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -13,6 +14,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
+
+// policyReportClock resets a host's async "policies last reported" Redis epoch (the value read by
+// async.Task.GetHostPolicyReportedAt) so the host's full policy set is considered due again. It is implemented by *async.Task
+// and is optional: when nil (e.g. in unit tests, or where async policy collection is not wired) resetting the MySQL policy clock
+// via the datastore is sufficient.
+type policyReportClock interface {
+	ResetHostPolicyReportedAt(ctx context.Context, hostID uint) error
+}
 
 // Service wraps a free Service and implements additional premium functionality on top of it.
 type Service struct {
@@ -37,6 +46,7 @@ type Service struct {
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	policyReportClock      policyReportClock
 }
 
 func NewService(
@@ -59,6 +69,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	policyReportClock policyReportClock,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,6 +97,7 @@ func NewService(
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
+		policyReportClock:      policyReportClock,
 	}
 
 	// Override methods that can't be easily overriden via

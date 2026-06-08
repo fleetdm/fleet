@@ -128,6 +128,8 @@ func TestRecord(t *testing.T) {
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
+			t.Run("reset-sync", func(t *testing.T) { testResetHostPolicyReportedAtSync(t, ds, pool) })
+			t.Run("reset-async", func(t *testing.T) { testResetHostPolicyReportedAtAsync(t, ds, pool) })
 		})
 
 		t.Run("cluster", func(t *testing.T) {
@@ -136,6 +138,8 @@ func TestRecord(t *testing.T) {
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsNoPoliciesAsync(t, ds, pool) })
+			t.Run("reset-sync", func(t *testing.T) { testResetHostPolicyReportedAtSync(t, ds, pool) })
+			t.Run("reset-async", func(t *testing.T) { testResetHostPolicyReportedAtAsync(t, ds, pool) })
 		})
 	})
 

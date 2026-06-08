@@ -435,6 +435,16 @@ func (svc *Service) clearPolicyClockAfterGatedResult(ctx context.Context, host *
 	if err := svc.ds.ClearHostPolicyUpdatedAt(ctx, host.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset host policy clock after setup experience gating result")
 	}
+	// When async policy membership collection is enabled, the host-wide policy clock read by the distributed-query scheduler is
+	// max(redis "policies last reported" epoch, hosts.policy_updated_at). Reporting the gated policy subset during setup advances
+	// the redis epoch, so clearing only the MySQL column above leaves the epoch dominant and would delay the host's remaining
+	// (non-gated) policies by up to a full policy update interval once setup ends. Clear the redis epoch too. No-op when async is
+	// disabled, and nil-safe when the async task is not wired (unit tests), where the MySQL reset alone is sufficient.
+	if svc.policyReportClock != nil {
+		if err := svc.policyReportClock.ResetHostPolicyReportedAt(ctx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host policy reported epoch after setup experience gating result")
+		}
+	}
 	return nil
 }
 

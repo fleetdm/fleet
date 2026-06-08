@@ -275,3 +275,24 @@ func (t *Task) GetHostPolicyReportedAt(ctx context.Context, host *fleet.Host) ti
 	}
 	return host.PolicyUpdatedAt
 }
+
+// ResetHostPolicyReportedAt clears the host's "policies last reported" epoch in Redis (the value GetHostPolicyReportedAt reads), so
+// the host's full policy set is considered due again on its next checkin. It is used after a setup-experience policy gate is
+// resolved: during setup only the gated policy subset is distributed/reported, which advances this epoch and would otherwise delay
+// the host's remaining (non-gated) policies by up to a full policy update interval once setup ends. No-op when async policy
+// membership collection is disabled - in that mode hosts.policy_updated_at in MySQL governs and is reset separately by the caller.
+func (t *Task) ResetHostPolicyReportedAt(ctx context.Context, hostID uint) error {
+	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
+	if !cfg.Enabled {
+		return nil
+	}
+
+	conn := redis.ConfigureDoer(t.pool, t.pool.Get())
+	defer conn.Close()
+
+	key := fmt.Sprintf(policyPassReportedKey, hostID)
+	if _, err := conn.Do("DEL", key); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host policy reported epoch in redis")
+	}
+	return nil
+}
