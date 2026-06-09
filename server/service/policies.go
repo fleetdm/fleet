@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+// maxPolicyAutomationActivitiesPerPage is the upper bound for per_page on the
+// list-policy-automation-activities endpoint.
+const maxPolicyAutomationActivitiesPerPage = 10_000
 
 /////////////////////////////////////////////////////////////////////////////////
 // Get policy by id.
@@ -102,3 +108,61 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 	}
 	return nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// List policy automation activities.
+/////////////////////////////////////////////////////////////////////////////////
+
+func listPolicyAutomationActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ListPolicyAutomationActivitiesRequest)
+	activities, meta, err := svc.ListPolicyAutomationActivities(ctx, req.PolicyID, req.Opts, req.Status)
+	if err != nil {
+		return fleet.ListPolicyAutomationActivitiesResponse{Err: err}, nil
+	}
+	return fleet.ListPolicyAutomationActivitiesResponse{
+		Activities: activities,
+		Meta:       meta,
+	}, nil
+}
+
+func (svc Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	policy, err := svc.ds.Policy(ctx, policyID)
+	if err != nil {
+		svc.SkipAuth(ctx)
+		return nil, nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, policy, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	switch status {
+	case "", "error", "success":
+		// valid
+	default:
+		return nil, nil, fleet.NewInvalidArgumentError("status", `must be "error", "success", or empty`)
+	}
+
+	if opts.PerPage == 0 {
+		opts.PerPage = 50
+	} else if opts.PerPage > maxPolicyAutomationActivitiesPerPage {
+		return nil, nil, fleet.NewInvalidArgumentError("per_page", fmt.Sprintf("must be no greater than %d", maxPolicyAutomationActivitiesPerPage))
+	}
+	if opts.OrderKey == "" {
+		opts.OrderKey = "created_at"
+	}
+	opts.IncludeMetadata = true
+
+	activities, meta, err := svc.ds.ListPolicyAutomationActivities(ctx, policyID, filter, opts, status)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list policy automation activities")
+	}
+	return activities, meta, nil
+}
+
