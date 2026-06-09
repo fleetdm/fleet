@@ -329,6 +329,11 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Yaak from "./Yaak";
+import Yacreader from "./Yacreader";
+import Yattee from "./Yattee";
+import Yed from "./Yed";
+import Yippy from "./Yippy";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +674,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  yaak: Yaak,
+  yacreader: Yacreader,
+  yattee: Yattee,
+  yippy: Yippy,
+  "yworks yed": Yed,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
