@@ -3096,13 +3096,6 @@
       "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
     },
     {
-      "name": "Waterfox",
-      "slug": "waterfox/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.waterfoxproject.waterfox",
-      "description": "Waterfox is a web browser."
-    },
-    {
       "name": "Wave Terminal",
       "slug": "wave/darwin",
       "platform": "darwin",
@@ -3178,13 +3171,6 @@
       "platform": "darwin",
       "unique_identifier": "weektodo-app.netlify.app",
       "description": "WeekToDo is a weekly planner app focused on privacy."
-    },
-    {
-      "name": "WezTerm",
-      "slug": "wezterm/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.github.wez.wezterm",
-      "description": "WezTerm is a GPU-accelerated cross-platform terminal emulator and multiplexer."
     },
     {
       "name": "WhatRoute",
@@ -3290,13 +3276,6 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
-    },
-    {
-      "name": "Witch",
-      "slug": "witch/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.manytricks.witchdaemon",
-      "description": "Witch is a switch apps, windows, or tabs."
     },
     {
       "name": "EdrawMax",

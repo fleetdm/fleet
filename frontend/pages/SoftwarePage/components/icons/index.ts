@@ -305,7 +305,6 @@ import VncViewer from "./VncViewer";
 import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
-import Waterfox from "./Waterfox";
 import Wave from "./Wave";
 import Wavebox from "./Wavebox";
 import Wealthfolio from "./Wealthfolio";
@@ -315,7 +314,6 @@ import Webcatalog from "./Webcatalog";
 import Webex from "./Webex";
 import Wechat from "./Wechat";
 import Weektodo from "./Weektodo";
-import Wezterm from "./Wezterm";
 import Whatroute from "./Whatroute";
 import WhatsApp from "./WhatsApp";
 import Whisky from "./Whisky";
@@ -332,7 +330,6 @@ import Wins from "./Wins";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import WisprFlow from "./WisprFlow";
-import Witch from "./Witch";
 import WondershareEdrawmax from "./WondershareEdrawmax";
 import WondershareFilmora from "./WondershareFilmora";
 import Word from "./Word";
@@ -680,7 +677,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
-  waterfox: Waterfox,
   "wave terminal": Wave,
   wavebox: Wavebox,
   wealthfolio: Wealthfolio,
@@ -690,7 +686,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   webex: Webex,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
-  wezterm: Wezterm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,
@@ -706,7 +701,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winscp: Winscp,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
-  witch: Witch,
   edrawmax: WondershareEdrawmax,
   "wondershare filmora": WondershareFilmora,
   wordservice: Wordservice,
