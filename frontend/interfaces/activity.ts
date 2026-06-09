@@ -129,6 +129,7 @@ export enum ActivityType {
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  InstalledAllSelfServiceSoftware = "installed_all_self_service_software",
   UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
@@ -199,6 +200,7 @@ export type IHostPastActivityType =
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAllSelfServiceSoftware
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
   | ActivityType.CanceledRunScript
@@ -299,9 +301,12 @@ export interface IActivityDetails {
   script_execution_id?: string;
   script_name?: string;
   self_service?: boolean;
+  self_service_category_id?: number | null;
+  self_service_category_name?: string | null;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
   source?: SoftwareSource;
@@ -459,6 +464,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   fleet_enrolled: "Host enrolled",
   installed_app_store_app: "Installed App Store (VPP) app",
   installed_software: "Install software",
+  installed_all_self_service_software: "Installed all self-service software",
   live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",

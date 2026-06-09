@@ -64,8 +64,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
@@ -289,111 +287,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
-	// Set common configuration for all logging.
-	loggingConfig := logging.Config{
-		Filesystem: logging.FilesystemConfig{
-			EnableLogRotation:    config.Filesystem.EnableLogRotation,
-			EnableLogCompression: config.Filesystem.EnableLogCompression,
-			MaxSize:              config.Filesystem.MaxSize,
-			MaxAge:               config.Filesystem.MaxAge,
-			MaxBackups:           config.Filesystem.MaxBackups,
-		},
-		Webhook: logging.WebhookConfig{},
-		Firehose: logging.FirehoseConfig{
-			Region:           config.Firehose.Region,
-			EndpointURL:      config.Firehose.EndpointURL,
-			AccessKeyID:      config.Firehose.AccessKeyID,
-			SecretAccessKey:  config.Firehose.SecretAccessKey,
-			StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
-			StsExternalID:    config.Firehose.StsExternalID,
-		},
-		Kinesis: logging.KinesisConfig{
-			Region:           config.Kinesis.Region,
-			EndpointURL:      config.Kinesis.EndpointURL,
-			AccessKeyID:      config.Kinesis.AccessKeyID,
-			SecretAccessKey:  config.Kinesis.SecretAccessKey,
-			StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
-			StsExternalID:    config.Kinesis.StsExternalID,
-		},
-		Lambda: logging.LambdaConfig{
-			Region:           config.Lambda.Region,
-			AccessKeyID:      config.Lambda.AccessKeyID,
-			SecretAccessKey:  config.Lambda.SecretAccessKey,
-			StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
-			StsExternalID:    config.Lambda.StsExternalID,
-		},
-		PubSub: logging.PubSubConfig{
-			Project: config.PubSub.Project,
-		},
-		KafkaREST: logging.KafkaRESTConfig{
-			ProxyHost:        config.KafkaREST.ProxyHost,
-			ContentTypeValue: config.KafkaREST.ContentTypeValue,
-			Timeout:          config.KafkaREST.Timeout,
-		},
-		Nats: logging.NatsConfig{
-			Server:            config.Nats.Server,
-			CredFile:          config.Nats.CredFile,
-			NKeyFile:          config.Nats.NKeyFile,
-			TLSClientCertFile: config.Nats.TLSClientCrtFile,
-			TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
-			CACertFile:        config.Nats.CACrtFile,
-			Compression:       config.Nats.Compression,
-			JetStream:         config.Nats.JetStream,
-			Timeout:           config.Nats.Timeout,
-		},
-	}
-
-	// Set specific configuration to osqueryd status logs.
-	loggingConfig.Plugin = config.Osquery.StatusLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
-	loggingConfig.Webhook.URL = config.Webhook.StatusURL
-	loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
-	loggingConfig.Lambda.Function = config.Lambda.StatusFunction
-	loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
-	loggingConfig.PubSub.AddAttributes = false // only used by result logs
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
-	loggingConfig.Nats.Subject = config.Nats.StatusSubject
-
-	osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd status logging")
-	}
-
-	// Set specific configuration to osqueryd result logs.
-	loggingConfig.Plugin = config.Osquery.ResultLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
-	loggingConfig.Webhook.URL = config.Webhook.ResultURL
-	loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
-	loggingConfig.Lambda.Function = config.Lambda.ResultFunction
-	loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
-	loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
-	loggingConfig.Nats.Subject = config.Nats.ResultSubject
-
-	osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd result logging")
-	}
-
-	var auditLogger fleet.JSONLogger
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		// Set specific configuration to audit logs.
-		loggingConfig.Plugin = config.Activity.AuditLogPlugin
-		loggingConfig.Filesystem.LogFile = config.Filesystem.AuditLogFile
-		loggingConfig.Firehose.StreamName = config.Firehose.AuditStream
-		loggingConfig.Kinesis.StreamName = config.Kinesis.AuditStream
-		loggingConfig.Lambda.Function = config.Lambda.AuditFunction
-		loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
-		loggingConfig.PubSub.AddAttributes = false // only used by result logs
-		loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
-		loggingConfig.Nats.Subject = config.Nats.AuditSubject
-
-		auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger)
-		if err != nil {
-			initFatal(err, "initializing audit logging")
-		}
+	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)
+	if osquerydStatusLogger == nil || osquerydResultLogger == nil {
+		initFatal(errors.New("osquery loggers were nil after initialization"), "initializing osqueryd logging")
+		return
 	}
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
@@ -415,17 +312,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	var geoIP fleet.GeoIP
-	geoIP = &fleet.NoOpGeoIP{}
-	if config.GeoIP.DatabasePath != "" {
-		maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
-		if err != nil {
-			logger.ErrorContext(cmd.Context(), "failed to initialize maxmind geoip, check database path", "database_path",
-				config.GeoIP.DatabasePath, "error", err)
-		} else {
-			geoIP = maxmind
-		}
-	}
+	geoIP := initGeoIP(cmd.Context(), config, logger)
 
 	if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomOSUpdatesAndFileVault = false
@@ -511,18 +398,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "saving app config")
 	}
 
-	// setup mail service
-	if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
-		// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
-		if config.Email.EmailBackend != "" {
-			config.Email.EmailBackend = ""
-			logger.WarnContext(cmd.Context(), "SMTP is already enabled, first disable SMTP to utilize a different email backend")
-		}
-	}
-	mailService, err := mail.NewService(config)
-	if err != nil {
-		logger.ErrorContext(cmd.Context(), "failed to configure mailing service", "err", err)
-	}
+	mailService := initMailService(cmd.Context(), config, appCfg, logger)
 
 	cronSchedules := fleet.NewCronSchedules()
 
@@ -583,7 +459,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing android service")
 	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, logger)
+	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -1617,9 +1493,9 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 }
 
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
-// - S3 in cloud
-// - local filesystem on-prem (rooted at FLEET_ORG_LOGO_STORE_DIR, falling back to os.TempDir()).
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *slog.Logger) fleet.OrgLogoStore {
+//   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
+//   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
+func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
 	if s3Config.SoftwareInstallersBucket != "" {
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
@@ -1628,18 +1504,8 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 		logger.InfoContext(ctx, "using S3 org logo store", "bucket", s3Config.SoftwareInstallersBucket)
 		return store
 	}
-	logoDir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR")
-	if logoDir == "" {
-		logoDir = os.TempDir()
-	}
-	store, err := filesystem.NewOrgLogoStore(logoDir)
-	if err != nil {
-		initFatal(err, "initializing filesystem org logo store")
-	}
-	logger.InfoContext(ctx,
-		"using local filesystem org logo store, this is not suitable for production use",
-		"directory", logoDir)
-	return store
+	logger.InfoContext(ctx, "using database org logo store")
+	return ds.NewOrgLogoStore()
 }
 
 func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {

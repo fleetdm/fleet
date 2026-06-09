@@ -240,7 +240,12 @@ const CommandPalette = (): JSX.Element | null => {
   useEffect(() => {
     if (isNoAccess) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
+      // Require the platform-native modifier: Cmd on macOS, Ctrl elsewhere.
+      // Accepting either on both platforms hijacks native shortcuts —
+      // e.g. Ctrl+K readline kill-line in text fields on macOS, and
+      // Ctrl+Shift+F (find in files / system shortcut) on macOS.
+      const correctModifier = isMacPlatform ? e.metaKey : e.ctrlKey;
+      if (!correctModifier) return;
       // Normalize once so Caps Lock (or shift layouts) don't miss.
       const key = e.key.toLowerCase();
       if (key === "k") {
@@ -255,7 +260,7 @@ const CommandPalette = (): JSX.Element | null => {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [canSwitchFleet, isNoAccess]);
+  }, [canSwitchFleet, isNoAccess, isMacPlatform]);
 
   const navigate = useCallback((path: string) => {
     setOpen(false);

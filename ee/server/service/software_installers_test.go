@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1553,6 +1554,72 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 				"the short-circuit must check for installers pending deletion")
 		})
 	}
+}
+
+func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
+	ctx := t.Context()
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Each field injects a failure at one point of the flow; a nil field means that
+	// step succeeds. The zero value drives two successful package installs.
+	type failures struct {
+		getTitles    error // GetSoftwareTitlesForInstallAll
+		installTitle error // the per-title install (SelfServiceInstallSoftwareTitle)
+		newActivity  error // the roll-up activity
+	}
+
+	setup := func(fail failures) (*Service, *strings.Builder) {
+		ds := new(mock.Store)
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+			if fail.getTitles != nil {
+				return nil, nil, fail.getTitles
+			}
+			return []*fleet.HostSoftwareWithInstaller{{ID: 10}, {ID: 11}}, nil, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			if fail.installTitle != nil {
+				return nil, fail.installTitle
+			}
+			return &fleet.SoftwareInstaller{InstallerID: 1, SelfService: true, Name: "foo.pkg"}, nil
+		}
+		ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+			return true, nil
+		}
+		ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+			return nil
+		}
+		ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			return "exec-uuid", nil
+		}
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return fail.newActivity
+		}
+		var logs strings.Builder
+		svc.logger = slog.New(slog.NewTextHandler(&logs, nil))
+		return svc, &logs
+	}
+
+	t.Run("returns the error when listing titles fails", func(t *testing.T) {
+		svc, _ := setup(failures{getTitles: errors.New("boom")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "get software titles for install all")
+	})
+
+	t.Run("logs per-title failures and continues instead of aborting the batch", func(t *testing.T) {
+		svc, logs := setup(failures{installTitle: errors.New("lookup failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.NoError(t, err) // a per-title failure is logged, not returned
+		// both titles were attempted (the loop continued past the first failure) and logged
+		require.Contains(t, logs.String(), "title_id=10")
+		require.Contains(t, logs.String(), "title_id=11")
+	})
+
+	t.Run("returns the error when the roll-up activity fails", func(t *testing.T) {
+		svc, _ := setup(failures{newActivity: errors.New("activity failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "creating installed all self-service software activity")
+	})
 }
 
 // inMemoryKeyValueStore is a thread-safe map-backed KeyValueStore mock for

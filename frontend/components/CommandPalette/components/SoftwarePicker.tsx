@@ -14,7 +14,10 @@ import {
 import softwareAPI, {
   ISoftwareTitlesResponse,
 } from "services/entities/software";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import {
+  getAutomaticInstallPoliciesCount,
+  getDisplayedSoftwareName,
+} from "pages/SoftwarePage/helpers";
 import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
 
 import getFleetSuffix from "./pickerCopy";
@@ -118,7 +121,7 @@ const SoftwarePicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {titles.map((title) => {
-        const label = title.display_name || title.name;
+        const label = getDisplayedSoftwareName(title.name, title.display_name);
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
         return (

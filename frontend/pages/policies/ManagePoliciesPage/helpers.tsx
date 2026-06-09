@@ -1,6 +1,7 @@
 import React from "react";
 
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
@@ -47,8 +48,10 @@ export const getAutomationsForPolicy = (
   if (policy.install_software) {
     automations.push({
       type: "software",
-      name:
-        policy.install_software.display_name || policy.install_software.name,
+      name: getDisplayedSoftwareName(
+        policy.install_software.name,
+        policy.install_software.display_name
+      ),
       softwareTitleId: policy.install_software.software_title_id,
       iconUrl: policy.install_software.icon_url,
     });

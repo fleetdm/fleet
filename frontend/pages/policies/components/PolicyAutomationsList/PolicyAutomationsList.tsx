@@ -8,6 +8,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import Graphic from "components/Graphic";
 import { GraphicNames } from "components/graphics";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "policy-automations-list";
 
@@ -44,8 +45,12 @@ const PolicyAutomationsList = ({
   const automationRows: IAutomationDisplayRow[] = [];
 
   if (storedPolicy.install_software) {
+    const displayedName = getDisplayedSoftwareName(
+      storedPolicy.install_software.name,
+      storedPolicy.install_software.display_name
+    );
     automationRows.push({
-      name: storedPolicy.install_software.name,
+      name: displayedName,
       type: "Software",
       isSoftware: true,
       iconUrl: storedPolicy.install_software.icon_url,
@@ -56,7 +61,7 @@ const PolicyAutomationsList = ({
         { fleet_id: storedPolicy.team_id }
       ),
       sortOrder: 0,
-      sortName: storedPolicy.install_software.name.toLowerCase(),
+      sortName: displayedName.toLowerCase(),
     });
   }
 

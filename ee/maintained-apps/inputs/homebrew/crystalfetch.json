@@ -1,0 +1,10 @@
+{
+  "name": "Crystalfetch",
+  "unique_identifier": "llc.turing.CrystalFetch",
+  "token": "crystalfetch",
+  "installer_format": "dmg",
+  "slug": "crystalfetch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
