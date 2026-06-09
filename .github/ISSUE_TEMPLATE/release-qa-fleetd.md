@@ -3,7 +3,7 @@ name:  Release QA - fleetd
 about: Checklist of required fleetd (Orbit, Fleet Desktop, Chrome extension) and osquery tests prior to release
 title: 'Release QA (fleetd):'
 labels: '#g-orchestration,:release'
-assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,marcusallen97,thisisjoegrant'
 
 ---
 
