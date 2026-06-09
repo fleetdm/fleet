@@ -59,7 +59,7 @@ sequenceDiagram
         IdP-->>-ios: SAML Response
         ios->>+fleet: [HTML page]<br>POST /api/v1/fleet/mdm/sso/callback<br>(SAML Response)
         fleet->>fleet: Insert 1 hour lived challenge<br>Store IdP account ID, ABM token ID and expiration
-        fleet-->>-ios: 308 (with ADUE challenge)
+        fleet-->>-ios: 303 (with ADUE challenge)
     end
     ios->>+fleet: POST /api/mdm/apple/account_driven_enroll/{token} (with ADUE challenge as Bearer token)
     fleet->>fleet: Checks expiration<br>If valid, consumes it.
