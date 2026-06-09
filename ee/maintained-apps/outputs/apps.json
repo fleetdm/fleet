@@ -1745,6 +1745,13 @@
       "description": "Open-source firewall to block unknown outgoing connections."
     },
     {
+      "name": "Mac Mouse Fix",
+      "slug": "mac-mouse-fix/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nuebling.mac-mouse-fix",
+      "description": "Mac Mouse Fix is a mouse utility to add gesture functions and smooth scrolling to 3rd party mice."
+    },
+    {
       "name": "Maccy",
       "slug": "maccy/darwin",
       "platform": "darwin",
@@ -1752,11 +1759,158 @@
       "description": "Maccy is a clipboard manager."
     },
     {
+      "name": "MacDown",
+      "slug": "macdown/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.uranusjr.macdown",
+      "description": "MacDown is an open-source Markdown editor."
+    },
+    {
+      "name": "MACE",
+      "slug": "mace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mace.app",
+      "description": "MACE is a tool to simplify compliance baseline creation, auditing, and management."
+    },
+    {
+      "name": "MacJournal",
+      "slug": "macjournal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DanSchimpf.MacJournal",
+      "description": "MacJournal is an app for journaling and blogging software."
+    },
+    {
+      "name": "MacPacker",
+      "slug": "macpacker/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sarensx.MacPacker",
+      "description": "MacPacker is an archive manager."
+    },
+    {
+      "name": "MacPass",
+      "slug": "macpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hicknhacksoftware.MacPass",
+      "description": "MacPass is an open-source, KeePass-client and password manager."
+    },
+    {
+      "name": "MacPilot",
+      "slug": "macpilot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.koingosw.MacPilot",
+      "description": "MacPilot is a graphical user interface for the command terminal."
+    },
+    {
+      "name": "Macs Fan Control",
+      "slug": "macs-fan-control/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.crystalidea.macsfancontrol",
+      "description": "Macs Fan Control is a controls and monitors all fans on Apple computers."
+    },
+    {
+      "name": "MacsyZones",
+      "slug": "macsyzones/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macsyzones.MacsyZones",
+      "description": "MacsyZones is a window management utility."
+    },
+    {
+      "name": "Mactracker",
+      "slug": "mactracker/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mactrackerapp.Mactracker",
+      "description": "Mactracker is a detailed information on every Apple product ever made."
+    },
+    {
+      "name": "MacVim",
+      "slug": "macvim-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.vim.MacVim.LSSharedFileList",
+      "description": "MacVim is a text editor."
+    },
+    {
+      "name": "MacWhisper",
+      "slug": "macwhisper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.goodsnooze.MacWhisper",
+      "description": "MacWhisper is a speech recognition tool."
+    },
+    {
+      "name": "Maestral",
+      "slug": "maestral/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.samschott.maestral",
+      "description": "Maestral is an open-source Dropbox client."
+    },
+    {
+      "name": "MagicQuit",
+      "slug": "magicquit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.MagicQuit",
+      "description": "MagicQuit is an efficiency tool for automatically closing apps when they are not in use."
+    },
+    {
+      "name": "Mailspring",
+      "slug": "mailspring/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mailspring.mailspring",
+      "description": "Mailspring is a fork of Nylas Mail."
+    },
+    {
+      "name": "Malwarebytes for Mac",
+      "slug": "malwarebytes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.malwarebytes.mbam.frontend.application",
+      "description": "Malwarebytes for Mac is a tool to scan and remove malware, spyware, and viruses."
+    },
+    {
+      "name": "MarkText",
+      "slug": "mark-text/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.marktext.marktext",
+      "description": "MarkText is a markdown editor."
+    },
+    {
+      "name": "Marked",
+      "slug": "marked-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.brettterpstra.marked",
+      "description": "Marked is a previewer for Markdown, MultiMarkdown and other text markup languages."
+    },
+    {
+      "name": "MarkEdit",
+      "slug": "markedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.cyan.markedit",
+      "description": "MarkEdit is a markdown editor."
+    },
+    {
+      "name": "MarsEdit",
+      "slug": "marsedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.red-sweater.marsedit5",
+      "description": "MarsEdit is a tool to write, preview and publish blogs."
+    },
+    {
+      "name": "Marta File Manager",
+      "slug": "marta/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.yanex.marta",
+      "description": "Marta File Manager is an extensible two-pane file manager."
+    },
+    {
       "name": "Marvel",
       "slug": "marvel/darwin",
       "platform": "darwin",
       "unique_identifier": "com.marvelprototyping.marvelmacos",
       "description": "Marvel is a design and prototyping platform for creating interactive app and web mockups."
+    },
+    {
+      "name": "massCode",
+      "slug": "masscode/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.masscode.app",
+      "description": "massCode is a code snippets manager for developers."
     },
     {
       "name": "Mattermost",
@@ -1773,6 +1927,83 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "MeetingBar",
+      "slug": "meetingbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "leits.MeetingBar",
+      "description": "MeetingBar is a shows the next meeting in the menu bar."
+    },
+    {
+      "name": "MEGAsync",
+      "slug": "megasync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "mega.mac",
+      "description": "MEGAsync is a syncs files between computers and MEGA Cloud drives."
+    },
+    {
+      "name": "Mellel",
+      "slug": "mellel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.redlex.mellel6",
+      "description": "Mellel is an advanced word processor built for long and complex documents."
+    },
+    {
+      "name": "Melodics",
+      "slug": "melodics/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.melodics.Melodics",
+      "description": "Melodics is a helps you learn to play your instrument."
+    },
+    {
+      "name": "Memory Cleaner",
+      "slug": "memory-cleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nektony.Memory-Cleaner-SIII",
+      "description": "Memory Cleaner is a free up RAM manually and automatically."
+    },
+    {
+      "name": "Memory Tracker by Timely",
+      "slug": "memory/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.timeapp.devlpmp.Timely-Mac-Tracker",
+      "description": "Memory Tracker by Timely is a time tracking software."
+    },
+    {
+      "name": "Eclipse Memory Analyzer",
+      "slug": "memoryanalyzer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.eclipse.mat.ui.rcp.MemoryAnalyzer",
+      "description": "Eclipse Memory Analyzer is a java heap analyzer."
+    },
+    {
+      "name": "Mendeley Reference Manager",
+      "slug": "mendeley-reference-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elsevier.mendeley",
+      "description": "Mendeley Reference Manager is a research management tool."
+    },
+    {
+      "name": "MenuBar Stats",
+      "slug": "menubar-stats/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fabriceleyne.menubarstats",
+      "description": "MenuBar Stats is a system monitor with temperature & fans plugins."
+    },
+    {
+      "name": "MenubarX",
+      "slug": "menubarx/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.app.menubarx",
+      "description": "MenubarX is a menu bar browser."
+    },
+    {
+      "name": "Merlin Project",
+      "slug": "merlin-project/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.projectwizards.merlinproject",
+      "description": "Merlin Project is a project management application."
+    },
+    {
       "name": "Microsoft 365 Copilot",
       "slug": "microsoft-365-copilot/darwin",
       "platform": "darwin",
@@ -1785,6 +2016,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.autoupdate2",
       "description": "Microsoft Auto Update provides updates to various Microsoft products."
+    },
+    {
+      "name": "Microsoft Azure Storage Explorer",
+      "slug": "microsoft-azure-storage-explorer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.StorageExplorer",
+      "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
       "name": "Microsoft .NET Runtime 10",
@@ -1885,6 +2123,48 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
+      "name": "Middle",
+      "slug": "middle/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Middle",
+      "description": "Middle is a tool to add middle click for Trackpad and Magic Mouse."
+    },
+    {
+      "name": "MiddleClick",
+      "slug": "middleclick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "art.ginzburg.MiddleClick",
+      "description": "MiddleClick is a utility to extend trackpad functionality."
+    },
+    {
+      "name": "Milanote",
+      "slug": "milanote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.milanote.app",
+      "description": "Milanote is a tool to organise your ideas and projects into visual boards."
+    },
+    {
+      "name": "Mimecast for Mac",
+      "slug": "mimecast/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mimecast.Mimecast-Mail",
+      "description": "Mimecast for Mac is an access to the Mime Cast email archive."
+    },
+    {
+      "name": "Mimestream",
+      "slug": "mimestream/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mimestream.Mimestream",
+      "description": "Mimestream is a native app email client for Gmail."
+    },
+    {
+      "name": "MindMac",
+      "slug": "mindmac/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.mindmac.macos",
+      "description": "MindMac is a ChatGPT client."
+    },
+    {
       "name": "MindManager",
       "slug": "mindmanager/darwin",
       "platform": "darwin",
@@ -1897,6 +2177,20 @@
       "platform": "windows",
       "unique_identifier": "MindManager",
       "description": "MindManager is a mind mapping and visual work-management tool for organizing ideas, planning projects, and presenting information in diagrams."
+    },
+    {
+      "name": "MiniSim",
+      "slug": "minisim/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.oskarkwasniewski.MiniSim",
+      "description": "MiniSim is an app for launching iOS and Android simulators."
+    },
+    {
+      "name": "mInstaller",
+      "slug": "minstaller/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.motionvfx.mInstaller",
+      "description": "mInstaller is a downloader and manager for MotionVFX products."
     },
     {
       "name": "Miro",
@@ -1913,6 +2207,48 @@
       "description": "Miro is an online collaborative whiteboard platform."
     },
     {
+      "name": "Missive",
+      "slug": "missive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.missiveapp.osx",
+      "description": "Missive is a team inbox and chat tool."
+    },
+    {
+      "name": "Mist",
+      "slug": "mist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ninxsoft.mist",
+      "description": "Mist is a utility that automatically downloads firmwares and installers."
+    },
+    {
+      "name": "Mixxx",
+      "slug": "mixxx/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mixxx.mixxx",
+      "description": "Mixxx is an open-source DJ software."
+    },
+    {
+      "name": "Mobirise",
+      "slug": "mobirise/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mobirise.Mobirise",
+      "description": "Mobirise is a no-code website creator."
+    },
+    {
+      "name": "Mockoon",
+      "slug": "mockoon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mockoon.app",
+      "description": "Mockoon is a tool to create mock APIs in seconds."
+    },
+    {
+      "name": "Modern CSV",
+      "slug": "modern-csv/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.galliumdigital.Modern-CSV",
+      "description": "Modern CSV is a CSV editor."
+    },
+    {
       "name": "MongoDB Compass",
       "slug": "mongodb-compass/darwin",
       "platform": "darwin",
@@ -1925,6 +2261,104 @@
       "platform": "windows",
       "unique_identifier": "MongoDB Compass",
       "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
+    },
+    {
+      "name": "MonitorControl",
+      "slug": "monitorcontrol/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.guillaumeb.MonitorControl",
+      "description": "MonitorControl is a tool to control external monitor brightness & volume."
+    },
+    {
+      "name": "Moom",
+      "slug": "moom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.manytricks.Moom",
+      "description": "Moom is a utility to move and zoom windows—on one display."
+    },
+    {
+      "name": "Moonlight",
+      "slug": "moonlight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.moonlight-stream.Moonlight",
+      "description": "Moonlight is a GameStream client."
+    },
+    {
+      "name": "Morgen",
+      "slug": "morgen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.todesktop.210203cqcj00tw1",
+      "description": "Morgen is an all-in-one calendars, tasks and scheduler."
+    },
+    {
+      "name": "Mos",
+      "slug": "mos/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.caldis.Mos",
+      "description": "Mos is a smooths scrolling and set mouse scroll directions independently."
+    },
+    {
+      "name": "Mountain Duck",
+      "slug": "mountain-duck/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.mountainduck",
+      "description": "Mountain Duck is a mounts servers and cloud storages as a disk on the desktop."
+    },
+    {
+      "name": "MQTTX",
+      "slug": "mqttx/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.mqttx",
+      "description": "MQTTX is a cross-platform MQTT 5.0 Desktop Client."
+    },
+    {
+      "name": "Mullvad Browser",
+      "slug": "mullvad-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.mullvad.mullvadbrowser",
+      "description": "Mullvad Browser is a web browser focused on privacy and on minimizing tracking and fingerprinting."
+    },
+    {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.mullvad.vpn",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
+      "name": "Multitouch",
+      "slug": "multitouch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.brassmonkery.Multitouch",
+      "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
+    },
+    {
+      "name": "MURAL",
+      "slug": "mural/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.mural.macOS",
+      "description": "MURAL is a visual online collaboration platform."
+    },
+    {
+      "name": "Museeks",
+      "slug": "museeks/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.museeks",
+      "description": "Museeks is a music player."
+    },
+    {
+      "name": "MuseScore",
+      "slug": "musescore/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.musescore.MuseScore",
+      "description": "MuseScore is an open-source music notation software."
+    },
+    {
+      "name": "Mx Power Gadget",
+      "slug": "mx-power-gadget/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fabriceleyne.MxPowerGadget",
+      "description": "Mx Power Gadget is a power management and monitoring for Apple Mx processors."
     },
     {
       "name": "MySQL Workbench",

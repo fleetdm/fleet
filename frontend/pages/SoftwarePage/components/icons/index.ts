@@ -329,6 +329,68 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Macdown from "./Macdown";
+import Mace from "./Mace";
+import Macjournal from "./Macjournal";
+import MacMouseFix from "./MacMouseFix";
+import Macpacker from "./Macpacker";
+import Macpass from "./Macpass";
+import Macpilot from "./Macpilot";
+import MacsFanControl from "./MacsFanControl";
+import Macsyzones from "./Macsyzones";
+import Mactracker from "./Mactracker";
+import MacvimApp from "./MacvimApp";
+import Macwhisper from "./Macwhisper";
+import Maestral from "./Maestral";
+import Magicquit from "./Magicquit";
+import Mailspring from "./Mailspring";
+import Malwarebytes from "./Malwarebytes";
+import MarkedApp from "./MarkedApp";
+import Markedit from "./Markedit";
+import MarkText from "./MarkText";
+import Marsedit from "./Marsedit";
+import Marta from "./Marta";
+import Masscode from "./Masscode";
+import Meetingbar from "./Meetingbar";
+import Megasync from "./Megasync";
+import Mellel from "./Mellel";
+import Melodics from "./Melodics";
+import Memory from "./Memory";
+import Memoryanalyzer from "./Memoryanalyzer";
+import MemoryCleaner from "./MemoryCleaner";
+import MendeleyReferenceManager from "./MendeleyReferenceManager";
+import MenubarStats from "./MenubarStats";
+import Menubarx from "./Menubarx";
+import MerlinProject from "./MerlinProject";
+import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
+import Middle from "./Middle";
+import Middleclick from "./Middleclick";
+import Milanote from "./Milanote";
+import Mimecast from "./Mimecast";
+import Mimestream from "./Mimestream";
+import Mindmac from "./Mindmac";
+import Minisim from "./Minisim";
+import Minstaller from "./Minstaller";
+import Missive from "./Missive";
+import Mist from "./Mist";
+import Mixxx from "./Mixxx";
+import Mobirise from "./Mobirise";
+import Mockoon from "./Mockoon";
+import ModernCsv from "./ModernCsv";
+import Monitorcontrol from "./Monitorcontrol";
+import Moom from "./Moom";
+import Moonlight from "./Moonlight";
+import Morgen from "./Morgen";
+import Mos from "./Mos";
+import MountainDuck from "./MountainDuck";
+import Mqttx from "./Mqttx";
+import MullvadBrowser from "./MullvadBrowser";
+import MullvadVpn from "./MullvadVpn";
+import Multitouch from "./Multitouch";
+import Mural from "./Mural";
+import Museeks from "./Museeks";
+import Musescore from "./Musescore";
+import MxPowerGadget from "./MxPowerGadget";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +731,68 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "eclipse memory analyzer": Memoryanalyzer,
+  "mac mouse fix": MacMouseFix,
+  macdown: Macdown,
+  mace: Mace,
+  macjournal: Macjournal,
+  macpacker: Macpacker,
+  macpass: Macpass,
+  macpilot: Macpilot,
+  "macs fan control": MacsFanControl,
+  macsyzones: Macsyzones,
+  mactracker: Mactracker,
+  macvim: MacvimApp,
+  macwhisper: Macwhisper,
+  maestral: Maestral,
+  magicquit: Magicquit,
+  mailspring: Mailspring,
+  "malwarebytes for mac": Malwarebytes,
+  marked: MarkedApp,
+  markedit: Markedit,
+  marktext: MarkText,
+  marsedit: Marsedit,
+  "marta file manager": Marta,
+  masscode: Masscode,
+  meetingbar: Meetingbar,
+  megasync: Megasync,
+  mellel: Mellel,
+  melodics: Melodics,
+  "memory cleaner": MemoryCleaner,
+  "memory tracker by timely": Memory,
+  "mendeley reference manager": MendeleyReferenceManager,
+  "menubar stats": MenubarStats,
+  menubarx: Menubarx,
+  "merlin project": MerlinProject,
+  "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
+  middle: Middle,
+  middleclick: Middleclick,
+  milanote: Milanote,
+  "mimecast for mac": Mimecast,
+  mimestream: Mimestream,
+  mindmac: Mindmac,
+  minisim: Minisim,
+  minstaller: Minstaller,
+  missive: Missive,
+  mist: Mist,
+  mixxx: Mixxx,
+  mobirise: Mobirise,
+  mockoon: Mockoon,
+  "modern csv": ModernCsv,
+  monitorcontrol: Monitorcontrol,
+  moom: Moom,
+  moonlight: Moonlight,
+  morgen: Morgen,
+  mos: Mos,
+  "mountain duck": MountainDuck,
+  mqttx: Mqttx,
+  "mullvad browser": MullvadBrowser,
+  "mullvad vpn": MullvadVpn,
+  multitouch: Multitouch,
+  mural: Mural,
+  museeks: Museeks,
+  musescore: Musescore,
+  "mx power gadget": MxPowerGadget,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

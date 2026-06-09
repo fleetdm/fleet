@@ -1,0 +1,10 @@
+{
+  "name": "MuseScore",
+  "unique_identifier": "org.musescore.MuseScore",
+  "token": "musescore",
+  "installer_format": "dmg",
+  "slug": "musescore/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
