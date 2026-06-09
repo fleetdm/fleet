@@ -5205,22 +5205,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host2", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
-	// Deleting Windows profiles is async (#46993): the request retains content and the profile-manager cron generates the <Delete>
-	// commands. Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below. Restore the flag after
-	// the test so it does not leak into other subtests sharing this datastore.
-	appCfg, acErr := ds.AppConfig(ctx)
-	require.NoError(t, acErr)
-	prevWindowsEnabled := appCfg.MDM.WindowsEnabledAndConfigured
-	t.Cleanup(func() {
-		// t.Context() is canceled by the time cleanup runs, so use a fresh context to restore the flag.
-		bgCtx := context.Background()
-		cfg, err := ds.AppConfig(bgCtx)
-		require.NoError(t, err)
-		cfg.MDM.WindowsEnabledAndConfigured = prevWindowsEnabled
-		require.NoError(t, ds.SaveAppConfig(bgCtx, cfg))
-	})
-	appCfg.MDM.WindowsEnabledAndConfigured = true
-	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+	// Deleting Windows profiles is async: the request retains content and the profile-manager cron generates the <Delete> commands.
+	// Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below.
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
 
 	// Profile A: LocURIs X, Y. Profile B: LocURI Y (shared with A).
 	profA := &fleet.MDMWindowsConfigProfile{Name: "profA", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)}
@@ -5571,21 +5558,8 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host-multi-del-2", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
-	// Deleting profiles is async (#46993): the cron generates the <Delete> commands. Enable Windows MDM so it does work, and restore
-	// the flag after the test so it does not leak into other subtests sharing this datastore.
-	appCfg, acErr := ds.AppConfig(ctx)
-	require.NoError(t, acErr)
-	prevWindowsEnabled := appCfg.MDM.WindowsEnabledAndConfigured
-	t.Cleanup(func() {
-		// t.Context() is canceled by the time cleanup runs, so use a fresh context to restore the flag.
-		bgCtx := context.Background()
-		cfg, err := ds.AppConfig(bgCtx)
-		require.NoError(t, err)
-		cfg.MDM.WindowsEnabledAndConfigured = prevWindowsEnabled
-		require.NoError(t, ds.SaveAppConfig(bgCtx, cfg))
-	})
-	appCfg.MDM.WindowsEnabledAndConfigured = true
-	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+	// Deleting profiles is async: the cron generates the <Delete> commands. Enable Windows MDM so it does work.
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
 
 	profA := &fleet.MDMWindowsConfigProfile{Name: "multi-del-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profB := &fleet.MDMWindowsConfigProfile{Name: "multi-del-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace>`)}
@@ -6729,7 +6703,7 @@ func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
 }
 
-// TestWindowsMDMPendingDeleteRetentionAndGC covers the #46993 retention table: GetMDMWindowsProfilesContents falls back to retained
+// TestWindowsMDMPendingDeleteRetentionAndGC covers the delete profile retention table: GetMDMWindowsProfilesContents falls back to retained
 // content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects reference-counted (a row is removed only
 // once no host_mdm_windows_profiles row still references the profile, so retained content survives as long as a host still needs it).
 func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {

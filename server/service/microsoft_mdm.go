@@ -3925,11 +3925,11 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
-	// Generate and enqueue <Delete> commands for profiles being removed from hosts. Protection is per host: a removed profile's LocURI
-	// is deleted on a host only when no still-desired profile on that host enforces it. Hosts sharing the same protected subset of the
-	// removed profile's LocURIs are grouped into one command; a label-scoped protector that applies to only some hosts naturally splits
-	// them into separate groups (matching the old synchronous two-pass behavior). desiredByHost contains only kept (applicable) profiles,
-	// never removed ones, so it needs no further exclusion.
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts. Protection is per host: a removed profile's
+	// LocURI is deleted on a host only when no still-desired profile on that host enforces it. Hosts sharing the same protected
+	// subset of the removed profile's LocURIs are grouped into one command; a label-scoped protector that applies to only some hosts
+	// naturally splits them into separate groups. desiredByHost contains only kept (applicable) profiles, never removed ones, so it
+	// needs no further exclusion.
 	resolvedLocURIs := make(map[string][]string) // profileUUID -> SCEP-resolved LocURIs (cached across hosts/targets)
 	locURIsFor := func(profUUID string) []string {
 		if v, ok := resolvedLocURIs[profUUID]; ok {
@@ -3948,8 +3948,11 @@ func executeWindowsProfileReconcileBatch(
 
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
-			// Content unavailable (e.g. a deleted profile whose retained content was already GC'd, or a list/fetch race); we cannot
-			// build a <Delete>, so skip. The host-profile row is left for a later tick.
+			// Content missing. This should never happen.
+			// We cannot build a <Delete>, so these host rows stay until content reappears; log it since it will not self-heal.
+			logger.ErrorContext(ctx, "windows profile reconcile: missing content for removed profile, cannot build delete command",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			ctxerr.Handle(ctx, fmt.Errorf("missing content for removed profile %s", profUUID))
 			continue
 		}
 		removedURIs := locURIsFor(profUUID)

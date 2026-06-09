@@ -7225,8 +7225,8 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	// for the Windows profile, set host4 as failed
 	forceSetWindowsHostProfileStatus(t, s.ds, host4.UUID, test.ToMDMWindowsConfigProfile(profNameToPayload["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 
-	// delete the Windows profile. Removal is async now (#46993): the delete retains the profile content, and the profile-manager cron
-	// flips both hosts' surviving rows (pending/failed) to remove+pending and enqueues the <Delete>.
+	// delete the Windows profile. Removal is async: the delete retains the profile content, and the profile-manager cron flips both
+	// hosts' surviving rows (pending/failed) to remove+pending and enqueues the <Delete>.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["W2"].ProfileUUID), nil, http.StatusOK, &deleteResp)
 	s.awaitTriggerProfileSchedule(t)
 

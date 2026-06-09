@@ -225,10 +225,9 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can build
-// their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal host-profile rows.
-// The actual <Delete> commands are issued asynchronously by the cron, not here (#46993). Runs in its own transaction to keep load out of
-// the main DeleteTeam transaction.
+// enqueueWindowsDeleteCommandsForTeam retains the content of the team's Windows config profiles (so the profile-manager cron can
+// build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
+// host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
 func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, tid uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var profileUUIDs []string
