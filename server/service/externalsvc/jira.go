@@ -90,11 +90,11 @@ func (j *Jira) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Is
 		)
 		createdIssue, resp, err = j.client.Issue.CreateWithContext(ctx, issue)
 		if err != nil && resp != nil && resp.Response != nil && resp.Response.Body != nil {
-			// Cap the body to guard against OOM; no "[truncated]" marker here because
-			// OnFinalFailure stores this string as-is and the body is already bounded.
-			b, _ := io.ReadAll(io.LimitReader(resp.Response.Body, str.MaxErrorResponseBytes))
+			// Read one byte past the limit so TruncateErrorResponse can detect
+			// overflow and append "[truncated]" while cutting at a valid UTF-8 boundary.
+			b, _ := io.ReadAll(io.LimitReader(resp.Response.Body, int64(str.MaxErrorResponseBytes)+1))
 			resp.Response.Body.Close()
-			respBody = string(b)
+			respBody = str.TruncateErrorResponse(string(b))
 		}
 		return resp, err
 	}
