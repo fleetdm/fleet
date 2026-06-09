@@ -305,53 +305,61 @@ import VncViewer from "./VncViewer";
 import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
+import Waterfox from "./Waterfox";
+import Wave from "./Wave";
+import Wavebox from "./Wavebox";
+import Wealthfolio from "./Wealthfolio";
+import Weasis from "./Weasis";
 import WebStorm from "./WebStorm";
+import Webcatalog from "./Webcatalog";
 import Webex from "./Webex";
+import Wechat from "./Wechat";
+import Weektodo from "./Weektodo";
+import Wezterm from "./Wezterm";
+import Whatroute from "./Whatroute";
 import WhatsApp from "./WhatsApp";
+import Whisky from "./Whisky";
+import Whispering from "./Whispering";
+import Wifiman from "./Wifiman";
+import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
 import Winrar from "./Winrar";
+import Wins from "./Wins";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
-import Word from "./Word";
-import WrikeForMac from "./WrikeForMac";
-import XCreds from "./XCreds";
-import YubicoAuthenticator from "./YubicoAuthenticator";
-import YubikeyManager from "./YubikeyManager";
-import Zed from "./Zed";
-import Zen from "./Zen";
-import Zeplin from "./Zeplin";
-import ZeroOneZeroEditor from "./010Editor";
-import Zoom from "./Zoom";
-import ZoomRooms from "./ZoomRooms";
-import Zotero from "./Zotero";
-
-import Waterfox from "./Waterfox";
-import Wave from "./Wave";
-import Wavebox from "./Wavebox";
-import Wealthfolio from "./Wealthfolio";
-import Weasis from "./Weasis";
-import Webcatalog from "./Webcatalog";
-import Wechat from "./Wechat";
-import Weektodo from "./Weektodo";
-import Wezterm from "./Wezterm";
-import Whatroute from "./Whatroute";
-import Whisky from "./Whisky";
-import Whispering from "./Whispering";
-import Wifiman from "./Wifiman";
-import Windowkeys from "./Windowkeys";
-import Wins from "./Wins";
 import WisprFlow from "./WisprFlow";
 import Witch from "./Witch";
 import WondershareEdrawmax from "./WondershareEdrawmax";
 import WondershareFilmora from "./WondershareFilmora";
+import Word from "./Word";
 import Wordservice from "./Wordservice";
 import Workflowy from "./Workflowy";
 import WorksheetCrafter from "./WorksheetCrafter";
 import Workspaces from "./Workspaces";
+import WrikeForMac from "./WrikeForMac";
+import XCreds from "./XCreds";
+import Yaak from "./Yaak";
+import Yacreader from "./Yacreader";
+import Yattee from "./Yattee";
+import Yippy from "./Yippy";
+import YubicoAuthenticator from "./YubicoAuthenticator";
+import YubikeyManager from "./YubikeyManager";
+import Zappy from "./Zappy";
+import Zed from "./Zed";
+import Zen from "./Zen";
+import Zeplin from "./Zeplin";
+import ZeroOneZeroEditor from "./010Editor";
+import Zettlr from "./Zettlr";
+import Zight from "./Zight";
+import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
+import Zotero from "./Zotero";
+import Zulip from "./Zulip";
+import Zwift from "./Zwift";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -672,49 +680,58 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
-  webstorm: WebStorm,
-  webex: Webex,
-  whatsapp: WhatsApp,
-  "windows app": WindowsApp,
-  "windows app remote": WindowsAppRemote,
-  "windows defender": WindowsDefender,
-  windsurf: Windsurf,
-  winrar: Winrar,
-  winscp: Winscp,
-  wireshark: Wireshark,
-  "wrike for mac": WrikeForMac,
-  wrike: WrikeForMac,
-  xcreds: XCreds,
-  "yubico authenticator": YubicoAuthenticator,
-  "yubikey manager": YubikeyManager,
-  zed: Zed,
-  zen: Zen,
-  zeplin: Zeplin,
-  "zoom rooms": ZoomRooms,
-  zotero: Zotero,
-  edrawmax: WondershareEdrawmax,
   waterfox: Waterfox,
   "wave terminal": Wave,
   wavebox: Wavebox,
   wealthfolio: Wealthfolio,
   weasis: Weasis,
+  webstorm: WebStorm,
   webcatalog: Webcatalog,
+  webex: Webex,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
   wezterm: Wezterm,
   whatroute: Whatroute,
+  whatsapp: WhatsApp,
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
   windowkeys: Windowkeys,
+  "windows app": WindowsApp,
+  "windows app remote": WindowsAppRemote,
+  "windows defender": WindowsDefender,
+  windsurf: Windsurf,
+  winrar: Winrar,
   wins: Wins,
+  winscp: Winscp,
+  wireshark: Wireshark,
   "wispr flow": WisprFlow,
   witch: Witch,
+  edrawmax: WondershareEdrawmax,
   "wondershare filmora": WondershareFilmora,
   wordservice: Wordservice,
   workflowy: Workflowy,
   "worksheet crafter": WorksheetCrafter,
   workspaces: Workspaces,
+  "wrike for mac": WrikeForMac,
+  wrike: WrikeForMac,
+  xcreds: XCreds,
+  yaak: Yaak,
+  yacreader: Yacreader,
+  yattee: Yattee,
+  yippy: Yippy,
+  "yubico authenticator": YubicoAuthenticator,
+  "yubikey manager": YubikeyManager,
+  zappy: Zappy,
+  zed: Zed,
+  zen: Zen,
+  zeplin: Zeplin,
+  zettlr: Zettlr,
+  zight: Zight,
+  "zoom rooms": ZoomRooms,
+  zotero: Zotero,
+  zulip: Zulip,
+  zwift: Zwift,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
