@@ -3432,25 +3432,11 @@
       "description": "Wrike is a project management app."
     },
     {
-      "name": "xattred",
-      "slug": "xattred/darwin",
-      "platform": "darwin",
-      "unique_identifier": "co.eclecticlight.xattred",
-      "description": "xattred is an extended attribute editor."
-    },
-    {
       "name": "XCA",
       "slug": "xca/darwin",
       "platform": "darwin",
       "unique_identifier": "de.hohnstaedt.xca",
       "description": "XCA is a x Certificate and Key management."
-    },
-    {
-      "name": "Xcodes",
-      "slug": "xcodes-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.xcodesorg.xcodesapp",
-      "description": "Xcodes is an install and switch between multiple versions of Xcode."
     },
     {
       "name": "XCreds",
@@ -3472,13 +3458,6 @@
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.XMenu",
       "description": "XMenu is an access folders, files or text snippets from the menu bar."
-    },
-    {
-      "name": "XMind",
-      "slug": "xmind/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.xmind.cathy.application",
-      "description": "XMind is a mind mapping and brainstorming tool."
     },
     {
       "name": "Xmplify",

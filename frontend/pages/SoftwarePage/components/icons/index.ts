@@ -354,12 +354,9 @@ import WorksheetCrafter from "./WorksheetCrafter";
 import Workspaces from "./Workspaces";
 import WrikeForMac from "./WrikeForMac";
 import XCreds from "./XCreds";
-import Xattred from "./Xattred";
 import Xca from "./Xca";
-import XcodesApp from "./XcodesApp";
 import Xld from "./Xld";
 import Xmenu from "./Xmenu";
-import Xmind from "./Xmind";
 import Xmplify from "./Xmplify";
 import Xnapper from "./Xnapper";
 import Xnconvert from "./Xnconvert";
@@ -752,12 +749,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   xcreds: XCreds,
-  xattred: Xattred,
   xca: Xca,
-  xcodes: XcodesApp,
   "x lossless decoder": Xld,
   xmenu: Xmenu,
-  xmind: Xmind,
   xmplify: Xmplify,
   xnapper: Xnapper,
   "xnsoft xnconvert": Xnconvert,
