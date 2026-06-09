@@ -85,6 +85,17 @@ variable "redis_parameter_group_family" {
   description = "The Elasticache parameter group family (e.g. \"redis7\", \"valkey7\", \"valkey8\"). Must match the engine and version."
   type        = string
   default     = "redis7"
+
+  # Enforce only the durable invariant: the family must belong to the chosen engine
+  # (Elasticache families are named "redis*" / "valkey*"). The set of valid engine
+  # versions is owned by Elasticache and changes over time, so it is intentionally not
+  # pinned here -- an incompatible engine_version/family pair still fails fast at apply
+  # via the AWS API. Use `aws elasticache describe-cache-engine-versions --engine <engine>`
+  # to find valid version/family pairs.
+  validation {
+    condition     = startswith(var.redis_parameter_group_family, var.redis_engine)
+    error_message = "var.redis_parameter_group_family must match var.redis_engine: use a \"redis*\" family (e.g. redis7) for the \"redis\" engine, or a \"valkey*\" family (e.g. valkey7, valkey8) for the \"valkey\" engine."
+  }
 }
 
 variable "enable_otel" {
