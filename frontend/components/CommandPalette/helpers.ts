@@ -21,7 +21,7 @@ export interface ICommandSubItem {
 export interface ICommandItem {
   id: string;
   label: string;
-  group: string;
+  group: typeof GROUPS[number];
   path?: string;
   keywords?: string[];
   /** Displayed on the right when navigating would switch your team context */

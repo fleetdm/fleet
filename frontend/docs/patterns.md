@@ -569,7 +569,7 @@ The dividing line: if the action requires the user to first pick a specific row,
 |---|---|
 | A new top-level page (routed under a top nav item) | `groups/pages.ts` |
 | A new global create action (modal / form / blank create page) | `groups/commands.ts` |
-| A new view-by-search flow (like "View host") | `groups/commands.ts` with `opensSubPage: true`, plus a picker in `components/` |
+| A new view-by-search flow (like "View host") | `groups/commands.ts` with `opensSubPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
 | A new MDM platform or connector (turn-on / singleton-edit) | `groups/mdm.ts` |
 | A new automation hook | `groups/automations.ts` |
 | A new settings page or admin sub-page | `groups/settings.ts` |
@@ -584,7 +584,7 @@ Sub-pages of an existing palette item live in that item's `subItems` array, not 
 interface ICommandItem {
   id: string;                // unique kebab-case
   label: string;             // sentence case, verb first ("Add report")
-  group: typeof GROUPS[number];
+  group: typeof GROUPS[number]; // one of `GROUPS` in helpers.ts
   path?: string;             // navigation target (use withTeamId() if team-scoped)
   onAction?: () => void;     // alternative to path for custom side effects
   keywords?: string[];       // synonyms + aliases — see below
@@ -600,7 +600,7 @@ interface ICommandItem {
 - Verb first for actions: "Add", "Edit", "Delete", "Run", "View", "Manage", "Turn on" / "Turn off".
 - No trailing punctuation.
 - Match the destination page's own primary-button text where possible.
-- Use **fleet** / **report** (current product terminology), not **team** / **query**.
+- Use **fleet** / **report** (current product terminology), not **team** / **query**. Existing items haven't been mass-renamed; this applies to *new* items only.
 
 ### Keyword authoring
 
@@ -633,17 +633,35 @@ Best match scoring is **label-first**: any label match (exact, prefix, word-pref
 
 Mirror the destination page's gate exactly. If the page rejects technicians, gate the palette item on `!isTechnician`. If the destination renders `<PremiumFeatureMessage />` on free tier, gate the palette item on `isPremiumTier`. The palette must not route users to a screen they can't use.
 
-Use the existing context flags from `ICommandPaletteContext` (`canWrite`, `canAccessSettings`, `canAddSoftware`, `canManageReportAutomations`, etc.) and add new ones to `ICommandPaletteContext` + `CommandPalette.tsx` when an existing one doesn't model the destination's check.
+Reuse existing flags from `ICommandPaletteContext` (`frontend/components/CommandPalette/helpers.ts`) — that interface is the source of truth for the full list. The flags fall into a few buckets:
+
+- **Role-based write gates:** `canWrite`, `canAccessSettings`, `canAccessControls`, `canRunLiveReport`, `canAddSoftware`, `canEditCustomVariable`, `canManagePolicyAutomations`, `canManageSoftwareAutomations`, `canManageReportAutomations`, `isTechnician`
+- **Tier / mode:** `isPremiumTier`, `isPrimoMode`, `isDarkMode`
+- **Feature configured:** `isMacMdmEnabledAndConfigured`, `isWindowsMdmEnabledAndConfigured`, `isAndroidMdmEnabledAndConfigured`, `isVppEnabled`
+- **Context shape:** `hasTeamSelected`, `currentTeam`, `availableTeams`, `config`, `search`
+
+Add a new flag to `ICommandPaletteContext` + `CommandPalette.tsx` only when no existing one models the destination's check. When you add one, mirror the destination page's predicate exactly — several existing flags (`canManageReportAutomations`, `canEditCustomVariable`, `canAddSoftware`) document the narrower role checks they encode; follow that pattern.
 
 ### Team context (`teamName`)
 
-Set `teamName` when invoking the action will switch the user's current fleet context. The palette renders it as a chip on the right so the user sees the upcoming switch before they click. Use the derived helpers from `groups/derivations.ts`:
+Set `teamName` when invoking the action will switch the user's current fleet context. The palette renders it as a chip on the right so the user sees the upcoming switch before they click.
+
+Each group builder receives an `IDerivedContext` (computed once by `deriveContext()` in `groups/derivations.ts`) as its second argument. Destructure the chip helper you need from it rather than hardcoding fleet names:
+
+```ts
+const buildExampleItems = (ctx, derived) => {
+  const { switchesFromUnassigned, switchesFromAllFleets } = derived;
+  // ...
+};
+```
+
+The three chip helpers:
 
 - `switchesFromUnassigned` — destination requires a specific fleet, action invokable from Unassigned
 - `switchesFromAllFleets` — destination requires a specific fleet, action invokable from All fleets
 - `defaultDestination` — destination always lands on the default (e.g., "All fleets")
 
-Don't hardcode team names; the helpers know which switches actually happen and return `undefined` when no chip is needed.
+Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
 
 ### Search-only items
 

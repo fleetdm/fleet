@@ -1,8 +1,8 @@
 ---
 name: command-palette
 description: Authoring guide for the Fleet command palette. Use when adding or editing items in frontend/components/CommandPalette/groups/, when editing frontend/router/paths.ts or frontend/router/index.tsx, or when adding a new top-level page, global create action, MDM connector / singleton config, automation hook, or view-by-search flow that needs a palette entry.
-allowed-tools: Read, Grep, Glob, Bash(yarn test*), Bash(yarn jest*)
-effort: low
+allowed-tools: Read, Grep, Glob, Bash(yarn test*)
+effort: medium
 ---
 
 # Command palette authoring
@@ -29,8 +29,9 @@ This skill exists to make sure that guide gets followed when palette-worthy chan
    - If it sets a `teamName` chip: assert it renders / doesn't render against the relevant fleet contexts
 2. Run the palette tests:
    ```
-   yarn jest frontend/components/CommandPalette
+   yarn test frontend/components/CommandPalette/helpers.tests.ts
    ```
+   (Note: test files use `.tests.ts` plural, and `yarn test` — not `yarn jest` — uses the project's jest config.)
 
 ## When *not* to add an entry
 

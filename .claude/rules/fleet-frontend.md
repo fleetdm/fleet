@@ -109,7 +109,7 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
 
 ## Command palette
-If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, or add a new global create / automation / settings action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. Per-entity (row-level) actions don't belong in the palette.
+If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, add a new global create / automation / settings action, or add a new view-by-search / picker flow, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. Per-entity (row-level) actions don't belong in the palette.
 
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
