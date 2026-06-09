@@ -128,7 +128,6 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
-		nil, // policyReportClock (async policy collection disabled in tests)
 	)
 	if err != nil {
 		panic(err)

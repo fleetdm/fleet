@@ -619,7 +619,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
-			task,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")

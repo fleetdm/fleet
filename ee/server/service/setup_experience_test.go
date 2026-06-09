@@ -310,31 +310,20 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	})
 }
 
-// fakePolicyReportClock records the host IDs whose async "policies last reported" Redis epoch was reset, so tests can assert the
-// epoch is cleared exactly when a real gating result is consumed.
-type fakePolicyReportClock struct{ resetHostIDs []uint }
-
-func (f *fakePolicyReportClock) ResetHostPolicyReportedAt(_ context.Context, hostID uint) error {
-	f.resetHostIDs = append(f.resetHostIDs, hostID)
-	return nil
-}
-
 // TestSetupExperienceNextStepPolicyGated covers the policy-gated (Windows/Linux) branch of SetupExperienceNextStep: the policy is
 // used only as a gate (pass -> skip, fail -> install via the normal ForSetupExperience path), the item is held running while
-// awaiting a fresh result, and an out-of-scope gating policy falls back to installing.
+// awaiting a fresh result, an out-of-scope gating policy falls back to installing, and the host policy clock is reset once when a
+// gated setup finishes (not per gated result).
 func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
-	policyClock := &fakePolicyReportClock{}
-	svc.policyReportClock = policyClock
 
 	hostUUID := "win-osquery"
 	installerID := uint(7)
 	policyID := uint(99)
 
 	host := &fleet.Host{
-		ID:            42,
 		UUID:          "win-uuid",
 		OsqueryHostID: ptr.String(hostUUID),
 		Platform:      "windows",
@@ -371,7 +360,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	ds.PolicyQueriesForHostFilteredFunc = func(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
 		return deliverable, nil
 	}
-	// Resetting the host policy clock after a gating result is consumed (so the host's other policies re-run promptly post-setup).
+	// The host policy clock is reset once, when a gated setup finishes (so the host's other policies re-run promptly post-setup).
 	ds.ClearHostPolicyUpdatedAtFunc = func(ctx context.Context, hostID uint) error { return nil }
 
 	reset := func() {
@@ -382,7 +371,6 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		updates = nil
 		policyResult = nil
 		deliverable = nil
-		policyClock.resetHostIDs = nil
 	}
 
 	gatedPending := func() []*fleet.SetupExperienceStatusResult {
@@ -407,8 +395,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
 		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
-		require.True(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "consuming a gating result must reset the host policy clock")
-		require.Equal(t, []uint{host.ID}, policyClock.resetHostIDs, "consuming a gating result must also clear the async redis epoch")
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "clock is reset at setup completion, not per gated result")
 	})
 
 	t.Run("policy fails -> install via ForSetupExperience path (no PolicyID on the install)", func(t *testing.T) {
@@ -425,8 +412,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
-		require.True(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "consuming a gating result must reset the host policy clock")
-		require.Equal(t, []uint{host.ID}, policyClock.resetHostIDs, "consuming a gating result must also clear the async redis epoch")
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "clock is reset at setup completion, not per gated result")
 	})
 
 	t.Run("no result yet, policy in scope -> stays running, no install", func(t *testing.T) {
@@ -443,7 +429,6 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no result consumed yet; policy clock must not be reset")
-		require.Empty(t, policyClock.resetHostIDs, "no result consumed yet; redis epoch must not be cleared")
 	})
 
 	t.Run("no result, policy out of scope -> falls back to installing", func(t *testing.T) {
@@ -459,7 +444,6 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.True(t, installs[0].ForSetupExperience)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "out-of-scope fallback ran no gating policy; policy clock must not be reset")
-		require.Empty(t, policyClock.resetHostIDs, "out-of-scope fallback ran no gating policy; redis epoch must not be cleared")
 	})
 
 	t.Run("running gated item awaiting policy is re-checked each poll", func(t *testing.T) {
@@ -480,7 +464,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Len(t, updates, 1)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
-		require.Equal(t, []uint{host.ID}, policyClock.resetHostIDs, "consuming a gating result must also clear the async redis epoch")
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "clock is reset at setup completion, not per gated result")
 	})
 
 	t.Run("already-running awaiting item with no result yet does not write again", func(t *testing.T) {
@@ -502,6 +486,38 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, finished)
 		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.False(t, ds.UpdateSetupExperienceStatusResultFuncInvoked, "must not re-write unchanged running state on every poll")
-		require.Empty(t, policyClock.resetHostIDs, "no result consumed; redis epoch must not be cleared")
+	})
+
+	t.Run("setup finishes with a gated item -> host policy clock reset once", func(t *testing.T) {
+		reset()
+		// All items terminal (the gated item resolved on a prior poll); this poll reaches the "finished" branch.
+		items = []*fleet.SetupExperienceStatusResult{{
+			HostUUID:            hostUUID,
+			Name:                "GatedApp",
+			SoftwareInstallerID: &installerID,
+			PolicyID:            &policyID,
+			Status:              fleet.SetupExperienceStatusSuccess,
+		}}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.True(t, finished, "all items terminal -> setup experience finished")
+		require.True(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "a gated setup that finished must reset the host policy clock once")
+	})
+
+	t.Run("setup finishes with no gated item -> host policy clock not reset", func(t *testing.T) {
+		reset()
+		// A terminal, un-gated setup item (PolicyID nil): finishing must not touch the policy clock.
+		items = []*fleet.SetupExperienceStatusResult{{
+			HostUUID:            hostUUID,
+			Name:                "UngatedApp",
+			SoftwareInstallerID: &installerID,
+			Status:              fleet.SetupExperienceStatusSuccess,
+		}}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.True(t, finished)
+		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no gated item -> policy clock must not be reset")
 	})
 }

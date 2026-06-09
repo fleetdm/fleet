@@ -365,7 +365,11 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			}
 		}
 	case softwareRunning == 0 && scriptsRunning == 0:
-		// finished
+		// finished: if any item was policy-gated, reset the host policy clock now (the host has left setup experience) so its full
+		// policy set re-runs promptly instead of waiting up to a full policy update interval.
+		if err := svc.resetPolicyClockAfterGatedSetup(ctx, host, statuses); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
@@ -408,42 +412,38 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
 
 	case *passes:
-		// App present and up-to-date: skip the install (terminal success).
+		// App present and up-to-date: skip the install (terminal success). The host policy clock is reset once, when setup
+		// experience finishes (see the "finished" branch of SetupExperienceNextStep), not here.
 		sw.Status = fleet.SetupExperienceStatusSuccess
 		svc.logger.DebugContext(ctx, "setup experience gating policy passed; skipping install",
 			"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
-		if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-			return err
-		}
-		return svc.clearPolicyClockAfterGatedResult(ctx, host)
+		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
 
 	default:
 		// Policy failed (app missing or outdated): install via the normal setup-experience path.
-		if err := svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw); err != nil {
-			return err
-		}
-		return svc.clearPolicyClockAfterGatedResult(ctx, host)
+		return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
 	}
 }
 
-// clearPolicyClockAfterGatedResult resets the host's "last reported policies" clock after a gating policy result was consumed
-// during setup experience. During setup only the gated subset of policies is distributed/reported, which advances the host-wide
-// policy_updated_at and would otherwise delay the host's remaining policies by up to a full policy update interval once setup
-// ends. Resetting it makes the full policy set re-run promptly after setup. (No-op-safe: callers only invoke this when a real
-// policy result was consumed, not for the out-of-scope fallback where no gating policy actually ran.)
-func (svc *Service) clearPolicyClockAfterGatedResult(ctx context.Context, host *fleet.Host) error {
-	if err := svc.ds.ClearHostPolicyUpdatedAt(ctx, host.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset host policy clock after setup experience gating result")
-	}
-	// When async policy membership collection is enabled, the host-wide policy clock read by the distributed-query scheduler is
-	// max(redis "policies last reported" epoch, hosts.policy_updated_at). Reporting the gated policy subset during setup advances
-	// the redis epoch, so clearing only the MySQL column above leaves the epoch dominant and would delay the host's remaining
-	// (non-gated) policies by up to a full policy update interval once setup ends. Clear the redis epoch too. No-op when async is
-	// disabled, and nil-safe when the async task is not wired (unit tests), where the MySQL reset alone is sufficient.
-	if svc.policyReportClock != nil {
-		if err := svc.policyReportClock.ResetHostPolicyReportedAt(ctx, host.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host policy reported epoch after setup experience gating result")
+// resetPolicyClockAfterGatedSetup resets the host's "last reported policies" clock when setup experience finishes, if any of its
+// items was policy-gated (Windows/Linux). During setup only the gated policy subset is distributed/reported, which advances the
+// host-wide policy_updated_at and would otherwise delay the host's remaining policies by up to a full policy update interval once
+// setup ends. This must run at completion, not per gated result: resetting mid-setup makes policies due again, so the host can
+// re-report the gated subset and re-stamp the clock before setup ends. By the time setup is finished the host has left setup
+// experience, so its next checkin carries the full policy set and the reset is not undone.
+func (svc *Service) resetPolicyClockAfterGatedSetup(ctx context.Context, host *fleet.Host, statuses []*fleet.SetupExperienceStatusResult) error {
+	gated := false
+	for _, s := range statuses {
+		if s.PolicyID != nil {
+			gated = true
+			break
 		}
+	}
+	if !gated {
+		return nil
+	}
+	if err := svc.ds.ClearHostPolicyUpdatedAt(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host policy clock after setup experience")
 	}
 	return nil
 }

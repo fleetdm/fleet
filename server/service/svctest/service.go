@@ -258,7 +258,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
-			nil, // policyReportClock (async policy collection disabled in tests)
 		)
 		if err != nil {
 			panic(err)
