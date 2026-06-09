@@ -305,18 +305,38 @@ import VncViewer from "./VncViewer";
 import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
+import Wave from "./Wave";
+import Wavebox from "./Wavebox";
+import Wealthfolio from "./Wealthfolio";
+import Weasis from "./Weasis";
 import WebStorm from "./WebStorm";
+import Webcatalog from "./Webcatalog";
 import Webex from "./Webex";
+import Wechat from "./Wechat";
+import Weektodo from "./Weektodo";
+import Whatroute from "./Whatroute";
 import WhatsApp from "./WhatsApp";
+import Whisky from "./Whisky";
+import Whispering from "./Whispering";
+import Wifiman from "./Wifiman";
+import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
 import Winrar from "./Winrar";
+import Wins from "./Wins";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
+import WisprFlow from "./WisprFlow";
+import WondershareEdrawmax from "./WondershareEdrawmax";
+import WondershareFilmora from "./WondershareFilmora";
 import Word from "./Word";
+import Wordservice from "./Wordservice";
+import Workflowy from "./Workflowy";
+import WorksheetCrafter from "./WorksheetCrafter";
+import Workspaces from "./Workspaces";
 import WrikeForMac from "./WrikeForMac";
 import XCreds from "./XCreds";
 import Yaak from "./Yaak";
@@ -657,16 +677,36 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
+  "wave terminal": Wave,
+  wavebox: Wavebox,
+  wealthfolio: Wealthfolio,
+  weasis: Weasis,
   webstorm: WebStorm,
+  webcatalog: Webcatalog,
   webex: Webex,
+  "wechat for mac": Wechat,
+  weektodo: Weektodo,
+  whatroute: Whatroute,
   whatsapp: WhatsApp,
+  whisky: Whisky,
+  whispering: Whispering,
+  "wifiman desktop": Wifiman,
+  windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
   winrar: Winrar,
+  wins: Wins,
   winscp: Winscp,
   wireshark: Wireshark,
+  "wispr flow": WisprFlow,
+  edrawmax: WondershareEdrawmax,
+  "wondershare filmora": WondershareFilmora,
+  wordservice: Wordservice,
+  workflowy: Workflowy,
+  "worksheet crafter": WorksheetCrafter,
+  workspaces: Workspaces,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   xcreds: XCreds,
