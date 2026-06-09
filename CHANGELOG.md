@@ -1,3 +1,11 @@
+## Fleet 4.86.2 (Jun 12, 2026)
+
+### Bug fixes
+
+- Fixed Fleet failing to start on a read-only root filesystem by storing custom org logos in the database when no S3 software installers bucket is configured, instead of writing to local disk.
+- Fixed a bug where host vitals labels (e.g. IdP group/department labels) scoped to a fleet/team never got any hosts. The membership cron only looked at global labels, and team-scoped IdP labels also failed to populate due to an incorrect SQL join.
+- Fixed a server out-of-memory crash that could occur when Apple's VPP (App and Book Management) API repeatedly returned transient errors (HTTP 500 with Retry-After, or error 9646) during VPP API operations (e.g., app installs, user registration, license seat releases).
+
 ## Fleet 4.86.1 (Jun 01, 2026)
 
 ### Bug fixes
