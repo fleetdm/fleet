@@ -125,26 +125,70 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Cacher from "./Cacher";
+import Caffeine from "./Caffeine";
 import Calibre from "./Calibre";
-import CleanMyMac from "./CleanMyMac";
-import CleanShotX from "./CleanShotX";
-import CLion from "./CLion";
+import CalibriteProfiler from "./CalibriteProfiler";
+import CamoStudio from "./CamoStudio";
 import Camtasia from "./Camtasia";
+import CamundaModeler from "./CamundaModeler";
 import Canva from "./Canva";
+import Captain from "./Captain";
+import Captin from "./Captin";
+import Capto from "./Capto";
+import CarbonCopyCloner from "./CarbonCopyCloner";
+import Cardhop from "./Cardhop";
+import Cellprofiler from "./Cellprofiler";
+import Chalk from "./Chalk";
+import Charmstone from "./Charmstone";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
+import Chatwise from "./Chatwise";
+import Cheetah3D from "./Cheetah3D";
+import CherryStudio from "./CherryStudio";
+import Chime from "./Chime";
+import Choosy from "./Choosy";
 import ChromeApp from "./ChromeApp";
 import ChromeOS from "./ChromeOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
+import Cleanclip from "./Cleanclip";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import ClickUp from "./ClickUp";
+import CLion from "./CLion";
+import Clipbook from "./Clipbook";
+import Clipgrab from "./Clipgrab";
+import Clipy from "./Clipy";
+import Clocker from "./Clocker";
 import ClockifyDesktop from "./ClockifyDesktop";
+import Clop from "./Clop";
 import Cloudflare from "./Cloudflare";
-
+import Cloudmounter from "./Cloudmounter";
+import CmakeApp from "./CmakeApp";
+import Cmux from "./Cmux";
+import Coconutbattery from "./Coconutbattery";
+import Codeedit from "./Codeedit";
+import Coderunner from "./Coderunner";
+import Codexbar from "./Codexbar";
+import CogApp from "./CogApp";
+import Colorsnapper from "./Colorsnapper";
+import ColourContrastAnalyser from "./ColourContrastAnalyser";
+import Commander from "./Commander";
+import CommanderOne from "./CommanderOne";
+import CommandTabPlus from "./CommandTabPlus";
+import Companion from "./Companion";
+import CopilotMoney from "./CopilotMoney";
+import Cork from "./Cork";
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
+import Crossover from "./Crossover";
+import Crystalfetch from "./Crystalfetch";
 import Cursor from "./Cursor";
+import Cursorsense from "./Cursorsense";
+import Cursr from "./Cursr";
+import Customshortcuts from "./Customshortcuts";
 import Cyberduck from "./Cyberduck";
 import Dash from "./Dash";
 import DataGrip from "./DataGrip";
@@ -436,6 +480,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beekeeper studio": BeekeeperStudio,
   betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
+  "bitfocus companion": Companion,
   bitwarden: Bitwarden,
   blender: Blender,
   bluej: Bluej,
@@ -443,33 +488,76 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   brave: Brave,
   bruno: Bruno,
   "burp suite community": BurpSuiteCommunity,
+  cacher: Cacher,
+  caffeine: Caffeine,
   calibre: Calibre,
+  "calibrite profiler": CalibriteProfiler,
+  "camo studio": CamoStudio,
   camtasia: Camtasia,
+  "camunda modeler": CamundaModeler,
   canva: Canva,
+  captain: Captain,
+  captin: Captin,
+  capto: Capto,
+  "carbon copy cloner": CarbonCopyCloner,
+  cardhop: Cardhop,
   cavalry: Cavalry,
+  cellprofiler: Cellprofiler,
+  chalk: Chalk,
   charles: Charles,
-  "chatgpt atlas": ChatGptAtlas,
+  charmstone: Charmstone,
   chatgpt: ChatGpt,
+  "chatgpt atlas": ChatGptAtlas,
+  chatwise: Chatwise,
+  cheetah3d: Cheetah3D,
+  "cherry studio": CherryStudio,
+  chime: Chime,
+  choosy: Choosy,
   "chrome remote desktop": ChromeRemoteDesktop,
   "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
-  cleanmymac_5: CleanMyMac,
+  cleanclip: Cleanclip,
   cleanmymac: CleanMyMac,
+  cleanmymac_5: CleanMyMac,
   "cleanshot x": CleanShotX,
   clickshare: ClickShare,
-  clion: CLion,
   clickup: ClickUp,
+  clion: CLion,
+  clipbook: Clipbook,
+  clipgrab: Clipgrab,
+  clipy: Clipy,
+  clocker: Clocker,
   "clockify desktop": ClockifyDesktop,
+  clop: Clop,
   cloudflare: Cloudflare,
+  cmake: CmakeApp,
+  cmux: Cmux,
+  coconutbattery: Coconutbattery,
   code: VisualStudioCode,
+  codeedit: Codeedit,
+  coderunner: Coderunner,
+  codexbar: Codexbar,
+  cog: CogApp,
+  "colorsnapper 2": Colorsnapper,
+  "colour contrast analyser": ColourContrastAnalyser,
   comet: Comet,
+  "command-tab plus": CommandTabPlus,
+  commander: Commander,
+  "commander one": CommanderOne,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
+  copilot: CopilotMoney,
+  cork: Cork,
   crashplan: CrashPlan,
+  crossover: Crossover,
   cryptomator: Cryptomator,
+  crystalfetch: Crystalfetch,
+  cursorsense: Cursorsense,
+  cursr: Cursr,
+  customshortcuts: Customshortcuts,
   "dell command update": DellCommandUpdate,
   "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
@@ -524,6 +612,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   "elgato stream deck": ElgatoStreamDeck,
+  "eltima cloudmounter": Cloudmounter,
   evernote: Evernote,
   expressvpn: ExpressVpn,
   falcon: Falcon,
