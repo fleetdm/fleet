@@ -933,6 +933,14 @@ func (m MDMConfig) IsCustomFileVaultEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
 }
 
+// ValidateAndroidProfilesBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidProfilesBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidProfilesBatchSize < 0 {
+		initFatal(errors.New("mdm.android_profiles_batch_size must be non-negative (0 = no limit)"),
+			"Android MDM configuration")
+	}
+}
+
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
 type AndroidAgentConfig struct {
 	// Package is the package name for the Fleet Android agent.

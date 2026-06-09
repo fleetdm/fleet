@@ -443,6 +443,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
+	config.MDM.ValidateAndroidProfilesBatchSize(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
