@@ -269,6 +269,7 @@ import Sourcetree from "./Sourcetree";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
+import SqlServerManagementStudio from "./SqlServerManagementStudio";
 import Stats from "./Stats";
 import Steam from "./Steam";
 import SublimeMerge from "./SublimeMerge";
@@ -343,6 +344,7 @@ import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
 import Yattee from "./Yattee";
 import Yippy from "./Yippy";
+import YtMusic from "./YtMusic";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zappy from "./Zappy";
@@ -639,6 +641,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
+  "sql server management studio": SqlServerManagementStudio,
   stats: Stats,
   steam: Steam,
   "stream deck": ElgatoStreamDeck,
@@ -714,6 +717,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yacreader: Yacreader,
   yattee: Yattee,
   yippy: Yippy,
+  "youtube music": YtMusic,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zappy: Zappy,
