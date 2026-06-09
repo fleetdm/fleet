@@ -3457,14 +3457,14 @@
       "slug": "xmenu/darwin",
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.XMenu",
-      "description": "XMenu is an access folders, files or text snippets from the menu bar."
+      "description": "XMenu is an app that allows access to folders, files or text snippets from the menu bar."
     },
     {
       "name": "Xmplify",
       "slug": "xmplify/darwin",
       "platform": "darwin",
       "unique_identifier": "au.com.moso.Xmplify",
-      "description": "Xmplify is a XML editor."
+      "description": "Xmplify is an XML editor."
     },
     {
       "name": "Xnapper",
