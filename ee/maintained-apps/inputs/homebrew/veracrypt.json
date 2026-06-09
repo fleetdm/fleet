@@ -1,0 +1,10 @@
+{
+  "name": "VeraCrypt",
+  "unique_identifier": "org.idrix.VeraCrypt",
+  "token": "veracrypt",
+  "installer_format": "dmg",
+  "slug": "veracrypt/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

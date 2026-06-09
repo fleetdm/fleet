@@ -329,6 +329,22 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Vanilla from "./Vanilla";
+import Vellum from "./Vellum";
+import Veracrypt from "./Veracrypt";
+import VernierSpectralAnalysis from "./VernierSpectralAnalysis";
+import Versions from "./Versions";
+import Via from "./Via";
+import Vimcal from "./Vimcal";
+import VisualParadigm from "./VisualParadigm";
+import VividApp from "./VividApp";
+import Viz from "./Viz";
+import Vnote from "./Vnote";
+import Voiceink from "./Voiceink";
+import VpnTracker365 from "./VpnTracker365";
+import Vuescan from "./Vuescan";
+import Vyprvpn from "./Vyprvpn";
+import Vysor from "./Vysor";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +685,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  vanilla: Vanilla,
+  vellum: Vellum,
+  veracrypt: Veracrypt,
+  "vernier spectral analysis": VernierSpectralAnalysis,
+  versions: Versions,
+  via: Via,
+  vimcal: Vimcal,
+  "visual paradigm": VisualParadigm,
+  vivid: VividApp,
+  viz: Viz,
+  vnote: Vnote,
+  voiceink: Voiceink,
+  "vpn tracker 365": VpnTracker365,
+  vuescan: Vuescan,
+  vyprvpn: Vyprvpn,
+  vysor: Vysor,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
