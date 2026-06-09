@@ -422,6 +422,20 @@
       "description": "Backblaze is a data backup and storage service."
     },
     {
+      "name": "Background Music",
+      "slug": "background-music/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bearisdriving.BGM.App",
+      "description": "Background Music is an audio utility for per-application volume control."
+    },
+    {
+      "name": "Badgeify",
+      "slug": "badgeify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "studio.techflow.badgeify",
+      "description": "Badgeify is a tool to add apps to the menu bar."
+    },
+    {
       "name": "balenaEtcher",
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
@@ -436,11 +450,53 @@
       "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
     },
     {
+      "name": "Balsamiq Wireframes",
+      "slug": "balsamiq-wireframes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.balsamiq.wireframes",
+      "description": "Balsamiq Wireframes is a UI wireframing tool."
+    },
+    {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bambulab.bambu-studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bartender",
+      "slug": "bartender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.surteesstudios.Bartender",
+      "description": "Bartender is a menu bar icon organiser."
+    },
+    {
+      "name": "BatFi",
+      "slug": "batfi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "software.micropixels.BatFi",
+      "description": "BatFi is an app for managing battery charging."
+    },
+    {
       "name": "BBEdit",
       "slug": "bbedit/darwin",
       "platform": "darwin",
       "unique_identifier": "com.barebones.bbedit",
       "description": "BBEdit is a text, code, and markup editor."
+    },
+    {
+      "name": "Bdash",
+      "slug": "bdash/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.bdash",
+      "description": "Bdash is a simple SQL client for lightweight data analysis."
+    },
+    {
+      "name": "Beaver Notes",
+      "slug": "beaver-notes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.danielerolli.beaver-notes",
+      "description": "Beaver Notes is a privacy-focused note-taking app."
     },
     {
       "name": "Beekeeper Studio",
@@ -457,11 +513,39 @@
       "description": "Beekeeper Studio is a cross platform SQL editor and database management app."
     },
     {
+      "name": "Beeper",
+      "slug": "beeper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.automattic.beeper.desktop",
+      "description": "Beeper is a universal chat app powered by Matrix."
+    },
+    {
       "name": "BetterDisplay",
       "slug": "betterdisplay/darwin",
       "platform": "darwin",
       "unique_identifier": "pro.betterdisplay.BetterDisplay",
       "description": "BetterDisplay is a display management tool."
+    },
+    {
+      "name": "BetterMouse",
+      "slug": "bettermouse/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.naotanhaocan.BetterMouse",
+      "description": "BetterMouse is a utility that improves third-party mouse performance and functionality."
+    },
+    {
+      "name": "BetterTouchTool",
+      "slug": "bettertouchtool/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hegenberg.BetterTouchTool",
+      "description": "BetterTouchTool is a tool to customise input devices and automate the system."
+    },
+    {
+      "name": "BetterZip",
+      "slug": "betterzip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macitbetter.betterzip",
+      "description": "BetterZip is a utility to create and modify archives."
     },
     {
       "name": "Beyond Compare",
@@ -478,6 +562,48 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Bezel",
+      "slug": "bezel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nonstrict.Bezel-direct",
+      "description": "Bezel is an iOS screen output recorder."
+    },
+    {
+      "name": "BibDesk",
+      "slug": "bibdesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "edu.ucsd.cs.mmccrack.bibdesk",
+      "description": "BibDesk is a tool to edit and manage bibliographies."
+    },
+    {
+      "name": "Binance",
+      "slug": "binance/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.binance.BinanceDesktop",
+      "description": "Binance is a cryptocurrency exchange app."
+    },
+    {
+      "name": "Biscuit",
+      "slug": "biscuit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.eatbiscuit.biscuit",
+      "description": "Biscuit is a browser to organise apps."
+    },
+    {
+      "name": "BitBox",
+      "slug": "bitbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+      "description": "BitBox is a companion app for the Swiss-made BitBox hardware wallet."
+    },
+    {
+      "name": "Bitrix24",
+      "slug": "bitrix24/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitrixsoft.bitrix24desktop",
+      "description": "Bitrix24 is a business management platform."
+    },
+    {
       "name": "Bitwarden",
       "slug": "bitwarden/darwin",
       "platform": "darwin",
@@ -490,6 +616,13 @@
       "platform": "windows",
       "unique_identifier": "Bitwarden",
       "description": "Bitwarden is an open-source password management service."
+    },
+    {
+      "name": "Bitwig Studio",
+      "slug": "bitwig-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bitwig.studio",
+      "description": "Bitwig Studio is a digital audio workstation."
     },
     {
       "name": "Blender",
@@ -506,6 +639,20 @@
       "description": "Blender is a 3D creation suite."
     },
     {
+      "name": "BLEUnlock",
+      "slug": "bleunlock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "jp.sone.BLEUnlock",
+      "description": "BLEUnlock is a tool to lock and unlock your Mac using the proximity of a Bluetooth Low Energy device."
+    },
+    {
+      "name": "blip",
+      "slug": "blip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.blip.macos",
+      "description": "blip is a tool to send any size file between devices."
+    },
+    {
       "name": "BlueJ",
       "slug": "bluej/darwin",
       "platform": "darwin",
@@ -518,6 +665,55 @@
       "platform": "windows",
       "unique_identifier": "BlueJ",
       "description": "BlueJ is a free Java development environment designed for beginners."
+    },
+    {
+      "name": "BlueWallet",
+      "slug": "bluewallet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.bluewallet.bluewallet",
+      "description": "BlueWallet is a Bitcoin and Lightning wallet."
+    },
+    {
+      "name": "BlurScreen",
+      "slug": "blurscreen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sanskar.blurscreen",
+      "description": "BlurScreen is a tool to blur any part of your screen."
+    },
+    {
+      "name": "BoltAI 2",
+      "slug": "boltai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.podzim.boltai-mobile",
+      "description": "BoltAI 2 is an AI chat client."
+    },
+    {
+      "name": "Bome Network",
+      "slug": "bome-network/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bome.network",
+      "description": "Bome Network is a tool to create MIDI connections between computers."
+    },
+    {
+      "name": "Boom 3D",
+      "slug": "boom-3d/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.globaldelight.Boom3D",
+      "description": "Boom 3D is a volume booster and equaliser."
+    },
+    {
+      "name": "Boop",
+      "slug": "boop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.okatbest.boop",
+      "description": "Boop is a scriptable scratchpad for developers."
+    },
+    {
+      "name": "Boost Note",
+      "slug": "boost-note/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.boostio.boostnote",
+      "description": "Boost Note is a Markdown note editor for developers."
     },
     {
       "name": "Box Drive",
@@ -548,6 +744,20 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "BreakTimer",
+      "slug": "breaktimer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tomjwatson.breaktimer",
+      "description": "BreakTimer is a tool to manage periodic breaks."
+    },
+    {
+      "name": "BrickLink Studio",
+      "slug": "bricklink-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.BrickLink.Studio",
+      "description": "BrickLink Studio is a tool to build, render, and create LEGO instructions."
+    },
+    {
       "name": "Bruno",
       "slug": "bruno/darwin",
       "platform": "darwin",
@@ -562,6 +772,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "Bunch",
+      "slug": "bunch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.brettterpstra.Bunch",
+      "description": "Bunch is an automation tool."
+    },
+    {
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
@@ -574,6 +791,27 @@
       "platform": "darwin",
       "unique_identifier": "com.install4j.9806-1938-4586-6531.70",
       "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
+      "name": "BusyContacts",
+      "slug": "busycontacts/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.busymac.busycontacts",
+      "description": "BusyContacts is a contact manager focused on efficiency."
+    },
+    {
+      "name": "Buttercup",
+      "slug": "buttercup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pw.buttercup.desktop",
+      "description": "Buttercup is a cross-platform password and secrets manager."
+    },
+    {
+      "name": "Buzz",
+      "slug": "buzz/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.chidiwilliams.buzz",
+      "description": "Buzz is a tool to transcribe and translate audio."
     },
     {
       "name": "calibre",

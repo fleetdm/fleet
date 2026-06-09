@@ -329,6 +329,40 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import BackgroundMusic from "./BackgroundMusic";
+import Badgeify from "./Badgeify";
+import BalsamiqWireframes from "./BalsamiqWireframes";
+import BambuStudio from "./BambuStudio";
+import Bartender from "./Bartender";
+import Batfi from "./Batfi";
+import Bdash from "./Bdash";
+import BeaverNotes from "./BeaverNotes";
+import Beeper from "./Beeper";
+import Bettermouse from "./Bettermouse";
+import Bettertouchtool from "./Bettertouchtool";
+import Betterzip from "./Betterzip";
+import Bezel from "./Bezel";
+import Bibdesk from "./Bibdesk";
+import Binance from "./Binance";
+import Biscuit from "./Biscuit";
+import Bitbox from "./Bitbox";
+import Bitrix24 from "./Bitrix24";
+import BitwigStudio from "./BitwigStudio";
+import Bleunlock from "./Bleunlock";
+import Blip from "./Blip";
+import Bluewallet from "./Bluewallet";
+import Blurscreen from "./Blurscreen";
+import Boltai from "./Boltai";
+import BomeNetwork from "./BomeNetwork";
+import Boom3D from "./Boom3D";
+import Boop from "./Boop";
+import BoostNote from "./BoostNote";
+import Breaktimer from "./Breaktimer";
+import BricklinkStudio from "./BricklinkStudio";
+import Bunch from "./Bunch";
+import Busycontacts from "./Busycontacts";
+import Buttercup from "./Buttercup";
+import Buzz from "./Buzz";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +703,40 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "background music": BackgroundMusic,
+  badgeify: Badgeify,
+  "balsamiq wireframes": BalsamiqWireframes,
+  "bambu studio": BambuStudio,
+  bartender: Bartender,
+  batfi: Batfi,
+  bdash: Bdash,
+  "beaver notes": BeaverNotes,
+  beeper: Beeper,
+  bettermouse: Bettermouse,
+  bettertouchtool: Bettertouchtool,
+  betterzip: Betterzip,
+  bezel: Bezel,
+  bibdesk: Bibdesk,
+  binance: Binance,
+  biscuit: Biscuit,
+  bitbox: Bitbox,
+  bitrix24: Bitrix24,
+  "bitwig studio": BitwigStudio,
+  bleunlock: Bleunlock,
+  blip: Blip,
+  bluewallet: Bluewallet,
+  blurscreen: Blurscreen,
+  "boltai 2": Boltai,
+  "bome network": BomeNetwork,
+  "boom 3d": Boom3D,
+  boop: Boop,
+  "boost note": BoostNote,
+  breaktimer: Breaktimer,
+  "bricklink studio": BricklinkStudio,
+  bunch: Bunch,
+  busycontacts: Busycontacts,
+  buttercup: Buttercup,
+  buzz: Buzz,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

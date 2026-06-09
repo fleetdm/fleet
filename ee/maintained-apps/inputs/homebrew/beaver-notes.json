@@ -1,0 +1,10 @@
+{
+  "name": "Beaver Notes",
+  "unique_identifier": "com.danielerolli.beaver-notes",
+  "token": "beaver-notes",
+  "installer_format": "dmg",
+  "slug": "beaver-notes/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
