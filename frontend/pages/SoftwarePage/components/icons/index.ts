@@ -329,6 +329,38 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Fantastical from "./Fantastical";
+import Far2L from "./Far2L";
+import Farrago from "./Farrago";
+import Fastmail from "./Fastmail";
+import Fastscripts from "./Fastscripts";
+import Fellow from "./Fellow";
+import Ferdium from "./Ferdium";
+import FetchApp from "./FetchApp";
+import Fig from "./Fig";
+import FileJuicer from "./FileJuicer";
+import Filen from "./Filen";
+import Fing from "./Fing";
+import Firealpaca from "./Firealpaca";
+import FireflyIotaDesktop from "./FireflyIotaDesktop";
+import FireflyShimmer from "./FireflyShimmer";
+import Fission from "./Fission";
+import Flexoptix from "./Flexoptix";
+import Flowvision from "./Flowvision";
+import Fluid from "./Fluid";
+import FluxApp from "./FluxApp";
+import FocusriteControl2 from "./FocusriteControl2";
+import Folx from "./Folx";
+import Fontbase from "./Fontbase";
+import Fontlab from "./Fontlab";
+import Forecast from "./Forecast";
+import Forklift from "./Forklift";
+import Framer from "./Framer";
+import Franz from "./Franz";
+import FreeDownloadManager from "./FreeDownloadManager";
+import Freefilesync from "./Freefilesync";
+import Fsmonitor from "./Fsmonitor";
+import Funter from "./Funter";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +701,38 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "f.lux": FluxApp,
+  fantastical: Fantastical,
+  far2l: Far2L,
+  farrago: Farrago,
+  fastmail: Fastmail,
+  fastscripts: Fastscripts,
+  fellow: Fellow,
+  ferdium: Ferdium,
+  fetch: FetchApp,
+  fig: Fig,
+  "file juicer": FileJuicer,
+  filen: Filen,
+  "fing desktop": Fing,
+  "fire alpaca": Firealpaca,
+  firefly: FireflyIotaDesktop,
+  "firefly shimmer": FireflyShimmer,
+  fission: Fission,
+  "flexoptix app": Flexoptix,
+  flowvision: Flowvision,
+  fluid: Fluid,
+  "focusrite control 2": FocusriteControl2,
+  folx: Folx,
+  fontbase: Fontbase,
+  fontlab: Fontlab,
+  forecast: Forecast,
+  forklift: Forklift,
+  framer: Framer,
+  franz: Franz,
+  "free download manager": FreeDownloadManager,
+  freefilesync: Freefilesync,
+  fsmonitor: Fsmonitor,
+  funter: Funter,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

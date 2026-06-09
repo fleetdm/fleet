@@ -1,0 +1,10 @@
+{
+  "name": "Fastmail",
+  "unique_identifier": "com.fastmail.mac.Fastmail",
+  "token": "fastmail",
+  "installer_format": "zip",
+  "slug": "fastmail/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

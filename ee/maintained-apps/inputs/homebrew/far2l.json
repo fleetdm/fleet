@@ -1,0 +1,10 @@
+{
+  "name": "far2l",
+  "unique_identifier": "com.far2l",
+  "token": "far2l",
+  "installer_format": "dmg",
+  "slug": "far2l/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
