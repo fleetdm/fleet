@@ -15,8 +15,8 @@ This skill exists to ensure that guide is followed and to catch the common gap: 
 
 1. **Read `frontend/docs/patterns.md` § Tier modes** end to end. The critical asymmetry (`isPremiumTier` lives in AppContext, `isPrimoMode` does not) is the #1 source of bugs — internalize it before touching code.
 2. **Identify which mode(s) apply** to the change:
-   - **Fleet Free** — a premium feature being added or modified. Show `<PremiumFeatureMessage />` or hide entirely.
-   - **Primo mode** — anything touching multi-fleet UI (fleet switcher, "All fleets," fleet creation, fleet-scoped table columns).
+   - **Fleet Free** — a premium feature being added or modified. When `!isPremiumTier`, show `<PremiumFeatureMessage />` or hide the feature entirely.
+   - **Primo mode** — Primo is a Premium tenant with a single fleet. Any new multi-fleet UI (fleet switcher, "All fleets," fleet creation, fleet-scoped table columns) needs to consider what a Primo user sees in its place — usually a collapsed single-fleet view.
    - **Both** — most common for premium features that involve fleet selection or multi-fleet affordances. Use a dual gate like `isPremiumTier && !isPrimoMode`.
 3. **Grep canonical examples** before inventing a pattern:
    - `frontend/components/CommandPalette/` — the most thorough reference; handles both flags via spread-based item arrays, dual gates, and named test suites
