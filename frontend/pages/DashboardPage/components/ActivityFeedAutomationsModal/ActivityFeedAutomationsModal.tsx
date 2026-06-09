@@ -9,6 +9,7 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { syntaxHighlight } from "utilities/helpers";
 import CustomLink from "components/CustomLink";
 
@@ -43,6 +44,8 @@ const ActivityFeedAutomationsModal = ({
     {}
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
+
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const validateForm = (newFormData: IAFAMFormData) => {
     const errors: Record<string, string> = {};
@@ -143,6 +146,7 @@ const ActivityFeedAutomationsModal = ({
           onChange={onFeatureEnabledChange}
           inactiveText="Disabled"
           activeText="Enabled"
+          disabled={gitOpsModeEnabled}
         />
         <div
           className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
@@ -155,7 +159,7 @@ const ActivityFeedAutomationsModal = ({
             value={formData.url}
             error={formErrors.url}
             helpText="Fleet will send a JSON payload to this URL whenever a new activity is generated."
-            disabled={!formData.enabled}
+            disabled={!formData.enabled || gitOpsModeEnabled}
           />
         </div>
         <RevealButton
