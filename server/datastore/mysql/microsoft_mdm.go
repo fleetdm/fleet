@@ -1681,9 +1681,10 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		return nil
 	}
 
-	// Phase 0: Clean up remove+failed rows from previous failed removal attempts.
-	// These are terminal: the device already processed them, nothing more to do.
-	terminalStatuses := []fleet.MDMDeliveryStatus{fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryVerifying}
+	// Phase 0: Clean up fully terminal remove rows (verified = device confirmed removal, failed = device rejected) from prior removal
+	// attempts. Deliberately NOT verifying: a remove that is still verifying is in flight, and the async reconciler is meant to leave it
+	// alone (ComputeWindowsReconcileDeltas skips remove rows with a non-NULL status) so the removal can finish or be retried.
+	terminalStatuses := []fleet.MDMDeliveryStatus{fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified}
 	delRemStmt, delRemArgs, err := sqlx.In(`
 	DELETE FROM host_mdm_windows_profiles
 	WHERE profile_uuid IN (?) AND operation_type = ? AND status IN (?)`,
@@ -1714,16 +1715,19 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 // copyWindowsConfigProfilesToPendingDeleteDB retains the content of about-to-be-deleted Windows config profiles in
 // mdm_windows_configuration_profiles_pending_delete so the profile-manager cron can build <Delete> commands for them after the live
 // definition rows are gone. It MUST run inside the delete transaction BEFORE the definition rows are deleted, since it copies straight
-// from the live table. INSERT IGNORE makes it idempotent under transaction retries. See #46993.
+// from the live table. ON DUPLICATE KEY UPDATE refreshes created_at so a re-delete of the same profile_uuid (e.g. a team deletion
+// retried after an aborted attempt, whose retention write commits in its own transaction) restarts the GC grace window instead of
+// leaving a stale timestamp that could let the age-based GC drop still-needed content. See #46993.
 func (ds *Datastore) copyWindowsConfigProfilesToPendingDeleteDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
 	}
 	stmt, args, err := sqlx.In(`
-		INSERT IGNORE INTO mdm_windows_configuration_profiles_pending_delete (profile_uuid, team_id, name, syncml, created_at)
+		INSERT INTO mdm_windows_configuration_profiles_pending_delete (profile_uuid, team_id, name, syncml, created_at)
 		SELECT profile_uuid, team_id, name, syncml, NOW(6)
 		FROM mdm_windows_configuration_profiles
-		WHERE profile_uuid IN (?)`, profileUUIDs)
+		WHERE profile_uuid IN (?)
+		ON DUPLICATE KEY UPDATE created_at = NOW(6)`, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for pending-delete copy")
 	}

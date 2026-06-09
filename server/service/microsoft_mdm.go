@@ -3728,8 +3728,14 @@ func executeWindowsProfileReconcileBatch(
 	}
 
 	// Also fetch the contents of profiles still desired on the hosts we are removing from: their LocURIs protect shared settings, so a
-	// <Delete> for a removed profile does not revert a setting another profile still applicable to that host enforces.
+	// <Delete> for a removed profile does not revert a setting another profile still applicable to that host enforces. Walk each
+	// removed-from host's desired list once, not once per removed profile on that host.
+	seenRemoveHost := make(map[string]struct{}, len(toRemove))
 	for _, p := range toRemove {
+		if _, ok := seenRemoveHost[p.HostUUID]; ok {
+			continue
+		}
+		seenRemoveHost[p.HostUUID] = struct{}{}
 		for _, q := range desiredByHost[p.HostUUID] {
 			toGetContents[q] = true
 		}
@@ -3981,6 +3987,13 @@ func executeWindowsProfileReconcileBatch(
 			g.hostUUIDs = append(g.hostUUIDs, hostUUID)
 		}
 
+		// Index this profile's remove payloads by host once so each group builds its command payloads with O(1) lookups instead of
+		// rescanning the full per-profile payload list per group (which is O(groups x hosts) when label scoping forms many groups).
+		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
+		for _, rp := range removePayloadData[profUUID] {
+			payloadByHost[rp.HostUUID] = rp
+		}
+
 		for _, g := range groups {
 			cmdUUID := uuid.New().String()
 			command, err := fleet.BuildDeleteCommandFromProfileBytes(profileContents[profUUID].SyncML, cmdUUID, profUUID, g.activeLocURIs)
@@ -3993,13 +4006,10 @@ func executeWindowsProfileReconcileBatch(
 				continue
 			}
 
-			groupHosts := make(map[string]struct{}, len(g.hostUUIDs))
-			for _, h := range g.hostUUIDs {
-				groupHosts[h] = struct{}{}
-			}
-			removePayloadsForCommand := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
-			for _, rp := range removePayloadData[profUUID] {
-				if _, ok := groupHosts[rp.HostUUID]; !ok {
+			removePayloadsForCommand := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(g.hostUUIDs))
+			for _, hostUUID := range g.hostUUIDs {
+				rp := payloadByHost[hostUUID]
+				if rp == nil {
 					continue
 				}
 				// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).

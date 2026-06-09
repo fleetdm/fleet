@@ -5206,9 +5206,19 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, h2)
 
 	// Deleting Windows profiles is async (#46993): the request retains content and the profile-manager cron generates the <Delete>
-	// commands. Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below.
+	// commands. Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below. Restore the flag after
+	// the test so it does not leak into other subtests sharing this datastore.
 	appCfg, acErr := ds.AppConfig(ctx)
 	require.NoError(t, acErr)
+	prevWindowsEnabled := appCfg.MDM.WindowsEnabledAndConfigured
+	t.Cleanup(func() {
+		// t.Context() is canceled by the time cleanup runs, so use a fresh context to restore the flag.
+		bgCtx := context.Background()
+		cfg, err := ds.AppConfig(bgCtx)
+		require.NoError(t, err)
+		cfg.MDM.WindowsEnabledAndConfigured = prevWindowsEnabled
+		require.NoError(t, ds.SaveAppConfig(bgCtx, cfg))
+	})
 	appCfg.MDM.WindowsEnabledAndConfigured = true
 	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
 
@@ -5561,9 +5571,19 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host-multi-del-2", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
-	// Deleting profiles is async (#46993): the cron generates the <Delete> commands. Enable Windows MDM so it does work.
+	// Deleting profiles is async (#46993): the cron generates the <Delete> commands. Enable Windows MDM so it does work, and restore
+	// the flag after the test so it does not leak into other subtests sharing this datastore.
 	appCfg, acErr := ds.AppConfig(ctx)
 	require.NoError(t, acErr)
+	prevWindowsEnabled := appCfg.MDM.WindowsEnabledAndConfigured
+	t.Cleanup(func() {
+		// t.Context() is canceled by the time cleanup runs, so use a fresh context to restore the flag.
+		bgCtx := context.Background()
+		cfg, err := ds.AppConfig(bgCtx)
+		require.NoError(t, err)
+		cfg.MDM.WindowsEnabledAndConfigured = prevWindowsEnabled
+		require.NoError(t, ds.SaveAppConfig(bgCtx, cfg))
+	})
 	appCfg.MDM.WindowsEnabledAndConfigured = true
 	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
 
