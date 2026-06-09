@@ -329,6 +329,15 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Jami from "./Jami";
+import Jamovi from "./Jamovi";
+import Jasp from "./Jasp";
+import Jellyfin from "./Jellyfin";
+import Jiggler from "./Jiggler";
+import JitsiMeet from "./JitsiMeet";
+import JordanbairdIce from "./JordanbairdIce";
+import JuliaApp from "./JuliaApp";
+import JumpDesktop from "./JumpDesktop";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +678,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  ice: JordanbairdIce,
+  jami: Jami,
+  jamovi: Jamovi,
+  jasp: Jasp,
+  jellyfin: Jellyfin,
+  jiggler: Jiggler,
+  "jitsi meet": JitsiMeet,
+  julia: JuliaApp,
+  "jump desktop": JumpDesktop,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
