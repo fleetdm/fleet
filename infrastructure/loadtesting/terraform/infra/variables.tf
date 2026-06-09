@@ -60,6 +60,33 @@ variable "redis_instance_count" {
   }
 }
 
+# The following three variables let load tests optionally run against Valkey instead of
+# Redis. Defaults preserve the existing Redis 7.1 behavior. To provision Valkey, set all
+# three to a matching set, e.g.:
+#   -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
+variable "redis_engine" {
+  description = "The Elasticache engine to use: \"redis\" or \"valkey\"."
+  type        = string
+  default     = "redis"
+
+  validation {
+    condition     = contains(["redis", "valkey"], var.redis_engine)
+    error_message = "var.redis_engine must be either \"redis\" or \"valkey\"."
+  }
+}
+
+variable "redis_engine_version" {
+  description = "The Elasticache engine version (e.g. \"7.1\" for Redis, \"8.0\" for Valkey)."
+  type        = string
+  default     = "7.1"
+}
+
+variable "redis_parameter_group_family" {
+  description = "The Elasticache parameter group family (e.g. \"redis7\", \"valkey7\", \"valkey8\"). Must match the engine and version."
+  type        = string
+  default     = "redis7"
+}
+
 variable "enable_otel" {
   description = "Enable OpenTelemetry tracing with SigNoz instead of Elastic APM"
   type        = bool
