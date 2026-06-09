@@ -329,6 +329,23 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Kaleidoscope from "./Kaleidoscope";
+import Kap from "./Kap";
+import Kdenlive from "./Kdenlive";
+import Keepingyouawake from "./Keepingyouawake";
+import Keeweb from "./Keeweb";
+import Keyboardcleantool from "./Keyboardcleantool";
+import KeyboardCowboy from "./KeyboardCowboy";
+import KeyboardMaestro from "./KeyboardMaestro";
+import Keycastr from "./Keycastr";
+import Keyclu from "./Keyclu";
+import KeystoreExplorer from "./KeystoreExplorer";
+import Kiro from "./Kiro";
+import KiroCli from "./KiroCli";
+import Klokki from "./Klokki";
+import Knime from "./Knime";
+import Knockknock from "./Knockknock";
+import Krisp from "./Krisp";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +686,23 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  kaleidoscope: Kaleidoscope,
+  kap: Kap,
+  kdenlive: Kdenlive,
+  keepingyouawake: Keepingyouawake,
+  keeweb: Keeweb,
+  "keyboard cowboy": KeyboardCowboy,
+  "keyboard maestro": KeyboardMaestro,
+  keyboardcleantool: Keyboardcleantool,
+  keycastr: Keycastr,
+  keyclu: Keyclu,
+  "keystore explorer": KeystoreExplorer,
+  kiro: Kiro,
+  "kiro cli": KiroCli,
+  klokki: Klokki,
+  "knime analytics platform": Knime,
+  knockknock: Knockknock,
+  krisp: Krisp,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
