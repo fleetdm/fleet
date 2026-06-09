@@ -30,8 +30,8 @@ export interface ICommandItem {
   subItems?: ICommandSubItem[];
   /** Custom action instead of navigation */
   onAction?: () => void;
-  /** True when selecting this item opens a sub-page (not a navigation). */
-  opensSubPage?: boolean;
+  /** True when selecting this item opens a picker page (not a navigation). */
+  opensPickerPage?: boolean;
 }
 
 export interface ICommandPaletteContext {

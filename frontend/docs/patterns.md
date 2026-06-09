@@ -569,7 +569,7 @@ The dividing line: if the action requires the user to first pick a specific row,
 |---|---|
 | A new top-level page (routed under a top nav item) | `groups/pages.ts` |
 | A new global create action (modal / form / blank create page) | `groups/commands.ts` |
-| A new picker action (like "View host") | `groups/commands.ts` with `opensSubPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
+| A new picker action (like "View host") | `groups/commands.ts` with `opensPickerPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
 | A new MDM platform or connector (turn-on / singleton-edit) | `groups/mdm.ts` |
 | A new automation hook | `groups/automations.ts` |
 | A new settings page or admin route | `groups/settings.ts` |
@@ -578,10 +578,10 @@ The dividing line: if the action requires the user to first pick a specific row,
 
 Nested destinations under an existing palette entry live in that entry's `subItems` array, not as top-level entries. The user reaches the sub-item by expanding the parent (chevron) or when their search promotes the sub-item into Best match.
 
-The word "sub-page" gets overloaded in this codebase — keep these three distinct:
+These three "sub-" terms each mean exactly one thing in this codebase — keep them distinct:
 
 - **Sub-item** — an `ICommandSubItem` in a parent palette entry's `subItems` array
-- **Picker page** — the secondary screen opened when an entry has `opensSubPage: true` (View host, View report)
+- **Picker page** — the secondary screen opened when an entry has `opensPickerPage: true` (View host, View report, Switch fleet)
 - **Sub-route** — an app route nested under another (e.g., `/settings/integrations` under `/settings`)
 
 ### Required and optional fields
@@ -596,7 +596,7 @@ interface ICommandItem {
   keywords?: string[];       // synonyms + aliases — see below
   teamName?: string;         // chip shown when the action switches the user's fleet context
   subItems?: ICommandSubItem[];
-  opensSubPage?: boolean;    // shows the chevron-right; required for picker actions
+  opensPickerPage?: boolean;    // shows the chevron-right; required for picker actions
 }
 ```
 
