@@ -53,6 +53,7 @@ module.exports = {
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeExceptions: {type: ['string'], defaultsTo: [] },
+    numProfiles: {type: 'number', defaultsTo: 0},
   },
 
 

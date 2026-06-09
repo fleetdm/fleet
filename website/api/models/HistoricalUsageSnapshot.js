@@ -57,6 +57,7 @@ module.exports = {
     entraConditionalAccessConfigured: {required: true, type: 'boolean'},
     gitOpsModeEnabled: {required: true, type: 'boolean'},
     gitOpsModeExceptions: {required: true, type: 'json'},
+    numProfiles: {required: true, type: 'number'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
