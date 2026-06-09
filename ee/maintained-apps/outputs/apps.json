@@ -2431,11 +2431,46 @@
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
+      "name": "QLab",
+      "slug": "qlab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.figure53.QLab.5",
+      "description": "QLab is a sound, video and lighting control."
+    },
+    {
+      "name": "sbarex QLMarkdown",
+      "slug": "qlmarkdown/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.sbarex.QLMarkdown",
+      "description": "sbarex QLMarkdown is a quick Look generator for Markdown files."
+    },
+    {
+      "name": "Qobuz",
+      "slug": "qobuz/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.qobuz.QobuzDesktop",
+      "description": "Qobuz is a catalogue of hi-res music for streaming and download."
+    },
+    {
+      "name": "QSpace Pro",
+      "slug": "qspace-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jinghaoshe.qspace.pro",
+      "description": "QSpace Pro is a better Finder alternative."
+    },
+    {
       "name": "Quip",
       "slug": "quip/darwin",
       "platform": "darwin",
       "unique_identifier": "com.quip.Desktop",
       "description": "Quip is a tool for teams to create living documents."
+    },
+    {
+      "name": "qView",
+      "slug": "qview/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.interversehq.qView",
+      "description": "qView is an image viewer."
     },
     {
       "name": "R for Windows",

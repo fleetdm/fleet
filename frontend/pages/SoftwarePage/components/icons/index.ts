@@ -329,6 +329,11 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Qlab from "./Qlab";
+import Qlmarkdown from "./Qlmarkdown";
+import Qobuz from "./Qobuz";
+import QspacePro from "./QspacePro";
+import Qview from "./Qview";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +674,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  qlab: Qlab,
+  qobuz: Qobuz,
+  "qspace pro": QspacePro,
+  qview: Qview,
+  "sbarex qlmarkdown": Qlmarkdown,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
