@@ -11,9 +11,9 @@ func init() {
 }
 
 func Up_20260609081645(tx *sql.Tx) error {
-	// policy_id records the team policy (with an install-software automation pointing at the same installer) that gates a
-	// Windows/Linux setup-experience software item. It is NULL for un-gated items, VPP items, and Apple-platform items. The gate
-	// is internal (json:"-"), so this is not an API change. ON DELETE SET NULL so deleting the policy simply un-gates the item.
+	// policy_id records the team policy (with an install-software automation pointing at the same installer) that gates
+	// a Windows/Linux setup-experience software item. It is NULL for un-gated items. The gate is internal (json:"-"), so
+	// this is not an API change. ON DELETE SET NULL so deleting the policy simply un-gates the item.
 	_, err := tx.Exec(`
 ALTER TABLE setup_experience_status_results
 	ADD COLUMN policy_id INT UNSIGNED NULL DEFAULT NULL,
