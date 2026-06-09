@@ -319,24 +319,23 @@ import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
 import XCreds from "./XCreds";
-import YubicoAuthenticator from "./YubicoAuthenticator";
-import YubikeyManager from "./YubikeyManager";
-import Zed from "./Zed";
-import Zen from "./Zen";
-import Zeplin from "./Zeplin";
-import ZeroOneZeroEditor from "./010Editor";
-import Zoom from "./Zoom";
-import ZoomRooms from "./ZoomRooms";
-import Zotero from "./Zotero";
-
 import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
 import Yattee from "./Yattee";
 import Yed from "./Yed";
 import Yippy from "./Yippy";
+import YubicoAuthenticator from "./YubicoAuthenticator";
+import YubikeyManager from "./YubikeyManager";
 import Zappy from "./Zappy";
+import Zed from "./Zed";
+import Zen from "./Zen";
+import Zeplin from "./Zeplin";
+import ZeroOneZeroEditor from "./010Editor";
 import Zettlr from "./Zettlr";
 import Zight from "./Zight";
+import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
+import Zotero from "./Zotero";
 import Zulip from "./Zulip";
 import Zwift from "./Zwift";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -672,21 +671,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   xcreds: XCreds,
-  "yubico authenticator": YubicoAuthenticator,
-  "yubikey manager": YubikeyManager,
-  zed: Zed,
-  zen: Zen,
-  zeplin: Zeplin,
-  "zoom rooms": ZoomRooms,
-  zotero: Zotero,
   yaak: Yaak,
   yacreader: Yacreader,
   yattee: Yattee,
   yippy: Yippy,
+  "yubico authenticator": YubicoAuthenticator,
+  "yubikey manager": YubikeyManager,
   "yworks yed": Yed,
   zappy: Zappy,
+  zed: Zed,
+  zen: Zen,
+  zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom rooms": ZoomRooms,
+  zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,
 } as const;
