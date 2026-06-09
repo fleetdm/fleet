@@ -329,6 +329,49 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Daisydisk from "./Daisydisk";
+import Dangerzone from "./Dangerzone";
+import Darkmodebuddy from "./Darkmodebuddy";
+import Darktable from "./Darktable";
+import Dataflare from "./Dataflare";
+import Dataspell from "./Dataspell";
+import Dayflow from "./Dayflow";
+import Dbgate from "./Dbgate";
+import Dbvisualizer from "./Dbvisualizer";
+import Debookee from "./Debookee";
+import Deckset from "./Deckset";
+import Deezer from "./Deezer";
+import DefaultFolderX from "./DefaultFolderX";
+import Descript from "./Descript";
+import Deskpad from "./Deskpad";
+import Desktime from "./Desktime";
+import Devknife from "./Devknife";
+import DevonsphereExpress from "./DevonsphereExpress";
+import Devonthink from "./Devonthink";
+import Devtoys from "./Devtoys";
+import Devutils from "./Devutils";
+import Dictionaries from "./Dictionaries";
+import Diffusionbee from "./Diffusionbee";
+import Digikam from "./Digikam";
+import DiskDrill from "./DiskDrill";
+import Dockdoor from "./Dockdoor";
+import Dockfix from "./Dockfix";
+import Dockside from "./Dockside";
+import Dockview from "./Dockview";
+import Dot from "./Dot";
+import Doughnut from "./Doughnut";
+import Downie from "./Downie";
+import DrataAgent from "./DrataAgent";
+import Drawbot from "./Drawbot";
+import Dropdmg from "./Dropdmg";
+import Droplr from "./Droplr";
+import Dropshare from "./Dropshare";
+import Dropzone from "./Dropzone";
+import Duckduckgo from "./Duckduckgo";
+import Duet from "./Duet";
+import Dupeguru from "./Dupeguru";
+import DymoConnect from "./DymoConnect";
+import Dynalist from "./Dynalist";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +712,49 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  daisydisk: Daisydisk,
+  dangerzone: Dangerzone,
+  darkmodebuddy: Darkmodebuddy,
+  darktable: Darktable,
+  dataflare: Dataflare,
+  dataspell: Dataspell,
+  dayflow: Dayflow,
+  dbgate: Dbgate,
+  dbvisualizer: Dbvisualizer,
+  debookee: Debookee,
+  deckset: Deckset,
+  deezer: Deezer,
+  "default folder x": DefaultFolderX,
+  descript: Descript,
+  deskpad: Deskpad,
+  desktime: Desktime,
+  devknife: Devknife,
+  "devonsphere express": DevonsphereExpress,
+  devonthink: Devonthink,
+  devtoys: Devtoys,
+  devutils: Devutils,
+  dictionaries: Dictionaries,
+  "diffusion bee": Diffusionbee,
+  digikam: Digikam,
+  "disk drill": DiskDrill,
+  dockdoor: Dockdoor,
+  dockfix: Dockfix,
+  dockside: Dockside,
+  dockview: Dockview,
+  dot: Dot,
+  doughnut: Doughnut,
+  downie: Downie,
+  "drata agent": DrataAgent,
+  drawbot: Drawbot,
+  dropdmg: Dropdmg,
+  droplr: Droplr,
+  dropshare: Dropshare,
+  dropzone: Dropzone,
+  duckduckgo: Duckduckgo,
+  duet: Duet,
+  dupeguru: Dupeguru,
+  "dymo connect": DymoConnect,
+  dynalist: Dynalist,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

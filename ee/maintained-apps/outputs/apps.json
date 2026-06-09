@@ -870,11 +870,46 @@
       "description": "Max is a flexible space to create your own interactive software."
     },
     {
+      "name": "DaisyDisk",
+      "slug": "daisydisk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.daisydiskapp.DaisyDiskStandAlone",
+      "description": "DaisyDisk is a disk space visualiser."
+    },
+    {
+      "name": "Dangerzone",
+      "slug": "dangerzone/darwin",
+      "platform": "darwin",
+      "unique_identifier": "press.freedom.dangerzone",
+      "description": "Dangerzone is a tool to convert potentially dangerous PDFs or Office documents into safe PDFs."
+    },
+    {
+      "name": "DarkModeBuddy",
+      "slug": "darkmodebuddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "codes.rambo.DarkModeBuddy",
+      "description": "DarkModeBuddy is an automatically switch between light and dark modes based on ambient light sensor."
+    },
+    {
+      "name": "darktable",
+      "slug": "darktable/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.darktable",
+      "description": "darktable is a photography workflow application and raw developer."
+    },
+    {
       "name": "Dash",
       "slug": "dash/darwin",
       "platform": "darwin",
       "unique_identifier": "com.kapeli.dashdoc",
       "description": "Dash is an API documentation browser and code snippet manager."
+    },
+    {
+      "name": "Dataflare",
+      "slug": "dataflare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.dataflare.desktop",
+      "description": "Dataflare is a database manager."
     },
     {
       "name": "DataGrip",
@@ -889,6 +924,20 @@
       "platform": "windows",
       "unique_identifier": "DataGrip",
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
+      "name": "DataSpell",
+      "slug": "dataspell/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jetbrains.dataspell",
+      "description": "DataSpell is an IDE for Professional Data Scientists."
+    },
+    {
+      "name": "Dayflow",
+      "slug": "dayflow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "teleportlabs.com.Dayflow",
+      "description": "Dayflow is a tool to generate a timeline of your day, automatically."
     },
     {
       "name": "DB Browser for SQLite",
@@ -961,6 +1010,20 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DbGate",
+      "slug": "dbgate/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.dbgate",
+      "description": "DbGate is a database manager for MySQL, PostgreSQL, SQL Server, MongoDB, SQLite and others."
+    },
+    {
+      "name": "DbVisualizer",
+      "slug": "dbvisualizer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dbvis.DbVisualizer",
+      "description": "DbVisualizer is a database management and analysis tool."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
@@ -968,11 +1031,39 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
+      "name": "Debookee",
+      "slug": "debookee/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.iwaxx.Debookee",
+      "description": "Debookee is a network traffic analyser."
+    },
+    {
+      "name": "Deckset",
+      "slug": "deckset/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.unsignedinteger.Deckset-Paddle",
+      "description": "Deckset is a presentations from Markdown."
+    },
+    {
       "name": "DeepL",
       "slug": "deepl/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linguee.DeepLCopyTranslator",
       "description": "DeepL is an AI-powered translator."
+    },
+    {
+      "name": "Deezer",
+      "slug": "deezer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.deezer.deezer-desktop",
+      "description": "Deezer is a music player."
+    },
+    {
+      "name": "Default Folder X",
+      "slug": "default-folder-x/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stclairsoft.DefaultFolderX6",
+      "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
       "name": "Dell Command Update",
@@ -989,11 +1080,67 @@
       "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
     },
     {
+      "name": "Descript",
+      "slug": "descript/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.descript.beachcube",
+      "description": "Descript is an audio and video editor."
+    },
+    {
+      "name": "DeskPad",
+      "slug": "deskpad/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stengo.DeskPad",
+      "description": "DeskPad is a virtual monitor for screen sharing."
+    },
+    {
+      "name": "DeskTime",
+      "slug": "desktime/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.desktime.DeskTime",
+      "description": "DeskTime is a time tracker with additional workforce management features."
+    },
+    {
       "name": "Devin Desktop",
       "slug": "devin-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.exafunction.windsurf",
       "description": "Devin Desktop is an agentic IDE with an AI agent command center, formerly known as Windsurf."
+    },
+    {
+      "name": "DevKnife",
+      "slug": "devknife/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.solotuna.devknife",
+      "description": "DevKnife is a collection of handy developer tools."
+    },
+    {
+      "name": "DEVONsphere Express",
+      "slug": "devonsphere-express/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devon-technologies.sphereexpress",
+      "description": "DEVONsphere Express is a tool to find items related to the frontmost document locally or online."
+    },
+    {
+      "name": "DEVONthink",
+      "slug": "devonthink/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devon-technologies.think",
+      "description": "DEVONthink is a collect, organise, edit and annotate documents."
+    },
+    {
+      "name": "DevToys",
+      "slug": "devtoys/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devtoys",
+      "description": "DevToys is a utilities designed to make common development tasks easier."
+    },
+    {
+      "name": "DevUtils",
+      "slug": "devutils/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tonyapp.devutils",
+      "description": "DevUtils is an all-in-one toolbox for developers."
     },
     {
       "name": "DFU Blaster Pro",
@@ -1017,6 +1164,27 @@
       "description": "Dialpad is a cloud communication platform."
     },
     {
+      "name": "Dictionaries",
+      "slug": "dictionaries/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.dictionaries.Dictionaries",
+      "description": "Dictionaries is a tool to translate words without ever opening a dictionary."
+    },
+    {
+      "name": "Diffusion Bee",
+      "slug": "diffusionbee/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.diffusionbee.diffusionbee",
+      "description": "Diffusion Bee is a tool to run Stable Diffusion locally."
+    },
+    {
+      "name": "digiKam",
+      "slug": "digikam/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.digiKam",
+      "description": "digiKam is a digital photo manager."
+    },
+    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -1031,11 +1199,25 @@
       "description": "Discord is voice and text chat software."
     },
     {
+      "name": "Disk Drill",
+      "slug": "disk-drill/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cleverfiles.DiskDrill-setapp",
+      "description": "Disk Drill is a data recovery software."
+    },
+    {
       "name": "DisplayLink USB Graphics Software",
       "slug": "displaylink/darwin",
       "platform": "darwin",
       "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
       "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
+      "name": "DockDoor",
+      "slug": "dockdoor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ethanbills.DockDoor",
+      "description": "DockDoor is a window peeking utility app."
     },
     {
       "name": "Docker Desktop",
@@ -1050,6 +1232,62 @@
       "platform": "windows",
       "unique_identifier": "Docker Desktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
+      "name": "DockFix",
+      "slug": "dockfix/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dk.FIrstForm.DockFix",
+      "description": "DockFix is a dock replacement."
+    },
+    {
+      "name": "Dockside",
+      "slug": "dockside/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hachipoo.Dockside",
+      "description": "Dockside is a dock utility."
+    },
+    {
+      "name": "DockView",
+      "slug": "dockview/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sergey-gerasimenko.DockView",
+      "description": "DockView is a utility to preview application windows in the dock."
+    },
+    {
+      "name": "Dot",
+      "slug": "dot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dot.app",
+      "description": "Dot is a menu bar calendar with meeting reminders."
+    },
+    {
+      "name": "Doughnut",
+      "slug": "doughnut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cdyer.doughnut",
+      "description": "Doughnut is a podcast client."
+    },
+    {
+      "name": "Downie",
+      "slug": "downie/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.charliemonroe.Downie-4",
+      "description": "Downie is a downloads videos from different websites."
+    },
+    {
+      "name": "Drata Agent",
+      "slug": "drata-agent/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.drata.agent",
+      "description": "Drata Agent is a security audit software."
+    },
+    {
+      "name": "DrawBot",
+      "slug": "drawbot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.drawbot",
+      "description": "DrawBot is a tool to write Python scripts to generate two-dimensional graphics."
     },
     {
       "name": "draw.io",
@@ -1080,6 +1318,34 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "DropDMG",
+      "slug": "dropdmg/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.c-command.DropDMG",
+      "description": "DropDMG is a tool to create DMGs and other archives."
+    },
+    {
+      "name": "Droplr",
+      "slug": "droplr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.droplr.droplr-mac",
+      "description": "Droplr is a screenshot and screen recorder."
+    },
+    {
+      "name": "Dropshare",
+      "slug": "dropshare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.mkswap.Dropshare6",
+      "description": "Dropshare is a file sharing solution."
+    },
+    {
+      "name": "Dropzone",
+      "slug": "dropzone/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.aptonic.Dropzone4",
+      "description": "Dropzone is a productivity app."
+    },
+    {
       "name": "Druva inSync",
       "slug": "druva-insync/darwin",
       "platform": "darwin",
@@ -1094,6 +1360,20 @@
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
+      "name": "DuckDuckGo",
+      "slug": "duckduckgo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.duckduckgo.macos.browser",
+      "description": "DuckDuckGo is a web browser focusing on privacy."
+    },
+    {
+      "name": "Duet",
+      "slug": "duet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kairos.duetMac",
+      "description": "Duet is a remote desktop and second display tool."
+    },
+    {
       "name": "Duo Desktop",
       "slug": "duo-desktop/darwin",
       "platform": "darwin",
@@ -1106,6 +1386,27 @@
       "platform": "windows",
       "unique_identifier": "Duo Desktop",
       "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
+    },
+    {
+      "name": "dupeGuru",
+      "slug": "dupeguru/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hardcoded-software.dupeguru",
+      "description": "dupeGuru is a finds duplicate files in a computer system."
+    },
+    {
+      "name": "Dymo Connect",
+      "slug": "dymo-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dymo.DYMO-WebApi-Mac-Host",
+      "description": "Dymo Connect is a software for DYMO LabelWriters."
+    },
+    {
+      "name": "Dynalist",
+      "slug": "dynalist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.dynalist",
+      "description": "Dynalist is an app for outlining app for your work."
     },
     {
       "name": "Eclipse IDE",
