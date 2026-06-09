@@ -319,16 +319,24 @@ import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
 import XCreds from "./XCreds";
+import Yaak from "./Yaak";
+import Yacreader from "./Yacreader";
+import Yattee from "./Yattee";
+import Yippy from "./Yippy";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
+import Zappy from "./Zappy";
 import Zed from "./Zed";
 import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
+import Zettlr from "./Zettlr";
+import Zight from "./Zight";
 import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
-
+import Zulip from "./Zulip";
+import Zwift from "./Zwift";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -662,13 +670,22 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   xcreds: XCreds,
+  yaak: Yaak,
+  yacreader: Yacreader,
+  yattee: Yattee,
+  yippy: Yippy,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
+  zappy: Zappy,
   zed: Zed,
   zen: Zen,
   zeplin: Zeplin,
+  zettlr: Zettlr,
+  zight: Zight,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  zulip: Zulip,
+  zwift: Zwift,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

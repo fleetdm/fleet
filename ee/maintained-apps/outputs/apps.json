@@ -3201,6 +3201,41 @@
       "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
     },
     {
+      "name": "Yaak",
+      "slug": "yaak/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.yaak.desktop",
+      "description": "Yaak is a REST, GraphQL and gRPC client."
+    },
+    {
+      "name": "YACReader",
+      "slug": "yacreader/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.yacreader.YACReader",
+      "description": "YACReader is a comic reader."
+    },
+    {
+      "name": "Yattee",
+      "slug": "yattee/darwin",
+      "platform": "darwin",
+      "unique_identifier": "stream.yattee.app",
+      "description": "Yattee is an alternative and privacy-friendly YouTube frontend."
+    },
+    {
+      "name": "Yippy",
+      "slug": "yippy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "MatthewDavidson.Yippy",
+      "description": "Yippy is an open source clipboard manager."
+    },
+    {
+      "name": "YouTube Music",
+      "slug": "yt-music/darwin",
+      "platform": "darwin",
+      "unique_identifier": "uk.co.wearecocoon.YT-Music",
+      "description": "YouTube Music is an app wrapper for music.youtube.com."
+    },
+    {
       "name": "Yubico Authenticator",
       "slug": "yubico-authenticator/darwin",
       "platform": "darwin",
@@ -3220,6 +3255,13 @@
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+    },
+    {
+      "name": "Zappy",
+      "slug": "zappy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.blackbeltlabs.Zappy",
+      "description": "Zappy is a screen capture tool for remote teams."
     },
     {
       "name": "Zed",
@@ -3255,6 +3297,20 @@
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "Zettlr",
+      "slug": "zettlr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zettlr.app",
+      "description": "Zettlr is an open-source markdown editor."
+    },
+    {
+      "name": "Zight",
+      "slug": "zight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linebreak.CloudAppMacOSX",
+      "description": "Zight is a visual communication platform."
     },
     {
       "name": "Zoom Rooms",
@@ -3297,6 +3353,20 @@
       "platform": "windows",
       "unique_identifier": "Zotero",
       "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zulip",
+      "slug": "zulip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zulip.zulip-electron",
+      "description": "Zulip is a desktop client for the Zulip team chat platform."
+    },
+    {
+      "name": "Zwift",
+      "slug": "zwift/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zwift.ZwiftLauncher",
+      "description": "Zwift is an indoor cycling game."
     }
   ]
 }
