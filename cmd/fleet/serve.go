@@ -64,7 +64,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
-	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
@@ -313,17 +312,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	var geoIP fleet.GeoIP
-	geoIP = &fleet.NoOpGeoIP{}
-	if config.GeoIP.DatabasePath != "" {
-		maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
-		if err != nil {
-			logger.ErrorContext(cmd.Context(), "failed to initialize maxmind geoip, check database path", "database_path",
-				config.GeoIP.DatabasePath, "error", err)
-		} else {
-			geoIP = maxmind
-		}
-	}
+	geoIP := initGeoIP(cmd.Context(), config, logger)
 
 	if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomOSUpdatesAndFileVault = false
@@ -409,18 +398,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "saving app config")
 	}
 
-	// setup mail service
-	if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
-		// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
-		if config.Email.EmailBackend != "" {
-			config.Email.EmailBackend = ""
-			logger.WarnContext(cmd.Context(), "SMTP is already enabled, first disable SMTP to utilize a different email backend")
-		}
-	}
-	mailService, err := mail.NewService(config)
-	if err != nil {
-		logger.ErrorContext(cmd.Context(), "failed to configure mailing service", "err", err)
-	}
+	mailService := initMailService(cmd.Context(), config, appCfg, logger)
 
 	cronSchedules := fleet.NewCronSchedules()
 
