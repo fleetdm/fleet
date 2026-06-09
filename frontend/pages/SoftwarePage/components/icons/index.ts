@@ -329,6 +329,27 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import GarminExpress from "./GarminExpress";
+import Gather from "./Gather";
+import Gdevelop from "./Gdevelop";
+import Geany from "./Geany";
+import Geekbench from "./Geekbench";
+import Gephi from "./Gephi";
+import Gitfinder from "./Gitfinder";
+import GithubCopilotForXcode from "./GithubCopilotForXcode";
+import Gitify from "./Gitify";
+import GitupApp from "./GitupApp";
+import Glyphs from "./Glyphs";
+import Go2Shell from "./Go2Shell";
+import Godot from "./Godot";
+import Godspeed from "./Godspeed";
+import GogGalaxy from "./GogGalaxy";
+import Goodsync from "./Goodsync";
+import GoogleEarthPro from "./GoogleEarthPro";
+import Gpodder from "./Gpodder";
+import Grandperspective from "./Grandperspective";
+import Grids from "./Grids";
+import Gyazo from "./Gyazo";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +690,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "garmin express": GarminExpress,
+  "gather town": Gather,
+  gdevelop: Gdevelop,
+  geany: Geany,
+  geekbench: Geekbench,
+  gephi: Gephi,
+  gitfinder: Gitfinder,
+  "github copilot for xcode": GithubCopilotForXcode,
+  gitify: Gitify,
+  gitup: GitupApp,
+  glyphs: Glyphs,
+  go2shell: Go2Shell,
+  "godot engine": Godot,
+  godspeed: Godspeed,
+  "gog galaxy": GogGalaxy,
+  goodsync: Goodsync,
+  "google earth pro": GoogleEarthPro,
+  gpodder: Gpodder,
+  grandperspective: Grandperspective,
+  grids: Grids,
+  "nota gyazo gif": Gyazo,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
