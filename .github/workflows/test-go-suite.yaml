@@ -211,7 +211,7 @@ jobs:
           docker compose down
 
           echo "Restarting containers..."
-          FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
+          FLEET_REDIS_IMAGE=${{ inputs.redis }} FLEET_MYSQL_IMAGE=${{ inputs.mysql }} $DOCKER_COMMAND &
 
           # Give containers a moment to start
           sleep 10
