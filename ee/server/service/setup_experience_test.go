@@ -324,12 +324,14 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	policyID := uint(99)
 
 	hostLastEnrolledAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	labelsReportedAt := hostLastEnrolledAt.Add(time.Minute) // labels reported after enrollment (the common, ready case)
 	host := &fleet.Host{
 		ID:             42,
 		UUID:           "win-uuid",
 		OsqueryHostID:  ptr.String(hostUUID),
 		Platform:       "windows",
 		LastEnrolledAt: hostLastEnrolledAt,
+		LabelUpdatedAt: labelsReportedAt,
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -374,10 +376,13 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
 		ds.UpdateSetupExperienceStatusResultFuncInvoked = false
 		ds.ClearHostPolicyUpdatedAtFuncInvoked = false
+		ds.PolicyQueriesForHostFilteredFuncInvoked = false
+		ds.GetSetupExperiencePolicyResultFuncInvoked = false
 		installs = nil
 		updates = nil
 		policyResult = nil
 		deliverable = nil
+		host.LabelUpdatedAt = labelsReportedAt // default to labels-ready; the "labels not reported yet" subtest overrides this
 	}
 
 	gatedPending := func() []*fleet.SetupExperienceStatusResult {
@@ -394,6 +399,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = &policyPasses
+		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -409,6 +415,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = &policyFails
+		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -438,19 +445,72 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no result consumed yet; policy clock must not be reset")
 	})
 
-	t.Run("no result, policy out of scope -> falls back to installing", func(t *testing.T) {
+	t.Run("no result, policy out of scope (labels ready) -> falls back to installing", func(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = nil
-		deliverable = map[string]string{} // out of scope: not deliverable
+		deliverable = map[string]string{} // out of scope: not deliverable (and labels are reported, so this is definitive)
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
 		require.False(t, finished)
+		require.True(t, ds.PolicyQueriesForHostFilteredFuncInvoked, "labels are ready, so scope is evaluated")
 		require.Len(t, installs, 1)
 		require.True(t, installs[0].ForSetupExperience)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "out-of-scope fallback ran no gating policy; policy clock must not be reset")
+	})
+
+	t.Run("result present but policy out of scope -> installs, result not consulted (exclude-label edge)", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = &policyPasses      // a passing result was reported (e.g. before the exclude-label membership was computed)...
+		deliverable = map[string]string{} // ...but with labels computed the policy is now out of scope for this host
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.GetSetupExperiencePolicyResultFuncInvoked, "scope is checked before the result; an out-of-scope policy's result must not be consulted")
+		require.Len(t, installs, 1, "an out-of-scope policy must not gate the install even if it reported a pass")
+		require.True(t, installs[0].ForSetupExperience)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
+		require.NotNil(t, updates[len(updates)-1].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("no result, labels not reported yet -> stays running (no premature out-of-scope install)", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = nil
+		deliverable = map[string]string{}                        // would look out of scope...
+		host.LabelUpdatedAt = hostLastEnrolledAt.Add(-time.Hour) // ...but the host hasn't reported labels for this enrollment yet
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.PolicyQueriesForHostFilteredFuncInvoked, "must not evaluate scope until labels are reported")
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked, "must not fail-open before labels are computed")
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("un-gated software is started before policy-gated", func(t *testing.T) {
+		reset()
+		ungatedInstallerID := uint(8)
+		// Gated item is first (lower id / earlier alphabetically); the un-gated item is second. Un-gated-first selection must
+		// still start the un-gated install so a gated item's policy/label wait does not delay it.
+		items = []*fleet.SetupExperienceStatusResult{
+			{HostUUID: hostUUID, Name: "A-GatedApp", SoftwareInstallerID: &installerID, PolicyID: &policyID, Status: fleet.SetupExperienceStatusPending},
+			{HostUUID: hostUUID, Name: "Z-UngatedApp", SoftwareInstallerID: &ungatedInstallerID, Status: fleet.SetupExperienceStatusPending},
+		}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.GetSetupExperiencePolicyResultFuncInvoked, "the gated item must not be evaluated before the un-gated install starts")
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Len(t, updates, 1)
+		require.Equal(t, "Z-UngatedApp", updates[0].Name, "the un-gated item must be the one started first")
 	})
 
 	t.Run("running gated item awaiting policy is re-checked each poll", func(t *testing.T) {
@@ -463,7 +523,8 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			PolicyID:            &policyID,
 			Status:              fleet.SetupExperienceStatusRunning,
 		}}
-		policyResult = &policyPasses // result now available
+		policyResult = &policyPasses                       // result now available
+		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)

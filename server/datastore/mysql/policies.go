@@ -15,6 +15,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -1270,20 +1271,10 @@ func (ds *Datastore) ClearHostPolicyMembershipForPolicies(ctx context.Context, h
 }
 
 // ClearHostPolicyUpdatedAt resets the host's per-host "last reported policies" timestamp to the same stale sentinel new hosts
-// get, so the host's full policy set is re-distributed promptly on its next checkin. Setup experience calls this after a gating
-// policy result is consumed: during setup only the gated subset of policies is reported, which would otherwise advance this
-// timestamp and delay the host's other policies by up to a full policy update interval once setup ends.
-//
-// This fully handles the default (synchronous) policy-recording mode. When async policy collection is enabled
-// (osquery.enable_async_host_processing for policy_membership), the async collector persists pending results and re-stamps
-// policy_updated_at on its own interval, so this reset can be superseded and the post-setup full-policy run may still wait out
-// the policy update interval (a bounded, self-healing delay). Clearing the Redis "last reported" epoch alone would not fix that,
-// because the collector re-stamps the timestamp from the pending results it flushes; avoiding it would require a per-host
-// "do not stamp" signal the collector does not have. Given async policy collection is opt-in and the delay is bounded and
-// self-healing, that deeper change is intentionally out of scope here.
+// get, so the host's full policy set is re-distributed promptly on its next checkin.
 func (ds *Datastore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
-	const stmt = `UPDATE hosts SET policy_updated_at = '2000-01-01 00:00:00' WHERE id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+	const stmt = `UPDATE hosts SET policy_updated_at = ? WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, server.NeverTimestamp, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear host policy_updated_at")
 	}
 	return nil

@@ -245,7 +245,17 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		// pending item will be picked up. This ensures software is installed
 		// one at a time in the alphabetical display-name order determined at
 		// enqueue time (rows are ordered by sesr.id).
+		//
+		// Un-gated items are started before policy-gated ones: a gated item may sit in "running" while it waits for the host's
+		// labels and the gating policy result, and we don't want that wait to delay the un-gated installs (which need neither).
+		// Alphabetical order is preserved within each group (softwarePending is already ordered by sesr.id).
 		sw := softwarePending[0]
+		for _, pending := range softwarePending {
+			if pending.PolicyID == nil {
+				sw = pending
+				break
+			}
+		}
 
 		switch {
 		case sw.SoftwareInstallerID != nil:
@@ -381,36 +391,56 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 // the item is installed through the normal setup-experience path so it inherits the setup-experience retry count and
 // RequireAllSoftwareWindows handling. The item is held running until a fresh (this-enrollment) result arrives. If the gating
 // policy's scope excludes the host (it will never run), the item falls back to installing rather than waiting forever.
+//
+// Order matters: scope is resolved before any result is trusted. A gating policy's scope (platform + include/exclude labels) is
+// only knowable once the host has reported its labels for this enrollment, and a result reported before scope is known cannot be
+// trusted (e.g. an exclude-label policy can run on the first read, before its exclusion is computed). So we (1) wait for labels,
+// (2) check deliverability and install if the policy is out of scope, and only then (3) act on the policy result.
 func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, host *fleet.Host, sw *fleet.SetupExperienceStatusResult) error {
 	// Mark running (in-memory); the single persist below holds the softwareRunning==0 guard so no other item starts while we wait.
 	alreadyRunning := sw.Status == fleet.SetupExperienceStatusRunning
 	sw.Status = fleet.SetupExperienceStatusRunning
 
-	passes, err := svc.ds.GetSetupExperiencePolicyResult(ctx, host.ID, *sw.PolicyID, host.LastEnrolledAt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get setup experience policy result")
-	}
-
-	switch {
-	case passes == nil:
-		// No fresh result yet. If the gating policy's platform/label scope excludes the host, it will never be delivered or
-		// answered, so fall back to installing instead of waiting forever. Otherwise keep waiting (item stays running).
-		deliverable, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, []uint{*sw.PolicyID})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check gating policy deliverability")
-		}
-		if len(deliverable) == 0 {
-			svc.logger.InfoContext(ctx, "setup experience gating policy not applicable to host; installing item",
-				"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
-			return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
-		}
-		// Persist the pending->running transition only once. On later polls the item is already running with no install yet and
-		// nothing has changed, so skip the redundant UPDATE to avoid write amplification while waiting for the policy result.
+	// keepWaiting holds the item in "running" awaiting label/policy results. It persists the pending->running transition only once;
+	// on later polls nothing has changed, so it skips the redundant UPDATE to avoid write amplification while waiting.
+	keepWaiting := func() error {
 		if alreadyRunning {
 			return nil
 		}
 		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
+	}
 
+	// (1) The gate is only meaningful once the host has reported its labels for this enrollment: the policy's scope (platform plus
+	// include/exclude labels) decides whether it applies, and a freshly enrolled host hasn't computed dynamic label membership yet.
+	// Until then neither the scope check nor a result can be trusted -- an include-label policy would look out of scope, and an
+	// exclude-label policy can report a result on the first read before its exclusion is known. Every host receives the platform=''
+	// built-in dynamic labels (e.g. "All Linux"), so label_updated_at is guaranteed to advance on the first post-enroll checkin;
+	// until then, keep waiting.
+	if host.LabelUpdatedAt.Before(host.LastEnrolledAt) {
+		return keepWaiting()
+	}
+
+	// (2) Labels are computed, so scope is now reliable. If the policy's scope excludes the host (platform, not in an include label,
+	// or in an exclude label), it does not gate this host -> install via the normal setup-experience path. This must run before
+	// consuming any result, so a result reported by a now-out-of-scope policy can't wrongly skip the install.
+	deliverable, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, []uint{*sw.PolicyID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check gating policy deliverability")
+	}
+	if len(deliverable) == 0 {
+		svc.logger.InfoContext(ctx, "setup experience gating policy not applicable to host; installing item",
+			"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
+		return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
+	}
+
+	// (3) In scope. Act on a fresh (this-enrollment) result if one is available; otherwise keep waiting for it.
+	passes, err := svc.ds.GetSetupExperiencePolicyResult(ctx, host.ID, *sw.PolicyID, host.LastEnrolledAt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get setup experience policy result")
+	}
+	switch {
+	case passes == nil:
+		return keepWaiting()
 	case *passes:
 		// App present and up-to-date: skip the install (terminal success). The host policy clock is reset once, when setup
 		// experience finishes (see the "finished" branch of SetupExperienceNextStep), not here.
@@ -418,7 +448,6 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 		svc.logger.DebugContext(ctx, "setup experience gating policy passed; skipping install",
 			"host_id", host.ID, "policy_id", *sw.PolicyID, "software_installer_id", *sw.SoftwareInstallerID)
 		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
-
 	default:
 		// Policy failed (app missing or outdated): install via the normal setup-experience path.
 		return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
