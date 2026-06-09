@@ -329,6 +329,61 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Pacifist from "./Pacifist";
+import Packages from "./Packages";
+import PaleMoon from "./PaleMoon";
+import Paletro from "./Paletro";
+import ParallelsClient from "./ParallelsClient";
+import Parsec from "./Parsec";
+import Pastebot from "./Pastebot";
+import PathFinder from "./PathFinder";
+import Pcoipclient from "./Pcoipclient";
+import PdfExpert from "./PdfExpert";
+import PdfPals from "./PdfPals";
+import PdfsamBasic from "./PdfsamBasic";
+import Pearcleaner from "./Pearcleaner";
+import Perimeter81 from "./Perimeter81";
+import Permute from "./Permute";
+import PhilipsHueSync from "./PhilipsHueSync";
+import PhoenixSlides from "./PhoenixSlides";
+import Photosrevive from "./Photosrevive";
+import Photostickies from "./Photostickies";
+import Pibar from "./Pibar";
+import Picview from "./Picview";
+import Piezo from "./Piezo";
+import Pika from "./Pika";
+import Pingplotter from "./Pingplotter";
+import Piphero from "./Piphero";
+import Pitch from "./Pitch";
+import Pixelsnap from "./Pixelsnap";
+import Platypus from "./Platypus";
+import Plex from "./Plex";
+import PlexHtpc from "./PlexHtpc";
+import PlexMediaServer from "./PlexMediaServer";
+import PlisteditPro from "./PlisteditPro";
+import Popchar from "./Popchar";
+import Popclip from "./Popclip";
+import Popsql from "./Popsql";
+import Portfolioperformance from "./Portfolioperformance";
+import Positron from "./Positron";
+import PostgresApp from "./PostgresApp";
+import Postico from "./Postico";
+import Powerphotos from "./Powerphotos";
+import Preform from "./Preform";
+import Principle from "./Principle";
+import Prism from "./Prism";
+import PrivateInternetAccess from "./PrivateInternetAccess";
+import Prizmo from "./Prizmo";
+import Processing from "./Processing";
+import Processspy from "./Processspy";
+import Pronotes from "./Pronotes";
+import ProtonDrive from "./ProtonDrive";
+import ProtonMailBridge from "./ProtonMailBridge";
+import ProtonMeet from "./ProtonMeet";
+import ProtonPass from "./ProtonPass";
+import Protopie from "./Protopie";
+import Pulsar from "./Pulsar";
+import Purevpn from "./Purevpn";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +724,61 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "graphpad prism": Prism,
+  pacifist: Pacifist,
+  packages: Packages,
+  "pale moon": PaleMoon,
+  paletro: Paletro,
+  "parallels client": ParallelsClient,
+  parsec: Parsec,
+  pastebot: Pastebot,
+  "path finder": PathFinder,
+  "pdf expert": PdfExpert,
+  "pdf pals": PdfPals,
+  "pdfsam basic": PdfsamBasic,
+  pearcleaner: Pearcleaner,
+  "perimeter 81": Perimeter81,
+  permute: Permute,
+  "philips hue sync": PhilipsHueSync,
+  "phoenix slides": PhoenixSlides,
+  photosrevive: Photosrevive,
+  photostickies: Photostickies,
+  pibar: Pibar,
+  picview: Picview,
+  piezo: Piezo,
+  pika: Pika,
+  pingplotter: Pingplotter,
+  piphero: Piphero,
+  pitch: Pitch,
+  pixelsnap: Pixelsnap,
+  platypus: Platypus,
+  plex: Plex,
+  "plex htpc": PlexHtpc,
+  "plex media server": PlexMediaServer,
+  "plistedit pro": PlisteditPro,
+  "popchar x": Popchar,
+  popclip: Popclip,
+  popsql: Popsql,
+  "portfolio performance": Portfolioperformance,
+  positron: Positron,
+  postgres: PostgresApp,
+  postico: Postico,
+  powerphotos: Powerphotos,
+  preform: Preform,
+  principle: Principle,
+  "private internet access": PrivateInternetAccess,
+  prizmo: Prizmo,
+  processing: Processing,
+  processspy: Processspy,
+  pronotes: Pronotes,
+  "proton drive": ProtonDrive,
+  "proton mail bridge": ProtonMailBridge,
+  "proton meet": ProtonMeet,
+  "proton pass": ProtonPass,
+  protopie: Protopie,
+  pulsar: Pulsar,
+  purevpn: Purevpn,
+  "teradici pcoip software client for macos": Pcoipclient,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

@@ -1,0 +1,10 @@
+{
+  "name": "Philips Hue Sync",
+  "unique_identifier": "com.lighting.huesync",
+  "token": "philips-hue-sync",
+  "installer_format": "pkg",
+  "slug": "philips-hue-sync/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

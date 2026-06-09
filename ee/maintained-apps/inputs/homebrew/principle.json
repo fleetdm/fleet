@@ -1,0 +1,10 @@
+{
+  "name": "Principle",
+  "unique_identifier": "com.danielhooper.principle",
+  "token": "principle",
+  "installer_format": "zip",
+  "slug": "principle/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
