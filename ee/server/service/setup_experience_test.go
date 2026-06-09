@@ -323,10 +323,13 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	installerID := uint(7)
 	policyID := uint(99)
 
+	hostLastEnrolledAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	host := &fleet.Host{
-		UUID:          "win-uuid",
-		OsqueryHostID: ptr.String(hostUUID),
-		Platform:      "windows",
+		ID:             42,
+		UUID:           "win-uuid",
+		OsqueryHostID:  ptr.String(hostUUID),
+		Platform:       "windows",
+		LastEnrolledAt: hostLastEnrolledAt,
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -354,6 +357,10 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	policyPasses, policyFails := true, false
 	var policyResult *bool
 	ds.GetSetupExperiencePolicyResultFunc = func(ctx context.Context, hostID, gotPolicyID uint, since time.Time) (*bool, error) {
+		// Assert the gating freshness plumbing forwards the right host, policy, and this-enrollment cutoff.
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, policyID, gotPolicyID)
+		require.Equal(t, hostLastEnrolledAt, since)
 		return policyResult, nil
 	}
 	var deliverable map[string]string

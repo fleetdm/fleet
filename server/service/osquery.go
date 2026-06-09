@@ -1258,8 +1258,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
 		// setupExperienceHostUUID keys setup-experience rows (OsqueryHostID on Windows/Linux); on error it is empty, which
-		// disables setup-experience automation suppression (matches no host).
-		setupExperienceHostUUID, _ := fleet.HostUUIDForSetupExperience(host)
+		// disables setup-experience automation suppression (matches no host). Surface the error rather than discarding it: it
+		// only fires when the OsqueryHostID invariant the Windows/Linux gating relies on is broken. Behavior is unchanged.
+		setupExperienceHostUUID, seuErr := fleet.HostUUIDForSetupExperience(host)
+		if seuErr != nil {
+			svc.logger.WarnContext(ctx, "could not derive setup experience host UUID; setup-experience suppression disabled for this host",
+				"err", seuErr, "host_id", host.ID, "platform", host.Platform)
+		}
 		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}

@@ -5013,7 +5013,8 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 	}
 
 	orbitKey := "orbit-key"
-	failing := map[uint]*bool{policyID: new(false)}
+	policyFailed := false
+	failing := map[uint]*bool{policyID: &policyFailed}
 	newlyFailing := map[uint]struct{}{policyID: {}}
 
 	t.Run("suppressed when the policy gates an in-setup item", func(t *testing.T) {
