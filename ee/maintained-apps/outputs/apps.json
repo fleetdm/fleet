@@ -653,13 +653,6 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
-      "name": "Capacities",
-      "slug": "capacities/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.capacities.app",
-      "description": "Capacities is an app to write and organise your ideas."
-    },
-    {
       "name": "CapCut",
       "slug": "capcut/darwin",
       "platform": "darwin",
