@@ -31,94 +31,81 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 		return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	}
 	for _, tc := range []struct {
-		name      string
-		year      int
-		month     time.Month
-		daysStart int
-		daysEnd   int
-
+		name     string
+		year     int
+		month    time.Month
+		today    int
 		expected time.Time
 	}{
 		{
-			name:      "March 2024 (before 1st Tuesday)",
-			year:      2024,
-			month:     3,
-			daysStart: 1,
-			daysEnd:   5,
-
+			name:     "Monday schedules on Tuesday",
+			year:     2024,
+			month:    3,
+			today:    4, // Monday March 4
 			expected: date(2024, 3, 5),
 		},
 		{
-			name:      "March 2024 (past 1st Tuesday)",
-			year:      2024,
-			month:     3,
-			daysStart: 6,
-			daysEnd:   12,
-
-			expected: date(2024, 3, 12),
+			name:     "Tuesday schedules on Wednesday",
+			year:     2024,
+			month:    3,
+			today:    5, // Tuesday March 5
+			expected: date(2024, 3, 6),
 		},
 		{
-			name:      "April 2024 (before 3rd Tuesday)",
-			year:      2024,
-			month:     4,
-			daysStart: 10,
-			daysEnd:   16,
-
-			expected: date(2024, 4, 16),
+			name:     "Wednesday schedules on Thursday",
+			year:     2024,
+			month:    3,
+			today:    6, // Wednesday March 6
+			expected: date(2024, 3, 7),
 		},
 		{
-			name:      "April 2024 (after 3rd Tuesday)",
-			year:      2024,
-			month:     4,
-			daysStart: 17,
-			daysEnd:   23,
-
-			expected: date(2024, 4, 23),
+			name:     "Thursday schedules on Friday",
+			year:     2024,
+			month:    3,
+			today:    7, // Thursday March 7
+			expected: date(2024, 3, 8),
 		},
 		{
-			name:      "May 2024 (before last Tuesday)",
-			year:      2024,
-			month:     5,
-			daysStart: 22,
-			daysEnd:   28,
-
-			expected: date(2024, 5, 28),
+			name:     "Friday schedules on Monday (skip weekend)",
+			year:     2024,
+			month:    3,
+			today:    8, // Friday March 8
+			expected: date(2024, 3, 11),
 		},
 		{
-			name:      "May 2024 (after last Tuesday)",
-			year:      2024,
-			month:     5,
-			daysStart: 29,
-			daysEnd:   31,
-
-			expected: date(2024, 6, 4),
+			name:     "Saturday schedules on Monday (skip Sunday)",
+			year:     2024,
+			month:    3,
+			today:    9, // Saturday March 9
+			expected: date(2024, 3, 11),
 		},
 		{
-			name:      "Dec 2025 (before last Tuesday)",
-			year:      2025,
-			month:     12,
-			daysStart: 24,
-			daysEnd:   30,
-
-			expected: date(2025, 12, 30),
+			name:     "Sunday schedules on Monday",
+			year:     2024,
+			month:    3,
+			today:    10, // Sunday March 10
+			expected: date(2024, 3, 11),
 		},
 		{
-			name:      "Dec 2025 (after last Tuesday)",
-			year:      2025,
-			month:     12,
-			daysStart: 31,
-			daysEnd:   31,
-
-			expected: date(2026, 1, 6),
+			name:     "End of month rolls to next month",
+			year:     2024,
+			month:    3,
+			today:    29, // Friday March 29
+			expected: date(2024, 4, 1),
+		},
+		{
+			name:     "End of year rolls to next year",
+			year:     2025,
+			month:    12,
+			today:    31, // Wednesday Dec 31
+			expected: date(2026, 1, 1),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			for day := tc.daysStart; day <= tc.daysEnd; day++ {
-				actual := getPreferredCalendarEventDate(tc.year, tc.month, day)
-				require.NotEqual(t, actual.Weekday(), time.Saturday)
-				require.NotEqual(t, actual.Weekday(), time.Sunday)
-				require.Equal(t, tc.expected, actual)
-			}
+			actual := getPreferredCalendarEventDate(tc.year, tc.month, tc.today)
+			require.NotEqual(t, time.Saturday, actual.Weekday())
+			require.NotEqual(t, time.Sunday, actual.Weekday())
+			require.Equal(t, tc.expected, actual)
 		})
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -339,6 +340,9 @@ type Datastore interface {
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostByUUID returns one host whose uuid column matches exactly. Unlike
+	// HostByIdentifier, it does not fall back to other identifier columns.
+	HostByUUID(ctx context.Context, uuid string) (*Host, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields using an
 	// "identifier" string. The identifier string will be matched against the
 	// hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
@@ -488,6 +492,14 @@ type Datastore interface {
 	// cheap. Substring-matched on the mobileconfig blob; bounded false-
 	// positive risk (one redundant CertificateList per false match).
 	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
+
+	// OktaCACleanupTargetForInstallCommand returns the host ID and target
+	// macOS short name needed to schedule the Okta conditional access
+	// keychain-cleanup script after a successful InstallProfile ack. The
+	// ok return is false when the command's profile is not the Okta CA
+	// profile, the host's platform is not darwin, or the host has no
+	// per-user MDM enrollment short name on record.
+	OktaCACleanupTargetForInstallCommand(ctx context.Context, hostUUID, commandUUID string) (OktaCACleanupTarget, bool, error)
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -811,16 +823,29 @@ type Datastore interface {
 	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
 	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
+	// Software categories — per-fleet, user-managed categories used to group
+	// software (e.g. for the self-service UI).
+	ListSoftwareCategories(ctx context.Context, teamID uint) ([]SoftwareCategory, error)
+	SoftwareCategory(ctx context.Context, id uint) (*SoftwareCategory, error)
 	// NewSoftwareCategory creates a new category for software.
-	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
-	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
-	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
-	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+	NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*SoftwareCategory, error)
+	// BatchNewSoftwareCategories inserts multiple categories for a fleet.
+	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
+	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
+	DeleteSoftwareCategory(ctx context.Context, id uint) error
+	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.
+	GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error)
+	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 	// Only categories that exist in the database are included in the map.
-	GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error)
+	GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
 	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
+
+	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
+	// to queue for the host's "install all" action, in alphabetical order, optionally
+	// scoped to a category.
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -1526,6 +1551,15 @@ type Datastore interface {
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
 
+	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
+	// being deleted when one or more duplicate hosts (same serial and platform,
+	// excluding deletedHostID) still exist. It returns true if such a duplicate
+	// exists, in which case the caller must NOT restore a pending "ghost" host.
+	// When a surviving duplicate has no DEP assignment of its own, the deleted
+	// host's assignment is transferred to it so the ABM relationship is
+	// preserved.
+	ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial, platform string, deletedHostID uint) (duplicateExists bool, err error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -1554,21 +1588,6 @@ type Datastore interface {
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 
-	// ListMDMAppleProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
-	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToInstallAndRemove returns the result of ListMDMAppleProfilesToInstall
-	// and ListMDMAppleProfilesToRemove but queries for them in an isolated manner so that the two
-	// lists reflect the same system state and no changes can be introduced between the queries.
-	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
-
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
@@ -1578,18 +1597,11 @@ type Datastore interface {
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
 	//
-	// This reconciles Apple profiles, Apple declarations, and Android profiles
-	// synchronously. Windows profile reconciliation is deferred: the
-	// mdm_windows_profile_manager cron processes bounded host-window batches
-	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
-	// populations may require multiple 30s ticks to converge. Callers must not
-	// assume host_mdm_windows_profiles rows are written by the time this
-	// function returns; if a caller needs immediate Windows state (e.g. a
-	// test, or a synchronous UX flow), it must trigger reconciliation
-	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
-	// production: the BatchSetMDMProfiles flow that consumes this field
-	// already gets an accurate transactional signal from BatchSetMDMProfiles
-	// itself, and no other caller reads the field.
+	// This reconciles Android profiles synchronously.
+	// Apple profile, Apple declaration, and Windows profile reconciliation is deferred: the
+	// profile manager crons processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles or ReconcileAppleProfilesBatched), so large host
+	// populations may require multiple 30s ticks to converge.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -1939,8 +1951,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-	// MDMAppleBatchSetHostDeclarationState
-	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+
 	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
 	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
 	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
@@ -2108,6 +2119,14 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+	// enrollment.
+	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
+
+	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
+	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
+	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
@@ -2116,6 +2135,9 @@ type Datastore interface {
 	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't
 	// find a row because the host->enrollment link has not been resolved yet.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*MDMWindowsEnrolledDevice, error)
+
+	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
+	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
@@ -2142,6 +2164,11 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
+	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.
+	// Called at most once per OMA-DM session, when the pending-commands fetch comes back empty (the session has drained
+	// the queue and the flag may flip to 0); mid-session messages skip it since the flag provably stays 1.
+	MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error
+
 	// MDMWindowsSaveResponse saves a full response for the given enrollment.
 	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) (*MDMWindowsSaveResponseResult, error)
 
@@ -2158,10 +2185,10 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
-	// configuration value for the Windows MDM enrollment of the given host.
-	// This is a lightweight read for the orbit config polling path.
-	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state: the awaiting-configuration value and whether
+	// the host's most recent enrollment has queued, unacknowledged commands (the denormalized has_pending_commands
+	// flag). Returns NotFound if the host has no Windows MDM enrollment.
+	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
 
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
@@ -2400,6 +2427,8 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	// An OS-update (software update) profile is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
@@ -2413,6 +2442,8 @@ type Datastore interface {
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
+	// An OS-update (software update) declaration is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
@@ -2424,6 +2455,12 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
+	// but marks the request as internal (fleet-initiated), so it runs even when
+	// scripts are globally disabled and does not appear in the user-facing host
+	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
+	// scripts after MDM events).
+	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)
@@ -2537,7 +2574,7 @@ type Datastore interface {
 
 	// CleanAppleMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked. 	CleanAppleMDMLock will be a no-op when
-	// unlock_ref was set within the last 5 minutes, to prevent the trailing
+	// unlock_ref was set within the value configured for MDMLockCleanupMinutes, to prevent the trailing
 	// Idle (sent right after the device acknowledges the lock command)
 	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
@@ -2670,6 +2707,14 @@ type Datastore interface {
 	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
 	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
 
+	// MapAdamIDsRecentlyVerifiedInstalls gets App Store IDs of VPP apps that were
+	// successfully installed (verified) on the host within the provided number of
+	// seconds. It is used to throttle continuous policy automation re-installs (see
+	// the continuousAutomationOnCooldown service helper): only a successful install
+	// requests a host refetch, so only successful installs can drive the loop the
+	// throttle prevents.
+	MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hostID uint, seconds int) (adamIDs map[string]struct{}, err error)
+
 	// MapAdamIDsPendingInstallVerification gets Apps Store IDs of VPP apps pending verifications
 	// on VPP installations for a host
 	//
@@ -2726,6 +2771,18 @@ type Datastore interface {
 	// DeleteInHouseApp deletes an in house app and removes pending installs for it
 	DeleteInHouseApp(ctx context.Context, id uint) error
 
+	// CreateInHouseAppInstallToken inserts a per-install download token. The
+	// caller supplies the executor so the insert commits atomically with the
+	// nano_commands row that embeds the token in its ManifestURL.
+	CreateInHouseAppInstallToken(ctx context.Context, ex sqlx.ExtContext, token string, softwareTitleID, teamID, hostID uint) error
+
+	// GetInHouseAppInstallTokenMetadata returns the binding for the token, or
+	// NotFound if the token is unknown or expired (both cases collapse — the
+	// caller must not surface the distinction).
+	GetInHouseAppInstallTokenMetadata(ctx context.Context, token string) (*InHouseAppInstallTokenMetadata, error)
+
+	DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error)
+
 	// CleanupUnusedSoftwareTitleIcons will remove software title icons that have
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
@@ -2735,6 +2792,12 @@ type Datastore interface {
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
+	// GetSoftwareInstallersPendingDeletion returns the software installers on the given team
+	// whose title matches none of the incoming title identifiers, i.e. the installers that a
+	// batch-set operation with those incoming titles will delete. It uses the same
+	// (unique_identifier, source) title-matching semantics as BatchSetSoftwareInstallers'
+	// deletion. An empty incoming list returns all installers on the team.
+	GetSoftwareInstallersPendingDeletion(ctx context.Context, tmID *uint, incoming []SoftwareTitleIdentifier) ([]DeletedSoftwarePackage, error)
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
@@ -3331,10 +3394,32 @@ type Datastore interface {
 	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
+
+	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
+	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
+	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// TraceSamplerStore
+
+	// GetTraceSamplerSettings returns the singleton trace_sampler_settings row.
+	GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error)
+
+	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
+	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
+	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
 }
 
 type AndroidDatastore interface {
 	android.Datastore
+	// GetAndroidDeviceLastTeamID returns the last-known team_id from the
+	// android_devices row for the given enterprise_specific_id. Returns the
+	// team_id (may be nil for "no team") and a bool indicating whether a row
+	// was found.
+	GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
+	UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in
@@ -3390,9 +3475,9 @@ type AndroidDatastore interface {
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
-	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
-	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
-	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads). For BYO Android
+	// the resulting transient wipe status is suppressed (see suppressAndroidBYODWipeStatus) so no pending badge is shown. The caller
+	// must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the

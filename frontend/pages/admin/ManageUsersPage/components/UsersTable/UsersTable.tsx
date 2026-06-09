@@ -218,7 +218,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         if (isResettingCurrentUser) {
           authToken.remove();
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.href = PATHS.ROOT;
           }, 500);
           return;
         }

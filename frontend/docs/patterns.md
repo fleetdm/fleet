@@ -146,6 +146,37 @@ export default {
 }
 ```
 
+### Display names for software titles
+
+Software titles have two fields that look like a name:
+
+- `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
+- `display_name` — an optional custom name set per fleet by an admin
+
+**Never render `name` directly in the UI.** Always route software names through
+`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
+It prefers `display_name`, normalizes known awkward titles (e.g.
+`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
+default. This applies everywhere a software title is shown: table rows, dropdown
+options, modal text, activity feed entries, automation summaries, etc.
+
+```tsx
+// good
+label: getDisplayedSoftwareName(title.name, title.display_name),
+
+// bad — misses display_name and the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.name,
+
+// also bad — misses the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.display_name || title.name,
+```
+
+The same rule applies to any object shape that carries both fields
+(`ISoftwareTitle`, `ISoftwarePackage`, `IAppStoreApp`, `IHostSoftware`,
+`IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
+expectation: "All software names displayed by UI is ran through
+getDisplayedSoftwareName."
+
 ## Components
 
 ### React functional components
@@ -511,6 +542,23 @@ const PageOrComponent = ({
 ## Styles
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
+
+### Spacing
+
+Prefer `gap` over `margin` for spacing between sibling elements when they share a flex or grid parent (otherwise `gap` has no effect). We have layout mixins in
+`frontend/styles/var/mixins.scss` for common flex column patterns:
+
+| Mixin | Gap | Use for |
+|---|---|---|
+| `vertical-page-layout` | 24px | Top-level page content |
+| `vertical-card-layout` | 24px | Settings cards, OS settings panels |
+| `vertical-form-layout` | 24px | Form field groups |
+| `vertical-modal-layout` | 24px | Modal body content |
+| `vertical-page-tab-panel-layout` | 24px | Tab panel content |
+| `vertical-data-set-layout` | 16px | Definition lists, key-value field sets |
+
+All use `flex-direction: column`; the 24px value is `$gap-page-component`. For arbitrary
+spacing without a semantic name, use `flex-column-16px-gap` or `flex-column-32px-gap`.
 
 ### Modals
 

@@ -8,6 +8,37 @@ import CommandPalette from "./CommandPalette";
 // cmdk uses scrollIntoView which JSDOM doesn't implement
 Element.prototype.scrollIntoView = jest.fn();
 
+// CommandPalette branches on navigator.platform to pick the modifier
+// (Cmd on macOS, Ctrl elsewhere). jsdom's default is an empty string,
+// which would make the whole suite run as "non-Mac" and break every
+// {Meta>}…{/Meta} keyboard test. Default the suite to Mac and override
+// per-test when we specifically want to exercise the non-Mac branch.
+const setPlatform = (value: string) => {
+  Object.defineProperty(window.navigator, "platform", {
+    value,
+    configurable: true,
+  });
+};
+// Capture the original descriptor so afterEach can fully restore it —
+// not just the value. Otherwise our `configurable: true` override leaks
+// into other tests and can mask future descriptor-sensitive bugs.
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  window.navigator,
+  "platform"
+);
+beforeEach(() => setPlatform("MacIntel"));
+afterEach(() => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(
+      window.navigator,
+      "platform",
+      originalPlatformDescriptor
+    );
+  } else {
+    delete (window.navigator as { platform?: string }).platform;
+  }
+});
+
 const adminRender = createCustomRenderer({
   withBackendMock: true,
   context: {
@@ -93,6 +124,32 @@ describe("CommandPalette", () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    });
+
+    it("Ctrl+K does NOT open the palette on macOS (Cmd is required)", async () => {
+      // Ctrl+K is readline kill-line on macOS — we must not hijack it.
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+K opens the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}k{/Control}");
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+K does NOT open the palette on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}k{/Meta}");
+
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
     });
 
     it("closes on Escape", async () => {
@@ -215,6 +272,37 @@ describe("CommandPalette", () => {
       });
     });
 
+    it("Ctrl+Shift+F does NOT open switch-fleet on macOS (Cmd is required)", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
+    });
+
+    it("Ctrl+Shift+F opens switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+Shift+F does NOT open switch-fleet on non-macOS platforms", async () => {
+      setPlatform("Win32");
+      const { user } = adminRender(<CommandPalette />);
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+
+      expect(
+        screen.queryByPlaceholderText("Search a fleet...")
+      ).not.toBeInTheDocument();
+    });
+
     it("Escape returns to root from a sub-page instead of closing", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
@@ -243,7 +331,7 @@ describe("CommandPalette", () => {
       // The root page lists commands; find "View host" and activate it
       // to reach the view-host sub-page.
       const viewHost = await screen.findByText("View host");
-      fireEvent.click(viewHost);
+      await user.click(viewHost);
 
       await waitFor(() => {
         expect(
@@ -342,8 +430,12 @@ describe("CommandPalette", () => {
       // Sub-items should not be visible initially
       expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
 
-      // Click the chevron on OS settings — use fireEvent since cmdk
-      // intercepts user.click and navigates instead of toggling
+      // fireEvent here, not user.click — cmdk's userEvent-aware
+      // selection handlers fire onSelect on the parent Command.Item
+      // and navigate before the chevron's own click handler runs.
+      // fireEvent.click dispatches a bare click that respects the
+      // chevron's stopPropagation. (See cmdk + @testing-library/user-event
+      // v14 compatibility.)
       const chevron = screen
         .getByText("OS settings")
         .closest(`.command-palette__item`)
@@ -380,6 +472,39 @@ describe("CommandPalette", () => {
       expect(
         screen.queryByLabelText("Command palette")
       ).not.toBeInTheDocument();
+    });
+
+    it("does not intercept Cmd+K for isNoAccess users", async () => {
+      const noAccessRender = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isNoAccess: true,
+            currentUser: {
+              id: 1,
+              name: "No Access",
+              email: "noaccess@fleet.co",
+              global_role: null,
+            },
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = noAccessRender(<CommandPalette />);
+      const onKeyDown = jest.fn();
+      document.addEventListener("keydown", onKeyDown);
+
+      await user.keyboard("{Meta>}k{/Meta}");
+
+      // If the palette had registered its handler, it would have called
+      // preventDefault on the synthetic event before our listener saw it.
+      expect(onKeyDown).toHaveBeenCalled();
+      expect(onKeyDown.mock.calls[0][0].defaultPrevented).toBe(false);
+      // And the palette must remain unrendered.
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+
+      document.removeEventListener("keydown", onKeyDown);
     });
 
     it("hides Actions and Controls for observers", async () => {

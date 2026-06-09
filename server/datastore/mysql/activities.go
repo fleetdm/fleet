@@ -14,6 +14,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1491,9 +1492,15 @@ WHERE
 	insValues := make([]string, 0, len(pending))
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
+		// Mint inside this tx so the token rolls back with the nano_commands
+		// row on activation failure.
+		token := uuid.NewString()
+		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
+		}
 		manifestURL := fmt.Sprintf(
-			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)

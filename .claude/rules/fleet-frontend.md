@@ -62,6 +62,11 @@ Use the `useTeamIdParam` hook for team-scoped pages:
 - `handleTeamChange(newTeamId)` to switch teams
 - `isTeamAdmin`, `isTeamMaintainer`, `isObserverPlus` for role checks
 
+## Routing & URL state
+Use react-router, not `window.location` / `window.history`. Direct window mutation desyncs react-router's location state.
+- Read query params from `location.query`, not `URLSearchParams(window.location.search)`.
+- Mutate the URL with `router.replace`/`router.push` or `browserHistory.replace`/`.push`, not `window.history.replaceState`.
+
 ## Notifications
 - Use `renderFlash(alertType, message)` from `NotificationContext`
 - Types: `"success"`, `"error"`, `"warning-filled"`
@@ -78,12 +83,16 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
+## Software titles — display name
+Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
 - Elements: `` className={`${baseClass}__element-name`} ``
 - Modifiers: `` className={`${baseClass}--modifier`} ``
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
+- Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

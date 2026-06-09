@@ -1,0 +1,1 @@
+* Updated initialization semantics around api_endpoints. The catalog is now loaded from the embedded YAML once at package initialization time.
