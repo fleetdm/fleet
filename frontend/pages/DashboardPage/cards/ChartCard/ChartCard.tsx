@@ -47,9 +47,17 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
+// Mobile platforms (iOS, iPadOS, Android) are excluded from the chart by
+// default by seeding the platform filter with only the non-mobile platforms.
+// This is intentionally hard-coded to this chart for now rather than a general
+// per-chart "default filters" config. Because the platform filter is
+// inclusion-based, a non-empty default both excludes mobile and makes the
+// "Filtered" badge appear on load. Users can opt mobile back in via the filter.
+const DEFAULT_CHART_PLATFORMS = ["darwin", "windows", "linux", "chrome"];
+
 const DEFAULT_CHART_FILTERS: IChartFilterState = {
   labelIDs: [],
-  platforms: [],
+  platforms: DEFAULT_CHART_PLATFORMS,
   hostFilterMode: "none",
   selectedHosts: [],
   softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
@@ -197,7 +205,9 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+          iOS, iPadOS, and Android hosts are excluded by default; include them
+          from the filter settings. Locked iOS and iPadOS hosts count as online
+          as long as they have power and an internet connection.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
