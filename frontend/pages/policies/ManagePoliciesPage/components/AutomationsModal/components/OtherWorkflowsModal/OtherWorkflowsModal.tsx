@@ -352,7 +352,6 @@ const OtherWorkflowsModal = forwardRef<
               showText="Example payload"
               caretPosition="after"
               onClick={() => setShowExamplePayload(!showExamplePayload)}
-              disabled={!isPolicyAutomationsEnabled && !gitOpsModeEnabled}
             />
             {showExamplePayload && <ExamplePayload />}
           </>

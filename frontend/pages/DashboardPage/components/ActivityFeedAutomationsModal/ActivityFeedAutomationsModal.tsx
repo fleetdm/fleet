@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import { IWebhookActivities } from "interfaces/webhook";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
 import Modal from "components/Modal";
 import validURL from "components/forms/validators/valid_url";
 import Slider from "components/forms/fields/Slider";
@@ -44,8 +43,6 @@ const ActivityFeedAutomationsModal = ({
     {}
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
-
-  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const validateForm = (newFormData: IAFAMFormData) => {
     const errors: Record<string, string> = {};
@@ -170,7 +167,6 @@ const ActivityFeedAutomationsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
-          disabled={!formData.enabled && !gitOpsModeEnabled}
         />
         {showExamplePayload && renderExamplePayload()}
         <div className="modal-cta-wrap">

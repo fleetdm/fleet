@@ -195,7 +195,6 @@ const CalendarEventsModal = forwardRef<
                 showText="Example payload"
                 caretPosition="after"
                 onClick={() => setShowExamplePayload(!showExamplePayload)}
-                disabled={!formData.enabled && !gitOpsModeEnabled}
               />
               {showExamplePayload && renderExamplePayload()}
             </>
