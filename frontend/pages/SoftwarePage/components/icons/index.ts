@@ -220,15 +220,36 @@ import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
 import Fork from "./Fork";
 import Front from "./Front";
+import GarminExpress from "./GarminExpress";
+import Gather from "./Gather";
+import Gdevelop from "./Gdevelop";
+import Geany from "./Geany";
+import Geekbench from "./Geekbench";
+import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
+import Gitfinder from "./Gitfinder";
+import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
+import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
+import GitupApp from "./GitupApp";
+import Glyphs from "./Glyphs";
+import Go2Shell from "./Go2Shell";
+import Godot from "./Godot";
+import Godspeed from "./Godspeed";
+import GogGalaxy from "./GogGalaxy";
 import GoLand from "./GoLand";
+import Goodsync from "./Goodsync";
 import GoogleDrive from "./GoogleDrive";
+import GoogleEarthPro from "./GoogleEarthPro";
 import GpgKeychain from "./GpgKeychain";
+import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
+import Grandperspective from "./Grandperspective";
 import Granola from "./Granola";
+import Grids from "./Grids";
+import Gyazo from "./Gyazo";
 import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import Inkscape from "./Inkscape";
@@ -657,6 +678,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  "garmin express": GarminExpress,
+  "gather town": Gather,
+  gdevelop: Gdevelop,
+  geany: Geany,
+  geekbench: Geekbench,
+  gephi: Gephi,
+  gitfinder: Gitfinder,
+  "github copilot for xcode": GithubCopilotForXcode,
+  gitify: Gitify,
+  gitup: GitupApp,
+  glyphs: Glyphs,
+  go2shell: Go2Shell,
+  "godot engine": Godot,
+  godspeed: Godspeed,
+  "gog galaxy": GogGalaxy,
+  goodsync: Goodsync,
+  "google earth pro": GoogleEarthPro,
+  gpodder: Gpodder,
+  grandperspective: Grandperspective,
+  grids: Grids,
   imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
@@ -686,6 +727,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "nota gyazo gif": Gyazo,
   "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,

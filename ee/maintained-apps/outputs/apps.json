@@ -1570,6 +1570,48 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Garmin Express",
+      "slug": "garmin-express/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.garmin.renu.client",
+      "description": "Garmin Express is an update maps and software, sync with Garmin Connect and register your device."
+    },
+    {
+      "name": "Gather Town",
+      "slug": "gather/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gather.Gather",
+      "description": "Gather Town is a virtual video-calling space."
+    },
+    {
+      "name": "GDevelop",
+      "slug": "gdevelop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gdevelop-app.ide",
+      "description": "GDevelop is an open-source, cross-platform game engine designed to be used by everyone."
+    },
+    {
+      "name": "Geany",
+      "slug": "geany/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.geany.geany",
+      "description": "Geany is a small and lightweight IDE."
+    },
+    {
+      "name": "Geekbench",
+      "slug": "geekbench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.primatelabs.Geekbench6",
+      "description": "Geekbench is a tool to measure the computer system's performance."
+    },
+    {
+      "name": "Gemini",
+      "slug": "gemini/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macpaw.site.Gemini2",
+      "description": "Gemini is a disk space cleaner that finds and deletes duplicated and similar files."
+    },
+    {
       "name": "Genesys Cloud",
       "slug": "genesys-cloud/darwin",
       "platform": "darwin",
@@ -1582,6 +1624,13 @@
       "platform": "windows",
       "unique_identifier": "GenesysCloud",
       "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
+      "name": "Gephi",
+      "slug": "gephi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.gephi",
+      "description": "Gephi is an open-source platform for visualizing and manipulating large graphs."
     },
     {
       "name": "Ghostty",
@@ -1612,6 +1661,20 @@
       "description": "Git is a free and open source distributed version control system designed to handle everything from small to very large projects."
     },
     {
+      "name": "GitFinder",
+      "slug": "gitfinder/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ag.zigz.GitFinder",
+      "description": "GitFinder is a git client with Finder integration."
+    },
+    {
+      "name": "GitHub Copilot for Xcode",
+      "slug": "github-copilot-for-xcode/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.CopilotForXcode",
+      "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -1624,6 +1687,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.GitHubClient",
       "description": "GitHub Desktop is a desktop client for GitHub repositories."
+    },
+    {
+      "name": "Gitify",
+      "slug": "gitify/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.gitify",
+      "description": "Gitify is a GitHub notifications on your menu bar."
     },
     {
       "name": "GitKraken",
@@ -1640,6 +1710,48 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GitUp",
+      "slug": "gitup-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.gitup.mac",
+      "description": "GitUp is a git interface focused on visual interaction."
+    },
+    {
+      "name": "Glyphs",
+      "slug": "glyphs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.GeorgSeifert.Glyphs3",
+      "description": "Glyphs is a font editor."
+    },
+    {
+      "name": "Go2Shell",
+      "slug": "go2shell/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zipzapmac.Go2Shell",
+      "description": "Go2Shell is an opens a terminal window to the current directory in Finder."
+    },
+    {
+      "name": "Godot Engine",
+      "slug": "godot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.godotengine.godot",
+      "description": "Godot Engine is a 2D and 3D game engine."
+    },
+    {
+      "name": "Godspeed",
+      "slug": "godspeed/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.godspeedapp.Godspeed",
+      "description": "Godspeed is a keyboard-focused todo manager."
+    },
+    {
+      "name": "GOG Galaxy",
+      "slug": "gog-galaxy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gog.galaxy.cef.renderer",
+      "description": "GOG Galaxy is a game client."
+    },
+    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
@@ -1652,6 +1764,13 @@
       "platform": "windows",
       "unique_identifier": "GoLand",
       "description": "GoLand is a Go (golang) IDE by JetBrains"
+    },
+    {
+      "name": "GoodSync",
+      "slug": "goodsync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sibersystems.goodsyncmac2000",
+      "description": "GoodSync is a file synchronisation and backup software."
     },
     {
       "name": "Google Chrome",
@@ -1689,6 +1808,13 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "Google Earth Pro",
+      "slug": "google-earth-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.GoogleEarthUpdateHelper",
+      "description": "Google Earth Pro is a virtual globe."
+    },
+    {
       "name": "Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
@@ -1717,11 +1843,25 @@
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {
+      "name": "gPodder",
+      "slug": "gpodder/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.gpodder.gpodder",
+      "description": "gPodder is a podcast client."
+    },
+    {
       "name": "Grammarly Desktop",
       "slug": "grammarly-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.grammarly.ProjectLlama",
       "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
+      "name": "GrandPerspective",
+      "slug": "grandperspective/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.sourceforge.grandperspectiv",
+      "description": "GrandPerspective is a graphically shows disk usage within a file system."
     },
     {
       "name": "Granola",
@@ -1738,11 +1878,25 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Grids",
+      "slug": "grids/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.thinktimecreations.Grids",
+      "description": "Grids is an instagram desktop application."
+    },
+    {
       "name": "Groove OmniDialer",
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.dialer",
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
+      "name": "Nota Gyazo GIF",
+      "slug": "gyazo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gyazo.menu",
+      "description": "Nota Gyazo GIF is a screenshot and screen recording tool."
     },
     {
       "name": "Hyper",
