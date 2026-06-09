@@ -1,6 +1,6 @@
 ---
 name: command-palette
-description: Authoring guide for the Fleet command palette. Use when adding or editing items in frontend/components/CommandPalette/groups/, when editing frontend/router/paths.ts or frontend/router/index.tsx, or when adding a new top-level page, global create action, MDM connector / singleton config, automation hook, or view-by-search flow that needs a palette entry.
+description: Authoring guide for the Fleet command palette. Use when adding or editing items in frontend/components/CommandPalette/groups/, when editing frontend/router/paths.ts or frontend/router/index.tsx, or when adding a new top-level page, global create action, MDM connector / singleton config, automation hook, or picker action that needs a palette entry.
 allowed-tools: Read, Grep, Glob, Bash(yarn test*)
 effort: medium
 ---
@@ -18,7 +18,7 @@ This skill exists to make sure that guide gets followed when palette-worthy chan
    ```
    frontend/components/CommandPalette/groups/
    ```
-3. **Confirm the destination page's permission gate**, then mirror it exactly on the palette item. Don't route users to a screen they can't use.
+3. **Confirm the destination page's own permission check**, then mirror it on the palette item using a flag from `ICommandPaletteContext` (`frontend/components/CommandPalette/helpers.ts`). Add a new flag there only if no existing one models the destination's check. Don't route users to a screen they can't use.
 
 ## After adding an item
 

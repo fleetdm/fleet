@@ -550,10 +550,10 @@ Source: `frontend/components/CommandPalette/`. Items are defined per group under
 
 **Belongs in the palette:**
 
-- Navigation to any top-level page or sub-page
+- Navigation to any destination in the app — either its own top-level palette entry or nested under a parent entry via `subItems`
 - Global create actions where no entity is pre-selected ("Add report" opens a blank form)
 - Singleton config actions where the entity is implicit ("Edit Apple MDM" — there's only one Apple MDM config)
-- View-by-search flows that let the user pick an entity to navigate to ("View host")
+- Picker actions that open an in-palette search for the user to choose an entity (e.g., "View host")
 
 **Doesn't belong:**
 
@@ -569,14 +569,20 @@ The dividing line: if the action requires the user to first pick a specific row,
 |---|---|
 | A new top-level page (routed under a top nav item) | `groups/pages.ts` |
 | A new global create action (modal / form / blank create page) | `groups/commands.ts` |
-| A new view-by-search flow (like "View host") | `groups/commands.ts` with `opensSubPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
+| A new picker action (like "View host") | `groups/commands.ts` with `opensSubPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
 | A new MDM platform or connector (turn-on / singleton-edit) | `groups/mdm.ts` |
 | A new automation hook | `groups/automations.ts` |
-| A new settings page or admin sub-page | `groups/settings.ts` |
+| A new settings page or admin route | `groups/settings.ts` |
 | A new control / policy / script feature | `groups/controls.ts` |
 | A new software action or view | `groups/software.ts` |
 
-Sub-pages of an existing palette item live in that item's `subItems` array, not as top-level entries. The user gets the sub-item when they expand the parent (chevron) or when their search promotes the sub-item into Best match.
+Nested destinations under an existing palette entry live in that entry's `subItems` array, not as top-level entries. The user reaches the sub-item by expanding the parent (chevron) or when their search promotes the sub-item into Best match.
+
+The word "sub-page" gets overloaded in this codebase — keep these three distinct:
+
+- **Sub-item** — an `ICommandSubItem` in a parent palette entry's `subItems` array
+- **Picker page** — the secondary screen opened when an entry has `opensSubPage: true` (View host, View report)
+- **Sub-route** — an app route nested under another (e.g., `/settings/integrations` under `/settings`)
 
 ### Required and optional fields
 
@@ -604,7 +610,7 @@ interface ICommandItem {
 
 ### Keyword authoring
 
-Best match scoring is **label-first**: any label match (exact, prefix, word-prefix, or substring) outranks any keyword match. This shapes how to write keywords.
+The cmdk `filter` prop in `CommandPalette.tsx` matches by substring against a concatenated `label + keywords` string built by `getItemValue()`, so it can't tell which part of the value came from the label vs. a keyword. Keywords are for words **not already in the label** — synonyms, acronyms, platform aliases. Duplicates of label words don't change matching or ranking. The only label-specific behavior is that items whose **label exactly matches** the search get hoisted into a "Best match" section at the top; this is exact match only (not prefix, not word-prefix). See the `filter` prop in `CommandPalette.tsx` for edge cases.
 
 **Do:**
 
@@ -625,8 +631,8 @@ Best match scoring is **label-first**: any label match (exact, prefix, word-pref
 
 **Don't:**
 
-- Repeat words from the label. `Add user` already covers searches for "add" or "user" via label tiers; adding `add user` as a keyword does nothing.
-- Use multi-word keyword phrases when a single word works. Phrases only match when the full phrase is typed; single words match prefix and word-prefix automatically.
+- Repeat words from the label. `Add user` already matches searches for "add" or "user" via the concatenated value; adding `add user` as a keyword doesn't change anything.
+- Use multi-word keyword phrases when a single word works. The filter is plain substring, so a single keyword matches any search that contains it; multi-word phrases only match when the whole phrase appears as a substring in the query.
 - Pile in low-signal substrings ("the", "some", generic verbs).
 
 ### Permission gating
@@ -684,7 +690,7 @@ Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meani
 - Primo mode hidden: add to the `Primo Mode (isPrimoMode: true)` block
 - New `teamName` chip: assert it renders / doesn't render against the relevant fleet contexts
 
-The scoring/ranking helpers (`scoreMatch`, `computeBestMatch`, `highlightMatches`) are already covered; you don't need to re-test the framework when adding an item.
+You don't need to test cmdk's filter itself — it's just `value.includes(searchTerm)` on the concatenated `label + keywords` string. Test your item's *presence and gating*, not the match mechanics.
 
 ## Styles
 
