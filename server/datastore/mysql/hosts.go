@@ -3356,7 +3356,7 @@ SELECT
 	last_enrolled_at,
 	policy_updated_at,
 	refetch_requested,
-	refetch_critical_queries_until
+	refetch_critical_queries_until,
 	supervised
 FROM hosts
 WHERE id IN (?)`
