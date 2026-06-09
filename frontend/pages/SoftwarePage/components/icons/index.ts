@@ -269,6 +269,7 @@ import Sourcetree from "./Sourcetree";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Spotify from "./Spotify";
+import SqlServerManagementStudio from "./SqlServerManagementStudio";
 import Stats from "./Stats";
 import Steam from "./Steam";
 import SublimeMerge from "./SublimeMerge";
@@ -295,40 +296,64 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import Vanilla from "./Vanilla";
 import VcRedistX64 from "./VcRedistX64";
+import Vellum from "./Vellum";
+import VernierSpectralAnalysis from "./VernierSpectralAnalysis";
+import Versions from "./Versions";
+import Via from "./Via";
+import Vimcal from "./Vimcal";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
+import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import VividApp from "./VividApp";
+import Viz from "./Viz";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import Voiceink from "./Voiceink";
+import VpnTracker365 from "./VpnTracker365";
 import VsCodium from "./VsCodium";
+import Vuescan from "./Vuescan";
+import Vyprvpn from "./Vyprvpn";
+import Vysor from "./Vysor";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
+import Wave from "./Wave";
+import Wavebox from "./Wavebox";
+import Wealthfolio from "./Wealthfolio";
+import Weasis from "./Weasis";
 import WebStorm from "./WebStorm";
+import Webcatalog from "./Webcatalog";
 import Webex from "./Webex";
+import Wechat from "./Wechat";
+import Weektodo from "./Weektodo";
+import Whatroute from "./Whatroute";
 import WhatsApp from "./WhatsApp";
+import Whisky from "./Whisky";
+import Whispering from "./Whispering";
+import Wifiman from "./Wifiman";
+import Windowkeys from "./Windowkeys";
 import WindowsApp from "./WindowsApp";
 import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
 import Winrar from "./Winrar";
+import Wins from "./Wins";
 import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
+import WisprFlow from "./WisprFlow";
+import WondershareEdrawmax from "./WondershareEdrawmax";
+import WondershareFilmora from "./WondershareFilmora";
 import Word from "./Word";
+import Wordservice from "./Wordservice";
+import Workflowy from "./Workflowy";
+import WorksheetCrafter from "./WorksheetCrafter";
+import Workspaces from "./Workspaces";
 import WrikeForMac from "./WrikeForMac";
 import XCreds from "./XCreds";
-import YubicoAuthenticator from "./YubicoAuthenticator";
-import YubikeyManager from "./YubikeyManager";
-import Zed from "./Zed";
-import Zen from "./Zen";
-import Zeplin from "./Zeplin";
-import ZeroOneZeroEditor from "./010Editor";
-import Zoom from "./Zoom";
-import ZoomRooms from "./ZoomRooms";
-import Zotero from "./Zotero";
-
 import Xattred from "./Xattred";
 import Xca from "./Xca";
 import XcodesApp from "./XcodesApp";
@@ -340,6 +365,25 @@ import Xnapper from "./Xnapper";
 import Xnconvert from "./Xnconvert";
 import Xnviewmp from "./Xnviewmp";
 import Xquartz from "./Xquartz";
+import Yaak from "./Yaak";
+import Yacreader from "./Yacreader";
+import Yattee from "./Yattee";
+import Yippy from "./Yippy";
+import YtMusic from "./YtMusic";
+import YubicoAuthenticator from "./YubicoAuthenticator";
+import YubikeyManager from "./YubikeyManager";
+import Zappy from "./Zappy";
+import Zed from "./Zed";
+import Zen from "./Zen";
+import Zeplin from "./Zeplin";
+import ZeroOneZeroEditor from "./010Editor";
+import Zettlr from "./Zettlr";
+import Zight from "./Zight";
+import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
+import Zotero from "./Zotero";
+import Zulip from "./Zulip";
+import Zwift from "./Zwift";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -622,6 +666,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   spotify: Spotify,
+  "sql server management studio": SqlServerManagementStudio,
   stats: Stats,
   steam: Steam,
   "stream deck": ElgatoStreamDeck,
@@ -650,40 +695,67 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   utm: Utm,
+  vanilla: Vanilla,
+  vellum: Vellum,
+  "vernier spectral analysis": VernierSpectralAnalysis,
+  versions: Versions,
+  via: Via,
+  vimcal: Vimcal,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
-  "vnc viewer": VncViewer,
+  "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivid: VividApp,
+  viz: Viz,
   vlc: Vlc,
+  "vnc viewer": VncViewer,
+  voiceink: Voiceink,
+  "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
+  vuescan: Vuescan,
+  vyprvpn: Vyprvpn,
+  vysor: Vysor,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
+  "wave terminal": Wave,
+  wavebox: Wavebox,
+  wealthfolio: Wealthfolio,
+  weasis: Weasis,
   webstorm: WebStorm,
+  webcatalog: Webcatalog,
   webex: Webex,
+  "wechat for mac": Wechat,
+  weektodo: Weektodo,
+  whatroute: Whatroute,
   whatsapp: WhatsApp,
+  whisky: Whisky,
+  whispering: Whispering,
+  "wifiman desktop": Wifiman,
+  windowkeys: Windowkeys,
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
   winrar: Winrar,
+  wins: Wins,
   winscp: Winscp,
   wireshark: Wireshark,
+  "wispr flow": WisprFlow,
+  edrawmax: WondershareEdrawmax,
+  "wondershare filmora": WondershareFilmora,
+  wordservice: Wordservice,
+  workflowy: Workflowy,
+  "worksheet crafter": WorksheetCrafter,
+  workspaces: Workspaces,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
   xcreds: XCreds,
-  "yubico authenticator": YubicoAuthenticator,
-  "yubikey manager": YubikeyManager,
-  zed: Zed,
-  zen: Zen,
-  zeplin: Zeplin,
-  "zoom rooms": ZoomRooms,
-  zotero: Zotero,
-  "x lossless decoder": Xld,
   xattred: Xattred,
   xca: Xca,
   xcodes: XcodesApp,
+  "x lossless decoder": Xld,
   xmenu: Xmenu,
   xmind: Xmind,
   xmplify: Xmplify,
@@ -691,6 +763,23 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "xnsoft xnconvert": Xnconvert,
   xnviewmp: Xnviewmp,
   xquartz: Xquartz,
+  yaak: Yaak,
+  yacreader: Yacreader,
+  yattee: Yattee,
+  yippy: Yippy,
+  "youtube music": YtMusic,
+  "yubico authenticator": YubicoAuthenticator,
+  "yubikey manager": YubikeyManager,
+  zappy: Zappy,
+  zed: Zed,
+  zen: Zen,
+  zeplin: Zeplin,
+  zettlr: Zettlr,
+  zight: Zight,
+  "zoom rooms": ZoomRooms,
+  zotero: Zotero,
+  zulip: Zulip,
+  zwift: Zwift,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
