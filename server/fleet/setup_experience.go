@@ -53,8 +53,8 @@ type SetupExperienceStatusResult struct {
 	Error                           *string                           `db:"error" json:"error" `
 	// PolicyID is the team policy (with an install-software automation pointing at the same installer) that gates a Windows/Linux
 	// setup-experience software item. It is resolved server-side at enqueue time and is internal (json:"-"): when set, the item is
-	// installed only if the policy fails; when the policy passes, the install is skipped. NULL for un-gated items, VPP items, and
-	// Apple-platform items. It is orthogonal to the mutually-exclusive value columns below, so IsValid does not count it.
+	// installed only if the policy fails; when the policy passes, the install is skipped. NULL for un-gated items.
+	// It only ever qualifies a software-installer row.
 	PolicyID *uint `db:"policy_id" json:"-"`
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
@@ -94,6 +94,10 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 	}
 	if colsSet == 0 {
 		return fmt.Errorf("invalid setup experience status row, no underlying value colunm set: %d", s.ID)
+	}
+	// policy_id only ever qualifies a software-installer row (Windows/Linux gating); it must never appear on a VPP or script row.
+	if s.PolicyID != nil && s.SoftwareInstallerID == nil {
+		return fmt.Errorf("invalid setup experience status row, policy_id set without software_installer_id: %d", s.ID)
 	}
 
 	return nil

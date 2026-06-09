@@ -133,6 +133,30 @@ func TestSetupExperienceStatusResultIsValid(t *testing.T) {
 			Valid: false,
 			Name:  "vpp and script",
 		},
+		{
+			Case: SetupExperienceStatusResult{
+				SoftwareInstallerID: id,
+				PolicyID:            id,
+			},
+			Valid: true,
+			Name:  "gated software installer (policy_id qualifies an installer row)",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				VPPAppTeamID: id,
+				PolicyID:     id,
+			},
+			Valid: false,
+			Name:  "policy_id on vpp app (no software installer)",
+		},
+		{
+			Case: SetupExperienceStatusResult{
+				SetupExperienceScriptID: id,
+				PolicyID:                id,
+			},
+			Valid: false,
+			Name:  "policy_id on script (no software installer)",
+		},
 	} {
 		err := tc.Case.IsValid()
 		if tc.Valid {
