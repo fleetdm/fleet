@@ -43,7 +43,7 @@ The installer requires an MDM-enabled Mac. It checks for the Fleet managed prefe
 
 The device token in `/opt/orbit/identifier` rotates every hour. Fleet Desktop handles this automatically:
 
-- A background timer checks the identifier file every 60 seconds (paused when the window is closed)
+- A background timer checks the identifier file every 60 seconds (and keeps the Dock badge current even when the window is closed)
 - On HTTP 401/403 errors or error page detection, the app immediately checks for a new token and retries (up to 3 attempts with 5-second delays)
 - Token refreshes are invisible to the user — the page silently reloads with the new token
 
@@ -56,7 +56,7 @@ When Fleet serves downloadable content (e.g., MDM enrollment profiles):
 
 ### Security
 
-- App Transport Security (ATS) is enforced — only HTTPS connections are allowed
+- App Transport Security (ATS) is enforced for the in-app WebView — the embedded portal requires HTTPS
 - External links are restricted to `https`, `http`, and `mailto` schemes
 - Device tokens are percent-encoded and not exposed in error messages
 - Downloaded files are only auto-opened if they are `.mobileconfig` profiles

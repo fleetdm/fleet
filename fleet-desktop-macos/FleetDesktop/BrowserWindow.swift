@@ -50,7 +50,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// or when the page content indicates an error (e.g., "Something went wrong").
     var onNavigationError: (() -> Void)?
 
-    /// Called when the window is closed (so the timer can be paused).
+    /// Called when the window is closed (allows the owner to react to the UI closing).
     var onWindowClose: (() -> Void)?
 
     /// Called when the window is shown (so the timer can be resumed).

@@ -6,8 +6,8 @@ import AppKit
 /// browser window. Only MDM-managed machines are supported.
 ///
 /// The WebView is kept alive when the window is closed, so reopening is instant.
-/// The token is checked every 60 seconds (timer paused when the window is closed)
-/// and on navigation errors, to handle hourly rotation.
+/// The token is checked every 60 seconds (and on navigation errors) to handle hourly
+/// rotation and keep the Dock badge current even when the window is closed.
 final class FleetService {
     private var browserWindow: BrowserWindow?
 
