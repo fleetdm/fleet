@@ -38,11 +38,9 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 }
 
 const ssoAuthInstructions = "SSO is enabled for this Fleet instance. Email/password login is not supported on SSO-enabled accounts.\n" +
-	"If your user account isn't SSO-enabled, you may authenticate with fleetctl login.\n\n" +
-	"To authenticate with fleetctl for SSO-enabled accounts:\n" +
-	"  1. Log in to the Fleet UI in your browser\n" +
-	"  2. Go to My account > Get API token\n" +
-	"  3. Run: fleetctl config set --token <your-api-token>"
+	"If your account isn't SSO-enabled, use fleetctl login.\n\n" +
+	"Learn how to authenticate with fleetctl for SSO-enabled accounts:\n" +
+	"https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-factor-authentication-2-fa"
 
 // printAuthError prints an authentication error message. If SSO is enabled on the server,
 // it directs the user to authenticate via API token instead of fleetctl login.

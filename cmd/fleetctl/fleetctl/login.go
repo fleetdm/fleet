@@ -23,14 +23,11 @@ fleetctl login [options]
 
 Interactively prompts for email and password if not specified in the flags or environment variables.
 
-If SSO is enabled on the Fleet server, a warning will be displayed with instructions for
-authenticating via API token. You may still attempt to log in with email and password, but it
-will only succeed if your account is not SSO-enabled.
+If SSO is enabled on the Fleet server, a warning will be displayed. You may still attempt to
+log in with email and password, but it will only succeed if your account is not SSO-enabled.
 
-To authenticate with fleetctl for SSO-enabled accounts:
-  1. Log in to the Fleet UI in your browser
-  2. Go to My account > Get API token
-  3. Run: fleetctl config set --token <your-api-token>
+Learn how to authenticate with fleetctl for SSO-enabled accounts:
+https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-factor-authentication-2-fa
 `,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
