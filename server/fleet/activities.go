@@ -2177,3 +2177,49 @@ func (a ActivityTypeRanAutomationWebhook) HostIDs() []uint {
 func (a ActivityTypeRanAutomationWebhook) WasFromAutomation() bool {
 	return true
 }
+
+// ActivityTypeFailedConditionalAccessPolicyAutomation is recorded when a
+// failing-policy conditional access automation fails to push the host's
+// compliance status to the remote provider. One activity is recorded per
+// conditional-access policy configured for the host's team, associated with
+// that host.
+type ActivityTypeFailedConditionalAccessPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) ActivityName() string {
+	return "failed_conditional_access_policy_automation"
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedConditionalAccessPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeBlockedSingleSignOnPolicyAutomation is recorded when a
+// failing-policy conditional access automation successfully pushes the host's
+// compliance status to the remote provider as non-compliant, blocking single
+// sign-on. One activity is recorded per conditional-access policy the host is
+// failing, associated with that host.
+type ActivityTypeBlockedSingleSignOnPolicyAutomation struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+}
+
+func (a ActivityTypeBlockedSingleSignOnPolicyAutomation) ActivityName() string {
+	return "blocked_single_sign_on_policy_automation"
+}
+
+func (a ActivityTypeBlockedSingleSignOnPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeBlockedSingleSignOnPolicyAutomation) WasFromAutomation() bool {
+	return true
+}

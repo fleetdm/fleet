@@ -223,6 +223,60 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 	})
 }
 
+func TestFailedPolicyAutomationActivities(t *testing.T) {
+	t.Run("conditional access", func(t *testing.T) {
+		act := ActivityTypeFailedConditionalAccessPolicyAutomation{
+			PolicyID:      15,
+			HostIDList:    []uint{43},
+			StatusCode:    500,
+			ErrorResponse: "500: upstream error",
+		}
+
+		assert.Equal(t, "failed_conditional_access_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "500: upstream error", got["error_response"])
+	})
+}
+
+func TestSuccessPolicyAutomationActivities(t *testing.T) {
+	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
+	// host ID list or a policy name (both are intentionally omitted; hosts
+	// live one-per-row in activity_host_past).
+	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
+		t.Helper()
+		_, hasHostIDs := got["host_ids"]
+		assert.False(t, hasHostIDs)
+		_, hasPolicyName := got["policy_name"]
+		assert.False(t, hasPolicyName)
+	}
+
+	t.Run("single sign-on blocked", func(t *testing.T) {
+		act := ActivityTypeBlockedSingleSignOnPolicyAutomation{
+			PolicyID:   15,
+			HostIDList: []uint{43},
+		}
+
+		assert.Equal(t, "blocked_single_sign_on_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
+}
+
 // TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext exercises the
 // scenario where a VPP install is attempted during setup experience for a
 // host that has other upcoming activities queued. If the VPP call fails
