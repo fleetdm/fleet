@@ -329,6 +329,34 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Ocenaudio from "./Ocenaudio";
+import OkJson from "./OkJson";
+import Omnidisksweeper from "./Omnidisksweeper";
+import Omnifocus from "./Omnifocus";
+import Omnioutliner from "./Omnioutliner";
+import Omniplan from "./Omniplan";
+import OneSwitch from "./OneSwitch";
+import Onionshare from "./Onionshare";
+import Onlyoffice from "./Onlyoffice";
+import OnlySwitch from "./OnlySwitch";
+import OpalComposer from "./OpalComposer";
+import Openaudible from "./Openaudible";
+import Openboard from "./Openboard";
+import Opencloud from "./Opencloud";
+import OpencodeDesktop from "./OpencodeDesktop";
+import Openinterminal from "./Openinterminal";
+import Openlens from "./Openlens";
+import Openmtp from "./Openmtp";
+import Openrct2 from "./Openrct2";
+import Openrefine from "./Openrefine";
+import Opentoonz from "./Opentoonz";
+import OptimusPlayer from "./OptimusPlayer";
+import OrigamiStudio from "./OrigamiStudio";
+import Osquery from "./Osquery";
+import Outset from "./Outset";
+import Overflow from "./Overflow";
+import Oversight from "./Oversight";
+import Owncloud from "./Owncloud";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +697,34 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  ocenaudio: Ocenaudio,
+  "ok json": OkJson,
+  omnidisksweeper: Omnidisksweeper,
+  omnifocus: Omnifocus,
+  omnioutliner: Omnioutliner,
+  omniplan: Omniplan,
+  "one switch": OneSwitch,
+  onionshare: Onionshare,
+  onlyoffice: Onlyoffice,
+  onlyswitch: OnlySwitch,
+  "opal composer": OpalComposer,
+  openaudible: Openaudible,
+  openboard: Openboard,
+  "opencloud desktop": Opencloud,
+  opencode: OpencodeDesktop,
+  openinterminal: Openinterminal,
+  openlens: Openlens,
+  openmtp: Openmtp,
+  openrct2: Openrct2,
+  openrefine: Openrefine,
+  opentoonz: Opentoonz,
+  "optimus player": OptimusPlayer,
+  "origami studio": OrigamiStudio,
+  osquery: Osquery,
+  outset: Outset,
+  overflow: Overflow,
+  oversight: Oversight,
+  owncloud: Owncloud,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
