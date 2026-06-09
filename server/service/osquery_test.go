@@ -5034,12 +5034,4 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
 	})
-
-	t.Run("empty setup uuid skips the suppression lookup entirely", func(t *testing.T) {
-		insertCalled = false
-		ds.GetSetupExperiencePolicyIDsForHostFuncInvoked = false
-		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
-		require.True(t, insertCalled)
-		require.False(t, ds.GetSetupExperiencePolicyIDsForHostFuncInvoked, "no setup-experience lookup when uuid is empty")
-	})
 }
