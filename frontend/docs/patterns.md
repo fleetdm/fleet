@@ -542,7 +542,7 @@ const PageOrComponent = ({
 
 ## Command palette
 
-The command palette is the keyboard surface for navigation and global actions. A feature that isn't there might as well not exist for power users — but only the right kinds of features belong here.
+The command palette is the keyboard surface for navigation and global actions. Power users discover features through it, so a missing entry is easy for them to overlook — but only the right kinds of features belong here.
 
 Source: `frontend/components/CommandPalette/`. Items are defined per group under `groups/`.
 
