@@ -25,7 +25,6 @@ import {
   ILabelTabConfig,
   LabelTargetMode,
   TargetType,
-  generateCustomTargetLabelKey,
 } from "components/TargetLabelSelector";
 import ProfileGraphic from "../ProfileGraphic";
 
@@ -35,6 +34,7 @@ import {
   IParseFileResult,
   parseFile,
 } from "../../helpers";
+import generateCustomTargetLabelKey from "./helpers";
 
 const baseClass = "add-profile-modal";
 

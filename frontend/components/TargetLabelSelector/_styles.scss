@@ -71,7 +71,7 @@
     align-items: center;
 
     &__label {
-      width: 490px;
+      max-width: 490px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

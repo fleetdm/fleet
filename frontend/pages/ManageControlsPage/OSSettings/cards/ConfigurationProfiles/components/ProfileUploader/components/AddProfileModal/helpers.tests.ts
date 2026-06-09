@@ -1,6 +1,6 @@
-import { generateCustomTargetLabelKey } from "./helpers";
+import generateCustomTargetLabelKey from "./helpers";
 
-describe("generateCustomTargetLabelKey (tabbed)", () => {
+describe("generateCustomTargetLabelKey", () => {
   it("returns empty object when target is not Custom", () => {
     expect(
       generateCustomTargetLabelKey({
@@ -34,7 +34,7 @@ describe("generateCustomTargetLabelKey (tabbed)", () => {
     ).toEqual({ labelsIncludeAll: ["foo"] });
   });
 
-  it("defaults exclude to labelsExcludeAny", () => {
+  it("returns labelsExcludeAny when exclude labels are selected", () => {
     expect(
       generateCustomTargetLabelKey({
         targetType: "Custom",
@@ -43,18 +43,6 @@ describe("generateCustomTargetLabelKey (tabbed)", () => {
         excludeLabels: { bar: true },
       })
     ).toEqual({ labelsExcludeAny: ["bar"] });
-  });
-
-  it("returns labelsExcludeAll when exclude mode is all", () => {
-    expect(
-      generateCustomTargetLabelKey({
-        targetType: "Custom",
-        includeMode: "any",
-        includeLabels: {},
-        excludeLabels: { bar: true },
-        excludeMode: "all",
-      })
-    ).toEqual({ labelsExcludeAll: ["bar"] });
   });
 
   it("returns both include and exclude keys when both have selections", () => {

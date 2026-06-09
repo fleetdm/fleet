@@ -38,7 +38,7 @@ const TargetChooser = ({
         className={`${baseClass}__radio-input`}
         label="All hosts"
         id="all-hosts-target-radio-btn"
-        checked={!disableOptions && selectedTarget === "All hosts"}
+        checked={selectedTarget === "All hosts"}
         value="All hosts"
         name="target-type"
         onChange={onSelect}

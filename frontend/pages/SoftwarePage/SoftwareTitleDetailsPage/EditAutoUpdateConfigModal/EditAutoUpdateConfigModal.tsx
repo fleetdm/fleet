@@ -84,7 +84,7 @@ const EditAutoUpdateConfigModal = ({
     ),
   });
 
-  // Fetch labels for TargetLabelSelector
+  // Fetch labels for DropdownTargetLabelSelector
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),

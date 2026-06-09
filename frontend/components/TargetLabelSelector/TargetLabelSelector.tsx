@@ -15,11 +15,10 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
-import { LabelTargetMode, TargetType } from "./helpers";
-
 const baseClass = "target-label-selector";
 
-export type { LabelTargetMode };
+export type LabelTargetMode = "any" | "all";
+export type TargetType = "All hosts" | "Custom";
 
 export interface ILabelTabConfig {
   selectedLabels: Record<string, boolean>;
@@ -334,7 +333,7 @@ const TargetTypeChooser = ({
       className={`${baseClass}__radio-input`}
       label="All hosts"
       id="all-hosts-target-radio-btn"
-      checked={!disableOptions && selectedTargetType === "All hosts"}
+      checked={selectedTargetType === "All hosts"}
       value="All hosts"
       name="target-type"
       onChange={(val: string) => onSelectTargetType(val as TargetType)}
