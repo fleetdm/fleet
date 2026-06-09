@@ -295,14 +295,28 @@ import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
 import Utm from "./Utm";
+import Vanilla from "./Vanilla";
 import VcRedistX64 from "./VcRedistX64";
+import Vellum from "./Vellum";
+import VernierSpectralAnalysis from "./VernierSpectralAnalysis";
+import Versions from "./Versions";
+import Via from "./Via";
+import Vimcal from "./Vimcal";
 import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
+import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import VividApp from "./VividApp";
+import Viz from "./Viz";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import Voiceink from "./Voiceink";
+import VpnTracker365 from "./VpnTracker365";
 import VsCodium from "./VsCodium";
+import Vuescan from "./Vuescan";
+import Vyprvpn from "./Vyprvpn";
+import Vysor from "./Vysor";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
 import Wave from "./Wave";
@@ -667,13 +681,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tunnelblick: Tunnelblick,
   twingate: Twingate,
   utm: Utm,
+  vanilla: Vanilla,
+  vellum: Vellum,
+  "vernier spectral analysis": VernierSpectralAnalysis,
+  versions: Versions,
+  via: Via,
+  vimcal: Vimcal,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,
   viscosity: Viscosity,
-  "vnc viewer": VncViewer,
+  "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivid: VividApp,
+  viz: Viz,
   vlc: Vlc,
+  "vnc viewer": VncViewer,
+  voiceink: Voiceink,
+  "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
+  vuescan: Vuescan,
+  vyprvpn: Vyprvpn,
+  vysor: Vysor,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,

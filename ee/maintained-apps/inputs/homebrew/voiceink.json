@@ -1,0 +1,10 @@
+{
+  "name": "VoiceInk",
+  "unique_identifier": "com.prakashjoshipax.VoiceInk",
+  "token": "voiceink",
+  "installer_format": "dmg",
+  "slug": "voiceink/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
