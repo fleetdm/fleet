@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.8.0",
+      "version": "3.9.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'OpenVPN Connect %' AND publisher = 'OpenVPN Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'OpenVPN Connect %' AND publisher = 'OpenVPN Inc.' AND version_compare(version, '3.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'OpenVPN Connect %' AND publisher = 'OpenVPN Inc.' AND version_compare(version, '3.9.0') < 0);"
       },
-      "installer_url": "https://packages.openvpn.net/connect/v3/openvpn-connect-3.8.0.4528_signed.msi",
+      "installer_url": "https://packages.openvpn.net/connect/v3/openvpn-connect-3.9.0.5008_signed.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "9f994a0b",
-      "sha256": "cc741664d07fd4eedc98103edb86b791d290640a969c288c3d1cb2d0b6de98ce",
+      "sha256": "31347812dd37dbbb69bc47de842eb179827266e9dfb45e7f6ce10c5d71a5bad6",
       "default_categories": [
         "Productivity"
       ],

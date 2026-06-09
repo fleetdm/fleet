@@ -1,0 +1,10 @@
+{
+  "name": "UnicodeChecker",
+  "unique_identifier": "net.earthlingsoft.UnicodeChecker",
+  "token": "unicodechecker",
+  "installer_format": "zip",
+  "slug": "unicodechecker/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

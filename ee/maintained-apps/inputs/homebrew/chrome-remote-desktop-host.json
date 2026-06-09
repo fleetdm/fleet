@@ -1,0 +1,10 @@
+{
+  "name": "Chrome Remote Desktop",
+  "unique_identifier": "com.google.chromeremotedesktop.me2me-host-uninstaller",
+  "token": "chrome-remote-desktop-host",
+  "installer_format": "dmg",
+  "slug": "chrome-remote-desktop-host/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

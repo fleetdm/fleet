@@ -1,0 +1,10 @@
+{
+  "name": "UA Connect",
+  "unique_identifier": "com.uaudio.ua-connect",
+  "token": "ua-connect",
+  "installer_format": "dmg",
+  "slug": "ua-connect/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

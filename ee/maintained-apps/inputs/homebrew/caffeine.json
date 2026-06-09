@@ -1,0 +1,10 @@
+{
+  "name": "Caffeine",
+  "unique_identifier": "com.intelliscapesolutions.caffeine",
+  "token": "caffeine",
+  "installer_format": "dmg",
+  "slug": "caffeine/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

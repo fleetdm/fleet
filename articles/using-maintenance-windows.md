@@ -6,13 +6,11 @@ When a host fails a policy (e.g. MDM enrollment profile expired, disk encryption
 
 * What’s wrong (based on policy description)
 * What to do (from the policy resolution field)
-* A scheduled time (next available slot on Tuesday, 9–5 local time)
+* A scheduled time (next available slot on the next business day, 9–5 local time)
 
 The user can reschedule if needed—Fleet will respect the new time and run the remediation then.
 
 You can customize these flows with a webhook (e.g. Tines) to run scripts, use the Fleet API, or call MDM commands.
-
-> 🔜 Auto-remediation for patching (OS updates, software) is coming soon.
 
 ### Setup
 
@@ -29,8 +27,8 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
   * If multiple Google Chrome profile emails exist, Fleet selects the first one alphabetically
   * Third priority: other email sources
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
-* If a user moves the event to before the current time, Fleet shifts it to the next day.
-* If a user deletes the event, Fleet automatically reschedules it for the next day.
+* If a user moves the event to before the current time, Fleet shifts it to the next business day.
+* If a user deletes the event, Fleet automatically reschedules it for the next business day.
 * Fleet monitors calendar changes in real time (reschedules within ~30 seconds), but only for events in the upcoming week. Events further out are updated within 30 minutes.
 
 ### What happens when a policy fails?
