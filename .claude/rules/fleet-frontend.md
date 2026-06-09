@@ -109,17 +109,7 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
 
 ## Command palette
-The command palette (`frontend/components/CommandPalette/groups/`) is for navigation and global actions — not per-entity operations. Row-level actions like "edit this label" or "delete this host" stay on the entity's row, not in the palette.
-
-Add a palette entry when introducing:
-- A new top-level page or sub-page
-- A new global create action (e.g., "Add report" — opens a blank form, not "edit row X")
-- A new singleton config action where the entity is implicit (e.g., "Edit Apple MDM", "Turn on Windows MDM")
-- A view-by-search flow that lets the user pick an entity to navigate to (e.g., "View host")
-
-Keyword authoring is label-first: any label match outranks any keyword match, so keywords are for words **not already in the label** (synonyms, acronyms, platform aliases). Permission gating must mirror the destination page exactly — don't route users to a screen they can't use.
-
-See `frontend/docs/patterns.md` (Command palette section) for required/optional fields, the full keyword/synonym checklist, and test expectations.
+If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, or add a new global create / automation / settings action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. Per-entity (row-level) actions don't belong in the palette.
 
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
