@@ -1351,9 +1351,25 @@ func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) e
 func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	var toApplyProfiles, toRemoveProfiles []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var installCursorPred, removeCursorPred string
+		var args []any
+		if cursor != "" {
+			installCursorPred = "AND ds.host_uuid > ?"
+			removeCursorPred = "AND hmap.host_uuid > ?"
+			args = []any{cursor, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, cursor}
+		} else {
+			args = []any{fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending}
+		}
+
+		var limitClause string
+		if batchSize > 0 {
+			limitClause = fmt.Sprintf("LIMIT %d", batchSize)
+		}
+
 		hostsWithChangesStmt := fmt.Sprintf(`
 	WITH ds AS ( %s )
 
+	SELECT host_uuid FROM (
 	SELECT
 		DISTINCT ds.host_uuid
 	FROM ds
@@ -1374,6 +1390,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 			-- profile needs retry (status reset to NULL after transient failure)
 			hmap.status IS NULL
 		)
+		%s
 
 	UNION
 
@@ -1394,7 +1411,15 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 		ds.host_uuid IS NULL AND
 		-- and it is not in pending remove status (in which case it was processed)
 		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )
-`, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
+		%s
+	) AS all_changes
+	ORDER BY host_uuid
+	%s
+`, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"),
+			installCursorPred,
+			removeCursorPred,
+			limitClause,
+		)
 
 		// NOTE: we explicitly don't "ignore" profiles to remove based on broken labels,
 		// because of how Android profiles are applied vs other platforms (ignoring
@@ -1407,23 +1432,6 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 		// profiles from the host.
 		//
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
-
-		args := []any{fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending}
-		if cursor != "" {
-			hostsWithChangesStmt = fmt.Sprintf(
-				`SELECT host_uuid FROM (%s) AS all_hosts WHERE host_uuid > ? ORDER BY host_uuid`,
-				hostsWithChangesStmt,
-			)
-			args = append(args, cursor)
-		} else {
-			hostsWithChangesStmt = fmt.Sprintf(
-				`SELECT host_uuid FROM (%s) AS all_hosts ORDER BY host_uuid`,
-				hostsWithChangesStmt,
-			)
-		}
-		if batchSize > 0 {
-			hostsWithChangesStmt += fmt.Sprintf(` LIMIT %d`, batchSize)
-		}
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt, args...); err != nil {
