@@ -43,8 +43,11 @@ sequenceDiagram
     participant IdP
     participant Apple
     activate ios
+    fleet->>fleet: Run service discovery cron to assign<br>unique token URL to each ABM token
     ios->>+Apple: [Fallback]<br>GET /.well-known/com.apple.remotemanagement
-    Apple-->>-ios: MDM enrollment URL
+    Apple-->>-ios: OK<br>/mdm/apple/service_discovery/{token}
+    ios->>+fleet: GET /mdm/apple/service_discovery/{token}
+    fleet-->>-ios: 200 OK<br>Payload containing /api/mdm/apple/account_driven_enroll/{token}
     ios->>+fleet: POST /api/mdm/apple/account_driven_enroll/{token}
     fleet-->>-ios: 401 WWW-Authenticate<br>/mdm/apple/account_driven_enroll/sso?initiator=account_driven_enroll:{token}
     alt SAML
@@ -67,7 +70,7 @@ sequenceDiagram
     ios->>ios: Enter Apple credentials
     ios->>fleet: Get SCEP certificate flow
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: Authenticate
-    fleet->>fleet: Lookup Bearer token for ADUE challenge, and assign the host to the team referenced.
+    fleet->>fleet: Lookup Bearer token for ADUE challenge<br>and assign the host to the team referenced.
     fleet-->>-ios: OK
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: TokenUpdate
     fleet-->>-ios: OK
