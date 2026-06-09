@@ -3,10 +3,6 @@ name: Build Fleet Desktop (macOS)
 # Builds the native macOS Fleet Desktop app (fleet-desktop-macos/), code signs
 # and notarizes it with Fleet's Developer ID certificates, and uploads the signed
 # .pkg as a workflow artifact. No GitHub Release is created.
-#
-# Signing/notarization run only on push to main and manual dispatch — pull
-# requests (including from forks) only verify that the app compiles and packages,
-# since fork PRs don't have access to the signing secrets.
 
 on:
   push:
@@ -61,11 +57,7 @@ jobs:
           chmod +x build.sh build-pkg.sh
           ./build-pkg.sh
 
-      # Signing and notarization require Fleet's secrets, which are unavailable to
-      # fork PRs. Gate every signing step on a non-PR event so PRs still verify the
-      # build compiles and packages.
       - name: Import Developer ID certificates
-        if: github.event_name != 'pull_request'
         env:
           APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
           APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
@@ -91,7 +83,6 @@ jobs:
           security find-identity -vv
 
       - name: Code sign app
-        if: github.event_name != 'pull_request'
         run: |
           BINARY_PATH="build/Fleet Desktop.app/Contents/MacOS/FleetDesktop"
 
@@ -107,13 +98,11 @@ jobs:
           codesign --display --verbose=4 "build/Fleet Desktop.app"
 
       - name: Rebuild pkg with signed app
-        if: github.event_name != 'pull_request'
         run: |
           # build-pkg.sh reuses the already-signed app (ditto preserves the signature).
           ./build-pkg.sh
 
       - name: Sign pkg
-        if: github.event_name != 'pull_request'
         run: |
           VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "FleetDesktop/Info.plist")
           UNSIGNED_PKG="build/dist/fleet_desktop-v${VERSION}.pkg"
@@ -131,7 +120,6 @@ jobs:
           pkgutil --check-signature "$UNSIGNED_PKG"
 
       - name: Notarize pkg
-        if: github.event_name != 'pull_request'
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -163,7 +151,6 @@ jobs:
           spctl --assess --type install --verbose "$PKG_PATH"
 
       - name: Cleanup keychain
-        if: always() && github.event_name != 'pull_request'
         run: security delete-keychain build.keychain || true
 
       - name: Upload pkg artifact
