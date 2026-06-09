@@ -2984,13 +2984,6 @@
       "description": "Vellum is an ebook creation software."
     },
     {
-      "name": "VeraCrypt",
-      "slug": "veracrypt/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.idrix.VeraCrypt",
-      "description": "VeraCrypt is a disk encryption software focusing on security based on TrueCrypt."
-    },
-    {
       "name": "Vernier Spectral Analysis",
       "slug": "vernier-spectral-analysis/darwin",
       "platform": "darwin",
@@ -3129,13 +3122,6 @@
       "platform": "windows",
       "unique_identifier": "RealVNC Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
-    },
-    {
-      "name": "VNote",
-      "slug": "vnote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.vnotex.vnote",
-      "description": "VNote is an app for note-taking platform."
     },
     {
       "name": "VoiceInk",

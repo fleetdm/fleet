@@ -298,7 +298,6 @@ import Utm from "./Utm";
 import Vanilla from "./Vanilla";
 import VcRedistX64 from "./VcRedistX64";
 import Vellum from "./Vellum";
-import Veracrypt from "./Veracrypt";
 import VernierSpectralAnalysis from "./VernierSpectralAnalysis";
 import Versions from "./Versions";
 import Via from "./Via";
@@ -312,7 +311,6 @@ import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
-import Vnote from "./Vnote";
 import Voiceink from "./Voiceink";
 import VpnTracker365 from "./VpnTracker365";
 import VsCodium from "./VsCodium";
@@ -685,7 +683,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   utm: Utm,
   vanilla: Vanilla,
   vellum: Vellum,
-  veracrypt: Veracrypt,
   "vernier spectral analysis": VernierSpectralAnalysis,
   versions: Versions,
   via: Via,
@@ -699,7 +696,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viz: Viz,
   vlc: Vlc,
   "vnc viewer": VncViewer,
-  vnote: Vnote,
   voiceink: Voiceink,
   "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
