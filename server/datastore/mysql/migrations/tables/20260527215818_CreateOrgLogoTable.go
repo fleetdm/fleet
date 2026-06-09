@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260608173427, Down_20260608173427)
+	MigrationClient.AddMigration(Up_20260527215818, Down_20260527215818)
 }
 
-func Up_20260608173427(tx *sql.Tx) error {
+func Up_20260527215818(tx *sql.Tx) error {
 	if _, err := tx.Exec(`CREATE TABLE org_logo (
 		mode        VARCHAR(10)  NOT NULL,
 		data        MEDIUMBLOB   NOT NULL,
@@ -21,6 +21,6 @@ func Up_20260608173427(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260608173427(tx *sql.Tx) error {
+func Down_20260527215818(tx *sql.Tx) error {
 	return nil
 }
