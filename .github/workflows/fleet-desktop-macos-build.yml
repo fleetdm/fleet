@@ -135,10 +135,15 @@ jobs:
             --wait --timeout 30m 2>&1) || NOTARIZATION_FAILED=true
           echo "$SUBMISSION_OUTPUT"
 
-          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | grep -i "id:" | head -1 | awk '{print $2}' | tr -d ',' || echo "")
+          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | grep -i "id:" | head -1 | awk '{print $NF}' | tr -d ',' || echo "")
+          STATUS=$(echo "$SUBMISSION_OUTPUT" | grep -i "status:" | tail -1 | awk '{print $NF}' || echo "")
 
-          if [ "${NOTARIZATION_FAILED:-false}" = "true" ] || echo "$SUBMISSION_OUTPUT" | grep -qi "Invalid\|failed\|error"; then
-            echo "::error::Notarization failed!"
+          # Fail closed: only an explicit "Accepted" passes. notarytool statuses
+          # are Accepted / In Progress / Invalid / Rejected — a broad grep for
+          # "failed|error" would let a "Rejected" submission slip through as
+          # success, and notarytool can exit 0 even on a rejected package.
+          if [ "${NOTARIZATION_FAILED:-false}" = "true" ] || [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed (status: ${STATUS:-unknown})"
             if [ -n "$SUBMISSION_ID" ]; then
               xcrun notarytool log "$SUBMISSION_ID" \
                 --apple-id "$AC_USERNAME" --password "$AC_PASSWORD" --team-id "$AC_TEAM_ID" || true
