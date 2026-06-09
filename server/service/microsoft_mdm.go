@@ -3955,25 +3955,25 @@ func executeWindowsProfileReconcileBatch(
 		removedURIs := locURIsFor(profUUID)
 
 		type removeGroup struct {
-			activeLocURIs map[string]bool
+			activeLocURIs map[string]struct{}
 			hostUUIDs     []string
 		}
 		groups := make(map[string]*removeGroup)
 		for _, hostUUID := range target.hostUUIDs {
-			active := make(map[string]bool)
+			active := make(map[string]struct{})
 			for _, desiredUUID := range desiredByHost[hostUUID] {
 				if desiredUUID == profUUID {
 					continue
 				}
 				for _, uri := range locURIsFor(desiredUUID) {
-					active[uri] = true
+					active[uri] = struct{}{}
 				}
 			}
 			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
 			// single command; the common (no label) case collapses to one group.
 			var keyURIs []string
 			for _, uri := range removedURIs {
-				if active[uri] {
+				if _, ok := active[uri]; ok {
 					keyURIs = append(keyURIs, uri)
 				}
 			}
