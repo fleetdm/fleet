@@ -11,7 +11,7 @@ func init() {
 
 func Up_20260609143000(tx *sql.Tx) error {
 	// When a Windows MDM configuration profile is deleted, its <Delete> commands cannot be generated until the profile-manager cron
-	// reconciles the surviving host_mdm_windows_profiles rows - but the SyncML those <Delete> commands are built from lives only on the
+	// reconciles the surviving host_mdm_windows_profiles rows, but the SyncML those <Delete> commands are built from lives only on the
 	// now-deleted definition row. This table retains that content (profile_uuid, team_id, name, syncml) past the logical delete so the
 	// cron can own removals asynchronously in its bounded 2,000-host batches, the same way it already owns team-transfer removals. That
 	// makes the delete endpoints O(profiles) instead of O(profiles x hosts), fixing the large-removal timeout.
@@ -19,15 +19,15 @@ func Up_20260609143000(tx *sql.Tx) error {
 	// It is a separate table rather than an in-place soft delete (a deleted_at column) because UNIQUE(team_id, name) on
 	// mdm_windows_configuration_profiles would otherwise block re-adding a same-named profile while the deleted row lingered.
 	//
-	// Rows are garbage-collected by age (created_at < cutoff, default 7-day grace) once the grace period - far longer than a full-fleet
-	// drain - elapses; the created_at index serves that range delete.
+	// Rows are garbage-collected by age (created_at < cutoff, default 7-day grace) once the grace period elapses; the created_at
+	// index serves that range delete.
 	if _, err := tx.Exec(`
 		CREATE TABLE mdm_windows_configuration_profiles_pending_delete (
-			profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-			team_id      INT UNSIGNED NOT NULL,
+			profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+			team_id      INT UNSIGNED NOT NULL DEFAULT 0,
 			name         VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			syncml       MEDIUMBLOB NOT NULL,
-			created_at   DATETIME(6) NOT NULL,
+			created_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (profile_uuid),
 			KEY idx_win_cfg_prof_pending_delete_created_at (created_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`); err != nil {

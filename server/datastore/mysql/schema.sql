@@ -1969,11 +1969,11 @@ CREATE TABLE `mdm_windows_configuration_profiles` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `mdm_windows_configuration_profiles_pending_delete` (
-  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `team_id` int unsigned NOT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `team_id` int unsigned NOT NULL DEFAULT '0',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `syncml` mediumblob NOT NULL,
-  `created_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`profile_uuid`),
   KEY `idx_win_cfg_prof_pending_delete_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

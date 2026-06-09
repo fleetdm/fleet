@@ -1723,8 +1723,8 @@ func (ds *Datastore) copyWindowsConfigProfilesToPendingDeleteDB(ctx context.Cont
 		return nil
 	}
 	stmt, args, err := sqlx.In(`
-		INSERT INTO mdm_windows_configuration_profiles_pending_delete (profile_uuid, team_id, name, syncml, created_at)
-		SELECT profile_uuid, team_id, name, syncml, NOW(6)
+		INSERT INTO mdm_windows_configuration_profiles_pending_delete (profile_uuid, team_id, name, syncml)
+		SELECT profile_uuid, team_id, name, syncml
 		FROM mdm_windows_configuration_profiles
 		WHERE profile_uuid IN (?)
 		ON DUPLICATE KEY UPDATE created_at = NOW(6)`, profileUUIDs)
