@@ -329,6 +329,15 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import UaConnect from "./UaConnect";
+import Ukelele from "./Ukelele";
+import UltimakerCura from "./UltimakerCura";
+import Unclutter from "./Unclutter";
+import Unicodechecker from "./Unicodechecker";
+import UnityHub from "./UnityHub";
+import Updf from "./Updf";
+import Upscayl from "./Upscayl";
+import UsageApp from "./UsageApp";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +678,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "ua connect": UaConnect,
+  ukelele: Ukelele,
+  "ultimaker cura": UltimakerCura,
+  unclutter: Unclutter,
+  unicodechecker: Unicodechecker,
+  "unity hub": UnityHub,
+  updf: Updf,
+  upscayl: Upscayl,
+  usage: UsageApp,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
