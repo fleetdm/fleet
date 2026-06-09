@@ -758,13 +758,6 @@
       "description": "ChatWise is an AI chatbot for many LLMs."
     },
     {
-      "name": "ChatWork",
-      "slug": "chatwork/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.chatwork",
-      "description": "ChatWork is a group chat software."
-    },
-    {
       "name": "Cheetah3D",
       "slug": "cheetah3d/darwin",
       "platform": "darwin",

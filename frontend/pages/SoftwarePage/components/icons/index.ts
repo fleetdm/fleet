@@ -145,7 +145,6 @@ import Charmstone from "./Charmstone";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
-import Chatwork from "./Chatwork";
 import Cheetah3D from "./Cheetah3D";
 import CherryStudio from "./CherryStudio";
 import Chime from "./Chime";
@@ -512,7 +511,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   chatgpt: ChatGpt,
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
-  chatwork: Chatwork,
   cheetah3d: Cheetah3D,
   "cherry studio": CherryStudio,
   chime: Chime,
