@@ -451,7 +451,9 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 	// every in-scope policy has reported a pass. While some have not reported yet (and none has failed), keep waiting.
 	anyPending := false
 	for idStr := range inScope {
-		policyID, err := strconv.ParseUint(idStr, 10, 64)
+		// Policy IDs are MySQL int unsigned (32-bit); parse with bitSize 32 so the uint() conversion below is a safe widening
+		// (matches how the rest of the codebase parses ID strings, e.g. transport.go).
+		policyID, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parse gating policy id")
 		}
