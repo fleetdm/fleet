@@ -1,1 +1,0 @@
-- Added per-host activity log entries when policy ticket automations (Jira or Zendesk) fail after all retries are exhausted or succeed (ticket created).
