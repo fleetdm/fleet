@@ -471,7 +471,7 @@ const ManageAutomationsModal = ({
           type="button"
           variant="inverse"
           onClick={togglePreviewPayloadModal}
-          disabled={!softwareAutomationsEnabled}
+          disabled={!softwareAutomationsEnabled && !gitOpsModeEnabled}
         >
           Example payload
         </Button>

@@ -241,16 +241,6 @@ const OtherWorkflowsModal = forwardRef<
           tooltip="Provide a URL to deliver a webhook request to."
           disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
         />
-        <RevealButton
-          isShowing={showExamplePayload}
-          className={baseClass}
-          hideText="Example payload"
-          showText="Example payload"
-          caretPosition="after"
-          onClick={() => setShowExamplePayload(!showExamplePayload)}
-          disabled={!isPolicyAutomationsEnabled}
-        />
-        {showExamplePayload && <ExamplePayload />}
       </>
     );
 
@@ -353,6 +343,20 @@ const OtherWorkflowsModal = forwardRef<
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
         </div>
+        {isWebhookEnabled && (
+          <>
+            <RevealButton
+              isShowing={showExamplePayload}
+              className={baseClass}
+              hideText="Example payload"
+              showText="Example payload"
+              caretPosition="after"
+              onClick={() => setShowExamplePayload(!showExamplePayload)}
+              disabled={!isPolicyAutomationsEnabled && !gitOpsModeEnabled}
+            />
+            {showExamplePayload && <ExamplePayload />}
+          </>
+        )}
       </div>
     );
   }
