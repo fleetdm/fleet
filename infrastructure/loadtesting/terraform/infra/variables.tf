@@ -60,9 +60,7 @@ variable "redis_instance_count" {
   }
 }
 
-# The following three variables let load tests optionally run against Valkey instead of
-# Redis. Defaults preserve the existing Redis 7.1 behavior. To provision Valkey, set all
-# three to a matching set, e.g.:
+# Optional Valkey support. Defaults keep Redis 7.1. For Valkey, set all three, e.g.:
 #   -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
 variable "redis_engine" {
   description = "The Elasticache engine to use: \"redis\" or \"valkey\"."
@@ -86,12 +84,9 @@ variable "redis_parameter_group_family" {
   type        = string
   default     = "redis7"
 
-  # Enforce only the durable invariant: the family must belong to the chosen engine
-  # (Elasticache families are named "redis*" / "valkey*"). The set of valid engine
-  # versions is owned by Elasticache and changes over time, so it is intentionally not
-  # pinned here -- an incompatible engine_version/family pair still fails fast at apply
-  # via the AWS API. Use `aws elasticache describe-cache-engine-versions --engine <engine>`
-  # to find valid version/family pairs.
+  # Family must match the engine ("redis*" / "valkey*"). Versions aren't pinned here;
+  # bad version/family pairs fail at apply. Find valid pairs with:
+  #   aws elasticache describe-cache-engine-versions --engine <engine>
   validation {
     condition     = startswith(var.redis_parameter_group_family, var.redis_engine)
     error_message = "var.redis_parameter_group_family must match var.redis_engine: use a \"redis*\" family (e.g. redis7) for the \"redis\" engine, or a \"valkey*\" family (e.g. valkey7, valkey8) for the \"valkey\" engine."
