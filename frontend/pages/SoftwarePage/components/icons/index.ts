@@ -329,6 +329,29 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Lapce from "./Lapce";
+import LassoApp from "./LassoApp";
+import LastWindowQuits from "./LastWindowQuits";
+import Latest from "./Latest";
+import Launchbar from "./Launchbar";
+import Lightburn from "./Lightburn";
+import Linearmouse from "./Linearmouse";
+import LingonX from "./LingonX";
+import Local from "./Local";
+import Localsend from "./Localsend";
+import Locationsimulator from "./Locationsimulator";
+import Logseq from "./Logseq";
+import Lookaway from "./Lookaway";
+import Loop from "./Loop";
+import Loopback from "./Loopback";
+import LoRain from "./LoRain";
+import Losslesscut from "./Losslesscut";
+import LowProfile from "./LowProfile";
+import Lunacy from "./Lunacy";
+import Lunar from "./Lunar";
+import Lunasea from "./Lunasea";
+import Lunatask from "./Lunatask";
+import Lycheeslicer from "./Lycheeslicer";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +692,29 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  lapce: Lapce,
+  lasso: LassoApp,
+  "last window quits": LastWindowQuits,
+  latest: Latest,
+  launchbar: Launchbar,
+  lightburn: Lightburn,
+  linearmouse: Linearmouse,
+  "lingon x": LingonX,
+  "lo-rain": LoRain,
+  local: Local,
+  localsend: Localsend,
+  locationsimulator: Locationsimulator,
+  logseq: Logseq,
+  lookaway: Lookaway,
+  loop: Loop,
+  loopback: Loopback,
+  losslesscut: Losslesscut,
+  "low profile": LowProfile,
+  lunacy: Lunacy,
+  lunar: Lunar,
+  lunasea: Lunasea,
+  lunatask: Lunatask,
+  "lychee slicer": Lycheeslicer,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

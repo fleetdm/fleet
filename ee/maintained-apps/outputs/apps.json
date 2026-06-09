@@ -1640,6 +1640,27 @@
       "description": "Krita is a free and open-source digital painting application."
     },
     {
+      "name": "Lapce",
+      "slug": "lapce/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.lapce",
+      "description": "Lapce is an open source code editor written in Rust."
+    },
+    {
+      "name": "Lasso",
+      "slug": "lasso-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.heavylightapps.lasso",
+      "description": "Lasso is a move and resize windows with mouse."
+    },
+    {
+      "name": "Last Window Quits",
+      "slug": "last-window-quits/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.lawand.last-window-quits",
+      "description": "Last Window Quits is an automatically quit apps when their last window is closed."
+    },
+    {
       "name": "LastPass",
       "slug": "lastpass/darwin",
       "platform": "darwin",
@@ -1652,6 +1673,20 @@
       "platform": "windows",
       "unique_identifier": "LastPass",
       "description": "LastPass is a password manager."
+    },
+    {
+      "name": "Latest",
+      "slug": "latest/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.max-langer.Latest",
+      "description": "Latest is a utility that shows the latest app updates."
+    },
+    {
+      "name": "LaunchBar",
+      "slug": "launchbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "at.obdev.LaunchBar",
+      "description": "LaunchBar is a productivity tool."
     },
     {
       "name": "Lenovo Dock Manager",
@@ -1689,6 +1724,13 @@
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
+      "name": "LightBurn",
+      "slug": "lightburn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.LightBurnSoftware.LightBurn",
+      "description": "LightBurn is a layout, editing, and control software for laser cutters."
+    },
+    {
       "name": "Linear",
       "slug": "linear/darwin",
       "platform": "darwin",
@@ -1703,11 +1745,53 @@
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
+      "name": "LinearMouse",
+      "slug": "linearmouse/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lujjjh.LinearMouse",
+      "description": "LinearMouse is a tool to customise mouse behavior."
+    },
+    {
+      "name": "Lingon X",
+      "slug": "lingon-x/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.peterborgapps.LingonX9",
+      "description": "Lingon X is an automator software to start apps, run scripts or commands and more."
+    },
+    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
       "unique_identifier": "at.obdev.LittleSnitch",
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
+    },
+    {
+      "name": "lo-rain",
+      "slug": "lo-rain/darwin",
+      "platform": "darwin",
+      "unique_identifier": "lo.cafe.lo-rain",
+      "description": "lo-rain is an app that makes it rain no matter where you are, even over your apps."
+    },
+    {
+      "name": "Local",
+      "slug": "local/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getflywheel.lightning.local",
+      "description": "Local is a WordPress local development tool by Flywheel."
+    },
+    {
+      "name": "LocalSend",
+      "slug": "localsend/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.localsend.localsendApp",
+      "description": "LocalSend is an open-source cross-platform alternative to AirDrop."
+    },
+    {
+      "name": "LocationSimulator",
+      "slug": "locationsimulator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.schlaubi.LocationSimulator",
+      "description": "LocationSimulator is an application to spoof your iOS, iPadOS or iPhoneSimulator device location."
     },
     {
       "name": "Logi Options+",
@@ -1724,6 +1808,20 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logseq",
+      "slug": "logseq/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.logseq",
+      "description": "Logseq is a privacy-first, open-source platform for knowledge sharing and management."
+    },
+    {
+      "name": "LookAway",
+      "slug": "lookaway/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mysticalbits.lookaway",
+      "description": "LookAway is a break time reminder app."
+    },
+    {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
@@ -1738,11 +1836,74 @@
       "description": "Loom is screen and video recording software."
     },
     {
+      "name": "Loop",
+      "slug": "loop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.MrKai77.Loop",
+      "description": "Loop is a window manager."
+    },
+    {
+      "name": "Loopback",
+      "slug": "loopback/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rogueamoeba.Loopback",
+      "description": "Loopback is a cable-free audio router."
+    },
+    {
+      "name": "LosslessCut",
+      "slug": "losslesscut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "no.mifi.losslesscut-mac",
+      "description": "LosslessCut is a trims video and audio files losslessly."
+    },
+    {
+      "name": "Low Profile",
+      "slug": "low-profile/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ninxsoft.lowprofile",
+      "description": "Low Profile is a utility to help inspect Apple Configuration Profile payloads."
+    },
+    {
       "name": "LuLu",
       "slug": "lulu/darwin",
       "platform": "darwin",
       "unique_identifier": "com.objective-see.lulu.app",
       "description": "Open-source firewall to block unknown outgoing connections."
+    },
+    {
+      "name": "Lunacy",
+      "slug": "lunacy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.icons8.Lunacy",
+      "description": "Lunacy is a graphic design software."
+    },
+    {
+      "name": "Lunar",
+      "slug": "lunar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "fyi.lunar.Lunar",
+      "description": "Lunar is an adaptive brightness for external displays."
+    },
+    {
+      "name": "LunaSea",
+      "slug": "lunasea/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.lunasea.lunasea",
+      "description": "LunaSea is a self-hosted controller built using the Flutter framework."
+    },
+    {
+      "name": "Lunatask",
+      "slug": "lunatask/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mikekreeki.tasks",
+      "description": "Lunatask is an encrypted to-do list, habit tracker, journaling, life-tracking and notes app."
+    },
+    {
+      "name": "Lychee Slicer",
+      "slug": "lycheeslicer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mango3d.lychee",
+      "description": "Lychee Slicer is a slicer for Resin 3D printers."
     },
     {
       "name": "Maccy",
