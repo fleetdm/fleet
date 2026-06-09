@@ -107,6 +107,10 @@ type wingetIngester struct {
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
 // package version folders (semver-style). The upstream repo may add other top-level
 // folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
+// It also skips single-segment "year" folders such as "2010"/"2013"/"2019" that some
+// packages (e.g. Microsoft.Office) keep alongside their current multi-segment versions;
+// those legacy folders would otherwise outrank a real version like "16.0.19929.20062"
+// because a bare 2010 is numerically greater than 16.
 func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.RepositoryContent {
 	var out []*github.RepositoryContent
 	for _, c := range contents {
@@ -118,6 +122,9 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 			continue
 		}
 		if name[0] < '0' || name[0] > '9' {
+			continue
+		}
+		if !strings.Contains(name, ".") {
 			continue
 		}
 		out = append(out, c)

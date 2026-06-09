@@ -51,6 +51,13 @@
       "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
+      "name": "Ableton Live Suite",
+      "slug": "ableton-live-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ableton.live",
+      "description": "Ableton Live Suite is a sound and music editor."
+    },
+    {
       "name": "Abstract",
       "slug": "abstract/darwin",
       "platform": "darwin",
@@ -1276,6 +1283,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git",
+      "slug": "git/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git is a free and open source distributed version control system designed to handle everything from small to very large projects."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -1806,6 +1820,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.Excel",
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
+    },
+    {
+      "name": "Microsoft Office",
+      "slug": "microsoft-office/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft 365 Apps",
+      "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
       "name": "Microsoft OneNote",
@@ -2415,6 +2436,13 @@
       "platform": "darwin",
       "unique_identifier": "com.quip.Desktop",
       "description": "Quip is a tool for teams to create living documents."
+    },
+    {
+      "name": "R for Windows",
+      "slug": "r/windows",
+      "platform": "windows",
+      "unique_identifier": "R for Windows",
+      "description": "R is a free software environment for statistical computing and graphics."
     },
     {
       "name": "Rancher Desktop",

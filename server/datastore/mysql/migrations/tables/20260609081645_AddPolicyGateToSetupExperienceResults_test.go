@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260608110503(t *testing.T) {
+func TestUp_20260609081645(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a policy and a setup-experience row before the migration so we can verify the new column and FK behavior.

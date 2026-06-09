@@ -118,6 +118,8 @@ interface ISoftwareVppFormProps {
   isLoading?: boolean;
   onCancel: () => void;
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 
 const SoftwareVppForm = ({
@@ -128,6 +130,7 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
   onClickPreviewEndUserExperience,
+  teamId,
 }: ISoftwareVppFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
@@ -270,6 +273,7 @@ const SoftwareVppForm = ({
               onClickPreviewEndUserExperience={() =>
                 onClickPreviewEndUserExperience(isAppleMobile)
               }
+              teamId={teamId}
             />
             <TargetLabelSelector
               selectedTargetType={formData.targetType}
