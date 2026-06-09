@@ -321,11 +321,6 @@ import Opera from "./Opera";
 import OptimusPlayer from "./OptimusPlayer";
 import OrbStack from "./OrbStack";
 import OrigamiStudio from "./OrigamiStudio";
-import Osquery from "./Osquery";
-import Outset from "./Outset";
-import Overflow from "./Overflow";
-import Oversight from "./Oversight";
-import Owncloud from "./Owncloud";
 import P4V from "./P4V";
 import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -794,11 +789,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "optimus player": OptimusPlayer,
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
-  osquery: Osquery,
-  outset: Outset,
-  overflow: Overflow,
-  oversight: Oversight,
-  owncloud: Owncloud,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,

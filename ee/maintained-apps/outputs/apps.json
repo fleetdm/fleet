@@ -2802,41 +2802,6 @@
       "description": "Origami Studio is a tool to design tool for interactive interfaces."
     },
     {
-      "name": "osquery",
-      "slug": "osquery/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.facebook.osquery",
-      "description": "osquery is a SQL powered operating system instrumentation and analytics."
-    },
-    {
-      "name": "outset",
-      "slug": "outset/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.macadmins.Outset",
-      "description": "outset is a process packages and scripts during boot, login, or on demand."
-    },
-    {
-      "name": "Overflow",
-      "slug": "overflow/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.stuntsoftware.Overflow3",
-      "description": "Overflow is a visual application launcher."
-    },
-    {
-      "name": "OverSight",
-      "slug": "oversight/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.objective-see.oversight",
-      "description": "OverSight is a monitors computer mic and webcam."
-    },
-    {
-      "name": "ownCloud",
-      "slug": "owncloud/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.owncloud.desktopclient",
-      "description": "ownCloud is a desktop syncing client for ownCloud."
-    },
-    {
       "name": "P4V",
       "slug": "p4v/darwin",
       "platform": "darwin",
