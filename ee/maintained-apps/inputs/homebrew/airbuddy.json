@@ -1,0 +1,10 @@
+{
+  "name": "AirBuddy",
+  "unique_identifier": "codes.rambo.AirBuddy",
+  "token": "airbuddy",
+  "installer_format": "dmg",
+  "slug": "airbuddy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

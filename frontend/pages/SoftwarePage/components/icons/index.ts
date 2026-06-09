@@ -329,6 +329,49 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import ABetterFinderRename from "./ABetterFinderRename";
+import Acorn from "./Acorn";
+import Activedock from "./Activedock";
+import Activitywatch from "./Activitywatch";
+import Actual from "./Actual";
+import Adguard from "./Adguard";
+import Adlock from "./Adlock";
+import AdvancedRenamer from "./AdvancedRenamer";
+import AffinityDesigner from "./AffinityDesigner";
+import AffinityDesigner1 from "./AffinityDesigner1";
+import AffinityPhoto from "./AffinityPhoto";
+import AffinityPhoto1 from "./AffinityPhoto1";
+import AffinityPublisher from "./AffinityPublisher";
+import AffinityPublisher1 from "./AffinityPublisher1";
+import Airbuddy from "./Airbuddy";
+import Airdroid from "./Airdroid";
+import Airparrot from "./Airparrot";
+import Airserver from "./Airserver";
+import Airtable from "./Airtable";
+import Airy from "./Airy";
+import Akiflow from "./Akiflow";
+import Alcove from "./Alcove";
+import Aldente from "./Aldente";
+import Alloy from "./Alloy";
+import AltairGraphqlClient from "./AltairGraphqlClient";
+import AltTab from "./AltTab";
+import AmadeusPro from "./AmadeusPro";
+import Amadine from "./Amadine";
+import Amethyst from "./Amethyst";
+import Amie from "./Amie";
+import AngryIpScanner from "./AngryIpScanner";
+import Antinote from "./Antinote";
+import Anydo from "./Anydo";
+import Anytype from "./Anytype";
+import Apidog from "./Apidog";
+import AppFair from "./AppFair";
+import AppiumInspector from "./AppiumInspector";
+import Applite from "./Applite";
+import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
+import Atext from "./Atext";
+import AudioHijack from "./AudioHijack";
+import AviatrixVpnClient from "./AviatrixVpnClient";
+import AxureRp from "./AxureRp";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +712,49 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "a better finder rename": ABetterFinderRename,
+  acorn: Acorn,
+  activedock: Activedock,
+  activitywatch: Activitywatch,
+  actual: Actual,
+  adguard: Adguard,
+  adlock: Adlock,
+  "advanced renamer": AdvancedRenamer,
+  "affinity designer": AffinityDesigner1,
+  "affinity designer 2": AffinityDesigner,
+  "affinity photo": AffinityPhoto1,
+  "affinity photo 2": AffinityPhoto,
+  "affinity publisher": AffinityPublisher1,
+  "affinity publisher 2": AffinityPublisher,
+  airbuddy: Airbuddy,
+  airdroid: Airdroid,
+  airparrot: Airparrot,
+  airserver: Airserver,
+  airtable: Airtable,
+  airy: Airy,
+  akiflow: Akiflow,
+  alcove: Alcove,
+  aldente: Aldente,
+  alloy: Alloy,
+  "altair graphql client": AltairGraphqlClient,
+  alttab: AltTab,
+  "amadeus pro": AmadeusPro,
+  amadine: Amadine,
+  amethyst: Amethyst,
+  amie: Amie,
+  "angry ip scanner": AngryIpScanner,
+  antinote: Antinote,
+  "any.do": Anydo,
+  anytype: Anytype,
+  apidog: Apidog,
+  "app fair": AppFair,
+  "appium inspector gui": AppiumInspector,
+  applite: Applite,
+  "asset catalog tinkerer": AssetCatalogTinkerer,
+  atext: Atext,
+  "audio hijack": AudioHijack,
+  "aviatrix vpn client": AviatrixVpnClient,
+  "axure rp": AxureRp,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
