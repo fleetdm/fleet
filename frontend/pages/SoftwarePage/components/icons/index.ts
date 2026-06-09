@@ -329,6 +329,27 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Eaglefiler from "./Eaglefiler";
+import Easydict from "./Easydict";
+import Easyfind from "./Easyfind";
+import Electronmail from "./Electronmail";
+import Electrum from "./Electrum";
+import Element from "./Element";
+import Elephas from "./Elephas";
+import ElgatoCameraHub from "./ElgatoCameraHub";
+import ElgatoCaptureDeviceUtility from "./ElgatoCaptureDeviceUtility";
+import ElgatoGameCaptureHd from "./ElgatoGameCaptureHd";
+import ElgatoWaveLink from "./ElgatoWaveLink";
+import ElmediaPlayer from "./ElmediaPlayer";
+import Emclient from "./Emclient";
+import Enpass from "./Enpass";
+import EnteAuth from "./EnteAuth";
+import EpicGames from "./EpicGames";
+import Equinox from "./Equinox";
+import Etrecheckpro from "./Etrecheckpro";
+import Exifcleaner from "./Exifcleaner";
+import Exifrenamer from "./Exifrenamer";
+import Extradock from "./Extradock";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +690,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  eaglefiler: Eaglefiler,
+  easydict: Easydict,
+  easyfind: Easyfind,
+  electronmail: Electronmail,
+  electrum: Electrum,
+  element: Element,
+  elephas: Elephas,
+  "elgato camera hub": ElgatoCameraHub,
+  "elgato capture device utility": ElgatoCaptureDeviceUtility,
+  "elgato game capture hd": ElgatoGameCaptureHd,
+  "elgato wave link": ElgatoWaveLink,
+  "elmedia player": ElmediaPlayer,
+  "em client": Emclient,
+  enpass: Enpass,
+  "ente auth": EnteAuth,
+  "epic games launcher": EpicGames,
+  equinox: Equinox,
+  etrecheck: Etrecheckpro,
+  exifcleaner: Exifcleaner,
+  exifrenamer: Exifrenamer,
+  extradock: Extradock,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

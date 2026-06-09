@@ -1,0 +1,10 @@
+{
+  "name": "Elmedia Player",
+  "unique_identifier": "com.Eltima.ElmediaPlayer.LSSharedFileList",
+  "token": "elmedia-player",
+  "installer_format": "dmg",
+  "slug": "elmedia-player/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
