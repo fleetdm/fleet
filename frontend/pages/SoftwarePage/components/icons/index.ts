@@ -329,6 +329,43 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import RadioSilence from "./RadioSilence";
+import Raindropio from "./Raindropio";
+import Rapidweaver from "./Rapidweaver";
+import RApp from "./RApp";
+import RaspberryPiImager from "./RaspberryPiImager";
+import Readest from "./Readest";
+import Recents from "./Recents";
+import RectanglePro from "./RectanglePro";
+import Recut from "./Recut";
+import RedcineXPro from "./RedcineXPro";
+import RedisPro from "./RedisPro";
+import Reflector from "./Reflector";
+import RemindersMenubar from "./RemindersMenubar";
+import RemoteBuddy from "./RemoteBuddy";
+import RemoteDesktopManager from "./RemoteDesktopManager";
+import Reqable from "./Reqable";
+import Requestly from "./Requestly";
+import Retcon from "./Retcon";
+import Retroarch from "./Retroarch";
+import Retrobatch from "./Retrobatch";
+import Rewritebar from "./Rewritebar";
+import Rightfont from "./Rightfont";
+import Ringcentral from "./Ringcentral";
+import Rive from "./Rive";
+import RiversideStudio from "./RiversideStudio";
+import Rize from "./Rize";
+import Robofont from "./Robofont";
+import Roboform from "./Roboform";
+import Rocket from "./Rocket";
+import RocketChat from "./RocketChat";
+import RocketmanChoicesPackager from "./RocketmanChoicesPackager";
+import RocketTypist from "./RocketTypist";
+import Rodecaster from "./Rodecaster";
+import RodeConnect from "./RodeConnect";
+import Roon from "./Roon";
+import Rsyncui from "./Rsyncui";
+import Runjs from "./Runjs";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +706,43 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  r: RApp,
+  "radio silence": RadioSilence,
+  "raindrop.io": Raindropio,
+  rapidweaver: Rapidweaver,
+  "raspberry pi imager": RaspberryPiImager,
+  readest: Readest,
+  recents: Recents,
+  "rectangle pro": RectanglePro,
+  recut: Recut,
+  "redcine-x pro": RedcineXPro,
+  "redis-pro": RedisPro,
+  reflector: Reflector,
+  "reminders menubar": RemindersMenubar,
+  "remote buddy": RemoteBuddy,
+  "remote desktop manager": RemoteDesktopManager,
+  reqable: Reqable,
+  requestly: Requestly,
+  retcon: Retcon,
+  retroarch: Retroarch,
+  retrobatch: Retrobatch,
+  rewritebar: Rewritebar,
+  rightfont: Rightfont,
+  ringcentral: Ringcentral,
+  rive: Rive,
+  "riverside studio": RiversideStudio,
+  rize: Rize,
+  robofont: Robofont,
+  roboform: Roboform,
+  rocket: Rocket,
+  "rocket typist": RocketTypist,
+  "rocket.chat": RocketChat,
+  "rocketman choices packager": RocketmanChoicesPackager,
+  "rode connect": RodeConnect,
+  "rodecaster app": Rodecaster,
+  roon: Roon,
+  rsyncui: Rsyncui,
+  runjs: Runjs,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

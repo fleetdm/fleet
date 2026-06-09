@@ -1,0 +1,10 @@
+{
+  "name": "RODECaster App",
+  "unique_identifier": "com.rode.rodecastercomp",
+  "token": "rodecaster",
+  "installer_format": "zip",
+  "slug": "rodecaster/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
