@@ -329,6 +329,17 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Xattred from "./Xattred";
+import Xca from "./Xca";
+import XcodesApp from "./XcodesApp";
+import Xld from "./Xld";
+import Xmenu from "./Xmenu";
+import Xmind from "./Xmind";
+import Xmplify from "./Xmplify";
+import Xnapper from "./Xnapper";
+import Xnconvert from "./Xnconvert";
+import Xnviewmp from "./Xnviewmp";
+import Xquartz from "./Xquartz";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +680,17 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "x lossless decoder": Xld,
+  xattred: Xattred,
+  xca: Xca,
+  xcodes: XcodesApp,
+  xmenu: Xmenu,
+  xmind: Xmind,
+  xmplify: Xmplify,
+  xnapper: Xnapper,
+  "xnsoft xnconvert": Xnconvert,
+  xnviewmp: Xnviewmp,
+  xquartz: Xquartz,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
