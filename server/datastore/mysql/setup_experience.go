@@ -203,9 +203,7 @@ SELECT
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
 	-- policy_id: the team policy whose install-software automation points at this installer (lowest id on ties), used as a gate
-	-- during setup experience. Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller (the automation's
-	-- lookup): "No team" policies and installers both use 0, so a No-team host (teamID 0) is gated by its team_id = 0 policy.
-	-- Only Windows/Linux are gated; the platform guard keeps this NULL on Apple platforms.
+	-- during setup experience. Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller
 	(SELECT MIN(p.id)
 		FROM policies p
 		WHERE p.software_installer_id = si.id
@@ -732,10 +730,7 @@ ORDER BY sesr.id
 
 // GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's setup-experience software items that are
 // still awaiting their policy result: non-terminal (pending/running) AND with no install enqueued yet
-// (host_software_installs_execution_id IS NULL). These are the only policies setup experience un-skips during setup; all other
-// team policies stay skipped so unrelated automations do not fire mid-setup. Once an item moves to the install phase its gating
-// policy is no longer re-run (and the install-window double-install is already prevented by the pending-install guard in
-// processSoftwareForNewlyFailingPolicies). Returns an empty slice when the host has no awaiting policy-gated items.
+// (host_software_installs_execution_id IS NULL). Returns an empty slice when the host has no awaiting policy-gated items.
 func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
 	const stmt = `
 SELECT DISTINCT policy_id
