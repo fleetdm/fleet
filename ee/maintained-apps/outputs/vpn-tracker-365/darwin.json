@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.3",
+      "version": "26.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.equinux.VPNTracker365';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.equinux.VPNTracker365' AND version_compare(bundle_short_version, '26.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.equinux.VPNTracker365' AND version_compare(bundle_short_version, '26.4') < 0);"
       },
-      "installer_url": "https://download.equinux.com/files/other/VPN%20Tracker%20365%20-%2026.3.87.zip",
+      "installer_url": "https://download.equinux.com/files/other/VPN%20Tracker%20365%20-%2026.4.93.zip",
       "install_script_ref": "2656907f",
       "uninstall_script_ref": "27f1845a",
-      "sha256": "84a4cbf48a3e7496e504a6dab2a6feef3712f7fd755f3161fcb54fc855171058",
+      "sha256": "8cf71f61d625a05871a1127c4998dcb497f3a92587483fdaafe64e7237c840a6",
       "default_categories": [
         "Security"
       ]
