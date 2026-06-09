@@ -1426,6 +1426,8 @@ func ProfileLabelOverlap(include, exclude []string) string {
 	return ""
 }
 
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
 func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
 	var token [32]byte
 	if _, err := rand.Read(token[:]); err != nil {
