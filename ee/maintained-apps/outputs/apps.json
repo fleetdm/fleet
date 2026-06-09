@@ -3264,6 +3264,13 @@
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
+      "name": "Zappy",
+      "slug": "zappy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.blackbeltlabs.Zappy",
+      "description": "Zappy is a screen capture tool for remote teams."
+    },
+    {
       "name": "Zed",
       "slug": "zed/darwin",
       "platform": "darwin",
@@ -3297,6 +3304,20 @@
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "Zettlr",
+      "slug": "zettlr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zettlr.app",
+      "description": "Zettlr is an open-source markdown editor."
+    },
+    {
+      "name": "Zight",
+      "slug": "zight/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.linebreak.CloudAppMacOSX",
+      "description": "Zight is a visual communication platform."
     },
     {
       "name": "Zoom Rooms",
@@ -3339,6 +3360,20 @@
       "platform": "windows",
       "unique_identifier": "Zotero",
       "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zulip",
+      "slug": "zulip/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zulip.zulip-electron",
+      "description": "Zulip is a desktop client for the Zulip team chat platform."
+    },
+    {
+      "name": "Zwift",
+      "slug": "zwift/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.zwift.ZwiftLauncher",
+      "description": "Zwift is an indoor cycling game."
     }
   ]
 }

@@ -334,6 +334,11 @@ import Yacreader from "./Yacreader";
 import Yattee from "./Yattee";
 import Yed from "./Yed";
 import Yippy from "./Yippy";
+import Zappy from "./Zappy";
+import Zettlr from "./Zettlr";
+import Zight from "./Zight";
+import Zulip from "./Zulip";
+import Zwift from "./Zwift";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -679,6 +684,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yattee: Yattee,
   yippy: Yippy,
   "yworks yed": Yed,
+  zappy: Zappy,
+  zettlr: Zettlr,
+  zight: Zight,
+  zulip: Zulip,
+  zwift: Zwift,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
