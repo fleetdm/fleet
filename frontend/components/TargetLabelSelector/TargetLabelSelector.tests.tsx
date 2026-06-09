@@ -61,21 +61,6 @@ describe("TargetLabelSelector (tabbed) component", () => {
     expect(screen.getByRole("radio", { name: "All" })).toBeVisible();
   });
 
-  it("hides the 'All' option when hideAllOption is set", () => {
-    renderSelector({
-      include: makeTab({
-        showModeToggle: true,
-        mode: "any",
-        hideAllOption: true,
-      }),
-    });
-
-    expect(screen.getByRole("radio", { name: "Any" })).toBeVisible();
-    expect(
-      screen.queryByRole("radio", { name: "All" })
-    ).not.toBeInTheDocument();
-  });
-
   it("does not render the mode toggle on the exclude tab when showModeToggle is false", () => {
     renderSelector({ exclude: makeTab({ showModeToggle: false }) });
 

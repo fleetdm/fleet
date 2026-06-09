@@ -30,8 +30,6 @@ export interface ILabelTabConfig {
   showModeToggle?: boolean;
   mode?: LabelTargetMode;
   onSelectMode?: (mode: LabelTargetMode) => void;
-  /** Hide the "All" radio (e.g. on a free license). Defaults to shown. */
-  hideAllOption?: boolean;
   anyTooltip?: ReactNode;
   allTooltip?: ReactNode;
 }
@@ -125,7 +123,6 @@ type LabelTabKey = "include" | "exclude";
 interface ILabelModeToggleProps {
   mode: LabelTargetMode;
   onSelectMode?: (mode: LabelTargetMode) => void;
-  hideAllOption?: boolean;
   anyTooltip?: ReactNode;
   allTooltip?: ReactNode;
   tabKey: LabelTabKey;
@@ -135,7 +132,6 @@ interface ILabelModeToggleProps {
 const LabelModeToggle = ({
   mode,
   onSelectMode,
-  hideAllOption = false,
   anyTooltip,
   allTooltip,
   tabKey,
@@ -157,19 +153,17 @@ const LabelModeToggle = ({
         disabled={disableOptions}
         onChange={(val: string) => onSelectMode?.(val as LabelTargetMode)}
       />
-      {!hideAllOption && (
-        <Radio
-          className={`${baseClass}__radio-input`}
-          label="All"
-          id={`${modeName}-all-radio`}
-          checked={mode === "all"}
-          value="all"
-          name={modeName}
-          tooltip={allTooltip}
-          disabled={disableOptions}
-          onChange={(val: string) => onSelectMode?.(val as LabelTargetMode)}
-        />
-      )}
+      <Radio
+        className={`${baseClass}__radio-input`}
+        label="All"
+        id={`${modeName}-all-radio`}
+        checked={mode === "all"}
+        value="all"
+        name={modeName}
+        tooltip={allTooltip}
+        disabled={disableOptions}
+        onChange={(val: string) => onSelectMode?.(val as LabelTargetMode)}
+      />
     </div>
   );
 };
@@ -197,7 +191,6 @@ const LabelTabContent = ({
       <LabelModeToggle
         mode={tab.mode ?? "any"}
         onSelectMode={tab.onSelectMode}
-        hideAllOption={tab.hideAllOption}
         anyTooltip={tab.anyTooltip}
         allTooltip={tab.allTooltip}
         tabKey={tabKey}
