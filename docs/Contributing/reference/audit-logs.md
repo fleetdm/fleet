@@ -2807,6 +2807,158 @@ This activity contains the following fields:
 }
 ```
 
+## failed_webhook_policy_automation
+
+Generated when a failing policy webhook automation errors out.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation failed.
+- "status_code": HTTP status code returned by the remote server (omitted if the request never reached the server).
+- "error_response": The response body returned by the remote server (or the error message for connection-level failures).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 500,
+  "error_response": "internal server error"
+}
+```
+
+## failed_ticket_policy_automation
+
+Generated when a failing policy ticket automation (Jira or Zendesk) can no longer create the ticket after all retries are exhausted.
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation failed.
+- "type": The ticket system that failed — either `"jira"` or `"zendesk"`.
+- "error_response": The error returned by the ticket system (including the response body when available).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "type": "jira",
+  "error_response": "create issue: request failed. Status code: 401"
+}
+```
+
+## failed_calendar_policy_automation
+
+Generated when a failing policy calendar (maintenance window) automation is rejected by the remote calendar provider. It is associated with the host the calendar automation failed for (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the calendar policy whose automation failed.
+- "status_code": HTTP status code returned by the remote provider (omitted for OAuth/token errors that carry no HTTP status).
+- "error_response": The response body or message returned by the remote provider.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 403,
+  "error_response": "Rate Limit Exceeded"
+}
+```
+
+## failed_conditional_access_policy_automation
+
+Generated when a failing policy conditional access automation fails to push the host's compliance status to the remote provider. It is associated with the host the automation failed for (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the conditional-access policy whose automation failed.
+- "status_code": HTTP status code returned by the remote provider (omitted if the request never reached the server).
+- "error_response": The response body returned by the remote provider (or the error message for connection-level failures).
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "status_code": 500,
+  "error_response": "500: upstream error"
+}
+```
+
+## queued_webhook_policy_automation
+
+Generated when a failing policy webhook automation batch is accepted by the remote server. One activity is recorded per successful batch and is associated with every host in that batch (the affected hosts appear in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy webhook automation was sent.
+- "status_code": HTTP status code returned by the remote server (omitted when not available).
+
+#### Example
+
+```json
+{
+  "policy_id": 123
+}
+```
+
+## queued_ticket_policy_automation
+
+Generated when a failing policy ticket automation (Jira or Zendesk) successfully creates the ticket. It is associated with the hosts the failing-policy automation targeted (the affected hosts appear in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the policy whose failing-policy automation created the ticket.
+- "type": The ticket system — either `"jira"` or `"zendesk"`.
+- "ticket_key": The key of the Jira ticket that was created (present only when `type` is `"jira"`).
+- "ticket_id": The ID of the Zendesk ticket that was created (present only when `type` is `"zendesk"`).
+
+#### Example (Jira)
+
+```json
+{
+  "policy_id": 123,
+  "type": "jira",
+  "ticket_key": "ENG-24"
+}
+```
+
+#### Example (Zendesk)
+
+```json
+{
+  "policy_id": 123,
+  "type": "zendesk",
+  "ticket_id": 4567
+}
+```
+
+## created_calendar_event_policy_automation
+
+Generated when a failing policy calendar (maintenance window) automation successfully creates a calendar event on the host's calendar. It is associated with the host the event was created for (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the calendar policy whose automation created the event.
+
+#### Example
+
+```json
+{
+  "policy_id": 123
+}
+```
+
+## blocked_single_sign_on_policy_automation
+
+Generated when a failing policy conditional access automation successfully pushes the host's status to the remote provider as non-compliant, blocking single sign-on. It is associated with the host whose single sign-on was blocked (the affected host appears in the per-host activity feed rather than in the fields below).
+
+This activity contains the following fields:
+- "policy_id": ID of the conditional-access policy the host is failing.
+
+#### Example
+
+```json
+{
+  "policy_id": 123
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
