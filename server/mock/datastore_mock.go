@@ -342,7 +342,7 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
-type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context, removeCreatedBefore time.Time) error
+type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context) error
 
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
@@ -6266,11 +6266,11 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
 }
 
-func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context, removeCreatedBefore time.Time) error {
+func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
 	s.mu.Lock()
 	s.CleanupWindowsMDMPendingDeleteProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx, removeCreatedBefore)
+	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx)
 }
 
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {

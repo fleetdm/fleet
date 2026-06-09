@@ -1043,6 +1043,7 @@ CREATE TABLE `host_mdm_windows_profiles` (
   PRIMARY KEY (`host_uuid`,`profile_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
+  KEY `idx_host_mdm_windows_profiles_profile_uuid` (`profile_uuid`),
   CONSTRAINT `host_mdm_windows_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
   CONSTRAINT `host_mdm_windows_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1974,8 +1975,7 @@ CREATE TABLE `mdm_windows_configuration_profiles_pending_delete` (
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `syncml` mediumblob NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`profile_uuid`),
-  KEY `idx_win_cfg_prof_pending_delete_created_at` (`created_at`)
+  PRIMARY KEY (`profile_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

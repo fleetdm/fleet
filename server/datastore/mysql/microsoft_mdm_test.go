@@ -6730,33 +6730,53 @@ func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
 }
 
 // TestWindowsMDMPendingDeleteRetentionAndGC covers the #46993 retention table: GetMDMWindowsProfilesContents falls back to retained
-// content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects strictly by age (created_at < cutoff).
+// content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects reference-counted (a row is removed only
+// once no host_mdm_windows_profiles row still references the profile, so retained content survives as long as a host still needs it).
 func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
 
+	// w-ref is still referenced by a host that has not yet received its <Delete>; w-orphan is referenced by no host.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_pending_delete
-			(profile_uuid, team_id, name, syncml, created_at) VALUES
-			('w-old', 0, 'old', '<Replace/>', NOW(6) - INTERVAL 10 DAY),
-			('w-new', 0, 'new', '<Replace/>', NOW(6))`)
+			(profile_uuid, team_id, name, syncml) VALUES
+			('w-ref', 0, 'ref', '<Replace/>'),
+			('w-orphan', 0, 'orphan', '<Replace/>')`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+			(host_uuid, profile_uuid, command_uuid, profile_name) VALUES
+			('host-still-pending', 'w-ref', 'cmd-1', 'ref')`)
 		return err
 	})
 
 	// Content fallback: contents resolve from the retention table for deleted (not-live) UUIDs.
-	contents, err := ds.GetMDMWindowsProfilesContents(ctx, []string{"w-old", "w-new"})
+	contents, err := ds.GetMDMWindowsProfilesContents(ctx, []string{"w-ref", "w-orphan"})
 	require.NoError(t, err)
 	require.Len(t, contents, 2)
-	require.Equal(t, []byte("<Replace/>"), contents["w-old"].SyncML)
-	require.NotEmpty(t, contents["w-old"].Checksum)
+	require.Equal(t, []byte("<Replace/>"), contents["w-ref"].SyncML)
+	require.NotEmpty(t, contents["w-ref"].Checksum)
 
-	// Age-based GC removes only rows older than the cutoff.
-	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx, time.Now().Add(-7*24*time.Hour)))
+	// Reference-counted GC removes only the orphan; w-ref survives because a host still references it.
+	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
 
 	var remaining []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &remaining,
 			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
 	})
-	require.Equal(t, []string{"w-new"}, remaining)
+	require.Equal(t, []string{"w-ref"}, remaining)
+
+	// Once the host's row is gone (it received its <Delete>), the next GC pass reclaims the retained content.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = 'w-ref'`)
+		return err
+	})
+	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+	})
+	require.Empty(t, remaining)
 }

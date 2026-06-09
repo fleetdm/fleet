@@ -11,7 +11,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1639,7 +1638,7 @@ WHERE
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Retain the profile's content so the profile-manager cron can build <Delete> commands after the definition is gone (#46993).
+		// Retain the profile's content so the profile-manager cron can build <Delete> commands after the definition is gone.
 		// This must run before the definition row is deleted. deleteMDMWindowsConfigProfile returns notFound if it does not exist.
 		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
@@ -1664,16 +1663,11 @@ func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, prof
 	return nil
 }
 
-// cancelWindowsHostInstallsForDeletedMDMProfiles cleans up host_mdm_windows_profiles rows when config profiles are deleted, keeping
-// only the two cheap, request-path-safe phases:
-//   - Phase 0: delete terminal remove rows (operation_type=remove, status in failed/verifying/verified) from prior removal attempts.
-//   - Phase 1: delete never-sent install rows (operation_type=install, status IS NULL).
-//
-// Surviving rows - sent installs and in-flight removes - are left for the profile-manager cron, which classifies them as removes
-// (current-not-desired) and generates the <Delete> commands asynchronously in its bounded batches, resolving the deleted profile's
-// SyncML from mdm_windows_configuration_profiles_pending_delete. Callers MUST copy the definitions into that table
-// (copyWindowsConfigProfilesToPendingDeleteDB) before deleting them, or the cron has no content to build removals from. This keeps the
-// delete paths O(profiles) instead of O(profiles x hosts); see #46993.
+// cancelWindowsHostInstallsForDeletedMDMProfiles does the cheap, request-path-safe host_mdm_windows_profiles cleanup when config
+// profiles are deleted. In a single statement it removes the rows the cron does not need to act on: already-resolved removes
+// (operation_type=remove, status verified/failed/verifying) and never-sent installs (operation_type=install, status IS NULL).
+// Everything else (sent installs, pending removes) is left for the profile-manager cron, which classifies the surviving rows as
+// removes (current-not-desired) and generates the <Delete> commands asynchronously in its bounded batches.
 func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string,
 ) error {
@@ -1681,43 +1675,32 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		return nil
 	}
 
-	// Phase 0: Clean up fully terminal remove rows (verified = device confirmed removal, failed = device rejected) from prior removal
-	// attempts. Deliberately NOT verifying: a remove that is still verifying is in flight, and the async reconciler is meant to leave it
-	// alone (ComputeWindowsReconcileDeltas skips remove rows with a non-NULL status) so the removal can finish or be retried.
-	terminalStatuses := []fleet.MDMDeliveryStatus{fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified}
-	delRemStmt, delRemArgs, err := sqlx.In(`
+	// Delete the host-profile rows the cron does not need to act on, in one pass:
+	//   - already-resolved removes: Windows removals are best-effort and their results are not persisted
+	//     (BulkUpsertMDMWindowsHostProfiles already deletes a remove row once its <Delete> resolves), so this is defensive for rows
+	//     that did not go through that path. A still-verifying remove is safe to drop here since its <Delete> is already on the wire.
+	//   - never-sent installs (status IS NULL): nothing was delivered, so no <Delete> is needed.
+	// Sent installs and pending removes are left untouched for the reconciler.
+	terminalStatuses := []fleet.MDMDeliveryStatus{fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryVerifying}
+	delStmt, delArgs, err := sqlx.In(`
 	DELETE FROM host_mdm_windows_profiles
-	WHERE profile_uuid IN (?) AND operation_type = ? AND status IN (?)`,
-		profileUUIDs, fleet.MDMOperationTypeRemove, terminalStatuses)
+	WHERE profile_uuid IN (?)
+		AND ((operation_type = ? AND status IN (?)) OR (operation_type = ? AND status IS NULL))`,
+		profileUUIDs, fleet.MDMOperationTypeRemove, terminalStatuses, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for phase 0 remove cleanup")
-	}
-	if _, err := tx.ExecContext(ctx, delRemStmt, delRemArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up terminal remove rows")
-	}
-
-	// Phase 1: Delete host-profile rows that were never sent to the device.
-	const delNeverSentStmt = `
-	DELETE FROM host_mdm_windows_profiles
-	WHERE profile_uuid IN (?) AND status IS NULL AND operation_type = ?`
-
-	delStmt, delArgs, err := sqlx.In(delNeverSentStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for phase 1 delete")
+		return ctxerr.Wrap(ctx, err, "building IN for deleted-profile host-row cleanup")
 	}
 	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting never-sent host profiles")
+		return ctxerr.Wrap(ctx, err, "cleaning up host rows for deleted profiles")
 	}
 
 	return nil
 }
 
-// copyWindowsConfigProfilesToPendingDeleteDB retains the content of about-to-be-deleted Windows config profiles in
-// mdm_windows_configuration_profiles_pending_delete so the profile-manager cron can build <Delete> commands for them after the live
-// definition rows are gone. It MUST run inside the delete transaction BEFORE the definition rows are deleted, since it copies straight
-// from the live table. ON DUPLICATE KEY UPDATE refreshes created_at so a re-delete of the same profile_uuid (e.g. a team deletion
-// retried after an aborted attempt, whose retention write commits in its own transaction) restarts the GC grace window instead of
-// leaving a stale timestamp that could let the age-based GC drop still-needed content. See #46993.
+// copyWindowsConfigProfilesToPendingDeleteDB retains the content of about-to-be-deleted Windows config profiles so the
+// profile-manager cron can build <Delete> commands for them after the live definition rows are gone. It MUST run inside the
+// delete transaction BEFORE the definition rows are deleted, since it copies straight from the live table. ON DUPLICATE KEY
+// UPDATE refreshes created_at so a re-delete of the same profile_uuid.
 func (ds *Datastore) copyWindowsConfigProfilesToPendingDeleteDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
@@ -2922,9 +2905,8 @@ func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, prof
 }
 
 // GetMDMWindowsProfilesContents returns the SyncML (and checksum) for the given profile UUIDs. Live profiles are looked up first; for
-// any UUID not found live - a profile that was deleted but still has surviving host_mdm_windows_profiles rows the cron must build
-// <Delete> commands for - it falls back to mdm_windows_configuration_profiles_pending_delete. The fallback is safe because a deleted
-// UUID is only ever a remove target, never an install target. See #46993.
+// any UUID not found live it falls back to mdm_windows_configuration_profiles_pending_delete. The fallback is safe because a deleted
+// UUID is only ever a remove target, never an install target.
 func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -3343,7 +3325,7 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// Step 2: Retain the content of profiles being deleted so the profile-manager cron can build <Delete> commands after the
-	// definition rows are gone (#46993). Must run before Step 3 deletes the definitions.
+	// definition rows are gone. Must run before Step 3 deletes the definitions.
 	if len(deletedProfileUUIDs) > 0 {
 		if err := ds.copyWindowsConfigProfilesToPendingDeleteDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
@@ -3768,33 +3750,19 @@ LIMIT ?`
 }
 
 // CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-profile content
-// (mdm_windows_configuration_profiles_pending_delete) once it is older than removeCreatedBefore. GC is purely age-based, not
-// reference-counted: host_mdm_windows_profiles has no standalone profile_uuid index, so a NOT EXISTS anti-join would full-scan that hot
-// table per row. A normal full-fleet removal drains in minutes, far inside the grace period the caller passes, so age-only GC is safe;
-// the created_at index makes this a bounded range delete. A host offline past the grace with an undelivered remove simply will not get
-// its <Delete> (the reconciler already tolerates missing content by skipping). See #46993.
-func (ds *Datastore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context, removeCreatedBefore time.Time) error {
-	const batchSize = 1000
+// (mdm_windows_configuration_profiles_pending_delete) once no host_mdm_windows_profiles row still references the profile, meaning every
+// host has drained its <Delete> or been unenrolled. Reference-counted rather than age-based, so we never drop content a host still
+// needs: a host that was offline when the profile was deleted keeps its host-profile row, which keeps the content alive until the
+// removal finally delivers. The NOT EXISTS is an index probe via host_mdm_windows_profiles(profile_uuid).
+func (ds *Datastore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
 	const stmt = `
-DELETE FROM mdm_windows_configuration_profiles_pending_delete
-WHERE created_at < ?
-ORDER BY created_at
-LIMIT ?`
-	const maxBatches = 500 // cap total work per cron tick
-	var totalDeleted int64
-	for range maxBatches {
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, removeCreatedBefore, batchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup windows mdm pending-delete profiles")
-		}
-		n, _ := res.RowsAffected()
-		totalDeleted += n
-		if n < int64(batchSize) {
-			return nil
-		}
+DELETE pd FROM mdm_windows_configuration_profiles_pending_delete pd
+WHERE NOT EXISTS (
+	SELECT 1 FROM host_mdm_windows_profiles hmwp WHERE hmwp.profile_uuid = pd.profile_uuid
+)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup windows mdm pending-delete profiles")
 	}
-	ds.logger.WarnContext(ctx, "cleanup windows mdm pending-delete profiles did not finish, remaining rows will be cleaned on next run",
-		"deleted", totalDeleted, "max_batches", maxBatches)
 	return nil
 }
 

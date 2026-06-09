@@ -448,8 +448,9 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content.
-	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context, removeCreatedBefore time.Time) error
+	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content once no host_mdm_windows_profiles
+	// row still references the profile (reference-counted).
+	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
