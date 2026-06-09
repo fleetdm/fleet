@@ -656,6 +656,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -684,6 +685,40 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Verify that if SSO is enabled, the IdP is completely configured: idp_name,
+// entity_id, and at least one of metadata/metadata_url must all be set. This
+// mirrors the server-side complete-IdP predicate enforced by
+// validateSSOProviderSettings in overwrite (gitops) mode, so the user gets the
+// same rejection early at parse time. One error is emitted per missing piece.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		if !enabled {
+			return multiError
+		}
+		idpName, _ := sso["idp_name"].(string)
+		entityID, _ := sso["entity_id"].(string)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if idpName == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, idp_name must be set",
+			))
+		}
+		if entityID == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, entity_id must be set",
+			))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
 	return multiError
 }
 
