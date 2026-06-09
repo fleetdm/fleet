@@ -155,8 +155,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 
 	// Track the last (lexicographically greatest) host UUID for cursor.
 	if hostCount > 0 {
-		sortedUUIDs := slices.Sorted(maps.Keys(allHostUUIDs))
-		r.lastHostUUID = sortedUUIDs[len(sortedUUIDs)-1]
+		r.lastHostUUID = slices.Max(slices.Collect(maps.Keys(allHostUUIDs)))
 	}
 
 	// Extract ONC cert aliases once for all hosts (profile contents are shared),
