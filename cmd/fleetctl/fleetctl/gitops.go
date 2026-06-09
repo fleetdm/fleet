@@ -1173,6 +1173,10 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
+										// Accept display name "All fleets" as equivalent to the internal "All teams"
+										if normalizedTeam == fleet.DisplayNameAllTeams {
+											normalizedTeam = fleet.TeamNameAllTeams
+										}
 										vppTeams = append(vppTeams, normalizedTeam)
 										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
 										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {

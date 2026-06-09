@@ -64,7 +64,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
-	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
@@ -313,17 +312,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	var geoIP fleet.GeoIP
-	geoIP = &fleet.NoOpGeoIP{}
-	if config.GeoIP.DatabasePath != "" {
-		maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
-		if err != nil {
-			logger.ErrorContext(cmd.Context(), "failed to initialize maxmind geoip, check database path", "database_path",
-				config.GeoIP.DatabasePath, "error", err)
-		} else {
-			geoIP = maxmind
-		}
-	}
+	geoIP := initGeoIP(cmd.Context(), config, logger)
 
 	if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomOSUpdatesAndFileVault = false
@@ -409,18 +398,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "saving app config")
 	}
 
-	// setup mail service
-	if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
-		// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
-		if config.Email.EmailBackend != "" {
-			config.Email.EmailBackend = ""
-			logger.WarnContext(cmd.Context(), "SMTP is already enabled, first disable SMTP to utilize a different email backend")
-		}
-	}
-	mailService, err := mail.NewService(config)
-	if err != nil {
-		logger.ErrorContext(cmd.Context(), "failed to configure mailing service", "err", err)
-	}
+	mailService := initMailService(cmd.Context(), config, appCfg, logger)
 
 	cronSchedules := fleet.NewCronSchedules()
 
@@ -481,7 +459,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing android service")
 	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, logger)
+	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -1515,9 +1493,9 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 }
 
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
-// - S3 in cloud
-// - local filesystem on-prem (rooted at FLEET_ORG_LOGO_STORE_DIR, falling back to os.TempDir()).
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *slog.Logger) fleet.OrgLogoStore {
+//   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
+//   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
+func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
 	if s3Config.SoftwareInstallersBucket != "" {
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
@@ -1526,18 +1504,8 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 		logger.InfoContext(ctx, "using S3 org logo store", "bucket", s3Config.SoftwareInstallersBucket)
 		return store
 	}
-	logoDir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR")
-	if logoDir == "" {
-		logoDir = os.TempDir()
-	}
-	store, err := filesystem.NewOrgLogoStore(logoDir)
-	if err != nil {
-		initFatal(err, "initializing filesystem org logo store")
-	}
-	logger.InfoContext(ctx,
-		"using local filesystem org logo store, this is not suitable for production use",
-		"directory", logoDir)
-	return store
+	logger.InfoContext(ctx, "using database org logo store")
+	return ds.NewOrgLogoStore()
 }
 
 func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {

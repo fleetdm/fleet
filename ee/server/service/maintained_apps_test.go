@@ -310,7 +310,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			UniqueIdentifier: "Internet Exploder",
 		}, nil
 	}
-	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
 
@@ -395,7 +395,7 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 			UniqueIdentifier: "com.example.dummy",
 		}, nil
 	}
-	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
 

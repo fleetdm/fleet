@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AbletonLive12Suite from "./AbletonLive12Suite";
 import Affinity from "./Affinity";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
@@ -41,6 +42,7 @@ import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
+import Git from "./Git";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import GrooveOmniDialer from "./GrooveOmniDialer";
@@ -53,6 +55,7 @@ import Krita from "./Krita";
 import LastPass from "./LastPass";
 import LenovoDockManager from "./LenovoDockManager";
 import Marvel from "./Marvel";
+import MicrosoftOffice from "./MicrosoftOffice";
 import Max from "./Max";
 import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
@@ -81,6 +84,7 @@ import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import R from "./R";
 import RealVncServer from "./RealVncServer";
 import Reaper from "./Reaper";
 import Rstudio from "./Rstudio";
@@ -242,6 +246,8 @@ import ProtonMail from "./ProtonMail";
 import ProtonVpn from "./ProtonVpn";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
+import Python313 from "./Python313";
+import Python314 from "./Python314";
 import Quip from "./Quip";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
@@ -332,6 +338,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
+  "ableton live suite": AbletonLive12Suite,
   abstract: Abstract,
   "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
@@ -418,6 +425,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
+  git: Git,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   "groove omnidialer": GrooveOmniDialer,
@@ -431,6 +439,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lastpass: LastPass,
   "lenovo dock manager": LenovoDockManager,
   marvel: Marvel,
+  "microsoft office": MicrosoftOffice,
   max: Max,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
@@ -572,7 +581,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "python 3.13": Python313,
+  "python 3.14": Python314,
   quip: Quip,
+  "r for windows": R,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,

@@ -80,6 +80,7 @@ import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
 import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
+import SelfServiceCategoriesPage from "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/TeamSettings";
@@ -376,6 +377,10 @@ const routes = (
               {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route
+              path="library/categories"
+              component={SelfServiceCategoriesPage}
+            />
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />

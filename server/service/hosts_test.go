@@ -666,12 +666,12 @@ func TestHostDetailsOSSettings(t *testing.T) {
 				// service should call this function to check whether disk encryption is enabled for a Linux host
 				require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
 
-				// `hostDetail.MDM.OSSettings` and `hostDetail.MDM.OSSettings.DiskEncryption` will actually not
-				// be `nil` here due to the way those fields are initialized by `svc.ds.Host`, so we can't
-				// expect them to be `nil` in these tests. However, since the relevant struct tags are set to
-				// `omitempty`, the resulting API response WILL omit these fields/subfields when empty,
-				// which is confirmed at the integration layer.
-				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				// Linux hosts only get OS settings via the disk-encryption (LUKS) path. When disk
+				// encryption isn't enabled, OSSettings is nil — even though some other platform's MDM is
+				// EnabledAndConfigured (which initializes an empty struct earlier in getHostDetails). A
+				// non-nil pointer to an empty struct is NOT omitted by `omitempty`, so the service clears
+				// it so the API reports no OS settings instead of an empty `os_settings: {}` object.
+				require.Nil(t, hostDetail.MDM.OSSettings)
 
 			case "darwin":
 				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
