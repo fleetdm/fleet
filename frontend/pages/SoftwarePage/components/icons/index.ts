@@ -322,7 +322,6 @@ import XCreds from "./XCreds";
 import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
 import Yattee from "./Yattee";
-import Yed from "./Yed";
 import Yippy from "./Yippy";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
@@ -677,7 +676,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yippy: Yippy,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
-  "yworks yed": Yed,
   zappy: Zappy,
   zed: Zed,
   zen: Zen,

@@ -3222,13 +3222,6 @@
       "description": "Yattee is an alternative and privacy-friendly YouTube frontend."
     },
     {
-      "name": "yWorks yEd",
-      "slug": "yed/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.yworks.yEd",
-      "description": "yWorks yEd is a tool to create diagrams manually, or import external data for analysis."
-    },
-    {
       "name": "Yippy",
       "slug": "yippy/darwin",
       "platform": "darwin",
