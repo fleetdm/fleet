@@ -1347,7 +1347,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}
 
 	// without any profile, should return empty
-	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1369,7 +1369,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	profChecksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
 	// both no-team profiles should be applicable to both hosts
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1385,7 +1385,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// profiles for host 1 change to p3
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
@@ -1404,7 +1404,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
@@ -1419,7 +1419,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
@@ -1434,7 +1434,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p4 is applicable to host 0
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1454,7 +1454,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host 0 not a member yet
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1470,7 +1470,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p5 is applicable to host 0
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
@@ -1491,7 +1491,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, label membership was not updated after labels created
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
@@ -1510,7 +1510,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host 0 is _not_ a member of the excluded labels, so p6 is applicable
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
@@ -1528,7 +1528,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// p6 is not applicable anymore
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
@@ -1549,7 +1549,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// it is not included in noProfHosts as it has p3
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
@@ -1571,7 +1571,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	})
 
 	// host 2 is not included in the results as it has p3 installed
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
@@ -1588,7 +1588,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host 2 is now a host with no profile (profile 3 needs to be cleared), host 1 is unlisted as it didn't have p3 installed
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name, Checksum: profChecksum},
@@ -1607,7 +1607,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1623,7 +1623,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[0].ID)
 		return err
 	})
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1649,7 +1649,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	}
 
 	// without any profile, should return empty
-	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1682,7 +1682,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	profChecksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
 	// p2 becomes immediately applicable because it only has a manual label
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 1)
@@ -1697,7 +1697,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// host 0 dynamic labels now apply, and this host is _not_ a member of the excluded labels, so p1, p2 and p3 are now applicable
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
@@ -1727,7 +1727,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// p5 becomes immediately applicable to host 1 because it only has a manual label
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1746,7 +1746,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID})))
 	hosts[1].TeamID = &tm.ID
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
@@ -1763,7 +1763,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
@@ -1780,7 +1780,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny1, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 1)
@@ -1823,7 +1823,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	profChecksum := getAndroidProfileChecksum(t, ds, pCombinedAll.ProfileUUID)
 
 	// host is not a member of any label → neither profile applies
-	profs, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemove)
 	require.Empty(t, profs)
@@ -1832,7 +1832,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	err = ds.AddLabelsToHost(ctx, h.ID, []uint{inclAllLbl.ID, inclAllLbl2.ID, inclAnyLbl.ID})
 	require.NoError(t, err)
 
-	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemove)
 	require.Len(t, profs, 2)
@@ -1845,7 +1845,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	err = ds.AddLabelsToHost(ctx, h.ID, []uint{exclLbl.ID})
 	require.NoError(t, err)
 
-	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemove)
 	require.Empty(t, profs)
@@ -1854,7 +1854,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	err = ds.RemoveLabelsFromHost(ctx, h.ID, []uint{exclLbl.ID})
 	require.NoError(t, err)
 
-	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemove)
 	require.Len(t, profs, 2)
@@ -1867,7 +1867,7 @@ func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datast
 	err = ds.RemoveLabelsFromHost(ctx, h.ID, []uint{inclAllLbl2.ID})
 	require.NoError(t, err)
 
-	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemove)
 	require.Len(t, profs, 1)
@@ -1976,7 +1976,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	ds.testUpsertMDMDesiredProfilesBatchSize = batchSize
 	t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
 
-	hostProfiles, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
@@ -2019,7 +2019,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	})
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
@@ -2061,7 +2061,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	})
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
@@ -2076,7 +2076,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	err = ds.DeleteMDMAndroidConfigProfile(ctx, profiles[2].ProfileUUID)
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name, Checksum: profChecksum},

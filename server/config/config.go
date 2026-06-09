@@ -925,7 +925,8 @@ type MDMConfig struct {
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
-	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+	AndroidAgent             AndroidAgentConfig `yaml:"android_agent"`
+	AndroidProfilesBatchSize int                `yaml:"android_profiles_batch_size"`
 }
 
 func (m MDMConfig) IsCustomFileVaultEnabled() bool {
@@ -1755,6 +1756,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
+	man.addConfigInt("mdm.android_profiles_batch_size", 1000, "Maximum number of hosts to process per Android profile reconciliation tick (1000 default; 0 no limit)")
+	man.hideConfig("mdm.android_profiles_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2087,6 +2090,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
+			AndroidProfilesBatchSize: man.getConfigInt("mdm.android_profiles_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

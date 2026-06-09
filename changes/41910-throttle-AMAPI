@@ -1,0 +1,1 @@
+- Added configurable batch size `FLEET_MDM_ANDROID_PROFILES_BATCH_SIZE` (default: 1000 hosts) for Android MDM profile reconciliation to prevent overwhelming the Google Android Management API.

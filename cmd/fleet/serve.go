@@ -829,6 +829,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			config.MDM.AndroidAgent,
+			config.MDM.AndroidProfilesBatchSize,
 		)
 	}); err != nil {
 		initFatal(err, "failed to register mdm_android_profile_manager schedule")
