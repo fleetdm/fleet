@@ -1,0 +1,10 @@
+{
+  "name": "Tableau Reader",
+  "unique_identifier": "com.tableausoftware.tableaureader",
+  "token": "tableau-reader",
+  "installer_format": "pkg",
+  "slug": "tableau-reader/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Timer",
+  "unique_identifier": "com.apimac.Timer",
+  "token": "timer",
+  "installer_format": "zip",
+  "slug": "timer/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

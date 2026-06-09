@@ -1,0 +1,10 @@
+{
+  "name": "Tabula",
+  "unique_identifier": "org.nerdpower.tabula.Tabula",
+  "token": "tabula",
+  "installer_format": "zip",
+  "slug": "tabula/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

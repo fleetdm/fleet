@@ -329,6 +329,53 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Tabby from "./Tabby";
+import TableauPrep from "./TableauPrep";
+import TableauPublic from "./TableauPublic";
+import TableauReader from "./TableauReader";
+import Tabtab from "./Tabtab";
+import Tabula from "./Tabula";
+import Taccy from "./Taccy";
+import Tageditor from "./Tageditor";
+import Taskade from "./Taskade";
+import Taskbar from "./Taskbar";
+import Teacode from "./Teacode";
+import TeamviewerHost from "./TeamviewerHost";
+import TeamviewerQuicksupport from "./TeamviewerQuicksupport";
+import Termius from "./Termius";
+import TexLiveUtility from "./TexLiveUtility";
+import Texshop from "./Texshop";
+import Thaw from "./Thaw";
+import Thorium from "./Thorium";
+import Threema from "./Threema";
+import Thumbsup from "./Thumbsup";
+import Ticktick from "./Ticktick";
+import Tidal from "./Tidal";
+import Tiles from "./Tiles";
+import Timer from "./Timer";
+import Timescribe from "./Timescribe";
+import Timing from "./Timing";
+import Tofu from "./Tofu";
+import Tomatobar from "./Tomatobar";
+import TopazGigapixelAi from "./TopazGigapixelAi";
+import TopazPhotoAi from "./TopazPhotoAi";
+import TopazVideoAi from "./TopazVideoAi";
+import Topnotch from "./Topnotch";
+import Tradingview from "./Tradingview";
+import Transfer from "./Transfer";
+import Transmission from "./Transmission";
+import Tresorit from "./Tresorit";
+import Trex from "./Trex";
+import TrezorSuite from "./TrezorSuite";
+import Tribler from "./Tribler";
+import Tripmode from "./Tripmode";
+import Tuple from "./Tuple";
+import TutaMail from "./TutaMail";
+import TwineApp from "./TwineApp";
+import Twobird from "./Twobird";
+import Typeface from "./Typeface";
+import Typinator from "./Typinator";
+import Typora from "./Typora";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +716,53 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "sempliva tiles": Tiles,
+  tabby: Tabby,
+  "tableau prep": TableauPrep,
+  "tableau public": TableauPublic,
+  "tableau reader": TableauReader,
+  tabtab: Tabtab,
+  tabula: Tabula,
+  taccy: Taccy,
+  "tag editor": Tageditor,
+  taskade: Taskade,
+  taskbar: Taskbar,
+  teacode: Teacode,
+  "teamviewer host": TeamviewerHost,
+  "teamviewer quicksupport": TeamviewerQuicksupport,
+  termius: Termius,
+  "tex live utility": TexLiveUtility,
+  texshop: Texshop,
+  thaw: Thaw,
+  "thorium reader": Thorium,
+  threema: Threema,
+  thumbsup: Thumbsup,
+  ticktick: Ticktick,
+  tidal: Tidal,
+  timer: Timer,
+  timescribe: Timescribe,
+  timing: Timing,
+  tofu: Tofu,
+  tomatobar: Tomatobar,
+  "topaz gigapixel ai": TopazGigapixelAi,
+  "topaz photo ai": TopazPhotoAi,
+  "topaz video ai": TopazVideoAi,
+  topnotch: Topnotch,
+  "tradingview desktop": Tradingview,
+  transfer: Transfer,
+  transmission: Transmission,
+  tresorit: Tresorit,
+  trex: Trex,
+  "trezor suite": TrezorSuite,
+  tribler: Tribler,
+  tripmode: Tripmode,
+  tuple: Tuple,
+  "tuta mail": TutaMail,
+  twine: TwineApp,
+  twobird: Twobird,
+  typeface: Typeface,
+  typinator: Typinator,
+  typora: Typora,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

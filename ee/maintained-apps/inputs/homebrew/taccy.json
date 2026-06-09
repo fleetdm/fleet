@@ -1,0 +1,10 @@
+{
+  "name": "Taccy",
+  "unique_identifier": "co.eclecticlight.Taccy",
+  "token": "taccy",
+  "installer_format": "zip",
+  "slug": "taccy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
