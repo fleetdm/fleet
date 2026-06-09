@@ -421,7 +421,7 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-  apple_password_sync: # Available in Fleet Premium
+  apple_account_provisioning: # Available in Fleet Premium
     idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
     idp_client_id: Ooa12345abcdeFGHI678
     oauth_idp_client_secret: a1b2c3d4e5
@@ -484,9 +484,9 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
-### apple_password_sync
+### apple_account_provisioning
 
-The `apple_password_sync` section can only be configured for "All fleets" (`default.yml`)
+The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`)
 
   - `idp_token_url` is the token URL for your Oauth ROPG IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
   - `idp_client_id` is the client ID of your Oauth ROPG application within your IdP
