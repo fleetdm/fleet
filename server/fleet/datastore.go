@@ -2908,8 +2908,14 @@ type Datastore interface {
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
 
 	// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal setup-experience
-	// software items, i.e. the only policies setup experience should run during setup.
+	// software items, i.e. the only policies setup experience should run during setup. An item is gated by every policy whose
+	// install-software automation points at its installer, so this returns all of them, not just one per item.
 	GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error)
+
+	// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the
+	// given software installer (scoped to the installer's team). The setup-experience gate skips the install only if every
+	// in-scope policy passes, and installs if any fails.
+	GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error

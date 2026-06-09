@@ -1714,6 +1714,8 @@ type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID
 
 type GetSetupExperiencePolicyIDsForHostFunc func(ctx context.Context, hostUUID string) ([]uint, error)
 
+type GetSetupExperiencePolicyIDsForInstallerFunc func(ctx context.Context, softwareInstallerID uint) ([]uint, error)
+
 type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
 
 type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostPlatform string, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
@@ -4627,6 +4629,9 @@ type DataStore struct {
 
 	GetSetupExperiencePolicyIDsForHostFunc        GetSetupExperiencePolicyIDsForHostFunc
 	GetSetupExperiencePolicyIDsForHostFuncInvoked bool
+
+	GetSetupExperiencePolicyIDsForInstallerFunc        GetSetupExperiencePolicyIDsForInstallerFunc
+	GetSetupExperiencePolicyIDsForInstallerFuncInvoked bool
 
 	UpdateSetupExperienceStatusResultFunc        UpdateSetupExperienceStatusResultFunc
 	UpdateSetupExperienceStatusResultFuncInvoked bool
@@ -11111,6 +11116,13 @@ func (s *DataStore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, host
 	s.GetSetupExperiencePolicyIDsForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSetupExperiencePolicyIDsForHostFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.GetSetupExperiencePolicyIDsForInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperiencePolicyIDsForInstallerFunc(ctx, softwareInstallerID)
 }
 
 func (s *DataStore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {

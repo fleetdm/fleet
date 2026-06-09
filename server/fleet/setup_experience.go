@@ -51,11 +51,12 @@ type SetupExperienceStatusResult struct {
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
 	Error                           *string                           `db:"error" json:"error" `
-	// PolicyID is the team policy (with an install-software automation pointing at the same installer) that gates a Windows/Linux
-	// setup-experience software item. It is resolved server-side at enqueue time and is internal (json:"-"): when set, the item is
-	// installed only if the policy fails; when the policy passes, the install is skipped. NULL for un-gated items.
-	// It only ever qualifies a software-installer row.
-	PolicyID *uint `db:"policy_id" json:"-"`
+	// PolicyGated marks a Windows/Linux setup-experience software item whose installer has at least one gating policy (a
+	// team policy with an install-software automation pointing at the same installer). It is resolved server-side at
+	// enqueue time and is internal (json:"-"). When set, the item is installed only if some in-scope gating policy
+	// fails, and skipped if every one passes; the set of gating policies is derived from the installer at decision time.
+	// False for un-gated items. It only ever qualifies a software-installer row.
+	PolicyGated bool `db:"policy_gated" json:"-"`
 	// SoftwareTitleID must be filled through a JOIN
 	SoftwareTitleID *uint `json:"software_title_id,omitempty" db:"software_title_id"`
 	// Source must be filled through a JOIN. It indicates the source of the software
@@ -95,9 +96,9 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 	if colsSet == 0 {
 		return fmt.Errorf("invalid setup experience status row, no underlying value colunm set: %d", s.ID)
 	}
-	// policy_id only ever qualifies a software-installer row (Windows/Linux gating); it must never appear on a VPP or script row.
-	if s.PolicyID != nil && s.SoftwareInstallerID == nil {
-		return fmt.Errorf("invalid setup experience status row, policy_id set without software_installer_id: %d", s.ID)
+	// policy_gated only ever qualifies a software-installer row (Windows/Linux gating); it must never appear on a VPP or script row.
+	if s.PolicyGated && s.SoftwareInstallerID == nil {
+		return fmt.Errorf("invalid setup experience status row, policy_gated set without software_installer_id: %d", s.ID)
 	}
 
 	return nil

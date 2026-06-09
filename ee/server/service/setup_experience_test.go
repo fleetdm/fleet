@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -357,12 +358,25 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 
 	// Defaults; individual subtests override.
 	policyPasses, policyFails := true, false
+
+	// An item is gated by every policy whose install-software automation points at its installer. gatingPolicyIDs is that set for
+	// the item under test (default: the single policyID); multi-policy subtests widen it. policyResults overrides per-policy
+	// results by id (used by the multi-policy subtests); when it's nil, the single policyResult is returned for every gating policy.
+	gatingPolicyIDs := []uint{policyID}
+	ds.GetSetupExperiencePolicyIDsForInstallerFunc = func(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+		require.Equal(t, installerID, softwareInstallerID)
+		return gatingPolicyIDs, nil
+	}
 	var policyResult *bool
+	var policyResults map[uint]*bool
 	ds.GetSetupExperiencePolicyResultFunc = func(ctx context.Context, hostID, gotPolicyID uint, since time.Time) (*bool, error) {
-		// Assert the gating freshness plumbing forwards the right host, policy, and this-enrollment cutoff.
+		// Assert the gating freshness plumbing forwards the right host, one of the gating policies, and this-enrollment cutoff.
 		require.Equal(t, host.ID, hostID)
-		require.Equal(t, policyID, gotPolicyID)
+		require.Contains(t, gatingPolicyIDs, gotPolicyID)
 		require.Equal(t, hostLastEnrolledAt, since)
+		if policyResults != nil {
+			return policyResults[gotPolicyID], nil
+		}
 		return policyResult, nil
 	}
 	var deliverable map[string]string
@@ -380,7 +394,9 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		ds.GetSetupExperiencePolicyResultFuncInvoked = false
 		installs = nil
 		updates = nil
+		gatingPolicyIDs = []uint{policyID}
 		policyResult = nil
+		policyResults = nil
 		deliverable = nil
 		host.LabelUpdatedAt = labelsReportedAt // default to labels-ready; the "labels not reported yet" subtest overrides this
 	}
@@ -390,7 +406,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			HostUUID:            hostUUID,
 			Name:                "GatedApp",
 			SoftwareInstallerID: &installerID,
-			PolicyID:            &policyID,
+			PolicyGated:         true,
 			Status:              fleet.SetupExperienceStatusPending,
 		}}
 	}
@@ -477,6 +493,58 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.NotNil(t, updates[len(updates)-1].HostSoftwareInstallsExecutionID)
 	})
 
+	// When an installer is gated by more than one policy, they gate as a set: skip only if every in-scope policy passes; install
+	// if any fails; wait while any is still pending.
+	otherPolicyID := policyID + 1
+	bothInScope := map[string]string{fmt.Sprint(policyID): "SELECT 1;", fmt.Sprint(otherPolicyID): "SELECT 1;"}
+
+	t.Run("multiple gating policies, all pass -> skipped", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		gatingPolicyIDs = []uint{policyID, otherPolicyID}
+		deliverable = bothInScope
+		policyResults = map[uint]*bool{policyID: &policyPasses, otherPolicyID: &policyPasses}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install is skipped only when every gating policy passes")
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, updates[0].Status)
+	})
+
+	t.Run("multiple gating policies, one fails -> installed", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		gatingPolicyIDs = []uint{policyID, otherPolicyID}
+		deliverable = bothInScope
+		policyResults = map[uint]*bool{policyID: &policyPasses, otherPolicyID: &policyFails}
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.Len(t, installs, 1, "any failing gating policy must install")
+		require.True(t, installs[0].ForSetupExperience)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
+		require.NotNil(t, updates[len(updates)-1].HostSoftwareInstallsExecutionID)
+	})
+
+	t.Run("multiple gating policies, one still pending -> waits", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		gatingPolicyIDs = []uint{policyID, otherPolicyID}
+		deliverable = bothInScope
+		policyResults = map[uint]*bool{policyID: &policyPasses} // otherPolicyID has not reported yet
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.False(t, ds.InsertSoftwareInstallRequestFuncInvoked, "must not install while a gating policy is still pending")
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.Nil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
 	t.Run("no result, labels not reported yet -> stays running (no premature out-of-scope install)", func(t *testing.T) {
 		reset()
 		items = gatedPending()
@@ -500,7 +568,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		// Gated item is first (lower id / earlier alphabetically); the un-gated item is second. Un-gated-first selection must
 		// still start the un-gated install so a gated item's policy/label wait does not delay it.
 		items = []*fleet.SetupExperienceStatusResult{
-			{HostUUID: hostUUID, Name: "A-GatedApp", SoftwareInstallerID: &installerID, PolicyID: &policyID, Status: fleet.SetupExperienceStatusPending},
+			{HostUUID: hostUUID, Name: "A-GatedApp", SoftwareInstallerID: &installerID, PolicyGated: true, Status: fleet.SetupExperienceStatusPending},
 			{HostUUID: hostUUID, Name: "Z-UngatedApp", SoftwareInstallerID: &ungatedInstallerID, Status: fleet.SetupExperienceStatusPending},
 		}
 
@@ -520,7 +588,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			HostUUID:            hostUUID,
 			Name:                "GatedApp",
 			SoftwareInstallerID: &installerID,
-			PolicyID:            &policyID,
+			PolicyGated:         true,
 			Status:              fleet.SetupExperienceStatusRunning,
 		}}
 		policyResult = &policyPasses                       // result now available
@@ -543,7 +611,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			HostUUID:            hostUUID,
 			Name:                "GatedApp",
 			SoftwareInstallerID: &installerID,
-			PolicyID:            &policyID,
+			PolicyGated:         true,
 			Status:              fleet.SetupExperienceStatusRunning,
 		}}
 		policyResult = nil
@@ -563,7 +631,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 			HostUUID:            hostUUID,
 			Name:                "GatedApp",
 			SoftwareInstallerID: &installerID,
-			PolicyID:            &policyID,
+			PolicyGated:         true,
 			Status:              fleet.SetupExperienceStatusSuccess,
 		}}
 
@@ -575,7 +643,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 
 	t.Run("setup finishes with no gated item -> host policy clock not reset", func(t *testing.T) {
 		reset()
-		// A terminal, un-gated setup item (PolicyID nil): finishing must not touch the policy clock.
+		// A terminal, un-gated setup item (PolicyGated false): finishing must not touch the policy clock.
 		items = []*fleet.SetupExperienceStatusResult{{
 			HostUUID:            hostUUID,
 			Name:                "UngatedApp",

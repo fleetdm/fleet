@@ -2786,7 +2786,7 @@ CREATE TABLE `setup_experience_status_results` (
   `setup_experience_script_id` int unsigned DEFAULT NULL,
   `script_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `policy_id` int unsigned DEFAULT NULL,
+  `policy_gated` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `idx_setup_experience_scripts_host_uuid` (`host_uuid`),
   KEY `idx_setup_experience_scripts_hsi_id` (`host_software_installs_execution_id`),
@@ -2795,8 +2795,6 @@ CREATE TABLE `setup_experience_status_results` (
   KEY `fk_setup_experience_status_results_si_id` (`software_installer_id`),
   KEY `fk_setup_experience_status_results_va_id` (`vpp_app_team_id`),
   KEY `fk_setup_experience_status_results_ses_id` (`setup_experience_script_id`),
-  KEY `fk_setup_experience_status_results_policy_id` (`policy_id`),
-  CONSTRAINT `fk_setup_experience_status_results_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_setup_experience_status_results_ses_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_setup_experience_status_results_si_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_setup_experience_status_results_va_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE

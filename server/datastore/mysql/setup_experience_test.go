@@ -2229,25 +2229,25 @@ func newSetupExperienceInstaller(t *testing.T, ds *Datastore, userID uint, title
 	return id
 }
 
-// testSetupExperiencePolicyGate verifies that EnqueueSetupExperienceItems records the gating policy_id on Windows/Linux
-// setup-experience software rows (and only those), and that GetSetupExperiencePolicyIDsForHost returns the host's non-terminal
-// gating policy IDs.
+// testSetupExperiencePolicyGate verifies that EnqueueSetupExperienceItems marks the policy_gated flag on Windows/Linux
+// setup-experience software rows whose installer has a gating policy (and only those), and that GetSetupExperiencePolicyIDsForHost
+// returns the host's non-terminal gating policy IDs.
 func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "PG User", "pg-user@example.com", true)
 
-	// readPolicyIDs returns a map of software-item name -> recorded policy_id for the host's setup-experience rows.
-	readPolicyIDs := func(hostUUID string) map[string]*uint {
+	// readPolicyGated returns a map of software-item name -> recorded policy_gated flag for the host's setup-experience rows.
+	readPolicyGated := func(hostUUID string) map[string]bool {
 		var rows []struct {
-			Name     string `db:"name"`
-			PolicyID *uint  `db:"policy_id"`
+			Name        string `db:"name"`
+			PolicyGated bool   `db:"policy_gated"`
 		}
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &rows, "SELECT name, policy_id FROM setup_experience_status_results WHERE host_uuid = ?", hostUUID)
+			return sqlx.SelectContext(ctx, q, &rows, "SELECT name, policy_gated FROM setup_experience_status_results WHERE host_uuid = ?", hostUUID)
 		})
-		out := map[string]*uint{}
+		out := map[string]bool{}
 		for _, r := range rows {
-			out[r.Name] = r.PolicyID
+			out[r.Name] = r.PolicyGated
 		}
 		return out
 	}
@@ -2264,7 +2264,7 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 			fmt.Sprintf("pg-key-%d", hostCount), uuid.NewString(), time.Now(), opts...)
 	}
 
-	t.Run("windows installer with associated team policy records policy_id", func(t *testing.T) {
+	t.Run("windows installer with associated team policy is gated", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-win-associated"})
 		require.NoError(t, err)
 		installerID := newSetupExperienceInstaller(t, ds, user.ID, "WinGated", "windows", "msi", "programs", &team.ID)
@@ -2280,10 +2280,9 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, enabled)
 
-		ids := readPolicyIDs(host.UUID)
-		require.Contains(t, ids, "WinGated")
-		require.NotNil(t, ids["WinGated"])
-		require.Equal(t, policy.ID, *ids["WinGated"])
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "WinGated")
+		require.True(t, gatedFlags["WinGated"])
 
 		// GetSetupExperiencePolicyIDsForHost returns the gating policy while the item is pending (awaiting its result).
 		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
@@ -2312,7 +2311,7 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.Empty(t, gated)
 	})
 
-	t.Run("linux installer with associated team policy records policy_id", func(t *testing.T) {
+	t.Run("linux installer with associated team policy is gated", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-linux-associated"})
 		require.NoError(t, err)
 		installerID := newSetupExperienceInstaller(t, ds, user.ID, "LinGated", "linux", "deb", "deb_packages", &team.ID)
@@ -2328,10 +2327,9 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, enabled)
 
-		ids := readPolicyIDs(host.UUID)
-		require.Contains(t, ids, "LinGated")
-		require.NotNil(t, ids["LinGated"], "a Linux .deb setup-experience item with an associated policy must be gated")
-		require.Equal(t, policy.ID, *ids["LinGated"])
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "LinGated")
+		require.True(t, gatedFlags["LinGated"], "a Linux .deb setup-experience item with an associated policy must be gated")
 
 		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
 		require.NoError(t, err)
@@ -2347,9 +2345,9 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
 		require.NoError(t, err)
 
-		ids := readPolicyIDs(host.UUID)
-		require.Contains(t, ids, "WinUngated")
-		require.Nil(t, ids["WinUngated"])
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "WinUngated")
+		require.False(t, gatedFlags["WinUngated"])
 
 		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
 		require.NoError(t, err)
@@ -2371,9 +2369,9 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "darwin", host.UUID, team.ID)
 		require.NoError(t, err)
 
-		ids := readPolicyIDs(host.UUID)
-		require.Contains(t, ids, "MacApp")
-		require.Nil(t, ids["MacApp"], "Apple-platform setup-experience items must never be policy-gated")
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "MacApp")
+		require.False(t, gatedFlags["MacApp"], "Apple-platform setup-experience items must never be policy-gated")
 	})
 
 	t.Run("No-team host is gated by a global policy", func(t *testing.T) {
@@ -2390,13 +2388,16 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, 0)
 		require.NoError(t, err)
 
-		ids := readPolicyIDs(host.UUID)
-		require.Contains(t, ids, "NoTeamGated")
-		require.NotNil(t, ids["NoTeamGated"], "global policy must gate a No-team host (teamID 0 maps to team_id IS NULL)")
-		require.Equal(t, policy.ID, *ids["NoTeamGated"])
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "NoTeamGated")
+		require.True(t, gatedFlags["NoTeamGated"], "global policy must gate a No-team host (teamID 0 maps to team_id IS NULL)")
+
+		gated, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{policy.ID}, gated, "the No-team gating policy must be distributed during setup")
 	})
 
-	t.Run("multiple policies for one installer -> lowest policy id deterministically gates", func(t *testing.T) {
+	t.Run("multiple policies for one installer -> all gate", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-multi"})
 		require.NoError(t, err)
 		installerID := newSetupExperienceInstaller(t, ds, user.ID, "MultiGated", "windows", "msi", "programs", &team.ID)
@@ -2404,15 +2405,23 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		p2, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "multi-b", Query: "SELECT 1;", SoftwareInstallerID: &installerID})
 		require.NoError(t, err)
-		require.Less(t, p1.ID, p2.ID)
 
 		host := newHost("windows", &team.ID)
 		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
 		require.NoError(t, err)
 
-		ids := readPolicyIDs(host.UUID)
-		require.NotNil(t, ids["MultiGated"])
-		require.Equal(t, p1.ID, *ids["MultiGated"], "when multiple policies point at one installer, the lowest policy id gates (deterministic)")
+		// An installer with any gating policy marks the item gated; the marker is a single boolean regardless of policy count.
+		gatedFlags := readPolicyGated(host.UUID)
+		require.True(t, gatedFlags["MultiGated"])
+
+		// The item is gated by ALL of the installer's policies, so both must be returned for evaluation and distribution.
+		forInstaller, err := ds.GetSetupExperiencePolicyIDsForInstaller(ctx, installerID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{p1.ID, p2.ID}, forInstaller)
+
+		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{p1.ID, p2.ID}, forHost, "all of the installer's gating policies must be distributed during setup, not just the marker")
 	})
 }
 
@@ -2583,15 +2592,13 @@ func testSetupExperiencePolicyGateInstallInheritsSetupRetries(t *testing.T, ds *
 		return e
 	})
 
-	// Link a still-running, policy-gated setup-experience row to that execution.
-	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: "retry-gate", Query: "SELECT 1;"})
-	require.NoError(t, err)
+	// Link a still-running, policy-gated setup-experience row to that execution (policy_gated = 1 mirrors the gated install path).
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, e := q.ExecContext(ctx, `
 			INSERT INTO setup_experience_status_results
-				(host_uuid, name, status, software_installer_id, host_software_installs_execution_id, policy_id)
-			VALUES (?, ?, 'running', ?, ?, ?)`,
-			*host.OsqueryHostID, "RetryApp", installerID, execID, policy.ID)
+				(host_uuid, name, status, software_installer_id, host_software_installs_execution_id, policy_gated)
+			VALUES (?, ?, 'running', ?, ?, 1)`,
+			*host.OsqueryHostID, "RetryApp", installerID, execID)
 		return e
 	})
 

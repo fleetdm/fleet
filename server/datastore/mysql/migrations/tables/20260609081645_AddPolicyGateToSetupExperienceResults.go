@@ -11,17 +11,17 @@ func init() {
 }
 
 func Up_20260609081645(tx *sql.Tx) error {
-	// policy_id records the team policy (with an install-software automation pointing at the same installer) that gates
-	// a Windows/Linux setup-experience software item. It is NULL for un-gated items. The gate is internal (json:"-"), so
-	// this is not an API change. ON DELETE SET NULL so deleting the policy simply un-gates the item.
+	// policy_gated marks a Windows/Linux setup-experience software item whose installer has at least one team policy with an
+	// install-software automation pointing at it. Such an item is gated: it is skipped only if every in-scope gating policy
+	// passes, and installed if any fails. The set of gating policies is derived from the installer at decision time, so this is
+	// only a marker (no specific policy is stored, which also means deleting one of several gating policies does not un-gate the
+	// item). It is internal (json:"-"), so this is not an API change.
 	_, err := tx.Exec(`
 ALTER TABLE setup_experience_status_results
-	ADD COLUMN policy_id INT UNSIGNED NULL DEFAULT NULL,
-	ADD CONSTRAINT fk_setup_experience_status_results_policy_id
-		FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE SET NULL
+	ADD COLUMN policy_gated TINYINT(1) NOT NULL DEFAULT 0
 `)
 	if err != nil {
-		return errors.Wrap(err, "add policy_id to setup_experience_status_results")
+		return errors.Wrap(err, "add policy_gated to setup_experience_status_results")
 	}
 	return nil
 }

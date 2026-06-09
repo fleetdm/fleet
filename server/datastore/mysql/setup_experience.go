@@ -202,13 +202,14 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
-	-- policy_id: the team policy whose install-software automation points at this installer (lowest id on ties), used as a gate
-	-- during setup experience. Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller
-	(SELECT MIN(p.id)
+	-- policy_gated: true when the installer has at least one team policy whose install-software automation points at it (a gating
+	-- policy used as a gate during setup experience). Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller, and
+	-- only gate on Windows/Linux. The specific policy ids are derived from the installer at decision time, so only this marker is stored.
+	EXISTS (SELECT 1
 		FROM policies p
 		WHERE p.software_installer_id = si.id
 		AND p.team_id = ?
-		AND ? IN ('windows', 'linux')) AS policy_id,
+		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
@@ -248,7 +249,7 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		// Placeholder order: host_uuid, policy_id subquery (teamID, fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
+		// Placeholder order: host_uuid, policy_gated subquery (teamID, fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
 		// deb-distro check, rpm-distro check.
 		softwareArgs = append(softwareArgs, hostUUID, teamID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
@@ -264,7 +265,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
-	NULL AS policy_id,
+	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
@@ -299,9 +300,9 @@ INSERT INTO setup_experience_status_results (
 	status,
 	software_installer_id,
 	vpp_app_team_id,
-	policy_id
+	policy_gated
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_id FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
 	%s
 ) AS combined
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
@@ -656,7 +657,7 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
-	sesr.policy_id,
+	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
@@ -733,15 +734,33 @@ ORDER BY sesr.id
 // (host_software_installs_execution_id IS NULL). Returns an empty slice when the host has no awaiting policy-gated items.
 func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
 	const stmt = `
-SELECT DISTINCT policy_id
-FROM setup_experience_status_results
-WHERE host_uuid = ?
-	AND policy_id IS NOT NULL
-	AND status IN ('pending', 'running')
-	AND host_software_installs_execution_id IS NULL`
+SELECT DISTINCT p.id
+FROM setup_experience_status_results sesr
+JOIN software_installers si ON si.id = sesr.software_installer_id
+JOIN policies p ON p.software_installer_id = si.id AND p.team_id = si.global_or_team_id
+WHERE sesr.host_uuid = ?
+	AND sesr.policy_gated = 1
+	AND sesr.status IN ('pending', 'running')
+	AND sesr.host_software_installs_execution_id IS NULL`
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+	}
+	return ids, nil
+}
+
+// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the given
+// software installer, scoped to the installer's team.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+	const stmt = `
+SELECT p.id
+FROM policies p, software_installers si
+WHERE si.id = ?
+	AND p.software_installer_id = si.id
+	AND p.team_id = si.global_or_team_id`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, softwareInstallerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for installer")
 	}
 	return ids, nil
 }
