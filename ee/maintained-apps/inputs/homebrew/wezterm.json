@@ -1,0 +1,10 @@
+{
+  "name": "WezTerm",
+  "unique_identifier": "com.github.wez.wezterm",
+  "token": "wezterm",
+  "installer_format": "zip",
+  "slug": "wezterm/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

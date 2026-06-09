@@ -329,6 +329,29 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Waterfox from "./Waterfox";
+import Wave from "./Wave";
+import Wavebox from "./Wavebox";
+import Wealthfolio from "./Wealthfolio";
+import Weasis from "./Weasis";
+import Webcatalog from "./Webcatalog";
+import Wechat from "./Wechat";
+import Weektodo from "./Weektodo";
+import Wezterm from "./Wezterm";
+import Whatroute from "./Whatroute";
+import Whisky from "./Whisky";
+import Whispering from "./Whispering";
+import Wifiman from "./Wifiman";
+import Windowkeys from "./Windowkeys";
+import Wins from "./Wins";
+import WisprFlow from "./WisprFlow";
+import Witch from "./Witch";
+import WondershareEdrawmax from "./WondershareEdrawmax";
+import WondershareFilmora from "./WondershareFilmora";
+import Wordservice from "./Wordservice";
+import Workflowy from "./Workflowy";
+import WorksheetCrafter from "./WorksheetCrafter";
+import Workspaces from "./Workspaces";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +692,29 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  edrawmax: WondershareEdrawmax,
+  waterfox: Waterfox,
+  "wave terminal": Wave,
+  wavebox: Wavebox,
+  wealthfolio: Wealthfolio,
+  weasis: Weasis,
+  webcatalog: Webcatalog,
+  "wechat for mac": Wechat,
+  weektodo: Weektodo,
+  wezterm: Wezterm,
+  whatroute: Whatroute,
+  whisky: Whisky,
+  whispering: Whispering,
+  "wifiman desktop": Wifiman,
+  windowkeys: Windowkeys,
+  wins: Wins,
+  "wispr flow": WisprFlow,
+  witch: Witch,
+  "wondershare filmora": WondershareFilmora,
+  wordservice: Wordservice,
+  workflowy: Workflowy,
+  "worksheet crafter": WorksheetCrafter,
+  workspaces: Workspaces,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

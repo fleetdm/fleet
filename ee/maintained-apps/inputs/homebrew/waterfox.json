@@ -1,0 +1,10 @@
+{
+  "name": "Waterfox",
+  "unique_identifier": "org.waterfoxproject.waterfox",
+  "token": "waterfox",
+  "installer_format": "dmg",
+  "slug": "waterfox/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}
