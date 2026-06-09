@@ -296,6 +296,35 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	assert.Nil(t, host.DesktopVersion)
 	assert.Nil(t, host.ScriptsEnabled)
 
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Nil(t, host.Supervised)
+
+	host.Supervised = new(true)
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, host.Supervised)
+	assert.True(t, *host.Supervised)
+
+	host.Supervised = new(false)
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, host.Supervised)
+	assert.False(t, *host.Supervised)
+
+	host.Supervised = nil
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+	host, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Nil(t, host.Supervised)
+
 	// Regression for #44071: UpdateHost must not write team_id, so a stale
 	// in-memory struct cannot clobber a concurrent admin team transfer.
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%s-team-%d", t.Name(), time.Now().UnixNano())})
