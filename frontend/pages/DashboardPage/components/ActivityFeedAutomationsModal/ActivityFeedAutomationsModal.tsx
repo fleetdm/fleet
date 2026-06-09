@@ -160,8 +160,8 @@ const ActivityFeedAutomationsModal = ({
           <RevealButton
             isShowing={showExamplePayload}
             className={`${baseClass}__show-example-payload-toggle`}
-            hideText="Hide example payload"
-            showText="Show example payload"
+            hideText="Example payload"
+            showText="Example payload"
             caretPosition="after"
             onClick={() => {
               setShowExamplePayload(!showExamplePayload);

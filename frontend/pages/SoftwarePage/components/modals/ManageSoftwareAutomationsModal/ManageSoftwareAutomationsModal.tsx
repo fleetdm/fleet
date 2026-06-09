@@ -473,7 +473,7 @@ const ManageAutomationsModal = ({
           onClick={togglePreviewPayloadModal}
           disabled={!softwareAutomationsEnabled}
         >
-          Preview payload
+          Example payload
         </Button>
       </>
     );

@@ -244,8 +244,8 @@ const OtherWorkflowsModal = forwardRef<
         <RevealButton
           isShowing={showExamplePayload}
           className={baseClass}
-          hideText="Hide example payload"
-          showText="Show example payload"
+          hideText="Example payload"
+          showText="Example payload"
           caretPosition="after"
           onClick={() => setShowExamplePayload(!showExamplePayload)}
           disabled={!isPolicyAutomationsEnabled}
