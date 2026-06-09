@@ -829,7 +829,7 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	// no-team state in overwrite mode, and is covered by the file loop above).
 	if !globalInRun && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
 		return fmt.Errorf(
-			"end user authentication is enabled but the IdP is not fully configured. %s.",
+			"end user authentication is enabled in Unassigned but the IdP is not fully configured. %s.",
 			idpHint,
 		)
 	}
