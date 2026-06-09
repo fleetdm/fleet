@@ -610,7 +610,23 @@ interface ICommandItem {
 
 ### Keyword authoring
 
-The cmdk `filter` prop in `CommandPalette.tsx` matches by substring against a concatenated `label + keywords` string built by `getItemValue()`, so it can't tell which part of the value came from the label vs. a keyword. Keywords are for words **not already in the label** — synonyms, acronyms, platform aliases. Duplicates of label words don't change matching or ranking. The only label-specific behavior is that items whose **label exactly matches** the search get hoisted into a "Best match" section at the top; this is exact match only (not prefix, not word-prefix). See the `filter` prop in `CommandPalette.tsx` for edge cases.
+Best match scoring is **label-first by tier.** `scoreMatch()` in `helpers.ts` ranks a single text (label or keyword) against the query and returns one of these tier values:
+
+| Tier | Label score | Keyword score |
+|---|---|---|
+| exact | 100 | 50 |
+| prefix | 90 | 40 |
+| word-prefix | 80 | 30 |
+| substring | 70 | — (label-only) |
+
+Any label hit outranks any keyword hit — even the weakest label tier (substring, 70) beats the strongest keyword tier (exact, 50). That's what shapes how keywords should be written: they only matter when the query doesn't hit the label at all. Duplicating label words in keywords just adds a redundant, lower-scoring path.
+
+A few additional behaviors worth knowing — see `computeBestMatch()` and `scoreItemForBestMatch()` in `helpers.ts` for the full mechanics:
+
+- **Noise floor.** 2-character queries only consider label-exact + label-prefix (no word-prefix, no substring, no keywords). 3+ characters unlocks the full ladder. See `BEST_MATCH_MIN_QUERY` / `BEST_MATCH_FULL_LADDER_MIN`.
+- **Multi-token search.** A query like "settings org" is also scored as two tokens; each must find a positive match (against label or keywords), and the item takes the *minimum per-token score*. This lets order-independent searches like "settings org" → "Organization settings" promote without a phrase match.
+- **Word splits.** Word boundaries split on whitespace AND hyphens, so "API-only user" yields `["api", "only", "user"]` — a query for `only` word-prefix-matches.
+- **Substring is label-only.** Keyword substrings don't score (too noisy with short tokens); keywords cap at word-prefix.
 
 **Do:**
 
@@ -631,8 +647,8 @@ The cmdk `filter` prop in `CommandPalette.tsx` matches by substring against a co
 
 **Don't:**
 
-- Repeat words from the label. `Add user` already matches searches for "add" or "user" via the concatenated value; adding `add user` as a keyword doesn't change anything.
-- Use multi-word keyword phrases when a single word works. The filter is plain substring, so a single keyword matches any search that contains it; multi-word phrases only match when the whole phrase appears as a substring in the query.
+- Repeat words from the label. `Add user` already scores "add" or "user" via the label tiers (exact / prefix / word-prefix / substring, 70–100). Adding them as keywords would only score lower (30–50), never changing the ranking.
+- Use multi-word keyword phrases when a single word works. A keyword like `create` matches as keyword-exact / -prefix / -word-prefix at the token level. A multi-word keyword like `create user` only matches when the whole phrase appears as one token in the query — multi-token splitting won't reach into it.
 - Pile in low-signal substrings ("the", "some", generic verbs).
 
 ### Permission gating
@@ -690,7 +706,7 @@ Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meani
 - Primo mode hidden: add to the `Primo Mode (isPrimoMode: true)` block
 - New `teamName` chip: assert it renders / doesn't render against the relevant fleet contexts
 
-You don't need to test cmdk's filter itself — it's just `value.includes(searchTerm)` on the concatenated `label + keywords` string. Test your item's *presence and gating*, not the match mechanics.
+The scoring helpers (`scoreMatch`, `scoreItemForBestMatch`, `computeBestMatch`, `highlightMatches`) and tier constants (`SCORE_LABEL_*`, `SCORE_KEYWORD_*`) have their own describe blocks in `helpers.tests.ts` — you don't need to re-test the framework when adding an item. If your new item exposes a specific ranking case worth pinning (e.g., a multi-token query that should promote it over a similarly-named item), add a small `computeBestMatch` test alongside.
 
 ## Styles
 
