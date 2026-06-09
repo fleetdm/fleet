@@ -104,8 +104,12 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
-## Primo mode
-- Check `config?.partnerships?.enable_primo` from AppContext. Disables fleet creation and defaults to "Unassigned" fleet. Use `PRIMO_TOOLTIP` from `utilities/constants.tsx` for disabled tooltips. See `frontend/docs/patterns.md` for details.
+## Tier modes (Fleet Free + Primo mode)
+Load the `tier-modes` skill when:
+- **Adding a new top-level page, feature page, or significant UI surface** (modal, side panel, dashboard, settings section, new tab) — for the end-of-task gap check on whether Free / Primo behavior was decided.
+- **Introducing NEW tier gating to code that doesn't have it yet** — to follow the established gating patterns.
+
+Editing inside already-gated code (adding a field to a premium-only form, fixing a bug in a paywalled flow) doesn't need this — the tier decision is already made there.
 
 ## Terminology
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.

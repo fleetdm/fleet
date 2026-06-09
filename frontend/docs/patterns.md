@@ -12,7 +12,7 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
-- [Primo mode](#primo-mode)
+- [Tier modes](#tier-modes)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -337,13 +337,81 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
 
 ```
 
-## Primo mode
+## Tier modes
 
-Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet
-experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies
-empty states. It can be active at the same time as GitOps mode — they affect different things.
+The UI changes shape in two licensing-related modes. Both can be active at the same time on a Premium Primo tenant, so most gates need to consider them independently:
 
-### How to check
+- **Fleet Free** — the free tier. Many features are hidden, paywalled with `<PremiumFeatureMessage />`, or restricted. Flag: `isPremiumTier` (false = Free).
+- **Primo mode** — a single-fleet Premium installation for partner deployments. The fleet switcher is hidden, fleet creation is disabled, and empty-state copy collapses. Flag: `isPrimoMode` (derived from `config.partnerships.enable_primo`).
+
+**Critical asymmetry — read this first:**
+
+- `isPremiumTier` lives in `AppContext` and is plumbed through the whole tree.
+- `isPrimoMode` is **not** in `AppContext`. Every component derives it locally from `config?.partnerships?.enable_primo`. This is the #1 reason Primo behavior gets missed in refactors — if a component doesn't already read `config`, the Primo gate is easy to overlook.
+
+Both flags can be true simultaneously. A gate like `isPremiumTier && !isPrimoMode` (used in `HostPicker`'s fleet column) is common and correct — it says "premium feature that doesn't apply when there's only one fleet."
+
+The most canonical reference for handling both flags in tandem is `frontend/components/CommandPalette/` — it has named test suites for each (`Fleet Free (isPremiumTier: false)` and `Primo Mode (isPrimoMode: true)`) and uses every gating pattern listed below.
+
+### Fleet Free
+
+#### How to check
+
+```tsx
+const { isPremiumTier } = useContext(AppContext);
+```
+
+`isPremiumTier` is derived from `config.license.tier === "premium"` in `utilities/permissions/permissions.ts` and set once during `AppContext` initialization. Components read it from context; tests inject it via the `app` context override.
+
+#### What it affects
+
+- **Premium-only features** render `<PremiumFeatureMessage />` (full-page or card-level paywall) instead of the feature
+- **Premium-only data fetches** are gated via React Query's `enabled` option
+- **Premium-only table columns** (e.g., per-host fleet column) are hidden
+- **Premium-only palette / nav items** are filtered out
+
+#### Patterns
+
+**Early-return paywall** — the dominant pattern for full-page premium features:
+
+```tsx
+if (!isPremiumTier) {
+  return <PremiumFeatureMessage />;
+}
+// render the feature
+```
+
+**Conditional list inclusion** via array spread — used heavily in CommandPalette and similar list-building code:
+
+```tsx
+...(isPremiumTier
+  ? [{ id: "add-fleet-maintained-app", label: "Add Fleet-maintained app", ... }]
+  : [])
+```
+
+**Conditional component props** — for sub-components like pickers or table columns where the premium gate decides visibility:
+
+```tsx
+<HostPicker showTeamColumn={!!isPremiumTier && !isPrimoMode} />
+```
+
+**Premium-only React Query** — defer the request entirely when the feature isn't available:
+
+```tsx
+useQuery(
+  ["hostSummary", teamIdForApi, isPremiumTier],
+  () => hostAPI.getHostsSummary({ lowDiskSpace: isPremiumTier ? GB : undefined }),
+  { enabled: !!isPremiumTier }
+);
+```
+
+Use `<PremiumFeatureMessage />` (`components/PremiumFeatureMessage/`) as the canonical paywall surface — don't roll your own.
+
+### Primo mode
+
+Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies empty states. It can be active at the same time as Fleet Free *or* Premium, and at the same time as GitOps mode — these all affect different things.
+
+#### How to check
 
 ```tsx
 const { config } = useContext(AppContext);
@@ -352,7 +420,7 @@ const isPrimoMode = config?.partnerships?.enable_primo || false;
 
 There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disabled tooltips.
 
-### What it affects
+#### What it affects
 
 - **"Create fleet" button**: disabled on ManageFleetsPage
 - **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
@@ -361,7 +429,7 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 - **User form**: fleets dropdown disabled
 - **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
 
-### Pattern: disable with tooltip
+#### Pattern: disable with tooltip
 
 The shared `Button` component doesn't accept a tooltip prop — use one of these patterns instead.
 
@@ -395,14 +463,39 @@ const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
 
 `RevealButton` is the exception — it accepts `disabledTooltipContent` directly.
 
-### How it differs from GitOps mode
+### Testing both modes
 
-| | Primo mode | GitOps mode |
-|---|---|---|
-| Purpose | Hides multi-fleet UI for partners | Repository-driven config management |
-| Config | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
-| Main effect | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
-| Component | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
+Mock the flag in the test context and assert the right elements are present or absent:
+
+```tsx
+// Fleet Free
+const freeContext = { ...baseContext, isPremiumTier: false };
+
+// Primo mode
+const primoContext = {
+  ...baseContext,
+  config: createMockConfig({ partnerships: { enable_primo: true } }),
+};
+```
+
+Per-component test conventions vary, but the established pattern (from `CommandPalette/helpers.tests.ts`) is a top-level `describe` block per mode containing the assertions for that mode's expected behavior. When adding a gated feature, add at least one assertion per gate it touches — premium-only items should appear in the absent list under `Fleet Free`, primo-hidden items under `Primo Mode`.
+
+### Gotchas
+
+1. **`isPrimoMode` is not in AppContext.** Every component derives it from `config?.partnerships?.enable_primo`. If your refactor moves code out of a component that already had `config` in scope, you'll lose the Primo gate silently.
+2. **Both flags can be true.** A Premium Primo tenant. Gates that test only one (e.g., `if (!isPremiumTier) hide` or `if (isPrimoMode) hide`) are usually incomplete — think about what should happen in each of the four combinations.
+3. **Empty-state copy: Primo inherits Free.** Even though a Primo tenant is Premium, its empty states use the generic Free copy ("No policies yet") rather than the Premium fleet-scoped copy. Driven by `config?.partnerships?.enable_primo` checks in the empty-state rendering, not by `isPremiumTier`.
+4. **Dual-gated UI is common.** Table columns, picker columns, and entity selectors often gate on `isPremiumTier && !isPrimoMode` — premium-only AND multi-fleet-only. If your feature falls in either bucket, the dual gate is probably the right shape.
+5. **`useTeamIdParam` defaults change in Primo.** "Unassigned" instead of "All fleets" for the global default. If your code reads `currentTeamId === -1` to mean "all fleets selected," that path won't fire in Primo.
+
+### How tier modes differ from GitOps mode
+
+| | Fleet Free | Primo mode | GitOps mode |
+|---|---|---|---|
+| Purpose | Free vs Premium feature gating | Single-fleet UI for partners | Repository-driven config management |
+| Config | `license.tier === "premium"` | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
+| Main effect | Paywall (`<PremiumFeatureMessage />`) | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
+| Component | Conditional checks + paywall | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
 
 ## React hooks
 
