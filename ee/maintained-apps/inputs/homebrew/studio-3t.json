@@ -1,0 +1,10 @@
+{
+  "name": "Studio 3T",
+  "unique_identifier": "3t.enterprise.mongochef",
+  "token": "studio-3t",
+  "installer_format": "dmg",
+  "slug": "studio-3t/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

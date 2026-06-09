@@ -1,0 +1,10 @@
+{
+  "name": "Sonos S1",
+  "unique_identifier": "com.sonos.macController",
+  "token": "sonos-s1-controller",
+  "installer_format": "dmg",
+  "slug": "sonos-s1-controller/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "SideNotes",
+  "unique_identifier": "com.apptorium.SideNotes-paddle",
+  "token": "sidenotes",
+  "installer_format": "zip",
+  "slug": "sidenotes/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

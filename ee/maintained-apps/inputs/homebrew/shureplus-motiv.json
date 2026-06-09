@@ -1,0 +1,10 @@
+{
+  "name": "ShurePlus MOTIV",
+  "unique_identifier": "com.shure.motiv.desktop",
+  "token": "shureplus-motiv",
+  "installer_format": "dmg",
+  "slug": "shureplus-motiv/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

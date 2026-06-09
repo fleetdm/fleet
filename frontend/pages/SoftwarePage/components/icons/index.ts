@@ -329,6 +329,104 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Sabnzbd from "./Sabnzbd";
+import SafeExamBrowser from "./SafeExamBrowser";
+import SalesforceCli from "./SalesforceCli";
+import Sanesidebuttons from "./Sanesidebuttons";
+import ScMenu from "./ScMenu";
+import Scratch from "./Scratch";
+import ScreamingFrogSeoSpider from "./ScreamingFrogSeoSpider";
+import Screenflick from "./Screenflick";
+import Screenflow from "./Screenflow";
+import Screenfocus from "./Screenfocus";
+import ScreenStudio from "./ScreenStudio";
+import Scribus from "./Scribus";
+import Scrivener from "./Scrivener";
+import Securesafe from "./Securesafe";
+import Selfcontrol from "./Selfcontrol";
+import Sensei from "./Sensei";
+import Servo from "./Servo";
+import Session from "./Session";
+import Setapp from "./Setapp";
+import Shapr3D from "./Shapr3D";
+import Sharefile from "./Sharefile";
+import Shift from "./Shift";
+import Shifty from "./Shifty";
+import Shortcat from "./Shortcat";
+import Shotcut from "./Shotcut";
+import ShureplusMotiv from "./ShureplusMotiv";
+import Sidenotes from "./Sidenotes";
+import Sigmaos from "./Sigmaos";
+import Silentknight from "./Silentknight";
+import SilhouetteStudio from "./SilhouetteStudio";
+import SimpleComic from "./SimpleComic";
+import Simpledemviewer from "./Simpledemviewer";
+import Sirimote from "./Sirimote";
+import Sketchup from "./Sketchup";
+import Skim from "./Skim";
+import Slab from "./Slab";
+import Slicer from "./Slicer";
+import Slidepad from "./Slidepad";
+import Sloth from "./Sloth";
+import Smartsheet from "./Smartsheet";
+import Smoothscroll from "./Smoothscroll";
+import Smultron from "./Smultron";
+import Snapmotion from "./Snapmotion";
+import SnowflakeSnowsql from "./SnowflakeSnowsql";
+import Sococo from "./Sococo";
+import SonicVisualiser from "./SonicVisualiser";
+import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
+import SonosS1Controller from "./SonosS1Controller";
+import SonyPsRemotePlay from "./SonyPsRemotePlay";
+import Soulver from "./Soulver";
+import Soundanchor from "./Soundanchor";
+import SoundControl from "./SoundControl";
+import SoundSiphon from "./SoundSiphon";
+import Soundsource from "./Soundsource";
+import Spamsieve from "./Spamsieve";
+import SpectraApp from "./SpectraApp";
+import SpitfireAudio from "./SpitfireAudio";
+import Splice from "./Splice";
+import Spyder from "./Spyder";
+import Sqlectron from "./Sqlectron";
+import SqlproForMssql from "./SqlproForMssql";
+import SqlproForMysql from "./SqlproForMysql";
+import SqlproForPostgres from "./SqlproForPostgres";
+import SqlproForSqlite from "./SqlproForSqlite";
+import SqlproStudio from "./SqlproStudio";
+import Squash from "./Squash";
+import SshConfigEditor from "./SshConfigEditor";
+import StandardNotes from "./StandardNotes";
+import Staruml from "./Staruml";
+import Steermouse from "./Steermouse";
+import Stellarium from "./Stellarium";
+import Stillcolor from "./Stillcolor";
+import Stretchly from "./Stretchly";
+import Studio3T from "./Studio3T";
+import Subethaedit from "./Subethaedit";
+import Sunsama from "./Sunsama";
+import Supercollider from "./Supercollider";
+import Superhuman from "./Superhuman";
+import Superkey from "./Superkey";
+import Superlist from "./Superlist";
+import SuperProductivity from "./SuperProductivity";
+import Superwhisper from "./Superwhisper";
+import Supportcompanion from "./Supportcompanion";
+import Surge from "./Surge";
+import Swiftbar from "./Swiftbar";
+import SwiftQuit from "./SwiftQuit";
+import SwiftShift from "./SwiftShift";
+import Swifty from "./Swifty";
+import Swish from "./Swish";
+import Switch from "./Switch";
+import Sync from "./Sync";
+import Syncmate from "./Syncmate";
+import Syncovery from "./Syncovery";
+import SyncthingApp from "./SyncthingApp";
+import Synologyassistant from "./Synologyassistant";
+import SyntaxHighlight from "./SyntaxHighlight";
+import Systhist from "./Systhist";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +767,104 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "3d slicer": Slicer,
+  "ps remote play": SonyPsRemotePlay,
+  sabnzbd: Sabnzbd,
+  "safe exam browser": SafeExamBrowser,
+  "salesforce cli": SalesforceCli,
+  sanesidebuttons: Sanesidebuttons,
+  "sc menu": ScMenu,
+  scratch: Scratch,
+  "screaming frog seo spider": ScreamingFrogSeoSpider,
+  "screen studio": ScreenStudio,
+  screenflick: Screenflick,
+  screenflow: Screenflow,
+  screenfocus: Screenfocus,
+  scribus: Scribus,
+  scrivener: Scrivener,
+  securesafe: Securesafe,
+  selfcontrol: Selfcontrol,
+  sensei: Sensei,
+  servo: Servo,
+  session: Session,
+  setapp: Setapp,
+  shapr3d: Shapr3D,
+  sharefile: Sharefile,
+  shift: Shift,
+  shifty: Shifty,
+  shotcut: Shotcut,
+  "shureplus motiv": ShureplusMotiv,
+  sidenotes: Sidenotes,
+  sigmaos: Sigmaos,
+  silentknight: Silentknight,
+  "silhouette studio": SilhouetteStudio,
+  "simple comic": SimpleComic,
+  simpledemviewer: Simpledemviewer,
+  sirimote: Sirimote,
+  sketchup: Sketchup,
+  skim: Skim,
+  slab: Slab,
+  slidepad: Slidepad,
+  sloth: Sloth,
+  smartsheet: Smartsheet,
+  smoothscroll: Smoothscroll,
+  smultron: Smultron,
+  snapmotion: Snapmotion,
+  snowsql: SnowflakeSnowsql,
+  sococo: Sococo,
+  "sonic visualiser": SonicVisualiser,
+  sonobus: Sonobus,
+  "sonos s1": SonosS1Controller,
+  "sonos s2": Sonos,
+  soulver: Soulver,
+  "sound control": SoundControl,
+  soundanchor: Soundanchor,
+  soundsiphon: SoundSiphon,
+  soundsource: Soundsource,
+  spamsieve: Spamsieve,
+  spectra: SpectraApp,
+  "spitfire audio": SpitfireAudio,
+  splice: Splice,
+  "sproutcube shortcat": Shortcat,
+  spyder: Spyder,
+  sqlectron: Sqlectron,
+  "sqlpro for mssql": SqlproForMssql,
+  "sqlpro for mysql": SqlproForMysql,
+  "sqlpro for postgres": SqlproForPostgres,
+  "sqlpro for sqlite": SqlproForSqlite,
+  "sqlpro studio": SqlproStudio,
+  squash: Squash,
+  "ssh config editor": SshConfigEditor,
+  "standard notes": StandardNotes,
+  staruml: Staruml,
+  steermouse: Steermouse,
+  stellarium: Stellarium,
+  stillcolor: Stillcolor,
+  stretchly: Stretchly,
+  "studio 3t": Studio3T,
+  subethaedit: Subethaedit,
+  sunsama: Sunsama,
+  "super productivity": SuperProductivity,
+  supercollider: Supercollider,
+  superhuman: Superhuman,
+  superkey: Superkey,
+  superlist: Superlist,
+  superwhisper: Superwhisper,
+  "support companion": Supportcompanion,
+  surge: Surge,
+  "swift quit": SwiftQuit,
+  "swift shift": SwiftShift,
+  swiftbar: Swiftbar,
+  swifty: Swifty,
+  swish: Swish,
+  "switch audio converter": Switch,
+  sync: Sync,
+  syncmate: Syncmate,
+  syncovery: Syncovery,
+  syncthing: SyncthingApp,
+  "synology assistant": Synologyassistant,
+  "syntax highlight": SyntaxHighlight,
+  systhist: Systhist,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

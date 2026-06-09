@@ -1,0 +1,10 @@
+{
+  "name": "Swish",
+  "unique_identifier": "co.highlyopinionated.swish",
+  "token": "swish",
+  "installer_format": "dmg",
+  "slug": "swish/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
