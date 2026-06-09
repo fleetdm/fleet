@@ -199,6 +199,29 @@ func TestAuthorizeUser(t *testing.T) {
 		ID:    102,
 		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
 	}
+	// A team admin of both team 1 and team 2.
+	twoTeamsAdmin := &fleet.User{
+		ID: 103,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin},
+		},
+	}
+	// A user (object) that belongs to both team 1 and team 2.
+	teamUserTeam1AndTeam2 := &fleet.User{
+		ID: 104,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+		},
+	}
+	// A new user (object) being created in both team 1 and team 2.
+	newUserTeam1AndTeam2 := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin},
+		},
+	}
 
 	runTestCases(t, []authTestCase{
 		{user: nil, object: user, action: read, allow: false},
@@ -302,6 +325,23 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: teamAdmin, object: teamAdmin, action: write, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: writeRole, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: changePwd, allow: true},
+
+		// A team admin of only team 1 cannot read/write/create a user that belongs to
+		// a team they don't administer (regression test for the privilege escalation
+		// where a team admin could create/modify users in other teams).
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: read, allow: false},
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: write, allow: false},
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: writeRole, allow: false},
+		{user: teamAdmin, object: newUserTeam1AndTeam2, action: write, allow: false},
+
+		// A team admin of both team 1 and team 2 can read/write/create a user that
+		// belongs to those teams.
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: read, allow: true},
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: write, allow: true},
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: writeRole, allow: true},
+		{user: twoTeamsAdmin, object: newUserTeam1AndTeam2, action: write, allow: true},
+		// And a user that only belongs to one of the teams they administer.
+		{user: twoTeamsAdmin, object: newTeamUser, action: write, allow: true},
 	})
 }
 
