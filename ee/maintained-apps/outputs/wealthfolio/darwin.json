@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.4.0",
+      "version": "3.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio' AND version_compare(bundle_short_version, '3.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio' AND version_compare(bundle_short_version, '3.5.1') < 0);"
       },
-      "installer_url": "https://github.com/afadil/wealthfolio/releases/download/v3.4.0/Wealthfolio_3.4.0_aarch64.dmg",
+      "installer_url": "https://github.com/afadil/wealthfolio/releases/download/v3.5.1/Wealthfolio_3.5.1_aarch64.dmg",
       "install_script_ref": "161e063d",
       "uninstall_script_ref": "cd049db6",
-      "sha256": "eaf1a36f0aba42905ea387929642b33ac3ded9ce09ff24ccff6b7e6259a3b5e3",
+      "sha256": "b3f031881cd51e9402b41b2a98a8012c6dc8f517ad0ef92427f56b19ce379512",
       "default_categories": [
         "Productivity"
       ]
