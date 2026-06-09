@@ -329,6 +329,31 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Nagstamon from "./Nagstamon";
+import NameMangler from "./NameMangler";
+import Naps2 from "./Naps2";
+import NativeAccess from "./NativeAccess";
+import NdiTools from "./NdiTools";
+import Neofinder from "./Neofinder";
+import Netiquette from "./Netiquette";
+import Netnewswire from "./Netnewswire";
+import Netron from "./Netron";
+import Netspot from "./Netspot";
+import NextcloudTalk from "./NextcloudTalk";
+import Nightfall from "./Nightfall";
+import NitroPdfPro from "./NitroPdfPro";
+import Nocturnal from "./Nocturnal";
+import Nordlayer from "./Nordlayer";
+import NosqlWorkbench from "./NosqlWorkbench";
+import Notchnook from "./Notchnook";
+import Notepadexe from "./Notepadexe";
+import Notesnook from "./Notesnook";
+import Notesollama from "./Notesollama";
+import NounProject from "./NounProject";
+import Novabench from "./Novabench";
+import Nucleo from "./Nucleo";
+import Numi from "./Numi";
+import NvidiaGeforceNow from "./NvidiaGeforceNow";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +694,31 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  nagstamon: Nagstamon,
+  "name mangler": NameMangler,
+  naps2: Naps2,
+  "native access": NativeAccess,
+  "ndi tools": NdiTools,
+  neofinder: Neofinder,
+  netiquette: Netiquette,
+  netnewswire: Netnewswire,
+  netron: Netron,
+  netspot: Netspot,
+  "nextcloud talk desktop": NextcloudTalk,
+  nightfall: Nightfall,
+  "nitro pdf pro": NitroPdfPro,
+  nocturnal: Nocturnal,
+  nordlayer: Nordlayer,
+  "nosql workbench": NosqlWorkbench,
+  notchnook: Notchnook,
+  "notepad.exe": Notepadexe,
+  notesnook: Notesnook,
+  notesollama: Notesollama,
+  "noun project": NounProject,
+  novabench: Novabench,
+  nucleo: Nucleo,
+  numi: Numi,
+  "nvidia geforce now": NvidiaGeforceNow,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

@@ -1941,11 +1941,88 @@
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
+      "name": "Nagstamon",
+      "slug": "nagstamon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.nagstamon",
+      "description": "Nagstamon is a nagios status monitor."
+    },
+    {
+      "name": "Name Mangler",
+      "slug": "name-mangler/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.manytricks.NameMangler",
+      "description": "Name Mangler is a multi-file renaming tool."
+    },
+    {
+      "name": "NAPS2",
+      "slug": "naps2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.naps2.desktop",
+      "description": "NAPS2 is a document scanning application."
+    },
+    {
+      "name": "Native Access",
+      "slug": "native-access/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.native-instruments.nativeaccess2",
+      "description": "Native Access is an administration tool for Native Instruments products."
+    },
+    {
+      "name": "NDI Tools",
+      "slug": "ndi-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.newtek.Application-Mac-NDI-ScanConverter",
+      "description": "NDI Tools is a tools & plugins for NDI."
+    },
+    {
+      "name": "NeoFinder",
+      "slug": "neofinder/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.wfs-apps.neofinder",
+      "description": "NeoFinder is a digital media asset manager."
+    },
+    {
       "name": "Nessus Agent",
       "slug": "nessus-agent/windows",
       "platform": "windows",
       "unique_identifier": "Nessus Agent (x64)",
       "description": "Nessus Agent is a lightweight agent that performs local vulnerability and compliance scans and reports the results to Tenable Nessus Manager or Tenable Vulnerability Management."
+    },
+    {
+      "name": "Netiquette",
+      "slug": "netiquette/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.objective-see.Netiquette",
+      "description": "Netiquette is a network monitor."
+    },
+    {
+      "name": "NetNewsWire",
+      "slug": "netnewswire/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ranchero.NetNewsWire-Evergreen",
+      "description": "NetNewsWire is a free and open-source RSS reader."
+    },
+    {
+      "name": "Netron",
+      "slug": "netron/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lutzroeder.netron",
+      "description": "Netron is a visualiser for neural network, deep learning, and machine learning models."
+    },
+    {
+      "name": "NetSpot",
+      "slug": "netspot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.etwok.netspotwifi",
+      "description": "NetSpot is a WiFi site survey software and WiFi scanner."
+    },
+    {
+      "name": "Nextcloud Talk Desktop",
+      "slug": "nextcloud-talk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nextcloud.talk.mac",
+      "description": "Nextcloud Talk Desktop is an official Nextcloud Talk Desktop client."
     },
     {
       "name": "Nextcloud",
@@ -1962,11 +2039,39 @@
       "description": "Nextcloud is a self-hosted file sync and sharing platform that provides secure access to your data across devices with collaboration features."
     },
     {
+      "name": "Nightfall",
+      "slug": "nightfall/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.ryanthomson.Nightfall",
+      "description": "Nightfall is a menu bar utility for toggling dark mode."
+    },
+    {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gonitro.NitroPDFPro",
+      "description": "Nitro PDF Pro is a PDF editing software."
+    },
+    {
+      "name": "Nocturnal",
+      "slug": "nocturnal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.harshilshah.nocturnal",
+      "description": "Nocturnal is a simple app to toggle dark mode with one click."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
       "unique_identifier": "Node.js",
       "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
+    },
+    {
+      "name": "NordLayer",
+      "slug": "nordlayer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nordvpn.macos.teams",
+      "description": "NordLayer is a security software for business."
     },
     {
       "name": "NordPass",
@@ -1997,11 +2102,46 @@
       "description": "NordVPN is a commercial VPN service."
     },
     {
+      "name": "NoSQL Workbench",
+      "slug": "nosql-workbench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dynamodb.workbench",
+      "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
+    },
+    {
+      "name": "NotchNook",
+      "slug": "notchnook/darwin",
+      "platform": "darwin",
+      "unique_identifier": "lo.cafe.NotchNook",
+      "description": "NotchNook is a handy utility to manage and customize the notch area."
+    },
+    {
       "name": "Notepad++",
       "slug": "notepad++/windows",
       "platform": "windows",
       "unique_identifier": "Notepad++",
       "description": "Notepad++ is a text editor for Windows."
+    },
+    {
+      "name": "Notepad.exe",
+      "slug": "notepadexe/darwin",
+      "platform": "darwin",
+      "unique_identifier": "best.swift.Notepad",
+      "description": "Notepad.exe is a lightweight code editor."
+    },
+    {
+      "name": "Notesnook",
+      "slug": "notesnook/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.streetwriters.notesnook",
+      "description": "Notesnook is a privacy-focused note taking app."
+    },
+    {
+      "name": "NotesOllama",
+      "slug": "notesollama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.smallest.NotesOllama",
+      "description": "NotesOllama is a LLM support for Apple Notes through Ollama."
     },
     {
       "name": "Notion Calendar",
@@ -2032,6 +2172,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Noun Project",
+      "slug": "noun-project/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.thenounproject.Noun-Project",
+      "description": "Noun Project is an icon manager."
+    },
+    {
       "name": "Nova",
       "slug": "nova/darwin",
       "platform": "darwin",
@@ -2039,11 +2186,39 @@
       "description": "Nova is a native code editor by Panic."
     },
     {
+      "name": "Novabench",
+      "slug": "novabench/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.novabench.client",
+      "description": "Novabench is a benchmark tool to quickly test and compare the computer's performance."
+    },
+    {
+      "name": "Nucleo",
+      "slug": "nucleo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "co.ambercreative.nucleo",
+      "description": "Nucleo is an icon manager and library."
+    },
+    {
       "name": "Nudge",
       "slug": "nudge/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.macadmins.Nudge",
       "description": "Nudge is an application for enforcing OS updates."
+    },
+    {
+      "name": "Numi",
+      "slug": "numi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dmitrynikolaev.numi",
+      "description": "Numi is a calculator and converter application."
+    },
+    {
+      "name": "NVIDIA GeForce NOW",
+      "slug": "nvidia-geforce-now/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nvidia.gfnpc.mall",
+      "description": "NVIDIA GeForce NOW is a cloud gaming platform."
     },
     {
       "name": "OBS",
