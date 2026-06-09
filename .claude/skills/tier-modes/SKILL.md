@@ -1,6 +1,6 @@
 ---
 name: tier-modes
-description: Authoring guide for Fleet Free (isPremiumTier) and Primo mode (isPrimoMode) gating in the Fleet frontend. Use when adding a new top-level page, feature page, or significant UI surface (modal, side panel, dashboard, settings section, new tab) where the Free / Primo treatment isn't already decided, OR when introducing NEW tier gating to code that doesn't have it yet. Do NOT load for edits inside already-gated code — the tier decision is already made there.
+description: Authoring guide for Fleet Free (!isPremiumTier) and Primo mode (isPrimoMode) gating in the Fleet frontend. Use when adding a new top-level page, feature page, or significant UI surface (modal, side panel, dashboard, settings section, new tab) where the Free / Primo treatment isn't already decided, OR when introducing NEW tier gating to code that doesn't have it yet. Do NOT load for edits inside already-gated code — the tier decision is already made there.
 allowed-tools: Read, Grep, Glob, Bash(yarn test*)
 effort: medium
 ---
@@ -60,8 +60,4 @@ The goal is to catch unstated tier assumptions on genuinely new surfaces, not to
 
 ## Common gotchas
 
-- `isPrimoMode` is **not** in `AppContext`. Derive it locally from `config?.partnerships?.enable_primo`. Refactors that move code out of a `config`-aware component silently lose the Primo gate.
-- Both flags can be true at once (Premium Primo tenant). Single-flag gates are usually incomplete.
-- Empty-state copy: Primo inherits Free's generic copy despite being Premium.
-- `useTeamIdParam` defaults to "Unassigned" in Primo, "All fleets" otherwise — `currentTeamId === -1` ("All fleets") never fires in Primo.
-- Dual-gated UI (`isPremiumTier && !isPrimoMode`) is the right shape for "premium feature that's also multi-fleet only."
+See `frontend/docs/patterns.md` § Tier modes → Gotchas — the most important is that `isPrimoMode` is not in `AppContext` and gets silently lost when code moves between components.
