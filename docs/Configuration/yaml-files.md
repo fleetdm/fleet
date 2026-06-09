@@ -486,10 +486,10 @@ You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables)
 
 ### apple_account_provisioning
 
-The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`)
+The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`) and only supports macOS hosts today
 
-  - `idp_token_url` is the token URL for your Oauth ROPG IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
-  - `idp_client_id` is the client ID of your Oauth ROPG application within your IdP
+  - `oauth_idp_token_url` is the token URL for your Oauth ROPG(Resource Owner Password Grant) IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
+  - `oauth_idp_client_id` is the client ID of your Oauth ROPG application within your IdP. In Okta this can be found under your application's Client Credentials
   - `oauth_idp_client_secret` is the client secret of your Oauth ROPG application within your IdP
 
 ### macos_setup
