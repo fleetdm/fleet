@@ -146,7 +146,7 @@ This brings the version bump and CHANGELOG updates to main and removes only the 
 
 ## 9. Conclude the milestone
 
-After the release is published, close out the associated GitHub issues and milestone, following the [conclude current milestone](https://fleetdm.com/handbook/engineering#conclude-current-milestone) process:
+After the release is published, close out the associated GitHub issues and milestone. For the canonical checklist, see [Conclude current milestone](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone):
 
 1. **Move associated stories to the Drafting board**: Stories may not be on the [Drafting](https://github.com/orgs/fleetdm/projects/67) board (project 67) yet. For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, apply the `:product` label and remove the `:release` label so it moves onto the product drafting board.
 
