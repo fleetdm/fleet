@@ -329,6 +329,11 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import FourKSlideshowMaker from "./FourKSlideshowMaker";
+import FourKStogram from "./FourKStogram";
+import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoToMp3 from "./FourKVideoToMp3";
+import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +674,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "4k slideshow maker": FourKSlideshowMaker,
+  "4k stogram": FourKStogram,
+  "4k video downloader": FourKVideoDownloader,
+  "4k video to mp3": FourKVideoToMp3,
+  "4k youtube to mp3": FourKYoutubeToMp3,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon

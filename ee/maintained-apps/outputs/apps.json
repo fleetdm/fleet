@@ -30,6 +30,41 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "4K Slideshow Maker",
+      "slug": "4k-slideshow-maker/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kslideshowmaker",
+      "description": "4K Slideshow Maker is a slideshow maker."
+    },
+    {
+      "name": "4K Stogram",
+      "slug": "4k-stogram/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kstogram",
+      "description": "4K Stogram is a tool to download Instagram photos, accounts, hashtags and locations."
+    },
+    {
+      "name": "4K Video Downloader",
+      "slug": "4k-video-downloader/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.4kdownload.ApplicationDirectories",
+      "description": "4K Video Downloader is a free video downloader."
+    },
+    {
+      "name": "4K Video to MP3",
+      "slug": "4k-video-to-mp3/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kvideotomp3",
+      "description": "4K Video to MP3 is a tool to convert any video to MP3."
+    },
+    {
+      "name": "4K YouTube to MP3",
+      "slug": "4k-youtube-to-mp3/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kyoutubetomp3",
+      "description": "4K YouTube to MP3 is a turn YouTube links into MP3 files."
+    },
+    {
       "name": "7-zip",
       "slug": "7-zip/windows",
       "platform": "windows",
