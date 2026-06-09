@@ -173,6 +173,72 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 	})
 }
 
+
+func TestFailedPolicyAutomationActivities(t *testing.T) {
+	t.Run("webhook", func(t *testing.T) {
+		act := ActivityTypeFailedWebhookPolicyAutomation{
+			PolicyID:      7,
+			HostIDList:    []uint{10, 20, 30},
+			StatusCode:    500,
+			ErrorResponse: "internal server error",
+		}
+
+		assert.Equal(t, "failed_webhook_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 7, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "internal server error", got["error_response"])
+	})
+}
+
+func TestSuccessPolicyAutomationActivities(t *testing.T) {
+	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
+	// host ID list or a policy name (both are intentionally omitted; hosts
+	// live one-per-row in activity_host_past).
+	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
+		t.Helper()
+		_, hasHostIDs := got["host_ids"]
+		assert.False(t, hasHostIDs)
+		_, hasPolicyName := got["policy_name"]
+		assert.False(t, hasPolicyName)
+	}
+
+	t.Run("webhook sent", func(t *testing.T) {
+		act := ActivityTypeQueuedWebhookPolicyAutomation{
+			PolicyID:   7,
+			HostIDList: []uint{10, 20, 30},
+			StatusCode: 200,
+		}
+
+		assert.Equal(t, "queued_webhook_policy_automation", act.ActivityName())
+		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 7, got["policy_id"])
+		assert.EqualValues(t, 200, got["status_code"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
+
+	t.Run("webhook sent omits zero status code", func(t *testing.T) {
+		b, err := json.Marshal(ActivityTypeQueuedWebhookPolicyAutomation{PolicyID: 7, HostIDList: []uint{10}})
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		_, hasStatus := got["status_code"]
+		assert.False(t, hasStatus)
+	})
+}
+
 // TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext exercises the
 // scenario where a VPP install is attempted during setup experience for a
 // host that has other upcoming activities queued. If the VPP call fails

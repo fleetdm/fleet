@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/url"
 	"path"
@@ -10,11 +11,90 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	fleethttp "github.com/fleetdm/fleet/v4/server/platform/http"
 )
+
+// recordWebhookFailureActivity records a failed_webhook_policy_automation
+// activity for every host in the failed batch, capturing the remote server's
+// status code and response body when available. Failures to record are logged
+// and swallowed so they don't mask the original webhook error.
+func recordWebhookFailureActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	policy *fleet.Policy,
+	batch []fleet.PolicySetHost,
+	postErr error,
+	logger *slog.Logger,
+) {
+	if newActivitySvc == nil {
+		return
+	}
+
+	var statusCode int
+	if sc, ok := errors.AsType[interface {
+		error
+		StatusCode() int
+	}](postErr); ok {
+		statusCode = sc.StatusCode()
+	}
+
+	errResponse := ""
+	if b, ok := errors.AsType[interface {
+		error
+		Body() string
+	}](postErr); ok {
+		errResponse = b.Body()
+	}
+	if errResponse == "" {
+		// network-level failures (e.g. connection refused) have no server
+		// response; fall back to the (masked) error message.
+		errResponse = fleethttp.MaskURLError(postErr).Error()
+	}
+	hostIDs := make([]uint, len(batch))
+	for i, host := range batch {
+		hostIDs[i] = host.ID
+	}
+
+	if err := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedWebhookPolicyAutomation{
+		PolicyID:      policy.ID,
+		HostIDList:    hostIDs,
+		StatusCode:    statusCode,
+		ErrorResponse: errResponse,
+	}); err != nil {
+		logger.WarnContext(ctx, "failed to record webhook policy automation failure activity",
+			"policy_id", policy.ID, "err", err)
+	}
+}
+
+// recordWebhookQueuedActivity records a queued_webhook_policy_automation activity
+// for every host in a batch whose POST was accepted by the remote server.
+// Failures to record are logged and swallowed so they don't affect the send.
+func recordWebhookQueuedActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	policy *fleet.Policy,
+	batch []fleet.PolicySetHost,
+	logger *slog.Logger,
+) {
+	if newActivitySvc == nil {
+		return
+	}
+	hostIDs := make([]uint, len(batch))
+	for i, host := range batch {
+		hostIDs[i] = host.ID
+	}
+	if err := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeQueuedWebhookPolicyAutomation{
+		PolicyID:   policy.ID,
+		HostIDList: hostIDs,
+	}); err != nil {
+		logger.WarnContext(ctx, "failed to record webhook policy automation queued activity",
+			"policy_id", policy.ID, "err", err)
+	}
+}
 
 // SendFailingPoliciesBatchedPOSTs sends a failing policy to the provided
 // webhook URL. It sends in batches if hostBatchSize > 0. After a successful
@@ -28,6 +108,7 @@ func SendFailingPoliciesBatchedPOSTs(
 	webhookURL *url.URL,
 	now time.Time,
 	logger *slog.Logger,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	hosts, err := failingPoliciesSet.ListHosts(policy.ID)
 	if err != nil {
@@ -67,7 +148,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		logger.DebugContext(ctx, "sending failing policy batch", "payload", payload, "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
+		logger.DebugContext(ctx, "sending failing policy batch", "payload", payload, "url", fleethttp.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
 
 		// Marshal and duplicate renamed JSON keys (e.g. fleet_id → also team_id)
 		// so that webhook consumers see both the new and deprecated field names.
@@ -79,9 +160,11 @@ func SendFailingPoliciesBatchedPOSTs(
 			jsonBytes = endpointer.DuplicateJSONKeys(jsonBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 		}
 
-		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes), logger); err != nil {
-			return ctxerr.Wrapf(ctx, server.MaskURLError(err), "posting to %q", server.MaskSecretURLParams(webhookURL.String()))
+		if err := fleethttp.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes), logger); err != nil {
+			recordWebhookFailureActivity(ctx, newActivitySvc, policy, batch, err, logger)
+			return ctxerr.Wrapf(ctx, fleethttp.MaskURLError(err), "posting to %q", fleethttp.MaskSecretURLParams(webhookURL.String()))
 		}
+		recordWebhookQueuedActivity(ctx, newActivitySvc, policy, batch, logger)
 		if err := failingPoliciesSet.RemoveHosts(policy.ID, batch); err != nil {
 			return ctxerr.Wrapf(ctx, err, "removing hosts %+v from failing policies set %d", batch, policy.ID)
 		}

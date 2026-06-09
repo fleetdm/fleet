@@ -764,7 +764,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, activitySvc)
 	}); err != nil {
 		initFatal(err, "failed to register automations schedule")
 	}

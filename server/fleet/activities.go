@@ -2121,3 +2121,48 @@ func (a ActivityTypeRanAutomationCalendarEvent) HostIDs() []uint {
 func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
 	return true
 }
+
+// ActivityTypeFailedWebhookPolicyAutomation is recorded when a failing-policy
+// webhook automation send is rejected by the remote server. One activity is
+// recorded per failed batch POST and is associated with every host in that
+// batch.
+type ActivityTypeFailedWebhookPolicyAutomation struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) ActivityName() string {
+	return "failed_webhook_policy_automation"
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedWebhookPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeQueuedWebhookPolicyAutomation is recorded when a failing-policy
+// webhook automation batch POST is accepted by the remote server. One activity
+// is recorded per successful batch POST and is associated with every host in
+// that batch. The activity name is "queued_webhook_policy_automation".
+type ActivityTypeQueuedWebhookPolicyAutomation struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+	StatusCode int    `json:"status_code,omitempty"`
+}
+
+func (a ActivityTypeQueuedWebhookPolicyAutomation) ActivityName() string {
+	return "queued_webhook_policy_automation"
+}
+
+func (a ActivityTypeQueuedWebhookPolicyAutomation) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeQueuedWebhookPolicyAutomation) WasFromAutomation() bool {
+	return true
+}
