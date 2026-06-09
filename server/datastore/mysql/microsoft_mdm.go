@@ -360,34 +360,6 @@ func (ds *Datastore) markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context
 	})
 }
 
-// markMDMWindowsHasPendingCommandsByHostUUIDs is markMDMWindowsHasPendingCommandsByEnrollmentIDs keyed by host UUID, for the
-// profile-delivery enqueue path that inserts queue rows by host UUID rather than enrollment id. It flags only the latest enrollment per
-// host UUID, mirroring the queue insert in MDMWindowsEnqueueCommandAndUpsertHostProfiles (SELECT MAX(mwe.id) ... GROUP BY host_uuid): the
-// command lands on that one enrollment, so only it must be flagged. Flagging every enrollment row for the UUID would strand stale
-// re-enrollment rows at has_pending_commands=1, since the recompute-on-ack only ever runs against the responding (latest) enrollment.
-func (ds *Datastore) markMDMWindowsHasPendingCommandsByHostUUIDs(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) error {
-	if len(hostUUIDs) == 0 {
-		return nil
-	}
-	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
-	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
-		// The derived table is required because MySQL forbids referencing the UPDATE target table directly in a subquery.
-		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1
-			WHERE id IN (
-				SELECT id FROM (
-					SELECT MAX(id) AS id FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid
-				) latest
-			)`, batch)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by host uuids")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by host uuids")
-		}
-		return nil
-	})
-}
-
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the
 // database.
 func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
@@ -644,32 +616,41 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 
 	executeBatch := func() error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Insert command queue entries via INSERT ... SELECT so that
-			// hosts whose enrollment was deleted produce 0 rows instead
-			// of a NULL enrollment_id / FK error.
+			// Enqueuing the command and flagging the affected enrollments both need the latest enrollment id per host UUID
+			// (SELECT MAX(id) ... GROUP BY host_uuid).
 			if len(queueHostUUIDs) > 0 {
-				queueQuery, queueArgs, err := sqlx.In(`
-					INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-					SELECT MAX(mwe.id), ?
-					FROM mdm_windows_enrollments mwe
-					WHERE mwe.host_uuid IN (?)
-					GROUP BY mwe.host_uuid`,
-					cmd.CommandUUID, queueHostUUIDs,
-				)
+				// Hosts whose enrollment was deleted resolve to no id and are silently skipped.
+				enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, queueHostUUIDs)
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "building IN for MDMWindowsCommandQueue insert")
+					return ctxerr.Wrap(ctx, err, "resolving enrollment ids for MDMWindowsCommandQueue insert")
 				}
-				if _, err := tx.ExecContext(ctx, queueQuery, queueArgs...); err != nil {
-					if IsDuplicate(err) {
-						return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
-					}
-					return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
-				}
-
-				// A non-poll insert means a pending command now exists, so set the flag directly in this same transaction.
-				if cmd.TargetLocURI != syncml.DMClientPollIntervalLocURI {
-					if err := ds.markMDMWindowsHasPendingCommandsByHostUUIDs(ctx, tx, queueHostUUIDs); err != nil {
+				if len(enrollmentIDs) > 0 {
+					// Plain VALUES insert keyed by the resolved enrollment ids; the unique (enrollment_id, command_uuid) key still
+					// surfaces a duplicate the same way the INSERT ... SELECT did.
+					if err := common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+						valuesPart := strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",")
+						args := make([]any, 0, len(batch)*2)
+						for _, eid := range batch {
+							args = append(args, eid, cmd.CommandUUID)
+						}
+						if _, err := tx.ExecContext(ctx,
+							`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES `+valuesPart, args...); err != nil {
+							if IsDuplicate(err) {
+								return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+							}
+							return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+						}
+						return nil
+					}); err != nil {
 						return err
+					}
+
+					// A pending command now exists, so set the flag directly in this same transaction. Flag by the enrollment ids we already
+					// resolved.
+					if cmd.TargetLocURI != syncml.DMClientPollIntervalLocURI {
+						if err := ds.markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, enrollmentIDs); err != nil {
+							return err
+						}
 					}
 				}
 			}
