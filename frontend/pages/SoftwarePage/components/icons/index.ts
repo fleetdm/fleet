@@ -329,6 +329,18 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import I1Profiler from "./I1Profiler";
+import IbmAsperaConnect from "./IbmAsperaConnect";
+import Iconjar from "./Iconjar";
+import Idagio from "./Idagio";
+import Iexplorer from "./Iexplorer";
+import ImazingConverter from "./ImazingConverter";
+import Imhex from "./Imhex";
+import InputSourcePro from "./InputSourcePro";
+import Intellidock from "./Intellidock";
+import Invesalius from "./Invesalius";
+import Istherenet from "./Istherenet";
+import Itsycal from "./Itsycal";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +681,18 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  i1profiler: I1Profiler,
+  "ibm aspera connect": IbmAsperaConnect,
+  iconjar: Iconjar,
+  idagio: Idagio,
+  iexplorer: Iexplorer,
+  "imazing converter": ImazingConverter,
+  imhex: Imhex,
+  "input source pro": InputSourcePro,
+  intellidock: Intellidock,
+  invesalius: Invesalius,
+  istherenet: Istherenet,
+  itsycal: Itsycal,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
