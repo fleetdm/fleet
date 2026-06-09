@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -316,7 +317,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 // awaiting a fresh result, an out-of-scope gating policy falls back to installing, and the host policy clock is reset once when a
 // gated setup finishes (not per gated result).
 func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
@@ -326,10 +327,13 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 
 	hostLastEnrolledAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	labelsReportedAt := hostLastEnrolledAt.Add(time.Minute) // labels reported after enrollment (the common, ready case)
+	// Fixed clock so the gating-policy wait bound is deterministic. "now" sits just after enrollment (well within the bound); the
+	// fail-open subtest simulates elapsed time by moving host.LastEnrolledAt into the past (the bound is now - LastEnrolledAt).
+	svc.clock = clock.NewMockClock(labelsReportedAt)
 	host := &fleet.Host{
 		ID:             42,
 		UUID:           "win-uuid",
-		OsqueryHostID:  ptr.String(hostUUID),
+		OsqueryHostID:  &hostUUID,
 		Platform:       "windows",
 		LastEnrolledAt: hostLastEnrolledAt,
 		LabelUpdatedAt: labelsReportedAt,
@@ -373,7 +377,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		// Assert the gating freshness plumbing forwards the right host, one of the gating policies, and this-enrollment cutoff.
 		require.Equal(t, host.ID, hostID)
 		require.Contains(t, gatingPolicyIDs, gotPolicyID)
-		require.Equal(t, hostLastEnrolledAt, since)
+		require.Equal(t, host.LastEnrolledAt, since)
 		if policyResults != nil {
 			return policyResults[gotPolicyID], nil
 		}
@@ -398,24 +402,33 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		policyResult = nil
 		policyResults = nil
 		deliverable = nil
-		host.LabelUpdatedAt = labelsReportedAt // default to labels-ready; the "labels not reported yet" subtest overrides this
+		host.LabelUpdatedAt = labelsReportedAt   // default to labels-ready; the "labels not reported yet" subtest overrides this
+		host.LastEnrolledAt = hostLastEnrolledAt // default to within the gating-policy wait bound; the fail-open subtest moves it back
 	}
 
-	gatedPending := func() []*fleet.SetupExperienceStatusResult {
+	// gatedItem builds the host's single gated "GatedApp" item in the given status; gatedPending is the common pending case.
+	gatedItem := func(status fleet.SetupExperienceStatusResultStatus) []*fleet.SetupExperienceStatusResult {
 		return []*fleet.SetupExperienceStatusResult{{
 			HostUUID:            hostUUID,
 			Name:                "GatedApp",
 			SoftwareInstallerID: &installerID,
 			PolicyGated:         true,
-			Status:              fleet.SetupExperienceStatusPending,
+			Status:              status,
 		}}
 	}
+	gatedPending := func() []*fleet.SetupExperienceStatusResult {
+		return gatedItem(fleet.SetupExperienceStatusPending)
+	}
+
+	// singleInScope is the in-scope (deliverable) policy set for the default single-gating-policy item; bothInScope (below) is the
+	// two-policy equivalent. Keyed by policy id as a string, mirroring PolicyQueriesForHostFiltered's osquery distributed-query map.
+	singleInScope := map[string]string{fmt.Sprint(policyID): "SELECT 1;"}
 
 	t.Run("policy passes -> skipped (success, no install)", func(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = &policyPasses
-		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
+		deliverable = singleInScope // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -431,7 +444,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = &policyFails
-		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
+		deliverable = singleInScope // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -449,7 +462,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = nil
-		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
+		deliverable = singleInScope // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -461,11 +474,33 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no result consumed yet; policy clock must not be reset")
 	})
 
+	t.Run("in-scope policy never reports past the wait bound -> fails open and installs", func(t *testing.T) {
+		reset()
+		items = gatedPending()
+		policyResult = nil          // in scope but never produces a result (denylisted / watchdog-killed / erroring query / slow host)
+		deliverable = singleInScope // genuinely in scope, so the gate applies and the item would otherwise wait forever
+		// Simulate the wait exceeding the bound by moving enrollment back past it (clock is fixed; the gate checks now - LastEnrolledAt).
+		host.LastEnrolledAt = labelsReportedAt.Add(-(setupExperienceGatingPolicyTimeout + time.Minute))
+
+		finished, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.False(t, finished)
+		require.True(t, ds.GetSetupExperiencePolicyResultFuncInvoked, "the in-scope policy must be consulted before timing out")
+		require.Len(t, installs, 1, "a gating policy that never reports must fail open to installing, not wedge setup experience")
+		require.True(t, installs[0].ForSetupExperience)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
+	})
+
 	t.Run("no result, policy out of scope (labels ready) -> falls back to installing", func(t *testing.T) {
 		reset()
 		items = gatedPending()
 		policyResult = nil
-		deliverable = map[string]string{} // out of scope: not deliverable (and labels are reported, so this is definitive)
+		// The installer still has a gating policy, but PolicyQueriesForHostFiltered returns nothing: no gating policy is in scope
+		// for this host (platform or include/exclude label; the reason doesn't matter to the gate). Labels are reported, so an
+		// empty scope is definitive (unlike the "labels not reported yet" case below), so the gate doesn't apply -> install.
+		deliverable = map[string]string{}
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -473,7 +508,8 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.True(t, ds.PolicyQueriesForHostFilteredFuncInvoked, "labels are ready, so scope is evaluated")
 		require.Len(t, installs, 1)
 		require.True(t, installs[0].ForSetupExperience)
-		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "out-of-scope fallback ran no gating policy; policy clock must not be reset")
 	})
 
@@ -489,8 +525,9 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.GetSetupExperiencePolicyResultFuncInvoked, "scope is checked before the result; an out-of-scope policy's result must not be consulted")
 		require.Len(t, installs, 1, "an out-of-scope policy must not gate the install even if it reported a pass")
 		require.True(t, installs[0].ForSetupExperience)
-		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
-		require.NotNil(t, updates[len(updates)-1].HostSoftwareInstallsExecutionID)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
 	})
 
 	// When an installer is gated by more than one policy, they gate as a set: skip only if every in-scope policy passes; install
@@ -525,8 +562,9 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, finished)
 		require.Len(t, installs, 1, "any failing gating policy must install")
 		require.True(t, installs[0].ForSetupExperience)
-		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[len(updates)-1].Status)
-		require.NotNil(t, updates[len(updates)-1].HostSoftwareInstallsExecutionID)
+		require.Len(t, updates, 1)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, updates[0].Status)
+		require.NotNil(t, updates[0].HostSoftwareInstallsExecutionID)
 	})
 
 	t.Run("multiple gating policies, one still pending -> waits", func(t *testing.T) {
@@ -584,15 +622,9 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	t.Run("running gated item awaiting policy is re-checked each poll", func(t *testing.T) {
 		reset()
 		// Already running, no install execution yet -> awaiting-policy phase.
-		items = []*fleet.SetupExperienceStatusResult{{
-			HostUUID:            hostUUID,
-			Name:                "GatedApp",
-			SoftwareInstallerID: &installerID,
-			PolicyGated:         true,
-			Status:              fleet.SetupExperienceStatusRunning,
-		}}
-		policyResult = &policyPasses                       // result now available
-		deliverable = map[string]string{"99": "SELECT 1;"} // in scope
+		items = gatedItem(fleet.SetupExperienceStatusRunning)
+		policyResult = &policyPasses // result now available
+		deliverable = singleInScope  // in scope
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -607,15 +639,9 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		reset()
 		// Already running, no install execution yet, and still no policy result -> nothing changed, so we must not re-persist
 		// the same running state on every poll (avoids write amplification while waiting).
-		items = []*fleet.SetupExperienceStatusResult{{
-			HostUUID:            hostUUID,
-			Name:                "GatedApp",
-			SoftwareInstallerID: &installerID,
-			PolicyGated:         true,
-			Status:              fleet.SetupExperienceStatusRunning,
-		}}
+		items = gatedItem(fleet.SetupExperienceStatusRunning)
 		policyResult = nil
-		deliverable = map[string]string{"99": "SELECT 1;"} // in scope, just not reported yet
+		deliverable = singleInScope // in scope, just not reported yet
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)
@@ -627,13 +653,7 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 	t.Run("setup finishes with a gated item -> host policy clock reset once", func(t *testing.T) {
 		reset()
 		// All items terminal (the gated item resolved on a prior poll); this poll reaches the "finished" branch.
-		items = []*fleet.SetupExperienceStatusResult{{
-			HostUUID:            hostUUID,
-			Name:                "GatedApp",
-			SoftwareInstallerID: &installerID,
-			PolicyGated:         true,
-			Status:              fleet.SetupExperienceStatusSuccess,
-		}}
+		items = gatedItem(fleet.SetupExperienceStatusSuccess)
 
 		finished, err := svc.SetupExperienceNextStep(ctx, host)
 		require.NoError(t, err)

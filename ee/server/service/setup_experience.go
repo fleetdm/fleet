@@ -7,12 +7,19 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
+
+// setupExperienceGatingPolicyTimeout bounds how long a policy-gated setup-experience item waits for its in-scope gating
+// policies to produce a result before failing open (installing). A gating policy can fail to ever yield a fresh
+// pass/fail (denylisted by osquery for bad performance, watchdog-killed, a query that errors, etc.) and all of those
+// surface identically as "no result".
+const setupExperienceGatingPolicyTimeout = 30 * time.Minute
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &teamID}, fleet.ActionWrite); err != nil {
@@ -391,14 +398,17 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 // can be gated by several policies (all those whose install-software automation points at it); they gate as a set: the install is
 // skipped only if EVERY in-scope gating policy passes, and run if ANY of them fails (the app is missing or outdated for at least
 // one gate). A failing gate installs through the normal setup-experience path so the install inherits the setup-experience retry
-// count and RequireAllSoftwareWindows handling. The item is held running until enough fresh (this-enrollment) results arrive.
+// count and RequireAllSoftwareWindows handling. The item is held running until enough fresh (this-enrollment) results arrive, or
+// until setupExperienceGatingPolicyTimeout elapses with an in-scope policy still unreported, at which point it fails open and
+// installs (so a denylisted or never-reporting gating policy cannot wedge setup experience).
 //
 // Order matters: scope is resolved before any result is trusted. A policy's scope (platform + include/exclude labels) is only
 // knowable once the host has reported its labels for this enrollment, and a result reported before scope is known cannot be
 // trusted (e.g. an exclude-label policy can run on the first read, before its exclusion is computed). So we (1) wait for labels,
 // (2) compute the in-scope gating policies and install if none apply, and only then (3) aggregate their results.
 func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, host *fleet.Host, sw *fleet.SetupExperienceStatusResult) error {
-	// Mark running (in-memory); the single persist below holds the softwareRunning==0 guard so no other item starts while we wait.
+	// Set running on the struct only (not yet persisted); the single persist below holds the softwareRunning==0 guard so
+	// no other item starts while we wait.
 	alreadyRunning := sw.Status == fleet.SetupExperienceStatusRunning
 	sw.Status = fleet.SetupExperienceStatusRunning
 
@@ -411,12 +421,11 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 		return svc.ds.UpdateSetupExperienceStatusResult(ctx, sw)
 	}
 
-	// (1) The gate is only meaningful once the host has reported its labels for this enrollment: a policy's scope (platform plus
-	// include/exclude labels) decides whether it applies, and a freshly enrolled host hasn't computed dynamic label membership yet.
-	// Until then neither the scope check nor a result can be trusted -- an include-label policy would look out of scope, and an
-	// exclude-label policy can report a result on the first read before its exclusion is known. Every host receives the platform=''
-	// built-in dynamic labels (e.g. "All Linux"), so label_updated_at is guaranteed to advance on the first post-enroll checkin;
-	// until then, keep waiting.
+	// (1) The gate is only meaningful once the host has reported its labels for this enrollment: a policy's scope
+	// (platform plus include/exclude labels) decides whether it applies, and a freshly enrolled host hasn't computed
+	// dynamic label membership yet. Until then neither the scope check nor a result can be trusted.. Every host receives
+	// the platform='' built-in dynamic labels (e.g. "All Linux"), so label_updated_at is guaranteed to advance on the
+	// first post-enroll checkin; until then, keep waiting.
 	if host.LabelUpdatedAt.Before(host.LastEnrolledAt) {
 		return keepWaiting()
 	}
@@ -461,11 +470,19 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 		}
 	}
 	if anyPending {
+		// Fail open if the in-scope gating policies have not produced a result within the bound: a policy query that is
+		// denylisted, watchdog-killed, or erroring never yields a fresh pass/fail, and waiting forever would wedge setup
+		// experience (block every later item, and on Linux there is no ESP timeout to cancel it). Anchored on LastEnrolledAt,
+		// which is fixed for this enrollment and is the same cutoff used for result freshness.
+		if svc.clock.Now().Sub(host.LastEnrolledAt) > setupExperienceGatingPolicyTimeout {
+			svc.logger.WarnContext(ctx, "setup experience: gating policy produced no result within the wait bound; installing item (fail open)",
+				"host_id", host.ID, "software_installer_id", *sw.SoftwareInstallerID)
+			return svc.enqueueSetupExperienceSoftwareInstall(ctx, host, sw)
+		}
 		return keepWaiting()
 	}
 
-	// Every in-scope gating policy passed (app present and up-to-date): skip the install (terminal success). The host policy clock
-	// is reset once, when setup experience finishes (see the "finished" branch of SetupExperienceNextStep), not here.
+	// Every in-scope gating policy passed (app present and up-to-date): skip the install (terminal success).
 	sw.Status = fleet.SetupExperienceStatusSuccess
 	svc.logger.DebugContext(ctx, "setup experience: all gating policies passed; skipping install",
 		"host_id", host.ID, "software_installer_id", *sw.SoftwareInstallerID)
@@ -475,9 +492,7 @@ func (svc *Service) advancePolicyGatedSetupExperienceItem(ctx context.Context, h
 // resetPolicyClockAfterGatedSetup resets the host's "last reported policies" clock when setup experience finishes, if any of its
 // items was policy-gated (Windows/Linux). During setup only the gated policy subset is distributed/reported, which advances the
 // host-wide policy_updated_at and would otherwise delay the host's remaining policies by up to a full policy update interval once
-// setup ends. This must run at completion, not per gated result: resetting mid-setup makes policies due again, so the host can
-// re-report the gated subset and re-stamp the clock before setup ends. By the time setup is finished the host has left setup
-// experience, so its next checkin carries the full policy set and the reset is not undone.
+// setup ends.
 func (svc *Service) resetPolicyClockAfterGatedSetup(ctx context.Context, host *fleet.Host, statuses []*fleet.SetupExperienceStatusResult) error {
 	gated := false
 	for _, s := range statuses {
