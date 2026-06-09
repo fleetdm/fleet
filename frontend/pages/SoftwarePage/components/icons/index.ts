@@ -329,6 +329,53 @@ import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
+import Cacher from "./Cacher";
+import Caffeine from "./Caffeine";
+import CalibriteProfiler from "./CalibriteProfiler";
+import CamoStudio from "./CamoStudio";
+import CamundaModeler from "./CamundaModeler";
+import Capacities from "./Capacities";
+import Captain from "./Captain";
+import Captin from "./Captin";
+import Capto from "./Capto";
+import CarbonCopyCloner from "./CarbonCopyCloner";
+import Cardhop from "./Cardhop";
+import Cellprofiler from "./Cellprofiler";
+import Chalk from "./Chalk";
+import Charmstone from "./Charmstone";
+import Chatwise from "./Chatwise";
+import Chatwork from "./Chatwork";
+import Cheetah3D from "./Cheetah3D";
+import CherryStudio from "./CherryStudio";
+import Chime from "./Chime";
+import Choosy from "./Choosy";
+import Cleanclip from "./Cleanclip";
+import Clipbook from "./Clipbook";
+import Clipgrab from "./Clipgrab";
+import Clipy from "./Clipy";
+import Clocker from "./Clocker";
+import Clop from "./Clop";
+import Cloudmounter from "./Cloudmounter";
+import CmakeApp from "./CmakeApp";
+import Cmux from "./Cmux";
+import Coconutbattery from "./Coconutbattery";
+import Codeedit from "./Codeedit";
+import Coderunner from "./Coderunner";
+import Codexbar from "./Codexbar";
+import CogApp from "./CogApp";
+import Colorsnapper from "./Colorsnapper";
+import ColourContrastAnalyser from "./ColourContrastAnalyser";
+import Commander from "./Commander";
+import CommanderOne from "./CommanderOne";
+import CommandTabPlus from "./CommandTabPlus";
+import Companion from "./Companion";
+import CopilotMoney from "./CopilotMoney";
+import Cork from "./Cork";
+import Crossover from "./Crossover";
+import Crystalfetch from "./Crystalfetch";
+import Cursorsense from "./Cursorsense";
+import Cursr from "./Cursr";
+import Customshortcuts from "./Customshortcuts";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -669,6 +716,53 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  "bitfocus companion": Companion,
+  cacher: Cacher,
+  caffeine: Caffeine,
+  "calibrite profiler": CalibriteProfiler,
+  "camo studio": CamoStudio,
+  "camunda modeler": CamundaModeler,
+  capacities: Capacities,
+  captain: Captain,
+  captin: Captin,
+  capto: Capto,
+  "carbon copy cloner": CarbonCopyCloner,
+  cardhop: Cardhop,
+  cellprofiler: Cellprofiler,
+  chalk: Chalk,
+  charmstone: Charmstone,
+  chatwise: Chatwise,
+  chatwork: Chatwork,
+  cheetah3d: Cheetah3D,
+  "cherry studio": CherryStudio,
+  chime: Chime,
+  choosy: Choosy,
+  cleanclip: Cleanclip,
+  clipbook: Clipbook,
+  clipgrab: Clipgrab,
+  clipy: Clipy,
+  clocker: Clocker,
+  clop: Clop,
+  cmake: CmakeApp,
+  cmux: Cmux,
+  coconutbattery: Coconutbattery,
+  codeedit: Codeedit,
+  coderunner: Coderunner,
+  codexbar: Codexbar,
+  cog: CogApp,
+  "colorsnapper 2": Colorsnapper,
+  "colour contrast analyser": ColourContrastAnalyser,
+  "command-tab plus": CommandTabPlus,
+  commander: Commander,
+  "commander one": CommanderOne,
+  copilot: CopilotMoney,
+  cork: Cork,
+  crossover: Crossover,
+  crystalfetch: Crystalfetch,
+  cursorsense: Cursorsense,
+  cursr: Cursr,
+  customshortcuts: Customshortcuts,
+  "eltima cloudmounter": Cloudmounter,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
