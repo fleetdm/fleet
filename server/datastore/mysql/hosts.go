@@ -3175,6 +3175,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.policy_updated_at,
     h.public_ip,
     h.orbit_node_key,
+	h.supervised,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
@@ -3356,6 +3357,7 @@ SELECT
 	policy_updated_at,
 	refetch_requested,
 	refetch_critical_queries_until
+	supervised
 FROM hosts
 WHERE id IN (?)`
 
@@ -3416,6 +3418,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.public_ip,
       h.orbit_node_key,
       h.timezone,
+	  h.supervised,
       t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,

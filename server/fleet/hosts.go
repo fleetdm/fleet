@@ -379,8 +379,10 @@ type Host struct {
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
 	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
 	// CSV not exported to not break automations.
-	TimeZone   *string `json:"timezone" db:"timezone" csv:"-"`
-	Supervised *bool   `json:"supervised" db:"supervised" csv:"-"`
+	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
+	// Supervised is set depending on the host devices supervision configuration during setup
+	// Explicitly true or false, null if the host isn't configured or isn't an Apple host
+	Supervised *bool `json:"supervised" db:"supervised" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`

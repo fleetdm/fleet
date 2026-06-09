@@ -1,4 +1,4 @@
-import PropTypes from "prop-types";
+import PropTypes, { oneOfType } from "prop-types";
 import hostPolicyInterface, { IHostPolicy } from "./policy";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
@@ -50,7 +50,7 @@ export default PropTypes.shape({
   computer_name: PropTypes.string,
   primary_ip: PropTypes.string,
   primary_mac: PropTypes.string,
-  supervised: PropTypes.bool,
+  supervised: oneOfType([PropTypes.bool, PropTypes.oneOf([null])]),
   distributed_interval: PropTypes.number,
   config_tls_refresh: PropTypes.number,
   logger_tls_period: PropTypes.number,

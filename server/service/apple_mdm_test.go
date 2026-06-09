@@ -5477,6 +5477,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 					ComputerName:  existingHostname,
 					HardwareModel: existingModel,
 					OSVersion:     existingOSVersion,
+					Supervised:    existingSupervised,
 					Platform:      "ipados",
 					MDM: fleet.MDMHostData{
 						EnrollmentStatus: ptr.String("On (automatic)"), // not Pending; skip lost-mode flow
@@ -5496,6 +5497,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				assert.Equal(t, tc.expect.expectHostname, host.Hostname, "Hostname")
 				assert.Equal(t, tc.expect.expectOSVersion, host.OSVersion, "OSVersion")
 				assert.Equal(t, tc.expect.expectHardwareModel, host.HardwareModel, "HardwareModel")
+				assert.Equal(t, tc.expect.expectSupervised, host.Supervised, "Supervised")
 				assert.InDelta(t, tc.expect.expectGigsTotal, host.GigsTotalDiskSpace, 0.001, "GigsTotalDiskSpace")
 				assert.InDelta(t, tc.expect.expectGigsAvailable, host.GigsDiskSpaceAvailable, 0.001, "GigsDiskSpaceAvailable")
 				return nil
