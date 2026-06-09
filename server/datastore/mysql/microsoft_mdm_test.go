@@ -5205,6 +5205,13 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host2", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
+	// Deleting Windows profiles is async (#46993): the request retains content and the profile-manager cron generates the <Delete>
+	// commands. Enable Windows MDM so ReconcileWindowsProfiles does work, and drive it after each delete below.
+	appCfg, acErr := ds.AppConfig(ctx)
+	require.NoError(t, acErr)
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
 	// Profile A: LocURIs X, Y. Profile B: LocURI Y (shared with A).
 	profA := &fleet.MDMWindowsConfigProfile{Name: "profA", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/X</LocURI></Target><Data>1</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profB := &fleet.MDMWindowsConfigProfile{Name: "profB", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>2</Data></Item></Replace>`)}
@@ -5232,6 +5239,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
+
+		// Drive the cron: it classifies profA's surviving rows as removes and generates the protected <Delete> commands.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// Verify the delete command on BOTH hosts.
 		for _, h := range []*fleet.Host{h1, h2} {
@@ -5275,9 +5285,15 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 
-		// Only h1 is a member of the label.
-		err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{scopeLabel.ID, h1.ID}})
-		require.NoError(t, err)
+		// Only h1 is a member of the label. Insert membership synchronously (the async path may not be visible to the reconciler
+		// snapshot) and bump both hosts' label_updated_at so the snapshot reflects current membership.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO label_membership (label_id, host_id) VALUES (?, ?)`, scopeLabel.ID, h1.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET label_updated_at = NOW() WHERE id IN (?, ?)`, h1.ID, h2.ID)
+			return err
+		})
 
 		// Simulate both profiles installed on both hosts. For profB, also add
 		// an install row for h1 (simulating the reconciler assigned it based on
@@ -5291,12 +5307,12 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		// Delete profA (keep profB).
-		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profB2}, nil)
-			return err
-		})
-		require.NoError(t, err)
+		// Delete profA directly (a batch-set submitting only profB would re-sync profB's labels from the struct and drop its
+		// manually-inserted label scope). profB and its label scope are preserved.
+		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profA2UUID))
+
+		// Drive the cron: it computes per-host applicability, so profB protects Y only on h1 (in the label), not h2.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// h1: profB applies (label-scoped, h1 is in the label).
 		// Y is protected, only X should be deleted.
@@ -5392,6 +5408,9 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
+
+		// Drive the cron: it generates the <Delete> for the no-team profile across both hosts.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 		// Both hosts should now have a queued <Delete>: h1 as the direct
 		// consequence of the deletion, h2 because phase 2 upgrades the
@@ -5542,6 +5561,12 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 	h2 := test.NewHost(t, ds, "host-multi-del-2", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	windowsEnroll(t, ds, h2)
 
+	// Deleting profiles is async (#46993): the cron generates the <Delete> commands. Enable Windows MDM so it does work.
+	appCfg, acErr := ds.AppConfig(ctx)
+	require.NoError(t, acErr)
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
 	profA := &fleet.MDMWindowsConfigProfile{Name: "multi-del-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profB := &fleet.MDMWindowsConfigProfile{Name: "multi-del-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace>`)}
 	profC := &fleet.MDMWindowsConfigProfile{Name: "multi-del-C", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/C</LocURI></Target><Data>1</Data></Item></Replace>`)}
@@ -5570,6 +5595,9 @@ func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.NoError(t, err)
+
+	// Drive the cron: it classifies each deleted profile's verified rows as removes and enqueues a distinct <Delete> per profile.
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 	// 2 hosts × 3 profiles = 6 rows, each flipped to remove+pending with a
 	// non-empty command_uuid and empty detail.
@@ -6679,4 +6707,36 @@ func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
 	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
+}
+
+// TestWindowsMDMPendingDeleteRetentionAndGC covers the #46993 retention table: GetMDMWindowsProfilesContents falls back to retained
+// content for deleted profiles, and CleanupWindowsMDMPendingDeleteProfiles garbage-collects strictly by age (created_at < cutoff).
+func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_windows_configuration_profiles_pending_delete
+			(profile_uuid, team_id, name, syncml, created_at) VALUES
+			('w-old', 0, 'old', '<Replace/>', NOW(6) - INTERVAL 10 DAY),
+			('w-new', 0, 'new', '<Replace/>', NOW(6))`)
+		return err
+	})
+
+	// Content fallback: contents resolve from the retention table for deleted (not-live) UUIDs.
+	contents, err := ds.GetMDMWindowsProfilesContents(ctx, []string{"w-old", "w-new"})
+	require.NoError(t, err)
+	require.Len(t, contents, 2)
+	require.Equal(t, []byte("<Replace/>"), contents["w-old"].SyncML)
+	require.NotEmpty(t, contents["w-old"].Checksum)
+
+	// Age-based GC removes only rows older than the cutoff.
+	require.NoError(t, ds.CleanupWindowsMDMPendingDeleteProfiles(ctx, time.Now().Add(-7*24*time.Hour)))
+
+	var remaining []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
+	})
+	require.Equal(t, []string{"w-new"}, remaining)
 }

@@ -342,6 +342,8 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
+type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context, removeCreatedBefore time.Time) error
+
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
@@ -2549,6 +2551,9 @@ type DataStore struct {
 
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
+
+	CleanupWindowsMDMPendingDeleteProfilesFunc        CleanupWindowsMDMPendingDeleteProfilesFunc
+	CleanupWindowsMDMPendingDeleteProfilesFuncInvoked bool
 
 	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
 	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
@@ -6259,6 +6264,13 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	s.CleanupWindowsMDMCommandQueueFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
+}
+
+func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context, removeCreatedBefore time.Time) error {
+	s.mu.Lock()
+	s.CleanupWindowsMDMPendingDeleteProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx, removeCreatedBefore)
 }
 
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {

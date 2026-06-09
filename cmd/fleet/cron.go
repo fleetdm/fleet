@@ -1478,6 +1478,11 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
 		}),
+		schedule.WithJob("cleanup_windows_mdm_pending_delete_profiles", func(ctx context.Context) error {
+			// Retained content for deleted Windows profiles is GC'd by age once past the grace period; a full-fleet removal drains
+			// in minutes, far inside this window (#46993).
+			return ds.CleanupWindowsMDMPendingDeleteProfiles(ctx, time.Now().Add(-7*24*time.Hour))
+		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),
