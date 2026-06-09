@@ -93,13 +93,6 @@
       "description": "A Better Finder Rename is a batch renaming tool for files, music, and photos."
     },
     {
-      "name": "ABBYY FineReader PDF",
-      "slug": "abbyy-finereader-pdf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.abbyy.finereader.pdf",
-      "description": "ABBYY FineReader PDF is a tool to scan, OCR, and convert documents to searchable PDFs and other formats."
-    },
-    {
       "name": "Ableton Live Suite",
       "slug": "ableton-live-suite/darwin",
       "platform": "darwin",
@@ -303,13 +296,6 @@
       "description": "AirDroid is a mobile device management suite."
     },
     {
-      "name": "Airfoil",
-      "slug": "airfoil/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rogueamoeba.Airfoil",
-      "description": "Airfoil is an app that sends audio from your computer to AirPlay outputs."
-    },
-    {
       "name": "AirParrot",
       "slug": "airparrot/darwin",
       "platform": "darwin",
@@ -357,13 +343,6 @@
       "platform": "darwin",
       "unique_identifier": "com.akiflow.akiflow",
       "description": "Akiflow is a time blocking and productivity platform."
-    },
-    {
-      "name": "Alacritty",
-      "slug": "alacritty/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.alacritty",
-      "description": "Alacritty is a GPU-accelerated terminal emulator."
     },
     {
       "name": "Alcove",
@@ -499,13 +478,6 @@
       "description": "Amie is a calendar and task manager."
     },
     {
-      "name": "Android File Transfer",
-      "slug": "android-file-transfer/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.google.android.mtpviewer",
-      "description": "Android File Transfer is a tool to transfer files to and from an Android smartphone."
-    },
-    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
@@ -625,13 +597,6 @@
       "description": "AppCleaner is an application uninstaller."
     },
     {
-      "name": "AppFlowy",
-      "slug": "appflowy/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.appflowy.appflowy.flutter",
-      "description": "AppFlowy is an open-source project and knowledge management tool."
-    },
-    {
       "name": "Appium Inspector GUI",
       "slug": "appium-inspector/darwin",
       "platform": "darwin",
@@ -665,13 +630,6 @@
       "platform": "darwin",
       "unique_identifier": "com.mothersruin.Archaeology",
       "description": "Archaeology is a tool for digging into binary files."
-    },
-    {
-      "name": "Archi",
-      "slug": "archi/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.archimatetool.editor",
-      "description": "Archi is an open-source ArchiMate modelling toolkit."
     },
     {
       "name": "Arduino IDE",
@@ -805,13 +763,6 @@
       "platform": "darwin",
       "unique_identifier": "com.bearisdriving.BGM.App",
       "description": "Background Music is an audio utility for per-application volume control."
-    },
-    {
-      "name": "Backlog",
-      "slug": "backlog/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.backlog",
-      "description": "Backlog is a project and issue management application."
     },
     {
       "name": "Badgeify",
@@ -968,13 +919,6 @@
       "description": "Binance is a cryptocurrency exchange app."
     },
     {
-      "name": "Binary Ninja",
-      "slug": "binary-ninja-free/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.vector35.binaryninja",
-      "description": "Binary Ninja is a reverse engineering platform."
-    },
-    {
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
@@ -1122,13 +1066,6 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
-      "name": "Box Tools",
-      "slug": "box-tools/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.Box.Box-Edit",
-      "description": "Box Tools is a tool to create and edit files directly from a web browser."
-    },
-    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
@@ -1148,13 +1085,6 @@
       "platform": "darwin",
       "unique_identifier": "com.tomjwatson.breaktimer",
       "description": "BreakTimer is a tool to manage periodic breaks."
-    },
-    {
-      "name": "BrickLink PartDesigner",
-      "slug": "bricklink-partdesigner/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.BrickLink.PartDesigner",
-      "description": "BrickLink PartDesigner is a tool to design your own LEGO parts."
     },
     {
       "name": "BrickLink Studio",
@@ -1234,13 +1164,6 @@
       "description": "Caffeine is a utility that prevents the system from going to sleep."
     },
     {
-      "name": "CalHash",
-      "slug": "calhash/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.titanium.Calhash",
-      "description": "CalHash is a tool to calculate and compare file checksums."
-    },
-    {
       "name": "calibre",
       "slug": "calibre/darwin",
       "platform": "darwin",
@@ -1260,13 +1183,6 @@
       "platform": "darwin",
       "unique_identifier": "com.calibrite.profiler",
       "description": "calibrite PROFILER is a tool to display calibration software for Calibrite, ColorChecker and X-Rite devices."
-    },
-    {
-      "name": "Calmly Writer",
-      "slug": "calmly-writer/darwin",
-      "platform": "darwin",
-      "unique_identifier": "calmlywriter",
-      "description": "Calmly Writer is a word processor with markdown formatting and select themes."
     },
     {
       "name": "Camo Studio",
@@ -1365,13 +1281,6 @@
       "platform": "darwin",
       "unique_identifier": "com.scenegroup.cavalry",
       "description": "Cavalry is a motion design and animation app."
-    },
-    {
-      "name": "Piriform CCleaner",
-      "slug": "ccleaner/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.piriform.ccleaner",
-      "description": "Piriform CCleaner is a tool to remove junk and unused files."
     },
     {
       "name": "CellProfiler",
@@ -1491,13 +1400,6 @@
       "platform": "windows",
       "unique_identifier": "Cisco Jabber",
       "description": "Cisco Jabber is a collaboration and communication app."
-    },
-    {
-      "name": "Cisco Proximity",
-      "slug": "cisco-proximity/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.cisco.experimental.proximity",
-      "description": "Cisco Proximity is a content sharing and video conference system control."
     },
     {
       "name": "Citrix Workspace",
@@ -1766,13 +1668,6 @@
       "description": "Copilot is a tool to track and budget money."
     },
     {
-      "name": "CopyClip",
-      "slug": "copyclip/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.fiplab.copyclip3",
-      "description": "CopyClip is a clipboard manager."
-    },
-    {
       "name": "Cork",
       "slug": "cork/darwin",
       "platform": "darwin",
@@ -1925,13 +1820,6 @@
       "platform": "darwin",
       "unique_identifier": "app.dataflare.desktop",
       "description": "Dataflare is a database manager."
-    },
-    {
-      "name": "DataGraph",
-      "slug": "datagraph/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.visualdatatools.datagraph",
-      "description": "DataGraph is a scientific/statistical graphing software."
     },
     {
       "name": "DataGrip",
@@ -2186,13 +2074,6 @@
       "description": "Dialpad is a cloud communication platform."
     },
     {
-      "name": "Dia",
-      "slug": "diashapes/darwin",
-      "platform": "darwin",
-      "unique_identifier": "dia-installer.de",
-      "description": "Dia is an additional shapes for Dia."
-    },
-    {
       "name": "Dictionaries",
       "slug": "dictionaries/darwin",
       "platform": "darwin",
@@ -2205,13 +2086,6 @@
       "platform": "darwin",
       "unique_identifier": "com.diffusionbee.diffusionbee",
       "description": "Diffusion Bee is a tool to run Stable Diffusion locally."
-    },
-    {
-      "name": "digiexam",
-      "slug": "digiexam/darwin",
-      "platform": "darwin",
-      "unique_identifier": "se.digiexam.DigiExam",
-      "description": "digiexam is an academic testing platform with device lockdown."
     },
     {
       "name": "digiKam",
@@ -2291,13 +2165,6 @@
       "description": "DockView is a utility to preview application windows in the dock."
     },
     {
-      "name": "Doppler",
-      "slug": "doppler-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "co.brushedtype.doppler-macos",
-      "description": "Doppler is a music player."
-    },
-    {
       "name": "Dot",
       "slug": "dot/darwin",
       "platform": "darwin",
@@ -2345,13 +2212,6 @@
       "platform": "windows",
       "unique_identifier": "draw.io",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
-    },
-    {
-      "name": "DriveDX",
-      "slug": "drivedx/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.binaryfruit.DriveDx",
-      "description": "DriveDX is a drive health diagnostic & monitoring tool."
     },
     {
       "name": "Dropbox",
@@ -2459,13 +2319,6 @@
       "description": "Dynalist is an app for outlining app for your work."
     },
     {
-      "name": "EA App",
-      "slug": "ea/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.ea.EACefSubProcessRenderer",
-      "description": "EA App is an electronic Arts game launcher."
-    },
-    {
       "name": "EagleFiler",
       "slug": "eaglefiler/darwin",
       "platform": "darwin",
@@ -2487,39 +2340,11 @@
       "description": "EasyFind is a tool to find files, folders, or contents in any file."
     },
     {
-      "name": "Eclipse IDE for C/C++ Developers",
-      "slug": "eclipse-cpp/darwin",
-      "platform": "darwin",
-      "unique_identifier": "epp.package.cpp",
-      "description": "Eclipse IDE for C/C++ Developers is an eclipse IDE for C and C++ developers."
-    },
-    {
-      "name": "Eclipse IDE for Java and DSL Developers",
-      "slug": "eclipse-dsl/darwin",
-      "platform": "darwin",
-      "unique_identifier": "epp.package.dsl",
-      "description": "Eclipse IDE for Java and DSL Developers is an eclipse IDE for Java and DSL developers."
-    },
-    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
       "unique_identifier": "epp.package.committers",
       "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
-    },
-    {
-      "name": "Eclipse IDE for Java Developers",
-      "slug": "eclipse-java/darwin",
-      "platform": "darwin",
-      "unique_identifier": "epp.package.java",
-      "description": "Eclipse IDE for Java Developers is an eclipse IDE for Java developers."
-    },
-    {
-      "name": "Eclipse Modeling Tools",
-      "slug": "eclipse-modeling/darwin",
-      "platform": "darwin",
-      "unique_identifier": "epp.package.modeling",
-      "description": "Eclipse Modeling Tools is a tools and runtimes for building model-based applications."
     },
     {
       "name": "Egnyte",
@@ -2627,13 +2452,6 @@
       "description": "Elmedia Player is a video and audio player."
     },
     {
-      "name": "Emacs",
-      "slug": "emacs-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.gnu.Emacs",
-      "description": "Emacs is a text editor."
-    },
-    {
       "name": "eM Client",
       "slug": "emclient/darwin",
       "platform": "darwin",
@@ -2655,13 +2473,6 @@
       "description": "Ente Auth is a desktop client for Ente Auth."
     },
     {
-      "name": "Ente",
-      "slug": "ente/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.ente.bhari-frame",
-      "description": "Ente is a desktop client for Ente Photos."
-    },
-    {
       "name": "Epic Games Launcher",
       "slug": "epic-games/darwin",
       "platform": "darwin",
@@ -2674,13 +2485,6 @@
       "platform": "darwin",
       "unique_identifier": "com.rlxone.equinox",
       "description": "Equinox is a tool to create dynamic wallpapers."
-    },
-    {
-      "name": "Espanso",
-      "slug": "espanso/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.federicoterzi.espanso",
-      "description": "Espanso is a cross-platform Text Expander written in Rust."
     },
     {
       "name": "EtreCheck",
@@ -2781,13 +2585,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "ff·Works",
-      "slug": "ff-works/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.osbytes.ffworks5",
-      "description": "ff·Works is an app for video-encoding and transcoding app."
-    },
-    {
       "name": "fig",
       "slug": "fig/darwin",
       "platform": "darwin",
@@ -2872,13 +2669,6 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
-      "name": "Mozilla Firefox Developer Edition",
-      "slug": "firefox@developer-edition/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.mozilla.firefox",
-      "description": "Mozilla Firefox Developer Edition is a web browser."
-    },
-    {
       "name": "Mozilla Firefox ESR",
       "slug": "firefox@esr/darwin",
       "platform": "darwin",
@@ -2912,13 +2702,6 @@
       "platform": "darwin",
       "unique_identifier": "net.flexoptix.flexoptix.app",
       "description": "FLEXOPTIX App is a connect to your FLEXBOX without cables and configure transceivers."
-    },
-    {
-      "name": "Flotato",
-      "slug": "flotato/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mortenjust.flotato",
-      "description": "Flotato is a tool to turn any web page into a desktop app."
     },
     {
       "name": "FlowVision",
@@ -2961,13 +2744,6 @@
       "platform": "darwin",
       "unique_identifier": "com.dominiklevitsky.fontbase",
       "description": "FontBase is a font manager."
-    },
-    {
-      "name": "FontForge",
-      "slug": "fontforge-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.sourceforge.fontforge",
-      "description": "FontForge is a font editor and converter for outline and bitmap fonts."
     },
     {
       "name": "Fontlab",
@@ -3026,20 +2802,6 @@
       "description": "Free Download Manager is a tool to download accelerator and organiser."
     },
     {
-      "name": "Free Ruler",
-      "slug": "free-ruler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.pascal.freeruler",
-      "description": "Free Ruler is a horizontal and vertical rulers."
-    },
-    {
-      "name": "FreeCAD",
-      "slug": "freecad/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.freecad.FreeCAD",
-      "description": "FreeCAD is a 3D parametric modeller."
-    },
-    {
       "name": "FreeFileSync",
       "slug": "freefilesync/darwin",
       "platform": "darwin",
@@ -3061,25 +2823,11 @@
       "description": "FSMonitor is a tool to visualize filesystem changes in realtime."
     },
     {
-      "name": "ScanSnap Home",
-      "slug": "fujitsu-scansnap-home/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.fujitsu.pfu.ScanSnapHome",
-      "description": "ScanSnap Home is a fujitsu ScanSnap Scanner software."
-    },
-    {
       "name": "Funter",
       "slug": "funter/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
-    },
-    {
-      "name": "FUSE-T",
-      "slug": "fuse-t/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.fuse-t.core.1.2.7",
-      "description": "FUSE-T is a kext-less implementation of FUSE."
     },
     {
       "name": "Garmin Express",
@@ -3152,13 +2900,6 @@
       "description": "Ghostty is a terminal emulator that uses platform-native UI and GPU acceleration."
     },
     {
-      "name": "gifox",
-      "slug": "gifox/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.gifox.gifox2",
-      "description": "gifox is a GIF recording and sharing."
-    },
-    {
       "name": "GIMP",
       "slug": "gimp/darwin",
       "platform": "darwin",
@@ -3185,13 +2926,6 @@
       "platform": "darwin",
       "unique_identifier": "ag.zigz.GitFinder",
       "description": "GitFinder is a git client with Finder integration."
-    },
-    {
-      "name": "Gitfox",
-      "slug": "gitfox/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.bytieful.Gitfox-retail",
-      "description": "Gitfox is a git client."
     },
     {
       "name": "GitHub Copilot for Xcode",
@@ -3299,13 +3033,6 @@
       "description": "GoodSync is a file synchronisation and backup software."
     },
     {
-      "name": "Google Ads Editor",
-      "slug": "google-ads-editor/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.google.googleadseditor",
-      "description": "Google Ads Editor is an app for managing your campaigns."
-    },
-    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -3353,20 +3080,6 @@
       "platform": "darwin",
       "unique_identifier": "com.google.GeminiMacOS",
       "description": "Gemini is a native desktop AI assistant from Google."
-    },
-    {
-      "name": "Google Web Designer",
-      "slug": "google-web-designer/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.google.WebDesigner",
-      "description": "Google Web Designer is a tool to create interactive HTML5-based designs and motion graphics."
-    },
-    {
-      "name": "GoSign Desktop",
-      "slug": "gosign/darwin",
-      "platform": "darwin",
-      "unique_identifier": "it.infocert.desktop.gosign",
-      "description": "GoSign Desktop is a digital signature and time stamp app."
     },
     {
       "name": "GoToMeeting",
@@ -3423,13 +3136,6 @@
       "platform": "windows",
       "unique_identifier": "Granola",
       "description": "Granola is an AI-powered notepad for meetings."
-    },
-    {
-      "name": "GraphicConverter",
-      "slug": "graphicconverter/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.lemkesoft.graphicconverter12",
-      "description": "GraphicConverter is a for browsing, enhancing and converting images."
     },
     {
       "name": "Grids",
@@ -3551,13 +3257,6 @@
       "description": "Homerow is a keyboard shortcuts for every button on your screen."
     },
     {
-      "name": "Hoppscotch",
-      "slug": "hoppscotch/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.hoppscotch.desktop",
-      "description": "Hoppscotch is an open source API development ecosystem."
-    },
-    {
       "name": "Hot",
       "slug": "hot/darwin",
       "platform": "darwin",
@@ -3591,13 +3290,6 @@
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
-    },
-    {
-      "name": "Tumult Hype",
-      "slug": "hype/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.tumult.Hype4",
-      "description": "Tumult Hype is an app to create animated and interactive web content."
     },
     {
       "name": "Hyper",
@@ -3668,13 +3360,6 @@
       "platform": "darwin",
       "unique_identifier": "com.colliderli.iina",
       "description": "IINA is a modern, free and open-source media player for macOS."
-    },
-    {
-      "name": "ImageJ",
-      "slug": "imagej/darwin",
-      "platform": "darwin",
-      "unique_identifier": "ImageJ",
-      "description": "ImageJ is an image Processing and Analysis in Java."
     },
     {
       "name": "iMazing Converter",
@@ -3752,20 +3437,6 @@
       "platform": "windows",
       "unique_identifier": "Insomnia",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
-    },
-    {
-      "name": "Insta360 Studio",
-      "slug": "insta360-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.insta360.studio",
-      "description": "Insta360 Studio is a video and photo editor."
-    },
-    {
-      "name": "Integrity",
-      "slug": "integrity/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.peacockmedia.integrity",
-      "description": "Integrity is a tool to scan a website checking for broken links."
     },
     {
       "name": "IntelliDock",
@@ -4048,13 +3719,6 @@
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
-      "name": "KiCad",
-      "slug": "kicad/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.apple.pixelmator",
-      "description": "KiCad is an electronics design automation suite."
-    },
-    {
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
@@ -4095,13 +3759,6 @@
       "platform": "darwin",
       "unique_identifier": "com.objective-see.KnockKnock",
       "description": "KnockKnock is a tool to show what is persistently installed on the computer."
-    },
-    {
-      "name": "Kobo",
-      "slug": "kobo/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.kobo.Analytics",
-      "description": "Kobo is a desktop reader for Kobo eBooks."
     },
     {
       "name": "Krisp",
@@ -4174,13 +3831,6 @@
       "description": "LaunchBar is a productivity tool."
     },
     {
-      "name": "LaunchOS",
-      "slug": "launchos/darwin",
-      "platform": "darwin",
-      "unique_identifier": "app.remixdesign.LaunchOS",
-      "description": "LaunchOS is a launchpad alternative."
-    },
-    {
       "name": "Lenovo Dock Manager",
       "slug": "lenovo-dock-manager/windows",
       "platform": "windows",
@@ -4202,13 +3852,6 @@
       "description": "Lens is a Kubernetes IDE."
     },
     {
-      "name": "LibreCAD",
-      "slug": "librecad/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.librecad.LibreCAD",
-      "description": "LibreCAD is a CAD application."
-    },
-    {
       "name": "LibreOffice",
       "slug": "libreoffice/darwin",
       "platform": "darwin",
@@ -4221,27 +3864,6 @@
       "platform": "windows",
       "unique_identifier": "LibreOffice",
       "description": "LibreOffice is a free cross-platform office suite."
-    },
-    {
-      "name": "LibreWolf",
-      "slug": "librewolf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.gitlab.librewolf-community.librewolf",
-      "description": "LibreWolf is a web browser."
-    },
-    {
-      "name": "Licensed",
-      "slug": "licensed-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.asagoo.licensed",
-      "description": "Licensed is a software license manager."
-    },
-    {
-      "name": "lifesize",
-      "slug": "lifesize/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.lifesize.cloud",
-      "description": "lifesize is a cloud contact and video conferencing."
     },
     {
       "name": "LightBurn",
@@ -4286,13 +3908,6 @@
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
-      "name": "LM Studio",
-      "slug": "lm-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "ai.elementlabs.lmstudio",
-      "description": "LM Studio is a discover, download, and run local LLMs."
-    },
-    {
       "name": "lo-rain",
       "slug": "lo-rain/darwin",
       "platform": "darwin",
@@ -4333,13 +3948,6 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
-    },
-    {
-      "name": "Logitech G HUB",
-      "slug": "logitech-g-hub/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.logi.ghub",
-      "description": "Logitech G HUB is a support for Logitech G gear."
     },
     {
       "name": "Logseq",
@@ -4391,25 +3999,11 @@
       "description": "LosslessCut is a trims video and audio files losslessly."
     },
     {
-      "name": "Loupdeck",
-      "slug": "loupedeck/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.loupedeck.Loupedeck2",
-      "description": "Loupdeck is a software for Loupedeck consoles."
-    },
-    {
       "name": "Low Profile",
       "slug": "low-profile/darwin",
       "platform": "darwin",
       "unique_identifier": "com.ninxsoft.lowprofile",
       "description": "Low Profile is a utility to help inspect Apple Configuration Profile payloads."
-    },
-    {
-      "name": "LTspice",
-      "slug": "ltspice/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.analog.LTspice.App",
-      "description": "LTspice is a SPICE simulation software, schematic capture and waveform viewer."
     },
     {
       "name": "LuLu",
@@ -4454,25 +4048,11 @@
       "description": "Lychee Slicer is a slicer for Resin 3D printers."
     },
     {
-      "name": "LyX",
-      "slug": "lyx/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.lyx.LyX-2.5",
-      "description": "LyX is a GUI document processor based on the LaTeX typesetting system."
-    },
-    {
       "name": "Mac Mouse Fix",
       "slug": "mac-mouse-fix/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nuebling.mac-mouse-fix",
       "description": "Mac Mouse Fix is a mouse utility to add gesture functions and smooth scrolling to 3rd party mice."
-    },
-    {
-      "name": "Nektony MacCleaner Pro",
-      "slug": "maccleaner-pro/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.apple.pixelmator",
-      "description": "Nektony MacCleaner Pro is a delete junk, unnecessary files and folders, and speed up your computer."
     },
     {
       "name": "Maccy",
@@ -4580,13 +4160,6 @@
       "description": "Mailspring is a fork of Nylas Mail."
     },
     {
-      "name": "MakeMKV",
-      "slug": "makemkv/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.makemkv.MakeMKV",
-      "description": "MakeMKV is a video format converter (transcoder)."
-    },
-    {
       "name": "Malwarebytes for Mac",
       "slug": "malwarebytes/darwin",
       "platform": "darwin",
@@ -4655,13 +4228,6 @@
       "platform": "windows",
       "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
-    },
-    {
-      "name": "Maxon App",
-      "slug": "maxon/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.maxon.app-manager",
-      "description": "Maxon App is an install, use, and try Maxon products."
     },
     {
       "name": "MeetingBar",
@@ -4811,13 +4377,6 @@
       "description": "Microsoft OneNote is a digital note taking app."
     },
     {
-      "name": "Microsoft Build of OpenJDK",
-      "slug": "microsoft-openjdk@21/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.java.openjdk.java",
-      "description": "Microsoft Build of OpenJDK is an OpenJDK distribution from Microsoft."
-    },
-    {
       "name": "Microsoft Outlook",
       "slug": "microsoft-outlook/darwin",
       "platform": "darwin",
@@ -4900,13 +4459,6 @@
       "platform": "darwin",
       "unique_identifier": "com.mimestream.Mimestream",
       "description": "Mimestream is a native app email client for Gmail."
-    },
-    {
-      "name": "Min",
-      "slug": "min/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.min",
-      "description": "Min is a minimal browser that protects privacy."
     },
     {
       "name": "MindMac",
@@ -5091,13 +4643,6 @@
       "description": "MURAL is a visual online collaboration platform."
     },
     {
-      "name": "Murus Firewall",
-      "slug": "murus/darwin",
-      "platform": "darwin",
-      "unique_identifier": "it.murus.muruslibrary",
-      "description": "Murus Firewall is a firewall app."
-    },
-    {
       "name": "Museeks",
       "slug": "museeks/darwin",
       "platform": "darwin",
@@ -5147,13 +4692,6 @@
       "description": "Name Mangler is a multi-file renaming tool."
     },
     {
-      "name": "NameChanger",
-      "slug": "namechanger/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mrrsoftware.NameChanger",
-      "description": "NameChanger is a rename a list of files quickly."
-    },
-    {
       "name": "NAPS2",
       "slug": "naps2/darwin",
       "platform": "darwin",
@@ -5173,13 +4711,6 @@
       "platform": "darwin",
       "unique_identifier": "com.newtek.Application-Mac-NDI-ScanConverter",
       "description": "NDI Tools is a tools & plugins for NDI."
-    },
-    {
-      "name": "Neo Network Utility",
-      "slug": "neo-network-utility/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.devon-technologies.network-utility",
-      "description": "Neo Network Utility is a network information and diagnostics utility."
     },
     {
       "name": "NeoFinder",
@@ -5271,13 +4802,6 @@
       "platform": "windows",
       "unique_identifier": "Node.js",
       "description": "Node.js is a cross-platform JavaScript runtime environment for running JavaScript outside the browser."
-    },
-    {
-      "name": "NoMAD",
-      "slug": "nomad-menu/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.trusourcelabs.NoMAD",
-      "description": "NoMAD is a macOS application."
     },
     {
       "name": "NordLayer",
@@ -5476,13 +5000,6 @@
       "description": "OK JSON is a scriptable JSON formatter and editor."
     },
     {
-      "name": "Oka Unarchiver",
-      "slug": "oka-unarchiver/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.chenhaowu.mac.utility.website.zip",
-      "description": "Oka Unarchiver is a free unarchiver."
-    },
-    {
       "name": "Okta Advanced Server Access",
       "slug": "okta-advanced-server-access/darwin",
       "platform": "darwin",
@@ -5602,13 +5119,6 @@
       "description": "ONLYOFFICE is a document editor."
     },
     {
-      "name": "OnyX",
-      "slug": "onyx/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.titanium.OnyX",
-      "description": "OnyX is a verify system files structure, run miscellaneous maintenance and more."
-    },
-    {
       "name": "Opal Composer",
       "slug": "opal-composer/darwin",
       "platform": "darwin",
@@ -5642,20 +5152,6 @@
       "platform": "darwin",
       "unique_identifier": "ai.opencode.desktop",
       "description": "OpenCode is an AI coding agent desktop client."
-    },
-    {
-      "name": "OpenCore Legacy Patcher",
-      "slug": "opencore-patcher/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.dortania.opencore-legacy-patcher-wxpython",
-      "description": "OpenCore Legacy Patcher is a boot loader to inject/patch current features for unsupported Macs."
-    },
-    {
-      "name": "OpenIn",
-      "slug": "openin/darwin",
-      "platform": "darwin",
-      "unique_identifier": "app.loshadki.OpenIn",
-      "description": "OpenIn is a route links, emails, and files to your preferred apps."
     },
     {
       "name": "OpenInTerminal",
@@ -5740,20 +5236,6 @@
       "platform": "darwin",
       "unique_identifier": "com.facebook.Origami-Studio",
       "description": "Origami Studio is a tool to design tool for interactive interfaces."
-    },
-    {
-      "name": "Orion Browser",
-      "slug": "orion/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.kagi.kagimacOS",
-      "description": "Orion Browser is a WebKit based web browser."
-    },
-    {
-      "name": "Orka Desktop",
-      "slug": "orka-desktop/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.macstadium.OrkaDesktop",
-      "description": "Orka Desktop is a tool to run macOS virtual machines locally and build images for use with Orka."
     },
     {
       "name": "osquery",
@@ -5908,13 +5390,6 @@
       "platform": "darwin",
       "unique_identifier": "com.alienator88.Pearcleaner",
       "description": "Pearcleaner is a utility to uninstall apps and remove leftover files from old/uninstalled apps."
-    },
-    {
-      "name": "Pencil",
-      "slug": "pencil/darwin",
-      "platform": "darwin",
-      "unique_identifier": "vn.evolus.pencil",
-      "description": "Pencil is a GUI prototyping tool."
     },
     {
       "name": "Perimeter 81",
@@ -6314,13 +5789,6 @@
       "platform": "darwin",
       "unique_identifier": "com.dexterleng.ProNotes",
       "description": "ProNotes is an apple Notes extension."
-    },
-    {
-      "name": "ProPresenter",
-      "slug": "propresenter/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.renewedvision.ProPresenter21",
-      "description": "ProPresenter is a presentation and production application for live events."
     },
     {
       "name": "Proton Drive",
@@ -7009,13 +6477,6 @@
       "description": "SelfControl is a tool to block your own access to distracting websites."
     },
     {
-      "name": "Send to Kindle",
-      "slug": "send-to-kindle/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.amazon.SendToKindle",
-      "description": "Send to Kindle is a tool for sending personal documents to Kindles from Macs."
-    },
-    {
       "name": "Sensei",
       "slug": "sensei/darwin",
       "platform": "darwin",
@@ -7112,13 +6573,6 @@
       "platform": "darwin",
       "unique_identifier": "com.shure.motiv.desktop",
       "description": "ShurePlus MOTIV is an additional features and controls for Shure MV7 and MV88+ microphones."
-    },
-    {
-      "name": "Shutter Encoder",
-      "slug": "shutter-encoder/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.paulpacifico.shutterencoder",
-      "description": "Shutter Encoder is a video, audio and image converter."
     },
     {
       "name": "SideNotes",

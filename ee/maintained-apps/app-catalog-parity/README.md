@@ -10,13 +10,16 @@ Tracking work to ensure Fleet has a [Fleet-maintained app (FMA)](../README.md) f
 | …matched to a Homebrew cask | 1117 slugs → 1092 unique casks |
 | …already a Fleet-maintained app | 213 |
 | …cask exists, FMA missing (work queue) | 879 |
-| **…added as FMAs (A–Z + #)** | **838** |
+| **…added as FMAs (A–Z + #)** | **760** |
+| …removed after CI validation failure | 78 |
 | …deferred (see below) | 41 |
 | Apps with no Homebrew cask (handoff) | 533 |
 
 ## Status: complete
 
-All 879 work-queue casks have been processed, one letter per commit (A–Z plus the `#` numeric-leading bucket). **838 were added as Fleet-maintained apps; 41 were deferred.** Remaining open items:
+All 879 work-queue casks have been processed, one letter per commit (A–Z plus the `#` numeric-leading bucket). **838 were initially added as Fleet-maintained apps; 41 were deferred.** A subsequent run of the Darwin FMA validator (CI) flagged 78 of the added apps as failing, so they were **removed for now** — leaving **760 added**. Remaining open items:
+
+- **78 apps removed after CI validation failure** — unchecked in [to-add.md](to-add.md) and annotated with the failure category. Categories: uninstall didn't remove the app, version not found by osquery (identity/version mismatch), download blocked (4xx), installer failed (bad dmg/script), invalid character in app name, download server error (5xx), download timed out, and download host unresolved (DNS). Several (5xx, timeout, DNS) may be transient and worth re-validating before re-adding. Note: the same CI run also suffered an infrastructure failure (the `osquery` app's uninstall removed `osqueryi` from PATH, then the runner ran out of disk) that produced ~160 spurious "osqueryi not found" / "no space left on device" errors for unrelated apps — those apps were **not** removed and should be re-validated.
 
 - **Descriptions are auto-generated** from each cask's Homebrew `desc` and need a human review/polish pass before these ship in a PR.
 - **Icons are not yet generated** for the added apps (see `tools/software/icons`); FMAs work without them and the icon appears the following release.

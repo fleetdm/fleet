@@ -18,7 +18,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 ## A  (51)
 
 - [x] `a-better-finder-rename` — A Better Finder Rename *
-- [x] `abbyy-finereader-pdf` — ABBYY FineReader PDF
+- [ ] `abbyy-finereader-pdf` — ABBYY FineReader PDF — **removed — failed CI: version not found by osquery**
 - [x] `acorn` — Acorn *
 - [x] `activedock` — ActiveDock *
 - [x] `activitywatch` — ActivityWatch
@@ -34,13 +34,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `affinity-publisher@1` — Affinity Publisher
 - [x] `airbuddy` — AirBuddy
 - [x] `airdroid` — AirDroid
-- [x] `airfoil` — Airfoil
+- [ ] `airfoil` — Airfoil — **removed — failed CI: uninstall didn't remove app**
 - [x] `airparrot` — AirParrot *
 - [x] `airserver` — AirServer
 - [x] `airtable` — Airtable
 - [x] `airy` — Airy
 - [x] `akiflow` — Akiflow
-- [x] `alacritty` — Alacritty
+- [ ] `alacritty` — Alacritty — **removed — failed CI: installer failed (bad dmg/script)**
 - [x] `alcove` — Alcove
 - [x] `aldente` — AlDente
 - [ ] `alfred` — Alfred  — **deferred — ships as .tar.gz, unsupported FMA installer format (dmg/pkg/zip only)**
@@ -51,17 +51,17 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `amadine` — Amadine
 - [x] `amethyst` — Amethyst
 - [x] `amie` — Amie
-- [x] `android-file-transfer` — Android File Transfer
+- [ ] `android-file-transfer` — Android File Transfer — **removed — failed CI: version not found by osquery**
 - [x] `angry-ip-scanner` — Angry IP Scanner
 - [x] `antinote` — Antinote
 - [x] `anydo` — Any.do
 - [x] `anytype` — Anytype
 - [x] `apidog` — Apidog
 - [x] `app-fair` — App Fair
-- [x] `appflowy` — AppFlowy
+- [ ] `appflowy` — AppFlowy — **removed — failed CI: uninstall didn't remove app**
 - [x] `appium-inspector` — Appium Inspector GUI
 - [x] `applite` — Applite
-- [x] `archi` — Archi
+- [ ] `archi` — Archi — **removed — failed CI: download blocked (4xx)**
 - [x] `asset-catalog-tinkerer` — Asset Catalog Tinkerer
 - [x] `atext` — aText
 - [x] `audio-hijack` — Audio Hijack *
@@ -72,7 +72,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 ## B  (41)
 
 - [x] `background-music` — Background Music
-- [x] `backlog` — Backlog
+- [ ] `backlog` — Backlog — **removed — failed CI: uninstall didn't remove app**
 - [x] `badgeify` — Badgeify
 - [x] `balsamiq-wireframes` — Balsamiq Wireframes
 - [x] `bambu-studio` — Bambu Studio
@@ -87,7 +87,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `bezel` — Bezel
 - [x] `bibdesk` — BibDesk
 - [x] `binance` — Binance
-- [x] `binary-ninja-free` — Binary Ninja
+- [ ] `binary-ninja-free` — Binary Ninja — **removed — failed CI: version not found by osquery**
 - [x] `biscuit` — Biscuit
 - [x] `bitbox` — BitBox
 - [x] `bitrix24` — Bitrix24
@@ -102,9 +102,9 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `boom-3d` — Boom 3D
 - [x] `boop` — Boop
 - [x] `boost-note` — Boostnote.Next
-- [x] `box-tools` — Box Tools
+- [ ] `box-tools` — Box Tools — **removed — failed CI: uninstall didn't remove app**
 - [x] `breaktimer` — BreakTimer
-- [x] `bricklink-partdesigner` — PartDesigner
+- [ ] `bricklink-partdesigner` — PartDesigner — **removed — failed CI: version not found by osquery**
 - [x] `bricklink-studio` — Studio
 - [ ] `browserstacklocal` — BrowserStack Local Testing  — **deferred — ships as .tar.gz CLI binary, unsupported FMA installer format**
 - [x] `bunch` — Bunch
@@ -117,9 +117,9 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 - [x] `cacher` — Cacher
 - [x] `caffeine` — Caffeine
-- [x] `calhash` — CalHash
+- [ ] `calhash` — CalHash — **removed — failed CI: download server error (5xx)**
 - [x] `calibrite-profiler` — calibrite PROFILER
-- [x] `calmly-writer` — Calmly Writer
+- [ ] `calmly-writer` — Calmly Writer — **removed — failed CI: download blocked (4xx)**
 - [x] `camo-studio` — Camo Studio
 - [x] `camunda-modeler` — Camunda Modeler
 - [ ] `cap` — Cap  — **deferred — tar.gz unsupported**
@@ -129,7 +129,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `capto` — Capto
 - [x] `carbon-copy-cloner` — Carbon Copy Cloner
 - [x] `cardhop` — Cardhop
-- [x] `ccleaner` — Piriform CCleaner
+- [ ] `ccleaner` — Piriform CCleaner — **removed — failed CI: version not found by osquery**
 - [x] `cellprofiler` — CellProfiler
 - [x] `chalk` — Chalk
 - [x] `charmstone` — Charmstone
@@ -141,7 +141,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [ ] `chipmunk` — Chipmunk Log Analyzer & Viewer  — **deferred — tar.gz unsupported**
 - [x] `choosy` — Choosy
 - [x] `chrome-remote-desktop-host` — Chrome Remote Desktop
-- [x] `cisco-proximity` — Cisco Proximity
+- [ ] `cisco-proximity` — Cisco Proximity — **removed — failed CI: download blocked (4xx)**
 - [x] `cleanclip` — CleanClip
 - [x] `clipbook` — ClipBook
 - [x] `clipgrab` — ClipGrab
@@ -167,7 +167,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `companion` — Bitfocus Companion
 - [ ] `conductor` — Conductor  — **deferred — tar.gz unsupported**
 - [x] `copilot-money` — Copilot
-- [x] `copyclip` — CopyClip *
+- [ ] `copyclip` — CopyClip * — **removed — failed CI: download blocked (4xx)**
 - [x] `cork` — Cork
 - [x] `crossover` — CrossOver
 - [x] `crystalfetch` — Crystalfetch
@@ -182,7 +182,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `darkmodebuddy` — DarkModeBuddy
 - [x] `darktable` — darktable
 - [x] `dataflare` — Dataflare
-- [x] `datagraph` — DataGraph
+- [ ] `datagraph` — DataGraph — **removed — failed CI: installer failed (bad dmg/script)**
 - [x] `dataspell` — DataSpell
 - [x] `dayflow` — Dayflow
 - [x] `dbgate` — DbGate
@@ -199,23 +199,23 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `devonthink` — DEVONthink
 - [x] `devtoys` — DevToys
 - [x] `devutils` — DevUtils
-- [x] `diashapes` — Dia
+- [ ] `diashapes` — Dia — **removed — failed CI: version not found by osquery**
 - [x] `dictionaries` — Dictionaries
 - [x] `diffusionbee` — Diffusion Bee
-- [x] `digiexam` — digiexam
+- [ ] `digiexam` — digiexam — **removed — failed CI: installer failed (bad dmg/script)**
 - [x] `digikam` — digiKam
 - [x] `disk-drill` — Disk Drill
 - [x] `dockdoor` — DockDoor
 - [x] `dockfix` — DockFix
 - [x] `dockside` — Dockside
 - [x] `dockview` — DockView
-- [x] `doppler-app` — Doppler
+- [ ] `doppler-app` — Doppler — **removed — failed CI: download blocked (4xx)**
 - [x] `dot` — Dot
 - [x] `doughnut` — Doughnut
 - [x] `downie` — Downie *
 - [x] `drata-agent` — Drata Agent
 - [x] `drawbot` — DrawBot
-- [x] `drivedx` — DriveDX
+- [ ] `drivedx` — DriveDX — **removed — failed CI: download blocked (4xx)**
 - [x] `dropdmg` — DropDMG
 - [x] `droplr` — Droplr
 - [x] `dropshare` — Dropshare *
@@ -228,14 +228,14 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 ## E  (29)
 
-- [x] `ea` — EA App
+- [ ] `ea` — EA App — **removed — failed CI: version not found by osquery**
 - [x] `eaglefiler` — EagleFiler
 - [x] `easydict` — Easydict
 - [x] `easyfind` — EasyFind
-- [x] `eclipse-cpp` — Eclipse IDE for C/C++ Developers
-- [x] `eclipse-dsl` — Eclipse IDE for Java and DSL Developers
-- [x] `eclipse-java` — Eclipse IDE for Java Developers
-- [x] `eclipse-modeling` — Eclipse Modeling Tools
+- [ ] `eclipse-cpp` — Eclipse IDE for C/C++ Developers — **removed — failed CI: uninstall didn't remove app**
+- [ ] `eclipse-dsl` — Eclipse IDE for Java and DSL Developers — **removed — failed CI: uninstall didn't remove app**
+- [ ] `eclipse-java` — Eclipse IDE for Java Developers — **removed — failed CI: uninstall didn't remove app**
+- [ ] `eclipse-modeling` — Eclipse Modeling Tools — **removed — failed CI: uninstall didn't remove app**
 - [x] `electronmail` — ElectronMail
 - [x] `electrum` — Electrum
 - [x] `element` — Element
@@ -245,14 +245,14 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `elgato-game-capture-hd` — Elgato Game Capture HD
 - [x] `elgato-wave-link` — Elgato Wave Link
 - [x] `elmedia-player` — Elmedia Player
-- [x] `emacs-app` — Emacs
+- [ ] `emacs-app` — Emacs — **removed — failed CI: version not found by osquery**
 - [x] `emclient` — eM Client
 - [x] `enpass` — Enpass
-- [x] `ente` — Ente
+- [ ] `ente` — Ente — **removed — failed CI: uninstall didn't remove app**
 - [x] `ente-auth` — Ente Auth
 - [x] `epic-games` — Epic Games Launcher
 - [x] `equinox` — Equinox
-- [x] `espanso` — Espanso
+- [ ] `espanso` — Espanso — **removed — failed CI: version not found by osquery**
 - [x] `etrecheckpro` — EtreCheck
 - [x] `exifcleaner` — ExifCleaner
 - [x] `exifrenamer` — ExifRenamer
@@ -269,7 +269,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `fellow` — Fellow
 - [x] `ferdium` — Ferdium
 - [x] `fetch-app` — Fetch
-- [x] `ff-works` — ff·Works *
+- [ ] `ff-works` — ff·Works * — **removed — failed CI: invalid character in app name**
 - [x] `fig` — fig
 - [x] `file-juicer` — File Juicer
 - [x] `filen` — Filen
@@ -277,10 +277,10 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `firealpaca` — Fire Alpaca
 - [x] `firefly-iota-desktop` — Firefly
 - [x] `firefly-shimmer` — Firefly Shimmer
-- [x] `firefox@developer-edition` — Mozilla Firefox Developer Edition
+- [ ] `firefox@developer-edition` — Mozilla Firefox Developer Edition — **removed — failed CI: version not found by osquery**
 - [x] `fission` — Fission
 - [x] `flexoptix` — FLEXOPTIX App
-- [x] `flotato` — Flotato
+- [ ] `flotato` — Flotato — **removed — failed CI: version not found by osquery**
 - [x] `flowvision` — FlowVision
 - [x] `fluid` — Fluid
 - [x] `flux-app` — f.lux
@@ -289,20 +289,20 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [ ] `font-go` — Go  — **deferred — tar.gz unsupported**
 - [ ] `font-medio` — Medio  — **deferred — no .app in zip**
 - [x] `fontbase` — FontBase
-- [x] `fontforge-app` — FontForge
+- [ ] `fontforge-app` — FontForge — **removed — failed CI: version not found by osquery**
 - [x] `fontlab` — Fontlab *
 - [x] `forecast` — Forecast
 - [x] `forklift` — ForkLift *
 - [x] `framer` — Framer
 - [x] `franz` — Franz
 - [x] `free-download-manager` — Free Download Manager
-- [x] `free-ruler` — Free Ruler
-- [x] `freecad` — FreeCAD
+- [ ] `free-ruler` — Free Ruler — **removed — failed CI: download server error (5xx)**
+- [ ] `freecad` — FreeCAD — **removed — failed CI: download server error (5xx)**
 - [x] `freefilesync` — FreeFileSync
 - [x] `fsmonitor` — FSMonitor
-- [x] `fujitsu-scansnap-home` — ScanSnap Home
+- [ ] `fujitsu-scansnap-home` — ScanSnap Home — **removed — failed CI: version not found by osquery**
 - [x] `funter` — Funter
-- [x] `fuse-t` — FUSE-T
+- [ ] `fuse-t` — FUSE-T — **removed — failed CI: version not found by osquery**
 
 ## G  (29)
 
@@ -313,10 +313,10 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `geekbench` — Geekbench *
 - [x] `gemini` — Gemini *
 - [x] `gephi` — Gephi
-- [x] `gifox` — gifox
+- [ ] `gifox` — gifox — **removed — failed CI: version not found by osquery**
 - [ ] `gitbutler` — GitButler  — **deferred — tar.gz unsupported**
 - [x] `gitfinder` — GitFinder
-- [x] `gitfox` — Gitfox
+- [ ] `gitfox` — Gitfox — **removed — failed CI: version not found by osquery**
 - [x] `github-copilot-for-xcode` — GitHub Copilot for Xcode
 - [x] `gitify` — Gitify
 - [x] `gitup-app` — GitUp
@@ -326,13 +326,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `godspeed` — Godspeed
 - [x] `gog-galaxy` — GOG Galaxy
 - [x] `goodsync` — GoodSync
-- [x] `google-ads-editor` — Google Ads Editor
+- [ ] `google-ads-editor` — Google Ads Editor — **removed — failed CI: version not found by osquery**
 - [x] `google-earth-pro` — Google Earth Pro
-- [x] `google-web-designer` — Google Web Designer
-- [x] `gosign` — GoSign Desktop
+- [ ] `google-web-designer` — Google Web Designer — **removed — failed CI: version not found by osquery**
+- [ ] `gosign` — GoSign Desktop — **removed — failed CI: download timed out**
 - [x] `gpodder` — gPodder
 - [x] `grandperspective` — GrandPerspective
-- [x] `graphicconverter` — GraphicConverter *
+- [ ] `graphicconverter` — GraphicConverter * — **removed — failed CI: version not found by osquery**
 - [x] `grids` — Grids
 - [x] `gyazo` — Nota Gyazo GIF
 
@@ -353,13 +353,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [ ] `hma-vpn` — HMA! VPN  — **deferred — no .app in dmg**
 - [x] `home-assistant` — Home Assistant
 - [x] `homerow` — Homerow
-- [x] `hoppscotch` — Hoppscotch
+- [ ] `hoppscotch` — Hoppscotch — **removed — failed CI: version not found by osquery**
 - [x] `hot` — Hot
 - [x] `houdahspot` — HoudahSpot
 - [x] `hp-easy-admin` — HP Easy Admin
 - [x] `hubstaff` — Hubstaff
 - [x] `huly` — Huly
-- [x] `hype` — Tumult Hype *
+- [ ] `hype` — Tumult Hype * — **removed — failed CI: uninstall didn't remove app**
 - [x] `hyperkey` — Hyperkey
 
 ## I  (16)
@@ -369,13 +369,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `iconjar` — IconJar
 - [x] `idagio` — IDAGIO
 - [x] `iexplorer` — iExplorer
-- [x] `imagej` — ImageJ
+- [ ] `imagej` — ImageJ — **removed — failed CI: version not found by osquery**
 - [ ] `imageoptim` — ImageOptim  — **deferred — unsupported installer format**
 - [x] `imazing-converter` — iMazing Converter
 - [x] `imhex` — ImHex
 - [x] `input-source-pro` — Input Source Pro
-- [x] `insta360-studio` — Insta360 Studio
-- [x] `integrity` — Integrity
+- [ ] `insta360-studio` — Insta360 Studio — **removed — failed CI: version not found by osquery**
+- [ ] `integrity` — Integrity — **removed — failed CI: version not found by osquery**
 - [x] `intellidock` — IntelliDock
 - [x] `invesalius` — InVesalius
 - [x] `istherenet` — IsThereNet
@@ -411,13 +411,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `keycastr` — KeyCastr
 - [x] `keyclu` — KeyClu
 - [x] `keystore-explorer` — KeyStore Explorer
-- [x] `kicad` — KiCad
+- [ ] `kicad` — KiCad — **removed — failed CI: version not found by osquery**
 - [x] `kiro` — kiro
 - [x] `kiro-cli` — Kiro CLI
 - [x] `klokki` — Klokki
 - [x] `knime` — KNIME Analytics Platform
 - [x] `knockknock` — KnockKnock
-- [x] `kobo` — Kobo
+- [ ] `kobo` — Kobo — **removed — failed CI: version not found by osquery**
 - [x] `krisp` — Krisp
 
 ## L  (35)
@@ -428,41 +428,41 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `latest` — Latest
 - [x] `launchbar` — LaunchBar
 - [ ] `launchcontrol` — LaunchControl  — **deferred — unsupported installer format**
-- [x] `launchos` — LaunchOS
-- [x] `librecad` — LibreCAD
+- [ ] `launchos` — LaunchOS — **removed — failed CI: version not found by osquery**
+- [ ] `librecad` — LibreCAD — **removed — failed CI: version not found by osquery**
 - [x] `libreoffice` — LibreOffice
-- [x] `librewolf` — LibreWolf
-- [x] `licensed-app` — Licensed
-- [x] `lifesize` — lifesize
+- [ ] `librewolf` — LibreWolf — **removed — failed CI: version not found by osquery**
+- [ ] `licensed-app` — Licensed — **removed — failed CI: download blocked (4xx)**
+- [ ] `lifesize` — lifesize — **removed — failed CI: version not found by osquery**
 - [x] `lightburn` — LightBurn
 - [x] `linearmouse` — LinearMouse
 - [x] `lingon-x` — Lingon X *
-- [x] `lm-studio` — LM Studio
+- [ ] `lm-studio` — LM Studio — **removed — failed CI: version not found by osquery**
 - [x] `lo-rain` — lo-rain
 - [x] `local` — Local
 - [x] `localsend` — LocalSend
 - [x] `locationsimulator` — LocationSimulator
-- [x] `logitech-g-hub` — Logitech G HUB
+- [ ] `logitech-g-hub` — Logitech G HUB — **removed — failed CI: version not found by osquery**
 - [x] `logseq` — Logseq
 - [x] `lookaway` — LookAway
 - [x] `loop` — Loop
 - [x] `loopback` — Loopback
 - [x] `losslesscut` — LosslessCut
-- [x] `loupedeck` — Loupdeck
+- [ ] `loupedeck` — Loupdeck — **removed — failed CI: version not found by osquery**
 - [x] `low-profile` — Low Profile
-- [x] `ltspice` — LTspice
+- [ ] `ltspice` — LTspice — **removed — failed CI: version not found by osquery**
 - [x] `lunacy` — Lunacy
 - [x] `lunar` — Lunar
 - [x] `lunasea` — LunaSea
 - [x] `lunatask` — Lunatask
 - [x] `lycheeslicer` — Lychee Slicer
-- [x] `lyx` — LyX
+- [ ] `lyx` — LyX — **removed — failed CI: download timed out**
 
 ## M  (71)
 
 - [ ] `mac-monitor` — Mac Monitor  — **deferred — pkg: no .app**
 - [x] `mac-mouse-fix` — Mac Mouse Fix
-- [x] `maccleaner-pro` — Nektony MacCleaner Pro
+- [ ] `maccleaner-pro` — Nektony MacCleaner Pro — **removed — failed CI: version not found by osquery**
 - [x] `macdown` — MacDown
 - [x] `mace` — MACE
 - [x] `macjournal` — MacJournal
@@ -478,7 +478,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `magicquit` — MagicQuit
 - [ ] `mailmate` — MailMate  — **deferred — no .app in dmg**
 - [x] `mailspring` — Mailspring
-- [x] `makemkv` — MakeMKV
+- [ ] `makemkv` — MakeMKV — **removed — failed CI: version not found by osquery**
 - [x] `malwarebytes` — Malwarebytes for Mac
 - [x] `mark-text` — MarkText
 - [x] `marked-app` — Marked *
@@ -486,7 +486,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `marsedit` — MarsEdit *
 - [x] `marta` — Marta File Manager
 - [x] `masscode` — massCode
-- [x] `maxon` — Maxon App
+- [ ] `maxon` — Maxon App — **removed — failed CI: version not found by osquery**
 - [x] `meetingbar` — MeetingBar
 - [x] `megasync` — MEGAsync
 - [x] `mellel` — Mellel *
@@ -499,13 +499,13 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `menubarx` — MenubarX
 - [x] `merlin-project` — Merlin Project
 - [x] `microsoft-azure-storage-explorer` — Microsoft Azure Storage Explorer
-- [x] `microsoft-openjdk@21` — Microsoft Build of OpenJDK
+- [ ] `microsoft-openjdk@21` — Microsoft Build of OpenJDK — **removed — failed CI: version not found by osquery**
 - [x] `middle` — Middle
 - [x] `middleclick` — MiddleClick
 - [x] `milanote` — Milanote
 - [x] `mimecast` — Mimecast for Mac
 - [x] `mimestream` — Mimestream
-- [x] `min` — Min
+- [ ] `min` — Min — **removed — failed CI: uninstall didn't remove app**
 - [x] `mindmac` — MindMac
 - [x] `minisim` — MiniSim
 - [x] `minstaller` — mInstaller
@@ -527,7 +527,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `mullvad-vpn` — Mullvad VPN
 - [x] `multitouch` — Multitouch
 - [x] `mural` — MURAL
-- [x] `murus` — Murus Firewall
+- [ ] `murus` — Murus Firewall — **removed — failed CI: version not found by osquery**
 - [x] `museeks` — Museeks
 - [x] `musescore` — MuseScore
 - [x] `mx-power-gadget` — Mx Power Gadget
@@ -536,11 +536,11 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 - [x] `nagstamon` — Nagstamon
 - [x] `name-mangler` — Name Mangler
-- [x] `namechanger` — NameChanger
+- [ ] `namechanger` — NameChanger — **removed — failed CI: download blocked (4xx)**
 - [x] `naps2` — NAPS2
 - [x] `native-access` — Native Access *
 - [x] `ndi-tools` — NDI Tools
-- [x] `neo-network-utility` — Neo Network Utility
+- [ ] `neo-network-utility` — Neo Network Utility — **removed — failed CI: version not found by osquery**
 - [x] `neofinder` — NeoFinder
 - [x] `netiquette` — Netiquette
 - [x] `netnewswire` — NetNewsWire
@@ -550,7 +550,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `nightfall` — Nightfall
 - [x] `nitro-pdf-pro` — Nitro PDF Pro
 - [x] `nocturnal` — Nocturnal
-- [x] `nomad-menu` — NoMAD
+- [ ] `nomad-menu` — NoMAD — **removed — failed CI: download host unresolved (DNS)**
 - [x] `nordlayer` — NordLayer
 - [x] `nosql-workbench` — NoSQL Workbench
 - [x] `notchnook` — NotchNook
@@ -567,7 +567,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 
 - [x] `ocenaudio` — ocenaudio
 - [x] `ok-json` — OK JSON
-- [x] `oka-unarchiver` — Oka Unarchiver
+- [ ] `oka-unarchiver` — Oka Unarchiver — **removed — failed CI: uninstall didn't remove app**
 - [x] `okta-advanced-server-access` — Okta Advanced Server Access
 - [x] `omnidisksweeper` — OmniDiskSweeper
 - [x] `omnifocus` — OmniFocus *
@@ -577,14 +577,14 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `onionshare` — OnionShare
 - [x] `only-switch` — OnlySwitch
 - [x] `onlyoffice` — ONLYOFFICE
-- [x] `onyx` — OnyX
+- [ ] `onyx` — OnyX — **removed — failed CI: download server error (5xx)**
 - [x] `opal-composer` — Opal Composer
 - [x] `openaudible` — OpenAudible
 - [x] `openboard` — OpenBoard
 - [x] `opencloud` — OpenCloud Desktop
 - [x] `opencode-desktop` — OpenCode
-- [x] `opencore-patcher` — OpenCore Legacy Patcher
-- [x] `openin` — OpenIn
+- [ ] `opencore-patcher` — OpenCore Legacy Patcher — **removed — failed CI: version not found by osquery**
+- [ ] `openin` — OpenIn — **removed — failed CI: version not found by osquery**
 - [x] `openinterminal` — OpenInTerminal
 - [x] `openlens` — OpenLens
 - [x] `openmtp` — OpenMTP
@@ -594,8 +594,8 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `opentoonz` — OpenToonz
 - [x] `optimus-player` — Optimus Player
 - [x] `origami-studio` — Origami Studio
-- [x] `orion` — Orion Browser
-- [x] `orka-desktop` — Orka Desktop
+- [ ] `orion` — Orion Browser — **removed — failed CI: version not found by osquery**
+- [ ] `orka-desktop` — Orka Desktop — **removed — failed CI: version not found by osquery**
 - [x] `osquery` — osquery
 - [x] `outset` — outset
 - [x] `overflow` — Overflow
@@ -617,7 +617,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `pdf-pals` — PDF Pals
 - [x] `pdfsam-basic` — PDFsam Basic
 - [x] `pearcleaner` — Pearcleaner
-- [x] `pencil` — Pencil
+- [ ] `pencil` — Pencil — **removed — failed CI: download timed out**
 - [x] `perimeter81` — Perimeter 81
 - [x] `permute` — Permute *
 - [x] `philips-hue-sync` — Philips Hue Sync
@@ -654,7 +654,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `processing` — Processing
 - [x] `processspy` — ProcessSpy
 - [x] `pronotes` — ProNotes
-- [x] `propresenter` — ProPresenter
+- [ ] `propresenter` — ProPresenter — **removed — failed CI: download blocked (4xx)**
 - [x] `proton-drive` — Proton Drive
 - [x] `proton-mail-bridge` — Proton Mail Bridge
 - [x] `proton-meet` — Proton Meet
@@ -733,7 +733,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [ ] `scroll-reverser` — Scroll Reverser  — **deferred — no cask JSON from formulae.brew.sh**
 - [x] `securesafe` — SecureSafe
 - [x] `selfcontrol` — SelfControl
-- [x] `send-to-kindle` — Send to Kindle
+- [ ] `send-to-kindle` — Send to Kindle — **removed — failed CI: download blocked (4xx)**
 - [x] `sensei` — Sensei
 - [ ] `sentinel` — Sentinel  — **deferred — no .app in zip**
 - [x] `servo` — Servo
@@ -746,7 +746,7 @@ Check off each cask as its FMA input lands. `*` marks a cask matched from a vers
 - [x] `shortcat` — Sproutcube Shortcat
 - [x] `shotcut` — Shotcut
 - [x] `shureplus-motiv` — ShurePlus MOTIV
-- [x] `shutter-encoder` — Shutter Encoder
+- [ ] `shutter-encoder` — Shutter Encoder — **removed — failed CI: download server error (5xx)**
 - [x] `sidenotes` — SideNotes
 - [ ] `sigil` — Sigil  — **deferred — undetected format**
 - [x] `sigmaos` — SigmaOS
