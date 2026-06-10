@@ -4223,27 +4223,6 @@
       "description": "TabTab is a window and tab manager."
     },
     {
-      "name": "Tabula",
-      "slug": "tabula/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.nerdpower.tabula.Tabula",
-      "description": "Tabula is a tool for liberating data tables trapped inside PDF files."
-    },
-    {
-      "name": "Taccy",
-      "slug": "taccy/darwin",
-      "platform": "darwin",
-      "unique_identifier": "co.eclecticlight.Taccy",
-      "description": "Taccy is a troubleshoot signature and privacy problems in applications."
-    },
-    {
-      "name": "Tag Editor",
-      "slug": "tageditor/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.amvidia.Tag-Editor-FS",
-      "description": "Tag Editor is a spreadsheet style tag editor for audio files."
-    },
-    {
       "name": "Tailscale",
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
@@ -4277,20 +4256,6 @@
       "platform": "darwin",
       "unique_identifier": "com.apptorium.TeaCode-dm",
       "description": "TeaCode is a text expanding app for developers."
-    },
-    {
-      "name": "TeamViewer Host",
-      "slug": "teamviewer-host/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.teamviewer.teamviewer.preferences",
-      "description": "TeamViewer Host is a remote connectivity solution."
-    },
-    {
-      "name": "TeamViewer QuickSupport",
-      "slug": "teamviewer-quicksupport/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.teamviewer.TeamViewerQS",
-      "description": "TeamViewer QuickSupport is a remote support for computers and mobile devices."
     },
     {
       "name": "TeamViewer",
@@ -4447,13 +4412,6 @@
       "description": "Sempliva Tiles is a window manager."
     },
     {
-      "name": "Timer",
-      "slug": "timer/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.apimac.Timer",
-      "description": "Timer is a stopwatch, alarm clock, and clock utility."
-    },
-    {
       "name": "TimeScribe",
       "slug": "timescribe/darwin",
       "platform": "darwin",
@@ -4480,20 +4438,6 @@
       "platform": "windows",
       "unique_identifier": "Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
-    },
-    {
-      "name": "Tofu",
-      "slug": "tofu/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.asagoo.tofu",
-      "description": "Tofu is an e-reader software."
-    },
-    {
-      "name": "TomatoBar",
-      "slug": "tomatobar/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.github.ivoronin.TomatoBar",
-      "description": "TomatoBar is a menu bar pomodoro timer."
     },
     {
       "name": "Topaz Gigapixel AI",
@@ -4601,13 +4545,6 @@
       "description": "TREZOR Suite is a companion app for the Trezor hardware wallet."
     },
     {
-      "name": "Tribler",
-      "slug": "tribler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.nl-tudelft-tribler",
-      "description": "Tribler is a privacy enhanced BitTorrent client with P2P content discovery."
-    },
-    {
       "name": "TripMode",
       "slug": "tripmode/darwin",
       "platform": "darwin",
@@ -4627,13 +4564,6 @@
       "platform": "darwin",
       "unique_identifier": "app.tuple.app",
       "description": "Tuple is a remote pair programming app."
-    },
-    {
-      "name": "Tuta Mail",
-      "slug": "tuta-mail/darwin",
-      "platform": "darwin",
-      "unique_identifier": "de.tutao.tutanota",
-      "description": "Tuta Mail is an email client."
     },
     {
       "name": "Twine",

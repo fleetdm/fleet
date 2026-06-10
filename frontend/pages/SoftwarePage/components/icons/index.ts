@@ -402,17 +402,12 @@ import TableauPublic from "./TableauPublic";
 import TableauReader from "./TableauReader";
 import TablePlus from "./TablePlus";
 import Tabtab from "./Tabtab";
-import Tabula from "./Tabula";
-import Taccy from "./Taccy";
-import Tageditor from "./Tageditor";
 import Tailscale from "./Tailscale";
 import Taskade from "./Taskade";
 import Taskbar from "./Taskbar";
 import Teacode from "./Teacode";
 import Teams from "./Teams";
 import TeamViewer from "./TeamViewer";
-import TeamviewerHost from "./TeamviewerHost";
-import TeamviewerQuicksupport from "./TeamviewerQuicksupport";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
@@ -429,12 +424,9 @@ import Thunderbird from "./Thunderbird";
 import Ticktick from "./Ticktick";
 import Tidal from "./Tidal";
 import Tiles from "./Tiles";
-import Timer from "./Timer";
 import Timescribe from "./Timescribe";
 import Timing from "./Timing";
 import Todoist from "./Todoist";
-import Tofu from "./Tofu";
-import Tomatobar from "./Tomatobar";
 import TopazGigapixelAi from "./TopazGigapixelAi";
 import TopazPhotoAi from "./TopazPhotoAi";
 import TopazVideoAi from "./TopazVideoAi";
@@ -449,11 +441,9 @@ import Transmit from "./Transmit";
 import Tresorit from "./Tresorit";
 import Trex from "./Trex";
 import TrezorSuite from "./TrezorSuite";
-import Tribler from "./Tribler";
 import Tripmode from "./Tripmode";
 import Tunnelblick from "./Tunnelblick";
 import Tuple from "./Tuple";
-import TutaMail from "./TutaMail";
 import TwineApp from "./TwineApp";
 import Twingate from "./Twingate";
 import Twobird from "./Twobird";
@@ -1052,16 +1042,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
-  tabula: Tabula,
-  taccy: Taccy,
-  "tag editor": Tageditor,
   tailscale: Tailscale,
   taskade: Taskade,
   taskbar: Taskbar,
   teacode: Teacode,
   teamviewer: TeamViewer,
-  "teamviewer host": TeamviewerHost,
-  "teamviewer quicksupport": TeamviewerQuicksupport,
   telegram: Telegram,
   teleport: TeleportConnect,
   "teleport connect": TeleportConnect,
@@ -1079,12 +1064,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   ticktick: Ticktick,
   tidal: Tidal,
-  timer: Timer,
   timescribe: Timescribe,
   timing: Timing,
   todoist: Todoist,
-  tofu: Tofu,
-  tomatobar: Tomatobar,
   "topaz gigapixel ai": TopazGigapixelAi,
   "topaz photo ai": TopazPhotoAi,
   "topaz video ai": TopazVideoAi,
@@ -1099,11 +1081,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tresorit: Tresorit,
   trex: Trex,
   "trezor suite": TrezorSuite,
-  tribler: Tribler,
   tripmode: Tripmode,
   tunnelblick: Tunnelblick,
   tuple: Tuple,
-  "tuta mail": TutaMail,
   twine: TwineApp,
   twingate: Twingate,
   twobird: Twobird,
