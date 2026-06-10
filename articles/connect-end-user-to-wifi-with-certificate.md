@@ -1001,8 +1001,6 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 >
 > The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
-> The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted and substitutes to the same value. New profiles should use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
->
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
 
 ## Advanced
