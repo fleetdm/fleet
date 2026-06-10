@@ -38,7 +38,9 @@ func main() {
 	if *orgName == "" {
 		log.Fatal("must provide -org-name")
 	}
-	if *profileUUID != "" && *serialNum != "" && *command != "" {
+	if (*profileUUID != "" && *serialNum != "") ||
+		(*profileUUID != "" && *command != "") ||
+		(*serialNum != "" && *command != "") {
 		log.Fatal("only one of -profile-uuid, -serial-number, or -command must be provided")
 	}
 
