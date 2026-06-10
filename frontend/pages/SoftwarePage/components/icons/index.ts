@@ -262,9 +262,26 @@ import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import JabraDirect from "./JabraDirect";
 import JetBrainsToolbox from "./JetBrainsToolbox";
+import Kaleidoscope from "./Kaleidoscope";
+import Kap from "./Kap";
+import Kdenlive from "./Kdenlive";
 import KeePassXc from "./KeePassXc";
 import KeeperPasswordManager from "./KeeperPasswordManager";
+import Keepingyouawake from "./Keepingyouawake";
+import Keeweb from "./Keeweb";
 import Keka from "./Keka";
+import Keyboardcleantool from "./Keyboardcleantool";
+import KeyboardCowboy from "./KeyboardCowboy";
+import KeyboardMaestro from "./KeyboardMaestro";
+import Keycastr from "./Keycastr";
+import Keyclu from "./Keyclu";
+import KeystoreExplorer from "./KeystoreExplorer";
+import Kiro from "./Kiro";
+import KiroCli from "./KiroCli";
+import Klokki from "./Klokki";
+import Knime from "./Knime";
+import Knockknock from "./Knockknock";
+import Krisp from "./Krisp";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Linear from "./Linear";
@@ -764,9 +781,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hyper: Hyper,
   inkscape: Inkscape,
   "jabra direct": JabraDirect,
+  kaleidoscope: Kaleidoscope,
+  kap: Kap,
+  kdenlive: Kdenlive,
   keepassxc: KeePassXc,
   "keeper password manager": KeeperPasswordManager,
+  keepingyouawake: Keepingyouawake,
+  keeweb: Keeweb,
   keka: Keka,
+  "keyboard cowboy": KeyboardCowboy,
+  "keyboard maestro": KeyboardMaestro,
+  keyboardcleantool: Keyboardcleantool,
+  keycastr: Keycastr,
+  keyclu: Keyclu,
+  "keystore explorer": KeystoreExplorer,
+  kiro: Kiro,
+  "kiro cli": KiroCli,
+  klokki: Klokki,
+  "knime analytics platform": Knime,
+  knockknock: Knockknock,
+  krisp: Krisp,
   lens: Lens,
   libreoffice: LibreOffice,
   maccy: Maccy,
