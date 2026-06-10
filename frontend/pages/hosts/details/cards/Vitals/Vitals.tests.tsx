@@ -615,3 +615,49 @@ describe("Disk space field visibility", () => {
     expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 });
+
+describe("Supervised field", () => {
+  it("renders 'Yes' when host is supervised", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      supervised: true,
+    });
+
+    render(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.getByText("Supervised")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+  });
+  it("renders 'No' when host is not supervised", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      supervised: false,
+    });
+
+    render(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.getByText("Supervised")).toBeInTheDocument();
+    expect(screen.getByText("No")).toBeInTheDocument();
+  });
+  it("renders '---' when host is not configured", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      supervised: null,
+    });
+
+    render(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.getByText("Supervised")).toBeInTheDocument();
+    expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
+  });
+  it("does not render supervised when host is not an apple device", () => {
+    const mockHost = createMockHost({
+      platform: "windows",
+      supervised: true,
+    });
+
+    render(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.queryByText("Supervised")).not.toBeInTheDocument();
+  });
+});

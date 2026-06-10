@@ -843,6 +843,7 @@ SELECT
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   h.last_restarted_at,
   h.timezone,
+  h.supervised,
   (
     SELECT
       additional
@@ -1136,7 +1137,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.last_restarted_at,
     h.timezone,
     hoi.version AS orbit_version,
-    hoi.desktop_version AS fleet_desktop_version
+    hoi.desktop_version AS fleet_desktop_version,
+	h.supervised
 	`
 
 	sql += hostMDMSelect
@@ -3173,6 +3175,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.policy_updated_at,
     h.public_ip,
     h.orbit_node_key,
+	h.supervised,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
@@ -3353,7 +3356,8 @@ SELECT
 	last_enrolled_at,
 	policy_updated_at,
 	refetch_requested,
-	refetch_critical_queries_until
+	refetch_critical_queries_until,
+	supervised
 FROM hosts
 WHERE id IN (?)`
 
@@ -3414,6 +3418,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.public_ip,
       h.orbit_node_key,
       h.timezone,
+	  h.supervised,
       t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
@@ -5737,7 +5742,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			orbit_node_key = ?,
 			refetch_critical_queries_until = ?,
 			last_restarted_at = COALESCE(?, last_restarted_at),
-			timezone = ?
+			timezone = ?,
+			supervised = ?
 		WHERE id = ?
 	`
 
@@ -5785,6 +5791,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.RefetchCriticalQueriesUntil,
 				lastRestartedAt,
 				host.TimeZone,
+				host.Supervised,
 				host.ID,
 			)
 			if err != nil {

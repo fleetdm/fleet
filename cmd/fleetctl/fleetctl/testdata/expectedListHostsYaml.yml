@@ -65,6 +65,7 @@ spec:
   software: []
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
+  supervised: null
   team_id: null
   team_name: null
   timezone: null
@@ -134,6 +135,7 @@ spec:
   software: []
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
+  supervised: null
   team_id: null
   team_name: null
   timezone: null
