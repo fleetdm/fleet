@@ -1,0 +1,10 @@
+{
+  "name": "WebCatalog",
+  "unique_identifier": "com.webcatalog.jordan",
+  "token": "webcatalog",
+  "installer_format": "dmg",
+  "slug": "webcatalog/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

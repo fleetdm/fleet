@@ -1,0 +1,10 @@
+{
+  "name": "OmniPlan",
+  "unique_identifier": "com.omnigroup.OmniPlan4",
+  "token": "omniplan",
+  "installer_format": "dmg",
+  "slug": "omniplan/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

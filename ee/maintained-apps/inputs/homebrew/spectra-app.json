@@ -1,0 +1,10 @@
+{
+  "name": "Spectra",
+  "unique_identifier": "app.spectra.dev",
+  "token": "spectra-app",
+  "installer_format": "dmg",
+  "slug": "spectra-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
