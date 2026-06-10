@@ -1313,7 +1313,7 @@ None.
 
 > TODO: Warning on size of carve
 
-File carving allows you to request files (and sets of files) and their full contents.
+File carving allows you to request files (and sets of files) and their full contents from hosts.
 
 To initiate a file carve using the Fleet API, use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
