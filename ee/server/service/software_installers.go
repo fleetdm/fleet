@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -2303,6 +2304,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var allScripts []string
+	var categoryNames []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
@@ -2348,6 +2350,19 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			payload.ValidatedLabels = validatedLabels
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+
+		for i, name := range payload.Categories {
+			payload.Categories[i] = strings.TrimSpace(name)
+			err := (fleet.SoftwareCategory{Name: payload.Categories[i]}).Validate()
+			if err != nil {
+				return "", fleet.NewInvalidArgumentError("software.categories", err.Error())
+			}
+			categoryNames = append(categoryNames, payload.Categories[i])
+		}
+	}
+
+	if err := svc.batchSetSelfServiceCategories(ctx, teamID, categoryNames, dryRun); err != nil {
+		return "", err
 	}
 
 	if !dryRun {
@@ -2730,6 +2745,7 @@ func (svc *Service) softwareBatchUpload(
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
+			// TODO(JK): leaving todo to remember categories are used here
 			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
@@ -3825,4 +3841,54 @@ func getInstallScript(extension string, packageIDs []string, currentScript strin
 		return currentScript
 	}
 	return file.GetInstallScript(extension)
+}
+
+func (svc *Service) batchSetSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) error {
+	var allCategories []string
+	for _, name := range fleet.TranslateLegacySoftwareCategoryNames(categoryNames) {
+		if slices.ContainsFunc(allCategories, func(c string) bool { return strings.EqualFold(c, name) }) {
+			continue
+		}
+		allCategories = append(allCategories, name)
+	}
+
+	existingCategories, err := svc.ds.ListSoftwareCategories(ctx, ptr.ValOrZero(teamID))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing existing software categories")
+	}
+
+	var categoriesToInsert []string
+	for _, name := range allCategories {
+		if !slices.ContainsFunc(existingCategories, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
+			categoriesToInsert = append(categoriesToInsert, name)
+		}
+	}
+
+	var categoriesToDelete []fleet.SoftwareCategory
+	for _, cat := range existingCategories {
+		if slices.Contains(fleet.DefaultSelfServiceCategoryNames, cat.Name) {
+			continue
+		}
+		if !slices.ContainsFunc(allCategories, func(name string) bool { return strings.EqualFold(name, cat.Name) }) {
+			categoriesToDelete = append(categoriesToDelete, cat)
+		}
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	for _, name := range categoriesToInsert {
+		_, err := svc.ds.NewSoftwareCategory(ctx, ptr.ValOrZero(teamID), name)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating self-service category")
+		}
+	}
+	for _, cat := range categoriesToDelete {
+		err := svc.ds.DeleteSoftwareCategory(ctx, cat.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting self-service category")
+		}
+	}
+	return nil
 }
