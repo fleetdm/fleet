@@ -312,19 +312,25 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team2
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -375,7 +381,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -407,7 +413,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -449,7 +455,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -507,7 +513,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
     name: team1
     mdm:
@@ -528,7 +534,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -543,7 +549,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -604,7 +610,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
       host_status_webhook:
@@ -635,7 +641,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
 `,
@@ -658,7 +664,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
@@ -681,7 +687,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
@@ -792,6 +798,12 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1537,6 +1549,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	// Apply global config.
 	name := writeTmpYml(t, `---
@@ -2203,6 +2221,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
+		mockEmptyTeamSoftware(ds)
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1", Config: fleet.TeamConfig{
 			Features: fleet.Features{
@@ -2500,7 +2519,7 @@ spec:
 
 		// team macos setup assistant
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", emptyMacosSetup))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2526,7 +2545,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2745,7 +2764,6 @@ spec:
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
 	})
 
 	t.Run("require_all_software_windows", func(t *testing.T) {
@@ -3161,6 +3179,12 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 	}
 
@@ -4418,6 +4442,9 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 	t.Run("with values", func(t *testing.T) {
 		// Reset call trackers

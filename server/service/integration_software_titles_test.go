@@ -204,7 +204,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles display name is empty
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -387,7 +387,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories or labels
 	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
 	s.Assert().ElementsMatch([]string{lbl1Name, lbl2Name}, func() []string {
 		var ret []string
 		for _, l := range stResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny {
@@ -491,7 +491,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -945,7 +945,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		Name:                     ptr.String("Observer 1"),
 		Email:                    ptr.String("observer@nurv.com"),
 		Password:                 ptr.String(userRawPwd),
-		Teams:                    ptr.T([]fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}),
+		Teams:                    new([]fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}),
 		AdminForcedPasswordReset: ptr.Bool(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)

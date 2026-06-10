@@ -213,6 +213,12 @@ module.exports = {
           emailAddress: 'sage@example.com',
         };
         break;
+      case 'email-application-submitted':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Sage',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {

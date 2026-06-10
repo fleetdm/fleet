@@ -72,6 +72,7 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"public_ip":             "h.public_ip",
 	"last_enrolled_at":      "h.last_enrolled_at",
 	"last_restarted_at":     "h.last_restarted_at",
+	"agent":                 "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 	"orbit_version":         "hoi.version",
 	"fleet_desktop_version": "hoi.desktop_version",
 	"issues":                "host_issues.total_issues_count",
@@ -592,7 +593,6 @@ var hostRefs = []string{
 	"host_calendar_events",
 	"upcoming_activities",
 	"host_certificates",
-	"android_devices",
 	"host_scim_user",
 	"batch_activity_host_results",
 	"host_mdm_commands",
@@ -617,6 +617,10 @@ var hostRefs = []string{
 // want to keep the enrollment relationship even if the host is temporarily
 // deleted from the UI. Re-enrollment sometimes is not straightforward like it
 // is for osquery/fleetd
+// - android_devices: preserved so the device's last-known team_id survives host
+//   deletion and is available during re-enrollment. CreateDeviceTx finds the
+//   existing row by enterprise_specific_id and reuses it. Orphaned rows, device
+//   never re-enrolls, do not get deleted.
 // - host_recovery_key_passwords: keyed by host_uuid, intentionally preserved across
 // host deletion. The device may still be enrolled in MDM with the password intact;
 // Orbit re-enrollment recreates the host row and the existing password row remains
@@ -1130,7 +1134,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
     h.last_restarted_at,
-    h.timezone
+    h.timezone,
+    hoi.version AS orbit_version,
+    hoi.desktop_version AS fleet_desktop_version
 	`
 
 	sql += hostMDMSelect
@@ -1442,6 +1448,7 @@ func (ds *Datastore) applyHostFilters(
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
     %s
     %s
     %s
@@ -2222,24 +2229,24 @@ type enrolledHostInfo struct {
 // number. Any of those fields can be left empty if not available, and it will
 // use the best match in this order:
 //   - if it matched on osquery_host_id (with osqueryID or uuid), use that host
-//   - otherwise if it matched on serial, use that host
-//   - otherwise if uuid and serial match and an Android host can be found with a matching
-//     uuid, use that host
+//   - otherwise if it is Apple MDM host and matched on serial, use that host
+//   - otherwise if the enrolling host's platform is "android" and an Android host can be found
+//     with a matching uuid, use that host
 //
 // Note that in general, all options should result in a single match anyway.
 // It's just that our DB schema doesn't enforce this (only osquery_host_id has
 // a unique constraint). Also, due to things like VMs, the serial number is not
 // guaranteed to match a single host. For that reason, we only attempt the
-// serial number lookup if Fleet MDM is enabled on the server (as we must be
+// serial number lookup if Apple MDM is enabled on the server (as we must be
 // able to match by serial in this scenario, since this is the only information
-// we get when enrolling hosts via Apple DEP or Android EMM) AND if the matched
-// host is on a supported MDM platform (darwin, ios, ipados, or android).
+// we get when enrolling hosts via Apple DEP) AND if the matched host is on a
+// supported MDM platform (darwin, ios, or ipados).
 func matchHostDuringEnrollment(
 	ctx context.Context,
 	q sqlx.QueryerContext,
 	enrollType enroll,
-	isMDMEnabled bool,
-	osqueryID, uuid, serial string,
+	isAppleMDMEnabled bool,
+	osqueryID, uuid, serial, platform string,
 ) (*enrolledHostInfo, error) {
 	type hostMatch struct {
 		ID             uint
@@ -2274,17 +2281,17 @@ func matchHostDuringEnrollment(
 	// We want to prevent orbit enrolling with an osquery identifier to be matched with the serial number.
 	orbitEnrollingWithOsqueryIdentifier := enrollType == orbitEnroll && osqueryID != ""
 
-	if serial != "" && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
+	// Serial-match path: Apple DEP pre-creates host records with hardware_serial set, so orbit-enroll can find them this way.
+	if serial != "" && isAppleMDMEnabled && !orbitEnrollingWithOsqueryIdentifier && platform != "android" {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados' OR platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
-	// special case for android hosts when uuid == serial. This will only work for an exact match on existing Android
-	// host UUID == enrolling device UUID.
-	if uuid != "" && serial == uuid && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
+	// Android-specific UUID match
+	if uuid != "" && platform == "android" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
@@ -2316,7 +2323,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		opt(enrollConfig)
 	}
 
-	isMDMEnabled := enrollConfig.IsMDMEnabled
+	isAppleMDMEnabled := enrollConfig.IsMDMEnabled
 	hostInfo := enrollConfig.HostInfo
 	orbitNodeKey := enrollConfig.OrbitNodeKey
 	teamID := enrollConfig.TeamID
@@ -2343,8 +2350,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			// For Windows, don't match by serial number to retain legacy functionality.
 			serialToMatch = ""
 		}
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch)
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
+			hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
@@ -2491,6 +2498,17 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 		}
 
+		// Read back the persisted uuid so the returned struct matches the
+		// hosts row. Callers (e.g. orbit Windows MDM linking, host_emails
+		// reconciliation in server/service/orbit.go) rely on host.UUID after
+		// this returns; the value can diverge from hostInfo.HardwareUUID in
+		// the UPDATE branch because matchHostDuringEnrollment can match by
+		// osquery_host_id or hardware_serial and the UPDATE preserves the
+		// existing uuid via COALESCE(NULLIF(uuid, ''), ?).
+		if err := sqlx.GetContext(ctx, tx, &host.UUID, `SELECT uuid FROM hosts WHERE id = ?`, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load persisted host uuid after orbit enroll")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -2507,7 +2525,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		opt(enrollConfig)
 	}
 
-	isMDMEnabled := enrollConfig.IsMDMEnabled
+	isAppleMDMEnabled := enrollConfig.IsMDMEnabled
 	osqueryHostID := enrollConfig.OsqueryHostID
 	hardwareUUID := enrollConfig.HardwareUUID
 	hardwareSerial := enrollConfig.HardwareSerial
@@ -2524,7 +2542,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -3419,6 +3437,85 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+	}
+
+	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
+	if err != nil {
+		return nil, err
+	}
+	host.PackStats = packStats
+
+	return host, nil
+}
+
+// HostByUUID matches only against the uuid column.
+func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {
+	stmt := `
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.refetch_critical_queries_until,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      h.orbit_node_key,
+      h.timezone,
+      t.name AS team_name,
+      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+      COALESCE(hst.seen_time, h.created_at) AS seen_time,
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+    ` + hostMDMSelect + `
+    FROM hosts h
+    LEFT JOIN teams t ON t.id = h.team_id
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    ` + hostMDMJoin + `
+    WHERE h.uuid = ?
+    LIMIT 1
+	`
+	host := &fleet.Host{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), host, stmt, uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(uuid))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host by uuid")
 	}
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
@@ -4716,12 +4813,20 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 }
 
 // deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
-func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExecerContext, hostID uint) error {
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) error {
 	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
 	}
-	return nil
+
+	return triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID},
+		[]fleet.FleetVarName{
+			fleet.FleetVarHostEndUserIDPUsername,
+			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			fleet.FleetVarHostEndUserIDPGroups,
+			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname,
+		})
 }
 
 func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
@@ -4736,7 +4841,9 @@ func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID 
 }
 
 func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
-	return deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID)
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return deleteHostSCIMUserMapping(ctx, tx, hostID)
+	})
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
@@ -6327,6 +6434,21 @@ func (ds *Datastore) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite
 	return ds.loadHostLite(ctx, &id, nil)
 }
 
+// hostLiteColumns is the shared SELECT column list
+const hostLiteColumns = `
+	h.id,
+	h.team_id,
+	h.osquery_host_id,
+	COALESCE(h.node_key, '') AS node_key,
+	h.computer_name,
+	h.hostname,
+	h.uuid,
+	h.hardware_model,
+	h.hardware_serial,
+	h.distributed_interval,
+	h.config_tls_refresh,
+	COALESCE(hst.seen_time, h.created_at) AS seen_time`
+
 func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *string) (*fleet.HostLite, error) {
 	if id == nil && identifier == nil {
 		return nil, errors.New("must set one of id or identifier")
@@ -6335,19 +6457,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 		return nil, errors.New("cannot set both id and identifier")
 	}
 	stmt := `
-    SELECT
-      h.id,
-      h.team_id,
-      h.osquery_host_id,
-      COALESCE(h.node_key, '') AS node_key,
-	  h.computer_name,
-      h.hostname,
-      h.uuid,
-	  h.hardware_model,
-      h.hardware_serial,
-      h.distributed_interval,
-      h.config_tls_refresh,
-      COALESCE(hst.seen_time, h.created_at) AS seen_time
+    SELECT ` + hostLiteColumns + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     %s

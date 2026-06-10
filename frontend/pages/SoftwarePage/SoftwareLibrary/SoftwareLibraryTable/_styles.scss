@@ -1,10 +1,18 @@
 .software-library-table {
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+
   // Override the grid container to a simple flex layout
   // to avoid an empty grid column gap.
   .container {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__controls {
+    display: flex;
     align-items: center;
     gap: $pad-medium;
   }

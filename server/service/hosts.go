@@ -434,6 +434,18 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
+// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
+// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
+// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
+func suppressAndroidBYODWipeStatus(host *fleet.Host) {
+	if host.FleetPlatform() == "android" &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal &&
+		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
+		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
+		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
+	}
+}
+
 func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
@@ -508,6 +520,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
 						host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
 					}
+					suppressAndroidBYODWipeStatus(host)
 				}
 
 				if !yield(host, nil) {
@@ -1210,8 +1223,8 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-// authorizeHostSourceTeams checks that the caller has write access to the
-// source teams of the hosts being transferred.
+// authorizeHostSourceTeams checks that the caller is permitted to transfer
+// hosts out of their current (source) teams.
 func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet.Host) error {
 	seenTeamIDs := make(map[uint]struct{})
 	var checkedNoTeam bool
@@ -1219,13 +1232,13 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 		if h.TeamID == nil { // "No Team" team / "Unassigned" fleet
 			if !checkedNoTeam {
 				checkedNoTeam = true
-				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionWrite); err != nil {
+				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionTransferHost); err != nil {
 					return err
 				}
 			}
 		} else if _, ok := seenTeamIDs[*h.TeamID]; !ok {
 			seenTeamIDs[*h.TeamID] = struct{}{}
-			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionTransferHost); err != nil {
 				return err
 			}
 		}
@@ -1234,12 +1247,12 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 }
 
 func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
-	// Authorize write access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	// Authorize transfer access to the destination team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
 	}
 
-	// Authorize write access to the source teams of the hosts being transferred.
+	// Authorize transfer access to the source teams of the hosts being transferred.
 	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
@@ -1251,6 +1264,30 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
+
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+	if len(androidUUIDs) > 0 {
+		destTeamID := uint(0)
+		if teamID != nil {
+			destTeamID = *teamID
+		}
+		for hostUUID := range androidUUIDs {
+			if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, destTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+			}
+		}
+		uuids := make([]string, 0, len(androidUUIDs))
+		for u := range androidUUIDs {
+			uuids = append(uuids, u)
+		}
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
+		}
+	}
+
 	if !skipBulkPending {
 		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
@@ -1273,11 +1310,6 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	}
 
 	// If there are any Android hosts, update their available apps.
-	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
-	if err != nil {
-		return err
-	}
-
 	if len(androidUUIDs) > 0 {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
@@ -1376,8 +1408,8 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// Authorize write access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	// Authorize transfer access to the destination team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
 	}
 
@@ -1398,7 +1430,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return nil
 	}
 
-	// Authorize write access to the source teams of the hosts being transferred.
+	// Authorize transfer access for the source teams of the hosts being transferred.
 	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}
@@ -1407,6 +1439,32 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
+
+	// Create pending certificate template records for Android hosts before
+	// marking profiles pending
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+	if len(androidUUIDs) > 0 {
+		destTeamID := uint(0)
+		if teamID != nil {
+			destTeamID = *teamID
+		}
+		for hostUUID := range androidUUIDs {
+			if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, destTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+			}
+		}
+		uuids := make([]string, 0, len(androidUUIDs))
+		for u := range androidUUIDs {
+			uuids = append(uuids, u)
+		}
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
+		}
+	}
+
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
@@ -1423,6 +1481,18 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			teamID,
 			serials...); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
+		}
+	}
+
+	// If there are any Android hosts, update their available apps.
+	if len(androidUUIDs) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get android enterprise")
+		}
+
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
 
@@ -1827,6 +1897,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
 				host.MDM.EncryptionKeyAvailable = true
 			}
+		} else {
+			// Linux hosts only have OS settings via the disk-encryption (LUKS)
+			// path above. When disk encryption isn't enabled, clear the stray
+			// empty struct initialized at the top of this method (which runs
+			// whenever any platform's MDM is enabled & configured) so the API
+			// reports no OS settings instead of an empty object.
+			host.MDM.OSSettings = nil
 		}
 	}
 
@@ -1850,6 +1927,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
+	suppressAndroidBYODWipeStatus(host)
 
 	host.Policies = policies
 
@@ -3458,12 +3536,14 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return nil, err
 		}
-		cert, err := assets.CAKeyPair(ctx, svc.ds)
+		// Include previously-rolled-over CA certs so keys escrowed against an
+		// earlier CA still decrypt with the (unchanged) private key.
+		certs, key, err := assets.CACertsAndKeyForDecryption(ctx, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			b, err := mdm.DecryptBase64CMSWithCerts(b64, key, certs)
 			return string(b), err
 		}
 	}

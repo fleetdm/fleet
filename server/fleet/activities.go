@@ -416,6 +416,7 @@ func (a ActivityTypeMDMEnrolled) ActivityName() string {
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
+	HostID           uint    `json:"host_id"`
 	HostSerial       string  `json:"host_serial"`
 	EnrollmentID     *string `json:"enrollment_id"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -425,6 +426,16 @@ type ActivityTypeMDMUnenrolled struct {
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
 	return "mdm_unenrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the host record was already deleted at unenroll time) so the global activity is
+// still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMUnenrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedMacOSMinVersion struct {
@@ -924,6 +935,7 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipedHost) ActivityName() string {
@@ -937,6 +949,7 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 type ActivityTypeWipeFailedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipeFailedHost) ActivityName() string {
@@ -1079,6 +1092,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1120,6 +1134,22 @@ func (a ActivityTypeUninstalledSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeInstalledAllSelfServiceSoftware struct {
+	HostID                  uint    `json:"host_id"`
+	HostDisplayName         string  `json:"host_display_name"`
+	SelfServiceCategoryID   *uint   `json:"self_service_category_id"`
+	SelfServiceCategoryName *string `json:"self_service_category_name"`
+	SoftwareTitlesCount     uint    `json:"software_titles_count"`
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) ActivityName() string {
+	return "installed_all_self_service_software"
+}
+
+func (a ActivityTypeInstalledAllSelfServiceSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -1338,6 +1368,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1835,6 +1866,22 @@ func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
 	return "deleted_microsoft_entra_tenant"
 }
 
+type ActivityTypeAddedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraClientID) ActivityName() string {
+	return "added_microsoft_entra_client_id"
+}
+
+type ActivityTypeDeletedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
+	return "deleted_microsoft_entra_client_id"
+}
+
 type ActivityTypeEditedEnrollSecrets struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -1950,4 +1997,34 @@ type ActivityTypeDeletedLabel struct {
 
 func (a ActivityTypeDeletedLabel) ActivityName() string {
 	return "deleted_label"
+}
+
+type ActivityTypeAddedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
+	return "added_self_service_category"
+}
+
+type ActivityTypeEditedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
+	return "edited_self_service_category"
+}
+
+type ActivityTypeDeletedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
+	return "deleted_self_service_category"
 }

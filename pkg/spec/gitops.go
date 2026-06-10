@@ -181,6 +181,7 @@ type GitOpsControls struct {
 	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
+	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
@@ -203,7 +204,7 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
@@ -309,9 +310,10 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 }
 
 type Software struct {
-	Packages            []SoftwarePackage           `json:"packages"`
-	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
-	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+	Packages              []SoftwarePackage           `json:"packages"`
+	AppStoreApps          []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps   []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+	SelfServiceCategories optjson.Slice[string]       `json:"self_service_categories"`
 }
 
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
@@ -376,9 +378,10 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages            []*fleet.SoftwarePackageSpec
-	AppStoreApps        []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps []*fleet.MaintainedAppSpec
+	Packages              []*fleet.SoftwarePackageSpec
+	AppStoreApps          []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps   []*fleet.MaintainedAppSpec
+	SelfServiceCategories optjson.Slice[string]
 }
 
 type Logf func(format string, a ...interface{})
@@ -476,7 +479,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
+			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
@@ -653,6 +656,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -681,6 +685,40 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Verify that if SSO is enabled, the IdP is completely configured: idp_name,
+// entity_id, and at least one of metadata/metadata_url must all be set. This
+// mirrors the server-side complete-IdP predicate enforced by
+// validateSSOProviderSettings in overwrite (gitops) mode, so the user gets the
+// same rejection early at parse time. One error is emitted per missing piece.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		if !enabled {
+			return multiError
+		}
+		idpName, _ := sso["idp_name"].(string)
+		entityID, _ := sso["entity_id"].(string)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if idpName == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, idp_name must be set",
+			))
+		}
+		if entityID == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, entity_id must be set",
+			))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
 	return multiError
 }
 
@@ -1769,7 +1807,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
-		policy.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
+		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
 
 	return errs
@@ -1903,6 +1941,48 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
+
+	// validate self service categories
+	if software.SelfServiceCategories.Set {
+		declared := software.SelfServiceCategories.Value
+		var seen []string
+
+		for i, name := range declared {
+			declared[i] = strings.TrimSpace(name)
+
+			if err := (fleet.SoftwareCategory{Name: declared[i]}).Validate(); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
+				continue
+			}
+
+			// Doesn't catch utf8mb4_unicode_ci collation collisions (e.g. "🔐 Security" vs "🛡 Security") in dry runs.
+			if slices.ContainsFunc(seen, func(s string) bool { return strings.EqualFold(s, declared[i]) }) {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf("self_service_categories: duplicate category %q", declared[i]))
+				continue
+			}
+
+			seen = append(seen, declared[i])
+		}
+
+		result.Software.SelfServiceCategories = optjson.SetSlice(declared)
+	}
+
+	validateCategoryReferences := func(categories []string) {
+		if !result.Software.SelfServiceCategories.Set {
+			return
+		}
+
+		for _, name := range categories {
+			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool {
+				return fleet.SoftwareCategoryReferenceMatches(name, d)
+			}) {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf("category %q is not in software.self_service_categories", name))
+			}
+		}
+	}
+
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
@@ -1928,6 +2008,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		item = item.ResolvePaths(baseDir)
 
+		validateCategoryReferences(item.Categories)
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
@@ -1969,6 +2050,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 
+		validateCategoryReferences(maintainedAppSpec.Categories)
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
 	for _, teamLevelPackage := range software.Packages {
@@ -2140,6 +2222,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
+			validateCategoryReferences(softwarePackageSpec.Categories)
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
 		}
 	}

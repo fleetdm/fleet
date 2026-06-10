@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -972,7 +973,7 @@ func (c *Client) ApplyGroup(
 		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("applying fleets: %w", err)
 		}
 
 		// Run any caller-supplied hook between fleet creation and fleet-resource
@@ -1099,10 +1100,11 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
-				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
+				installers, deletedInstallers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
 				}
+				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
 			}
 		}
@@ -1168,7 +1170,7 @@ func extractTeamOrNoTeamMacOSSetupSoftware(baseDir string, software []*fleet.Mac
 	m := make(map[fleet.MacOSSetupSoftware]struct{}, len(software))
 	for _, sw := range software {
 		if sw.AppStoreID != "" && sw.PackagePath != "" {
-			return nil, errors.New("applying teams: only one of app_store_id or package_path can be set")
+			return nil, errors.New("applying fleets: only one of app_store_id or package_path can be set")
 		}
 		if sw.PackagePath != "" {
 			sw.PackagePath = resolveApplyRelativePath(baseDir, sw.PackagePath)
@@ -1967,17 +1969,18 @@ func (c *Client) DoGitOps(
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if appConfig.License.IsPremium() {
+			changeManagementURL := strings.TrimRight(appConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
 			if exceptions.Labels && incoming.LabelsPresent {
-				return nil, errors.New(
-					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 			if exceptions.Secrets && incoming.SecretsPresent {
-				return nil, errors.New(
-					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-				return nil, errors.New(
-					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+				return nil, fmt.Errorf(
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
 			}
 		}
 	}
@@ -2139,8 +2142,8 @@ func (c *Client) DoGitOps(
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
-			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
-				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			if _, ok := mdmAppConfig["apple_business"]; !ok {
+				mdmAppConfig["apple_business"] = []any{}
 			}
 		}
 
@@ -2174,6 +2177,10 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
 		if incoming.Controls.WindowsEntraTenantIDs == nil {
 			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
+		}
+		mdmAppConfig["windows_entra_client_ids"] = incoming.Controls.WindowsEntraClientIDs
+		if incoming.Controls.WindowsEntraClientIDs == nil {
+			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
@@ -2488,6 +2495,9 @@ func (c *Client) DoGitOps(
 			}
 			for _, teamID := range teamIDsByName {
 				incoming.TeamID = &teamID
+			}
+			if err := c.doSelfServiceCategories(incoming, dryRun); err != nil {
+				return err
 			}
 			if incoming.Labels == nil || len(incoming.Labels) > 0 {
 				return c.doGitOpsLabels(incoming, logFn, dryRun)
@@ -2817,16 +2827,21 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 
+	if err := c.doSelfServiceCategories(config, dryRun); err != nil {
+		return nil, nil, err
+	}
+
 	format := applyingTeamFormat
 	if dryRun {
 		format = dryRunAppliedTeamFormat
 	}
 
 	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareInstallers, deletedInstallers, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
+	logSoftwareDeletions(logFn, deletedInstallers, dryRun)
 
 	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'Unassigned'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
@@ -2838,6 +2853,19 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied software packages for unassigned hosts\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+// logSoftwareDeletions prints one message per software package that a batch
+// set deleted (real run) or would delete (dry run), following the per-item
+// deletion message pattern used for labels and policies.
+func logSoftwareDeletions(logFn func(format string, args ...any), deleted []fleet.DeletedSoftwarePackage, dryRun bool) {
+	for _, pkg := range deleted {
+		if dryRun {
+			logFn("[-] would've deleted software - %s\n", pkg.DisplayName)
+		} else {
+			logFn("[-] deleted software - %s\n", pkg.DisplayName)
+		}
+	}
 }
 
 // extractFailingPoliciesWebhook extracts and processes failing policies webhook settings from a map
@@ -2899,6 +2927,50 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		logFn("[+] would've applied webhook settings for unassigned hosts\n")
 	}
 
+	return nil
+}
+
+func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error {
+	if !config.Software.SelfServiceCategories.Set {
+		return nil
+	}
+	var teamID uint
+	if config.TeamID != nil {
+		teamID = *config.TeamID
+	}
+
+	existing, err := c.ListSelfServiceCategories(teamID)
+	if err != nil {
+		return fmt.Errorf("listing existing self-service categories: %w", err)
+	}
+	payloads := config.Software.SelfServiceCategories.Value
+
+	var toInsert []string
+	for _, name := range payloads {
+		if !slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
+			toInsert = append(toInsert, name)
+		}
+	}
+	var toDelete []fleet.SoftwareCategory
+	for _, cat := range existing {
+		if !slices.ContainsFunc(payloads, func(p string) bool { return strings.EqualFold(p, cat.Name) }) {
+			toDelete = append(toDelete, cat)
+		}
+	}
+
+	if dryRun {
+		return nil
+	}
+	for _, name := range toInsert {
+		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
+			return fmt.Errorf("adding self-service category %q: %w", name, err)
+		}
+	}
+	for _, cat := range toDelete {
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+	}
 	return nil
 }
 
@@ -3121,8 +3193,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 
 		// Get patch policy title IDs for the team
-		for i := range config.Policies {
-			config.Policies[i].PatchSoftwareTitleID = softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+		for _, policy := range config.Policies {
+			if policy.Type == fleet.PolicyTypePatch {
+				policy.PatchSoftwareTitleID = softwareTitleIDsBySlug[policy.FleetMaintainedAppSlug]
+			}
 		}
 	}
 

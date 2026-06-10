@@ -1,0 +1,13 @@
+{
+  "name": "VNC Viewer",
+  "slug": "vnc-viewer/windows",
+  "package_identifier": "RealVNC.VNCViewer",
+  "unique_identifier": "RealVNC Viewer",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vnc-viewer_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vnc-viewer_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "zip",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "fuzzy_match_name": true
+}

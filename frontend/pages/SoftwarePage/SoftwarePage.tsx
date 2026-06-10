@@ -22,6 +22,7 @@ import {
 import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -118,6 +119,7 @@ interface ISoftwarePageProps {
       self_service?: string;
       vulnerable?: string;
       exploit?: string;
+      manage_automations?: string;
       min_cvss_score?: string;
       max_cvss_score?: string;
       page?: string;
@@ -232,6 +234,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
+
+  // Open manage automations modal via deep-link (e.g. from the command
+  // palette). Mirror the in-page action's gate: software automations
+  // are global-admin only, and only available on All fleets (or the
+  // single fleet in Primo). Wait for config to load before deciding,
+  // then always strip the param so a team-scoped or unauthorized load
+  // doesn't leave it stuck in the URL.
+  useEffect(() => {
+    if (queryParams?.manage_automations !== "1") return;
+    if (!isSoftwareConfigLoaded) return;
+    if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
+      setShowManageAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    isSoftwareConfigLoaded,
+    isAllTeamsSelected,
+    isPrimoMode,
+    isGlobalAdmin,
+    location.pathname,
+    router,
+  ]);
 
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -373,16 +399,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
+            <AutomationsButton
               // TODO(Product) - Why not enable managing global automations when on any team like this
               // for everyone?
               disabled={!isAllTeamsSelected && !isPrimoMode}
               onClick={toggleManageAutomationsModal}
               className={`${baseClass}__manage-automations`}
-              variant="inverse"
-            >
-              Manage automations
-            </Button>
+            />
           </TooltipWrapper>
         )}
         {canAddSoftware && (

@@ -244,6 +244,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   min_cvss_score?: number;
   max_cvss_score?: number;
   exploit?: boolean;
+  macos_applications?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -252,7 +253,7 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   softwareUpdatedAt?: string;
 }
 
-export interface IGetHostCertsRequestParams extends IListOptions {
+export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
 }
 
@@ -762,7 +763,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
+  }: IGetHostCertsApiParams): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
     const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
       page,

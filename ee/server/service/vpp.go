@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -331,23 +330,19 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				vppToken = teamTokenInfo.Secret
 			}
 
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
-			}
-
-			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
-			}
-
-			if len(catIDs) != len(payload.Categories) {
-				return nil, &fleet.BadRequestError{
-					Message:     "some or all of the categories provided don't exist",
-					InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+			var validatedLabels *fleet.LabelIdentsWithScope
+			if !dryRun {
+				validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 				}
 			}
+
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
+			}
+			payload.Categories = categories
 
 			appStoreApp := fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
@@ -407,14 +402,23 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
+			// incomingAppleApps has one entry per (AdamID, platform); without
+			// dedup, a single missing app would repeat in the error.
+			seenMissing := map[string]struct{}{}
 			for _, vppAppID := range incomingAppleApps {
-				if _, ok := assetMap[vppAppID.AdamID]; !ok {
-					missingAssets = append(missingAssets, vppAppID.AdamID)
+				if _, ok := assetMap[vppAppID.AdamID]; ok {
+					continue
 				}
+				if _, dup := seenMissing[vppAppID.AdamID]; dup {
+					continue
+				}
+				seenMissing[vppAppID.AdamID] = struct{}{}
+				missingAssets = append(missingAssets, vppAppID.AdamID)
 			}
 
 			if len(missingAssets) != 0 {
-				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
+				sort.Strings(missingAssets)
+				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ", "))
 				return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 			}
 		}
@@ -915,18 +919,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		appID.ValidatedLabels = validatedLabels
 
-		appID.Categories = server.RemoveDuplicatesFromSlice(appID.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), appID.Categories)
 		if err != nil {
-			return 0, "", ctxerr.Wrap(ctx, err, "getting software category ids")
+			return 0, "", ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
-
-		if len(catIDs) != len(appID.Categories) {
-			return 0, "", &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", appID.Categories),
-			}
-		}
+		appID.Categories = categories
 		appID.CategoryIDs = catIDs
 		app = &appFromApple
 		app.VPPAppTeam = appID
@@ -1255,19 +1252,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	if payload.Categories != nil {
-		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
-
-		if len(catIDs) != len(payload.Categories) {
-			return nil, nil, &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-			}
-		}
-
+		payload.Categories = categories
 		appToWrite.CategoryIDs = catIDs
 	}
 

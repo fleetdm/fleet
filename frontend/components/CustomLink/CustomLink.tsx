@@ -38,8 +38,9 @@ const CustomLink = ({
   const getIconColor = (): Colors => {
     switch (variant) {
       case "tooltip-link":
-      case "flash-message-link":
         return "core-fleet-white";
+      case "flash-message-link":
+        return "core-fleet-black";
       case "banner-link":
         return "core-fleet-black";
       default:

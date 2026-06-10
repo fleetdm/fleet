@@ -77,7 +77,7 @@ interface IHostSummaryProps {
    * Falls back to "My device" if not provided. */
   deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const HostHeader = ({
@@ -159,8 +159,10 @@ const HostHeader = ({
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
-
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
+
+    const title = tag.title;
+    const tipContent = tag.generateTooltip(platform);
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
@@ -170,13 +172,13 @@ const HostHeader = ({
     return (
       <>
         <TooltipWrapper
-          tipContent={tag.generateTooltip(platform)}
+          tipContent={tipContent}
           position="top"
           underline={false}
           showArrow
           className={`${baseClass}__device-status-tag-wrapper`}
         >
-          <span className={classNames}>{tag.title}</span>
+          <span className={classNames}>{title}</span>
         </TooltipWrapper>
       </>
     );

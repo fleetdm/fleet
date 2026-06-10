@@ -11,10 +11,9 @@ import (
 
 func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
-		name                 string
-		profile              MDMWindowsConfigProfile
-		allowCustomOSUpdates bool
-		wantErr              string
+		name    string
+		profile MDMWindowsConfigProfile
+		wantErr string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -367,7 +366,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "The file should include valid XML",
 		},
 		{
-			name: "empty LocURI",
+			name: "empty LocURI is rejected (#42224)",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 <Replace>
@@ -377,7 +376,14 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "",
+			wantErr: `<LocURI> can't be empty.`,
+		},
+		{
+			name: "whitespace-only LocURI is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>   </LocURI></Target></Replace>`),
+			},
+			wantErr: `<LocURI> can't be empty.`,
 		},
 		{
 			name: "item without target",
@@ -410,49 +416,12 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: `Profile name "Windows OS Updates" is not allowed`,
 		},
 		{
-			name: "Valid XML with reserved name but experimental allow custom OS updates flag enabled is still not allowed",
-			profile: MDMWindowsConfigProfile{
-				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              `Profile name "Windows OS Updates" is not allowed`,
-		},
-		{
-			name: "Valid XML with Windows Update LocURI without experimental allow custom OS updates flag enabled is blocked",
+			name: "Valid XML with Windows Update LocURI",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
+				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
 			},
-			allowCustomOSUpdates: false,
-			wantErr:              "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.",
-		},
-		{
-			name: "Valid XML with Windows Update LocURI but experimental allow custom OS updates flag enabled is allowed",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              "",
-		},
-		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: false,
-			wantErr:              "Couldn't add. The configuration profile can't include BitLocker settings.",
-		},
-		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              "Couldn't add. The configuration profile can't include BitLocker settings.",
+			wantErr: "",
 		},
 		{
 			name: "XML with top level comment",
@@ -848,11 +817,75 @@ func TestValidateUserProvided(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "plain text non-XML content is rejected (#42219)",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte("this is not xml"),
+			},
+			wantErr: "The file should include valid SyncML XML with at least one supported element.",
+		},
+		{
+			name: "XML with only comments is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<!-- just a comment --><!-- another -->`),
+			},
+			wantErr: "The file should include valid SyncML XML with at least one supported element.",
+		},
+		{
+			name: "LocURI without ./ prefix is allowed (empirical: device accepts)",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target></Replace>`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "LocURI with leading single slash is rejected (#42224)",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>/Foo/Bar</LocURI></Target></Replace>`),
+			},
+			wantErr: `<LocURI> can't start with "/".`,
+		},
+		{
+			name: "LocURI with ../ path traversal is rejected (#42224)",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <CmdID>1</CmdID>
+  <Item>
+    <Target><LocURI>./Device/Vendor/../../etc/passwd</LocURI></Target>
+    <Data>test</Data>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: `<LocURI> can't contain ".." path traversal segments.`,
+		},
+		{
+			name: "LocURI with trailing .. segment is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/..</LocURI></Target></Replace>`),
+			},
+			wantErr: `<LocURI> can't contain ".." path traversal segments.`,
+		},
+		{
+			name: "LocURI with surrounding whitespace is allowed",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>  ./Custom/URI  </LocURI></Target></Replace>`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "bare FLEET_SECRET reference bypasses top-level element check",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`${FLEET_SECRET_PROFILE}`),
+			},
+			wantErr: "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided(tt.allowCustomOSUpdates)
+			err := tt.profile.ValidateUserProvided()
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {

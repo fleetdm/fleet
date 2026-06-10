@@ -94,6 +94,7 @@ type generateGitopsClient interface {
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
 	GetVPPTokens() ([]*fleet.VPPTokenDB, error)
+	ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -105,9 +106,12 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(fieldName + " not found in " + t.Name())
 	}
 
-	// Prefer the renameto tag (new canonical name) if it exists.
+	// Prefer the renameto tag (new canonical name) if it exists, stripping any
+	// options like ",inline".
 	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
-		return renameTo
+		if name, _, _ := strings.Cut(renameTo, ","); name != "" {
+			return name
+		}
 	}
 
 	tag := field.Tag.Get("json")
@@ -1395,6 +1399,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
 			}
+			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraClientIDs.Value) > 0 {
+				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
+			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
@@ -1591,13 +1598,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                     policy.Name,
-			jsonFieldName(t, "Description"):              policy.Description,
-			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Platform"):                 policy.Platform,
-			jsonFieldName(t, "Critical"):                 policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "Name"):                         policy.Name,
+			jsonFieldName(t, "Description"):                  policy.Description,
+			jsonFieldName(t, "Resolution"):                   policy.Resolution,
+			jsonFieldName(t, "Platform"):                     policy.Platform,
+			jsonFieldName(t, "Critical"):                     policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
@@ -1606,6 +1614,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		if policy.PatchSoftware != nil {
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+			if cachedSWTitle.MaintainedAppID == 0 {
+				return nil, fmt.Errorf("The patch policy %q references a software installer that is no longer a Fleet-maintained app. Please delete the policy manually.", policy.Name)
+			}
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
 			if err != nil {
@@ -2263,6 +2274,19 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 	if len(fmas) > 0 {
 		result["fleet_maintained_apps"] = fmas
+	}
+
+	categories, err := cmd.Client.ListSelfServiceCategories(teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting self-service categories: %s\n", err)
+		return nil, err
+	}
+	if len(categories) > 0 {
+		names := make([]string, 0, len(categories))
+		for _, c := range categories {
+			names = append(names, c.Name)
+		}
+		result["self_service_categories"] = names
 	}
 
 	return result, nil

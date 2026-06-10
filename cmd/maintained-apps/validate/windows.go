@@ -52,11 +52,21 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version, publisher
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
 	`
+	// The catalog name can differ from the registry DisplayName (e.g. catalog
+	// "Amazon Corretto 25" vs DisplayName "Amazon Corretto (x64)"). The
+	// unique_identifier is the value that should match programs.name, so search
+	// on it as well.
+	if uniqueIdentifier != "" && uniqueIdentifier != appName {
+		if err := validateSqlInput(uniqueIdentifier); err != nil {
+			return false, fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
+		}
+		query += `	OR LOWER(name) LIKE LOWER('%` + uniqueIdentifier + `%')`
+	}
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
@@ -71,6 +81,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		Name            string `json:"name"`
 		InstallLocation string `json:"install_location"`
 		Version         string `json:"version"`
+		Publisher       string `json:"publisher"`
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
@@ -80,10 +91,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	if len(results) > 0 {
 		for _, result := range results {
+			// Vendor is populated so name/version sanitizers that key off the
+			// publisher (e.g. JetBrains build-number normalization in
+			// MutateSoftwareOnIngestion) behave as they do in production.
 			software := &fleet.Software{
 				Name:    result.Name,
 				Version: result.Version,
 				Source:  "programs",
+				Vendor:  result.Publisher,
 			}
 			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
@@ -118,6 +133,27 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// version didn't match above, fall back to existence-only check.
 			if appName == "Google Chrome" {
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
+				return true, nil
+			}
+			// Microsoft Office is a Click-to-Run product: the bootstrap setup.exe
+			// always pulls the latest channel build from Microsoft's CDN, so the
+			// installed version will typically be newer than the manifest version.
+			// Only exempt genuine Office products (e.g. "Microsoft 365 Apps for
+			// enterprise" or the older "Microsoft Office 365 ProPlus") — the broad
+			// LIKE '%Microsoft Office%' search query also matches unrelated
+			// Office-branded dependencies like "Open XML SDK 2.5 for Microsoft
+			// Office" that must not prevent the post-uninstall check from reporting
+			// the app as removed. The "Microsoft 365 Apps" prefix is used (not bare
+			// "Microsoft 365") so Store apps such as "Microsoft 365 Copilot" aren't
+			// treated as the Office suite. The publisher guard mirrors the
+			// manifest's exists/patched queries (publisher = 'Microsoft
+			// Corporation'), so a third-party app that happens to match a name
+			// prefix can't bypass the version check.
+			if appName == "Microsoft Office" &&
+				result.Publisher == "Microsoft Corporation" &&
+				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
+					strings.HasPrefix(result.Name, "Microsoft Office")) {
+				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
 				return true, nil
 			}
 		}
@@ -252,7 +288,13 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Some installers (e.g. Visual Studio bootstrappers like vs_SSMS.exe)
+	// download a large payload at install time and legitimately take longer
+	// than a few minutes. Production allows up to 1 hour
+	// (pkgscripts.MaxHostSoftwareInstallExecutionTime); 10 minutes is a
+	// reasonable validator cap that covers large-payload installers without
+	// letting a hung script run indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	// Use custom execution with non-interactive flags for Windows

@@ -160,10 +160,10 @@ Whitepaper articles use a separate article template that requires additional `<m
 
 - Required `<meta>` tags:
   - `whitepaperFilename`: The filename of the whitepaper PDF in the `website/assets/pdfs/` folder. Used to download the whitepaper after a user fills out the form on the whitepaper template page.
-  - `introductionTextBlockOne`: The introduction paragraph for the comparison. This is a required meta tag because the article title and introduction are displayed above the Markdown content of whitepaper articles.
+  - `introductionTextBlockOne`: The introduction paragraph for the whitepaper. This is a required meta tag because the article title and introduction are displayed above the Markdown content of whitepaper articles.
   - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
 - Optional `<meta>` tags:
-  - `introductionTextBlockTwo` - A optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+  - `introductionTextBlockTwo` - An optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
   - `formHeadline` - Put in a short phrase that will show immediately above the form fields. If not used, a default generic phrase will be use ("Get the white paper to learn more")
 
 
@@ -188,6 +188,10 @@ Whitepaper articles use a separate article template that requires additional `<m
 
 Webinar articles use a separate article template and require one additional meta tag:
 - `webinarEmbeddedVideoUrl` : The URL of the webinar video. This will be embedded on a page that users are taken to after filling out the form to watch a webinar.
+- Optional `<meta>` tags:
+  - `introductionTextBlockOne`: The introduction paragraph for the webinar. The introduction is displayed above the Markdown content of webinar articles.
+  - `introductionTextBlockTwo` - An optional second introduction paragraph for the webinar. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+  - `articleImageUrl`: A relative link to a cover image for the webinar. The specified image is placed next to the article title on the webinar article template page.
 
 
 ## Linking to a location on GitHub
@@ -333,7 +337,6 @@ Temporary landing pages are intended for driving traffic from ads, events, and c
  
 These pages are:
 - **Not linked from the nav.** They do not appear in the site navigation or any other part of the main site.
-- **Excluded from the sitemap.** Search engines will not index them. They are not intended to build SEO/GEO value.
 - **Not subject to content or design review.** They can go up fast without going through the [standard drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes).
 - **Created using Claude, Kilo, or manually.** If you're comfortable working in the repo, add a page to the [landing-pages](https://github.com/fleetdm/fleet/tree/main/website/views/pages/landing-pages) folder directly. Otherwise, use Claude or Kilo to generate one.
 

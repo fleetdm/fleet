@@ -850,3 +850,65 @@ func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 		})
 	}
 }
+
+func TestMacOSSetupValidate(t *testing.T) {
+	t.Run("validate", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			m       MacOSSetup
+			wantErr *string
+		}{
+			{"empty", MacOSSetup{}, nil},
+			{"manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"end_user_local_account_type fails with non accepted value", MacOSSetup{EndUserLocalAccountType: optjson.SetString("invalid")}, new(`end_user_local_account_type only "admin", "standard", and "none" are supported`)},
+			{"end_user_local_account_type with accepted value succeeds", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
+			{"end_user_local_account_type none fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"end_user_local_account_type standard fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"end_user_local_account_type none succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type standard succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(false)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.wantErr != nil {
+					require.ErrorContains(t, tc.m.Validate(), *tc.wantErr)
+					return
+				}
+
+				require.NoError(t, tc.m.Validate())
+			})
+		}
+	})
+
+	t.Run("validate against", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			m       MacOSSetup
+			against MacOSSetup
+			wantErr *string
+		}{
+			{"empty against empty", MacOSSetup{}, MacOSSetup{}, nil},
+			{"manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
+			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against standard user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
+			{"enable_end_user_local_account false against admin user type succeeds", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
+			{"enable_end_user_local_account false against none user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("none")}, nil},
+			{"enable_end_user_local_account false against standard user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("standard")}, nil},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if tc.wantErr != nil {
+					require.ErrorContains(t, tc.m.ValidateAgainst(tc.against), *tc.wantErr)
+					return
+				}
+
+				require.NoError(t, tc.m.ValidateAgainst(tc.against))
+			})
+		}
+	})
+}

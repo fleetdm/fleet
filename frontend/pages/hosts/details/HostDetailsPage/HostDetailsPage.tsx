@@ -16,7 +16,7 @@ import activitiesAPI, {
 } from "services/entities/activities";
 import hostAPI, {
   IGetHostCertificatesResponse,
-  IGetHostCertsRequestParams,
+  IGetHostCertsApiParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
@@ -353,7 +353,7 @@ const HostDetailsPage = ({
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+    Array<IGetHostCertsApiParams & { scope: "host-certificates" }>
   >(
     [
       {
@@ -797,7 +797,12 @@ const HostDetailsPage = ({
   };
 
   const onShowActivityDetails = useCallback(
-    ({ type, details }: IShowActivityDetailsData) => {
+    ({
+      type,
+      details,
+      actor_full_name,
+      fleet_initiated,
+    }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
           setScriptExecutiontId(details?.script_execution_id || "");
@@ -813,6 +818,10 @@ const HostDetailsPage = ({
                 details.software_display_name
               ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
+              actorFullName: actor_full_name,
+              fleetInitiated: fleet_initiated,
+              selfService: details?.self_service,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -861,6 +870,10 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
+            actorFullName: actor_full_name,
+            fleetInitiated: fleet_initiated,
+            selfService: details?.self_service,
           });
           break;
         case "installed_certificate":
@@ -1072,18 +1085,24 @@ const HostDetailsPage = ({
 
   const onClickMyDevice = async () => {
     if (!host) return;
+    // Open synchronously inside the click handler so popup blockers see a
+    // user-initiated open, and so we get a real WindowProxy back (passing
+    // `noopener` to window.open forces a null return per spec, which made
+    // the previous check a false positive).
+    const newWindow = window.open("about:blank", "_blank");
+    if (!newWindow) {
+      renderFlash(
+        "error",
+        "Couldn't open My device page. Please allow pop-ups and try again."
+      );
+      return;
+    }
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      // window.open returns null when the browser blocks the popup, so an
-      // explicit check is needed — the promise will not reject.
-      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        renderFlash(
-          "error",
-          "Couldn't open My device page. Please allow pop-ups and try again."
-        );
-      }
+      newWindow.location.replace(device_url);
+      newWindow.opener = null;
     } catch (e) {
+      newWindow.close();
       renderFlash("error", "Couldn't open My device page. Please try again.");
     }
   };
@@ -1123,6 +1142,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isLinuxHost = isLinuxLike(host.platform);
   const isAppleDeviceHost = isAppleDevice(host.platform);
   const isChromeOsHost = host?.platform === "chrome";
 
@@ -1416,7 +1436,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
-              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1854,7 +1874,9 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
+              isLinuxHost={isLinuxHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />
@@ -1918,7 +1940,20 @@ const HostDetailsPage = ({
           />
         )}
         {showClearPasscodeModal && (
-          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
+          <ClearPasscodeModal
+            id={host.id}
+            hostName={host.display_name}
+            hostPlatform={host.platform}
+            hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+            onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
+          />
         )}
       </>
     );

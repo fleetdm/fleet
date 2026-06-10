@@ -376,6 +376,7 @@ const EditSoftwareModal = ({
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
+          teamId={teamId}
         />
       );
     }
@@ -388,6 +389,7 @@ const EditSoftwareModal = ({
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
         onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
+        teamId={teamId}
       />
     );
   };
@@ -418,6 +420,7 @@ const EditSoftwareModal = ({
           source={source}
           iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          teamId={teamId}
           isIosOrIpadosApp={isIosOrIpadosApp}
           mobileVersion={
             ("latest_version" in softwareInstaller &&

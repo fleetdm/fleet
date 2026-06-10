@@ -102,7 +102,7 @@ SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows +
 
 - Query:
 ```sql
-SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
+SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1
 ```
 
 ## disk_encryption_linux
@@ -330,7 +330,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 WITH
-		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
 		fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
 	SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
 ```
@@ -347,7 +347,7 @@ SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND re
 - Query:
 ```sql
 WITH
-		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
 ```
