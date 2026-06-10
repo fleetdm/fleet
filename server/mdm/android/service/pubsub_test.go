@@ -378,6 +378,15 @@ func TestPubSubEnrollment(t *testing.T) {
 		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
+		mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, common_mysql.NotFound("scim user")
+		}
+		mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, common_mysql.NotFound("mdm idp account")
+		}
 
 		var capturedHostUUID, capturedIdpUUID string
 		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
@@ -562,6 +571,15 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	}
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
+	}
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
 	}
 
 	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
@@ -871,6 +889,16 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 		return nil, common_mysql.NotFound("android host")
 	}
 
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
+	}
+
 	// Capture what gets sent to UpdateAndroidHost (and thus to the API)
 	var capturedHost *fleet.AndroidHost
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
@@ -945,6 +973,15 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 	}
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
+	}
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
 	}
 
 	var capturedHostID uint
@@ -1043,6 +1080,16 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 				return nil, common_mysql.NotFound("android host")
 			}
 
+			mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+				return nil, common_mysql.NotFound("scim user")
+			}
+			mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+				return nil, nil
+			}
+			mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+				return nil, common_mysql.NotFound("mdm idp account")
+			}
+
 			// Capture the host payload that would be sent to frontend
 			var hostPayload *fleet.AndroidHost
 			mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
@@ -1124,6 +1171,16 @@ func TestUpdateHost(t *testing.T) {
 			return existingHost, nil
 		}
 		return nil, common_mysql.NotFound("android host")
+	}
+
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
 	}
 
 	// verify UUID is set correctly
@@ -1350,8 +1407,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "John's Samsung SM-A176U1", capturedHost.Host.ComputerName)
-		require.Equal(t, "John's Samsung SM-A176U1", capturedHost.Host.Hostname)
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.ComputerName)
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.Hostname)
 		require.Equal(t, "Samsung SM-A176U1", capturedHost.Host.HardwareModel)
 	})
 
@@ -1380,12 +1437,12 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			}, nil
 		}
 
-		// SCIM user linked — IdpFullName ("Andrey Ivanov") wins over IdP fullname.
+		// SCIM user linked — IdpFullName wins over IdP fullname.
 		mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-			givenName := "Andrey"
-			familyName := "Ivanov"
+			givenName := "Alice"
+			familyName := "Smith"
 			return &fleet.ScimUser{
-				UserName:   "andrey.ivanov",
+				UserName:   "alice.smith",
 				GivenName:  &givenName,
 				FamilyName: &familyName,
 			}, nil
@@ -1424,8 +1481,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Andrey's Samsung SM-S906U1", capturedHost.Host.ComputerName)
-		require.Equal(t, "Andrey's Samsung SM-S906U1", capturedHost.Host.Hostname)
+		require.Equal(t, "Alice Smith's Samsung SM-S906U1", capturedHost.Host.ComputerName)
+		require.Equal(t, "Alice Smith's Samsung SM-S906U1", capturedHost.Host.Hostname)
 	})
 
 	t.Run("updateHost falls back to IdP fullname when SCIM has no full name", func(t *testing.T) {
@@ -1494,8 +1551,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Maria's Google Pixel 8", capturedHost.Host.ComputerName)
-		require.Equal(t, "Maria's Google Pixel 8", capturedHost.Host.Hostname)
+		require.Equal(t, "Maria Garcia's Google Pixel 8", capturedHost.Host.ComputerName)
+		require.Equal(t, "Maria Garcia's Google Pixel 8", capturedHost.Host.Hostname)
 	})
 
 	t.Run("updateHost falls back to hardware model when no IdP account and no SCIM", func(t *testing.T) {
@@ -1619,8 +1676,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.ComputerName)
-		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.Hostname)
 		require.Equal(t, "Testbrand TestModel", capturedHost.Host.HardwareModel)
 	})
 
@@ -2083,6 +2140,15 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
 	}
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
+	}
 	mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 		return nil, nil
 	}
@@ -2444,6 +2510,15 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 	}
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
+	}
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
 	}
 
 	// Minimal device: no AppliedPolicyName / ApplicationReports, so the status report
@@ -2976,6 +3051,15 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		require.Nil(t, host.Device.AppliedPolicyVersion, "re-enroll must reset stale applied_policy_version")
 		require.Nil(t, host.Device.LastPolicySyncTime, "re-enroll must reset stale last_policy_sync_time")
 		return nil
+	}
+	mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, common_mysql.NotFound("scim user")
+	}
+	mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, common_mysql.NotFound("mdm idp account")
 	}
 	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
 		require.Equal(t, existingHostID, hostID)

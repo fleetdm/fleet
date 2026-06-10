@@ -1006,8 +1006,7 @@ func getComputerName(ctx context.Context, ds fleet.Datastore, device *androidman
 	}
 
 	if len(endUsers) > 0 && endUsers[0].IdpFullName != "" {
-		parts := strings.Fields(endUsers[0].IdpFullName)
-		return strings.Join(parts[:max(1, len(parts)-1)], " ") + "'s " + hardwareModel, nil
+		return endUsers[0].IdpFullName + "'s " + hardwareModel, nil
 	}
 
 	var idpAcct *fleet.MDMIdPAccount
@@ -1024,8 +1023,7 @@ func getComputerName(ctx context.Context, ds fleet.Datastore, device *androidman
 
 	if idpAcct != nil {
 		if name := strings.TrimSpace(idpAcct.Fullname); name != "" {
-			parts := strings.Fields(name)
-			return strings.Join(parts[:max(1, len(parts)-1)], " ") + "'s " + hardwareModel, nil
+			return name + "'s " + hardwareModel, nil
 		}
 	}
 
