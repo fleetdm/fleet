@@ -292,12 +292,35 @@ import Nova from "./Nova";
 import Nudge from "./Nudge";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
+import Ocenaudio from "./Ocenaudio";
+import OkJson from "./OkJson";
+import Omnidisksweeper from "./Omnidisksweeper";
+import Omnifocus from "./Omnifocus";
 import OmniGraffle from "./OmniGraffle";
+import Omnioutliner from "./Omnioutliner";
+import Omniplan from "./Omniplan";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import OneDrive from "./OneDrive";
 import OnePassword from "./OnePassword";
+import OneSwitch from "./OneSwitch";
+import Onionshare from "./Onionshare";
+import Onlyoffice from "./Onlyoffice";
+import OnlySwitch from "./OnlySwitch";
+import OpalComposer from "./OpalComposer";
+import Openaudible from "./Openaudible";
+import Openboard from "./Openboard";
+import Opencloud from "./Opencloud";
+import OpencodeDesktop from "./OpencodeDesktop";
+import Openinterminal from "./Openinterminal";
+import Openlens from "./Openlens";
+import Openmtp from "./Openmtp";
+import Openrct2 from "./Openrct2";
+import Openrefine from "./Openrefine";
+import Opentoonz from "./Opentoonz";
 import Opera from "./Opera";
+import OptimusPlayer from "./OptimusPlayer";
 import OrbStack from "./OrbStack";
+import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -735,14 +758,37 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nudge: Nudge,
   obs: Obs,
   obsidian: Obsidian,
+  ocenaudio: Ocenaudio,
+  "ok json": OkJson,
   "okta verify": OktaVerify,
   ollama: Ollama,
+  omnidisksweeper: Omnidisksweeper,
+  omnifocus: Omnifocus,
   omnigraffle: OmniGraffle,
+  omnioutliner: Omnioutliner,
+  omniplan: Omniplan,
   "omnissa horizon client": OmnissaHorizonClient,
+  "one switch": OneSwitch,
   onedrive: OneDrive,
+  onionshare: Onionshare,
+  onlyoffice: Onlyoffice,
+  onlyswitch: OnlySwitch,
+  "opal composer": OpalComposer,
+  openaudible: Openaudible,
+  openboard: Openboard,
+  "opencloud desktop": Opencloud,
+  opencode: OpencodeDesktop,
+  openinterminal: Openinterminal,
+  openlens: Openlens,
+  openmtp: Openmtp,
+  openrct2: Openrct2,
+  openrefine: Openrefine,
+  opentoonz: Opentoonz,
   "openvpn connect": OpenvpnConnect,
   opera: Opera,
+  "optimus player": OptimusPlayer,
   orbstack: OrbStack,
+  "origami studio": OrigamiStudio,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
