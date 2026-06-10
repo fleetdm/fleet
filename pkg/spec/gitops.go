@@ -310,10 +310,9 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 }
 
 type Software struct {
-	Packages              []SoftwarePackage           `json:"packages"`
-	AppStoreApps          []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
-	FleetMaintainedApps   []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
-	SelfServiceCategories optjson.Slice[string]       `json:"self_service_categories"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
@@ -378,10 +377,9 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages              []*fleet.SoftwarePackageSpec
-	AppStoreApps          []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps   []*fleet.MaintainedAppSpec
-	SelfServiceCategories optjson.Slice[string]
+	Packages            []*fleet.SoftwarePackageSpec
+	AppStoreApps        []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps []*fleet.MaintainedAppSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -1942,47 +1940,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
 
-	// validate self service categories
-	if software.SelfServiceCategories.Set {
-		declared := software.SelfServiceCategories.Value
-		var seen []string
-
-		for i, name := range declared {
-			declared[i] = strings.TrimSpace(name)
-
-			if err := (fleet.SoftwareCategory{Name: declared[i]}).Validate(); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
-				continue
-			}
-
-			// Doesn't catch utf8mb4_unicode_ci collation collisions (e.g. "🔐 Security" vs "🛡 Security") in dry runs.
-			if slices.ContainsFunc(seen, func(s string) bool { return strings.EqualFold(s, declared[i]) }) {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("self_service_categories: duplicate category %q", declared[i]))
-				continue
-			}
-
-			seen = append(seen, declared[i])
-		}
-
-		result.Software.SelfServiceCategories = optjson.SetSlice(declared)
-	}
-
-	validateCategoryReferences := func(categories []string) {
-		if !result.Software.SelfServiceCategories.Set {
-			return
-		}
-
-		for _, name := range categories {
-			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool {
-				return fleet.SoftwareCategoryReferenceMatches(name, d)
-			}) {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("category %q is not in software.self_service_categories", name))
-			}
-		}
-	}
-
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
@@ -2008,7 +1965,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		item = item.ResolvePaths(baseDir)
 
-		validateCategoryReferences(item.Categories)
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
@@ -2050,7 +2006,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 
-		validateCategoryReferences(maintainedAppSpec.Categories)
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
 	for _, teamLevelPackage := range software.Packages {
@@ -2222,7 +2177,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			validateCategoryReferences(softwarePackageSpec.Categories)
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
 		}
 	}

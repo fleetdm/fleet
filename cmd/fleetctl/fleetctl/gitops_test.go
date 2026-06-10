@@ -7590,23 +7590,17 @@ software:
 	assert.Empty(t, added)
 	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
 
-	// software omitted entirely leaves categories untouched.
+	// software omitted entirely still prunes categories (software is managed,
+	// it just references none). The software exception case is covered
+	// separately in TestGitOpsSelfServiceCategoriesSoftwareException because the
+	// exception must be set consistently (the server caches AppConfig).
 	reset(teamExisting, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 `))
 	require.NoError(t, err)
 	assert.Empty(t, added)
-	assert.Empty(t, deleted)
-
-	// software exception + software omitted skips reconciliation.
-	reset(teamExisting, fleet.GitOpsExceptions{Software: true})
-	_, err = runAppNoChecks(teamYAML(`controls:
-policies:
-`))
-	require.NoError(t, err)
-	assert.Empty(t, added)
-	assert.Empty(t, deleted)
+	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
 
 	// legacy plain names are normalized to their canonical emoji form, so a
 	// plain and emoji reference to the same default category collapse to one.
@@ -7649,6 +7643,49 @@ software:
 	require.NoError(t, err)
 	assert.Empty(t, added)
 	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
+}
+
+// TestGitOpsSelfServiceCategoriesSoftwareException verifies that when software
+// is excepted from GitOps, categories are left untouched. The exception is set
+// consistently here (not per-case) because the server caches AppConfig.
+func TestGitOpsSelfServiceCategoriesSoftwareException(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	var deleted []uint
+	existing := []fleet.SoftwareCategory{{ID: 100, Name: "🌎 Browsers", TeamID: 1}, {ID: 102, Name: "Stale Category", TeamID: 1}}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Software: true}}}, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return id == 1, nil }
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return slices.Clone(existing), nil
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		deleted = append(deleted, id)
+		return nil
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "team.yml")
+	require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", path})
+	require.NoError(t, err)
+	assert.Empty(t, deleted, "software exception must leave categories untouched")
 }
 
 func TestValidateGitOpsGroupEUA(t *testing.T) {

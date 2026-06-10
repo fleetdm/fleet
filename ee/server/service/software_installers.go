@@ -2249,6 +2249,12 @@ const (
 	// batchSoftwareDeletedSuffix is appended to the batch status key to form the key holding
 	// the JSON-encoded list of packages the batch will delete (or, on a dry run, would delete).
 	batchSoftwareDeletedSuffix = ":deleted"
+	// batchSoftwareCategoriesSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of self-service categories this batch added. This is required because
+	// we can only be certain of all categories after downloading all FMA manifests and seeing
+	// which default categories we might need to add.
+
+	batchSoftwareCategoriesSuffix = ":categories"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
 	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
@@ -2351,17 +2357,14 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 
-		for i, name := range payload.Categories {
-			payload.Categories[i] = strings.TrimSpace(name)
-			err := (fleet.SoftwareCategory{Name: payload.Categories[i]}).Validate()
-			if err != nil {
-				return "", fleet.NewInvalidArgumentError("software.categories", err.Error())
-			}
-			categoryNames = append(categoryNames, payload.Categories[i])
+		if err := trimAndValidateCategories(payload.Categories); err != nil {
+			return "", err
 		}
+		categoryNames = append(categoryNames, payload.Categories...)
 	}
 
-	if err := svc.batchSetSelfServiceCategories(ctx, teamID, categoryNames, dryRun); err != nil {
+	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
+	if err != nil {
 		return "", err
 	}
 
@@ -2377,6 +2380,14 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
+	}
+
+	categoriesJSON, err := json.Marshal(categories)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal self-service categories result")
+	}
+	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix, string(categoriesJSON), 10*time.Minute); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
 	}
 
 	svc.logger.InfoContext(ctx, "software batch start",
@@ -2745,7 +2756,6 @@ func (svc *Service) softwareBatchUpload(
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
-			// TODO(JK): leaving todo to remember categories are used here
 			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
@@ -3319,19 +3329,19 @@ func validETag(etag string) bool {
 	return true
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	// We've already authorized in the POST /api/latest/fleet/software/batch,
 	// but adding it here so we don't need to worry about a special case endpoint.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return "", "", nil, nil, err
+		return "", "", nil, nil, nil, err
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
 	}
 
 	// getDeletedPackages loads the packages the batch deleted (dry run: would
@@ -3351,16 +3361,32 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return deletedPackages, nil
 	}
 
+	// getCategories loads the self-service categories the batch's software references
+	getCategories := func() ([]string, error) {
+		categoriesJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get categories result")
+		}
+		if categoriesJSON == nil || *categoriesJSON == "" {
+			return nil, nil
+		}
+		var categories []string
+		if err := json.Unmarshal([]byte(*categoriesJSON), &categories); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal categories result")
+		}
+		return categories, nil
+	}
+
 	switch {
 	case *result == batchSetCompleted:
 		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
 		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
-		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil
+		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil, nil
 	default:
-		return "", "", nil, nil, ctxerr.New(ctx, "invalid status")
+		return "", "", nil, nil, nil, ctxerr.New(ctx, "invalid status")
 	}
 
 	var (
@@ -3370,7 +3396,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			return "", "", nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
+			return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
 		}
 		teamID = team.ID
 		ptrTeamID = &team.ID
@@ -3383,24 +3409,29 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	// /api/latest/fleet/software/batch. This applies to dry runs too, since the
 	// deleted-packages list exposes team-scoped software data.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	deletedPackages, err := getDeletedPackages()
 	if err != nil {
-		return "", "", nil, nil, err
+		return "", "", nil, nil, nil, err
+	}
+
+	categories, err := getCategories()
+	if err != nil {
+		return "", "", nil, nil, nil, err
 	}
 
 	if dryRun {
-		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, nil
+		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, categories, nil
 	}
 
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
-		return "", "", nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
+		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
-	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, nil
+	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, categories, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
@@ -3843,7 +3874,9 @@ func getInstallScript(extension string, packageIDs []string, currentScript strin
 	return file.GetInstallScript(extension)
 }
 
-func (svc *Service) batchSetSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) error {
+// batchAddSelfServiceCategories only adds categories, because it is used across both the installer and vpp
+// endpoints and we cannot know what categories to delete before those are both done.
+func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) ([]string, error) {
 	var allCategories []string
 	for _, name := range fleet.TranslateLegacySoftwareCategoryNames(categoryNames) {
 		if slices.ContainsFunc(allCategories, func(c string) bool { return strings.EqualFold(c, name) }) {
@@ -3852,9 +3885,13 @@ func (svc *Service) batchSetSelfServiceCategories(ctx context.Context, teamID *u
 		allCategories = append(allCategories, name)
 	}
 
+	if len(allCategories) == 0 {
+		return allCategories, nil
+	}
+
 	existingCategories, err := svc.ds.ListSoftwareCategories(ctx, ptr.ValOrZero(teamID))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing existing software categories")
+		return nil, ctxerr.Wrap(ctx, err, "listing existing software categories")
 	}
 
 	var categoriesToInsert []string
@@ -3864,31 +3901,15 @@ func (svc *Service) batchSetSelfServiceCategories(ctx context.Context, teamID *u
 		}
 	}
 
-	var categoriesToDelete []fleet.SoftwareCategory
-	for _, cat := range existingCategories {
-		if slices.Contains(fleet.DefaultSelfServiceCategoryNames, cat.Name) {
-			continue
-		}
-		if !slices.ContainsFunc(allCategories, func(name string) bool { return strings.EqualFold(name, cat.Name) }) {
-			categoriesToDelete = append(categoriesToDelete, cat)
-		}
-	}
-
 	if dryRun {
-		return nil
+		return allCategories, nil
 	}
 
 	for _, name := range categoriesToInsert {
 		_, err := svc.ds.NewSoftwareCategory(ctx, ptr.ValOrZero(teamID), name)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating self-service category")
+			return nil, ctxerr.Wrap(ctx, err, "creating self-service category")
 		}
 	}
-	for _, cat := range categoriesToDelete {
-		err := svc.ds.DeleteSoftwareCategory(ctx, cat.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting self-service category")
-		}
-	}
-	return nil
+	return allCategories, nil
 }

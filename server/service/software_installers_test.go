@@ -667,7 +667,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

@@ -220,6 +220,18 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return nil, nil
 	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+	ds.NewSoftwareCategoryFunc = func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+		return &fleet.SoftwareCategory{Name: name, TeamID: teamID}, nil
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return true, nil
+	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
