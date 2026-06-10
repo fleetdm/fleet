@@ -241,6 +241,11 @@ func NewLicenseErrorWithCause(cause string) *licenseError {
 	return &licenseError{cause: &cause}
 }
 
+func (e *licenseError) Is(target error) bool {
+	_, ok := target.(*licenseError)
+	return ok
+}
+
 func (e *licenseError) Error() string {
 	if e.cause != nil {
 		return fmt.Sprintf("%s requires Fleet Premium license", *e.cause)

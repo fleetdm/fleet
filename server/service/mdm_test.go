@@ -1957,13 +1957,37 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 		},
 		{
-			"profiles with labels fails on free license",
+			"profiles with include all labels fails on free license",
 			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{"a"}},
+			},
+			"Scoping configuration profiles with labels requires Fleet Premium license",
+			true,
+		},
+		{
+			"profiles with include any labels fails on free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsIncludeAny: []string{"a"}},
+			},
+			"Scoping configuration profiles with labels requires Fleet Premium license",
+			true,
+		},
+		{
+			"profiles with exclude labels fails on free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsExcludeAny: []string{"a"}},
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
@@ -3209,6 +3233,12 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 		svc, _, ctx := setup(false)
 		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"})
 		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "requires Fleet Premium license")
+
+		_, err = svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), []string{"label1"}, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "requires Fleet Premium license")
 	})
 
