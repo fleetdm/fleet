@@ -640,37 +640,90 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 {
   "activities": [
     {
-      "created_at": "2025-02-20T10:09:48.551757Z",
-      "id": 123,
-      "type": "ran_script",
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 412,
       "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
       "actor_email": "",
+      "type": "failed_webhook_policy_automation",
       "fleet_initiated": true,
       "details": {
-        "status": "installed",
-        "host_id": 934,
-        "policy_name": "macOS - 1Password installed",
-        "install_uuid": "2fddb3d3-d553-4334-89a3-235da50d0ee7",
-        "self_service": false,
-        "software_title": "1Password.app",
-        "software_package": "1Password.pkg",
-        "host_display_name": "Anna's MacBook Pro"
-      }
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "error",
+      "output": null
     },
     {
-      "created_at": "2025-02-20T10:09:48.551757Z",
-      "id": 123,
-      "type": "ran_automation_calendar_event",
+      "created_at": "2023-07-27T14:34:22Z",
+      "id": 410,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "fleet_initiated": false,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "script_name": "remediate-gatekeeper.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": "Gatekeeper enabled\n"
+    },
+    {
+      "created_at": "2023-07-27T14:33:01Z",
+      "id": 407,
       "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
       "actor_email": "",
+      "type": "installed_software",
       "fleet_initiated": true,
       "details": {
-        "error": "error message",
-        "host_id": 934,
-        "policy_id": 123,
-        "policy_name": "macOS - 1Password installed",
-        "host_display_name": "Anna's MacBook Pro"
-      }
+        "host_id": 11,
+        "host_display_name": "Marco's Windows",
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "software_title": "1Password",
+        "software_package": "1Password.msi",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 11,
+      "host_display_name": "Marco's Windows",
+      "status": "error",
+      "output": "Installing software...\nFailed\nExit code: 1"
+    },
+    {
+      "created_at": "2023-07-27T14:31:47Z",
+      "id": 404,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_app_store_app",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "software_title": "Logic Pro",
+        "app_store_id": "1234567",
+        "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": null
     }
   ],
   "meta": {
