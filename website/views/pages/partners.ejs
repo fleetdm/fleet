@@ -401,8 +401,8 @@
             <div class="invalid-feedback" v-if="formErrors.expectedClose" focus-first>Please select an option</div>
           </div>
           <div class="form-group">
-            <label for="reseller-number-of-devices">Estimated number of devices *</label>
-            <select class="form-control custom-select" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.numberOfHosts">
+            <label for="number-of-devices">Estimated number of devices *</label>
+            <select id="number-of-devices" class="form-control custom-select" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.numberOfHosts">
               <option :value="undefined">Select</option>
               <option value="500 - 1000">500 - 1,000</option>
               <option value="1000 - 5000">1,000 - 5,000</option>
