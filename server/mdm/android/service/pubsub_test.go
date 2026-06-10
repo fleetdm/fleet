@@ -1412,7 +1412,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.Equal(t, "Samsung SM-A176U1", capturedHost.Host.HardwareModel)
 	})
 
-	t.Run("updateHost uses SCIM full name over IdP username", func(t *testing.T) {
+	t.Run("updateHost uses SCIM full name over IdP account fullname", func(t *testing.T) {
 		svc, mockDS := createAndroidService(t)
 
 		const enterpriseSpecificID = "SCIM-WINS-UUID"
@@ -1437,7 +1437,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 			}, nil
 		}
 
-		// SCIM user linked — IdpFullName wins over IdP fullname.
+		// SCIM user linked — SCIM full name (given_name + family_name) takes priority over mdm_idp_accounts fullname.
 		mockDS.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			givenName := "Alice"
 			familyName := "Smith"
@@ -1450,7 +1450,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		mockDS.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 			return nil, nil
 		}
-		// GetEndUsers returns IdpFullName="Andrey Ivanov", so GetMDMIdPAccountByHostUUID is never called.
+		// GetEndUsers sets IdpFullName from the SCIM user's DisplayName ("Alice Smith"),
+		// so the IdP account lookup is skipped entirely.
 
 		var capturedHost *fleet.AndroidHost
 		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
