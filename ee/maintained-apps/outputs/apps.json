@@ -3376,18 +3376,18 @@
       "description": "Recents is a file launcher."
     },
     {
-      "name": "Rectangle Pro",
-      "slug": "rectangle-pro/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.knollsoft.Hookshot",
-      "description": "Rectangle Pro is a window snapping tool."
-    },
-    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
+      "name": "Rectangle Pro",
+      "slug": "rectangle-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Hookshot",
+      "description": "Rectangle Pro is a window snapping tool."
     },
     {
       "name": "Recut",
@@ -3436,7 +3436,7 @@
       "slug": "remote-desktop-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.devolutions.remotedesktopmanager",
-      "description": "Remote Desktop Manager is a centralises all remote connections on a single platform."
+      "description": "Remote Desktop Manager is an that centralises all remote connections on a single platform."
     },
     {
       "name": "Reqable",
