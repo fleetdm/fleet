@@ -1041,11 +1041,11 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -1058,11 +1058,11 @@ This activity contains the following fields:
 
 ## disabled_macos_setup_end_user_auth
 
-Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns off IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -1546,6 +1546,29 @@ This activity contains the following fields:
 }
 ```
 
+## installed_all_self_service_software
+
+Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service_category_id": ID of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "self_service_category_name": Name of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "software_titles_count": Number of software titles queued for install.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service_category_id": 12,
+  "self_service_category_name": "🌎 Browsers",
+  "software_titles_count": 3
+}
+```
+
 ## uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
@@ -1683,6 +1706,63 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+}
+```
+
+## added_self_service_category
+
+Generated when a self-service category is added to a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was added.
+- "fleet_name": Name of the fleet the category was added to.
+- "fleet_id": ID of the fleet the category was added to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## edited_self_service_category
+
+Generated when a self-service category is renamed on a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": New name of the self-service category.
+- "fleet_name": Name of the fleet the category belongs to.
+- "fleet_id": ID of the fleet the category belongs to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support utilities",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## deleted_self_service_category
+
+Generated when a self-service category is deleted from a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was deleted.
+- "fleet_name": Name of the fleet the category was deleted from.
+- "fleet_id": ID of the fleet the category was deleted from.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
 }
 ```
 
@@ -2804,6 +2884,48 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## added_label_to_host
+
+Generated when a label is added to a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
+}
+```
+
+## removed_label_from_host
+
+Generated when a label is removed from a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
 }
 ```
 
