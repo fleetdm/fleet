@@ -3948,11 +3948,11 @@ func executeWindowsProfileReconcileBatch(
 
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
-			// Content missing. This should never happen.
-			// We cannot build a <Delete>, so these host rows stay until content reappears; log it since it will not self-heal.
-			logger.ErrorContext(ctx, "windows profile reconcile: missing content for removed profile, cannot build delete command",
+			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
+			// replica-lag miss (the pending-delete row written on the writer hasn't replicated to the reader yet) that resolves on a
+			// later tick; warn and skip for now. The host's remove rows remain, so it is retried, and no state is lost.
+			logger.WarnContext(ctx, "windows profile reconcile: missing content for removed profile, skipping this tick",
 				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
-			ctxerr.Handle(ctx, fmt.Errorf("missing content for removed profile %s", profUUID))
 			continue
 		}
 		removedURIs := locURIsFor(profUUID)

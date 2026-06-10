@@ -1657,17 +1657,16 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	}
 
 	// Delete the host-profile rows the cron does not need to act on, in one pass:
-	//   - already-resolved removes: Windows removals are best-effort and their results are not persisted
-	//     (BulkUpsertMDMWindowsHostProfiles already deletes a remove row once its <Delete> resolves), so this is defensive for rows
-	//     that did not go through that path. A still-verifying remove is safe to drop here since its <Delete> is already on the wire.
+	//   - in-flight removes (status = verifying): the <Delete> is already on the wire, so it is safe to drop. Windows removals are
+	//     best-effort and their results are not persisted (BulkUpsertMDMWindowsHostProfiles deletes a remove row once its <Delete>
+	//     resolves), so a remove row only ever persists while verifying.
 	//   - never-sent installs (status IS NULL): nothing was delivered, so no <Delete> is needed.
 	// Sent installs and pending removes are left untouched for the reconciler.
-	terminalStatuses := []fleet.MDMDeliveryStatus{fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryVerifying}
 	delStmt, delArgs, err := sqlx.In(`
 	DELETE FROM host_mdm_windows_profiles
 	WHERE profile_uuid IN (?)
-		AND ((operation_type = ? AND status IN (?)) OR (operation_type = ? AND status IS NULL))`,
-		profileUUIDs, fleet.MDMOperationTypeRemove, terminalStatuses, fleet.MDMOperationTypeInstall)
+		AND ((operation_type = ? AND status = ?) OR (operation_type = ? AND status IS NULL))`,
+		profileUUIDs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeInstall)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN for deleted-profile host-row cleanup")
 	}
