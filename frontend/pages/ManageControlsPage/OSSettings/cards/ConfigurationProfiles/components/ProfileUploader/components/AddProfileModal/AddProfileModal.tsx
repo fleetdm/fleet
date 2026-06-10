@@ -22,7 +22,7 @@ import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import {
   TargetLabelSelector,
-  ILabelTabConfig,
+  ILabelConfig,
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
@@ -210,7 +210,7 @@ const AddProfileModal = ({
     }
   };
 
-  const includeTab: ILabelTabConfig = {
+  const includeTab: ILabelConfig = {
     selectedLabels: selectedIncludeLabels,
     onSelectLabel: ({ name, value }) =>
       setSelectedIncludeLabels((prev) => ({ ...prev, [name]: value })),
@@ -237,7 +237,7 @@ const AddProfileModal = ({
     ),
   };
 
-  const excludeTab: ILabelTabConfig = {
+  const excludeTab: ILabelConfig = {
     selectedLabels: selectedExcludeLabels,
     onSelectLabel: ({ name, value }) =>
       setSelectedExcludeLabels((prev) => ({ ...prev, [name]: value })),
@@ -267,8 +267,8 @@ const AddProfileModal = ({
                 selectedTargetType={selectedTargetType}
                 onSelectTargetType={setSelectedTargetType}
                 labels={labels || []}
-                include={includeTab}
-                exclude={excludeTab}
+                includeConfig={includeTab}
+                excludeConfig={excludeTab}
                 isLoadingLabels={isFetchingLabels}
                 isErrorLabels={isErrorLabels}
                 emptyStateDescription="Add a label to target your configuration profile."

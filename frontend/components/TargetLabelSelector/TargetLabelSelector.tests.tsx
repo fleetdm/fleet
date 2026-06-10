@@ -4,16 +4,14 @@ import { noop } from "lodash";
 
 import { ILabelSummary } from "interfaces/label";
 
-import TargetLabelSelector, { ILabelTabConfig } from "./TargetLabelSelector";
+import TargetLabelSelector, { ILabelConfig } from "./TargetLabelSelector";
 
 const LABELS: ILabelSummary[] = [
   { id: 1, name: "label 1", label_type: "regular" },
   { id: 2, name: "label 2", label_type: "regular" },
 ];
 
-const makeTab = (
-  overrides: Partial<ILabelTabConfig> = {}
-): ILabelTabConfig => ({
+const makeTab = (overrides: Partial<ILabelConfig> = {}): ILabelConfig => ({
   selectedLabels: {},
   onSelectLabel: noop,
   ...overrides,
@@ -27,8 +25,8 @@ const renderSelector = (
       selectedTargetType="Custom"
       onSelectTargetType={noop}
       labels={LABELS}
-      include={makeTab({ showModeToggle: true, mode: "any" })}
-      exclude={makeTab()}
+      includeConfig={makeTab({ showModeToggle: true, mode: "any" })}
+      excludeConfig={makeTab()}
       emptyStateDescription="Add a label to target a group of hosts."
       onAddLabel={noop}
       {...props}
@@ -62,7 +60,7 @@ describe("TargetLabelSelector (tabbed) component", () => {
   });
 
   it("does not render the mode toggle on the exclude tab when showModeToggle is false", () => {
-    renderSelector({ exclude: makeTab({ showModeToggle: false }) });
+    renderSelector({ excludeConfig: makeTab({ showModeToggle: false }) });
 
     fireEvent.click(screen.getByText("Exclude"));
 
@@ -76,7 +74,7 @@ describe("TargetLabelSelector (tabbed) component", () => {
 
   it("renders selected labels as checked", () => {
     renderSelector({
-      include: makeTab({
+      includeConfig: makeTab({
         showModeToggle: true,
         mode: "any",
         selectedLabels: { "label 1": true, "label 2": false },
@@ -89,7 +87,7 @@ describe("TargetLabelSelector (tabbed) component", () => {
 
   it("disables a label in the include tab when it is selected in the exclude tab", () => {
     renderSelector({
-      exclude: makeTab({ selectedLabels: { "label 1": true } }),
+      excludeConfig: makeTab({ selectedLabels: { "label 1": true } }),
     });
 
     expect(screen.getByRole("checkbox", { name: "label 1" })).toHaveAttribute(
