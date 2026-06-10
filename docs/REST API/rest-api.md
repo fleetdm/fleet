@@ -517,6 +517,7 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 + [List activities](#list-activities)
 + [List policy automation activities](#list-policy-automation-activities)
++ [Reset policy results](#reset-policy-results)
 
 ### List activities
 
@@ -732,6 +733,33 @@ Returns a list of the activities that have been performed in Fleet. For a compre
   }
 }
 ```
+
+### Reset policy results
+
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report.
+
+`POST /api/v1/fleet/policies/:policy_id/reset`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                    |
+| --------- | ------- | ---- | ------------------------------ |
+| policy_id | integer | path | **Required.** The policy's ID. |
+
+#### Example
+
+`POST /api/v1/fleet/policies/42/reset`
+
+##### Default response
+
+`Status: 200`
+
+#### Errors
+
+| Status | Description                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| 403    | The authenticated user does not have write access to the policy.       |
+| 404    | No policy with the given `policy_id` exists.                           |
 
 ---
 
