@@ -432,6 +432,37 @@ const TEAM_REQUIRED_PREFIXES = [
   paths.NEW_REPORT,
 ];
 
+// Pages where the "Unassigned" (id 0) fleet is a valid context. Mirrors each
+// page's `useTeamIdParam({ includeNoTeam })` declaration — anywhere outside
+// this set, picking Unassigned would trigger a redirect-to-default and
+// effectively do nothing, so the fleet picker hides the option entirely.
+const UNASSIGNED_SUPPORTED_PREFIXES = [
+  paths.CONTROLS, //                  /controls + sub-routes
+  paths.SOFTWARE, //                  /software + sub-routes
+  `${paths.ROOT}hosts`, //            manage hosts + host details
+  `${paths.ROOT}policies`, //         policies (manage, details, edit, live, new)
+];
+
+export const pathSupportsUnassigned = (pathname: string): boolean =>
+  UNASSIGNED_SUPPORTED_PREFIXES.some((p) => pathname.startsWith(p));
+
+// Pages where "All fleets" (id -1) isn't a valid context — the page requires
+// a specific fleet_id. Mirrors each page's `useTeamIdParam({ includeAllTeams:
+// false })` declaration; without filtering, picking All would silently
+// redirect to the user's default fleet. Blacklist (most pages support All;
+// listing exceptions is the maintainable choice). Note: `paths.CONTROLS`,
+// `paths.SOFTWARE_LIBRARY`, and `paths.NEW_REPORT` are already handled by
+// the TEAM_REQUIRED_PREFIXES redirect above, so this set covers the
+// remaining gap.
+const ALL_FLEETS_UNSUPPORTED_PREFIXES = [
+  `${paths.ROOT}settings/fleets/users`, //    Fleet → Users
+  `${paths.ROOT}settings/fleets/options`, //  Fleet → Agent options
+  `${paths.ROOT}settings/fleets/settings`, // Fleet → Settings
+];
+
+export const pathSupportsAllFleets = (pathname: string): boolean =>
+  !ALL_FLEETS_UNSUPPORTED_PREFIXES.some((p) => pathname.startsWith(p));
+
 /**
  * Build the next URL for a fleet switch initiated from the command palette.
  *

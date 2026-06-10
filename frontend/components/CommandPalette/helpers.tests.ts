@@ -9,6 +9,8 @@ import {
   highlightMatches,
   ICommandItem,
   ICommandPaletteContext,
+  pathSupportsAllFleets,
+  pathSupportsUnassigned,
   scoreMatch,
   SCORE_KEYWORD_EXACT,
   SCORE_KEYWORD_PREFIX,
@@ -859,6 +861,70 @@ describe("CommandPalette helpers", () => {
           })
         ).toBe(paths.MANAGE_HOSTS);
       });
+    });
+  });
+
+  describe("pathSupportsUnassigned", () => {
+    it("returns true for hosts pages (manage and details)", () => {
+      expect(pathSupportsUnassigned(paths.MANAGE_HOSTS)).toBe(true);
+      expect(pathSupportsUnassigned(paths.HOST_DETAILS(42))).toBe(true);
+    });
+
+    it("returns true for software pages", () => {
+      expect(pathSupportsUnassigned(paths.SOFTWARE)).toBe(true);
+      expect(pathSupportsUnassigned(paths.SOFTWARE_TITLE_DETAILS("3"))).toBe(
+        true
+      );
+    });
+
+    it("returns true for controls pages", () => {
+      expect(pathSupportsUnassigned(paths.CONTROLS)).toBe(true);
+      expect(pathSupportsUnassigned(paths.CONTROLS_SCRIPTS)).toBe(true);
+    });
+
+    it("returns true for policies pages", () => {
+      expect(pathSupportsUnassigned(paths.MANAGE_POLICIES)).toBe(true);
+      expect(pathSupportsUnassigned(paths.POLICY_DETAILS(7))).toBe(true);
+      expect(pathSupportsUnassigned(paths.EDIT_POLICY(7))).toBe(true);
+      expect(pathSupportsUnassigned(paths.NEW_POLICY)).toBe(true);
+    });
+
+    it("returns false for Dashboard", () => {
+      expect(pathSupportsUnassigned(paths.DASHBOARD)).toBe(false);
+    });
+
+    it("returns false for Reports pages", () => {
+      expect(pathSupportsUnassigned(paths.MANAGE_REPORTS)).toBe(false);
+      expect(pathSupportsUnassigned(paths.NEW_REPORT)).toBe(false);
+    });
+
+    it("returns false for admin/settings pages", () => {
+      expect(pathSupportsUnassigned("/settings/teams/1")).toBe(false);
+    });
+  });
+
+  describe("pathSupportsAllFleets", () => {
+    it("returns true for top-level team-aware pages", () => {
+      expect(pathSupportsAllFleets(paths.DASHBOARD)).toBe(true);
+      expect(pathSupportsAllFleets(paths.MANAGE_HOSTS)).toBe(true);
+      expect(pathSupportsAllFleets(paths.SOFTWARE)).toBe(true);
+      expect(pathSupportsAllFleets(paths.MANAGE_POLICIES)).toBe(true);
+      expect(pathSupportsAllFleets(paths.MANAGE_REPORTS)).toBe(true);
+    });
+
+    it("returns false for fleet admin detail pages (Users/Options/Settings)", () => {
+      expect(pathSupportsAllFleets(paths.FLEET_DETAILS_USERS(1))).toBe(false);
+      expect(pathSupportsAllFleets(paths.FLEET_DETAILS_OPTIONS(1))).toBe(false);
+      expect(pathSupportsAllFleets(paths.FLEET_DETAILS_SETTINGS(1))).toBe(
+        false
+      );
+    });
+
+    it("still returns true for the /settings/fleets list page", () => {
+      // The list view itself has no fleet scope (no useTeamIdParam), so
+      // switching from the palette there is fine. Only the detail sub-pages
+      // (which require a specific fleet_id) hide All.
+      expect(pathSupportsAllFleets(paths.ADMIN_FLEETS)).toBe(true);
     });
   });
 
