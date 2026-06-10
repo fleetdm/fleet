@@ -2,6 +2,11 @@ name: Check PR template
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+    paths:
+      - "frontend/**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
 permissions:
   pull-requests: read
 jobs:
