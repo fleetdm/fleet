@@ -161,7 +161,7 @@ func TestListPolicyAutomationActivities(t *testing.T) {
 		require.Equal(t, "my-host", capturedOpts.MatchQuery)
 	})
 
-	t.Run("order_key defaults to created_at when omitted", func(t *testing.T) {
+	t.Run("order defaults to created_at descending when omitted", func(t *testing.T) {
 		var capturedOpts fleet.ListOptions
 		ds.ListPolicyAutomationActivitiesFunc = func(_ context.Context, _ uint, _ fleet.TeamFilter, opts fleet.ListOptions, _ string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
 			capturedOpts = opts
@@ -171,6 +171,7 @@ func TestListPolicyAutomationActivities(t *testing.T) {
 		_, _, err := svc.ListPolicyAutomationActivities(userCtx, 1, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		require.Equal(t, "created_at", capturedOpts.OrderKey)
+		require.Equal(t, fleet.OrderDescending, capturedOpts.OrderDirection)
 	})
 
 	t.Run("team filter carries viewer user to datastore", func(t *testing.T) {
