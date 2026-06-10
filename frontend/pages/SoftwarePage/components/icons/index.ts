@@ -338,7 +338,6 @@ import Python313 from "./Python313";
 import Python314 from "./Python314";
 import Qlab from "./Qlab";
 import Qlmarkdown from "./Qlmarkdown";
-import Qobuz from "./Qobuz";
 import QspacePro from "./QspacePro";
 import Quip from "./Quip";
 import Qview from "./Qview";
@@ -906,7 +905,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   qlab: Qlab,
-  qobuz: Qobuz,
   "qspace pro": QspacePro,
   quip: Quip,
   qview: Qview,

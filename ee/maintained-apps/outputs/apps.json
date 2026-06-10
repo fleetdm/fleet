@@ -3089,13 +3089,6 @@
       "description": "sbarex QLMarkdown is a quick Look generator for Markdown files."
     },
     {
-      "name": "Qobuz",
-      "slug": "qobuz/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.qobuz.QobuzDesktop",
-      "description": "Qobuz is a catalogue of hi-res music for streaming and download."
-    },
-    {
       "name": "QSpace Pro",
       "slug": "qspace-pro/darwin",
       "platform": "darwin",
