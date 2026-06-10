@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260604193201(t *testing.T) {
+func TestUp_20260610172952(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	columnExists := func(t *testing.T, db *sqlx.DB, table, column string) bool {

@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260604193201, Down_20260604193201)
+	MigrationClient.AddMigration(Up_20260610172952, Down_20260610172952)
 }
 
-func Up_20260604193201(tx *sql.Tx) error {
+func Up_20260610172952(tx *sql.Tx) error {
 	// has_acme_payload lets the RemoveProfile CertificateList trigger detect an
 	// ACME profile without re-reading the by-then-deleted config profile.
 	// Backfill from still-present config profiles; preserve updated_at so the
@@ -28,6 +28,6 @@ func Up_20260604193201(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260604193201(tx *sql.Tx) error {
+func Down_20260610172952(tx *sql.Tx) error {
 	return nil
 }
