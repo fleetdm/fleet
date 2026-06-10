@@ -4035,6 +4035,8 @@ _Available in Fleet Premium_
 
 `POST /api/v1/fleet/device/{token}/setup_experience/status`
 
+> Polling this endpoint advances the setup experience: each poll dispatches the next queued item. On Windows and Linux hosts, this includes deciding whether to skip or install software with associated policies. Such an item stays `pending` or `running` while Fleet waits for the host's policy results. If the host passes all of the software's in-scope policies, the item is skipped: it reports `success` without an install.
+
 ##### Parameters
 
 | Name  | Type   | In   | Description                        |
@@ -4154,6 +4156,8 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 `POST /api/fleet/orbit/setup_experience/status`
 
+> Polling this endpoint advances the setup experience: each poll dispatches the next queued item. On Windows and Linux hosts, this includes deciding whether to skip or install software with associated policies. Such an item stays `pending` or `running` while Fleet waits for the host's policy results. If the host passes all of the software's in-scope policies, the item is skipped: it reports `success` without an install.
+
 ##### Parameters
 
 | Name  | Type   | In   | Description                        |
@@ -4250,6 +4254,8 @@ Notifies the server about an agent error, resulting in two outcomes:
 `Status: 200`
 
 Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+On Windows and Linux hosts, if any queued software has associated policies (policies whose **Install software** automation points at it), this endpoint also clears the host's existing results for those policies and requests a host refetch, so the skip-or-install decisions use policy results reported after enrollment.
 
 ```json
 {
