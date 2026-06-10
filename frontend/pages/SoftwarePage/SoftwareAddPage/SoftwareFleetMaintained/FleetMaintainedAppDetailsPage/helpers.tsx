@@ -6,6 +6,7 @@ import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 import {
   ADD_SOFTWARE_ERROR_PREFIX,
   DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE,
+  FIREFOX_CONFLICT_ERROR_MESSAGE,
   REQUEST_TIMEOUT_ERROR_MESSAGE,
   ensurePeriod,
   formatAlreadyAvailableInstallMessage,
@@ -64,6 +65,12 @@ export const getErrorMessage = (err: unknown) => {
     reason.includes("json decoder error") // 400 bad request when really slow
   ) {
     return REQUEST_TIMEOUT_ERROR_MESSAGE;
+  }
+
+  // Firefox and Firefox ESR share the same bundle identifier, so they
+  // can't both be added to the same fleet. Check for this specific conflict.
+  if (reason.includes("Only one of Mozilla Firefox")) {
+    return FIREFOX_CONFLICT_ERROR_MESSAGE;
   }
 
   // software is already available for install

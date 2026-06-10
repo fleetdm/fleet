@@ -37,6 +37,7 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
+	CantAddFirefoxConflictMessage                = "Couldn't add software. Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
