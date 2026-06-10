@@ -75,7 +75,7 @@ This release also introduces a clearer differentiation between software installe
 - Allowed team selection and name updates when saving a copy of an existing query as a new query.
 - Updated Fleet maintained apps uninstall script to use `pkgutil` to remove applications files.
 - Added functionality for verifying installation of VPP apps.
-- Moved the SSO and Host status alerts settings from Settings > Organization to Settings > Integrations.
+- Moved the SSO and Host status webhook settings from Settings > Organization to Settings > Integrations.
 - Updated software installed activities created during setup experience correctly categorized as from automation.
 - Fixed cases where valid operating system vulnerabilities would be periodically incorrectly purged.
 - Fixed details not showing when the device page URL was edited.

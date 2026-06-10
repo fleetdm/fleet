@@ -30,7 +30,7 @@ GitHub issue: [#36785](https://github.com/fleetdm/fleet/issues/36785)
 
 Fleet now supports dynamic challenges when deploying certificates for Okta Verify. Each host gets a unique secret at enrollment, strengthening security. 
 
-To configure Okta as a CA, in Fleet, head to **Settings > Integrations > Certificate enrollment**, select **Add CA**, and choose **Okta CA or Microsoft Device Enrollment service (NDES)**. Okta uses NDES under the hood. If you're using static challenges with Okta's CA, choose **Custom Simple Certificate Enrollment Protocol (SCEP)** instead.
+To configure Okta as a CA, in Fleet, head to **Settings > Integrations > Certificate authorities**, select **Add CA**, and choose **Okta CA or Microsoft Device Enrollment service (NDES)**. Okta uses NDES under the hood. If you're using static challenges with Okta's CA, choose **Custom Simple Certificate Enrollment Protocol (SCEP)** instead.
 
 GitHub issue: [#34521](https://github.com/fleetdm/fleet/issues/34521)
 
