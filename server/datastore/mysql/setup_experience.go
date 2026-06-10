@@ -202,6 +202,14 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
+	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
+	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
+	-- decision time, so only this marker is stored.
+	EXISTS (SELECT 1
+		FROM policies p
+		WHERE p.software_installer_id = si.id
+		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
@@ -241,7 +249,9 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
+		// deb-distro check, rpm-distro check.
+		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
@@ -255,6 +265,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
+	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
@@ -288,9 +299,10 @@ INSERT INTO setup_experience_status_results (
 	name,
 	status,
 	software_installer_id,
-	vpp_app_team_id
+	vpp_app_team_id,
+	policy_gated
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
 	%s
 ) AS combined
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
@@ -645,6 +657,7 @@ SELECT
 	sesr.nano_command_uuid,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
+	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
@@ -714,6 +727,39 @@ ORDER BY sesr.id
 	}
 
 	return results, nil
+}
+
+// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's setup-experience software items that are
+// still awaiting their policy result: non-terminal (pending/running) AND with no install enqueued yet
+// (host_software_installs_execution_id IS NULL). Returns an empty slice when the host has no awaiting policy-gated items.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
+	const stmt = `
+SELECT DISTINCT p.id
+FROM setup_experience_status_results sesr
+JOIN policies p ON p.software_installer_id = sesr.software_installer_id
+WHERE sesr.host_uuid = ?
+	AND sesr.policy_gated = 1
+	AND sesr.status IN ('pending', 'running')
+	AND sesr.host_software_installs_execution_id IS NULL`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+	}
+	return ids, nil
+}
+
+// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the given
+// software installer.
+func (ds *Datastore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+	const stmt = `
+SELECT p.id
+FROM policies p
+WHERE p.software_installer_id = ?`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, softwareInstallerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for installer")
+	}
+	return ids, nil
 }
 
 func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
