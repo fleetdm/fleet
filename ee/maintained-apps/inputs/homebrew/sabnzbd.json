@@ -1,0 +1,10 @@
+{
+  "name": "SABnzbd",
+  "unique_identifier": "org.sabnzbd.sabnzbd",
+  "token": "sabnzbd",
+  "installer_format": "dmg",
+  "slug": "sabnzbd/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Spitfire Audio",
+  "unique_identifier": "com.spitfireaudio.spitfireaudio",
+  "token": "spitfire-audio",
+  "installer_format": "dmg",
+  "slug": "spitfire-audio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
