@@ -177,9 +177,9 @@ If a systemic fix exists, **surface it first** in the report. Only fall back to 
 
 ## Step 10: Propose the edit
 
-Per the `Diagnose + propose edit` posture: print the exact file + line + diff intended. Wait for user approval before applying.
+Per the `Diagnose + propose edit` posture: print the exact file + line + diff intended, then apply it only after the user approves. `Edit` is in `allowed-tools` so the apply step doesn't re-prompt — the gate is the explicit approval in this step, not the tool-permission prompt.
 
-- Do **not** auto-edit. The user reviews each diff first.
+- Propose first, apply on approval. Never skip the propose step.
 - For `cpe_translations.json`: the file is downloaded from `fleetdm/nvd` releases. The fix lives in the upstream repo — say so explicitly and produce the JSON shape the user can submit there.
 - For systemic fixes: produce a written recommendation rather than a diff. Identify the routing table edit needed in this SKILL.md.
 - For one-off overrides (CPE matching rule, CustomCVE rule, sanitize regex, feed override): propose a precise diff to the in-repo file.
