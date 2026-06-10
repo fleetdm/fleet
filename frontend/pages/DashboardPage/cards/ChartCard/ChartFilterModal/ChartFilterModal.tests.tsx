@@ -15,11 +15,10 @@ describe("ChartFilterModal PLATFORM_OPTIONS", () => {
   });
 
   it("labels the mobile platforms for display", () => {
-    const byValue = Object.fromEntries(
-      PLATFORM_OPTIONS.map((o) => [o.value, o.label])
-    );
-    expect(byValue.ios).toBe("iOS");
-    expect(byValue.ipados).toBe("iPadOS");
-    expect(byValue.android).toBe("Android");
+    const labelFor = (value: string) =>
+      PLATFORM_OPTIONS.find((o) => o.value === value)?.label;
+    expect(labelFor("ios")).toBe("iOS");
+    expect(labelFor("ipados")).toBe("iPadOS");
+    expect(labelFor("android")).toBe("Android");
   });
 });
