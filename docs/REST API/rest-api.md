@@ -1315,7 +1315,7 @@ None.
 
 File carving allows you to request files (and sets of files) and their full contents from hosts.
 
-To initiate a file carve using the Fleet API, use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
+To initiate a file carve using the Fleet API, use the [live report](#run-live-report) endpoint to run a query against the `carves` table.
 
 Any failure when uploading a file block (like a network error) will result on a failed carved file. Block uploads are retried up to three times before failing.
 
