@@ -3215,13 +3215,6 @@
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
     },
     {
-      "name": "Salesforce CLI",
-      "slug": "salesforce-cli/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.salesforce.cli",
-      "description": "Salesforce CLI is a CLI tools for Salesforce."
-    },
-    {
       "name": "SaneSideButtons",
       "slug": "sanesidebuttons/darwin",
       "platform": "darwin",
@@ -3248,13 +3241,6 @@
       "platform": "darwin",
       "unique_identifier": "edu.mit.scratch.scratch-desktop",
       "description": "Scratch is a programmes interactive stories, games, and animations."
-    },
-    {
-      "name": "Screaming Frog SEO Spider",
-      "slug": "screaming-frog-seo-spider/darwin",
-      "platform": "darwin",
-      "unique_identifier": "uk.co.screamingfrog.seo.spider",
-      "description": "Screaming Frog SEO Spider is a SEO site audit tool."
     },
     {
       "name": "Screen Studio",
@@ -3334,13 +3320,6 @@
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
-      "name": "Servo",
-      "slug": "servo/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.servo.ServoShell",
-      "description": "Servo is a parallel browser engine."
-    },
-    {
       "name": "Session",
       "slug": "session/darwin",
       "platform": "darwin",
@@ -3411,13 +3390,6 @@
       "description": "Shottr is a screenshot measurement and annotation tool."
     },
     {
-      "name": "ShurePlus MOTIV",
-      "slug": "shureplus-motiv/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.shure.motiv.desktop",
-      "description": "ShurePlus MOTIV is an additional features and controls for Shure MV7 and MV88+ microphones."
-    },
-    {
       "name": "SideNotes",
       "slug": "sidenotes/darwin",
       "platform": "darwin",
@@ -3446,32 +3418,11 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
-      "name": "SilentKnight",
-      "slug": "silentknight/darwin",
-      "platform": "darwin",
-      "unique_identifier": "co.eclecticlight.SilentKnight",
-      "description": "SilentKnight is an automatically checks computer's security."
-    },
-    {
-      "name": "Silhouette Studio",
-      "slug": "silhouette-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.silhouettesoftware.Silhouette-Studio",
-      "description": "Silhouette Studio is a tool to design software for Silhouette cutting machines."
-    },
-    {
       "name": "Simple Comic",
       "slug": "simple-comic/darwin",
       "platform": "darwin",
       "unique_identifier": "com.ToWatchList.SimpleComic",
       "description": "Simple Comic is a comic viewer/reader."
-    },
-    {
-      "name": "SimpleDEMViewer",
-      "slug": "simpledemviewer/darwin",
-      "platform": "darwin",
-      "unique_identifier": "jp.jizoh.SDVr8",
-      "description": "SimpleDEMViewer is a digital Elevation Model viewer."
     },
     {
       "name": "SiriMote",
@@ -3486,20 +3437,6 @@
       "platform": "darwin",
       "unique_identifier": "com.bohemiancoding.sketch3",
       "description": "Sketch is a digital design and prototyping platform."
-    },
-    {
-      "name": "SketchUp",
-      "slug": "sketchup/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.sketchup.LayOut.2026",
-      "description": "SketchUp is a 3D modeling software used to create and manipulate 3D models."
-    },
-    {
-      "name": "Skim",
-      "slug": "skim/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.sourceforge.skim-app.skim.bookmarks",
-      "description": "Skim is a PDF reader and note-taking application."
     },
     {
       "name": "Slab",
@@ -3619,20 +3556,6 @@
       "platform": "darwin",
       "unique_identifier": "com.Sonosaurus.SonoBus",
       "description": "SonoBus is a high-quality network audio streaming."
-    },
-    {
-      "name": "Sonos S1",
-      "slug": "sonos-s1-controller/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.sonos.macController",
-      "description": "Sonos S1 is a controller for Gen 1 Sonos products."
-    },
-    {
-      "name": "Sonos S2",
-      "slug": "sonos/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.sonos.macController2",
-      "description": "Sonos S2 is a tool to control your Sonos system."
     },
     {
       "name": "PS Remote Play",
@@ -3880,20 +3803,6 @@
       "description": "Stretchly is a break time reminder app."
     },
     {
-      "name": "Studio 3T",
-      "slug": "studio-3t/darwin",
-      "platform": "darwin",
-      "unique_identifier": "3t.enterprise.mongochef",
-      "description": "Studio 3T is an IDE, client, and GUI for MongoDB."
-    },
-    {
-      "name": "SubEthaEdit",
-      "slug": "subethaedit/darwin",
-      "platform": "darwin",
-      "unique_identifier": "de.codingmonkeys.SubEthaEdit.MacFULL",
-      "description": "SubEthaEdit is a plain text and source editor."
-    },
-    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
@@ -3913,13 +3822,6 @@
       "platform": "windows",
       "unique_identifier": "Sublime Text",
       "description": "Sublime Text is a text editor for code, markup, and prose."
-    },
-    {
-      "name": "Sunsama",
-      "slug": "sunsama/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.sunsama.native-app",
-      "description": "Sunsama is a daily planner and calendar."
     },
     {
       "name": "Super Productivity",
@@ -3948,13 +3850,6 @@
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Superkey",
       "description": "Superkey is a tool to search and click text anywhere on screen."
-    },
-    {
-      "name": "Superlist",
-      "slug": "superlist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "group.com.superlist.superlist.firebase",
-      "description": "Superlist is a collaborative to-do list app."
     },
     {
       "name": "superwhisper",
@@ -3992,20 +3887,6 @@
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
-      "name": "Swift Quit",
-      "slug": "swift-quit/darwin",
-      "platform": "darwin",
-      "unique_identifier": "onebadidea.Swift-Quit",
-      "description": "Swift Quit is an enable Windows-like program quitting when all windows are closed."
-    },
-    {
-      "name": "Swift Shift",
-      "slug": "swift-shift/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.pablopunk.Swift-Shift",
-      "description": "Swift Shift is a window manager."
-    },
-    {
       "name": "SwiftBar",
       "slug": "swiftbar/darwin",
       "platform": "darwin",
@@ -4032,13 +3913,6 @@
       "platform": "darwin",
       "unique_identifier": "co.highlyopinionated.swish",
       "description": "Swish is a tool to control windows and applications right from your trackpad."
-    },
-    {
-      "name": "Switch Audio Converter",
-      "slug": "switch/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.nchsoftware.switch",
-      "description": "Switch Audio Converter is a multiple format audio file converter."
     },
     {
       "name": "Sync",
@@ -4069,25 +3943,11 @@
       "description": "Syncthing is a real time file synchronisation software."
     },
     {
-      "name": "Synology Assistant",
-      "slug": "synologyassistant/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.synology.DSAssistant",
-      "description": "Synology Assistant is a tool to manage Synology NAS's across a LAN."
-    },
-    {
       "name": "Syntax Highlight",
       "slug": "syntax-highlight/darwin",
       "platform": "darwin",
       "unique_identifier": "org.sbarex.SourceCodeSyntaxHighlight",
       "description": "Syntax Highlight is a quicklook extension for source files."
-    },
-    {
-      "name": "SystHist",
-      "slug": "systhist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "co.eclecticlight.SystHist",
-      "description": "SystHist is a lists full system and security update installation history."
     },
     {
       "name": "Tableau Desktop",
