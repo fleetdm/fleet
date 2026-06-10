@@ -132,7 +132,7 @@ Capture the disagreement in the final report.
 If nvdvuln reproduces the bad CVE, narrow the cause:
 
 - **Wrong CPE generated** (e.g. `vendor=apple, product=icloud` matched against a Windows host) — open `server/vulnerabilities/nvd/cpe_matching_rules.go` and propose a rule in `GetKnownNVDBugRules`.
-- **Wrong vendor/product mapping** — open `server/vulnerabilities/nvd/cpe_translations.go` and check the upstream `cpe_translations.json` entry. The file is downloaded from `github.com/fleetdm/nvd` releases, not in-repo — propose the entry shape and tell the user the actual edit lands in the `fleetdm/nvd` repo.
+- **Wrong vendor/product mapping** — edit [`server/vulnerabilities/nvd/cpe_translations.json`](server/vulnerabilities/nvd/cpe_translations.json) in this repo. The matching logic lives in `cpe_translations.go`. Note: running Fleet servers pull this file from `github.com/fleetdm/nvd` releases, which is republished from the in-repo source daily — the edit lands here, not in `fleetdm/nvd`.
 - **sanitize stripping the wrong substring** — open `server/vulnerabilities/nvd/sanitize.go`, look at `sanitizeSoftwareName` and `productVariations`. Reason about why the variation set landed on the wrong product.
 - **Detail query producing the wrong row** — open `server/service/osquery_utils/queries.go` and check `SoftwareOverrideMatch` for the platform. macOS Firefox is the canonical example.
 - **NVD upstream data is wrong** (confirmed in step 5) — feed override at `server/vulnerabilities/nvd/tools/cvefeed/dictionary.go` (`Override()`) and `OverrideVuln` in `vuln.go`.
@@ -180,7 +180,7 @@ If a systemic fix exists, **surface it first** in the report. Only fall back to 
 Per the `Diagnose + propose edit` posture: print the exact file + line + diff intended, then apply it only after the user approves. `Edit` is in `allowed-tools` so the apply step doesn't re-prompt — the gate is the explicit approval in this step, not the tool-permission prompt.
 
 - Propose first, apply on approval. Never skip the propose step.
-- For `cpe_translations.json`: the file is downloaded from `fleetdm/nvd` releases. The fix lives in the upstream repo — say so explicitly and produce the JSON shape the user can submit there.
+- For `cpe_translations.json`: the file is in this repo at `server/vulnerabilities/nvd/cpe_translations.json` (republished daily into `fleetdm/nvd` releases for running servers to pull). Propose the diff against the in-repo file.
 - For systemic fixes: produce a written recommendation rather than a diff. Identify the routing table edit needed in this SKILL.md.
 - For one-off overrides (CPE matching rule, CustomCVE rule, sanitize regex, feed override): propose a precise diff to the in-repo file.
 
