@@ -4443,7 +4443,7 @@
       "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
       "slug": "vc-redist-x64/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "unique_identifier": "Microsoft Visual C++ v14 Redistributable (x64)",
       "description": "Microsoft Visual C++ 2015-2022 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
     },
     {
