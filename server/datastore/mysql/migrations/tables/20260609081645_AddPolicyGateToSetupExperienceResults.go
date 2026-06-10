@@ -2,8 +2,7 @@ package tables
 
 import (
 	"database/sql"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 func init() {
@@ -21,7 +20,7 @@ ALTER TABLE setup_experience_status_results
 	ADD COLUMN policy_gated TINYINT(1) NOT NULL DEFAULT 0
 `)
 	if err != nil {
-		return errors.Wrap(err, "add policy_gated to setup_experience_status_results")
+		return fmt.Errorf("add policy_gated to setup_experience_status_results: %w", err)
 	}
 	return nil
 }

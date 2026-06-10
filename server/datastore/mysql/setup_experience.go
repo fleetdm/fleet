@@ -202,13 +202,13 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
-	-- policy_gated: true when the installer has at least one team policy whose install-software automation points at it (a gating
-	-- policy used as a gate during setup experience). Scope by team_id = ? exactly, matching GetPoliciesWithAssociatedInstaller, and
-	-- only gate on Windows/Linux. The specific policy ids are derived from the installer at decision time, so only this marker is stored.
+	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
+	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
+	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
+	-- decision time, so only this marker is stored.
 	EXISTS (SELECT 1
 		FROM policies p
 		WHERE p.software_installer_id = si.id
-		AND p.team_id = ?
 		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
@@ -249,9 +249,9 @@ AND %s`
 			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
 		}
 		softwareUnionParts = append(softwareUnionParts, installerSelect)
-		// Placeholder order: host_uuid, policy_gated subquery (teamID, fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
+		// Placeholder order: host_uuid, policy_gated subquery (fleetPlatform), stdn.team_id, global_or_team_id, si.platform,
 		// deb-distro check, rpm-distro check.
-		softwareArgs = append(softwareArgs, hostUUID, teamID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		softwareArgs = append(softwareArgs, hostUUID, fleetPlatform, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if resetFailedSetupSteps {
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
@@ -736,8 +736,7 @@ func (ds *Datastore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hos
 	const stmt = `
 SELECT DISTINCT p.id
 FROM setup_experience_status_results sesr
-JOIN software_installers si ON si.id = sesr.software_installer_id
-JOIN policies p ON p.software_installer_id = si.id AND p.team_id = si.global_or_team_id
+JOIN policies p ON p.software_installer_id = sesr.software_installer_id
 WHERE sesr.host_uuid = ?
 	AND sesr.policy_gated = 1
 	AND sesr.status IN ('pending', 'running')
@@ -750,14 +749,12 @@ WHERE sesr.host_uuid = ?
 }
 
 // GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the given
-// software installer, scoped to the installer's team.
+// software installer.
 func (ds *Datastore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
 	const stmt = `
 SELECT p.id
-FROM policies p, software_installers si
-WHERE si.id = ?
-	AND p.software_installer_id = si.id
-	AND p.team_id = si.global_or_team_id`
+FROM policies p
+WHERE p.software_installer_id = ?`
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, softwareInstallerID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for installer")
