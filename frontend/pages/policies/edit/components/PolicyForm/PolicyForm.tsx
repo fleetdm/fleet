@@ -49,7 +49,7 @@ import Icon from "components/Icon/Icon";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 
 import labelsAPI, {
   getCustomLabels,
@@ -759,7 +759,7 @@ const PolicyForm = ({
           {renderResolution()}
           {isEditMode && !isPatchPolicy && platformSelector.render()}
           {isEditMode && isPremiumTier && !isPatchPolicy && (
-            <TargetLabelSelector
+            <DropdownTargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
               customTargetOptions={customTargetOptions}

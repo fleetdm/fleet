@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.1.0",
+      "version": "26.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.codeweavers.CrossOver';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.codeweavers.CrossOver' AND version_compare(bundle_short_version, '26.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.codeweavers.CrossOver' AND version_compare(bundle_short_version, '26.2.0') < 0);"
       },
-      "installer_url": "https://media.codeweavers.com/pub/crossover/cxmac/demo/crossover-26.1.0.zip",
+      "installer_url": "https://media.codeweavers.com/pub/crossover/cxmac/demo/crossover-26.2.0.zip",
       "install_script_ref": "e73b42a9",
       "uninstall_script_ref": "ab2b4be1",
-      "sha256": "99812be77501995533a9fd4553efa75a4237eac6a20c5639ff43ad46660d9256",
+      "sha256": "ab39680927a0d9c313cad27fed33dd15a799be40c93bfc432bef70518af10aa4",
       "default_categories": [
         "Productivity"
       ]
