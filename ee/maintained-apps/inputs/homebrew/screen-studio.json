@@ -1,0 +1,10 @@
+{
+  "name": "Screen Studio",
+  "unique_identifier": "com.timpler.screenstudio",
+  "token": "screen-studio",
+  "installer_format": "zip",
+  "slug": "screen-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

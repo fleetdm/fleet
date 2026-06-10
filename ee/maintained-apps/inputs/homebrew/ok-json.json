@@ -1,0 +1,10 @@
+{
+  "name": "OK JSON",
+  "unique_identifier": "net.shinystone.OKJSON",
+  "token": "ok-json",
+  "installer_format": "zip",
+  "slug": "ok-json/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
