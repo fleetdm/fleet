@@ -3234,12 +3234,12 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"})
 		require.Error(t, err)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.ErrorContains(t, err, "requires Fleet Premium license")
+		require.ErrorContains(t, err, "Scoping configuration profile")
 
 		_, err = svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), []string{"label1"}, fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.ErrorContains(t, err, "requires Fleet Premium license")
+		require.ErrorContains(t, err, "Scoping configuration profile")
 	})
 
 	t.Run("profile without labels allowed with free license", func(t *testing.T) {

@@ -497,12 +497,12 @@ func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.ErrorContains(t, err, "requires Fleet Premium license")
+		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 
 		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.ErrorContains(t, err, "requires Fleet Premium license")
+		require.ErrorContains(t, err, "Scoping configuration profile")
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
 

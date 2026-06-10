@@ -834,11 +834,11 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	svc, ctx, _, _ = setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree}, "identifier")
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, []string{"test-label"}, fleet.LabelsIncludeAll, nil)
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
-	require.ErrorContains(t, err, "requires Fleet Premium license")
+	require.ErrorContains(t, err, "Scoping configuration profiles")
 
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, []string{"test-label"})
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
-	require.ErrorContains(t, err, "requires Fleet Premium license")
+	require.ErrorContains(t, err, "Scoping configuration profiles")
 
 	// succeeds without labels on free license
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
@@ -900,11 +900,13 @@ func TestNewMDMAppleDeclarationFreeLicenseLabels(t *testing.T) {
 
 	b := declBytesForTest("D1", "d1content")
 
-	_, err := svc.NewMDMAppleDeclaration(ctx, 1, b, []string{"label-1"}, "name", fleet.LabelsIncludeAll, nil)
-	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+	_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, []string{"label-1"}, "name", fleet.LabelsIncludeAll, nil)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	require.ErrorContains(t, err, "Scoping configuration profile")
 
-	_, err = svc.NewMDMAppleDeclaration(ctx, 1, b, nil, "name", fleet.LabelsIncludeAll, []string{"label-1"})
-	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, []string{"label-1"})
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	require.ErrorContains(t, err, "Scoping configuration profile")
 }
 
 func TestNewMDMAppleDeclaration(t *testing.T) {
