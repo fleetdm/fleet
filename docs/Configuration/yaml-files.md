@@ -1213,7 +1213,7 @@ org_settings:
     severity:
       min: 9
       max: 10
-    exclude_cves:
+    exclude_vulnerabilities:
       - CVE-2025-50897
       - CVE-2025-76306
 ```
