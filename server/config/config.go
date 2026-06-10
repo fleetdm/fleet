@@ -1764,7 +1764,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
-	man.addConfigInt("mdm.android_profiles_batch_size", 1000, "Maximum number of hosts to process per Android profile reconciliation tick (1000 default; 0 no limit)")
+	man.addConfigInt("mdm.android_profiles_batch_size", 1000, "Maximum number of hosts to send policy updates to per Android profile reconciliation tick (1000 default; 0 = no limit)")
 	man.hideConfig("mdm.android_profiles_batch_size")
 
 	// Calendar integration

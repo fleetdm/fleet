@@ -1313,6 +1313,18 @@ const androidApplicableProfilesQuery = `
 		count_host_updated_after_labels = 0
 `
 
+// GetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
+// the mysqlredis wrapper backs it with Redis.
+func (ds *Datastore) GetMDMAndroidReconcileCursor(_ context.Context) (string, error) {
+	return "", nil
+}
+
+// SetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
+// the mysqlredis wrapper writes to Redis.
+func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
 // ListMDMAndroidProfilesToSend is the android platform equivalent to
 // ListMDMAppleProfilesToInstall/Remove and
 // ListMDMWindowsProfilesToInstall/Remove. It plays a similar role but is quite
@@ -1336,18 +1348,6 @@ const androidApplicableProfilesQuery = `
 //
 // See https://github.com/fleetdm/fleet/issues/32032#issuecomment-3229548389
 // for more details on the rationale of that approach.
-// GetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
-// the mysqlredis wrapper backs it with Redis.
-func (ds *Datastore) GetMDMAndroidReconcileCursor(_ context.Context) (string, error) {
-	return "", nil
-}
-
-// SetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
-// the mysqlredis wrapper writes to Redis.
-func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) error {
-	return nil
-}
-
 func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	var toApplyProfiles, toRemoveProfiles []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
