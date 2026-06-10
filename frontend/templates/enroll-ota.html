@@ -235,7 +235,17 @@
         <div class="android-content">
           <p>Select <b>Enroll</b> and follow the steps.</p>
           <a class="enroll-link" href="" target="_blank">Enroll</a>
-          <p>Already finished? You can close this tab.</p>
+        </div>
+      </section>
+    </template>
+
+    <!-- android content after enrollment link is selected -->
+    <template id="android-enrolled-template">
+      <section class="device-instructions-content">
+        <h1>Already finished?</h1>
+        <div class="android-content">
+          <p>You can close this tab.</p>
+          <p>If something went wrong, <a class="go-back-link" href="#">go back to try again</a>.</p>
         </div>
       </section>
     </template>
@@ -774,6 +784,30 @@
               throw new Error("Failed to get enrollment token");
             }
             setEnrollTokenUrl(data.android_enrollment_url);
+
+            const attachEnrollListener = () => {
+              const mainContent = document.getElementById("main-content");
+              const enrollLink = document.querySelector(".enroll-link");
+              if (enrollLink) {
+                enrollLink.addEventListener("click", () => {
+                  setTimeout(() => {
+                    mainContent.innerHTML = "";
+                    renderContent("android-enrolled-template");
+                    const goBackLink = document.querySelector(".go-back-link");
+                    if (goBackLink) {
+                      goBackLink.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        mainContent.innerHTML = "";
+                        renderContent(templateId);
+                        setEnrollTokenUrl(data.android_enrollment_url);
+                        attachEnrollListener();
+                      });
+                    }
+                  }, 1000);
+                });
+              }
+            };
+            attachEnrollListener();
           } catch (error) {
             renderError(
               "Couldn't get Android enrollment token.",
