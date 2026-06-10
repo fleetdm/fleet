@@ -1,4 +1,6 @@
 {
+  "versions": [
+    {
       "version": "14.51.36231.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual C++ 2015-2022 Redistributable (x64)%' AND publisher = 'Microsoft Corporation';",
