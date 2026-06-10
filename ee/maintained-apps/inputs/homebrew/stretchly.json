@@ -1,0 +1,10 @@
+{
+  "name": "Stretchly",
+  "unique_identifier": "net.hovancik.stretchly",
+  "token": "stretchly",
+  "installer_format": "dmg",
+  "slug": "stretchly/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
