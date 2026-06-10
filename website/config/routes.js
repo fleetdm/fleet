@@ -643,6 +643,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /security-and-control': {
+    action: 'view-security-and-control',
+    locals: {
+      pageTitleForMeta: 'Security & control',
+      pageDescriptionForMeta: 'Control what belongs on your devices and detect vulnerabilities automatically.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
