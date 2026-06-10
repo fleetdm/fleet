@@ -326,24 +326,17 @@ import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Pacifist from "./Pacifist";
 import Package from "./Package";
-import Packages from "./Packages";
 import PaleMoon from "./PaleMoon";
 import Paletro from "./Paletro";
-import ParallelsClient from "./ParallelsClient";
 import ParallelsDesktop from "./ParallelsDesktop";
-import Parsec from "./Parsec";
 import Pastebot from "./Pastebot";
-import PathFinder from "./PathFinder";
 import Pcoipclient from "./Pcoipclient";
 import Pd from "./Pd";
 import PdfExpert from "./PdfExpert";
 import PdfPals from "./PdfPals";
 import PdfsamBasic from "./PdfsamBasic";
 import Pearcleaner from "./Pearcleaner";
-import Perimeter81 from "./Perimeter81";
-import Permute from "./Permute";
 import PgAdmin4 from "./PgAdmin4";
-import PhilipsHueSync from "./PhilipsHueSync";
 import PhoenixSlides from "./PhoenixSlides";
 import Photosrevive from "./Photosrevive";
 import Photostickies from "./Photostickies";
@@ -352,9 +345,7 @@ import Pibar from "./Pibar";
 import Picview from "./Picview";
 import Piezo from "./Piezo";
 import Pika from "./Pika";
-import Pingplotter from "./Pingplotter";
 import Piphero from "./Piphero";
-import Pitch from "./Pitch";
 import Pixelsnap from "./Pixelsnap";
 import PlantronicsHub from "./PlantronicsHub";
 import Platypus from "./Platypus";
@@ -368,7 +359,6 @@ import Popchar from "./Popchar";
 import Popclip from "./Popclip";
 import Popsql from "./Popsql";
 import Portfolioperformance from "./Portfolioperformance";
-import Positron from "./Positron";
 import PostgresApp from "./PostgresApp";
 import Postgresql15 from "./Postgresql15";
 import Postgresql16 from "./Postgresql16";
@@ -387,7 +377,6 @@ import Principle from "./Principle";
 import Prism from "./Prism";
 import Prisma from "./Prisma";
 import Pritunl from "./Pritunl";
-import PrivateInternetAccess from "./PrivateInternetAccess";
 import Privileges from "./Privileges";
 import Prizmo from "./Prizmo";
 import Processing from "./Processing";
@@ -984,24 +973,17 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
-  packages: Packages,
   "pale moon": PaleMoon,
   paletro: Paletro,
-  "parallels client": ParallelsClient,
   "parallels desktop": ParallelsDesktop,
-  parsec: Parsec,
   pastebot: Pastebot,
-  "path finder": PathFinder,
   pd: Pd,
   "pdf expert": PdfExpert,
   "pdf pals": PdfPals,
   "pdfsam basic": PdfsamBasic,
   pearcleaner: Pearcleaner,
-  "perimeter 81": Perimeter81,
-  permute: Permute,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
-  "philips hue sync": PhilipsHueSync,
   "phoenix slides": PhoenixSlides,
   photosrevive: Photosrevive,
   photostickies: Photostickies,
@@ -1010,9 +992,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   picview: Picview,
   piezo: Piezo,
   pika: Pika,
-  pingplotter: Pingplotter,
   piphero: Piphero,
-  pitch: Pitch,
   pixelsnap: Pixelsnap,
   "plantronics hub": PlantronicsHub,
   platypus: Platypus,
@@ -1026,7 +1006,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   popclip: Popclip,
   popsql: Popsql,
   "portfolio performance": Portfolioperformance,
-  positron: Positron,
   postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,
@@ -1044,7 +1023,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   principle: Principle,
   prisma: Prisma,
   pritunl: Pritunl,
-  "private internet access": PrivateInternetAccess,
   privileges: Privileges,
   prizmo: Prizmo,
   processing: Processing,

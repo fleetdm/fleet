@@ -3005,13 +3005,6 @@
       "description": "Pacifist is an extract files and folders from package files, disk images, and archives."
     },
     {
-      "name": "Packages",
-      "slug": "packages/darwin",
-      "platform": "darwin",
-      "unique_identifier": "fr.whitebox.Packages",
-      "description": "Packages is an integrated packaging environment."
-    },
-    {
       "name": "Pale Moon",
       "slug": "pale-moon/darwin",
       "platform": "darwin",
@@ -3026,13 +3019,6 @@
       "description": "Paletro is a command palette in any application."
     },
     {
-      "name": "Parallels Client",
-      "slug": "parallels-client/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.2X.Client.Mac",
-      "description": "Parallels Client is a RDP client."
-    },
-    {
       "name": "Parallels Desktop",
       "slug": "parallels/darwin",
       "platform": "darwin",
@@ -3040,25 +3026,11 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
-      "name": "Parsec",
-      "slug": "parsec/darwin",
-      "platform": "darwin",
-      "unique_identifier": "tv.parsec.www",
-      "description": "Parsec is a remote desktop."
-    },
-    {
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tapbots.Pastebot2Mac",
       "description": "Pastebot is a workflow application to improve productivity."
-    },
-    {
-      "name": "Path Finder",
-      "slug": "path-finder/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.cocoatech.PathFinder",
-      "description": "Path Finder is a file manager."
     },
     {
       "name": "Teradici PCoIP Software Client for macOS",
@@ -3103,20 +3075,6 @@
       "description": "Pearcleaner is a utility to uninstall apps and remove leftover files from old/uninstalled apps."
     },
     {
-      "name": "Perimeter 81",
-      "slug": "perimeter81/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.safervpn.osx.smb",
-      "description": "Perimeter 81 is a zero trust network as a service client."
-    },
-    {
-      "name": "Permute",
-      "slug": "permute/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.charliemonroe.Permute-4",
-      "description": "Permute is a converts and edits video, audio or image files."
-    },
-    {
       "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
@@ -3129,13 +3087,6 @@
       "platform": "windows",
       "unique_identifier": "pgAdmin 4",
       "description": "pgAdmin4 is an administration and development platform for PostgreSQL."
-    },
-    {
-      "name": "Philips Hue Sync",
-      "slug": "philips-hue-sync/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.lighting.huesync",
-      "description": "Philips Hue Sync is a tool to control your smart light system."
     },
     {
       "name": "Phoenix Slides",
@@ -3201,25 +3152,11 @@
       "description": "Pika is a colour picker for colours onscreen."
     },
     {
-      "name": "PingPlotter",
-      "slug": "pingplotter/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.pingman.pingplotter.mac",
-      "description": "PingPlotter is a network monitoring tool."
-    },
-    {
       "name": "PiPHero",
       "slug": "piphero/darwin",
       "platform": "darwin",
       "unique_identifier": "com.piphero.app",
       "description": "PiPHero is a menu bar app to picture-in-picture any window."
-    },
-    {
-      "name": "Pitch",
-      "slug": "pitch/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.pitch.pitch-macos",
-      "description": "Pitch is a collaborative presentation software."
     },
     {
       "name": "PixelSnap",
@@ -3311,13 +3248,6 @@
       "platform": "darwin",
       "unique_identifier": "name.abuchen.portfolio.distro.product",
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
-    },
-    {
-      "name": "Positron",
-      "slug": "positron/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rstudio.positron",
-      "description": "Positron is a data science IDE."
     },
     {
       "name": "Postgres",
@@ -3458,13 +3388,6 @@
       "platform": "windows",
       "unique_identifier": "Pritunl",
       "description": "Pritunl is an OpenVPN client."
-    },
-    {
-      "name": "Private Internet Access",
-      "slug": "private-internet-access/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.privateinternetaccess.vpn",
-      "description": "Private Internet Access is a VPN client."
     },
     {
       "name": "Privileges",
