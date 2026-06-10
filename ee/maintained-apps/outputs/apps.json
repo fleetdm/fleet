@@ -3450,7 +3450,7 @@
       "slug": "requestly/darwin",
       "platform": "darwin",
       "unique_identifier": "io.requestly.beta",
-      "description": "Requestly is an intercept and modify HTTP requests."
+      "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
       "name": "Retcon",
