@@ -4188,13 +4188,6 @@
       "description": "Tableau Public is an explore, create and publicly share data visualisations online."
     },
     {
-      "name": "Tableau Reader",
-      "slug": "tableau-reader/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.tableausoftware.tableaureader",
-      "description": "Tableau Reader is an open and interact with data visualisations built in Tableau Desktop."
-    },
-    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",

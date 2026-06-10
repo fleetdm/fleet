@@ -399,7 +399,6 @@ import Tabby from "./Tabby";
 import TableauDesktop from "./TableauDesktop";
 import TableauPrep from "./TableauPrep";
 import TableauPublic from "./TableauPublic";
-import TableauReader from "./TableauReader";
 import TablePlus from "./TablePlus";
 import Tabtab from "./Tabtab";
 import Tailscale from "./Tailscale";
@@ -1039,7 +1038,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
   "tableau public": TableauPublic,
-  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,
