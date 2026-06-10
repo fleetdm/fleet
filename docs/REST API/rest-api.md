@@ -1311,7 +1311,6 @@ None.
 - [Get carve](#get-carve)
 - [Get carve block](#get-carve-block)
 
-> TODO: Warning on size of carve
 
 File carving allows you to request files (and sets of files) and their full contents from hosts.
 
