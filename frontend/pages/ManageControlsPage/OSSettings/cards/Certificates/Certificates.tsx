@@ -214,7 +214,6 @@ const Certificates = ({
       {renderContent()}
       {showAddCertModal && (
         <AddCertModal
-          existingCerts={certs}
           onExit={() => setShowAddCertModal(false)}
           onSuccess={onUpdateSuccess}
           currentTeamId={currentTeamId}

@@ -465,49 +465,26 @@ func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
 	return *h.TeamID
 }
 
-// AppleProfileIncludeMode indicates how a profile's include-labels gate
-// applicability to a host. Independent of exclude-labels, which always
-// have "exclude any" semantics. A single profile may carry both include
-// labels (with one consistent mode) and exclude labels.
-type AppleProfileIncludeMode int
+// AppleProfileIncludeMode aliases the platform-neutral include mode; see
+// MDMProfileIncludeMode in mdm_reconcile.go.
+type AppleProfileIncludeMode = MDMProfileIncludeMode
 
 const (
-	// AppleProfileIncludeNone means the profile has no include labels —
-	// applicability is determined entirely by team, platform, and any
-	// exclude labels present.
-	AppleProfileIncludeNone AppleProfileIncludeMode = iota
-	// AppleProfileIncludeAll requires the host to be a member of every
-	// (non-broken) include label.
-	AppleProfileIncludeAll
-	// AppleProfileIncludeAny requires the host to be a member of at
-	// least one include label.
-	AppleProfileIncludeAny
+	AppleProfileIncludeNone = MDMProfileIncludeNone
+	AppleProfileIncludeAll  = MDMProfileIncludeAll
+	AppleProfileIncludeAny  = MDMProfileIncludeAny
 )
 
-// AppleProfileLabelRef is a single label reference attached to a profile.
-// A nil LabelID means the label was deleted (the assignment is "broken").
-type AppleProfileLabelRef struct {
-	LabelID   *uint
-	CreatedAt time.Time
-	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic,
-	// 1=manual. Needed by the exclude-any handler so dynamic labels that
-	// were created after a host's last label_updated_at are treated as
-	// "results not yet reported" instead of "host is not a member".
-	LabelMembershipType int
-}
+// AppleProfileLabelRef aliases the platform-neutral label reference; see
+// MDMProfileLabelRef in mdm_reconcile.go.
+type AppleProfileLabelRef = MDMProfileLabelRef
 
-// AppleLabeledEntity is the minimal view of a label-gated Apple MDM
-// entity (profile or declaration) that the team/platform/label dispatcher
-// and the per-mode handlers need. The same dispatcher and handlers run
-// against both AppleProfileForReconcile and AppleDeclarationForReconcile
-// so the rules cannot drift between the two reconcilers.
-type AppleLabeledEntity interface {
-	GetTeamID() uint
-	GetIncludeMode() AppleProfileIncludeMode
-	GetIncludeLabels() []AppleProfileLabelRef
-	GetExcludeLabels() []AppleProfileLabelRef
-	HasBrokenLabel() bool
-}
+// AppleLabeledEntity aliases the platform-neutral label-gated entity view;
+// see MDMLabeledEntity in mdm_reconcile.go. Both AppleProfileForReconcile
+// and AppleDeclarationForReconcile implement it so the same dispatcher and
+// handlers run against both Apple reconcilers as well as other platforms'
+// reconcilers.
+type AppleLabeledEntity = MDMLabeledEntity
 
 // AppleProfileForReconcile is the profile data needed by the batched
 // reconciler to compute desired state per host in memory.
@@ -539,7 +516,7 @@ func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { r
 // exempt from removal (matches legacy behaviour: a profile with a broken
 // label is never auto-removed from a host that already has it).
 func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(p.IncludeLabels) || anyAppleLabelBroken(p.ExcludeLabels)
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
 // AppleDeclarationForReconcile is the declaration data needed by the
@@ -580,18 +557,7 @@ func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef
 
 // HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
 func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(d.IncludeLabels) || anyAppleLabelBroken(d.ExcludeLabels)
-}
-
-// anyAppleLabelBroken reports whether any label reference has a nil
-// LabelID (the label was deleted, leaving the assignment "broken").
-func anyAppleLabelBroken(labels []AppleProfileLabelRef) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return true
-		}
-	}
-	return false
+	return anyMDMLabelBroken(d.IncludeLabels) || anyMDMLabelBroken(d.ExcludeLabels)
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk

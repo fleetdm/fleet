@@ -7,7 +7,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
-import certificatesAPI, { ICertificate } from "services/entities/certificates";
+import certificatesAPI from "services/entities/certificates";
 import { getErrorReason } from "interfaces/errors";
 
 import InputField from "components/forms/fields/InputField";
@@ -35,14 +35,12 @@ export interface IAddCertFormData {
 }
 
 interface IAddCertModalProps {
-  existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
 const AddCertModal = ({
-  existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
@@ -64,10 +62,7 @@ const AddCertModal = ({
     subjectAlternativeName?: string;
   }>({});
 
-  const validations = useMemo(
-    () => generateFormValidations(existingCTs || []),
-    [existingCTs]
-  );
+  const validations = useMemo(() => generateFormValidations(), []);
 
   // formValidation is derived from formData + attemptedSubmit; computing it during render via
   // useMemo keeps it in lockstep with its inputs without scattering setFormValidation calls
@@ -185,7 +180,6 @@ const AddCertModal = ({
           parseTarget
           placeholder="VPN certificate"
           autofocus
-          ignore1password
         />
         <DropdownWrapper
           label="Certificate authority (CA)"

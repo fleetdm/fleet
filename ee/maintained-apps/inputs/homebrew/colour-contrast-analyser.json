@@ -1,0 +1,10 @@
+{
+  "name": "Colour Contrast Analyser",
+  "unique_identifier": "com.electron.cca",
+  "token": "colour-contrast-analyser",
+  "installer_format": "dmg",
+  "slug": "colour-contrast-analyser/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

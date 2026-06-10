@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           fetch-depth: 0  # full history needed to compute commit timestamp
+          persist-credentials: false
 
       - name: Verify 72-hour incubation
         if: github.event_name == 'pull_request'

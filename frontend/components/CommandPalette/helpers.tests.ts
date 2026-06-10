@@ -287,7 +287,17 @@ describe("CommandPalette helpers", () => {
       expect(vpp?.label).toContain("Edit");
     });
 
-    it("shows team-scoped policy automations when premium and team selected", () => {
+    it("exposes Manage policy automations as a flat entry that deep-links into AutomationsModal", () => {
+      // Previously the palette listed Tickets & webhooks / Install
+      // software / Run script / Calendar / Conditional access as
+      // sub-items, each with its own ?manage_automations=<section> URL.
+      // ManagePoliciesPage never parsed those params, so all five were
+      // dead links. AutomationsModal also dropped its Install software
+      // / Run script sections (those are per-policy now), and the modal
+      // has no per-section URL trigger. The palette now mirrors the
+      // reports pattern: a single entry whose path is
+      // /policies?manage_automations=1, which the page reads to open
+      // the modal at its single shared body.
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
@@ -297,47 +307,56 @@ describe("CommandPalette helpers", () => {
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      expect(policyAutomations?.subItems?.length).toBeGreaterThan(1);
-
-      const subIds = policyAutomations?.subItems?.map((s) => s.id) ?? [];
-      expect(subIds).toContain("manage-policy-automations-install-software");
-      expect(subIds).toContain("manage-policy-automations-calendar");
+      expect(policyAutomations).toBeDefined();
+      expect(policyAutomations?.subItems).toBeUndefined();
+      expect(policyAutomations?.path).toContain("manage_automations=1");
     });
 
-    it("excludes team-scoped policy automations when no team selected", () => {
+    it("hides calendar + conditional-access keywords on All fleets (modal renders only Webhooks/tickets there)", () => {
       const items = buildPaletteItems(BASE_CONTEXT);
-
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      // Only webhooks should be present (no team-scoped items)
-      expect(policyAutomations?.subItems?.length).toBe(1);
-      expect(policyAutomations?.subItems?.[0].id).toBe(
-        "manage-policy-automations-webhooks"
-      );
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).not.toContain("calendar");
+      expect(keywords).not.toContain("google calendar");
+      expect(keywords).not.toContain("conditional access");
+      expect(keywords).not.toContain("sso");
     });
 
-    it("on Unassigned, shows install-software / run-script / conditional-access but NOT calendar", () => {
-      // ManagePoliciesPage allows these three automations on No team
-      // but disables Calendar events without a specific fleet. The
-      // palette must match — earlier all four were gated together on
-      // hasTeamSelected, which dropped them all on Unassigned.
+    it("hides calendar keywords on Unassigned (Calendar section is disabled there) but keeps conditional access", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
       });
-
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
       );
-      const subIds = policyAutomations?.subItems?.map((s) => s.id) ?? [];
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).not.toContain("calendar");
+      expect(keywords).not.toContain("google calendar");
+      expect(keywords).toContain("conditional access");
+      expect(keywords).toContain("sso");
+    });
 
-      expect(subIds).toContain("manage-policy-automations-webhooks");
-      expect(subIds).toContain("manage-policy-automations-install-software");
-      expect(subIds).toContain("manage-policy-automations-run-script");
-      expect(subIds).toContain("manage-policy-automations-conditional-access");
-      expect(subIds).not.toContain("manage-policy-automations-calendar");
+    it("includes all keywords on a specific team", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+      const policyAutomations = items.find(
+        (i) => i.id === "manage-policy-automations"
+      );
+      const keywords = policyAutomations?.keywords ?? [];
+      expect(keywords).toContain("webhook");
+      expect(keywords).toContain("calendar");
+      expect(keywords).toContain("google calendar");
+      expect(keywords).toContain("conditional access");
+      expect(keywords).toContain("sso");
     });
 
     it("excludes certificates and passwords for technicians", () => {
@@ -431,6 +450,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("add-vpp-app");
       expect(ids).not.toContain("add-android-app-store-app");
       expect(ids).not.toContain("add-custom-package");
+      expect(ids).not.toContain("add-self-service-category");
       expect(ids).not.toContain("add-script");
       expect(ids).not.toContain("add-custom-variable");
     });
@@ -447,6 +467,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("add-vpp-app");
       expect(ids).toContain("add-android-app-store-app");
       expect(ids).toContain("add-custom-package");
+      expect(ids).toContain("add-self-service-category");
       expect(ids).toContain("add-script");
       expect(ids).toContain("add-custom-variable");
     });
@@ -479,6 +500,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("add-vpp-app");
       expect(ids).not.toContain("add-android-app-store-app");
       expect(ids).not.toContain("add-custom-package");
+      expect(ids).not.toContain("add-self-service-category");
       // Sanity: non-software write actions still surface.
       expect(ids).toContain("add-hosts");
     });
@@ -1227,6 +1249,72 @@ describe("CommandPalette helpers", () => {
         { text: "tup ", matched: false },
         { text: "se", matched: true },
         { text: "tup", matched: false },
+      ]);
+    });
+
+    it("slices the original text correctly when a match follows a length-changing case fold", () => {
+      // "İ" (U+0130) lowercases to "i̇" (U+0069 + U+0307), expanding
+      // 1 char into 2. A naive textLower.indexOf + text.slice would find
+      // "stan" at lower-index 2 (the i + combining dot pushed it
+      // forward), then slice the original at [2, 6] — producing "tanb"
+      // instead of "stan". The offset map translates the lower-coord
+      // range back to the original-text range.
+      const result = highlightMatches("İstanbul", "stan");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      const matched = result.filter((s) => s.matched).map((s) => s.text);
+      expect(matched).toEqual(["stan"]);
+    });
+
+    it("matches an ASCII query against a source char whose lowercase expands (İ → i̇)", () => {
+      // utf8mb4_unicode_ci treats İ and i as equivalent, so the backend
+      // returns "İstanbul" for query "i". The frontend must do the same
+      // or rows render with zero highlights. The match in textLower
+      // ("i̇stanbul") ends mid-folded-char; the offset map expands it
+      // to cover the whole "İ".
+      const result = highlightMatches("İstanbul", "i");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      expect(result[0]).toEqual({ text: "İ", matched: true });
+    });
+
+    it("matches a multi-char-lowercased query against the source char that produced it", () => {
+      // Query "İ" lowercases to "i̇" (2 chars); source "İ" also lowercases
+      // to "i̇". The whole source char should highlight in its original
+      // form.
+      const result = highlightMatches("İstanbul", "İ");
+      expect(result.map((s) => s.text).join("")).toBe("İstanbul");
+      expect(result[0]).toEqual({ text: "İ", matched: true });
+    });
+
+    it("folds supplementary-plane characters (Adlam)", () => {
+      // U+1E900 (Adlam capital A) lowercases to U+1E922 (Adlam small a).
+      // Per-code-unit folding would leave the lone surrogates unchanged
+      // and silently drop the match.
+      const result = highlightMatches("\u{1E900}stanbul", "\u{1E922}stanbul");
+      expect(result).toEqual([{ text: "\u{1E900}stanbul", matched: true }]);
+    });
+
+    it("matches a multi-char ASCII query across a length-changing fold", () => {
+      // 'İ' → 'i' + combining dot splits the run; without combining-mark
+      // stripping, indexOf('istanbul') in the folded text returns -1.
+      const result = highlightMatches("İstanbul", "istanbul");
+      expect(result).toEqual([{ text: "İstanbul", matched: true }]);
+    });
+
+    it("matches accent-insensitively to mirror utf8mb4_unicode_ci", () => {
+      // Backend returns 'Café Server' for query 'cafe'; highlighter must
+      // do the same or the row renders with zero <mark> tags.
+      const result = highlightMatches("Café Server", "cafe");
+      expect(result).toEqual([
+        { text: "Café", matched: true },
+        { text: " Server", matched: false },
+      ]);
+    });
+
+    it("matches when the query itself carries an accent", () => {
+      const result = highlightMatches("Cafe Server", "café");
+      expect(result).toEqual([
+        { text: "Cafe", matched: true },
+        { text: " Server", matched: false },
       ]);
     });
   });

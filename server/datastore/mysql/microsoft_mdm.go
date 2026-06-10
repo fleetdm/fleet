@@ -89,6 +89,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		credentials_acknowledged,
 		poll_schedule_relaxed,
 		fleetd_sync_capable,
+		has_pending_commands,
 		created_at,
 		updated_at,
 		host_uuid
@@ -303,16 +304,16 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 // windowsMDMHasPendingCommandsExpr computes whether an enrollment (aliased e) has queued, unacknowledged commands other than internal
 // poll-schedule Replaces. It backs the denormalized mdm_windows_enrollments.has_pending_commands flag. The single ? placeholder is the
 // poll-schedule LocURI to exclude.
+//
+// Pending is "queued with acked_at still NULL": the ack transaction stamps acked_at on the rows it records results for
+// (soft dequeue), so this is an index probe on (enrollment_id, acked_at) over only the actually-pending rows.
 const windowsMDMHasPendingCommandsExpr = `EXISTS (
 	SELECT 1
 	FROM windows_mdm_command_queue q
 	JOIN windows_mdm_commands c ON c.command_uuid = q.command_uuid
 	WHERE q.enrollment_id = e.id
+		AND q.acked_at IS NULL
 		AND c.target_loc_uri <> ?
-		AND NOT EXISTS (
-			SELECT 1 FROM windows_mdm_command_results r
-			WHERE r.enrollment_id = q.enrollment_id AND r.command_uuid = q.command_uuid
-		)
 )`
 
 // recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs refreshes the has_pending_commands flag for the given enrollments by evaluating the
@@ -325,8 +326,14 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 	}
 	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
 	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+		// The has_pending_commands = 1 guard is defense-in-depth, not the primary idle-path optimization: the management
+		// session already skips the refresh entirely (no statement at all) when the flag loaded at session start is 0,
+		// so this clause only matters for callers that do not pre-gate, or when the loaded flag was stale. It is safe
+		// because the refresh only exists for the 1 -> 0 transition - the enqueue paths own 0 -> 1 by setting the flag
+		// directly.
 		stmt, args, err := sqlx.In(
-			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
+			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+
+				` WHERE e.id IN (?) AND e.has_pending_commands = 1`,
 			syncml.DMClientPollIntervalLocURI, batch,
 		)
 		if err != nil {
@@ -337,6 +344,16 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 		}
 		return nil
 	})
+}
+
+// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for one enrollment on the
+// writer. The management session flow calls it at most once per OMA-DM session: only when the pending-commands fetch for
+// the reply comes back empty (the session has drained the queue, so the flag may flip to 0). Mid-session messages skip it
+// entirely. The flag provably stays 1 while commands remain queued, having been set by the enqueue paths. Running it
+// outside the ack transaction is safe: the EXISTS recompute is authoritative against the writer, so a concurrent enqueue
+// between the fetch and this refresh still lands on has_pending_commands = 1.
+func (ds *Datastore) MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error {
+	return ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, ds.writer(ctx), []uint{enrollmentID})
 }
 
 // markMDMWindowsHasPendingCommandsByEnrollmentIDs sets has_pending_commands = 1 for the given enrollments without recomputing the EXISTS.
@@ -890,21 +907,12 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 
 // MDMWindowsGetPendingCommands retrieves all commands awaiting execution for the given enrollment.
 func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
-	// Fast path: probe the queue. An MDM management session runs this query on every
-	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
-	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
-	// idle path does not go through a sql.ErrNoRows branch.
-	// Queue rows now persist after ACK (cleaned by periodic GC), so the probe
-	// must also exclude rows that already have a result in
-	// windows_mdm_command_results.
+	// Fast path: probe the queue. An MDM management session runs this query on every check-in, and the overwhelming majority of
+	// devices have nothing queued, so short-circuit before paying for the fetch JOIN. SELECT EXISTS always returns a row, so the idle
+	// path does not go through a sql.ErrNoRows branch. This is an index probe on (enrollment_id, acked_at).
 	const probe = `SELECT EXISTS(
 		SELECT 1 FROM windows_mdm_command_queue wmcq
-		WHERE wmcq.enrollment_id = ?
-		AND NOT EXISTS (
-			SELECT 1 FROM windows_mdm_command_results wmcr
-			WHERE wmcr.enrollment_id = wmcq.enrollment_id
-			AND wmcr.command_uuid = wmcq.command_uuid
-		)
+		WHERE wmcq.enrollment_id = ? AND wmcq.acked_at IS NULL
 	)`
 	var hasPending bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
@@ -929,14 +937,7 @@ ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
 	wmcq.enrollment_id = ? AND
-	NOT EXISTS (
-		SELECT 1
-		FROM
-			windows_mdm_command_results wmcr
-		WHERE
-			wmcr.enrollment_id = wmcq.enrollment_id AND
-			wmcr.command_uuid = wmcq.command_uuid
-	)
+	wmcq.acked_at IS NULL
 ORDER BY
 	wmc.created_at ASC
 `
@@ -1132,10 +1133,25 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// Acknowledgments may have drained this enrollment's pending commands; refresh the denormalized flag in
-		// this same transaction so the orbit-config hot path reflects it on the next check-in.
-		if err := ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, []uint{enrolledDevice.ID}); err != nil {
-			return err
+		// Soft-dequeue the commands we just recorded results for: stamp acked_at on exactly those queue rows, in the
+		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. This is
+		// the ONLY path that inserts windows_mdm_command_results; any new results-insert path must stamp acked_at too,
+		// or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC range-deletes
+		// stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age floor is
+		// measured from the original acknowledgment.
+		//
+		// The has_pending_commands recompute deliberately does NOT happen here: it runs at most once per OMA-DM session (in
+		// getManagementResponse, when the reply-building pending-commands fetch finds no non-poll commands remaining and the flag was
+		// loaded as 1 at session start), not once per message.
+		markStmt, markArgs, err := sqlx.In(
+			`UPDATE windows_mdm_command_queue SET acked_at = COALESCE(acked_at, NOW(6)) WHERE enrollment_id = ? AND command_uuid IN (?)`,
+			enrolledDevice.ID, matchingCmdUUIDs,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build acked_at stamp for queue rows")
+		}
+		if _, err := tx.ExecContext(ctx, markStmt, markArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "stamp acked_at on queue rows")
 		}
 
 		return nil
@@ -2464,9 +2480,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 
 	UNION
 
-	-- label-based profiles where the host is a member of all the labels (include-all).
-	-- by design, "include" labels cannot match if they are broken (the host cannot be
-	-- a member of a deleted label).
+	-- include-all only (no exclude labels): host must be a member of every include label.
+	-- broken include labels disqualify the profile.
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2491,6 +2506,10 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
@@ -2499,11 +2518,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 
 	UNION
 
-	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
-	-- explicitly ignore profiles with broken excluded labels so that they are never applied,
-	-- and ignore profiles that depend on labels created _after_ the label_updated_at timestamp
-	-- of the host (because we don't have results for that label yet, the host may or may not be
-	-- a member).
+	-- exclude-any only (no include labels): host must NOT be a member of any exclude label.
+	-- broken or not-yet-scanned dynamic exclude labels disqualify the profile.
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2513,10 +2529,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
-		-- this helps avoid the case where the host is not a member of a label
-		-- just because it hasn't reported results for that label yet. But we
-		-- only need consider this for dynamic labels - manual(type=1) can be
-		-- considered at any time
 		SUM(
 			CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at THEN 1
 			WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
@@ -2537,18 +2549,20 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
 	HAVING
-		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
 		count_profile_labels > 0 AND count_profile_labels = count_non_broken_labels AND count_profile_labels = count_host_updated_after_labels AND count_host_labels = 0
 
 	UNION
 
-	-- label-based profiles where the host is a member of any of the labels (include-any).
-	-- by design, "include" labels cannot match if they are broken (the host cannot be
-	-- a member of a deleted label).
+	-- include-any only (no exclude labels): host must be a member of at least one include label.
+	-- broken include labels are skipped (host can't be a member of a deleted label).
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
@@ -2573,11 +2587,120 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
 		( %s )
 	GROUP BY
 		mwcp.profile_uuid, mwcp.name, h.uuid
 	HAVING
 		count_profile_labels > 0 AND count_host_labels >= 1
+
+	UNION
+
+	-- include-all + exclude-any: host must be in ALL include labels AND NOT in ANY exclude label.
+	-- the include and exclude rows are counted separately via conditional aggregation.
+	-- broken include labels or broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
+		h.uuid as host_uuid,
+		SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mcpl.label_id
+			LEFT OUTER JOIN label_membership lm_inc
+				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
+			LEFT OUTER JOIN label_membership lm_exc
+				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+	WHERE
+		h.platform = 'windows' AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0 AND require_all = 1
+		) AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		-- include gate: host in all include labels (no broken include labels)
+		count_profile_labels > 0 AND count_non_broken_labels = count_profile_labels AND count_host_labels = count_profile_labels AND
+		-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels (reusing count_host_updated_after_labels)
+		count_host_updated_after_labels = 0
+
+	UNION
+
+	-- include-any + exclude-any: host must be in AT LEAST ONE include label AND NOT in ANY exclude label.
+	-- broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
+		h.uuid as host_uuid,
+		SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+		SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+		SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+			WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+			WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+			ELSE 0 END) as count_host_updated_after_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN labels lbl
+				ON lbl.id = mcpl.label_id
+			LEFT OUTER JOIN label_membership lm_inc
+				ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = h.id AND mcpl.exclude = 0
+			LEFT OUTER JOIN label_membership lm_exc
+				ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = h.id AND mcpl.exclude = 1
+	WHERE
+		h.platform = 'windows' AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 0 AND require_all = 0
+		) AND
+		EXISTS (
+			SELECT 1 FROM mdm_configuration_profile_labels
+			WHERE windows_profile_uuid = mwcp.profile_uuid AND exclude = 1
+		) AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		-- include gate: host in at least one include label
+		count_host_labels >= 1 AND
+		-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels
+		count_host_updated_after_labels = 0
 `
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
@@ -2640,7 +2763,7 @@ const windowsProfilesToInstallQuery = `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var profiles []*fleet.MDMWindowsProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
+	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install")
 	}
@@ -2663,7 +2786,7 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 		hostFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
 	}
 
-	toInstallQuery := fmt.Sprintf(windowsProfilesToInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter)
+	toInstallQuery := fmt.Sprintf(windowsProfilesToInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter, hostFilter, hostFilter)
 
 	// use a 10k host batch size to match what we do on the macOS side.
 	selectProfilesBatchSize := 10_000
@@ -2687,10 +2810,12 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 				fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
 			)
 		} else {
-			stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
+			stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
 		}
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
@@ -2758,8 +2883,8 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 	// UNION arms so the optimizer filters early. The remove query also
 	// gets the cursor in its 5th slot (outer WHERE on hmwp.host_uuid)
 	// for a clean PK range scan on host_mdm_windows_profiles.
-	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
-	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
+	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
 
 	stmt := fmt.Sprintf(`
 		SELECT host_uuid FROM (
@@ -2772,13 +2897,13 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 	`, toInstall, toRemove, batchSize)
 
 	// Placeholder order in stmt:
-	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
-	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
+	//   install branches: 6 cursor (h.uuid > ?), 2 op-type (install, remove)
+	//   remove branches:  6 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		afterHostUUID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
@@ -2863,7 +2988,7 @@ const windowsProfilesToRemoveQuery = `
 `
 
 func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx sqlx.ExtContext) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
-	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
+	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove")
 	}
@@ -2889,7 +3014,7 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	}
 
 	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery,
-		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
+		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
 		outerFilter,
 	)
 
@@ -2916,9 +3041,13 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
 				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 			)
 		} else {
 			stmt, args, err = sqlx.In(toRemoveQuery,
+				batchUUIDs,
+				batchUUIDs,
 				batchUUIDs,
 				batchUUIDs,
 				batchUUIDs,
@@ -3838,18 +3967,15 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 
 func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	const batchSize = 1000
-	// Multi-table DELETE does not support LIMIT directly, so we use a
-	// subquery to select the rows to delete in batches.
+	// Acknowledged rows carry acked_at (stamped in the ack transaction), so GC is a single-table index range delete on
+	// (enrollment_id, acked_at)'s acked_at part. The 1-hour age floor preserves the resend/debugging window the join-based predicate
+	// had via r.created_at. ORDER BY makes the LIMIT deterministic (oldest acknowledged rows first) and keeps the optimizer on the
+	// acked_at index for a bounded range delete.
 	const stmt = `
-DELETE q FROM windows_mdm_command_queue q
-INNER JOIN (
-    SELECT q2.enrollment_id, q2.command_uuid
-    FROM windows_mdm_command_queue q2
-    INNER JOIN windows_mdm_command_results r
-        ON r.enrollment_id = q2.enrollment_id AND r.command_uuid = q2.command_uuid
-    WHERE r.created_at < NOW() - INTERVAL 1 HOUR
-    LIMIT ?
-) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
+DELETE FROM windows_mdm_command_queue
+WHERE acked_at IS NOT NULL AND acked_at < NOW() - INTERVAL 1 HOUR
+ORDER BY acked_at
+LIMIT ?`
 	const maxBatches = 500 // cap total work per cron tick (500k rows)
 	var totalDeleted int64
 	exhausted := true

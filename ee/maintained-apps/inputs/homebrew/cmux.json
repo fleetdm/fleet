@@ -1,0 +1,10 @@
+{
+  "name": "cmux",
+  "unique_identifier": "com.cmuxterm.app",
+  "token": "cmux",
+  "installer_format": "dmg",
+  "slug": "cmux/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 )
@@ -22,119 +23,30 @@ import (
 const HoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
 // EntityAppliesToHost is the SHARED top-level dispatcher for Apple MDM
-// label-gated entities (profiles and declarations). It applies team and
-// platform gates, then composes the include + exclude label handlers
-// carried by the entity.
+// label-gated entities (profiles and declarations). It applies the Apple
+// platform gate, then delegates the team + include/exclude label gates to
+// the platform-neutral dispatcher in server/mdm/reconcile.
 //
 // Both the batched profile and declaration reconcilers — and the per-host
-// enrollment path — route through this function. The handlers themselves
-// operate on []AppleProfileLabelRef and are entity-agnostic. This is the
-// single source of truth for "does this Apple MDM entity apply to this
-// host" so label / team / platform semantics cannot drift across paths.
+// enrollment path — route through this function. The shared package is
+// the single source of truth for "does this label-gated MDM entity apply
+// to this host" so label / team semantics cannot drift across paths or
+// platforms.
 func EntityAppliesToHost(
 	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
 ) bool {
-	if e.GetTeamID() != host.EffectiveTeamID() {
-		return false
-	}
 	if !IsEligiblePlatform(host.Platform) {
 		return false
 	}
-
-	if e.GetIncludeMode() != fleet.AppleProfileIncludeNone {
-		var ok bool
-		switch e.GetIncludeMode() {
-		case fleet.AppleProfileIncludeAll:
-			ok = HandlerIncludeAll(e.GetIncludeLabels(), hostLabels)
-		case fleet.AppleProfileIncludeAny:
-			ok = HandlerIncludeAny(e.GetIncludeLabels(), hostLabels)
-		default:
-			return false
-		}
-		if !ok {
-			return false
-		}
-	}
-
-	if exc := e.GetExcludeLabels(); len(exc) > 0 {
-		if HandlerExcludeAny(exc, host, hostLabels) {
-			return false
-		}
-	}
-
-	return true
+	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels)
 }
 
 // IsEligiblePlatform reports whether the host's platform is one of the
 // Apple platforms this reconciler can manage.
 func IsEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
-}
-
-// HandlerIncludeAll: host must be a member of every (non-broken) include
-// label. A broken label disqualifies the entity, mirroring the legacy SQL
-// where include-* with a broken label produces no desired-state row.
-func HandlerIncludeAll(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	if len(labels) == 0 {
-		return false
-	}
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return false
-		}
-		if _, ok := hostLabels[*l.LabelID]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-// HandlerIncludeAny: host must be a member of at least one include label.
-// Broken labels can't match (host can't be a member of a deleted label)
-// so they're silently skipped.
-func HandlerIncludeAny(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			continue
-		}
-		if _, ok := hostLabels[*l.LabelID]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// HandlerExcludeAny: entity passes the exclude gate when the host is NOT
-// a member of any referenced label, with two safety rules:
-//
-//   - Any broken exclude label disqualifies the entity entirely (we can't
-//     prove the exclusion).
-//   - Dynamic labels created after the host's last label scan are treated
-//     as "results not yet reported" — also disqualify, so we don't
-//     install a profile that the not-yet-scanned label would exclude.
-//     Manual labels (membership_type=1) skip this timing check.
-//     Host vital labels runs it's own cron to associate, skip the timing check.
-//
-// Returns true if the host should be excluded, false if the host passes the exclude gate.
-func HandlerExcludeAny(
-	labels []fleet.AppleProfileLabelRef,
-	host *fleet.AppleHostReconcileInfo,
-	hostLabels map[uint]struct{},
-) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return true
-		}
-		if l.LabelMembershipType == int(fleet.LabelMembershipTypeDynamic) && !l.CreatedAt.IsZero() && host.LabelUpdatedAt.Before(l.CreatedAt) {
-			return true
-		}
-		if _, isMember := hostLabels[*l.LabelID]; isMember {
-			return true
-		}
-	}
-	return false
 }
 
 // ComputeReconcileDeltas evaluates desired profile state for each host in
@@ -870,4 +782,65 @@ func ReconcileProfilesForEnrollingHost(
 		ctx, ds, commander, nil, logger,
 		appConfig, certProfilesLimit, toInstall, toRemove,
 	)
+}
+
+// PendingProfilesForHost returns the (toInstall, toRemove) deltas for a
+// single host, including user-scoped profiles.
+func PendingProfilesForHost(
+	ctx context.Context,
+	ds fleet.Datastore,
+	hostUUID string,
+) (toInstall, toRemove []*fleet.MDMAppleProfilePayload, err error) {
+	host, err := ds.GetAppleMDMHostForReconcile(ctx, hostUUID)
+	if err != nil || host == nil {
+		return nil, nil, err
+	}
+
+	profs, err := ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	profilesWithBrokenLabel := make(map[string]struct{})
+	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 2)
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range profs {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMAppleProfilesByUUIDs(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	toInstall, toRemove = ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+	)
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
+	return toInstall, toRemove, nil
 }

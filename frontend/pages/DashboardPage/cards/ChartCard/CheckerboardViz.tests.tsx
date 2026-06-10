@@ -317,6 +317,60 @@ describe("CheckerboardViz", () => {
     }
   });
 
+  it("renders all non-zero cells at the brightest level when relativeScale has a single distinct value", async () => {
+    // With only one distinct non-zero value there's no range to grade
+    // against (min === max). Rather than collapsing everything to the
+    // dimmest level, every non-zero cell should render at level-5.
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 0,
+        percentage: 0,
+      },
+      {
+        timestamp: "2026-03-01T02:00:00",
+        label: "Mar 1, 2am",
+        value: 7,
+        percentage: 1,
+      },
+      {
+        timestamp: "2026-03-01T04:00:00",
+        label: "Mar 1, 4am",
+        value: 7,
+        percentage: 1,
+      },
+      {
+        timestamp: "2026-03-01T06:00:00",
+        label: "Mar 1, 6am",
+        value: 7,
+        percentage: 1,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={points} selectedDays={1} relativeScale />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    const classNames = Array.from(container.querySelectorAll("rect")).map(
+      (r) => r.getAttribute("class") || ""
+    );
+    // 0% still renders at level-0.
+    expect(classNames.some((c) => c.includes("--level-0"))).toBe(true);
+    // Every non-zero cell renders at the brightest level (5)...
+    classNames
+      .filter((c) => !c.includes("--level-0"))
+      .forEach((c) => {
+        expect(c).toContain("--level-5");
+      });
+    // ...and none fall through to the dimmest non-zero level (1).
+    expect(classNames.some((c) => c.includes("--level-1"))).toBe(false);
+  });
+
   it("trims leading days when given more days than selectedDays", async () => {
     // Caller requests `selectedDays + 1` days of data so the trailing
     // `selectedDays` calendar days are full even for users west of UTC.

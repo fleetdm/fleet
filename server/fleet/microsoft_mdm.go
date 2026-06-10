@@ -880,9 +880,13 @@ type MDMWindowsEnrolledDevice struct {
 	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
 	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
 	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
-	FleetdSyncCapable bool      `db:"fleetd_sync_capable"`
-	CreatedAt         time.Time `db:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at"`
+	FleetdSyncCapable bool `db:"fleetd_sync_capable"`
+	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
+	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
+	// writer-side statements.
+	HasPendingCommands bool      `db:"has_pending_commands"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

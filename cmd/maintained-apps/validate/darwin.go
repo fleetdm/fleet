@@ -262,6 +262,17 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				}
 			}
 
+			// Ableton Live's version format includes a build identifier in parentheses
+			// (e.g., "12.4.1 (2026-05-20_fbe5fe99c9)") which doesn't match the installer
+			// version (e.g., "12.4.1"). Check if the version starts with the expected
+			// version to handle this case.
+			if uniqueAppIdentifier == "com.ableton.live" {
+				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
+					logger.InfoContext(ctx, "Ableton Live detected - version matches with build identifier")
+					return true, nil
+				}
+			}
+
 			// WhatsApp: Homebrew sometimes reports a newer version than what's actually available.
 			// If version doesn't match but app is installed, fall back to existence-only validation.
 			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
