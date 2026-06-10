@@ -262,9 +262,26 @@ import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import JabraDirect from "./JabraDirect";
 import JetBrainsToolbox from "./JetBrainsToolbox";
+import Kaleidoscope from "./Kaleidoscope";
+import Kap from "./Kap";
+import Kdenlive from "./Kdenlive";
 import KeePassXc from "./KeePassXc";
 import KeeperPasswordManager from "./KeeperPasswordManager";
+import Keepingyouawake from "./Keepingyouawake";
+import Keeweb from "./Keeweb";
 import Keka from "./Keka";
+import Keyboardcleantool from "./Keyboardcleantool";
+import KeyboardCowboy from "./KeyboardCowboy";
+import KeyboardMaestro from "./KeyboardMaestro";
+import Keycastr from "./Keycastr";
+import Keyclu from "./Keyclu";
+import KeystoreExplorer from "./KeystoreExplorer";
+import Kiro from "./Kiro";
+import KiroCli from "./KiroCli";
+import Klokki from "./Klokki";
+import Knime from "./Knime";
+import Knockknock from "./Knockknock";
+import Krisp from "./Krisp";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
 import Linear from "./Linear";
@@ -336,7 +353,11 @@ import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
 import Python313 from "./Python313";
 import Python314 from "./Python314";
+import Qlab from "./Qlab";
+import Qlmarkdown from "./Qlmarkdown";
+import QspacePro from "./QspacePro";
 import Quip from "./Quip";
+import Qview from "./Qview";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
 import Raycast from "./Raycast";
@@ -760,9 +781,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hyper: Hyper,
   inkscape: Inkscape,
   "jabra direct": JabraDirect,
+  kaleidoscope: Kaleidoscope,
+  kap: Kap,
+  kdenlive: Kdenlive,
   keepassxc: KeePassXc,
   "keeper password manager": KeeperPasswordManager,
+  keepingyouawake: Keepingyouawake,
+  keeweb: Keeweb,
   keka: Keka,
+  "keyboard cowboy": KeyboardCowboy,
+  "keyboard maestro": KeyboardMaestro,
+  keyboardcleantool: Keyboardcleantool,
+  keycastr: Keycastr,
+  keyclu: Keyclu,
+  "keystore explorer": KeystoreExplorer,
+  kiro: Kiro,
+  "kiro cli": KiroCli,
+  klokki: Klokki,
+  "knime analytics platform": Knime,
+  knockknock: Knockknock,
+  krisp: Krisp,
   lens: Lens,
   libreoffice: LibreOffice,
   maccy: Maccy,
@@ -900,7 +938,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pycharm: PyCharm,
   "python 3.13": Python313,
   "python 3.14": Python314,
+  qlab: Qlab,
+  "qspace pro": QspacePro,
   quip: Quip,
+  qview: Qview,
   "r for windows": R,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
@@ -916,6 +957,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  "sbarex qlmarkdown": Qlmarkdown,
   secretive: Secretive,
   "sequel ace": SequelAce,
   "sf symbols": SfSymbols,
