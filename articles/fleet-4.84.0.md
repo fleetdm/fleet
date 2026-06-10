@@ -134,7 +134,7 @@ GitHub issue: [#33418](https://github.com/fleetdm/fleet/issues/33418)
 - Improved performance of distributed read endpoint by reducing mutex contention in shouldUpdate using sync.RWMutex instead of sync.Mutex.
 - Allowed OTEL service name to be overridden with standard OTEL_SERVICE_NAME env var.
 - Revised which versions Fleet tests MySQL against to remove 8.0.39 and add 8.0.42.
-- Allowed typing whitespace on Settings > Integrations > Authentication (SSO) > End users form.
+- Allowed typing whitespace on Settings > Integrations > SSO > End users form.
 - Removed incorrect `report` key from get/create/modify API responses.
 - Added `(query_id, has_data, host_id, last_fetched)` index on query_results.
 - Improved database query performance for the Host Details > Reports page by adding a `has_data` virtual generated column to `query_results`.
