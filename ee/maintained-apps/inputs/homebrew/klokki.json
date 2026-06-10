@@ -1,0 +1,10 @@
+{
+  "name": "Klokki",
+  "unique_identifier": "com.klokki-launcher",
+  "token": "klokki",
+  "installer_format": "dmg",
+  "slug": "klokki/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

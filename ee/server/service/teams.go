@@ -1757,7 +1757,9 @@ func (svc *Service) editTeamFromSpec(
 
 	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
 	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
-		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		// Skip the precondition during dry-run that end-user auth SSO must be configured,
+		// since we can't tell here if the GitOps run is also doing that configuration.
+		if !opts.DryRun && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",

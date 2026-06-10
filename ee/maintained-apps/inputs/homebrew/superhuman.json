@@ -1,0 +1,10 @@
+{
+  "name": "Superhuman",
+  "unique_identifier": "com.superhuman.mail",
+  "token": "superhuman",
+  "installer_format": "zip",
+  "slug": "superhuman/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

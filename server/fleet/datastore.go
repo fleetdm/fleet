@@ -340,6 +340,9 @@ type Datastore interface {
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostByUUID returns one host whose uuid column matches exactly. Unlike
+	// HostByIdentifier, it does not fall back to other identifier columns.
+	HostByUUID(ctx context.Context, uuid string) (*Host, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields using an
 	// "identifier" string. The identifier string will be matched against the
 	// hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
