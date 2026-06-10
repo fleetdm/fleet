@@ -13,8 +13,10 @@ import (
 // for the device-info plists these endpoints handle, which are a single flat
 // dictionary of scalar values.
 const (
-	// binaryPlistMagic is the prefix that selects the binary plist decoder.
-	binaryPlistMagic = "bplist00"
+	// binaryPlistMagic is the prefix that selects the binary plist decoder. Apple doesn't fully
+	// document all the versions but bplist00 and bplist01 are known and bplist0 matches what our
+	// parser supprorts but when checking the prefix you should expect number after the 0
+	binaryPlistMagic = "bplist0"
 	plistTrailerSize = 32
 
 	maxPlistObjects = 1 << 16 // distinct objects (offset-table size)
@@ -42,7 +44,8 @@ func BoundedPlistUnmarshal(data []byte, v any) error {
 // checkBinaryPlistBounds walks a binary plist's object references, rejecting
 // input that exceeds the limits or points outside the data region.
 func checkBinaryPlistBounds(data []byte) error {
-	if len(data) < len(binaryPlistMagic)+plistTrailerSize {
+	// See comment on binaryPlistMagic above for why the +1 is needed
+	if len(data) < len(binaryPlistMagic)+1+plistTrailerSize {
 		return fmt.Errorf("%w: shorter than minimum size", errMalformedPlist)
 	}
 
