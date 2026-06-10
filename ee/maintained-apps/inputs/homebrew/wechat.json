@@ -1,0 +1,10 @@
+{
+  "name": "WeChat for Mac",
+  "unique_identifier": "com.tencent.xinWeChat",
+  "token": "wechat",
+  "installer_format": "dmg",
+  "slug": "wechat/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}
