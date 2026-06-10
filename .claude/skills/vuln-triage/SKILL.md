@@ -1,7 +1,7 @@
 ---
 name: vuln-triage
-description: Triage Fleet vulnerability false positives and false negatives across NVD, OSV, OVAL, MSRC, and Office data sources. Use when asked to "triage vuln", "investigate CVE", "fix false positive", "fix false negative", "vulnerability bug", or working on a vulnerability detection issue.
-allowed-tools: Bash(go run -tags fts5 ./tools/nvd/nvdvuln*), Bash(ls /tmp/vulndbs*), Bash(ls -la /tmp/vulndbs*), Bash(file /tmp/vulndbs/*), Bash(zcat /tmp/vulndbs/*), Bash(sqlite3 /tmp/vulndbs/*), Bash(git log*), Bash(git show*), Bash(gh issue list*), Bash(gh pr list*), Read, Grep, Glob, Edit, WebFetch
+description: Triage Fleet vulnerability false positives and false negatives across NVD, OSV, OVAL, MSRC, and Office data sources. Use when asked to "triage vuln", "investigate CVE", "fix false positive", "fix false negative", "vulnerability bug", invoked as `/vuln-triage`, or working on a vulnerability detection issue.
+allowed-tools: Bash(go run -tags fts5 ./tools/nvd/nvdvuln*), Bash(ls /tmp/vulndbs*), Bash(ls -la /tmp/vulndbs*), Bash(file /tmp/vulndbs/*), Bash(zcat /tmp/vulndbs/*), Bash(sqlite3 /tmp/vulndbs/*), Bash(curl -s https://api.osv.dev/v1/vulns/*), Bash(git log*), Bash(git show*), Bash(gh issue list*), Bash(gh pr list*), Read, Grep, Glob, Edit, WebFetch
 model: opus
 effort: high
 ---
@@ -16,12 +16,21 @@ If the systemic answer changes which scanner handles a `software.source`, propos
 
 ## Step 1: Gather inputs
 
-Required from the user (ask if missing):
+First, parse `$ARGUMENTS` for any of the fields below — invocations like `/vuln-triage Firefox 119 macOS apps CVE-2024-X false positive` already carry most of what's needed. Only ask the user for fields still missing after the parse. Echo back what you extracted so the user can correct misparses.
+
+Required fields:
 - Software `name`, `version`, and `software.source` (e.g. `apps`, `programs`, `deb_packages`, `rpm_packages`, `python_packages`, `npm_packages`, `homebrew_packages`, `chocolatey_packages`, `vscode_extensions`, `chrome_extensions`, `ios_apps`).
 - Host platform (macOS, Windows, Ubuntu/Debian, RHEL/Fedora/CentOS, Amazon Linux, Arch, iOS).
 - For macOS apps: `bundle_identifier`.
 - The CVE ID in question.
 - Direction: **false positive** (incorrectly flagged) or **false negative** (missed).
+
+If direction is **false positive**, ask one disambiguating question before continuing — which of these does the engineer believe is happening?
+- (a) Wrong CPE generated for the software (vendor/product mismatch).
+- (b) Right CPE, but NVD's affected list is wrong for this CVE.
+- (c) Right CPE and CVE, but the version comparison flagged a version that shouldn't match.
+
+The answer steers steps 5–6: (a) → CPE generation / translations; (b) → upstream-data reconciliation / feed override; (c) → version comparator. A best-guess answer is fine — it's a hypothesis, not a contract.
 
 Optional: a live Fleet URL + API token to drive nvdvuln Mode 2.
 
@@ -49,6 +58,8 @@ Use the routing table below. If the table looks stale (line numbers shifted, a c
 | `ios_apps`, `ipados_apps` | iOS/iPadOS | None — excluded from NVD | `server/vulnerabilities/nvd/cpe.go` `AllSoftwareIterator` |
 | (n/a — `os_versions` table) | Windows | **MSRC** | Operates on `os_versions`, not `software` — `server/vulnerabilities/msrc/analyzer.go` |
 
+<!-- Routing table last verified at commit f92e1e2c34. If you re-verify against current code, bump this. -->
+
 ### Detail-query → source mapping
 
 `software_macos` → `apps`. `software_windows` → `programs`. `software_linux` → `deb_packages`/`rpm_packages`/`pacman_packages`. `software_python_packages_with_users_dir` → `python_packages`. `software_npm_packages` → `npm_packages`. `software_homebrew_packages` → `homebrew_packages`. `software_chocolatey_packages` → `chocolatey_packages`. `software_vscode_extensions`, `software_jetbrains_plugins`, `software_chrome_extensions`, `software_firefox_addons`, `software_safari_extensions`, `software_ie_extensions`, `software_ios_apps`, `software_ipados_apps`.
@@ -74,9 +85,7 @@ Expected files:
 - `fleet_goval_dictionary_*.sqlite3` (Amazon Linux / RHEL kernel)
 - `macoffice/`, `winoffice/` directories
 
-If files are missing, advise the engineer:
-- Most data: `fleetctl vulnerability-data-stream --dir /tmp/vulndbs`.
-- **OSV feeds are NOT included in `vulnerability-data-stream`.** For OSV bugs, use `nvdvuln -sync -db_dir /tmp/vulndbs` (which does sync OSV) or trigger the Fleet server's OSV refresh.
+If files are missing, advise the engineer to run `fleetctl vulnerability-data-stream --dir /tmp/vulndbs`. It syncs everything listed above — NVD, OVAL, MSRC, OSV (via `osv.RefreshAll` at `cmd/fleetctl/fleetctl/vulnerability_data_stream.go:106`), macoffice, and goval-dictionary. `nvdvuln -sync` uses the same `osv.RefreshAll`, so either entry point lands the same files.
 
 Do not run sync automatically — the download is large. Tell the engineer and wait.
 
@@ -112,13 +121,17 @@ See `tools/nvd/nvdvuln/README.md`.
 
 ## Step 5: Cross-source verification (mandatory before any fix)
 
-WebFetch each of these for the CVE in question and reconcile:
+Always run the baseline. Add the conditional fetches that apply to this routing:
 
-- NVD: `https://nvd.nist.gov/vuln/detail/<CVE-ID>` — what CPEs does NVD list?
-- MITRE: `https://www.cve.org/CVERecord?id=<CVE-ID>` — canonical description.
-- GitHub Security Advisories: `https://github.com/advisories?query=<CVE-ID>` — ecosystem-accurate (npm/pip/maven/rubygems/etc.).
-- OSV.dev: `https://api.osv.dev/v1/vulns/<CVE-ID>` — affected packages with versions.
-- Vendor advisory page (apple.com/support/security, msrc.microsoft.com, mozilla.org/security/advisories, etc.) — authoritative for first-party software.
+**Baseline (always):**
+- NVD: WebFetch `https://nvd.nist.gov/vuln/detail/<CVE-ID>` — what CPEs does NVD list?
+- MITRE: WebFetch `https://www.cve.org/CVERecord?id=<CVE-ID>` — canonical description.
+- OSV.dev: `curl -s "https://api.osv.dev/v1/vulns/<CVE-ID>" > ./tmp/<CVE-ID>.osv.json` then `Read` it. The endpoint returns raw JSON; WebFetch's HTML→markdown pass mangles it.
+
+**Conditional (skip if not applicable):**
+- GHSA — only when `software.source` is a language ecosystem (`npm_packages`, `python_packages`, `gem_packages`, `maven_packages`, etc.). WebFetch `https://github.com/advisories?query=<CVE-ID>`.
+- MSRC vendor page — only when the scanner from step 2 is MSRC, or when vendor matches Microsoft. WebFetch `https://msrc.microsoft.com/update-guide/vulnerability/<CVE-ID>`.
+- First-party vendor PSIRT — only when vendor matches a first-party publisher (Apple, Mozilla, Adobe, Google for Chrome, etc.). WebFetch the relevant security advisory page.
 
 Reconcile:
 - **NVD agrees with other sources** → if Fleet still misdetects, the bug is in Fleet logic (steps 6–8).
@@ -167,8 +180,8 @@ Before suggesting a CPE matching rule, CustomCVE entry, sanitize regex, or feed 
 - Has this kind of bug been reported before for similar software? Run:
 
 ```sh
-git log --grep="<vendor or product>" -- server/vulnerabilities/
-gh issue list --search "<software> vulnerability"
+git log --oneline -20 --since=2.years --grep="<vendor or product>" -- server/vulnerabilities/
+gh issue list --limit 20 --state all --search "<software> vulnerability"
 ```
 
 If a systemic fix exists, **surface it first** in the report. Only fall back to an override when the user explicitly opts out, and frame the override as a stopgap.
@@ -177,7 +190,7 @@ If a systemic fix exists, **surface it first** in the report. Only fall back to 
 
 ## Step 10: Propose the edit
 
-Per the `Diagnose + propose edit` posture: print the exact file + line + diff intended, then apply it only after the user approves. `Edit` is in `allowed-tools` so the apply step doesn't re-prompt — the gate is the explicit approval in this step, not the tool-permission prompt.
+This skill is **diagnose-then-apply-on-approval**: print the exact file + line + diff intended in chat, wait for the user's explicit "go" (or a revised diff), then apply. `Edit` is in `allowed-tools` so the apply step doesn't re-prompt — the gate is the explicit approval in this step, not the tool-permission prompt.
 
 - Propose first, apply on approval. Never skip the propose step.
 - For `cpe_translations.json`: the file is in this repo at `server/vulnerabilities/nvd/cpe_translations.json` (republished daily into `fleetdm/nvd` releases for running servers to pull). Propose the diff against the in-repo file.
@@ -186,7 +199,7 @@ Per the `Diagnose + propose edit` posture: print the exact file + line + diff in
 
 ## Step 11: Report
 
-Mirror `fix-ci`'s end-of-run summary format. Print:
+Print this summary at the end of the run:
 
 - **Software & CVE** — `<name> <version>` on `<platform>` / `<software.source>` vs `<CVE-ID>`.
 - **Direction** — false positive | false negative.
