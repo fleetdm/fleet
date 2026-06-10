@@ -78,8 +78,9 @@ func touchFile(t *testing.T, name string) {
 }
 
 // TestDoFlagsUpdateWithEmptyFlags tests the scenario of Fleet flag `command_line_flags`
-// being set to an empty JSON document `{}` and Orbit osquery.flags file being
-// an empty file. Such scenario should trigger no update of flags.
+// being set to an empty JSON document `{}`. Setting it to `{}` is an explicit instruction
+// to clear osquery flags, so Orbit reconciles the osquery.flags file to empty (distinct
+// from command_line_flags being unset, which is covered by TestDoFlagsUpdateWithNilFlags).
 func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	rootDir := t.TempDir()
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
@@ -108,7 +109,8 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, restartQueued)
 
-	// Empty Fleet flags and osquery.flags has non-empty flags.
+	// Empty Fleet flags ({}) and osquery.flags has non-empty flags: the file is
+	// cleared and a restart is triggered.
 	restartQueued = false
 	testConfig = &fleet.OrbitConfig{
 		Flags: json.RawMessage("{}"),
@@ -118,8 +120,16 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	err = fr.Run(testConfig)
 	require.NoError(t, err)
 	require.True(t, restartQueued)
+
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Empty(t, string(contents))
 }
 
+// TestDoFlagsUpdateWithNilFlags verifies that when the server is not managing
+// osquery command-line flags (command_line_flags unset, so config.Flags is
+// nil/empty), Orbit leaves the osquery.flags file untouched, preserving any
+// pre-packaged or user-provided flags.
 func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 	rootDir := t.TempDir()
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
@@ -133,14 +143,24 @@ func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, restartQueued)
 
-	// Nil Flags + existing file: reconcile to empty + restart.
-	err = os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n--tls_dump=true\n"), 0o644)
+	// Nil Flags + existing user-provided file: file is preserved, no restart.
+	userFlags := "--verbose=true\n--tls_dump=true\n"
+	err = os.WriteFile(osqueryFlagsFile, []byte(userFlags), 0o644)
 	require.NoError(t, err)
 	err = fr.Run(&fleet.OrbitConfig{Flags: nil})
 	require.NoError(t, err)
-	require.True(t, restartQueued)
+	require.False(t, restartQueued)
 
 	contents, err := os.ReadFile(osqueryFlagsFile)
 	require.NoError(t, err)
-	require.Empty(t, string(contents))
+	require.Equal(t, userFlags, string(contents))
+
+	// Empty (but non-nil) Flags is treated the same as nil: file preserved.
+	err = fr.Run(&fleet.OrbitConfig{Flags: json.RawMessage("")})
+	require.NoError(t, err)
+	require.False(t, restartQueued)
+
+	contents, err = os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Equal(t, userFlags, string(contents))
 }
