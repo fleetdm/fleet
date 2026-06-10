@@ -596,6 +596,55 @@ in the terraform reference architecture (see `monitoring.tf`).
 
 Prometheus provides basic graphing capabilities, and integrates tightly with [Grafana](https://prometheus.io/docs/visualization/grafana/) for sophisticated visualizations.
 
+### Traces
+
+In addition to metrics, Fleet can export distributed traces using [OpenTelemetry](https://opentelemetry.io/) (OTLP). Traces show the lifecycle of a request as it flows through the Fleet server, including database queries and cron jobs, which is useful for diagnosing latency and errors that are hard to reproduce outside production.
+
+#### Enabling traces
+
+Set the following on each Fleet server, then point it at an OTLP collector such as [SigNoz](https://signoz.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), or any OpenTelemetry-compatible backend:
+
+```bash
+export FLEET_LOGGING_TRACING_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_SERVICE_NAME=fleet
+# Optional: export logs alongside traces.
+export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
+```
+
+See [logging_tracing_enabled](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) for the full list of related settings. For a local development setup, see [tools/signoz](https://github.com/fleetdm/fleet/tree/main/tools/signoz).
+
+#### Sampling
+
+Tracing every request on a large fleet would emit an unsustainable volume of spans: agent endpoints such as osquery distributed read/write and orbit check-ins dominate request volume. Fleet uses route-aware head sampling so tracing can stay enabled in production at a reasonable cost. Each route is assigned to a tier:
+
+| Tier | Default sample rate | Routes |
+| ---- | ------------------- | ------ |
+| Never | 0% | Liveness and infrastructure paths (`/healthz`, `/version`, `/metrics`). |
+| High volume | 0.1% | Agent endpoints (osquery distributed read/write, config, log uploads; orbit config and pings; device ping and desktop). |
+| Standard | 2% | Admin and UI read endpoints (hosts, software, policies, dashboard, etc.). |
+| Always | 100% | Everything else: enrollment, MDM command flows, SCEP, GitOps applies, and cron jobs. These are low-volume and load-bearing, so they are never down-sampled. |
+
+When a request arrives with a sampled parent trace (for example, propagated from another service), Fleet honors that decision so distributed traces stay coherent.
+
+Sampling is controlled entirely by Fleet's route-aware sampler; the standard `OTEL_TRACES_SAMPLER` environment variables are not honored.
+
+Because traces are head-sampled, the tracing backend receives only the sampled spans; it does not see the full request volume. For total request counts and error rates, use the OpenTelemetry metrics pipeline rather than traces.
+
+#### Adjusting sampling at runtime
+
+The two sample rates and a full-sampling override can be changed at runtime through an admin-only debug endpoint, without restarting the server. This is useful for opening a temporary high-resolution window while reproducing an issue. See [Adjust trace sampling](https://fleetdm.com/docs/rest-api/rest-api#adjust-trace-sampling) in the REST API reference.
+
+For example, to capture every span for a short debugging window:
+
+```bash
+curl -k -X PATCH "https://<fleet-server>/debug/trace_sampler" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"force_full": true}'
+```
+
+Each Fleet server polls for changes about once a minute, so an update applies across all servers within roughly a minute. Remember to revert `force_full` to `false` once finished; running at 100% on a large fleet produces a very high span volume.
+
 ### Fleet server performance
 
 Fleet is designed to scale to hundreds of thousands of online hosts. The Fleet server scales horizontally to support higher load.
