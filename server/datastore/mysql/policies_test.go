@@ -8640,27 +8640,33 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// Seed automation result rows (skipping FK checks for simplicity).
+	// Create a script_content row so host_script_results FK constraints are satisfied.
+	var scriptContentID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`)
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			fmt.Sprintf("%x", md5.Sum([]byte(t.Name()))), "echo test", //nolint:gosec // md5 only for test fixture
+		)
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
 		return err
 	})
+
+	// Seed automation result rows using real FK-valid IDs.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (1,'reset-script-1',1,'out',0,?,2)`,
-			policy.ID,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (?,'reset-script-1',?,'out',0,?,2)`,
+			host1.ID, scriptContentID, policy.ID,
 		)
 		return err
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (1,'other-script-1',1,'out',0,?,3)`,
-			otherPolicy.ID,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES (?,'other-script-1',?,'out',0,?,3)`,
+			host1.ID, scriptContentID, otherPolicy.ID,
 		)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`)
 		return err
 	})
 

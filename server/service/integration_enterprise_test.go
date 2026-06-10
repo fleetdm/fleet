@@ -32615,6 +32615,10 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Create all hosts upfront so each gets a unique osquery_host_id index.
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
+	globalHost, noTeamHost, teamHost := hosts[0], hosts[1], hosts[2]
+
 	// --- global policy ---
 	createGlobalResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
@@ -32624,8 +32628,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	globalPolicy := createGlobalResp.Policy
 	require.NotZero(t, globalPolicy.ID)
 
-	// Enroll a host and record a failing result for the global policy.
-	globalHost := s.createHosts(t, "darwin")[0]
+	// Record a failing result for the global policy.
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		globalHost,
 		map[uint]*bool{globalPolicy.ID: new(false)},
@@ -32654,8 +32657,8 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getGlobalResp.Policy.FailingHostCount)
 	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
 
-	// A reset_policy activity was recorded; global policies emit team_id: -1.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1}`, globalPolicy.ID), 0)
+	// A reset_policy activity was recorded; global policies emit team_id/fleet_id: -1.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1,"fleet_id":-1}`, globalPolicy.ID), 0)
 
 	// --- no-team policy ---
 	createNoTeamResp := fleet.TeamPolicyResponse{}
@@ -32669,7 +32672,6 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Zero(t, *noTeamPolicy.TeamID)
 
 	// Seed a failing result.
-	noTeamHost := s.createHosts(t, "darwin")[0]
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		noTeamHost,
 		map[uint]*bool{noTeamPolicy.ID: new(false)},
@@ -32688,8 +32690,8 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getNoTeamResp.Policy.FailingHostCount)
 	require.Equal(t, uint(0), getNoTeamResp.Policy.PassingHostCount)
 
-	// Activity emitted with team_id: 0 and no team_name.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0}`, noTeamPolicy.ID), 0)
+	// Activity emitted with team_id/fleet_id: 0 and no team_name.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0,"fleet_id":0}`, noTeamPolicy.ID), 0)
 
 	// --- team policy ---
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-team"})
@@ -32703,8 +32705,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	teamPolicy := createTeamResp.Policy
 	require.NotZero(t, teamPolicy.ID)
 
-	// Enroll a host on the team and record a passing result.
-	teamHost := s.createHosts(t, "darwin")[0]
+	// Assign host to team and record a passing result.
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
 
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -32726,10 +32727,10 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getTeamResp.Policy.PassingHostCount)
 	require.Equal(t, uint(0), getTeamResp.Policy.FailingHostCount)
 
-	// A reset_policy activity was recorded with team fields.
+	// A reset_policy activity was recorded with team fields (both team_id/fleet_id and team_name/fleet_name).
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"team_name":"reset-policy-team"}`,
-		teamPolicy.ID, team.ID,
+		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"fleet_id":%d,"team_name":"reset-policy-team","fleet_name":"reset-policy-team"}`,
+		teamPolicy.ID, team.ID, team.ID,
 	), 0)
 
 	// 404 for a nonexistent policy.
