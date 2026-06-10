@@ -27,13 +27,26 @@ module.exports = {
     // If the build-static-content script was not run, we'll show a placeholder testimonial that is added by the custom hook.
     if (sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       // Specify an order for the testimonials on this page using the last names of quote authors
+      // Note: this page uses the same testimonials as the /software-managment page.
       let testimonialOrderForThisPage = [
-        'TODO',
+        'Luis Madrigal',
+        'Arsenio Figueroa',
+        'Bart Reardon',
+        'Andre Shields',
+        'Wes Whetstone',
+        'Nico Waisman',
+        'Chandra Majumdar',
+        'Kenny Botelho',
+        'Erik Gomez',
+        'Eric Tan',
+        'Adam Pippert',
+        'Justin LaBo',
+        'Brian LaShomb',
       ];
 
       // Filter the testimonials by product category
       testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-        return _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+        return _.contains(testimonial.productCategories, 'Software management') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
       });
 
       testimonialsForScrollableTweets.sort((a, b)=>{
