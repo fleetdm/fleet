@@ -19,9 +19,9 @@ const (
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
 	// MaxAppleMDMRequestBodySize bounds Apple MDM check-in and command-result
-	// request bodies. Results are stored in a MEDIUMTEXT column (~16 MiB), so a
-	// larger payload could not be persisted anyway.
-	MaxAppleMDMRequestBodySize int64 = 16 * units.MiB
+	// request bodies. Results are stored in a MEDIUMTEXT column (max 16,777,215
+	// bytes), so the limit must not exceed that boundary.
+	MaxAppleMDMRequestBodySize int64 = (16 * units.MiB) - 1
 
 	// DefaultMaxOsqueryLogWriteSize is the default request body size limit
 	// applied to /api/osquery/log when osquery.allow_body_auth_fallback is

@@ -14,7 +14,7 @@ import (
 // dictionary of scalar values.
 const (
 	// binaryPlistMagic is the prefix that selects the binary plist decoder.
-	binaryPlistMagic = "bplist0"
+	binaryPlistMagic = "bplist00"
 	plistTrailerSize = 32
 
 	maxPlistObjects = 1 << 16 // distinct objects (offset-table size)
