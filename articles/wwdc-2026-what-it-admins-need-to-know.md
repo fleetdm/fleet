@@ -31,6 +31,8 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 ## New and migrated declarative configurations
 
+> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, [declaration](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. User-scoped declarations are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
 **VPN and network:** VPN configurations can now be delivered as declarative configurations, including IKEv2, IPSec, Always-On, DNS proxy, DNS settings, and relay. Credentials are deliverable as declarative assets with automated renewal. A meaningful step up from managing VPN profiles by hand.
