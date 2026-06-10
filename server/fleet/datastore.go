@@ -3179,7 +3179,7 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
 
-	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
+	// NewChallenge generates a random, base32-encoded challenge and inserts it into the challenges table.
 	NewChallenge(ctx context.Context) (string, error)
 	// ConsumeChallenge checks if a valid challenge exists in the challenges table
 	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
