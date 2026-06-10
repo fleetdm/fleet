@@ -22269,7 +22269,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	// a request with an invalid category silently drops the unknown name
 	pkgURL := installerServer.URL + "/non-fma.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
+		{URL: pkgURL, Categories: optjson.SetSlice([]string{"Not Found"}), SelfService: true},
 		{Slug: &maintained1.Slug, SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
@@ -22279,32 +22279,38 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 
 	testCases := []struct {
 		desc                 string
-		categories           []string
+		categories           optjson.Slice[string]
 		fmaDefaultCategories []string
 	}{
 		{
 			desc:       "duplicate categories provided",
-			categories: []string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"},
+			categories: optjson.SetSlice([]string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"}),
 		},
 		{
 			desc:       "valid categories 1",
-			categories: []string{"🧰 Developer tools", "🌎 Browsers"},
+			categories: optjson.SetSlice([]string{"🧰 Developer tools", "🌎 Browsers"}),
 		},
 		{
 			desc:       "valid categories 2",
-			categories: []string{"👬 Communication", "💻 Productivity"},
+			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
 		},
 		{
 			desc:       "valid categories 3 - Security and Support",
-			categories: []string{"🔐 Security", "🛟 Support"},
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: []string{"🔐 Security", "🧰 Developer tools", "🛟 Support"},
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
 		},
 		{
-			desc:                 "empty categories",
+			// omitted categories (unset) fall back to the FMA's manifest default
+			desc:                 "omitted categories use FMA default",
 			fmaDefaultCategories: []string{"💻 Productivity"},
+		},
+		{
+			// an explicitly empty categories list sets zero categories (no manifest default)
+			desc:       "explicit empty categories sets zero categories",
+			categories: optjson.SetSlice([]string{}),
 		},
 	}
 	for _, tc := range testCases {
@@ -22313,7 +22319,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			softwareToInstall[1].Categories = tc.categories
 
 			// remove duplicates if any
-			tc.categories = server.RemoveDuplicatesFromSlice(tc.categories)
+			wantCategories := server.RemoveDuplicatesFromSlice(tc.categories.Value)
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 			require.Len(t, packages, 2)
@@ -22327,13 +22333,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
-					// if no categories are set on an FMA in GitOps, we set categories to
-					// default values
+				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && !tc.categories.Set {
+					// categories omitted on an FMA → fall back to the manifest default
 					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 					continue
 				}
-				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+				require.ElementsMatch(t, wantCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 			}
 
 			// check that the categories come back on the My device page
@@ -22343,14 +22348,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			require.NoError(t, err)
 			require.Len(t, getDeviceSw.Software, 2)
 			for _, s := range getDeviceSw.Software {
-				if s.Name == maintained1.Name && len(tc.categories) == 0 {
-					// if no categories are set on an FMA in GitOps, we set categories to
-					// default values
+				if s.Name == maintained1.Name && !tc.categories.Set {
+					// categories omitted on an FMA → fall back to the manifest default
 					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
 					continue
 				}
 
-				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
+				require.ElementsMatch(t, wantCategories, s.SoftwarePackage.Categories)
 			}
 		})
 	}

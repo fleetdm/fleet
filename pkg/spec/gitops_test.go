@@ -4469,3 +4469,50 @@ name: TestTeam
 		assert.False(t, gitops.SoftwarePresent)
 	})
 }
+
+// TestGitOpsFMACategoriesPresence verifies that the fleet_maintained_apps
+// categories key parses into an optjson.Slice that distinguishes omitted (use
+// the manifest default) from present-but-null/empty (zero categories) from a real list.
+func TestGitOpsFMACategoriesPresence(t *testing.T) {
+	t.Parallel()
+
+	parse := func(t *testing.T, categoriesYAML string) optjson.Slice[string] {
+		config := getTeamConfig(nil)
+		config += "software:\n  fleet_maintained_apps:\n    - slug: 1password/darwin\n" + categoriesYAML
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		require.Len(t, gitops.Software.FleetMaintainedApps, 1)
+		return gitops.Software.FleetMaintainedApps[0].Categories
+	}
+
+	t.Run("omitted key is unset", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "")
+		assert.False(t, cats.Set)
+	})
+
+	t.Run("categories: (null) is set but not valid", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "      categories:\n")
+		assert.True(t, cats.Set)
+		assert.False(t, cats.Valid)
+		assert.Empty(t, cats.Value)
+	})
+
+	t.Run("categories: [] is set and valid", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "      categories: []\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Empty(t, cats.Value)
+	})
+
+	t.Run("categories with a value is set with the value", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "      categories:\n        - somevalue\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Equal(t, []string{"somevalue"}, cats.Value)
+	})
+}

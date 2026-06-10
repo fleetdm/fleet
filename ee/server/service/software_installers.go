@@ -20,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -2357,10 +2358,10 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 
-		if err := trimAndValidateCategories(payload.Categories); err != nil {
+		if err := trimAndValidateCategories(payload.Categories.Value); err != nil {
 			return "", err
 		}
-		categoryNames = append(categoryNames, payload.Categories...)
+		categoryNames = append(categoryNames, payload.Categories.Value...)
 	}
 
 	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
@@ -2501,8 +2502,8 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 	payload.FleetMaintained = true
 	payload.MaintainedApp = app
-	if len(payload.Categories) == 0 {
-		payload.Categories = app.Categories
+	if !payload.Categories.Set {
+		payload.Categories = optjson.SetSlice(app.Categories)
 	}
 	payload.MaintainedApp.PatchQuery = app.PatchQuery
 
@@ -2747,7 +2748,7 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				LabelsIncludeAll:   p.LabelsIncludeAll,
 				ValidatedLabels:    p.ValidatedLabels,
-				Categories:         p.Categories,
+				Categories:         p.Categories.Value,
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
 				AlwaysDownload:     p.AlwaysDownload,
@@ -2756,7 +2757,7 @@ func (svc *Service) softwareBatchUpload(
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
-			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories)
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories.Value)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
 			}
