@@ -1,6 +1,6 @@
 {
   "name": "TeXShop",
-  "unique_identifier": "TeXShop",
+  "unique_identifier": "edu.uo.texshop.tex",
   "token": "texshop",
   "installer_format": "zip",
   "slug": "texshop/darwin",
