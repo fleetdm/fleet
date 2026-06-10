@@ -1,0 +1,10 @@
+{
+  "name": "GoodSync",
+  "unique_identifier": "com.sibersystems.goodsyncmac2000",
+  "token": "goodsync",
+  "installer_format": "dmg",
+  "slug": "goodsync/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

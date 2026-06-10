@@ -1,0 +1,10 @@
+{
+  "name": "Nota Gyazo GIF",
+  "unique_identifier": "com.gyazo.menu",
+  "token": "gyazo",
+  "installer_format": "pkg",
+  "slug": "gyazo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

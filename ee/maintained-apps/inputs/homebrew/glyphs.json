@@ -1,0 +1,10 @@
+{
+  "name": "Glyphs",
+  "unique_identifier": "com.GeorgSeifert.Glyphs3",
+  "token": "glyphs",
+  "installer_format": "zip",
+  "slug": "glyphs/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

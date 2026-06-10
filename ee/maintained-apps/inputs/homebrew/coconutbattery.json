@@ -1,0 +1,10 @@
+{
+  "name": "coconutBattery",
+  "unique_identifier": "com.coconut-flavour.coconutBattery-Menu",
+  "token": "coconutbattery",
+  "installer_format": "zip",
+  "slug": "coconutbattery/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

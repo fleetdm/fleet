@@ -1,0 +1,10 @@
+{
+  "name": "GitFinder",
+  "unique_identifier": "ag.zigz.GitFinder",
+  "token": "gitfinder",
+  "installer_format": "dmg",
+  "slug": "gitfinder/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

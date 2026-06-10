@@ -1,0 +1,10 @@
+{
+  "name": "Google Earth Pro",
+  "unique_identifier": "com.google.GoogleEarthUpdateHelper",
+  "token": "google-earth-pro",
+  "installer_format": "dmg",
+  "slug": "google-earth-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
