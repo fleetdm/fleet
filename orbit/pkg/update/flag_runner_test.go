@@ -166,8 +166,8 @@ func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 }
 
 // TestDoFlagsUpdateWithNullFlags verifies that the JSON literal "null" is an
-// explicit instruction to clear osquery flags (matching pre-1.56 behavior),
-// distinct from command_line_flags being unset (which preserves the file).
+// explicit instruction to clear osquery flags, distinct from command_line_flags
+// being unset (which preserves the file).
 func TestDoFlagsUpdateWithNullFlags(t *testing.T) {
 	rootDir := t.TempDir()
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")

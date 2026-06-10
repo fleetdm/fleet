@@ -50,10 +50,9 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 	// osquery.flags file untouched, preserving any flags that were pre-packaged
 	// with fleetd or otherwise provided by the user.
 	//
-	// Explicitly setting command_line_flags to an empty document ({}) or null is
+	// Explicitly setting command_line_flags to an empty document ({}) or "null" is
 	// distinct: those arrive as a non-empty payload that parses to an empty flag
-	// map, which reconciles (clears) the osquery.flags file below. This matches
-	// the pre-1.56 behavior and lets admins explicitly clear pre-packaged flags.
+	// map, which reconciles (clears) the osquery.flags file below.
 	if len(config.Flags) == 0 {
 		return nil
 	}
