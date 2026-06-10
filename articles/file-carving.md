@@ -113,10 +113,9 @@ The value must be small enough that HTTP requests do not time out.
 
 Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3 (5242880 bytes).
 
-<meta name="pageOrderInSection" value="2100">
-
 <meta name="articleTitle" value="File carving in Fleet"> 
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-06-10">
-<meta name="description" value="Learn how to TODO">
+<meta name="description" value="Learn how file carving allows you to request files and their contents from hosts">
+<meta name="category" value="guides">
