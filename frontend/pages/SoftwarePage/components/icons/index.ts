@@ -43,18 +43,52 @@ import AwsVpnClient from "./AwsVpnClient";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
+import BackgroundMusic from "./BackgroundMusic";
+import Badgeify from "./Badgeify";
 import BalenaEtcher from "./BalenaEtcher";
+import BalsamiqWireframes from "./BalsamiqWireframes";
+import BambuStudio from "./BambuStudio";
+import Bartender from "./Bartender";
+import Batfi from "./Batfi";
 import BBEdit from "./BBEdit";
+import Bdash from "./Bdash";
+import BeaverNotes from "./BeaverNotes";
 import BeekeeperStudio from "./BeekeeperStudio";
+import Beeper from "./Beeper";
 import BetterDisplay from "./BetterDisplay";
+import Bettermouse from "./Bettermouse";
+import Bettertouchtool from "./Bettertouchtool";
+import Betterzip from "./Betterzip";
 import BeyondCompare from "./BeyondCompare";
+import Bezel from "./Bezel";
+import Bibdesk from "./Bibdesk";
+import Binance from "./Binance";
+import Biscuit from "./Biscuit";
+import Bitbox from "./Bitbox";
+import Bitrix24 from "./Bitrix24";
 import Bitwarden from "./Bitwarden";
+import BitwigStudio from "./BitwigStudio";
 import Blender from "./Blender";
+import Bleunlock from "./Bleunlock";
+import Blip from "./Blip";
 import Bluej from "./Bluej";
+import Bluewallet from "./Bluewallet";
+import Blurscreen from "./Blurscreen";
+import Boltai from "./Boltai";
+import BomeNetwork from "./BomeNetwork";
+import Boom3D from "./Boom3D";
+import Boop from "./Boop";
+import BoostNote from "./BoostNote";
 import Box from "./Box";
 import Brave from "./Brave";
+import Breaktimer from "./Breaktimer";
+import BricklinkStudio from "./BricklinkStudio";
 import Bruno from "./Bruno";
+import Bunch from "./Bunch";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
+import Busycontacts from "./Busycontacts";
+import Buttercup from "./Buttercup";
+import Buzz from "./Buzz";
 import Cacher from "./Cacher";
 import Caffeine from "./Caffeine";
 import Calibre from "./Calibre";
@@ -678,19 +712,53 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "azul zulu 25 jdk": AzulZulu25Jdk,
   "azul zulu 25 jre": AzulZulu25Jre,
   backblaze: Backblaze,
+  "background music": BackgroundMusic,
+  badgeify: Badgeify,
   balenaetcher: BalenaEtcher,
+  "balsamiq wireframes": BalsamiqWireframes,
+  "bambu studio": BambuStudio,
+  bartender: Bartender,
+  batfi: Batfi,
   bbedit: BBEdit,
+  bdash: Bdash,
+  "beaver notes": BeaverNotes,
   "beekeeper studio": BeekeeperStudio,
+  beeper: Beeper,
   betterdisplay: BetterDisplay,
+  bettermouse: Bettermouse,
+  bettertouchtool: Bettertouchtool,
+  betterzip: Betterzip,
   "beyond compare": BeyondCompare,
+  bezel: Bezel,
+  bibdesk: Bibdesk,
+  binance: Binance,
+  biscuit: Biscuit,
+  bitbox: Bitbox,
   "bitfocus companion": Companion,
+  bitrix24: Bitrix24,
   bitwarden: Bitwarden,
+  "bitwig studio": BitwigStudio,
   blender: Blender,
+  bleunlock: Bleunlock,
+  blip: Blip,
   bluej: Bluej,
+  bluewallet: Bluewallet,
+  blurscreen: Blurscreen,
+  "boltai 2": Boltai,
+  "bome network": BomeNetwork,
+  "boom 3d": Boom3D,
+  boop: Boop,
+  "boost note": BoostNote,
   box: Box,
   brave: Brave,
+  breaktimer: Breaktimer,
+  "bricklink studio": BricklinkStudio,
   bruno: Bruno,
+  bunch: Bunch,
   "burp suite community": BurpSuiteCommunity,
+  busycontacts: Busycontacts,
+  buttercup: Buttercup,
+  buzz: Buzz,
   cacher: Cacher,
   caffeine: Caffeine,
   calibre: Calibre,
