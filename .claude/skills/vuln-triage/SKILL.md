@@ -44,7 +44,7 @@ Use the routing table below. If the table looks stale (line numbers shifted, a c
 |---|---|---|---|
 | `apps` | macOS | NVD; **macoffice** for Microsoft Office | macoffice match by bundle ID prefix `com.microsoft.{word,excel,powerpoint,outlook,onenote}` — see `server/vulnerabilities/macoffice/release_note.go` |
 | `programs` | Windows | NVD; **winoffice** for Microsoft Office; CustomCVE rules with `SourceMatch="programs"` | winoffice regex `Microsoft (365\|Office)` excluding "Companion" — see `server/vulnerabilities/winoffice/analyzer.go` |
-| `deb_packages` | Ubuntu | OSV when enabled, else OVAL; NVD fallback for `linux-image-*` outside known variants | `server/vulnerabilities/oval/oval_platform.go`, `BuildLinuxExclusionRegex` |
+| `deb_packages` | Ubuntu | OSV when enabled, else OVAL; NVD fallback for `linux-image-*` outside known variants | OVAL routing: `server/vulnerabilities/oval/oval_platform.go`. `linux-image-*` NVD fallback: `BuildLinuxExclusionRegex` in `server/vulnerabilities/nvd/cpe.go` |
 | `deb_packages` | Debian | OVAL | Same source list |
 | `rpm_packages` | RHEL/CentOS/Fedora | OSV when enabled, else OVAL; **goval-dictionary** kernel-only on RHEL | `server/vulnerabilities/goval_dictionary/analyzer.go` |
 | `rpm_packages` | Amazon Linux | goval-dictionary | amzn_01/02/2022/2023 |
@@ -126,7 +126,7 @@ Always run the baseline. Add the conditional fetches that apply to this routing:
 **Baseline (always):**
 - NVD: WebFetch `https://nvd.nist.gov/vuln/detail/<CVE-ID>` — what CPEs does NVD list?
 - MITRE: WebFetch `https://www.cve.org/CVERecord?id=<CVE-ID>` — canonical description.
-- OSV.dev: `curl -s "https://api.osv.dev/v1/vulns/<CVE-ID>" > ./tmp/<CVE-ID>.osv.json` then `Read` it. The endpoint returns raw JSON; WebFetch's HTML→markdown pass mangles it.
+- OSV.dev: `curl -s "https://api.osv.dev/v1/vulns/<CVE-ID>" > /tmp/<CVE-ID>.osv.json` then `Read` it. The endpoint returns raw JSON; WebFetch's HTML→markdown pass mangles it.
 
 **Conditional (skip if not applicable):**
 - GHSA — only when `software.source` is a language ecosystem (`npm_packages`, `python_packages`, `gem_packages`, `maven_packages`, etc.). WebFetch `https://github.com/advisories?query=<CVE-ID>`.
