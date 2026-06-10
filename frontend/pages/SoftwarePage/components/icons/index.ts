@@ -372,8 +372,6 @@ import Raindropio from "./Raindropio";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
 import Rapidweaver from "./Rapidweaver";
-import RApp from "./RApp";
-import RaspberryPiImager from "./RaspberryPiImager";
 import Raycast from "./Raycast";
 import Readest from "./Readest";
 import Recents from "./Recents";
@@ -394,7 +392,6 @@ import Retrobatch from "./Retrobatch";
 import Rewritebar from "./Rewritebar";
 import Rider from "./Rider";
 import Rightfont from "./Rightfont";
-import Ringcentral from "./Ringcentral";
 import Rive from "./Rive";
 import RiversideStudio from "./RiversideStudio";
 import Rize from "./Rize";
@@ -404,9 +401,6 @@ import Rocket from "./Rocket";
 import RocketChat from "./RocketChat";
 import RocketmanChoicesPackager from "./RocketmanChoicesPackager";
 import RocketTypist from "./RocketTypist";
-import Rodecaster from "./Rodecaster";
-import RodeConnect from "./RodeConnect";
-import Roon from "./Roon";
 import RoyalTsx from "./RoyalTsx";
 import Rsyncui from "./Rsyncui";
 import RubyMine from "./RubyMine";
@@ -998,13 +992,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   quip: Quip,
   qview: Qview,
   "r for windows": R,
-  r: RApp,
   "radio silence": RadioSilence,
   "raindrop.io": Raindropio,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   rapidweaver: Rapidweaver,
-  "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
   readest: Readest,
   "realvnc server": RealVncServer,
@@ -1027,7 +1019,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
-  ringcentral: Ringcentral,
   rive: Rive,
   "riverside studio": RiversideStudio,
   rize: Rize,
@@ -1037,9 +1028,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rocket typist": RocketTypist,
   "rocket.chat": RocketChat,
   "rocketman choices packager": RocketmanChoicesPackager,
-  "rode connect": RodeConnect,
-  "rodecaster app": Rodecaster,
-  roon: Roon,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,

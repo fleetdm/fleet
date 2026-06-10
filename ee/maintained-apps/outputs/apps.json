@@ -3292,13 +3292,6 @@
       "description": "qView is an image viewer."
     },
     {
-      "name": "R",
-      "slug": "r-app/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.R-project.R",
-      "description": "R is an environment for statistical computing and graphics."
-    },
-    {
       "name": "R for Windows",
       "slug": "r/windows",
       "platform": "windows",
@@ -3318,13 +3311,6 @@
       "platform": "darwin",
       "unique_identifier": "io.raindrop.macapp",
       "description": "Raindrop.io is an all-in-one bookmark manager."
-    },
-    {
-      "name": "Rambox",
-      "slug": "rambox/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rambox",
-      "description": "Rambox is a workspace simplifier - to organize your workspace and boost your productivity."
     },
     {
       "name": "Rancher Desktop",
@@ -3353,13 +3339,6 @@
       "platform": "darwin",
       "unique_identifier": "com.realmacsoftware.rapidweaver8",
       "description": "RapidWeaver is a web design software."
-    },
-    {
-      "name": "Raspberry Pi Imager",
-      "slug": "raspberry-pi-imager/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.raspberrypi.imagingutility",
-      "description": "Raspberry Pi Imager is an app for imaging utility to install operating systems to a microSD card."
     },
     {
       "name": "Raycast",
@@ -3523,13 +3502,6 @@
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
     },
     {
-      "name": "RingCentral",
-      "slug": "ringcentral/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.ringcentral.glip",
-      "description": "RingCentral is a team messaging, video meetings, and business phone."
-    },
-    {
       "name": "Rive",
       "slug": "rive/darwin",
       "platform": "darwin",
@@ -3591,27 +3563,6 @@
       "platform": "darwin",
       "unique_identifier": "tech.rocketman.ChoicesPackager",
       "description": "Rocketman Choices Packager is a utility for customising installer package choices."
-    },
-    {
-      "name": "Rode Connect",
-      "slug": "rode-connect/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rode.rodeconnect",
-      "description": "Rode Connect is an app for podcasting software."
-    },
-    {
-      "name": "RODECaster App",
-      "slug": "rodecaster/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.rode.rodecastercomp",
-      "description": "RODECaster App is an easily manage your RØDECaster or Streamer X setup."
-    },
-    {
-      "name": "Roon",
-      "slug": "roon/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.roon.Roon",
-      "description": "Roon is a music player."
     },
     {
       "name": "Royal TSX",
