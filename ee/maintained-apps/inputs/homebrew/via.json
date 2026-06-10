@@ -1,0 +1,10 @@
+{
+  "name": "VIA",
+  "unique_identifier": "org.via.configurator",
+  "token": "via",
+  "installer_format": "dmg",
+  "slug": "via/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

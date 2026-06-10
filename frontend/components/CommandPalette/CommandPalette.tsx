@@ -222,7 +222,7 @@ const CommandPalette = (): JSX.Element | null => {
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
-  const subPagePlaceholders: Partial<Record<Page, string>> = {
+  const pickerPagePlaceholders: Partial<Record<Page, string>> = {
     "switch-fleet": "Search a fleet...",
     "view-host": "Search hosts...",
     "view-software": "Search software inventory...",
@@ -230,7 +230,7 @@ const CommandPalette = (): JSX.Element | null => {
     "view-report": "Search reports...",
     "view-policy": "Search policies...",
   };
-  const subPagePlaceholder = subPagePlaceholders[page];
+  const pickerPagePlaceholder = pickerPagePlaceholders[page];
 
   // Toggle open on Cmd+K / Ctrl+K; jump to switch-fleet on Cmd+Shift+F.
   // Focus is handled by the [open, page] effect below — don't rAF here, the
@@ -286,7 +286,7 @@ const CommandPalette = (): JSX.Element | null => {
     }
   }, [open, page]);
 
-  // Backspace on empty input returns to root from a sub-page.
+  // Backspace on empty input returns to root from a picker page.
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (page !== "root" && e.key === "Backspace" && !search) {
@@ -297,13 +297,13 @@ const CommandPalette = (): JSX.Element | null => {
     [page, search, goBack]
   );
 
-  // Intercept Escape on a sub-page so it returns to root instead of
+  // Intercept Escape on a picker page so it returns to root instead of
   // closing the dialog. cmdk 1.1.1's Command.Dialog doesn't forward
   // `onEscapeKeyDown` to Radix's Dialog.Content, so we can't override
   // the close intent via props.
   //
   // Approach: a capture-phase document listener that calls
-  // `stopImmediatePropagation` on Escape from a sub-page. This prevents
+  // `stopImmediatePropagation` on Escape from a picker page. This prevents
   // both Radix's DismissableLayer ESC handler AND any sibling listeners
   // from firing on this event — the dialog never learns about the press,
   // so it doesn't close. `useLayoutEffect` is intentional: it attaches
@@ -535,7 +535,7 @@ const CommandPalette = (): JSX.Element | null => {
                 />
               </button>
             )}
-            {item.opensSubPage && (
+            {item.opensPickerPage && (
               <span aria-hidden className={`${baseClass}__item-more`}>
                 <Icon
                   name="chevron-right"
@@ -615,11 +615,11 @@ const CommandPalette = (): JSX.Element | null => {
                     <span className={`${baseClass}__item-label`}>
                       <HighlightedLabel text={target.label} query={search} />
                     </span>
-                    {/* Render the sub-page chevron for items that open a
-                        picker (View host, View software, etc.). The
+                    {/* Render the picker-page chevron for items that open
+                        a picker (View host, View software, etc.). The
                         chevron only belongs to parent items — sub-items
                         navigate directly. */}
-                    {!sub && item.opensSubPage && (
+                    {!sub && item.opensPickerPage && (
                       <span aria-hidden className={`${baseClass}__item-more`}>
                         <Icon
                           name="chevron-right"
@@ -778,7 +778,9 @@ const CommandPalette = (): JSX.Element | null => {
         <Command.Input
           ref={inputRef}
           className={`${baseClass}__input`}
-          placeholder={subPagePlaceholder ?? "Search for a page or command..."}
+          placeholder={
+            pickerPagePlaceholder ?? "Search for a page or command..."
+          }
           value={search}
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
@@ -818,15 +820,17 @@ const CommandPalette = (): JSX.Element | null => {
         )}
         {page !== "root" && <kbd className={`${baseClass}__esc-hint`}>ESC</kbd>}
       </div>
-      {/* Announce sub-page transitions to screen readers — the placeholder
+      {/* Announce picker-page transitions to screen readers — the placeholder
           text changes but isn't reliably announced on its own. Strip the
           trailing ellipsis so the announcement isn't verbalized as
           "dot dot dot" by some screen readers. */}
       <div role="status" aria-live="polite" className="sr-only">
-        {page === "root" ? "" : subPagePlaceholder?.replace(/\.{3}$/, "") ?? ""}
+        {page === "root"
+          ? ""
+          : pickerPagePlaceholder?.replace(/\.{3}$/, "") ?? ""}
       </div>
       <Command.List className={`${baseClass}__list`}>
-        {/* Sub-pages render their own contextual empty state, so only show
+        {/* Picker pages render their own contextual empty state, so only show
             cmdk's generic Empty on the root page. */}
         {page === "root" && (
           <Command.Empty className={`${baseClass}__empty`}>

@@ -1,0 +1,10 @@
+{
+  "name": "Xnapper",
+  "unique_identifier": "com.devuap.beautyshotapp",
+  "token": "xnapper",
+  "installer_format": "dmg",
+  "slug": "xnapper/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

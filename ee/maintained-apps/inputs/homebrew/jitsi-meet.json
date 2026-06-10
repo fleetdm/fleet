@@ -1,0 +1,10 @@
+{
+  "name": "Jitsi Meet",
+  "unique_identifier": "org.jitsi.jitsi-meet",
+  "token": "jitsi-meet",
+  "installer_format": "dmg",
+  "slug": "jitsi-meet/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

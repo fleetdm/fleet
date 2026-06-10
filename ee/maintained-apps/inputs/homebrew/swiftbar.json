@@ -1,0 +1,10 @@
+{
+  "name": "SwiftBar",
+  "unique_identifier": "com.ameba.SwiftBar",
+  "token": "swiftbar",
+  "installer_format": "zip",
+  "slug": "swiftbar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}
