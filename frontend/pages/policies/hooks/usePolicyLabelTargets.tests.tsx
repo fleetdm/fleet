@@ -7,6 +7,7 @@ import mockServer from "test/mock-server";
 import { AppContext, IAppContext, initialState } from "context/app";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ILabelPolicy, ILabelSummary } from "interfaces/label";
+import labelsAPI from "services/entities/labels";
 
 import usePolicyLabelTargets from "./usePolicyLabelTargets";
 
@@ -21,6 +22,8 @@ const mockLabels: ILabelSummary[] = [
 // they are in production, where they come from PolicyContext), so define them
 // once rather than inline in the render callback.
 const STORED_INCLUDE_ANY: ILabelPolicy[] = [{ id: 1, name: "Fun" }];
+const STORED_INCLUDE_ALL: ILabelPolicy[] = [{ id: 1, name: "Fun" }];
+const STORED_EXCLUDE_ANY: ILabelPolicy[] = [{ id: 2, name: "Fresh" }];
 const STORED_EXCLUDE_ALL: ILabelPolicy[] = [{ id: 2, name: "Fresh" }];
 
 const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () =>
@@ -51,6 +54,10 @@ describe("usePolicyLabelTargets", () => {
     mockServer.use(labelSummariesHandler);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("defaults to All hosts and an empty payload when no initial labels are given", async () => {
     const { result } = renderHook(() => usePolicyLabelTargets(), {
       wrapper: premiumWrapper(),
@@ -79,12 +86,14 @@ describe("usePolicyLabelTargets", () => {
     });
   });
 
-  it("does not fetch labels when no team is selected", async () => {
+  it("does not fetch labels when no team is selected", () => {
+    const summarySpy = jest.spyOn(labelsAPI, "summary");
+
     const { result } = renderHook(() => usePolicyLabelTargets(), {
       wrapper: buildWrapper({ isPremiumTier: true, currentTeam: undefined }),
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(summarySpy).not.toHaveBeenCalled();
     expect(result.current.selectorProps.labels).toEqual([]);
   });
 
@@ -159,5 +168,176 @@ describe("usePolicyLabelTargets", () => {
     act(() => result.current.selectorProps.onSelectTargetType("All hosts"));
 
     expect(result.current.getLabelsPayload().labels_include_any).toEqual([]);
+  });
+
+  it("seeds Custom + include-all from a policy's stored include_all labels", async () => {
+    const { result } = renderHook(
+      () => usePolicyLabelTargets({ includeAll: STORED_INCLUDE_ALL }),
+      { wrapper: premiumWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedTargetType).toBe("Custom");
+    });
+    expect(result.current.hasCustomLabels).toBe(true);
+    expect(result.current.selectorProps.includeConfig.mode).toBe("all");
+    expect(result.current.getLabelsPayload()).toMatchObject({
+      labels_include_all: ["Fun"],
+      labels_include_any: [],
+      labels_exclude_any: [],
+      labels_exclude_all: [],
+    });
+  });
+
+  it("seeds Custom + exclude-any from a policy's stored exclude_any labels", async () => {
+    const { result } = renderHook(
+      () => usePolicyLabelTargets({ excludeAny: STORED_EXCLUDE_ANY }),
+      { wrapper: premiumWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedTargetType).toBe("Custom");
+    });
+    expect(result.current.hasCustomLabels).toBe(true);
+    expect(result.current.selectorProps.excludeConfig.mode).toBe("any");
+    expect(result.current.getLabelsPayload()).toMatchObject({
+      labels_exclude_any: ["Fresh"],
+      labels_exclude_all: [],
+      labels_include_any: [],
+      labels_include_all: [],
+    });
+  });
+
+  it("moves the include selection to labels_include_all when its mode switches to All", async () => {
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    act(() => result.current.selectorProps.onSelectTargetType("Custom"));
+    act(() =>
+      result.current.selectorProps.includeConfig.onSelectLabel({
+        name: "Fun",
+        value: true,
+      })
+    );
+    expect(result.current.getLabelsPayload().labels_include_any).toEqual([
+      "Fun",
+    ]);
+
+    act(() => result.current.selectorProps.includeConfig.onSelectMode?.("all"));
+
+    expect(result.current.selectorProps.includeConfig.mode).toBe("all");
+    expect(result.current.getLabelsPayload()).toMatchObject({
+      labels_include_all: ["Fun"],
+      labels_include_any: [],
+    });
+  });
+
+  it("moves the exclude selection to labels_exclude_all when its mode switches to All", async () => {
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    act(() => result.current.selectorProps.onSelectTargetType("Custom"));
+    act(() =>
+      result.current.selectorProps.excludeConfig.onSelectLabel({
+        name: "Fresh",
+        value: true,
+      })
+    );
+    expect(result.current.getLabelsPayload().labels_exclude_any).toEqual([
+      "Fresh",
+    ]);
+
+    act(() => result.current.selectorProps.excludeConfig.onSelectMode?.("all"));
+
+    expect(result.current.selectorProps.excludeConfig.mode).toBe("all");
+    expect(result.current.getLabelsPayload()).toMatchObject({
+      labels_exclude_all: ["Fresh"],
+      labels_exclude_any: [],
+    });
+  });
+
+  it("removes a label from the payload when it is deselected", async () => {
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    act(() => result.current.selectorProps.onSelectTargetType("Custom"));
+    act(() =>
+      result.current.selectorProps.includeConfig.onSelectLabel({
+        name: "Fun",
+        value: true,
+      })
+    );
+    expect(result.current.hasCustomLabels).toBe(true);
+
+    act(() =>
+      result.current.selectorProps.includeConfig.onSelectLabel({
+        name: "Fun",
+        value: false,
+      })
+    );
+
+    expect(result.current.hasCustomLabels).toBe(false);
+    expect(result.current.getLabelsPayload().labels_include_any).toEqual([]);
+  });
+
+  it("builds a combined payload with both include and exclude selections", async () => {
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    act(() => result.current.selectorProps.onSelectTargetType("Custom"));
+    act(() =>
+      result.current.selectorProps.includeConfig.onSelectLabel({
+        name: "Fun",
+        value: true,
+      })
+    );
+    act(() =>
+      result.current.selectorProps.excludeConfig.onSelectLabel({
+        name: "Fresh",
+        value: true,
+      })
+    );
+
+    expect(result.current.getLabelsPayload()).toMatchObject({
+      labels_include_any: ["Fun"],
+      labels_exclude_any: ["Fresh"],
+      labels_include_all: [],
+      labels_exclude_all: [],
+    });
+  });
+
+  it("reports a loading state while labels are being fetched", async () => {
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    expect(result.current.selectorProps.isLoadingLabels).toBe(true);
+    await waitFor(() => {
+      expect(result.current.selectorProps.isLoadingLabels).toBe(false);
+    });
+  });
+
+  it("surfaces an error state when the labels request fails", async () => {
+    // A 4xx is terminal under DEFAULT_USE_QUERY_OPTIONS' retry policy, so the
+    // error surfaces immediately (a 5xx would retry and outrun waitFor).
+    mockServer.use(
+      http.get(
+        baseUrl("/labels/summary"),
+        () => new HttpResponse(null, { status: 403 })
+      )
+    );
+
+    const { result } = renderHook(() => usePolicyLabelTargets(), {
+      wrapper: premiumWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectorProps.isErrorLabels).toBe(true);
+    });
+    expect(result.current.selectorProps.labels).toEqual([]);
   });
 });
