@@ -54,6 +54,11 @@
   }
 
   // Tabbed include/exclude experience (TargetLabelSelector).
+  .react-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
 
   // react-tabs unmounts inactive panels by default, so only the selected
   // panel needs layout.
@@ -61,7 +66,7 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
-    padding-top: $pad-medium;
+    margin-top: 0;
   }
 
   // Truncate long label names in the tabbed checkbox list.

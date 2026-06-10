@@ -1,6 +1,8 @@
 .add-profile-modal {
   &__modal-content-wrap {
-    margin-top: $pad-large;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
 
     .add-profile__file {
       padding: $pad-medium $pad-large;
@@ -73,10 +75,5 @@
     display: flex;
     justify-content: flex-end;
     gap: $pad-small;
-    padding-top: $pad-medium;
-  }
-
-  &__target {
-    margin: $pad-large 0;
   }
 }
