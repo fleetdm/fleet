@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "12.104.0.128",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'ExpressVPN' AND publisher = 'ExpressVPN';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ExpressVPN' AND publisher = 'ExpressVPN' AND version_compare(version, '12.104.0.128') < 0);"
+      },
+      "installer_url": "https://www.expressvpn.works/clients/windows/expressvpn_windows_12.104.0.128_release.exe",
+      "install_script_ref": "6a77dc1b",
+      "uninstall_script_ref": "cdaf6a62",
+      "sha256": "6aadba1bde2499368024e9ba19c59e3e214ec8dd92a59f01bcddda4f72915694",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "6a77dc1b": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\n$ExpectedExitCodes = @(0, 1641, 3010)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/install /quiet /norestart\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "cdaf6a62": "$bundleProductCode = '{86881f66-59ab-4941-94e4-a647e519e053}'\n$displayNameLike   = \"ExpressVPN*\"\n$publisherLike     = \"*ExpressVPN*\"\n\n$installDir = (Join-Path ${env:ProgramFiles(x86)} 'ExpressVPN')\n\n$ExpectedExitCodes = @(0, 1605, 1641, 3010)\n$exitCode = 0\n\nfunction Wait-ForProcessExit {\n    param([string[]]$Names, [int]$TimeoutSeconds = 240)\n    $elapsed = 0\n    while ($elapsed -lt $TimeoutSeconds) {\n        $running = $Names | Where-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue }\n        if (-not $running) { break }\n        Start-Sleep -Seconds 3\n        $elapsed += 3\n    }\n}\n\nfunction Get-ExePath {\n    param([string]$Command)\n    if ($Command -match '\"([^\"]+\\.exe)\"') { return $Matches[1] }\n    if ($Command -match '(?i)([A-Z]:\\\\[^\"]+?\\.exe)') { return $Matches[1] }\n    return $null\n}\n\ntry {\n\n$paths = @(\n  \"HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$bundleProductCode\",\n  \"HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$bundleProductCode\",\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$entry = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty $p -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and ($_.Publisher -like $publisherLike -or $p -like \"*$bundleProductCode\")\n  }\n  if ($items) { $entry = $items | Select-Object -First 1; break }\n}\n\nif (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found (already removed).\"\n  Exit 0\n}\n\n# Stop the client/services so the uninstaller doesn't fail on locked files.\nforeach ($proc in @(\"ExpressVPN\", \"expressvpnd\", \"ExpressVPN.UI\", \"ExpressVPN.BrowserHelper\")) {\n  Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\n\n$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }\n\n$exePath = Get-ExePath $uninstallCommand\nif (-not $exePath) { Throw \"Could not parse uninstaller exe from: $uninstallCommand\" }\nif (-not (Test-Path -LiteralPath $exePath)) { Throw \"Bundle exe missing: $exePath\" }\n\n# Ensure silent uninstall switches are present.\n$existingArgs = ($uninstallCommand -replace [regex]::Escape(\"`\"$exePath`\"\"), \"\").Trim()\n$existingArgs = ($existingArgs -replace [regex]::Escape($exePath), \"\").Trim()\nforeach ($s in @(\"/uninstall\", \"/quiet\", \"/norestart\")) {\n    if ($existingArgs -notmatch [regex]::Escape($s)) { $existingArgs = (\"$existingArgs $s\").Trim() }\n}\n\nWrite-Host \"Selected entry DisplayName: $($entry.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$process = Start-Process -FilePath $exePath -ArgumentList $existingArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nWait-ForProcessExit -Names @(\"ExpressVPN\", \"msiexec\") -TimeoutSeconds 240\n\n} catch {\n  Write-Host \"Error: $_\"\n  $exitCode = 1\n}\n\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 } else { Exit $exitCode }\n"
+  }
+}

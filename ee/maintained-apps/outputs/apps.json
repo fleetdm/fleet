@@ -1493,6 +1493,13 @@
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "ExpressVPN",
+      "slug": "expressvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "ExpressVPN",
+      "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
