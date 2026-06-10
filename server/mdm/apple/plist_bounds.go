@@ -13,9 +13,9 @@ import (
 // for the device-info plists these endpoints handle, which are a single flat
 // dictionary of scalar values.
 const (
-	// binaryPlistMagic is the prefix that selects the binary plist decoder. Apple doesn't fully
-	// document all the versions but bplist00 and bplist01 are known and bplist0 matches what our
-	// parser supprorts but when checking the prefix you should expect number after the 0
+	// binaryPlistMagic is the prefix that selects the binary plist decoder.
+	// Apple doesn't fully document all versions, but "bplist00" and "bplist01" are known.
+	// Using "bplist0" lets us accept any "bplist0<digit>" version header.
 	binaryPlistMagic = "bplist0"
 	plistTrailerSize = 32
 
