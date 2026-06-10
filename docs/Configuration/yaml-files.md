@@ -1210,7 +1210,7 @@ org_settings:
     probability_of_exploit:
       min: 0
       max: 100
-    severity:
+    cvss_score:
       min: 9
       max: 10
     exclude_vulnerabilities:
