@@ -32610,3 +32610,128 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
 }
+
+func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
+	t := s.T()
+	ctx := context.Background()
+
+	// --- global policy ---
+	createGlobalResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-test-global",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createGlobalResp)
+	globalPolicy := createGlobalResp.Policy
+	require.NotZero(t, globalPolicy.ID)
+
+	// Enroll a host and record a failing result for the global policy.
+	globalHost := s.createHosts(t, "darwin")[0]
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		globalHost,
+		map[uint]*bool{globalPolicy.ID: new(false)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	// Confirm the global policy now has a failing host count.
+	getGlobalResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(1), getGlobalResp.Policy.FailingHostCount)
+
+	// Reset the global policy.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
+
+	// Counts must be 0 immediately after reset.
+	getGlobalResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(0), getGlobalResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
+
+	// Counts remain 0 after re-aggregating (policy_membership was wiped).
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getGlobalResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(0), getGlobalResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
+
+	// A reset_policy activity was recorded; global policies emit team_id: -1.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1}`, globalPolicy.ID), 0)
+
+	// --- no-team policy ---
+	createNoTeamResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		Name:  "reset-test-no-team",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createNoTeamResp)
+	noTeamPolicy := createNoTeamResp.Policy
+	require.NotZero(t, noTeamPolicy.ID)
+	require.NotNil(t, noTeamPolicy.TeamID)
+	require.Zero(t, *noTeamPolicy.TeamID)
+
+	// Seed a failing result.
+	noTeamHost := s.createHosts(t, "darwin")[0]
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		noTeamHost,
+		map[uint]*bool{noTeamPolicy.ID: new(false)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getNoTeamResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicy.ID), nil, http.StatusOK, &getNoTeamResp)
+	require.Equal(t, uint(1), getNoTeamResp.Policy.FailingHostCount)
+
+	// Reset the no-team policy — must not error.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", noTeamPolicy.ID), nil, http.StatusOK)
+
+	getNoTeamResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicy.ID), nil, http.StatusOK, &getNoTeamResp)
+	require.Equal(t, uint(0), getNoTeamResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getNoTeamResp.Policy.PassingHostCount)
+
+	// Activity emitted with team_id: 0 and no team_name.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0}`, noTeamPolicy.ID), 0)
+
+	// --- team policy ---
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-team"})
+	require.NoError(t, err)
+
+	createTeamResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name:  "reset-test-team",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createTeamResp)
+	teamPolicy := createTeamResp.Policy
+	require.NotZero(t, teamPolicy.ID)
+
+	// Enroll a host on the team and record a passing result.
+	teamHost := s.createHosts(t, "darwin")[0]
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		teamHost,
+		map[uint]*bool{teamPolicy.ID: new(true)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getTeamResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getTeamResp)
+	require.Equal(t, uint(1), getTeamResp.Policy.PassingHostCount)
+
+	// Reset the team policy.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", teamPolicy.ID), nil, http.StatusOK)
+
+	getTeamResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getTeamResp)
+	require.Equal(t, uint(0), getTeamResp.Policy.PassingHostCount)
+	require.Equal(t, uint(0), getTeamResp.Policy.FailingHostCount)
+
+	// A reset_policy activity was recorded with team fields.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(
+		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"team_name":"reset-policy-team"}`,
+		teamPolicy.ID, team.ID,
+	), 0)
+
+	// 404 for a nonexistent policy.
+	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+}

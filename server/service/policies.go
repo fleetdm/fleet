@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -43,4 +44,61 @@ func (svc Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Pol
 	}
 
 	return policy, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Reset policy.
+/////////////////////////////////////////////////////////////////////////////////
+
+func resetPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ResetPolicyRequest)
+	err := svc.ResetPolicy(ctx, req.PolicyID)
+	return fleet.ResetPolicyResponse{Err: err}, nil
+}
+
+func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
+	// Load first to authorize against the policy's actual team.
+	policy, err := svc.ds.Policy(ctx, policyID)
+	if err != nil {
+		svc.SkipAuth(ctx)
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, policy, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy")
+	}
+
+	var activityTeamID *int64
+	var teamName *string
+	switch {
+	case policy.TeamID == nil:
+		id := int64(-1)
+		activityTeamID = &id
+	case *policy.TeamID == 0:
+		id := int64(0)
+		activityTeamID = &id
+	default:
+		id := int64(*policy.TeamID) //nolint:gosec // policy team IDs are small
+		activityTeamID = &id
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, policy.TeamID, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
+		}
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetPolicy{
+		ID:       policy.ID,
+		Name:     policy.Name,
+		TeamID:   activityTeamID,
+		TeamName: teamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for policy reset")
+	}
+	return nil
 }
