@@ -1207,7 +1207,7 @@ org_settings:
       - microsoft_office
       - adobe
     has_known_exploit: true
-    probability_of_exploit:
+    epss_score:
       min: 0
       max: 100
     cvss_score:
