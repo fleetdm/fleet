@@ -1,6 +1,6 @@
 ---
 name:  Release QA - fleetd
-about: Checklist of required fleetd (Orbit, Fleet Desktop, Chrome extension) and osquery tests prior to release
+about: Checklist of required fleetd (Orbit, Fleet Desktop) and osquery tests prior to release
 title: 'Release QA (fleetd):'
 labels: '#g-orchestration,:release'
 assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,marcusallen97,thisisjoegrant'
@@ -25,7 +25,6 @@ Includes updates to:
 <!-- Remove items without updates -->
 - Orbit: True / False : `v1.xx.x` > `v1.xx.x`
 - Desktop: True / False : `v1.xx.x` > `v1.xx.x`
-- Chrome extension: True / False : `v1.xx.x` > `v1.xx.x`
 - osquery: True / False : `v1.xx.x` > `v1.xx.x`
 - Android: True / False : `v1.xx.x` > `v1.xx.x`
 
@@ -33,6 +32,8 @@ Includes updates to:
 
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke
 tests are failing, a release cannot proceed.
+
+> **Setup:** Before running, build a new `fleetd` from the release candidate branch as needed for Orbit and Desktop (e.g. `rc-minor-fleet-v4.80.0`). Do not build from `main` — it is a moving target and changes from future releases may already be merged.
 
 ## fleetd
 
@@ -48,6 +49,7 @@ tests are failing, a release cannot proceed.
 - [ ] Scripts
 - [ ] Software
 - [ ] Auto-updates disabled
+- [ ] Auto-update n+1
 - [ ] Self-healing
 
 <table>
@@ -122,6 +124,18 @@ tests are failing, a release cannot proceed.
 1. Generate package with `fleetctl package [...] --updates-disabled`.
 2. Install packages on macOS, Windows, and Linux.
 3. Smoke test Orbit and Fleet Desktop functionality, and osquery tables.
+
+</td>
+</tr>
+
+<tr>
+<td>Auto-update n+1</td>
+<td>Verify the agent successfully auto-updates to the new release.</td>
+<td>
+
+1. Conduct the [`fleetd` auto-update n+1 test](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md).
+2. Agent successfully auto-updates.
+3. QA certifies new release by commenting in issue.
 
 </td>
 </tr>
@@ -281,76 +295,6 @@ tests are failing, a release cannot proceed.
 1. Unenroll the device from the Fleet UI.
 2. Confirm the device is removed from the host list in Fleet.
 3. Confirm the Fleet Android app is no longer managed on the device.
-
-</td>
-</tr>
-
-</table>
-
-## Testing gates for new `fleetd` release
-
-### Goal
-
-Ensure new `fleetd` is tested and promoted from local > edge > stable channels.
-
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
-
-> IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
-
-**Progress**
-- [ ] `fleetd` local testing
-- [ ] `fleetd` auto-update tests
-- [ ] `fleetd` edge tests
-
-<table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
-
-
-<tr>
-<td><code>fleetd</code> local testing</td>
-<td>
-
-1. Following [Testing TUF](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md) instructions, create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.
-
-> IMPORTANT: Reminder to use an RC branch and not `main`.
-
-</td>
-<td>
-
-1. Confirm the hosts install with the updated version and are working correctly.
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
-
-</td>
-</tr>
-
-<tr>
-<td><code>fleetd</code> auto-update tests</td>
-<td>
-
-1. Conduct the [`fleetd` auto-update n+1 test](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md).
-2. QA certifies new release by commenting in issue.
-
-</td>
-<td>
-
-1. Agent successfully auto-updates.
-2. Issue is certified by QA.
-
-</td>
-</tr>
-
-<tr>
-<td><code>fleetd</code> edge tests</td>
-<td>
-
-1. Set up a host in your instance to receive updates from the `edge` channels.
-2. Coordinate with the release engineer to promote the build to the `edge` channel.
-
-</td>
-<td>
-
-1. Confirm the hosts running on the edge channel receive the update and are working correctly.
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
 
 </td>
 </tr>
