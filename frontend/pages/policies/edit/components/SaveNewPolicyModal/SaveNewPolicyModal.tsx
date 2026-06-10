@@ -168,8 +168,24 @@ const SaveNewPolicyModal = ({
     showModeToggle: true,
     mode: selectedIncludeMode,
     onSelectMode: setSelectedIncludeMode,
-    anyTooltip: "Will only target hosts that have any of these labels.",
-    allTooltip: "Will only target hosts that have all of these labels.",
+    anyTooltip: (
+      <>
+        Will only target hosts that have{" "}
+        <em>
+          <b>any</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+    allTooltip: (
+      <>
+        Will only target hosts that have{" "}
+        <em>
+          <b>all</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
   };
 
   const excludeTab: ILabelTabConfig = {
@@ -179,8 +195,24 @@ const SaveNewPolicyModal = ({
     showModeToggle: true,
     mode: selectedExcludeMode,
     onSelectMode: setSelectedExcludeMode,
-    anyTooltip: "Will not target hosts that have any of these labels.",
-    allTooltip: "Will not target hosts that have all of these labels.",
+    anyTooltip: (
+      <>
+        Will not target hosts that have{" "}
+        <em>
+          <b>any</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+    allTooltip: (
+      <>
+        Will not target hosts that have{" "}
+        <em>
+          <b>all</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
   };
 
   const hasCustomLabels =
