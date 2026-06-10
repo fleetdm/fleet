@@ -186,5 +186,24 @@
   description: "Review the release planning project board to ensure issues are progressing appropriately towards the next release." 
   moreInfoUrl: "https://github.com/orgs/fleetdm/projects/87"
   dri: "lukeheath"
-
+-
+  task: "Respond to website code scanning alerts"
+  startedOn: "2024-05-04" 
+  frequency: "Weekly" 
+  description: "Respond to code scanning alerts for the website/ folder in the \"Security and quality\" tab of the Fleet repo" 
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#respond-to-website-code-scanning-alerts"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-website" ] 
+    repo: "fleet"
+- 
+  task: "Check for new hardware & OS releases"
+  startedOn: "2026-06-01"
+  frequency: "Triweekly"
+  description: "Check for newly announced or released hardware (CPUs/chips, devices) and OS versions across all Fleet-supported platforms (macOS, Windows, Linux, iOS, iPadOS, Android, ChromeOS), and pre-order devices as needed so compatibility issues are caught before customers hit them."
+  moreInfoUrl: 
+  dri: "AndreyKizimenko"
+  autoIssue:
+    labels: [ ":help-qa" ]
+    repo: "fleet"
 

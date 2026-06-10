@@ -13,14 +13,14 @@ import (
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"team_id"` //nolint:apiparamcheck // alias handled manually via sibling FleetID field (see DecodeRequest below)
 	// Note that we're adding an explicit FleetID field rather than using `renameto`.
 	// The POST /software/fleet_maintained_apps endpoint has a custom decoder
 	// and in this special case it's easier to handle the aliasing manually.
 	FleetID           *uint    `json:"fleet_id"`
 	AppID             uint     `json:"fleet_maintained_app_id"`
 	InstallScript     string   `json:"install_script"`
-	PreInstallQuery   string   `json:"pre_install_query"`
+	PreInstallQuery   string   `json:"pre_install_query"` //nolint:apiparamcheck
 	PostInstallScript string   `json:"post_install_script"`
 	SelfService       bool     `json:"self_service"`
 	UninstallScript   string   `json:"uninstall_script"`

@@ -3,7 +3,7 @@
 '''
 Create n new policies, where n is the integer first argument passed to the script.
 
-Optional second positional argument defines which team to create policies on, global/all teams
+Optional second positional argument defines which fleet (formerly "team") to create policies on, global/all teams
 policies if omitted.
 
 Assumes the script can see the `TOKEN` (API token) and `SERVER_URL` environment variables.

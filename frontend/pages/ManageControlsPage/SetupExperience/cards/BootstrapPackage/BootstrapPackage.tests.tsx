@@ -45,6 +45,29 @@ const setupDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
+  it("renders the page description on the empty state when MDM isn't configured", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Turn on MDM and automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/Upload a bootstrap package to install a configuration/)
+    ).toBeVisible();
+  });
+
   it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
@@ -60,7 +83,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/)
+        screen.getByText(/Turn on MDM and automatic enrollment/)
       ).toBeInTheDocument();
     });
   });
@@ -82,7 +105,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/)
+        screen.getByText(/Turn on MDM and automatic enrollment/)
       ).toBeInTheDocument();
     });
   });

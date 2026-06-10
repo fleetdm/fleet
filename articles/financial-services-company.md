@@ -42,7 +42,7 @@ Specifically, they were looking for:
 
 ### Next-gen change management and open-source flexibility
 
-Fleet is [open-source](https://fleetdm.com/handbook/company/why-this-way#why-open-source), allowing engineering teams to audit, customize, and extend the platform as needed alongside [infrastructure-as-code](https://github.com/fleetdm/fleet-gitops) workflows. This makes device management more agile and automated while reducing errors through peer review.
+Fleet is [open-source](https://fleetdm.com/handbook/company/why-this-way#why-open-source), allowing engineering teams to audit, customize, and extend the platform as needed alongside [infrastructure-as-code](https://fleetdm.com/docs/configuration/yaml-files) workflows. This makes device management more agile and automated while reducing errors through peer review.
 
 ### Eliminate tool overlap and increase efficiency
 

@@ -129,9 +129,18 @@ const OSSettingStatusCell = ({
 
     // For failed status, use the error detail as tooltip content
     const errorTooltip = profile ? generateErrorTooltip(profile) : null;
+    // For pending profiles, prefer a backend-provided detail message (e.g.
+    // Android Wi-Fi profiles waiting for their certificate) over the generic
+    // "Enforcing" tooltip.
+    const pendingDetailTooltip =
+      profile?.status === "pending" && profile.detail ? profile.detail : null;
 
     let tipContent: React.ReactNode;
-    if (tooltip) {
+    if (pendingDetailTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{pendingDetailTooltip}</span>
+      );
+    } else if (tooltip) {
       if (status !== "action_required") {
         tipContent = (
           <span className="tooltip__tooltip-text">

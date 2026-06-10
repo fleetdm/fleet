@@ -48,3 +48,13 @@ func HostResponsesForHostsCheap(hosts []Host) []HostResponse {
 	}
 	return hrs
 }
+
+// HostDetailResponse is the response struct that contains the full host information
+// with the HostDetail details.
+type HostDetailResponse struct {
+	HostDetail
+	Status      HostStatus   `json:"status"`
+	DisplayText string       `json:"display_text"`
+	DisplayName string       `json:"display_name"`
+	Geolocation *GeoLocation `json:"geolocation,omitempty"`
+}

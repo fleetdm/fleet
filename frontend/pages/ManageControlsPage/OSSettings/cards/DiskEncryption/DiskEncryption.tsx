@@ -206,11 +206,7 @@ const DiskEncryption = ({
           </>
         }
       />
-      {!isPremiumTier && (
-        <PremiumFeatureMessage
-          className={`${baseClass}__premium-feature-message`}
-        />
-      )}
+      {!isPremiumTier && <PremiumFeatureMessage />}
       {isPremiumTier && isLoadingTeam && <Spinner />}
       {isPremiumTier && !isLoadingTeam && !showAggregate && isTechnician && (
         <p>Disk encryption is disabled.</p>

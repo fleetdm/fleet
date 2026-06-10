@@ -6,37 +6,50 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { IConfig, IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 
-import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PageDescription from "components/PageDescription";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import UsersForm from "./components/UsersForm/UsersForm";
-import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "setup-experience-users";
+
+type EnabledManagedLocalAccountConfig = {
+  managed_local_account: boolean;
+  local_account_type?: EndUserLocalAccountType;
+};
 
 const getEnabledManagedLocalAccount = (
   currentTeamId: number,
   globalConfig?: IConfig,
   teamConfig?: ITeamConfig
-) => {
+): EnabledManagedLocalAccountConfig => {
   if (globalConfig === undefined && teamConfig === undefined) {
-    return false;
+    return { managed_local_account: false };
   }
 
   if (currentTeamId === 0) {
-    return (
-      globalConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
-      false
-    );
+    return {
+      managed_local_account:
+        globalConfig?.mdm?.setup_experience
+          ?.enable_create_local_admin_account ?? false,
+      local_account_type:
+        globalConfig?.mdm?.setup_experience?.end_user_local_account_type,
+    };
   }
 
-  return (
-    teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
-    false
-  );
+  return {
+    managed_local_account:
+      teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+      false,
+    local_account_type:
+      teamConfig?.mdm?.setup_experience?.end_user_local_account_type,
+  };
 };
 
 const getEnabledEndUserAuth = (
@@ -118,7 +131,7 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     teamConfig
   );
 
-  const defaultEnableManagedLocalAccount = getEnabledManagedLocalAccount(
+  const managedLocalAccountConfig = getEnabledManagedLocalAccount(
     currentTeamId,
     globalConfig,
     teamConfig
@@ -130,15 +143,16 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     }
     const mdmConfig = globalConfig.mdm;
     return (
-      <SetupExperienceContentContainer>
-        <UsersForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-          defaultLockEndUserInfo={defaultLockEndUserInfo}
-          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          isIdPConfigured={isIdPConfigured(mdmConfig)}
-        />
-      </SetupExperienceContentContainer>
+      <UsersForm
+        currentTeamId={currentTeamId}
+        defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        defaultLockEndUserInfo={defaultLockEndUserInfo}
+        defaultEnableManagedLocalAccount={
+          managedLocalAccountConfig.managed_local_account
+        }
+        defaultLocalAccountType={managedLocalAccountConfig.local_account_type}
+        isIdPConfigured={isIdPConfigured(mdmConfig)}
+      />
     );
   };
 
@@ -154,7 +168,23 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        content={
+          <>
+            Customize local user accounts. You can automatically create local
+            user accounts using IdP credentials via Platform Single Sign-On
+            (PSSO), an advanced account configuration.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+              text="Learn how"
+              newTab
+            />
+          </>
+        }
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
     </section>
   );
 };

@@ -496,16 +496,10 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppleAppStoreApp && !software.app_store_app?.last_install;
 
-    // These temporary statuses are not clickable because it will show outdated info in modal
-    const recentlyTakenAction =
-      software.ui_status === "recently_installed" ||
-      software.ui_status === "recently_updated" ||
-      software.ui_status === "recently_uninstalled";
-
+    // keep clickable except for App Store apps missing last_install (modal would be empty)
     const shouldOnClickBeDisabled =
-      (isMissingLastInstallInfo &&
-        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
-      recentlyTakenAction;
+      isMissingLastInstallInfo &&
+      (software.status === "failed_install" || isInstalledInFleetAndUI);
 
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 

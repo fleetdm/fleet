@@ -3,9 +3,12 @@ package activity
 import "context"
 
 // Host represents minimal host info needed by the activity context for authorization.
+// The json tags must match the field names referenced by the OPA policy (see
+// server/authz/policy.rego), otherwise authorization checks that depend on
+// object.team_id (e.g. team-scoped admins reading host activities) will fail.
 type Host struct {
-	ID     uint
-	TeamID *uint
+	ID     uint  `json:"id"`
+	TeamID *uint `json:"team_id"` //nolint apiparamcheck // internal struct, tag used by OPA policy engine, not emitted to user
 }
 
 // AuthzType returns the authorization type for hosts.

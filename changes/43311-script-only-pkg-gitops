@@ -1,1 +1,0 @@
-* Fixed a bug where host environment variables in script-only packages would cause gitops to fail

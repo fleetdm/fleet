@@ -196,7 +196,7 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 
 ### mdm.enable_custom_os_updates_and_filevault
 
-Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable_custom_os_updates_and_filevault) reference.
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable-custom-os-updates-and-filevault) reference.
 
 ### logging.tracing_enabled
 

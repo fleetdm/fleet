@@ -238,6 +238,14 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 	return nil
 }
 
+func (g *GoogleClient) EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error) {
+	op, err := g.mgmt.Enterprises.Devices.IssueCommand(deviceName, command).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("issuing command to device %s: %w", deviceName, err)
+	}
+	return op, nil
+}
+
 func (g *GoogleClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
 	ret, err := g.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name").Do()
 	if err != nil {

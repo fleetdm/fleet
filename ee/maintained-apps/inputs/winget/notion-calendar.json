@@ -1,0 +1,12 @@
+{
+  "name": "Notion Calendar",
+  "slug": "notion-calendar/windows",
+  "package_identifier": "Notion.NotionCalendar",
+  "unique_identifier": "Notion Calendar",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_calendar_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_calendar_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}

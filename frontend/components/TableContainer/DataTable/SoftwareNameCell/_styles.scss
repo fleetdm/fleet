@@ -12,10 +12,17 @@
     height: 24px;
   }
 
-  &__install-icon {
-    // TODO: we do not want to use !important but have to for now. This is
-    // the same issue as the .software-name-cell class display value.
-    display: inline-flex !important;
+  &__install-icon-with-tooltip {
+    display: inline-flex;
+    align-items: center;
+
+    // TooltipWrapper renders its child inside a span that defaults to
+    // text-baseline alignment. Re-center so the icon sits in the row's
+    // vertical middle wherever this component is used.
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 
   &__install-tooltip-text {

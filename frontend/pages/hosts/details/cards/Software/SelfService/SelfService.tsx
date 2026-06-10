@@ -35,10 +35,7 @@ import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDe
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import {
-  isBYODAccountDrivenUserEnrollment,
-  MdmEnrollmentStatus,
-} from "interfaces/mdm";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
 import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
@@ -47,7 +44,10 @@ import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
 import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
-import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
+import {
+  getInstallErrorMessage,
+  getLastInstall,
+} from "../../HostSoftwareLibrary/helpers";
 
 import { getUiStatus } from "../helpers";
 
@@ -146,7 +146,6 @@ const SoftwareSelfService = ({
   hostSoftwareUpdatedAt,
   hostDisplayName,
   isMobileView = false,
-  mdmEnrollmentStatus,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
@@ -450,7 +449,9 @@ const SoftwareSelfService = ({
         // We only show toast message if API returns an error
         renderFlash(
           "error",
-          `Couldn't ${isScriptPackage ? "run" : "install"}. Please try again.`
+          isScriptPackage
+            ? "Couldn't run. Please try again."
+            : getInstallErrorMessage(error)
         );
       }
     },
@@ -670,18 +671,6 @@ const SoftwareSelfService = ({
     onClickUninstallAction,
     onClickOpenInstructionsAction,
   ]);
-
-  if (isMobileView && isBYODAccountDrivenUserEnrollment(mdmEnrollmentStatus)) {
-    return (
-      <div className="unsupported-self-service">
-        <p className="header">Self-service isn&apos;t supported</p>
-        <p>
-          Self-service is currently not supported on personal iOS and iPadOS
-          devices (enrolled with Managed Apple Account).
-        </p>
-      </div>
-    );
-  }
 
   if (isMobileView)
     return (

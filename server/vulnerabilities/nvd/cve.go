@@ -322,21 +322,31 @@ func TranslateCPEToCVE(
 		osInsertErr = true
 	}
 
+	// Detect corrupted/empty CVE feeds. If we had CPE/OS inputs to match against but produced
+	// zero results across every feed file, the feed is almost certainly empty or corrupted
+	// (e.g., a failed/corrupted artifact from GitHub) — skip the deletes so we don't wipe
+	// legitimate existing software_cve rows that will be re-matched on the next good sync.
+	feedProducedNoData := len(allSoftwareVulns) == 0 && len(allOSVulns) == 0
+
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
 	// Skip cleanup when the corresponding insert failed to avoid deleting data with nothing to replace it.
-	if softwareInsertErr == nil {
+	if softwareInsertErr == nil && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date vulnerabilities", "err", err)
 		}
 	}
-	if !osInsertErr {
+	if !osInsertErr && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date OS vulnerabilities", "err", err)
 		}
+	}
+	if feedProducedNoData {
+		logger.ErrorContext(ctx, "NVD scan produced no matches with non-empty input; skipping deletes to preserve existing software_cve rows (feed may be corrupted)",
+			"software_cpes", len(parsed), "os_cpes", len(cpes), "feed_files", len(files))
 	}
 
 	return newVulns, nil
@@ -417,10 +427,6 @@ func checkCVEs(
 
 	// Group dictionary by vendor using a map.
 	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
-	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
-	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
-	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
-	// Further optimization can be done by also using a map for product name comparison.
 	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
 	for key, vuln := range dict {
 		attrsArray := vuln.Config()
@@ -436,7 +442,12 @@ func checkCVEs(
 
 	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
 	for vendor, subDict := range dictGrouped {
+		// Build a product index per vendor so that cache.Get() narrows the
+		// dictionary to only CVEs matching the queried product name before
+		// running version-range matching.
+		idx := cvefeed.NewIndex(subDict)
 		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cache.Idx = idx
 		cacheGrouped[vendor] = cache
 	}
 

@@ -1,0 +1,196 @@
+import paths from "router/paths";
+
+import { ICommandItem, ICommandPaletteContext } from "../helpers";
+import { IDerivedContext } from "./derivations";
+
+const buildAutomationsItems = (
+  ctx: ICommandPaletteContext,
+  derived: IDerivedContext
+): ICommandItem[] => {
+  const {
+    canAccessSettings,
+    canManageSoftwareAutomations,
+    canManagePolicyAutomations,
+    canManageReportAutomations,
+    hasTeamSelected,
+    isPremiumTier,
+    isPrimoMode,
+    withTeamId,
+  } = ctx;
+  const { isUnassigned, switchesFromUnassigned, hasTeamOrUnassigned } = derived;
+
+  return [
+    // Manage automations — software. Normally All-fleets-only, but in
+    // Primo Mode the single fleet acts as "all fleets" so the destination
+    // page (SoftwarePage) accepts it too.
+    ...(canManageSoftwareAutomations &&
+    ((!hasTeamSelected && !isUnassigned) || isPrimoMode)
+      ? [
+          {
+            id: "manage-software-automations",
+            label: "Manage software automations",
+            group: "Automations" as const,
+            path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
+            keywords: [
+              "manage automations",
+              "vulnerability",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
+          },
+        ]
+      : []),
+
+    // Manage automations — activity feed (global admin only)
+    ...(canAccessSettings
+      ? [
+          {
+            id: "manage-activity-automations",
+            label: "Manage activity automations",
+            group: "Automations" as const,
+            path: `${paths.DASHBOARD}?manage_automations=1`,
+            keywords: [
+              "manage automations",
+              "activity feed",
+              "webhook",
+              "audit log",
+            ],
+          },
+        ]
+      : []),
+
+    // Manage automations — reports. Mirrors ManageQueriesPage's
+    // `canManageAutomations` (admin-only). The destination page opens
+    // the modal from `?manage_automations=1` without re-checking the
+    // role, so the palette must gate strictly here.
+    ...(canManageReportAutomations
+      ? [
+          {
+            id: "manage-report-automations",
+            label: "Manage report automations",
+            group: "Automations" as const,
+            path: withTeamId(`${paths.MANAGE_REPORTS}?manage_automations=1`),
+            keywords: [
+              "manage automations",
+              "report",
+              "logging",
+              "destination",
+            ],
+            teamName: switchesFromUnassigned,
+          },
+        ]
+      : []),
+
+    // Manage automations — policies (admins and maintainers)
+    ...(canManagePolicyAutomations
+      ? [
+          {
+            id: "manage-policy-automations",
+            label: "Manage policy automations",
+            group: "Automations" as const,
+            path: withTeamId(paths.MANAGE_POLICIES),
+            keywords: [
+              "manage automations",
+              "failing",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
+            subItems: [
+              {
+                id: "manage-policy-automations-webhooks",
+                label: "Tickets & webhooks",
+                path: withTeamId(
+                  `${paths.MANAGE_POLICIES}?manage_automations=webhooks`
+                ),
+                keywords: [
+                  "manage policy automations",
+                  "manage automations",
+                  "jira",
+                  "zendesk",
+                  "failing",
+                ],
+              },
+              // Team-scoped policy automations (Premium-only). The
+              // policies page allows install_software / run_script /
+              // conditional_access on No team / Unassigned, so those
+              // three use `hasTeamOrUnassigned`. Calendar events stay
+              // on `hasTeamSelected` — the page disables them when
+              // there's no specific team.
+              ...(isPremiumTier && hasTeamOrUnassigned
+                ? [
+                    {
+                      id: "manage-policy-automations-install-software",
+                      label: "Install software",
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=install_software`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
+                    },
+                    {
+                      id: "manage-policy-automations-run-script",
+                      label: "Run script",
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=run_script`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
+                    },
+                  ]
+                : []),
+              ...(isPremiumTier && hasTeamSelected
+                ? [
+                    {
+                      id: "manage-policy-automations-calendar",
+                      label: "Calendar events",
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=calendar`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "reserve time",
+                        "maintenance window",
+                        "google calendar",
+                      ],
+                    },
+                  ]
+                : []),
+              ...(isPremiumTier && hasTeamOrUnassigned
+                ? [
+                    {
+                      id: "manage-policy-automations-conditional-access",
+                      label: "Conditional access",
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=conditional_access`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "sso",
+                        "okta",
+                        "entra",
+                        "intune",
+                        "zero trust",
+                      ],
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
+  ];
+};
+
+export default buildAutomationsItems;

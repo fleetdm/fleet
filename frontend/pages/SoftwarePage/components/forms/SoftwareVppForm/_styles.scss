@@ -68,7 +68,11 @@
   }
 
   &__list {
-    max-height: 280px;
+    // Sized to fit roughly 20 rows without scrolling. Row height is
+    // ~24px content (SoftwareIcon at "small") plus 16px vertical padding
+    // plus a 1px border, so 20 rows land near 820px. The extra 20 leaves
+    // a buffer for wrapped names.
+    max-height: 840px;
     overflow-y: auto;
     list-style: none;
     margin: 0;

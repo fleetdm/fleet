@@ -144,13 +144,13 @@ export default {
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
   // Apple Business (AB) endpoints
-  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
-  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
-  MDM_ABM_TOKEN_RENEW: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
-  MDM_ABM_TOKEN_TEAMS: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/fleets`,
-  MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
+  MDM_AB_TOKENS: `/${API_VERSION}/fleet/ab_tokens`,
+  MDM_AB_TOKEN: (id: number) => `/${API_VERSION}/fleet/ab_tokens/${id}`,
+  MDM_AB_TOKEN_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/renew`,
+  MDM_AB_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/fleets`,
+  MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
@@ -202,8 +202,12 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_DEVICE_URL: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/device_url`,
   HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
+  HOST_MANAGED_LOCAL_ACCOUNT_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password/rotate`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
@@ -343,6 +347,6 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables (secrets) endpoints
-  SECRETS: `/${API_VERSION}/fleet/custom_variables`,
+  // custom variables endpoints
+  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
 };

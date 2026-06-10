@@ -1,7 +1,8 @@
-FROM golang:1.26.2-alpine3.23@sha256:80fbb8f9b2fa541a7d34378f1ad10f4f1c433817c4ed39ddb3e2f3ec3e961271
+FROM golang:1.26.3-alpine3.23@sha256:f44b851aa23dfa219d18db6eab743203245429d355cb619cf96a2ffe2a84ba7a
 ARG TAG
 RUN apk add git sqlite gcc musl-dev sqlite-dev
-RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .
+RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
+RUN go install github.com/fleetdm/fleet/v4/cmd/osquery-perf@${TAG}
 
 # Generate software database from SQL file
 RUN cd /go/fleet/cmd/osquery-perf/software-library && \
@@ -27,7 +28,7 @@ LABEL maintainer="Fleet Developers"
 # Create FleetDM group and user
 RUN addgroup -S osquery-perf && adduser -S osquery-perf -G osquery-perf
 
-COPY --from=0 /go/fleet/cmd/osquery-perf/osquery-perf /go/osquery-perf
+COPY --from=0 /go/bin/osquery-perf /go/osquery-perf
 COPY --from=0 /go/fleet/server/vulnerabilities/testdata/ /go/fleet/server/vulnerabilities/testdata/
 # Copy software database (generated in builder stage)
 COPY --from=0 /go/fleet/cmd/osquery-perf/software-library/ /go/software-library/

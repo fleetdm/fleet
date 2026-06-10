@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
@@ -19,6 +25,8 @@ import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -26,8 +34,8 @@ import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
 import ScriptListHeading from "../../components/ScriptListHeading";
 import ScriptListItem from "../../components/ScriptListItem";
-import ScriptUploader from "../../components/ScriptUploader";
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
+import { SCRIPT_UPLOADER_EMPTY_STATE_TEXT } from "../../helpers";
 
 const baseClass = "script-library";
 
@@ -50,6 +58,19 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
+
+  // Open the add-script modal when arriving from the command palette
+  // with `?add_script=1`. Cleans the param so a refresh doesn't reopen
+  // the modal. Technicians never see the "Add script" button on this
+  // page, so don't honor the deep-link for them either.
+  useEffect(() => {
+    if (location.query.add_script !== "1") return;
+    if (!isTechnician) {
+      setShowAddScriptModal(true);
+    }
+    const { add_script, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, isTechnician]);
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -183,19 +204,34 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     </InfoBanner>
   );
 
+  const canUploadScripts = !isTechnician;
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading &&
-        currentPage === 0 &&
-        !scripts?.length &&
-        (isTechnician ? (
-          <EmptyState variant="header-list" header="No scripts uploaded" />
-        ) : (
-          <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
-        ))}
+      {!isLoading && !isError && currentPage === 0 && !scripts?.length && (
+        <EmptyState
+          variant="header-list"
+          header="No scripts"
+          info={canUploadScripts ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT : undefined}
+          primaryButton={
+            canUploadScripts ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    onClick={() => setShowAddScriptModal(true)}
+                    disabled={disableChildren}
+                  >
+                    Upload
+                  </Button>
+                )}
+              />
+            ) : undefined
+          }
+        />
+      )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}

@@ -119,3 +119,28 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, restartQueued)
 }
+
+func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
+	rootDir := t.TempDir()
+	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
+
+	var restartQueued bool
+	queueOrbitRestart := func(string) { restartQueued = true }
+	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{RootDir: rootDir})
+
+	// Nil Flags + no file: no-op.
+	err := fr.Run(&fleet.OrbitConfig{Flags: nil})
+	require.NoError(t, err)
+	require.False(t, restartQueued)
+
+	// Nil Flags + existing file: reconcile to empty + restart.
+	err = os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n--tls_dump=true\n"), 0o644)
+	require.NoError(t, err)
+	err = fr.Run(&fleet.OrbitConfig{Flags: nil})
+	require.NoError(t, err)
+	require.True(t, restartQueued)
+
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Empty(t, string(contents))
+}
