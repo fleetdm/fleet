@@ -1958,7 +1958,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		},
 		{
 			"profiles with labels fails on free license",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,

@@ -2153,7 +2153,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
 
-	if len(labels) > 0 && lic != nil && !lic.IsPremium() {
+	if len(labels) > 0 && (lic == nil || !lic.IsPremium()) {
 		return ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
 	}
 

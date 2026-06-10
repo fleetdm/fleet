@@ -789,7 +789,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 	setup := func(t *testing.T, license *fleet.LicenseInfo, identifier string) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, license)
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 		mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 
