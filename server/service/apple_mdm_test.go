@@ -5430,6 +5430,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				delete(f, "OSVersion")
 				delete(f, "ProductName")
 				delete(f, "WiFiMAC")
+				delete(f, "IsSupervised")
 			},
 			expect: expectations{
 				expectComputerName:  existingHostname,
