@@ -125,26 +125,70 @@ import Blender from "./Blender";
 import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
+import Cacher from "./Cacher";
+import Caffeine from "./Caffeine";
 import Calibre from "./Calibre";
-import CleanMyMac from "./CleanMyMac";
-import CleanShotX from "./CleanShotX";
-import CLion from "./CLion";
+import CalibriteProfiler from "./CalibriteProfiler";
+import CamoStudio from "./CamoStudio";
 import Camtasia from "./Camtasia";
+import CamundaModeler from "./CamundaModeler";
 import Canva from "./Canva";
+import Captain from "./Captain";
+import Captin from "./Captin";
+import Capto from "./Capto";
+import CarbonCopyCloner from "./CarbonCopyCloner";
+import Cardhop from "./Cardhop";
+import Cellprofiler from "./Cellprofiler";
+import Chalk from "./Chalk";
+import Charmstone from "./Charmstone";
 import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
+import Chatwise from "./Chatwise";
+import Cheetah3D from "./Cheetah3D";
+import CherryStudio from "./CherryStudio";
+import Chime from "./Chime";
+import Choosy from "./Choosy";
 import ChromeApp from "./ChromeApp";
 import ChromeOS from "./ChromeOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
+import Cleanclip from "./Cleanclip";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import ClickUp from "./ClickUp";
+import CLion from "./CLion";
+import Clipbook from "./Clipbook";
+import Clipgrab from "./Clipgrab";
+import Clipy from "./Clipy";
+import Clocker from "./Clocker";
 import ClockifyDesktop from "./ClockifyDesktop";
+import Clop from "./Clop";
 import Cloudflare from "./Cloudflare";
-
+import Cloudmounter from "./Cloudmounter";
+import CmakeApp from "./CmakeApp";
+import Cmux from "./Cmux";
+import Coconutbattery from "./Coconutbattery";
+import Codeedit from "./Codeedit";
+import Coderunner from "./Coderunner";
+import Codexbar from "./Codexbar";
+import CogApp from "./CogApp";
+import Colorsnapper from "./Colorsnapper";
+import ColourContrastAnalyser from "./ColourContrastAnalyser";
+import Commander from "./Commander";
+import CommanderOne from "./CommanderOne";
+import CommandTabPlus from "./CommandTabPlus";
+import Companion from "./Companion";
+import CopilotMoney from "./CopilotMoney";
+import Cork from "./Cork";
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
+import Crossover from "./Crossover";
+import Crystalfetch from "./Crystalfetch";
 import Cursor from "./Cursor";
+import Cursorsense from "./Cursorsense";
+import Cursr from "./Cursr";
+import Customshortcuts from "./Customshortcuts";
 import Cyberduck from "./Cyberduck";
 import Dash from "./Dash";
 import DataGrip from "./DataGrip";
@@ -176,15 +220,36 @@ import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
 import Fork from "./Fork";
 import Front from "./Front";
+import GarminExpress from "./GarminExpress";
+import Gather from "./Gather";
+import Gdevelop from "./Gdevelop";
+import Geany from "./Geany";
+import Geekbench from "./Geekbench";
+import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
+import Gitfinder from "./Gitfinder";
+import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
+import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
+import GitupApp from "./GitupApp";
+import Glyphs from "./Glyphs";
+import Go2Shell from "./Go2Shell";
+import Godot from "./Godot";
+import Godspeed from "./Godspeed";
+import GogGalaxy from "./GogGalaxy";
 import GoLand from "./GoLand";
+import Goodsync from "./Goodsync";
 import GoogleDrive from "./GoogleDrive";
+import GoogleEarthPro from "./GoogleEarthPro";
 import GpgKeychain from "./GpgKeychain";
+import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
+import Grandperspective from "./Grandperspective";
 import Granola from "./Granola";
+import Grids from "./Grids";
+import Gyazo from "./Gyazo";
 import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import Inkscape from "./Inkscape";
@@ -227,12 +292,35 @@ import Nova from "./Nova";
 import Nudge from "./Nudge";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
+import Ocenaudio from "./Ocenaudio";
+import OkJson from "./OkJson";
+import Omnidisksweeper from "./Omnidisksweeper";
+import Omnifocus from "./Omnifocus";
 import OmniGraffle from "./OmniGraffle";
+import Omnioutliner from "./Omnioutliner";
+import Omniplan from "./Omniplan";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import OneDrive from "./OneDrive";
 import OnePassword from "./OnePassword";
+import OneSwitch from "./OneSwitch";
+import Onionshare from "./Onionshare";
+import Onlyoffice from "./Onlyoffice";
+import OnlySwitch from "./OnlySwitch";
+import OpalComposer from "./OpalComposer";
+import Openaudible from "./Openaudible";
+import Openboard from "./Openboard";
+import Opencloud from "./Opencloud";
+import OpencodeDesktop from "./OpencodeDesktop";
+import Openinterminal from "./Openinterminal";
+import Openlens from "./Openlens";
+import Openmtp from "./Openmtp";
+import Openrct2 from "./Openrct2";
+import Openrefine from "./Openrefine";
+import Opentoonz from "./Opentoonz";
 import Opera from "./Opera";
+import OptimusPlayer from "./OptimusPlayer";
 import OrbStack from "./OrbStack";
+import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
 import Package from "./Package";
 import ParallelsDesktop from "./ParallelsDesktop";
@@ -295,6 +383,15 @@ import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
 import Twingate from "./Twingate";
+import UaConnect from "./UaConnect";
+import Ukelele from "./Ukelele";
+import UltimakerCura from "./UltimakerCura";
+import Unclutter from "./Unclutter";
+import Unicodechecker from "./Unicodechecker";
+import UnityHub from "./UnityHub";
+import Updf from "./Updf";
+import Upscayl from "./Upscayl";
+import UsageApp from "./UsageApp";
 import Utm from "./Utm";
 import Vanilla from "./Vanilla";
 import VcRedistX64 from "./VcRedistX64";
@@ -436,6 +533,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beekeeper studio": BeekeeperStudio,
   betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
+  "bitfocus companion": Companion,
   bitwarden: Bitwarden,
   blender: Blender,
   bluej: Bluej,
@@ -443,33 +541,76 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   brave: Brave,
   bruno: Bruno,
   "burp suite community": BurpSuiteCommunity,
+  cacher: Cacher,
+  caffeine: Caffeine,
   calibre: Calibre,
+  "calibrite profiler": CalibriteProfiler,
+  "camo studio": CamoStudio,
   camtasia: Camtasia,
+  "camunda modeler": CamundaModeler,
   canva: Canva,
+  captain: Captain,
+  captin: Captin,
+  capto: Capto,
+  "carbon copy cloner": CarbonCopyCloner,
+  cardhop: Cardhop,
   cavalry: Cavalry,
+  cellprofiler: Cellprofiler,
+  chalk: Chalk,
   charles: Charles,
-  "chatgpt atlas": ChatGptAtlas,
+  charmstone: Charmstone,
   chatgpt: ChatGpt,
+  "chatgpt atlas": ChatGptAtlas,
+  chatwise: Chatwise,
+  cheetah3d: Cheetah3D,
+  "cherry studio": CherryStudio,
+  chime: Chime,
+  choosy: Choosy,
   "chrome remote desktop": ChromeRemoteDesktop,
   "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
-  cleanmymac_5: CleanMyMac,
+  cleanclip: Cleanclip,
   cleanmymac: CleanMyMac,
+  cleanmymac_5: CleanMyMac,
   "cleanshot x": CleanShotX,
   clickshare: ClickShare,
-  clion: CLion,
   clickup: ClickUp,
+  clion: CLion,
+  clipbook: Clipbook,
+  clipgrab: Clipgrab,
+  clipy: Clipy,
+  clocker: Clocker,
   "clockify desktop": ClockifyDesktop,
+  clop: Clop,
   cloudflare: Cloudflare,
+  cmake: CmakeApp,
+  cmux: Cmux,
+  coconutbattery: Coconutbattery,
   code: VisualStudioCode,
+  codeedit: Codeedit,
+  coderunner: Coderunner,
+  codexbar: Codexbar,
+  cog: CogApp,
+  "colorsnapper 2": Colorsnapper,
+  "colour contrast analyser": ColourContrastAnalyser,
   comet: Comet,
+  "command-tab plus": CommandTabPlus,
+  commander: Commander,
+  "commander one": CommanderOne,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
+  copilot: CopilotMoney,
+  cork: Cork,
   crashplan: CrashPlan,
+  crossover: Crossover,
   cryptomator: Cryptomator,
+  crystalfetch: Crystalfetch,
+  cursorsense: Cursorsense,
+  cursr: Cursr,
+  customshortcuts: Customshortcuts,
   "dell command update": DellCommandUpdate,
   "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
@@ -524,6 +665,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   egnyte: Egnyte,
   "elgato control center": ElgatoControlCenter,
   "elgato stream deck": ElgatoStreamDeck,
+  "eltima cloudmounter": Cloudmounter,
   evernote: Evernote,
   expressvpn: ExpressVpn,
   falcon: Falcon,
@@ -559,6 +701,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  "garmin express": GarminExpress,
+  "gather town": Gather,
+  gdevelop: Gdevelop,
+  geany: Geany,
+  geekbench: Geekbench,
+  gephi: Gephi,
+  gitfinder: Gitfinder,
+  "github copilot for xcode": GithubCopilotForXcode,
+  gitify: Gitify,
+  gitup: GitupApp,
+  glyphs: Glyphs,
+  go2shell: Go2Shell,
+  "godot engine": Godot,
+  godspeed: Godspeed,
+  "gog galaxy": GogGalaxy,
+  goodsync: Goodsync,
+  "google earth pro": GoogleEarthPro,
+  gpodder: Gpodder,
+  grandperspective: Grandperspective,
+  grids: Grids,
   imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
@@ -588,6 +750,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nord vpn": NordVpn,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "nota gyazo gif": Gyazo,
   "notepad++": Notepad,
   "notion calendar": NotionCalendar,
   notion: Notion,
@@ -595,14 +758,37 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nudge: Nudge,
   obs: Obs,
   obsidian: Obsidian,
+  ocenaudio: Ocenaudio,
+  "ok json": OkJson,
   "okta verify": OktaVerify,
   ollama: Ollama,
+  omnidisksweeper: Omnidisksweeper,
+  omnifocus: Omnifocus,
   omnigraffle: OmniGraffle,
+  omnioutliner: Omnioutliner,
+  omniplan: Omniplan,
   "omnissa horizon client": OmnissaHorizonClient,
+  "one switch": OneSwitch,
   onedrive: OneDrive,
+  onionshare: Onionshare,
+  onlyoffice: Onlyoffice,
+  onlyswitch: OnlySwitch,
+  "opal composer": OpalComposer,
+  openaudible: Openaudible,
+  openboard: Openboard,
+  "opencloud desktop": Opencloud,
+  opencode: OpencodeDesktop,
+  openinterminal: Openinterminal,
+  openlens: Openlens,
+  openmtp: Openmtp,
+  openrct2: Openrct2,
+  openrefine: Openrefine,
+  opentoonz: Opentoonz,
   "openvpn connect": OpenvpnConnect,
   opera: Opera,
+  "optimus player": OptimusPlayer,
   orbstack: OrbStack,
+  "origami studio": OrigamiStudio,
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
@@ -691,6 +877,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   transmit: Transmit,
   tunnelblick: Tunnelblick,
   twingate: Twingate,
+  "ua connect": UaConnect,
+  ukelele: Ukelele,
+  "ultimaker cura": UltimakerCura,
+  unclutter: Unclutter,
+  unicodechecker: Unicodechecker,
+  "unity hub": UnityHub,
+  updf: Updf,
+  upscayl: Upscayl,
+  usage: UsageApp,
   utm: Utm,
   vanilla: Vanilla,
   vellum: Vellum,

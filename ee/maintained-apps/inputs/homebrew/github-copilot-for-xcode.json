@@ -1,0 +1,10 @@
+{
+  "name": "GitHub Copilot for Xcode",
+  "unique_identifier": "com.github.CopilotForXcode",
+  "token": "github-copilot-for-xcode",
+  "installer_format": "dmg",
+  "slug": "github-copilot-for-xcode/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
