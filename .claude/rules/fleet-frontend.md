@@ -100,6 +100,10 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - New code should use TypeScript interfaces only
 - API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key. Avoid `*Body`, `*PostBody`, `*Payload`, `*Request` for API request bodies. `*PreviewPayload` is fine for outgoing webhook shapes (matches the "Preview payload" UI terminology).
 
+## Forms
+- Follow the validation and submission patterns in `frontend/docs/patterns.md` (validate on blur/submit, clear errors on change, `isValid` flag pattern)
+- GitOps mode: `GitOpsModeTooltipWrapper` disables its children and shows a tooltip. If the entire form is GitOps-managed, disable all fields with `disabled={gitOpsModeEnabled}` and wrap the save button with `GitOpsModeTooltipWrapper`. If only some fields are GitOps-managed, wrap those individual fields with `GitOpsModeTooltipWrapper` and leave the save button unwrapped.
+
 ## Hooks & Context
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
