@@ -1,41 +1,34 @@
-## File carving
+# File carving
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd) returning the full contents to Fleet.
+Fleet supports file carving which allows you to request files (and sets of files) and their full contents from hosts.
 
 File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s-3-file-carving-backend).
 
-### Configuration
+## Setup
 
-Given a working flagfile for connecting fleetd to Fleet, add the following flags to enable carving:
+In your agent configuration, add the following [command line flags](https://fleetdm.com/docs/configuration/agent-configuration#options-and-command-line-flags) to enable carving:
 
-```sh
---disable_carver=false
---carver_disable_function=false
---carver_start_endpoint=/api/v1/osquery/carve/begin
---carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=8000000
+```yaml
+command_line_flags:
+  disable_carver=false
+  carver_disable_function=false
+  carver_start_endpoint=/api/v1/osquery/carve/begin
+  carver_continue_endpoint=/api/v1/osquery/carve/block
+  carver_block_size=8000000
 ```
 
-The default flagfile provided in the "Add new host" dialog also includes this configuration.
-
-#### Carver block size
-
-The `carver_block_size` flag should be configured in osquery.
-
-For the (default) MySQL Backend, the configured value must be less than the value of
+For the (default) MySQL Backend, the configured `carver_block_size` must be less than the value of
 `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
-For the S3-compatible backend, this value must be set to at least 5MiB (`5242880`) due to the
+For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
-#### Compression
+Compression of the carve contents can be enabled with the `carver_compression` flag. When used, the carve results will be compressed with [Zstandard](https://facebook.github.io/zstd/) compression.
 
-Compression of the carve contents can be enabled with the `carver_compression` flag in osquery. When used, the carve results will be compressed with [Zstandard](https://facebook.github.io/zstd/) compression.
+## Create carves
 
-### Usage
-
-File carves are initiated with osquery queries. Issue a query to the `carves` table, providing `carve = 1` along with the desired path(s) as constraints.
+File carves are initiated with live reports. Run live report using the `carves` table, providing `carve = 1` along with the desired path(s) as constraints.
 
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
@@ -43,15 +36,15 @@ For example, to extract the `/etc/hosts` file on a host with hostname `mac-works
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
-The standard osquery file globbing syntax is also supported to carve entire directories or more:
+The globbing syntax is also supported to carve entire directories or more:
 
 ```sh
 fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
-#### Retrieving carves
+## Retrieve carves
 
-List the non-expired (see below) carves with `fleetctl get carves`. Note that carves will not be available through this command until osquery checks in to the Fleet server with the first of the carve contents. This can take some time from initiation of the carve.
+List the non-expired (see below) carves with `fleetctl get carves`. Note that carves will not be available through this command until Fleet's agent (fleetd) checks in to the Fleet server with the first of the carve contents. This can take some time from initiation of the carve.
 
 To also retrieve expired carves, use `fleetctl get carves --expired`.
 
@@ -69,13 +62,13 @@ It can also be useful to pipe the results directly into the tar command for unar
 fleetctl get carve --stdout 3 | tar -x
 ```
 
-#### Expiration
+## Expiration
 
-Carve contents remain available for 24 hours after the first data is provided from the osquery client. After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
+Carve contents remain available for 24 hours after the first data is provided from the Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
 
 The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
-### Alternative carving backends
+## Alternative carving backends
 
 #### RustFS
 
@@ -89,11 +82,11 @@ Configure the following:
 
 If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
 
-### Troubleshooting
+## Troubleshooting
 
-#### Check carve status in osquery
+### Check carve status
 
-Osquery can report on the status of carves through queries to the `carves` table.
+You can report on the status of carves through queries to the `carves` table.
 
 The details provided by
 
@@ -103,9 +96,9 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure `carver_block_size` is set appropriately
+### Ensure `carver_block_size` is set appropriately
 
-`carver_block_size` is an osquery flag that sets the size of each part of a file carve that osquery
+`carver_block_size` is an option that sets the size of each part of a file carve that Fleet's agent (fleetd)
 sends to the Fleet server.
 
 When using the MySQL backend (default), this value must be less than the `max_allowed_packet`
@@ -120,4 +113,9 @@ The value must be small enough that HTTP requests do not time out.
 
 Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3 (5242880 bytes).
 
-<meta name="pageOrderInSection" value="2100">
+<meta name="articleTitle" value="File carving in Fleet"> 
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="publishedOn" value="2026-06-10">
+<meta name="description" value="Learn how file carving allows you to request files and their contents from hosts">
+<meta name="category" value="guides">
