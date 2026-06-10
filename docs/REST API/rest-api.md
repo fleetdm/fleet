@@ -1319,7 +1319,7 @@ To initiate a file carve using the Fleet API, use the [live report](#run-live-re
 
 Any failure when uploading a file block (like a network error) will result on a failed carved file. Block uploads are retried up to three times before failing.
 
-To learn more about executing a file carve in Fleet, head to the [file carving guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
+To learn more about executing a file carve in Fleet, head to the [file carving guide](https://fleetdm.com/guides/file-carving).
 
 ### List carves
 
