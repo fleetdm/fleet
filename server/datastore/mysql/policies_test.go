@@ -8641,11 +8641,13 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 	})
 
 	// Create a script_content row so host_script_results FK constraints are satisfied.
+	// md5_checksum is BINARY(16) — pass raw bytes, not a hex string.
+	checksum := md5.Sum([]byte(t.Name())) //nolint:gosec // md5 only for test fixture
 	var scriptContentID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx,
 			`INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
-			fmt.Sprintf("%x", md5.Sum([]byte(t.Name()))), "echo test", //nolint:gosec // md5 only for test fixture
+			checksum[:], "echo test",
 		)
 		if err != nil {
 			return err
