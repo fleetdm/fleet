@@ -729,17 +729,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.Device.DeviceID = deviceID
 
-	var idpFullname string
-	idpAcct, err := svc.fleetDS.GetMDMIdPAccountByHostUUID(ctx, host.Host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting IdP account for host")
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, &host.Host.ID, host.Host.UUID, "")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for host")
 	}
-	if idpAcct != nil {
-		idpFullname = idpAcct.Fullname
-	}
-
-	host.Host.ComputerName = getComputerName(device, idpFullname)
-	host.Host.Hostname = getComputerName(device, idpFullname)
+	host.Host.ComputerName = computerName
+	host.Host.Hostname = computerName
 	host.Host.Platform = "android"
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
@@ -897,22 +892,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
-	var idpFullname string
-	if enrollmentTokenRequest.IdpUUID != "" {
-		idpAcct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollmentTokenRequest.IdpUUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "getting IdP account for new host")
-		}
-		if idpAcct != nil {
-			idpFullname = idpAcct.Fullname
-		}
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", enrollmentTokenRequest.IdpUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for new host")
 	}
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			TeamID:                    teamID,
-			ComputerName:              getComputerName(device, idpFullname),
-			Hostname:                  getComputerName(device, idpFullname),
+			ComputerName:              computerName,
+			Hostname:                  computerName,
 			Platform:                  "android",
 			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
@@ -1001,13 +990,46 @@ func getHardwareModel(device *androidmanagement.Device) string {
 	return cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
 }
 
-func getComputerName(device *androidmanagement.Device, idpFullname string) string {
+// Priority: SCIM full name (via GetEndUsers) → IdP fullname (mdm_idp_accounts) → hardware model.
+// For existing hosts pass hostID + hostUUID
+// For new hosts (not yet inserted) pass hostID=nil and enrollmentIdpUUID from the enrollment token.
+func getComputerName(ctx context.Context, ds fleet.Datastore, device *androidmanagement.Device, hostID *uint, hostUUID, enrollmentIdpUUID string) (string, error) {
 	hardwareModel := getHardwareModel(device)
-	name := strings.TrimSpace(idpFullname)
-	if name == "" {
-		return hardwareModel
+
+	var endUsers []fleet.HostEndUser
+	if hostID != nil {
+		var err error
+		endUsers, err = fleet.GetEndUsers(ctx, ds, *hostID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting end users")
+		}
 	}
-	return name + "'s " + hardwareModel
+
+	if len(endUsers) > 0 && endUsers[0].IdpFullName != "" {
+		parts := strings.Fields(endUsers[0].IdpFullName)
+		return strings.Join(parts[:max(1, len(parts)-1)], " ") + "'s " + hardwareModel, nil
+	}
+
+	var idpAcct *fleet.MDMIdPAccount
+	var err error
+	switch {
+	case hostUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	case enrollmentIdpUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByUUID(ctx, enrollmentIdpUUID)
+	}
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting IdP account")
+	}
+
+	if idpAcct != nil {
+		if name := strings.TrimSpace(idpAcct.Fullname); name != "" {
+			parts := strings.Fields(name)
+			return strings.Join(parts[:max(1, len(parts)-1)], " ") + "'s " + hardwareModel, nil
+		}
+	}
+
+	return hardwareModel, nil
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
