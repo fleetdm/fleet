@@ -1956,6 +1956,18 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			"Fleet variable",
 			true,
 		},
+		{
+			"profiles with labels fails on free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{"a"}},
+			},
+			"Scoping configuration profiles with labels requires Fleet Premium license",
+			true,
+		},
 	}
 
 	for _, tt := range testCases {
@@ -3124,6 +3136,95 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
+	setup := func(premium bool) (fleet.Service, *mock.Store, context.Context) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+		if premium {
+			license.Tier = fleet.TierPremium
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{
+					OrgName: "Foo Inc.",
+				},
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://foo.example.com",
+				},
+				MDM: fleet.MDM{
+					EnabledAndConfigured:        false,
+					WindowsEnabledAndConfigured: false,
+					AndroidEnabledAndConfigured: true,
+				},
+			}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Name: "team"}, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+			return document, nil, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			m := map[string]uint{}
+			for _, label := range labels {
+				m[label] = uint(len(label)) // dummy ID
+			}
+			return m, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			m := map[string]*fleet.Label{}
+			for _, name := range names {
+				m[name] = &fleet.Label{
+					ID:   uint(len(name)), // dummy ID
+					Name: name,
+				}
+			}
+			return m, nil
+		}
+
+		return svc, ds, ctx
+	}
+
+	t.Run("labels not allowed with free license", func(t *testing.T) {
+		svc, _, ctx := setup(false)
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "requires Fleet Premium license")
+	})
+
+	t.Run("profile without labels allowed with free license", func(t *testing.T) {
+		svc, _, ctx := setup(false)
+		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+	})
+
+	t.Run("labels allowed with premium license", func(t *testing.T) {
+		svc, _, ctx := setup(true)
+		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"})
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+	})
 }
 
 func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {

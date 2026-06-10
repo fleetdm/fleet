@@ -786,25 +786,32 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
 	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
-	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
+	setup := func(t *testing.T, license *fleet.LicenseInfo, identifier string) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, license)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-		require.Equal(t, "Foo", cp.Name)
-		assert.Equal(t, identifier, cp.Identifier)
-		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
-		return &cp, nil
+		mcBytes := mcBytesForTest("Foo", identifier, "UUID")
+
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+			require.Equal(t, "Foo", cp.Name)
+			assert.Equal(t, identifier, cp.Identifier)
+			require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+
+		return svc, ctx, ds, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
-	) (updates fleet.MDMProfilesUpdates, err error) {
-		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-		return &fleet.GroupedCertificateAuthorities{}, nil
-	}
+
+	svc, ctx, _, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, identifier)
+	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
@@ -821,6 +828,16 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes = mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+
+	// Fails on free license with labels
+	mcBytes = mcBytesForTest("Foo", "identifier", "UUID")
+	svc, ctx, _, _ = setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree}, "identifier")
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, []string{"test-label"}, fleet.LabelsIncludeAll, nil)
+	require.ErrorContains(t, err, "requires Fleet Premium license")
+
+	// succeeds without labels on free license
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
+	require.NoError(t, err)
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {
