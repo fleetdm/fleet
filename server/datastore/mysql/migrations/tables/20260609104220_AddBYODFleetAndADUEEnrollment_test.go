@@ -78,7 +78,9 @@ func TestUp_20260609104220(t *testing.T) {
 	}
 
 	// Try to insert default_team_id that doesn't exist, which should fail due to the FOREIGN KEY constraint.
-	if _, err := db.Exec(`INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token, byod_default_team_id) VALUES ('token5', 'apple5', NOW(), 'token5', 9999)`); err == nil {
+	badTok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	require.NoError(t, err)
+	if _, err := db.Exec(`INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token, enrollment_url_token, byod_default_team_id) VALUES ('token5', 'apple5', NOW(), 'token5', ?, 9999)`, badTok); err == nil {
 		t.Error("expected error when inserting non-existent byod_default_team_id, got none")
 	}
 
@@ -98,7 +100,7 @@ func TestUp_20260609104220(t *testing.T) {
 	}
 
 	// Insert a row into mdm_adue_enrollment_challenges with missing challenge
-	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (abm_token_id, expires_at) VALUES (?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`, abmTokenID); err == nil {
+	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (idp_account_uuid, abm_token_id, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`, "uuid1", abmTokenID); err == nil {
 		t.Error("expected error when inserting mdm_adue_enrollment_challenges without challenge, got none")
 	}
 
@@ -112,13 +114,8 @@ func TestUp_20260609104220(t *testing.T) {
 		t.Error("expected error when inserting mdm_adue_enrollment_challenges without expires_at, got none")
 	}
 
-	// Insert a row with bad abm_tokens reference
-	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (challenge, idp_account_uuid, abm_token_id, expires_at) VALUES ('challenge1', 'uuid1', 9999, DATE_ADD(NOW(), INTERVAL 1 HOUR))`); err == nil {
-		t.Error("expected error when inserting mdm_adue_enrollment_challenges with invalid abm_token_id, got none")
-	}
-
 	// Insert a row with bad idp_account_uuid reference
-	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (challenge, idp_account_uuid, expires_at) VALUES ('challenge1', 'invalid-uuid', DATE_ADD(NOW(), INTERVAL 1 HOUR))`); err == nil {
+	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (challenge, idp_account_uuid, abm_token_id, expires_at) VALUES ('challenge1', 'invalid-uuid', ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`, abmTokenID); err == nil {
 		t.Error("expected error when inserting mdm_adue_enrollment_challenges with invalid idp_account_uuid, got none")
 	}
 
@@ -127,6 +124,12 @@ func TestUp_20260609104220(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inserting mdm_idp_accounts row: %v", err)
 	}
+
+	// Insert a row with bad abm_tokens reference
+	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (challenge, idp_account_uuid, abm_token_id, expires_at) VALUES ('challenge1', 'uuid1', 9999, DATE_ADD(NOW(), INTERVAL 1 HOUR))`); err == nil {
+		t.Error("expected error when inserting mdm_adue_enrollment_challenges with invalid abm_token_id, got none")
+	}
+
 	// Insert a valid row into mdm_adue_enrollment_challenges, which should succeed.
 	if _, err := db.Exec(`INSERT INTO mdm_adue_enrollment_challenges (challenge, idp_account_uuid, abm_token_id, expires_at) VALUES ('challenge1', 'uuid1', ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`, abmTokenID); err != nil {
 		t.Fatalf("inserting valid row into mdm_adue_enrollment_challenges: %v", err)

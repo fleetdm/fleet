@@ -29,9 +29,6 @@ func Up_20260609104220(tx *sql.Tx) error {
 		return fmt.Errorf("selecting abm_tokens: %w", err)
 	}
 	defer rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating abm_tokens: %w", err)
-	}
 
 	for rows.Next() {
 		var token struct {
@@ -41,6 +38,10 @@ func Up_20260609104220(tx *sql.Tx) error {
 			return fmt.Errorf("scanning abm_tokens: %w", err)
 		}
 		abmTokens = append(abmTokens, token)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating abm_tokens: %w", err)
 	}
 
 	for _, token := range abmTokens {
@@ -71,7 +72,7 @@ func Up_20260609104220(tx *sql.Tx) error {
 	_, err = tx.Exec(`CREATE TABLE mdm_adue_enrollment_challenges (
 		id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
 		challenge        VARBINARY(64)   NOT NULL,
-		idp_account_uuid VARCHAR(36)  COLLATE utf8mb4_unicode_ci  NOT NULL,
+		idp_account_uuid VARCHAR(255)  COLLATE utf8mb4_unicode_ci  NOT NULL,
 		abm_token_id     INT UNSIGNED    NULL,
 		expires_at       TIMESTAMP(6)        NOT NULL,
 		used_at          TIMESTAMP(6)        NULL,
@@ -85,8 +86,11 @@ func Up_20260609104220(tx *sql.Tx) error {
 		CONSTRAINT mdm_adue_idp_account_fk
 			FOREIGN KEY (idp_account_uuid) REFERENCES mdm_idp_accounts(uuid) ON DELETE CASCADE
 	);`)
+	if err != nil {
+		return fmt.Errorf("creating mdm_adue_enrollment_challenges table: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func Down_20260609104220(tx *sql.Tx) error {

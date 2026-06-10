@@ -1653,7 +1653,7 @@ CREATE TABLE `locks` (
 CREATE TABLE `mdm_adue_enrollment_challenges` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `challenge` varbinary(64) NOT NULL,
-  `idp_account_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `idp_account_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `abm_token_id` int unsigned DEFAULT NULL,
   `expires_at` timestamp(6) NOT NULL,
   `used_at` timestamp(6) NULL DEFAULT NULL,
