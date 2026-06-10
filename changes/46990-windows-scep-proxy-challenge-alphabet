@@ -1,1 +1,0 @@
-- Fixed Windows certificate enrollment failing with "The string contains a non-printable character" when using a custom SCEP proxy, by generating dynamic challenges with an alphanumeric alphabet.
