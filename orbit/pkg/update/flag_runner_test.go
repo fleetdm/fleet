@@ -103,7 +103,7 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 
 	// Non-empty fleet flags and osquery.flags has empty flags.
 	testConfig = &fleet.OrbitConfig{
-		Flags: json.RawMessage(`{"--verbose": true}`),
+		Flags: json.RawMessage(`{"verbose": true}`),
 	}
 	err = fr.Run(testConfig)
 	require.NoError(t, err)
