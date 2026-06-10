@@ -38,6 +38,7 @@ type s3store struct {
 	bucket           string
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
+	gcs              bool
 }
 
 type installerNotFoundError struct{}
@@ -174,6 +175,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		bucket:           cfg.Bucket,
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
+		gcs:              gcsEndpoint,
 	}, nil
 }
 

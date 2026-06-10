@@ -247,7 +247,7 @@ describe("CommandPalette", () => {
   });
 
   describe("Keyboard shortcuts", () => {
-    it("opens the switch-fleet sub-page on Cmd+Shift+F", async () => {
+    it("opens the switch-fleet picker page on Cmd+Shift+F", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
@@ -303,11 +303,11 @@ describe("CommandPalette", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("Escape returns to root from a sub-page instead of closing", async () => {
+    it("Escape returns to root from a picker page instead of closing", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
-      // Navigate into the switch-fleet sub-page
+      // Navigate into the switch-fleet picker page
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
       await waitFor(() => {
         expect(
@@ -324,12 +324,12 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Escape returns to root from a picker sub-page (view-host)", async () => {
+    it("Escape returns to root from a picker page (view-host)", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
       // The root page lists commands; find "View host" and activate it
-      // to reach the view-host sub-page.
+      // to reach the view-host picker page.
       const viewHost = await screen.findByText("View host");
       await user.click(viewHost);
 
@@ -360,7 +360,7 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Backspace on empty input goes back from a sub-page", async () => {
+    it("Backspace on empty input goes back from a picker page", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");

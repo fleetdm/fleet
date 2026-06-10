@@ -26,7 +26,7 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
@@ -428,7 +428,7 @@ const PackageForm = ({
   );
 
   const renderTargetLabelSelector = () => (
-    <TargetLabelSelector
+    <DropdownTargetLabelSelector
       selectedTargetType={formData.targetType}
       selectedCustomTarget={formData.customTarget}
       selectedLabels={formData.labelTargets}

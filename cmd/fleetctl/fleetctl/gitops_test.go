@@ -7640,3 +7640,222 @@ software:
 	assert.Empty(t, added)
 	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
 }
+
+func TestValidateGitOpsGroupEUA(t *testing.T) {
+	t.Parallel()
+
+	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	// Stored server state: pretend the IdP is fully configured (idp_name,
+	// entity_id, and a metadata source all present).
+	storedConfigured := &fleet.EnrichedAppConfig{
+		AppConfig: fleet.AppConfig{
+			MDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID:    "fleet",
+						IDPName:     "Okta",
+						MetadataURL: "https://idp.example.com/metadata",
+					},
+				},
+			},
+		},
+	}
+	storedConfigured.License = premium
+	storedEmpty := &fleet.EnrichedAppConfig{AppConfig: fleet.AppConfig{}}
+	storedEmpty.License = premium
+
+	// listTeams stubs.
+	noTeams := func(string) ([]fleet.Team, error) { return nil, nil }
+	teamWithEUA := func(name string) func(string) ([]fleet.Team, error) {
+		return func(string) ([]fleet.Team, error) {
+			tm := fleet.Team{Name: name}
+			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			return []fleet.Team{tm}, nil
+		}
+	}
+
+	// Helpers that build a parsed GitOps config with the bits we need.
+	globalConfig := func(orgSettings map[string]any) ConfigFile {
+		return ConfigFile{
+			Filename:       "default.yml",
+			IsGlobalConfig: true,
+			Config: &spec.GitOps{
+				OrgSettings: orgSettings,
+			},
+		}
+	}
+	// completeIdP is the org_settings.mdm shape for a fully-configured IdP.
+	completeIdP := map[string]any{
+		"mdm": map[string]any{
+			"end_user_authentication": map[string]any{
+				"idp_name":     "Okta",
+				"entity_id":    "fleet",
+				"metadata_url": "https://idp.example.com/metadata",
+			},
+		},
+	}
+	teamConfigNamed := func(filename, teamName string, euaEnabled bool) ConfigFile {
+		cf := ConfigFile{
+			Filename:       filename,
+			IsGlobalConfig: false,
+			Config: &spec.GitOps{
+				TeamName: &teamName,
+			},
+		}
+		if euaEnabled {
+			cf.Config.Controls.MacOSSetup = &fleet.MacOSSetup{
+				EnableEndUserAuthentication: true,
+			}
+		}
+		return cf
+	}
+	teamConfig := func(filename string, euaEnabled bool) ConfigFile {
+		return teamConfigNamed(filename, "TeamA", euaEnabled)
+	}
+
+	t.Run("no EUA enabled anywhere is accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", false)}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, stored has IdP, no global file: accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", true)}, storedConfigured, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, stored has no IdP, no global file: rejected", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+		require.ErrorContains(t, err, "enable_end_user_authentication is true but the IdP is not fully configured")
+	})
+
+	t.Run("team enables EUA, global file adds complete IdP: accepted", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{globalConfig(completeIdP), teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("team enables EUA, global file adds IdP missing entity_id: rejected", func(t *testing.T) {
+		// idp_name + metadata_url but no entity_id is not a complete IdP.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"metadata_url": "https://idp.example.com/metadata",
+				},
+			},
+		})
+		err := validateGitOpsGroupEUA([]ConfigFile{global, teamConfig("teams/a.yml", true)}, storedEmpty, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+	})
+
+	t.Run("team enables EUA, global file omits IdP, stored has IdP: rejected (overwrite clears)", func(t *testing.T) {
+		// Global file in this run with no mdm.end_user_authentication block means
+		// overwrite mode would clear the stored IdP. With EUA enabled somewhere,
+		// that's the lockout scenario.
+		global := globalConfig(map[string]any{})
+		err := validateGitOpsGroupEUA([]ConfigFile{global, teamConfig("teams/a.yml", true)}, storedConfigured, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "teams/a.yml")
+	})
+
+	t.Run("global file enables EUA at no-team and has complete IdP: accepted", func(t *testing.T) {
+		global := globalConfig(completeIdP)
+		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("global file enables EUA at no-team and has empty IdP: rejected", func(t *testing.T) {
+		// This is the original issue #43371 scenario — `fleetctl generate-gitops`
+		// emits `metadata: # TODO: ...` which parses to empty, plus the user
+		// (perhaps inadvertently) has EUA enabled at no-team.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, noTeams, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "default.yml")
+	})
+
+	t.Run("global-only run degrades IdP while a stored team keeps EUA on: rejected (#43371)", func(t *testing.T) {
+		// The reported lockout: a global-only run keeps idp_name/entity_id but
+		// blanks metadata/metadata_url (so the server's IsEmpty() guard is
+		// dodged), while a team not in this run still has EUA enabled.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, teamWithEUA("Workstations"), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Workstations")
+		require.ErrorContains(t, err, "has end user authentication enabled")
+	})
+
+	t.Run("global-only run degrades IdP, stored team keeps EUA, but --delete-other-fleets is set: accepted", func(t *testing.T) {
+		// Same shape as the #43371 case above, but with --delete-other-fleets the
+		// omitted team will be deleted, so it can't lock anyone out. The stored-team
+		// lookup must be skipped: ListTeams must not be consulted.
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		listTeamsCalled := false
+		listTeams := func(string) ([]fleet.Team, error) {
+			listTeamsCalled = true
+			tm := fleet.Team{Name: "Workstations"}
+			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			return []fleet.Team{tm}, nil
+		}
+		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, listTeams, true)
+		require.NoError(t, err)
+		assert.False(t, listTeamsCalled, "ListTeams should not be consulted when --delete-other-fleets is set")
+	})
+
+	t.Run("global-only run degrades IdP but the team's in-run file disables EUA: accepted", func(t *testing.T) {
+		global := globalConfig(map[string]any{
+			"mdm": map[string]any{
+				"end_user_authentication": map[string]any{
+					"idp_name":     "Okta",
+					"entity_id":    "fleet",
+					"metadata":     "",
+					"metadata_url": "",
+				},
+			},
+		})
+		// In-run file for the same team disables EUA; its value wins over stored.
+		team := teamConfigNamed("teams/workstations.yml", "Workstations", false)
+		err := validateGitOpsGroupEUA([]ConfigFile{global, team}, storedConfigured, teamWithEUA("Workstations"), false)
+		assert.NoError(t, err)
+	})
+
+	t.Run("EUA disabled everywhere: stored IdP empty is fine", func(t *testing.T) {
+		err := validateGitOpsGroupEUA([]ConfigFile{
+			globalConfig(map[string]any{}),
+			teamConfig("teams/a.yml", false),
+		}, storedEmpty, noTeams, false)
+		assert.NoError(t, err)
+	})
+}
