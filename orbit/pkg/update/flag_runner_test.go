@@ -164,3 +164,26 @@ func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, userFlags, string(contents))
 }
+
+// TestDoFlagsUpdateWithNullFlags verifies that the JSON literal "null" is an
+// explicit instruction to clear osquery flags (matching pre-1.56 behavior),
+// distinct from command_line_flags being unset (which preserves the file).
+func TestDoFlagsUpdateWithNullFlags(t *testing.T) {
+	rootDir := t.TempDir()
+	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
+
+	var restartQueued bool
+	queueOrbitRestart := func(string) { restartQueued = true }
+	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{RootDir: rootDir})
+
+	// "null" + existing flags: the file is cleared and a restart is triggered.
+	err := os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n"), 0o644)
+	require.NoError(t, err)
+	err = fr.Run(&fleet.OrbitConfig{Flags: json.RawMessage("null")})
+	require.NoError(t, err)
+	require.True(t, restartQueued)
+
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Empty(t, string(contents))
+}
