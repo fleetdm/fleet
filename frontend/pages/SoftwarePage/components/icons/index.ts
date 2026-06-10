@@ -261,7 +261,16 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import JabraDirect from "./JabraDirect";
+import Jami from "./Jami";
+import Jamovi from "./Jamovi";
+import Jasp from "./Jasp";
+import Jellyfin from "./Jellyfin";
 import JetBrainsToolbox from "./JetBrainsToolbox";
+import Jiggler from "./Jiggler";
+import JitsiMeet from "./JitsiMeet";
+import JordanbairdIce from "./JordanbairdIce";
+import JuliaApp from "./JuliaApp";
+import JumpDesktop from "./JumpDesktop";
 import Kaleidoscope from "./Kaleidoscope";
 import Kap from "./Kap";
 import Kdenlive from "./Kdenlive";
@@ -723,6 +732,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   "groove omnidialer": GrooveOmniDialer,
   "ibm notifier": IbmNotifier,
+  ice: JordanbairdIce,
   "icon composer": IconComposer,
   iina: Iina,
   insyncclient: DruvaInSync,
@@ -781,6 +791,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hyper: Hyper,
   inkscape: Inkscape,
   "jabra direct": JabraDirect,
+  jami: Jami,
+  jamovi: Jamovi,
+  jasp: Jasp,
+  jellyfin: Jellyfin,
+  jiggler: Jiggler,
+  "jitsi meet": JitsiMeet,
+  julia: JuliaApp,
+  "jump desktop": JumpDesktop,
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
