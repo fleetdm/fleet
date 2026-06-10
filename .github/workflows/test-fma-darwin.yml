@@ -41,6 +41,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.ref }}
           path: fleet
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -61,6 +62,18 @@ jobs:
         run: |
           ls /Applications | grep -i "Chrome"
           find /Applications -name "*Chrome*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+
+      # Icon Composer ships bundled inside Xcode, and GitHub macOS runners
+      # come with Xcode pre-installed. Only runs when icon-composer/darwin is being
+      # validated in this PR.
+      - name: Remove pre-installed Xcode mac
+        run: |
+          ls /Applications | grep -i "Xcode" || true
+          find /Applications -maxdepth 1 -iname "Xcode*.app" -type d | while read app;
           do
             echo "Removing $app..."
             sudo rm -rf "$app"

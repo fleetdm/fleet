@@ -56,7 +56,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
-		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
@@ -66,6 +65,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestOktaCACleanupTargetForInstallCommand", testOktaCACleanupTargetForInstallCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
@@ -2560,6 +2560,16 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			configProfileForTest(t, "exclude_one_matches_prof", "exclude_one_matches_prof", "p", excludeMatchedLabel1, excludeUnmatchedLabel),
 			// This profile will use an "exclude" rule where the host has none of the labels, thus should be included
 			configProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", "q", excludeUnmatchedLabel),
+
+			// This profile will use both an "include all" and "exclude" rule where the host matches the include all rule but also matches the exclude rule, thus should be excluded
+			configProfileForTest(t, "include_all_and_exclude_match_prof", "include_all_and_exclude_match_prof", "r", includeAllMatchedLabel1, includeAllMatchedLabel2, excludeMatchedLabel1),
+			// This profile will use both an "include all" and "exclude" rule where the host matches the include all rule but does not match the exclude rule, thus should be included
+			configProfileForTest(t, "include_all_and_exclude_none_match_prof", "include_all_and_exclude_none_match_prof", "s", includeAllMatchedLabel1, includeAllMatchedLabel2, excludeUnmatchedLabel),
+
+			// This profile will use both an "include any" and "exclude" rule where the host matches the include any rule but also matches the exclude rule, thus should be excluded
+			configProfileForTest(t, "include_any_and_exclude_match_prof", "include_any_and_exclude_match_prof", "t", includeAnyMatchedLabel1, includeAnyUnmatchedLabel, excludeMatchedLabel1),
+			// This profile will use both an "include any" and "exclude" rule where the host matches the include any rule but does not match the exclude rule, thus should be included
+			configProfileForTest(t, "include_any_and_exclude_none_match_prof", "include_any_and_exclude_none_match_prof", "u", includeAnyMatchedLabel1, includeAnyUnmatchedLabel, excludeUnmatchedLabel),
 		}
 
 		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
@@ -2593,432 +2603,16 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 		require.NoError(t, err)
-		require.Len(t, profs, 11)
-
-		return team.ID, host
-	}
-
-	// ===================================================
-	// Windows
-	// ===================================================
-
-	windowsBasicTeamProfNoLabelsSetup := func() (uint, *fleet.Host) {
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "windows-test",
-			OsqueryHostID: ptr.String("osquery-windows"),
-			NodeKey:       ptr.String("node-key-windows"),
-			UUID:          uuid.NewString(),
-			Platform:      "windows",
-		})
-		require.NoError(t, err)
-		windowsEnroll(t, ds, host)
-
-		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 1"})
-		require.NoError(t, err)
-
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
-		require.NoError(t, err)
-
-		// create profiles for team 1
-		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T1.1", "T1.1"),
-			windowsConfigProfileForTest(t, "T1.2", "T1.2"),
-		}
-
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
-		require.NoError(t, err)
-		assert.False(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
-		assert.False(t, updates.AppleDeclaration)
-
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 2)
-
-		return team.ID, host
-	}
-
-	windowsLabeledTeamProfSetup := func() (uint, *fleet.Host) {
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "windows-test-2",
-			OsqueryHostID: ptr.String("osquery-windows-2"),
-			NodeKey:       ptr.String("node-key-windows-2"),
-			UUID:          uuid.NewString(),
-			Platform:      "windows",
-		})
-		require.NoError(t, err)
-		windowsEnroll(t, ds, host)
-
-		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 2"})
-		require.NoError(t, err)
-
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
-		require.NoError(t, err)
-
-		// create profiles for team 1
-		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T2.1", "T2.1"),
-			windowsConfigProfileForTest(t, "T2.2", "T2.2"),
-			windowsConfigProfileForTest(t, "labeled_prof", "labeled_prof"),
-		}
-
-		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_6"})
-		require.NoError(t, err)
-
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
-		require.NoError(t, err)
-		assert.False(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
-		assert.False(t, updates.AppleDeclaration)
-
-		var uid string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(
-				ctx,
-				q,
-				&uid,
-				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
-				"labeled_prof",
-			)
-		})
-
-		// Update label with host membership
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
-					host.ID,
-					label.ID,
-				)
-				return err
-			},
-		)
-
-		// Update profile <-> label mapping
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
-					uid,
-					label.Name,
-					label.ID,
-				)
-				return err
-			},
-		)
-
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 3)
-
-		return team.ID, host
-	}
-
-	windowsLabeledTeamProfWithAdditionalLabeledProfSetup := func() (uint, *fleet.Host) {
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "windows-test-3",
-			OsqueryHostID: ptr.String("osquery-windows-3"),
-			NodeKey:       ptr.String("node-key-windows-3"),
-			UUID:          uuid.NewString(),
-			Platform:      "windows",
-		})
-		require.NoError(t, err)
-		windowsEnroll(t, ds, host)
-
-		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 3"})
-		require.NoError(t, err)
-
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
-		require.NoError(t, err)
-
-		// create profiles for team 1
-		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T3.1", "T3.1"),
-			windowsConfigProfileForTest(t, "T3.2", "T3.7"),
-			windowsConfigProfileForTest(t, "labeled_prof_2", "labeled_prof_2"),
-		}
-
-		testLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
-		require.NoError(t, err)
-
-		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
-		require.NoError(t, err)
-
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
-		require.NoError(t, err)
-		assert.False(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
-		assert.False(t, updates.AppleDeclaration)
-
-		var uid string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(
-				ctx,
-				q,
-				&uid,
-				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
-				"labeled_prof_2",
-			)
-		})
-
-		// Update label with host membership
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
-					host.ID,
-					testLabel2.ID,
-				)
-				return err
-			},
-		)
-
-		// Update profile <-> label mapping
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
-					uid,
-					testLabel2.Name,
-					testLabel2.ID,
-				)
-				return err
-			},
-		)
-
-		// Also add mapping to test label 3
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
-					uid,
-					testLabel3.Name,
-					testLabel3.ID,
-				)
-				return err
-			},
-		)
-
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 3)
-
-		return team.ID, host
-	}
-
-	windowsProfWithBrokenLabelSetup := func() (uint, *fleet.Host) {
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "windows-test-4",
-			OsqueryHostID: ptr.String("osquery-windows-4"),
-			NodeKey:       ptr.String("node-key-windows-4"),
-			UUID:          uuid.NewString(),
-			Platform:      "windows",
-		})
-		require.NoError(t, err)
-		windowsEnroll(t, ds, host)
-
-		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 4"})
-		require.NoError(t, err)
-
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
-		require.NoError(t, err)
-
-		// create profiles for team
-		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T4.1", "T4.1"),
-			windowsConfigProfileForTest(t, "T4.2", "T4.2"),
-			windowsConfigProfileForTest(t, "broken_label_prof", "broken_label_prof"),
-		}
-
-		label, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
-		require.NoError(t, err)
-
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
-		require.NoError(t, err)
-		assert.False(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
-		assert.False(t, updates.AppleDeclaration)
-
-		var uid string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(
-				ctx,
-				q,
-				&uid,
-				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
-				"broken_label_prof",
-			)
-		})
-
-		// Update label with host membership
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
-					host.ID,
-					label.ID,
-				)
-				return err
-			},
-		)
-
-		// Update profile <-> label mapping
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
-					uid,
-					label.Name,
-					label.ID,
-				)
-				return err
-			},
-		)
-
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 3)
-
-		// Simulate the label being broken — direct DeleteLabel is now blocked when
-		// referenced by a profile, so we nullify label_id in the join tables instead.
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, label.ID); err != nil {
-				return err
-			}
-			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, label.ID)
-			return err
-		})
-
-		return team.ID, host
-	}
-
-	windowsLabeledProfileRulesSetup := func() (uint, *fleet.Host) {
-		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "windows-test-5",
-			OsqueryHostID: ptr.String("osquery-windows-5"),
-			NodeKey:       ptr.String("node-key-windows-5"),
-			UUID:          uuid.NewString(),
-			Platform:      "windows",
-		})
-		require.NoError(t, err)
-		windowsEnroll(t, ds, host)
-
-		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 5"})
-		require.NoError(t, err)
-
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
-		require.NoError(t, err)
-
-		// Include any labels
-		includeAnyMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-matched-label-1"})
-		require.NoError(t, err)
-		includeAnyMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-matched-label-2"})
-		require.NoError(t, err)
-		includeAnyUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-unmatched-label"})
-		require.NoError(t, err)
-
-		// Include all labels
-		includeAllMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-matched-label-1"})
-		require.NoError(t, err)
-		includeAllMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-matched-label-2"})
-		require.NoError(t, err)
-		includeAllUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-unmatched-label"})
-		require.NoError(t, err)
-
-		// Exclude labels
-		excludeMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-matched-label-1"})
-		require.NoError(t, err)
-		excludeMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-matched-label-2"})
-		require.NoError(t, err)
-		excludeUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-unmatched-label"})
-		require.NoError(t, err)
-
-		// create profiles for team
-		// include_any_all_match_prof
-		// include_any_one_matches_prof
-		// include_all_all_match_prof
-		// exclude_none_match_prof
-		profiles := []*fleet.MDMWindowsConfigProfile{
-			// Two profiles with no label rules, thus should always be included
-			windowsConfigProfileForTest(t, "T5.1", "T5.1"),
-			windowsConfigProfileForTest(t, "T5.2", "T5.2"),
-
-			// This profile will use an "include any" rule where the host has both of the labels, thus should be included
-			windowsConfigProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", includeAnyMatchedLabel1, includeAnyMatchedLabel2),
-			// This profile will use an "include any" rule where the host has one of the labels, thus should be included
-			windowsConfigProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", includeAnyMatchedLabel1, includeAnyUnmatchedLabel),
-			// This profile will use an "include any" rule where the host has none of the labels, thus should be excluded
-			windowsConfigProfileForTest(t, "include_any_none_match_prof", "include_any_none_match_prof", includeAnyUnmatchedLabel),
-
-			// This profile will use an "include all" rule where the host has all of the labels and thus should be included
-			windowsConfigProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", includeAllMatchedLabel1, includeAllMatchedLabel2),
-			// This profile will use an "include all" rule where the host has one of the labels and thus should be excluded
-			windowsConfigProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", includeAllMatchedLabel1, includeAllUnmatchedLabel),
-			// This profile will use an "include any" rule where the host has none of the labels and thus should be excluded
-			windowsConfigProfileForTest(t, "include_all_none_match_prof", "include_all_none_match_prof", includeAllUnmatchedLabel),
-
-			// This profile will use an "exclude" rule where the host has both of the labels, thus should be excluded
-			windowsConfigProfileForTest(t, "exclude_all_match_prof", "exclude_all_match_prof", excludeMatchedLabel1, excludeMatchedLabel2),
-			// This profile will use an "exclude" rule where the host has one of the labels, thus should be excluded
-			windowsConfigProfileForTest(t, "exclude_one_matches_prof", "exclude_one_matches_prof", excludeMatchedLabel1, excludeUnmatchedLabel),
-			// This profile will use an "exclude" rule where the host has none of the labels, thus should be included
-			windowsConfigProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", excludeUnmatchedLabel),
-		}
-
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
-		require.NoError(t, err)
-		assert.False(t, updates.AppleConfigProfile)
-		assert.True(t, updates.WindowsConfigProfile)
-		assert.False(t, updates.AppleDeclaration)
-
-		// Update labels with host membership
-		ExecAdhocSQL(
-			t, ds, func(db sqlx.ExtContext) error {
-				_, err := db.ExecContext(
-					context.Background(),
-					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
-					host.ID,
-					includeAnyMatchedLabel1.ID,
-					host.ID,
-					includeAnyMatchedLabel2.ID,
-					host.ID,
-					includeAllMatchedLabel1.ID,
-					host.ID,
-					includeAllMatchedLabel2.ID,
-					host.ID,
-					excludeMatchedLabel1.ID,
-					host.ID,
-					excludeMatchedLabel2.ID,
-				)
-				return err
-			},
-		)
-
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 11)
+		require.Len(t, profs, 15)
 
 		return team.ID, host
 	}
 
 	tests := []struct {
-		name        string
-		setupFunc   func() (uint, *fleet.Host)
-		wantMac     map[string]*fleet.ExpectedMDMProfile
-		wantWindows map[string]*fleet.ExpectedMDMProfile
-		os          string
+		name      string
+		setupFunc func() (uint, *fleet.Host)
+		wantMac   map[string]*fleet.ExpectedMDMProfile
+		os        string
 	}{
 		{
 			name:      "macos basic team profiles no labels",
@@ -3070,61 +2664,14 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                         {Identifier: "T6.1"},
-				"T6.2":                         {Identifier: "T6.2"},
-				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
-			},
-		},
-		{
-			name:      "windows basic team profiles no labels",
-			setupFunc: windowsBasicTeamProfNoLabelsSetup,
-			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T1.1": {Name: "T1.1"},
-				"T1.2": {Name: "T1.2"},
-			},
-		},
-		{
-			name:      "windows labeled team profile",
-			setupFunc: windowsLabeledTeamProfSetup,
-			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T2.1":         {Name: "T2.1"},
-				"T2.2":         {Name: "T2.2"},
-				"labeled_prof": {Name: "labeled_prof"},
-			},
-		},
-		{
-			name:      "windows labeled team profile with additional labeled profile",
-			setupFunc: windowsLabeledTeamProfWithAdditionalLabeledProfSetup,
-			// Our expected profiles should not include the labeled profile, because it
-			// maps to a label that is not applied to the host.
-			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T3.1": {Name: "T3.1"},
-				"T3.2": {Name: "T3.2"},
-			},
-		},
-		{
-			name:      "windows profile with broken label",
-			setupFunc: windowsProfWithBrokenLabelSetup,
-			// Our expected profiles should not include the labeled profile, because it is broken
-			// (the label was deleted)
-			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T4.1": {Name: "T4.1"},
-				"T4.2": {Name: "T4.2"},
-			},
-		},
-		{
-			name:      "windows labels include any/all and exclude rules",
-			setupFunc: windowsLabeledProfileRulesSetup,
-			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T5.1":                         {Name: "T5.1"},
-				"T5.2":                         {Name: "T5.2"},
-				"include_any_all_match_prof":   {Name: "include_any_all_match_prof"},
-				"include_any_one_matches_prof": {Name: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":   {Name: "include_all_all_match_prof"},
-				"exclude_none_match_prof":      {Name: "exclude_none_match_prof"},
+				"T6.1":                                    {Identifier: "T6.1"},
+				"T6.2":                                    {Identifier: "T6.2"},
+				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
+				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
+				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
 		},
 	}
@@ -3142,16 +2689,6 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 					if v.EarliestInstallDate != timeZero {
 						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
 					}
-				}
-			}
-
-			if len(tt.wantWindows) > 0 {
-				got, err := ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
-				require.NoError(t, err)
-				for k, v := range tt.wantWindows {
-					require.Contains(t, got, k)
-					require.Equal(t, v.Name, got[k].Name)
-					// windows does not currently use or care about earliest install date
 				}
 			}
 		})
@@ -4768,20 +4305,6 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 }
 
-// TODO(MHJ): Marked for deletion
-func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	var hostUUIDs []string
-	// The bug this test was built to reproduce is visible down to ~16400 hosts; keeping this at 66k for scale testing
-	for range 66000 {
-		hostUUIDs = append(hostUUIDs, uuid.NewString())
-	}
-
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesForTests(ctx, hostUUIDs, nil)
-	require.NoError(t, err)
-}
-
 // testBulkSetPendingDefersWindowsReconciliation verifies the production
 // behavior of BulkSetPendingMDMHostProfiles: it does not synchronously
 // write host_mdm_windows_profiles (the mdm_windows_profile_manager cron
@@ -6218,6 +5741,88 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testOktaCACleanupTargetForInstallCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(t *testing.T, suffix, platform string) *fleet.Host {
+		t.Helper()
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("okta-cleanup-osq-" + suffix),
+			NodeKey:         ptr.String("okta-cleanup-nk-" + suffix),
+			UUID:            "okta-cleanup-host-" + suffix,
+			Hostname:        "okta-cleanup-" + suffix,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	insertHostProfile := func(t *testing.T, hostUUID, identifier, commandUUID string) {
+		t.Helper()
+		// host_mdm_apple_profiles has no FK to mdm_apple_configuration_profiles,
+		// so we can insert the host-profile row directly with a fresh
+		// profile_uuid per sub-test and avoid the (team_id, identifier)
+		// unique-key conflict that comes from reusing the Okta CA identifier.
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       uuid.NewString(),
+			ProfileIdentifier: identifier,
+			HostUUID:          hostUUID,
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeUser,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       commandUUID,
+		}}))
+	}
+
+	t.Run("okta CA profile + per-user enrollment present: returns target", func(t *testing.T) {
+		host := newHost(t, "happy", "darwin")
+		nanoEnroll(t, ds, host, true) // creates Device + User enrollment with user_short_name = "alice"
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		got, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, host.ID, got.HostID)
+		require.Equal(t, "alice", got.UserShortName)
+	})
+
+	t.Run("non-Okta profile identifier: ok=false", func(t *testing.T) {
+		host := newHost(t, "wrong-id", "darwin")
+		nanoEnroll(t, ds, host, true)
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, "com.example.unrelated", cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("okta profile + only device-channel enrollment: ok=false", func(t *testing.T) {
+		host := newHost(t, "no-user-chan", "darwin")
+		nanoEnroll(t, ds, host, false) // Device-only enrollment, no nano_users row
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("unknown command: ok=false, no error", func(t *testing.T) {
+		host := newHost(t, "no-cmd", "darwin")
+		nanoEnroll(t, ds, host, true)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, "no-such-cmd")
+		require.NoError(t, err)
+		require.False(t, ok)
 	})
 }
 

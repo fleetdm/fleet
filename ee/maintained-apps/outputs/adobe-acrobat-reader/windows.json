@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.001.21563",
+      "version": "26.001.21662",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21563') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21662') < 0);"
       },
-      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600121563/AcroRdrDCx642600121563_MUI.exe",
+      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600121662/AcroRdrDCx642600121662_MUI.exe",
       "install_script_ref": "7dc0b065",
       "uninstall_script_ref": "3bb10c80",
-      "sha256": "b6688fca29dac5b7c7a2b9d540d481eba573781dba6da2a6cfdddb4f02dcaf91",
+      "sha256": "2bf2c241859b1d1b13198394ce87639352635a3c3901c9992203de632cdea66a",
       "default_categories": [
         "Productivity"
       ]

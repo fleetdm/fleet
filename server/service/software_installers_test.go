@@ -619,8 +619,8 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return nil
 	}
 
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
@@ -633,6 +633,10 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return []fleet.SoftwarePackageResponse{}, nil
+	}
+
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
 	}
 
 	baseDir := getPathRelative("./testdata/software-installers/")
@@ -663,7 +667,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

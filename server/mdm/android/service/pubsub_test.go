@@ -407,6 +407,136 @@ func TestPubSubEnrollment(t *testing.T) {
 		// Re-enrollment should update, not create a new host
 		require.False(t, mockDS.NewAndroidHostFuncInvoked)
 	})
+
+	t.Run("re-enrollment with rotated enroll secret does not panic", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-ROTATED"
+		originalTeamID := uint(5)
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:     20,
+					UUID:   existingHostUUID,
+					TeamID: &originalTeamID,
+				},
+				Device: &android.Device{
+					HostID:               20,
+					DeviceID:             "rotated-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		// Enroll secret was rotated/deleted — returns not found.
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return nil, common_mysql.NotFound("enroll secret")
+		}
+
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return nil, false, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedTeamID = host.TeamID
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "deleted-secret",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-rotated-secret"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		// Should not panic even though VerifyEnrollSecret returns nil.
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Host should keep its original team since enroll secret was not found.
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, originalTeamID, *capturedTeamID)
+	})
+
+	t.Run("re-enrollment restores prior team from android_devices", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-PRIOR-TEAM"
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   30,
+					UUID: existingHostUUID,
+				},
+				Device: &android.Device{
+					HostID:               30,
+					DeviceID:             "prior-team-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		// Enroll secret points to team 1 (the default).
+		defaultTeamID := uint(1)
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return &fleet.EnrollSecret{Secret: secret, TeamID: &defaultTeamID}, nil
+		}
+
+		// Prior team from android_devices is team 19 (admin transferred).
+		priorTeamID := uint(19)
+		mockDS.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, esID string) (*uint, bool, error) {
+			return &priorTeamID, true, nil
+		}
+
+		var capturedTeamID *uint
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedTeamID = host.TeamID
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "team-secret",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-prior-team"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		// Should use the prior team (19), not the enroll secret's team (1).
+		require.NotNil(t, capturedTeamID)
+		require.Equal(t, priorTeamID, *capturedTeamID)
+	})
 }
 
 func TestStatusReportPolicyValidation(t *testing.T) {

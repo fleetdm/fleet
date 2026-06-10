@@ -1,0 +1,10 @@
+{
+  "name": "OpenRCT2",
+  "unique_identifier": "io.openrct2.OpenRCT2",
+  "token": "openrct2",
+  "installer_format": "zip",
+  "slug": "openrct2/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

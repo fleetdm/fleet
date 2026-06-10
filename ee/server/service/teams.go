@@ -351,13 +351,17 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 
-			if err := payload.MDM.MacOSSetup.Validate(); err != nil {
+			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup); err != nil {
 				return nil, err
 			}
 
-			// move over values that we just validated, so they get updated.
-			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
-			team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
+			// move over values that we just validated, so they get updated, but only if set since this is partial patch.
+			if payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set {
+				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
+			}
+			if payload.MDM.MacOSSetup.EndUserLocalAccountType.Set {
+				team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
+			}
 		}
 	}
 
@@ -1753,7 +1757,9 @@ func (svc *Service) editTeamFromSpec(
 
 	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
 	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
-		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		// Skip the precondition during dry-run that end-user auth SSO must be configured,
+		// since we can't tell here if the GitOps run is also doing that configuration.
+		if !opts.DryRun && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
@@ -1978,7 +1984,11 @@ func (svc *Service) editTeamFromSpec(
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
 		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			// The package may have already been deleted via the GUI while the
+			// team config JSON still had the stale URL; ignore not-found.
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+			}
 		}
 	}
 

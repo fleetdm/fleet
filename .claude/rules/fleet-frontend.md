@@ -83,6 +83,9 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
+## Software titles — display name
+Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
 - Elements: `` className={`${baseClass}__element-name`} ``
