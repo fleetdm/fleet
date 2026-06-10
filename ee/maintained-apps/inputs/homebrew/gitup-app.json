@@ -1,0 +1,10 @@
+{
+  "name": "GitUp",
+  "unique_identifier": "co.gitup.mac",
+  "token": "gitup-app",
+  "installer_format": "zip",
+  "slug": "gitup-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
