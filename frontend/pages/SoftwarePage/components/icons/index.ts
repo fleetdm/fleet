@@ -162,6 +162,7 @@ import Electronmail from "./Electronmail";
 import Electrum from "./Electrum";
 import Element from "./Element";
 import Elephas from "./Elephas";
+import ElgatoCameraHub from "./ElgatoCameraHub";
 import ElgatoCaptureDeviceUtility from "./ElgatoCaptureDeviceUtility";
 import ElgatoControlCenter from "./ElgatoControlCenter";
 import ElgatoGameCaptureHd from "./ElgatoGameCaptureHd";
@@ -776,6 +777,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   electrum: Electrum,
   element: Element,
   elephas: Elephas,
+  "elgato camera hub": ElgatoCameraHub,
   "elgato capture device utility": ElgatoCaptureDeviceUtility,
   "elgato control center": ElgatoControlCenter,
   "elgato game capture hd": ElgatoGameCaptureHd,

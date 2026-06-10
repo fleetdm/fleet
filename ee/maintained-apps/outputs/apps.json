@@ -1500,6 +1500,13 @@
       "description": "Elephas is a personal AI Writing Assistant."
     },
     {
+      "name": "Elgato Camera Hub",
+      "slug": "elgato-camera-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.CameraHub",
+      "description": "Elgato Camera Hub is an elgato FACECAM configuration tool."
+    },
+    {
       "name": "Elgato Capture Device Utility",
       "slug": "elgato-capture-device-utility/darwin",
       "platform": "darwin",
