@@ -46,7 +46,7 @@ func (m *MacosSetupAssistant) Name() string {
 // macosSetupAssistantArgs is the payload for the macos setup assistant job.
 type macosSetupAssistantArgs struct {
 	Task   MacosSetupAssistantTask `json:"task"`
-	TeamID *uint                   `json:"team_id,omitempty"`
+	TeamID *uint                   `json:"team_id,omitempty"` //nolint:apiparamcheck
 	// Note that only DEP-enrolled hosts in Fleet MDM should be provided.
 	HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 }

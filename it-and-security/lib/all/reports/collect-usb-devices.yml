@@ -2,8 +2,6 @@
   description: |-
     USB devices currently attached to the host (useful for removable media and exfiltration visibility).
 
-    Maps to Vanta **AST-70** / ISO **A.7.10** (storage media), **CRY-3** / SOC2 **CC 6.7**, and **DCH-112** / **A.8.12** (data leakage prevention).
-
     Note: `usb_devices` is available on macOS and Linux only in Fleet’s schema.
   query: |-
     SELECT

@@ -578,7 +578,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query, params, err := applyLabelTeamFilter(`
-SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.team_id
+SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.criteria, l.team_id
 FROM labels l
 WHERE l.name = ?`, filter, name)
 	if err != nil {
@@ -699,6 +699,19 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			}
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
+		var usedByProfile bool
+		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
+			SELECT EXISTS(
+				SELECT 1 FROM mdm_configuration_profile_labels WHERE label_id = ?
+				UNION ALL
+				SELECT 1 FROM mdm_declaration_labels WHERE label_id = ?
+			)`, labelID, labelID); err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
+		}
+		if usedByProfile {
+			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
+		}
+
 		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")

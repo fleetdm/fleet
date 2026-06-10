@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
@@ -19,7 +19,7 @@ import (
 // reconciliation, and the install row only appears after
 // ReconcileWindowsProfiles (the cron) runs.
 func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	ctx := t.Context()
 	logger := testutils.TestLogger(t)
 
@@ -32,7 +32,7 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deferred-recon-after-team-add"})
 	require.NoError(t, err)
-	profileUUID := mysql.InsertWindowsProfileForTest(t, ds, team.ID)
+	profileUUID := mysqltest.InsertWindowsProfileForTest(t, ds, team.ID)
 
 	host := test.NewHost(t, ds, "deferred-recon-host", "1.1.1.1", "deferred-recon-key", "deferred-recon-host-uuid", time.Now(),
 		test.WithPlatform("windows"), test.WithTeamID(team.ID))
@@ -50,6 +50,10 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 		HostUUID:               host.UUID,
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	// Mirror what osquery's directIngestMDMWindows does: mark host_mdm.enrolled = 1 once the device's registry confirms
+	// MDM enrollment.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 
 	// Step 1: BulkSet defers Windows reconciliation. Production leaves
 	// updates.WindowsConfigProfile false (the consumer in

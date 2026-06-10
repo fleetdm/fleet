@@ -416,6 +416,7 @@ func (a ActivityTypeMDMEnrolled) ActivityName() string {
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
+	HostID           uint    `json:"host_id"`
 	HostSerial       string  `json:"host_serial"`
 	EnrollmentID     *string `json:"enrollment_id"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -425,6 +426,16 @@ type ActivityTypeMDMUnenrolled struct {
 
 func (a ActivityTypeMDMUnenrolled) ActivityName() string {
 	return "mdm_unenrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the host record was already deleted at unenroll time) so the global activity is
+// still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMUnenrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 type ActivityTypeEditedMacOSMinVersion struct {
@@ -512,6 +523,19 @@ func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
 }
 
 func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeRetrievedHostMyDeviceURL struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) ActivityName() string {
+	return "retrieved_host_my_device_url"
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -911,6 +935,7 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipedHost) ActivityName() string {
@@ -924,6 +949,7 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 type ActivityTypeWipeFailedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeWipeFailedHost) ActivityName() string {
@@ -956,6 +982,51 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
+}
+
+// ActivityTypeRotatedManagedLocalAccountPassword records a managed-local-account
+// password rotation. Manual rotations log with the calling user as actor;
+// auto-rotations log with no user and FleetInitiated=true. Rotations that were
+// deferred (UUID missing at click time) are logged once at click time with the
+// user as actor — never re-logged when the cron finally completes them.
+type ActivityTypeRotatedManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"`
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) ActivityName() string {
+	return "rotated_managed_local_account_password"
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
+}
+
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
+// to rotate the managed local account password (the device acked the
+// SetAutoAdminPassword command with an error or command-format error). Always
+// attributed to Fleet — the failure is detected at ack time, outside any user
+// context, regardless of who originally initiated the rotation.
+type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
+	return "failed_to_rotate_managed_local_account_password"
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {
@@ -1021,6 +1092,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1280,6 +1352,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1775,6 +1848,22 @@ type ActivityTypeDeletedMicrosoftEntraTenant struct {
 
 func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
 	return "deleted_microsoft_entra_tenant"
+}
+
+type ActivityTypeAddedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraClientID) ActivityName() string {
+	return "added_microsoft_entra_client_id"
+}
+
+type ActivityTypeDeletedMicrosoftEntraClientID struct {
+	ClientID string `json:"client_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
+	return "deleted_microsoft_entra_client_id"
 }
 
 type ActivityTypeEditedEnrollSecrets struct {

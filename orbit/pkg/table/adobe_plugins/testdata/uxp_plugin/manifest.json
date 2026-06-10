@@ -1,0 +1,12 @@
+{
+    "id": "com.example.uxp.plugin",
+    "name": "Test UXP Plugin",
+    "version": "3.0.1",
+    "host": [
+        {"app": "PS", "minVersion": "22.0.0"},
+        {"app": "XD", "minVersion": "36.0.0"}
+    ],
+    "metadata": {
+        "publisher": "UXP Test Vendor"
+    }
+}

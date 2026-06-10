@@ -8,6 +8,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
   windows_entra_tenant_ids: [],
+  windows_entra_client_ids: [],
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
@@ -214,6 +215,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
     enable_conditional_access: true,
     enable_conditional_access_bypass: true,
+    historical_data: {
+      uptime: true,
+      vulnerabilities: true,
+    },
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",

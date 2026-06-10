@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,7 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -33,6 +37,7 @@ func TestMDMWindows(t *testing.T) {
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
+		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
@@ -50,6 +55,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsProfilesSummaryEnumeration", testMDMWindowsProfilesSummaryEnumeration},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
+		{"NewMDMWindowsConfigProfileSoftwareUpdateTracking", testNewMDMWindowsConfigProfileSoftwareUpdateTracking},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
@@ -59,9 +65,16 @@ func TestMDMWindows(t *testing.T) {
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
+		{"TestWindowsMDMGlobalDisableBlocksReconciler", testWindowsMDMGlobalDisableBlocksReconciler},
+		{"TestMDMWindowsAwaitingConfigurationCAS", testMDMWindowsAwaitingConfigurationCAS},
+		{"TestMDMWindowsGetHostConfigState", testMDMWindowsGetHostConfigState},
+		{"TestMDMWindowsPollScheduleRelaxed", testMDMWindowsPollScheduleRelaxed},
+		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
+		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
+		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 	}
 
 	for _, c := range cases {
@@ -160,6 +173,91 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
 	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
+
+	// Re-enrollment cleanup MUST cascade to host_mdm_windows_profiles,
+	// setup_experience_status_results, and upcoming_activities for the host
+	// UUID so a re-enrolled (re-Autopiloted, re-joined) device starts clean.
+	host := test.NewHost(t, ds, "win-cleanup", "10.0.0.99", "win-cleanup-key", "win-cleanup-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	cleanupDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-CLEANUP",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host.UUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, cleanupDevice))
+
+	// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; for Windows that's the
+	// host's OsqueryHostID, NOT host.UUID. Insert with the production-shape key so this test would catch a regression
+	// where cleanup deletes by host.UUID and silently misses real Windows rows.
+	require.NotNil(t, host.OsqueryHostID, "test host must have OsqueryHostID set")
+	seHostUUID := *host.OsqueryHostID
+
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			host.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID); err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results
+				(host_uuid, name, status) VALUES (?, ?, ?)`,
+			seHostUUID, "TestApp", fleet.SetupExperienceStatusPending); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO upcoming_activities
+				(host_id, activity_type, execution_id, payload) VALUES (?, ?, ?, ?)`,
+			host.ID, "script", uuid.NewString(), `{}`)
+		return err
+	})
+
+	// Sanity-check pre-population.
+	var profCount, resultCount, activityCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &profCount,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ?`, host.UUID); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &resultCount,
+			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, seHostUUID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &activityCount,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, 1, profCount)
+	require.Equal(t, 1, resultCount)
+	require.Equal(t, 1, activityCount)
+
+	// Run the re-enrollment cleanup.
+	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, cleanupDevice.MDMHardwareID))
+
+	// All three related tables must be cleaned for this host.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &profCount,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ?`, host.UUID); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &resultCount,
+			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, seHostUUID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &activityCount,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID)
+	})
+	assert.Equal(t, 0, profCount, "host_mdm_windows_profiles must be cleaned on re-enrollment")
+	assert.Equal(t, 0, resultCount,
+		"setup_experience_status_results must be cleaned on re-enrollment, even when keyed by OsqueryHostID")
+	assert.Equal(t, 0, activityCount, "upcoming_activities must be cleaned on re-enrollment via JOIN on hosts.uuid")
 }
 
 func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
@@ -1466,6 +1564,163 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 1)
 }
 
+func testMDMWindowsBulkInsertCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("empty list is a noop", func(t *testing.T) {
+		err := ds.MDMWindowsBulkInsertCommands(ctx, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("inserts multiple commands in one query", func(t *testing.T) {
+		cmds := []*fleet.MDMWindowsCommand{
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>1</Exec>"), TargetLocURI: "./test/uri1"},
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>2</Exec>"), TargetLocURI: "./test/uri2"},
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>3</Exec>"), TargetLocURI: "./test/uri3"},
+		}
+		err := ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Verify all commands were inserted
+		for _, cmd := range cmds {
+			var count int
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmd.CommandUUID)
+			})
+			require.Equal(t, 1, count, "command %s should exist", cmd.CommandUUID)
+		}
+	})
+
+	t.Run("duplicates are silently ignored", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		cmds := []*fleet.MDMWindowsCommand{
+			{CommandUUID: cmdUUID, RawCommand: []byte("<Exec>first</Exec>"), TargetLocURI: "./test/dup"},
+		}
+		err := ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Insert the same command again — should not error
+		err = ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Verify only one row exists
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmdUUID)
+		})
+		require.Equal(t, 1, count)
+	})
+
+	t.Run("works with MDMWindowsEnqueueCommandAndUpsertHostProfiles", func(t *testing.T) {
+		// Enroll a device so we can enqueue commands
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-BULK",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollUserID:        "",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			MDMNotInOOBE:           false,
+			HostUUID:               uuid.NewString(),
+		}
+		err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
+		require.NoError(t, err)
+
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec>bulk</Exec>"),
+			TargetLocURI: "./test/bulk",
+		}
+
+		// Bulk-insert the command first
+		err = ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd})
+		require.NoError(t, err)
+
+		// Then enqueue without re-inserting the command
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID,
+				ProfileName:   "bulk-prof",
+				HostUUID:      d.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-bulk"),
+			},
+		}
+		err = ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, []string{d.HostUUID}, cmd, payload)
+		require.NoError(t, err)
+
+		// Verify the profile was upserted
+		var hostProfiles []*fleet.MDMWindowsProfilePayload
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &hostProfiles,
+				`SELECT profile_uuid, host_uuid, command_uuid FROM host_mdm_windows_profiles WHERE host_uuid = ?`, d.HostUUID)
+		})
+		require.Len(t, hostProfiles, 1)
+		require.Equal(t, profUUID, hostProfiles[0].ProfileUUID)
+		require.Equal(t, cmdUUID, hostProfiles[0].CommandUUID)
+
+		// Verify the command was enqueued in the command queue
+		var queueCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &queueCount,
+				`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+		})
+		require.Equal(t, 1, queueCount)
+	})
+
+	t.Run("marks only the latest enrollment on re-enrollment", func(t *testing.T) {
+		hostUUID := uuid.NewString()
+		newDevice := func() *fleet.MDMWindowsEnrolledDevice {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:            uuid.New().String(),
+				MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+				MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+				MDMDeviceType:          "CIMClient_Windows",
+				MDMDeviceName:          "DESKTOP-REENROLL",
+				MDMEnrollType:          "ProgrammaticEnrollment",
+				MDMEnrollProtoVersion:  "5.0",
+				MDMEnrollClientVersion: "10.0.19045.2965",
+				HostUUID:               hostUUID,
+			}
+		}
+		// A re-enrollment: two enrollment rows share one host UUID. The queue insert targets MAX(id), so only the newer row gets the
+		// command. The stale row must NOT be flagged, or it would be stranded at has_pending_commands=1 forever (the recompute-on-ack
+		// only runs against the responding enrollment).
+		stale := newDevice()
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, stale))
+		newer := newDevice()
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, newer))
+
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{CommandUUID: cmdUUID, RawCommand: []byte("<Replace>reenroll</Replace>"), TargetLocURI: "./test/reenroll"}
+		// Enqueue only inserts the queue row, so the command must already exist in windows_mdm_commands (FK).
+		require.NoError(t, ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd}))
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID: profUUID, ProfileName: "reenroll-prof", HostUUID: hostUUID, CommandUUID: cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending, Checksum: []byte("reenroll-chk"),
+		}}
+		require.NoError(t, ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, []string{hostUUID}, cmd, payload))
+
+		flagByDeviceID := func(mdmDeviceID string) bool {
+			var v bool
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &v, `SELECT has_pending_commands FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+			})
+			return v
+		}
+		require.True(t, flagByDeviceID(newer.MDMDeviceID), "the latest enrollment (where the command was queued) must be flagged")
+		require.False(t, flagByDeviceID(stale.MDMDeviceID), "the stale re-enrollment row must NOT be flagged; no command points at it")
+	})
+}
+
 func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1568,7 +1823,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		}
 	})
 
-	t.Run("duplicate command uuid returns already exists", func(t *testing.T) {
+	t.Run("duplicate command insert is silently ignored", func(t *testing.T) {
 		profUUID := InsertWindowsProfileForTest(t, ds, 0)
 		cmdUUID := uuid.NewString()
 		cmd := &fleet.MDMWindowsCommand{
@@ -1576,6 +1831,14 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 			RawCommand:   []byte("<Exec></Exec>"),
 			TargetLocURI: "./test/uri",
 		}
+
+		// Insert the command first via bulk insert
+		err := ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd})
+		require.NoError(t, err)
+
+		// Calling InsertCommandAndUpsert with the same command UUID should
+		// silently skip the command INSERT (INSERT IGNORE) and proceed
+		// with the queue + upsert.
 		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
 			{
 				ProfileUUID:   profUUID,
@@ -1587,14 +1850,8 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 				Checksum:      []byte("checksum-dup"),
 			},
 		}
-
-		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
-		require.NoError(t, err)
-
-		// Same command UUID again should fail with already exists
 		err = ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "already exists")
+		require.NoError(t, err)
 	})
 
 	t.Run("upserts update existing host profiles", func(t *testing.T) {
@@ -1761,6 +2018,158 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
+}
+
+func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	d := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-POLL",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               uuid.NewString(),
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+	enrollmentID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
+
+	// reload reads the enrollment the way the management session does (by device id); reloadState reads it the way GetOrbitConfig does (by
+	// host UUID). Both must observe the persisted columns.
+	reload := func() *fleet.MDMWindowsEnrolledDevice {
+		got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+		require.NoError(t, err)
+		return got
+	}
+	reloadState := func() *fleet.MDMWindowsHostConfigState {
+		state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+		require.NoError(t, err)
+		return state
+	}
+
+	// New enrollment defaults to the aggressive (not-relaxed) schedule and not-sync-capable.
+	require.False(t, reload().PollScheduleRelaxed)
+
+	// MDMWindowsEnqueuePollScheduleCommand records the intended (relaxed) schedule and queues the Replace in one transaction; the poll command
+	// is excluded from has_pending_commands so tuning the poll never triggers a wake on its own.
+	pollCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Replace></Replace>"),
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
+	}
+	require.NoError(t, ds.MDMWindowsEnqueuePollScheduleCommand(ctx, d.MDMDeviceID, enrollmentID, pollCmd, true))
+	require.True(t, reload().PollScheduleRelaxed, "intended schedule should be recorded as relaxed")
+
+	pending, err := ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "the poll Replace should be queued for delivery")
+	require.Equal(t, pollCmd.CommandUUID, pending[0].CommandUUID)
+	require.False(t, reloadState().HasPendingCommands, "internal poll Replace must not set has_pending_commands")
+
+	// fleetd_sync_capable round-trip: default false; the orbit-config setter flips it; both the config-state getter (GetOrbitConfig) and the
+	// enrolled-device getter (the management session's reconcile) must observe the persisted value.
+	require.False(t, reloadState().FleetdSyncCapable, "default should be not-capable")
+	require.False(t, reload().FleetdSyncCapable)
+
+	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, true))
+	require.True(t, reloadState().FleetdSyncCapable)
+	require.True(t, reload().FleetdSyncCapable, "management session must see the persisted capability")
+
+	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, false))
+	require.False(t, reloadState().FleetdSyncCapable)
+}
+
+func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no enrollment for this host UUID -> NotFound
+	_, err := ds.GetMDMWindowsHostConfigState(ctx, uuid.NewString())
+	require.True(t, fleet.IsNotFound(err))
+
+	d := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-CFGSTATE",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               uuid.NewString(),
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+
+	// enrolled, no commands -> awaiting None, no pending commands
+	state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, state.AwaitingConfiguration)
+	require.False(t, state.HasPendingCommands)
+
+	// queue a command -> has pending commands
+	cmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/uri"}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, cmd))
+
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.HasPendingCommands)
+	// (The ack -> not-pending transition, including the recompute-on-ack wiring inside MDMWindowsSaveResponse, is covered by testSaveResponse.)
+
+	// awaiting_configuration is reflected in the combined read
+	_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, d.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationNone, fleet.WindowsMDMAwaitingConfigurationPending)
+	require.NoError(t, err)
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, state.AwaitingConfiguration)
+
+	// Re-enrollment scoping: when a host has more than one enrollment row for the same UUID, the combined read must come from the latest
+	// enrollment only (the query orders by created_at DESC, id DESC and takes one row). Give the now-stale enrollment a pending command, then
+	// add a newer enrollment for the same host UUID with no pending commands and a distinct awaiting value, and confirm neither the stale
+	// awaiting value nor its pending command leaks into the result.
+	stalePending := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/stale"}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, stalePending))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.HasPendingCommands, "sanity: the stale enrollment has a pending command before re-enrollment")
+
+	newer := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-CFGSTATE",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               d.HostUUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, newer))
+	_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, newer.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationNone, fleet.WindowsMDMAwaitingConfigurationActive)
+	require.NoError(t, err)
+
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, state.AwaitingConfiguration,
+		"combined read must reflect the latest enrollment, not the stale one (Pending)")
+	require.False(t, state.HasPendingCommands,
+		"a pending command on the stale enrollment must not leak into the latest enrollment's state")
+
+	// Internal poll-schedule commands are excluded from the pending-command signal: a pending poll Replace on the latest enrollment must NOT
+	// set HasPendingCommands (tuning the poll should not itself request a wake).
+	pollCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Replace></Replace>"), TargetLocURI: syncml.DMClientPollIntervalLocURI}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, pollCmd))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.False(t, state.HasPendingCommands, "a pending poll-schedule command must not count as a pending command")
+
+	// A non-poll pending command on the same (latest) enrollment still sets the signal, proving the exclusion is specific to the poll LocURI
+	// and not a blanket suppression.
+	realCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/real"}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, realCmd))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.HasPendingCommands, "a non-poll pending command must still count")
 }
 
 func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
@@ -1974,10 +2383,54 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
+	// Mirror what osquery's directIngestMDMWindows does once it sees the device's registry: mark host_mdm.enrolled = 1.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 	return d1.MDMDeviceID
 }
 
 // windowsProfileUUIDByName returns the profile_uuid of a Windows config profile
+func testNewMDMWindowsConfigProfileSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	osUpdateSyncML := fmt.Appendf(nil,
+		`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
+		syncml.FleetOSUpdateTargetLocURI)
+
+	// The first OS-update profile is created and tracked.
+	_, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "su1",
+		SyncML: osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	configured, err := ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, configured)
+
+	// A second OS-update profile for the same team is allowed.
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "su2",
+		SyncML: osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// The allowed profile must have been persisted.
+	var persistedCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &persistedCount,
+			`SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = ?`, "su2")
+	})
+	require.Equal(t, 1, persistedCount)
+
+	// A non OS-update profile is unaffected by the existing tracked one.
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "other",
+		SyncML: []byte("<Replace></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+}
+
 // identified by its (unique) name.
 func windowsProfileUUIDByName(t *testing.T, ds *Datastore, name string) string {
 	t.Helper()
@@ -2593,8 +3046,12 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, label.ID, prof.LabelsIncludeAll[0].LabelID)
 	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
-	// break that profile by deleting the label
-	require.NoError(t, ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	// simulate a broken label by nullifying its id in the join table
+	// (direct DeleteLabel is now blocked when referenced by a profile)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE windows_profile_uuid = ? AND label_id = ?`, profWithLabel.ProfileUUID, label.ID)
+		return err
+	})
 
 	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)
@@ -3344,6 +3801,15 @@ func testSaveResponse(t *testing.T, ds *Datastore) {
 		[]string{enrolledDevice1.MDMDeviceID, enrolledDevice2.MDMDeviceID, enrolledDevice3.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 
+	// has_pending_commands is a denormalized flag: queuing a non-poll command marks it, and MDMWindowsSaveResponse must recompute it to false
+	// when the command is acked. hasPending reads it through the same getter the orbit-config check-in uses.
+	hasPending := func(d *fleet.MDMWindowsEnrolledDevice) bool {
+		st, err := ds.GetMDMWindowsHostConfigState(context.Background(), d.HostUUID)
+		require.NoError(t, err)
+		return st.HasPendingCommands
+	}
+	require.True(t, hasPending(enrolledDevice1), "queuing a non-poll command should mark the enrollment as having pending commands")
+
 	// We only found a batch update method, so we are using a single statement here to insert host profile, for simplicity.
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
 		_, err := t.ExecContext(context.Background(), `
@@ -3357,6 +3823,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	// Do test
 	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
 	require.NoError(t, err)
+	require.False(t, hasPending(enrolledDevice1), "MDMWindowsSaveResponse must recompute has_pending_commands to false after the ack")
 
 	// Verify results
 	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
@@ -4610,11 +5077,6 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
-	// One subtest below replicates the post-team-move reconciliation by
-	// calling BulkSetPendingMDMHostProfiles and then asserts on
-	// host_mdm_windows_profiles. Production defers that to the cron, so
-	// this test opts into the eager hook.
-	ds.EnableTestWindowsEagerHook(t)
 	ctx := t.Context()
 
 	h1 := test.NewHost(t, ds, "host1", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
@@ -4786,8 +5248,8 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "moved-host-destination"})
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
-		_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{h2.ID}, nil, nil, nil)
-		require.NoError(t, err)
+		// Run cron to simulate time passing and reconciler doing the work.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 		// Restore h2 to no-team at the end so the next subtest starts clean.
 		t.Cleanup(func() {
 			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))
@@ -5070,6 +5532,93 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 	winProfs, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, winProfs)
+}
+
+// testWindowsMDMGlobalDisableBlocksReconciler exercises Windows fix for issue #42427:
+// The reconciler's host_mdm.enrolled = 1 join ensures that once a host genuinely unenrolls (via the orbit-driven flow,
+// or because osquery reports the registry has no MDM), the reconciler skips it, preventing stale pending rows from
+// being recreated after Windows MDM is re-enabled.
+func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "win-disable", "10.0.0.50", "win-disable-key", "win-disable-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	windowsEnroll(t, ds, host)
+
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+
+	// Reconciler should see this host as needing the profile installed.
+	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	var foundBefore bool
+	for _, p := range toInstall {
+		if p.HostUUID == host.UUID && p.ProfileUUID == profUUID {
+			foundBefore = true
+			break
+		}
+	}
+	require.True(t, foundBefore, "reconciler must see host before global disable")
+
+	// Globally disable Windows MDM.
+	require.NoError(t, ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"))
+
+	// mdm_windows_enrollments row must remain: the device is still enrolled at the OS level until it processes an
+	// unenrollment alert, and isWindowsHostConnectedToFleetMDM needs this row + host_mdm.enrolled = 1 for orbit to be
+	// able to send the programmatic-unenrollment notification.
+	var enrollmentCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollmentCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE host_uuid = ?`, host.UUID)
+	})
+	require.Equal(t, 1, enrollmentCount, "mdm_windows_enrollments row must remain after global disable")
+
+	// host_mdm.enrolled must NOT be touched by CleanupAllHostMDMProfilesForPlatform.
+	// Flipping it would break orbit's programmatic-unenrollment notification.
+	var hostMDMEnrolled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hostMDMEnrolled,
+			`SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
+	})
+	require.True(t, hostMDMEnrolled,
+		"host_mdm.enrolled must be preserved so orbit can issue the programmatic-unenrollment notification")
+
+	// The host_mdm_windows_profiles rows must be gone.
+	winProfs, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, winProfs, "host_mdm_windows_profiles must be empty after global disable")
+
+	// Simulate the orbit-driven unenroll completing: osquery reports the registry no longer has MDM, so
+	// host_mdm.enrolled flips to 0.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID,
+		false, // is_server
+		false, // enrolled - device has unenrolled
+		"", false, "", "", false))
+
+	toInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	for _, p := range toInstall {
+		if p.HostUUID == host.UUID {
+			t.Fatalf("reconciler must not return host %s after device unenrolled, got profile %s",
+				host.UUID, p.ProfileUUID)
+		}
+	}
+
+	// If osquery later reports the device IS back on Fleet MDM (e.g., it re-enrolled after Windows MDM was turned back
+	// on), the reconciler must resume for that host.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+
+	toInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	var foundAfter bool
+	for _, p := range toInstall {
+		if p.HostUUID == host.UUID && p.ProfileUUID == profUUID {
+			foundAfter = true
+			break
+		}
+	}
+	require.True(t, foundAfter, "reconciler must resume for host after osquery confirms it is enrolled again")
 }
 
 // testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that
@@ -5528,4 +6077,475 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
 			"per-host membership mismatch for OSSettingsFilter=%s", filter)
 	}
+}
+
+// windowsEnrollmentFixture describes a Windows MDM enrollment row for tests. The non-zero fields below are the
+// only ones tests in this file vary; everything else gets sensible defaults via insertWindowsEnrolledDevice.
+type windowsEnrollmentFixture struct {
+	mdmDeviceID           string // defaulted to a fresh UUID if empty
+	deviceNameSuffix      string // appended to "DESKTOP-" for MDMDeviceName; defaulted to "TEST"
+	hostUUID              string // optional, links the enrollment to a host row
+	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
+	awaitingAt            *time.Time
+}
+
+// insertWindowsEnrolledDevice inserts an MDM-enrollment row with sensible defaults for every field tests don't care
+// about. Returns the mdm_device_id used (caller-supplied or generated). Use this in test setup so the
+// 11-line struct literal doesn't duplicate across every subtest.
+func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastore, f windowsEnrollmentFixture) string {
+	t.Helper()
+	if f.mdmDeviceID == "" {
+		f.mdmDeviceID = uuid.NewString()
+	}
+	if f.deviceNameSuffix == "" {
+		f.deviceNameSuffix = "TEST"
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:             f.mdmDeviceID,
+		MDMHardwareID:           uuid.NewString() + uuid.NewString(),
+		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:           "CIMClient_Windows",
+		MDMDeviceName:           "DESKTOP-" + strings.ToUpper(f.deviceNameSuffix),
+		MDMEnrollType:           "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:   "5.0",
+		MDMEnrollClientVersion:  "10.0.19045.2965",
+		MDMNotInOOBE:            false,
+		HostUUID:                f.hostUUID,
+		AwaitingConfiguration:   f.awaitingConfiguration,
+		AwaitingConfigurationAt: f.awaitingAt,
+	}))
+	return f.mdmDeviceID
+}
+
+// testMDMWindowsAwaitingConfigurationCAS verifies the compare-and-swap
+// semantics of SetMDMWindowsAwaitingConfiguration: a mismatched expectFrom
+// must not transition the row, and concurrent callers must produce exactly
+// one winner. This is the critical primitive that prevents two management
+// sessions from both running the cancel/persist work at finalization.
+func testMDMWindowsAwaitingConfigurationCAS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Transition matrix: every meaningfully-distinct (currentState, expectFrom, to) combination, with the expected
+	// (transitioned, finalState) outcome. Three matched transitions exercise the success cases; three mismatched
+	// cases exercise idempotency-on-mismatch (no error, no state change). Reverse / weird transitions like
+	// Active->Pending are deliberately omitted -- they're not valid in the production state machine.
+	cases := []struct {
+		name             string
+		currentState     fleet.WindowsMDMAwaitingConfiguration
+		expectFrom       fleet.WindowsMDMAwaitingConfiguration
+		to               fleet.WindowsMDMAwaitingConfiguration
+		wantTransitioned bool
+		wantFinalState   fleet.WindowsMDMAwaitingConfiguration
+	}{
+		{
+			name:             "Pending->Active matched",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationPending,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationPending,
+			to:               fleet.WindowsMDMAwaitingConfigurationActive,
+			wantTransitioned: true,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationActive,
+		},
+		{
+			name:             "Active->None matched",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationActive,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationActive,
+			to:               fleet.WindowsMDMAwaitingConfigurationNone,
+			wantTransitioned: true,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationNone,
+		},
+		{
+			name:             "Pending->None matched (timeout-during-pending shortcut)",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationPending,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationPending,
+			to:               fleet.WindowsMDMAwaitingConfigurationNone,
+			wantTransitioned: true,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationNone,
+		},
+		{
+			name:             "Pending row with expectFrom=Active is no-op (mismatched)",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationPending,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationActive,
+			to:               fleet.WindowsMDMAwaitingConfigurationNone,
+			wantTransitioned: false,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationPending,
+		},
+		{
+			name:             "None row with expectFrom=Pending is no-op (idempotent retry)",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationNone,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationPending,
+			to:               fleet.WindowsMDMAwaitingConfigurationActive,
+			wantTransitioned: false,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationNone,
+		},
+		{
+			name:             "Active row with expectFrom=Pending is no-op (mismatched)",
+			currentState:     fleet.WindowsMDMAwaitingConfigurationActive,
+			expectFrom:       fleet.WindowsMDMAwaitingConfigurationPending,
+			to:               fleet.WindowsMDMAwaitingConfigurationNone,
+			wantTransitioned: false,
+			wantFinalState:   fleet.WindowsMDMAwaitingConfigurationActive,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+				deviceNameSuffix:      "CAS",
+				awaitingConfiguration: tt.currentState,
+			})
+			transitioned, err := ds.SetMDMWindowsAwaitingConfiguration(ctx, deviceID, tt.expectFrom, tt.to)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantTransitioned, transitioned)
+
+			got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantFinalState, got.AwaitingConfiguration)
+		})
+	}
+
+	t.Run("concurrent CAS yields exactly one winner", func(t *testing.T) {
+		// Defends the row-level atomicity contract that handleESPRelease relies on: when two checkins race
+		// past the wait gate, at most one finalize commits.
+		deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+			deviceNameSuffix:      "CAS-CONCURRENT",
+			awaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+		})
+		const goroutines = 10
+		var wg sync.WaitGroup
+		var winners atomic.Int32
+		for range goroutines {
+			wg.Go(func() {
+				tr, err := ds.SetMDMWindowsAwaitingConfiguration(ctx, deviceID,
+					fleet.WindowsMDMAwaitingConfigurationActive,
+					fleet.WindowsMDMAwaitingConfigurationNone)
+				// nolint:testifylint // require.NoError calls t.FailNow which is unsafe in goroutines; assert is correct here.
+				assert.NoError(t, err)
+				if tr {
+					winners.Add(1)
+				}
+			})
+		}
+		wg.Wait()
+		require.Equal(t, int32(1), winners.Load(),
+			"exactly one concurrent CAS should win the Active->None transition")
+
+		got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, got.AwaitingConfiguration)
+	})
+
+	t.Run("unknown device id returns false without error", func(t *testing.T) {
+		transitioned, err := ds.SetMDMWindowsAwaitingConfiguration(ctx, "nonexistent-"+uuid.NewString(),
+			fleet.WindowsMDMAwaitingConfigurationPending,
+			fleet.WindowsMDMAwaitingConfigurationActive)
+		require.NoError(t, err)
+		require.False(t, transitioned)
+	})
+
+	t.Run("awaiting_configuration_at preserved across transitions", func(t *testing.T) {
+		// The 3-hour ESP timeout in handleESPRelease consumes this timestamp. SetMDMWindowsAwaitingConfiguration
+		// must NOT touch awaiting_configuration_at on transition; the value set at enrollment time is the source
+		// of truth for "when did the device start awaiting configuration." If a regression caused the timestamp
+		// to be reset on Pending->Active, the timeout window would extend by the time spent in Pending.
+		now := time.Now().UTC().Truncate(time.Microsecond)
+		deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+			deviceNameSuffix:      "CAS-TIMESTAMP",
+			awaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
+			awaitingAt:            &now,
+		})
+		original, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		require.NotNil(t, original.AwaitingConfigurationAt)
+		originalTS := *original.AwaitingConfigurationAt
+
+		// Pending -> Active.
+		_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, deviceID,
+			fleet.WindowsMDMAwaitingConfigurationPending,
+			fleet.WindowsMDMAwaitingConfigurationActive)
+		require.NoError(t, err)
+		afterFirst, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		require.NotNil(t, afterFirst.AwaitingConfigurationAt)
+		require.True(t, afterFirst.AwaitingConfigurationAt.Equal(originalTS),
+			"timestamp must be preserved across Pending->Active (got %v, want %v)",
+			*afterFirst.AwaitingConfigurationAt, originalTS)
+
+		// Active -> None.
+		_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, deviceID,
+			fleet.WindowsMDMAwaitingConfigurationActive,
+			fleet.WindowsMDMAwaitingConfigurationNone)
+		require.NoError(t, err)
+		afterSecond, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		require.NotNil(t, afterSecond.AwaitingConfigurationAt)
+		require.True(t, afterSecond.AwaitingConfigurationAt.Equal(originalTS),
+			"timestamp must be preserved across Active->None (got %v, want %v)",
+			*afterSecond.AwaitingConfigurationAt, originalTS)
+	})
+}
+
+// testMDMWindowsHasSetupExperienceItems verifies HasWindowsSetupExperienceItemsForTeam counts only Windows
+// software installers and only when active + install_during_setup.
+func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "esp-test-user", "esp-test@example.com", true)
+
+	// makeInstaller creates a fresh software installer via the production datastore method, with the requested
+	// team scope and platform. Each subtest uses this to build its own isolated fixtures rather than mutating a
+	// single shared row -- both for clearer per-subtest failure diagnostics and because the row mutations between
+	// cases are also what we're testing.
+	makeInstaller := func(t *testing.T, teamID *uint, platform string, installDuringSetup bool, titleSuffix string) uint {
+		t.Helper()
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		title := "esp-test-" + titleSuffix
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:          teamID,
+			UserID:          user.ID,
+			InstallScript:   "echo install",
+			InstallerFile:   tfr,
+			StorageID:       uuid.NewString(),
+			Filename:        title + ".msi",
+			Title:           title,
+			Version:         "1.0",
+			Source:          "apps",
+			Platform:        platform,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		if installDuringSetup {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					"UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerID)
+				return err
+			})
+		}
+		return installerID
+	}
+
+	t.Run("no installers configured returns false", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-empty-" + uuid.NewString()})
+		require.NoError(t, err)
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.False(t, hasItems)
+	})
+
+	t.Run("Windows installer without install_during_setup returns false", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-noflag-" + uuid.NewString()})
+		require.NoError(t, err)
+		makeInstaller(t, &team.ID, "windows", false, "no-flag")
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.False(t, hasItems, "Windows installer without install_during_setup must not count")
+	})
+
+	t.Run("Windows installer with install_during_setup returns true", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-flag-" + uuid.NewString()})
+		require.NoError(t, err)
+		makeInstaller(t, &team.ID, "windows", true, "critical")
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.True(t, hasItems)
+	})
+
+	t.Run("non-Windows installer is filtered out", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-darwin-" + uuid.NewString()})
+		require.NoError(t, err)
+		makeInstaller(t, &team.ID, "darwin", true, "macos-app")
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.False(t, hasItems, "darwin installer must not match the windows-only filter")
+	})
+
+	t.Run("inactive Windows installer is filtered out", func(t *testing.T) {
+		// `is_active` is internal versioning state with no public datastore toggle; it is flipped to 0 by the
+		// upload-versioning flow when a newer installer for the same title supersedes the previous one. Here
+		// we simulate that end state by flipping it via raw UPDATE and verify the function's WHERE clause
+		// honors it.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-inactive-" + uuid.NewString()})
+		require.NoError(t, err)
+		installerID := makeInstaller(t, &team.ID, "windows", true, "inactive")
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"UPDATE software_installers SET is_active = 0 WHERE id = ?", installerID)
+			return err
+		})
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.False(t, hasItems, "is_active=0 installer must not count")
+	})
+
+	t.Run("setup_experience_scripts is filtered out (script-exclusion invariant)", func(t *testing.T) {
+		// Most important non-obvious invariant. The setup_experience_scripts table is platform-agnostic at the
+		// schema level, but enqueueSetupExperienceItems only enqueues scripts when fleetPlatform=="darwin", so a
+		// script on a Windows team is never actually enqueued. If HasWindowsSetupExperienceItemsForTeam counted
+		// scripts, the wait gate would block waiting for an item that will never arrive -- the device hangs
+		// until the 3-hour ESP timeout. We add the script via SetSetupExperienceScript (the production caller
+		// path) rather than raw INSERT so a future migration that adds required columns to that table doesn't
+		// silently leave this test passing.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-script-" + uuid.NewString()})
+		require.NoError(t, err)
+		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+			TeamID:         &team.ID,
+			Name:           "setup.sh",
+			ScriptContents: "echo setup",
+		}))
+
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
+		require.NoError(t, err)
+		require.False(t, hasItems, "setup_experience_scripts must not count for Windows ESP (scripts are only enqueued for darwin)")
+	})
+
+	t.Run("global teamID=0 finds global installers", func(t *testing.T) {
+		// teamID=0 is the no-team / global value. Real production case: hosts on no team -- the service caller
+		// passes 0 directly when host.TeamID is nil. The global path is structurally distinct from the
+		// team-scoped path (TeamID=nil in the payload maps to global_or_team_id=0 in the table), so it warrants
+		// dedicated coverage.
+		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, 0)
+		require.NoError(t, err)
+		require.False(t, hasItems, "global must start empty before we add a global installer")
+
+		makeInstaller(t, nil, "windows", true, "global-critical-"+uuid.NewString())
+
+		hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, 0)
+		require.NoError(t, err)
+		require.True(t, hasItems, "teamID=0 must surface installers with global_or_team_id=0")
+	})
+
+	t.Run("does not cross-leak between teams", func(t *testing.T) {
+		// Negative case for the global_or_team_id WHERE clause. Without this subtest, dropping the clause would
+		// silently pass the other subtests because each uses a single team -- the regression would only show up
+		// in production when a host on team B inherited team A's setup experience.
+		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-iso-A-" + uuid.NewString()})
+		require.NoError(t, err)
+		teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-iso-B-" + uuid.NewString()})
+		require.NoError(t, err)
+		makeInstaller(t, &teamA.ID, "windows", true, "team-a-app-"+uuid.NewString())
+
+		hasItemsA, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamA.ID)
+		require.NoError(t, err)
+		require.True(t, hasItemsA)
+
+		hasItemsB, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamB.ID)
+		require.NoError(t, err)
+		require.False(t, hasItemsB, "team-A installer must not appear for team-B")
+	})
+}
+
+func testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// 1. Empty device name → NotFound.
+	_, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "empty device name should return NotFound")
+
+	// 2. No matching row → NotFound.
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "DESKTOP-NONE")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 3. Insert an unlinked enrollment (host_uuid="") with a known device_name; method returns it.
+	deviceName := "DESKTOP-RACE-1"
+	unlinked := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          deviceName,
+		MDMEnrollType:          "AzureADJoin",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               "",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, unlinked))
+
+	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
+	require.Empty(t, got.HostUUID)
+	require.True(t, got.MDMNotInOOBE)
+
+	// 4. Linked enrollment with the same name (host_uuid populated) must be excluded.
+	linked := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          deviceName,
+		MDMEnrollType:          "AzureADJoin",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               "11111111-1111-1111-1111-111111111111",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, linked))
+
+	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID,
+		"must return the unlinked row even when another row with the same device_name is linked")
+
+	// 5. After linking the original row too, no unlinked row remains → NotFound.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`,
+		"22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
+	require.NoError(t, err)
+
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err),
+		"all matching rows now linked; method must return NotFound")
+}
+
+func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// 1. Empty serial → NotFound.
+	_, err := ds.WindowsHostLiteByHardwareSerial(ctx, "")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 2. No matching host → NotFound.
+	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-DOES-NOT-EXIST")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 3. Single matching Windows host → returns it.
+	winHost := test.NewHost(t, ds, "win-by-serial", "10.0.0.50", "win-by-serial-key", "win-by-serial-uuid", time.Now())
+	winHost.Platform = "windows"
+	winHost.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, winHost))
+
+	got, err := ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.NoError(t, err)
+	require.Equal(t, winHost.ID, got.ID)
+	require.Equal(t, winHost.UUID, got.UUID)
+
+	// 4. Non-Windows host with the same serial must not match (platform filter prevents cross-platform mis-linkage).
+	macHost := test.NewHost(t, ds, "mac-same-serial", "10.0.0.51", "mac-same-serial-key", "mac-same-serial-uuid", time.Now())
+	macHost.Platform = "darwin"
+	macHost.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, macHost))
+
+	got, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.NoError(t, err)
+	require.Equal(t, winHost.ID, got.ID, "must return the Windows host even when a darwin host shares the serial")
+
+	// 5. Two Windows hosts sharing the same serial → NotFound (linkage would be ambiguous).
+	winHostDup := test.NewHost(t, ds, "win-by-serial-dup", "10.0.0.52", "win-by-serial-dup-key", "win-by-serial-dup-uuid", time.Now())
+	winHostDup.Platform = "windows"
+	winHostDup.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, winHostDup))
+
+	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
 }

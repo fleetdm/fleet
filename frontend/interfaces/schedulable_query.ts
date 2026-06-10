@@ -103,7 +103,7 @@ export interface IQueryKeyQueriesLoadAll {
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
-export interface ICreateQueryRequestBody {
+export interface ICreateQueryFormData {
   name: string;
   query: string;
   description?: string;
@@ -121,10 +121,10 @@ export interface ICreateQueryRequestBody {
 
 // response is ISchedulableQuery
 
-// Modify a query by id
+// Edit a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
-export interface IModifyQueryRequestBody
-  extends Omit<ICreateQueryRequestBody, "name" | "query" | "fleet_id"> {
+export interface IEditQueryFormData
+  extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
   query?: string;
@@ -141,7 +141,7 @@ export interface IModifyQueryRequestBody
 
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryRequestBody {
+export interface IDeleteQueryFormData {
   fleet_id?: number; // searches for a global query if omitted
 }
 
@@ -151,7 +151,7 @@ export interface IDeleteQueryRequestBody {
 
 // Delete queries by id
 /** POST /api/v1/fleet/queries/delete */
-export interface IDeleteQueriesRequestBody {
+export interface IDeleteQueriesFormData {
   ids: number[];
 }
 

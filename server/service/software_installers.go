@@ -37,6 +37,8 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
 	AutomaticInstall  bool
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -53,6 +55,8 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
+	Configuration []byte
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -134,6 +138,10 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	uninstallScriptMultipart, ok := r.MultipartForm.Value["uninstall_script"]
 	if ok && len(uninstallScriptMultipart) > 0 {
 		decoded.UninstallScript = &uninstallScriptMultipart[0]
+	}
+
+	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
+		decoded.Configuration = []byte(cfg[0])
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -250,6 +258,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
+		Configuration:     req.Configuration,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -358,6 +367,10 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PostInstallScript = val[0]
 	}
 
+	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
+		decoded.Configuration = []byte(cfg[0])
+	}
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -459,6 +472,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
+		Configuration:     req.Configuration,
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
@@ -839,6 +853,9 @@ type batchSetSoftwareInstallersResultResponse struct {
 	Status   string                          `json:"status"`
 	Message  string                          `json:"message"`
 	Packages []fleet.SoftwarePackageResponse `json:"packages"`
+	// DeletedPackages lists the packages the batch deleted (dry run: would
+	// delete) because their title matches no entry in the request payload.
+	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -847,23 +864,24 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
-	status, message, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
 	return batchSetSoftwareInstallersResultResponse{
-		Status:   status,
-		Message:  message,
-		Packages: packages,
+		Status:          status,
+		Message:         message,
+		Packages:        packages,
+		DeletedPackages: deletedPackages,
 	}, nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", "", nil, fleet.ErrMissingLicense
+	return "", "", nil, nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////

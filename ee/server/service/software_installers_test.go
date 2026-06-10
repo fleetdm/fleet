@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
@@ -354,13 +354,21 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
-func TestInstallSoftwareTitle(t *testing.T) {
+func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #43998.
+	// Returning NotFound from the in-house and VPP app lookups makes the code
+	// surface the standard "title not available" error — proving we got past
+	// the old gate without entangling this test in the install flow.
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -370,19 +378,21 @@ func TestInstallSoftwareTitle(t *testing.T) {
 		OrbitNodeKey: ptr.String("orbit_key"),
 		Platform:     "ios",
 		TeamID:       ptr.Uint(1),
+		MDM: fleet.MDMHostData{
+			EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+		},
 	}
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 
-	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
-		return &fleet.NanoEnrollment{
-			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
-		}, nil
-	}
-
-	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
+	err := svc.InstallSoftwareTitle(ctx, 1, 10)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+		"BYOD gate must no longer block install for personally-enrolled iOS/iPadOS hosts")
+	require.ErrorContains(t, err, "Software title is not available for install",
+		"control flow must reach the standard not-found path")
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
@@ -1004,10 +1014,25 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }
 
-func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #44007.
+	// Returning NotFound from both software-installer and VPP-app lookups makes
+	// the code surface the standard "title not available" error — proving we
+	// got past the old gate without entangling this test in the install flow.
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint, _ bool) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
 
 	for _, platform := range []string{"ios", "ipados"} {
 		fakeHost := &fleet.Host{
@@ -1018,8 +1043,11 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		}
 
 		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
-		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
-		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+		require.Error(t, err, "platform %s", platform)
+		require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+			"BYOD gate must no longer block self-service for platform %s", platform)
+		require.ErrorContains(t, err, "Software title is not available for install",
+			"control flow must reach the standard not-found path for platform %s", platform)
 	}
 }
 
@@ -1267,6 +1295,11 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
 	}
+	// The team has no installers, so the empty-payload dry run has nothing to
+	// report as pending deletion and must short-circuit.
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
 
 	svc := newTestService(t, ds)
 	svc.keyValueStore = kvs
@@ -1296,6 +1329,7 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			kvs.SetFuncInvoked = false
 			kvs.GetFuncInvoked = false
 			ds.TeamByNameFuncInvoked = false
+			ds.GetSoftwareInstallersPendingDeletionFuncInvoked = false
 
 			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
 			require.NoError(t, err)
@@ -1304,6 +1338,127 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
 			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
 				"TeamByName should only be called when tmName != \"\"")
+			require.True(t, ds.GetSoftwareInstallersPendingDeletionFuncInvoked,
+				"the short-circuit must check for installers pending deletion")
 		})
 	}
+}
+
+// inMemoryKeyValueStore is a thread-safe map-backed KeyValueStore mock for
+// tests that need to observe what the batch goroutine writes.
+func inMemoryKeyValueStore() (*redismock.KeyValueStore, func(key string) *string) {
+	var mu sync.Mutex
+	values := make(map[string]string)
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			mu.Lock()
+			defer mu.Unlock()
+			values[key] = value
+			return nil
+		},
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if v, ok := values[key]; ok {
+				return &v, nil
+			}
+			return nil, nil
+		},
+	}
+	get := func(key string) *string {
+		mu.Lock()
+		defer mu.Unlock()
+		if v, ok := values[key]; ok {
+			return &v
+		}
+		return nil
+	}
+	return kvs, get
+}
+
+func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
+	t.Parallel()
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	wouldDelete := []fleet.DeletedSoftwarePackage{
+		{TeamID: nil, TitleID: 1, DisplayName: "Cool App"},
+		{TeamID: nil, TitleID: 2, DisplayName: "Teammate Tool"},
+	}
+
+	ds := new(mock.Store)
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		// assert (not require): this runs on the batch goroutine, where FailNow would misbehave.
+		assert.Empty(t, incoming)
+		return wouldDelete, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Empty payload + dry run, but the (no-)team has installers: must NOT
+	// short-circuit, and must report every installer as pending deletion.
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", nil, true)
+	require.NoError(t, err)
+	require.NotEmpty(t, requestUUID, "dry run with installers pending deletion must go through the async path")
+
+	// Wait for the background goroutine to complete the batch.
+	require.Eventually(t, func() bool {
+		status := getKey(batchSoftwarePrefix + requestUUID)
+		return status != nil && *status == batchSetCompleted
+	}, 10*time.Second, 50*time.Millisecond, "batch never completed")
+
+	deletedJSON := getKey(batchSoftwarePrefix + requestUUID + batchSoftwareDeletedSuffix)
+	require.NotNil(t, deletedJSON, "deleted-packages key must be written before completion")
+	var gotDeleted []fleet.DeletedSoftwarePackage
+	require.NoError(t, json.Unmarshal([]byte(*deletedJSON), &gotDeleted))
+	require.Equal(t, wouldDelete, gotDeleted)
+
+	// The result endpoint returns the deleted packages on the dry-run completed branch.
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Equal(t, wouldDelete, deletedPackages)
+}
+
+func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
+	t.Parallel()
+
+	// Status key exists (completed) but the deleted-packages key is missing or
+	// expired: must degrade to an empty list, not an error.
+	completed := batchSetCompleted
+	kvs := &redismock.KeyValueStore{
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			if key == batchSoftwarePrefix+"test-uuid" {
+				return &completed, nil
+			}
+			return nil, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Empty(t, deletedPackages)
 }

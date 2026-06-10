@@ -7,7 +7,7 @@ import React, {
   useEffect,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 
 import hostAPI, {
@@ -135,11 +135,11 @@ const HostSoftwareLibrary = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     isGlobalTechnician,
     currentUser,
   } = useContext(AppContext);
+
+  const queryClient = useQueryClient();
 
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
@@ -462,17 +462,26 @@ const HostSoftwareLibrary = ({
     isHostOnline,
   ]);
 
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, hostTeamId);
+  const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    hostTeamId
+  );
+
   const hasSWWriteRole = Boolean(
     isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer ||
       isGlobalTechnician ||
       permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 
   const canAddSoftware =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer) &&
     !isAndroidHost;
 
   // 4.77 Currently Android apps can only be installed via self-service by end user
@@ -493,6 +502,9 @@ const HostSoftwareLibrary = ({
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "upcoming-activities" }],
+        });
 
         const message = () => {
           switch (true) {
@@ -517,7 +529,7 @@ const HostSoftwareLibrary = ({
         renderFlash("error", getInstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const onClickUninstallAction = useCallback(
@@ -527,6 +539,9 @@ const HostSoftwareLibrary = ({
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "upcoming-activities" }],
+        });
         renderFlash(
           "success",
           <>
@@ -541,7 +556,7 @@ const HostSoftwareLibrary = ({
         renderFlash("error", getUninstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const tableConfig = useMemo(() => {
@@ -612,6 +627,8 @@ const HostSoftwareLibrary = ({
         pagePath={pathname}
         selfService={queryParams.self_service}
         teamId={queryParams.fleet_id}
+        canAddSoftware={canAddSoftware}
+        onAddSoftware={onAddSoftware}
       />
     );
   };

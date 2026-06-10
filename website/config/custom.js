@@ -127,8 +127,9 @@ module.exports.custom = {
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
-    'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
+    'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw', //« API endpoint display names in the Fleet UI (API-only users)
     'docs/get-started/faq': 'zayhanlon',
     'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
@@ -187,6 +188,7 @@ module.exports.custom = {
     'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
     'handbook/company/go-to-market-operations.md': 'sampfluger88',
+    'handbook/company/brand.md': 'mike-j-thomas',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -297,6 +299,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/ceo': 'mikermcneil',
+    'handbook/company/brand.md': ['mikermcneil', 'mike-j-thomas'],
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],
@@ -368,7 +371,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.22.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -499,6 +502,9 @@ module.exports.custom = {
 
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
+
+  // Apply form
+  // applicationReplyEmailAddress: '…',
 
   // Render instance trials
   // renderOwnerId: '…',

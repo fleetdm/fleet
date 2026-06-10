@@ -398,6 +398,11 @@ type QuerySpec struct {
 	// If not set, then the default value is false.
 	DiscardData      bool     `json:"discard_data"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+}
+
+func (q *QuerySpec) Verify() error {
+	return verifyQueryLabelScopeMutualExclusion(q.LabelsIncludeAny, q.LabelsIncludeAll)
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {

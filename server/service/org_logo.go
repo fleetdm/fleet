@@ -119,6 +119,15 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.Body)))
 	w.Header().Set("Cache-Control", "no-store")
+	// nosniff: stops the browser from MIME-sniffing the body as HTML
+	// (XSS vector) if upstream Content-Type ever drifts.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// CSP keeps the direct-URL view inert (where SVG loads as a
+		// document, not <img>). 'unsafe-inline' allows the inline
+		// <style> blocks most SVGs include.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	}
 	_, _ = w.Write(r.Body)
 }
 
@@ -230,40 +239,50 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
-	// Filter to modes that actually have something to delete.
-	// (The S3 store's Delete is silent on missing keys, so without this check
-	// we'd persist a "logo deleted" activity.)
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "loading app config")
+	}
+
 	modes := mode.Modes()
-	toDelete := modes[:0:0]
+	// AppConfig URL fields that were non-empty before this call.
+	var clearedURL bool
+	// Modes whose logo is Fleet-hosted (a blob lives in the store).
+	var modesWithBlob []fleet.OrgLogoMode
 	for _, m := range modes {
+		if getOrgLogoURL(&ac.OrgInfo, m) != "" {
+			clearOrgLogoURL(&ac.OrgInfo, m)
+			clearedURL = true
+		}
 		exists, err := svc.orgLogoStore.Exists(ctx, m)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "checking org logo exists (%s)", m)
 		}
 		if exists {
-			toDelete = append(toDelete, m)
+			modesWithBlob = append(modesWithBlob, m)
 		}
 	}
-	if len(toDelete) == 0 {
-		return &fleet.BadRequestError{Message: "no org logo to delete for the given mode"}
+	if !clearedURL && len(modesWithBlob) == 0 {
+		return nil
 	}
 
-	// Try every requested mode even if one fails so a partial in-store
-	// state isn't left where one blob is gone but another lingers under a
-	// URL we already cleared. URLs are only cleared if all deletes
-	// succeeded — on a partial failure the caller retries and Delete is
-	// idempotent.
+	// Save before deleting blobs: a Delete failure then leaves a clean retry path.
+	if clearedURL {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving app config after logo delete")
+		}
+	}
+
+	// Collect errors so one failing mode doesn't leave the others untouched.
 	var errs []error
-	for _, m := range toDelete {
+	for _, m := range modesWithBlob {
 		if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting org logo (%s)", m))
 		}
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
-	}
-	if err := svc.updateOrgLogoURLs(ctx, toDelete, false); err != nil {
-		return err
 	}
 
 	if vc, ok := viewer.FromContext(ctx); ok {
@@ -274,6 +293,37 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		}
 	}
 	return nil
+}
+
+// getOrgLogoURL returns the URL for the given mode, preferring the new
+// mode-aware field and falling back to the deprecated alias.
+func getOrgLogoURL(o *fleet.OrgInfo, mode fleet.OrgLogoMode) string {
+	switch mode {
+	case fleet.OrgLogoModeLight:
+		if o.OrgLogoURLLightMode != "" {
+			return o.OrgLogoURLLightMode
+		}
+		return o.OrgLogoURLLightBackground
+	case fleet.OrgLogoModeDark:
+		if o.OrgLogoURLDarkMode != "" {
+			return o.OrgLogoURLDarkMode
+		}
+		return o.OrgLogoURL
+	}
+	return ""
+}
+
+// clearOrgLogoURL zeroes both the new and deprecated URL fields for the
+// given mode so NormalizeLogoFields can't restore the value from the alias.
+func clearOrgLogoURL(o *fleet.OrgInfo, mode fleet.OrgLogoMode) {
+	switch mode {
+	case fleet.OrgLogoModeLight:
+		o.OrgLogoURLLightMode = ""
+		o.OrgLogoURLLightBackground = ""
+	case fleet.OrgLogoModeDark:
+		o.OrgLogoURLDarkMode = ""
+		o.OrgLogoURL = ""
+	}
 }
 
 func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error) {
@@ -301,8 +351,10 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if int64(len(body)) > orgLogoMaxFileSize {
 		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
 	}
-	if fleet.ContentTypeForOrgLogo(body) == "" {
-		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
+	// Re-validate on read so a blob planted directly in the object store
+	// (bypassing the upload API) is still rejected.
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "stored org logo failed validation")
 	}
 	return body, int64(len(body)), nil
 }
