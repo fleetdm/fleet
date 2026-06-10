@@ -68,7 +68,7 @@ When Fleet serves downloadable content (e.g., MDM enrollment profiles):
 ### Project Structure
 
 ```
-fleet-desktop-macos/
+apps/fleet-desktop-macos/
 ├── FleetDesktop/
 │   ├── FleetDesktopApp.swift   # App delegate, main menu, entry point
 │   ├── FleetService.swift      # Config reading, token management, refresh timer
@@ -80,7 +80,7 @@ fleet-desktop-macos/
 └── build-pkg.sh                # Creates the .pkg installer
 ```
 
-The CI workflow lives at [`.github/workflows/fleet-desktop-macos-build.yml`](../.github/workflows/fleet-desktop-macos-build.yml).
+The CI workflow lives at [`.github/workflows/fleet-desktop-macos-build.yml`](../../.github/workflows/fleet-desktop-macos-build.yml).
 
 ### Building Locally
 
@@ -134,7 +134,7 @@ open fleet://refetch
 
 ## CI/CD
 
-[`.github/workflows/fleet-desktop-macos-build.yml`](../.github/workflows/fleet-desktop-macos-build.yml) runs on pull requests touching `fleet-desktop-macos/**`, on push to `main`, and via manual dispatch. It:
+[`.github/workflows/fleet-desktop-macos-build.yml`](../../.github/workflows/fleet-desktop-macos-build.yml) runs on pull requests touching `apps/fleet-desktop-macos/**`, on push to `main`, and via manual dispatch. It:
 
 1. Compiles a universal binary (arm64 + x86_64)
 2. Code signs the app with Fleet's Developer ID Application certificate

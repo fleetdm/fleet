@@ -1,6 +1,6 @@
 name: Build Fleet Desktop (macOS)
 
-# Builds the native macOS Fleet Desktop app (fleet-desktop-macos/), code signs
+# Builds the native macOS Fleet Desktop app (apps/fleet-desktop-macos/), code signs
 # and notarizes it with Fleet's Developer ID certificates, and uploads the signed
 # .pkg as a workflow artifact. No GitHub Release is created.
 
@@ -9,11 +9,11 @@ on:
     branches:
       - main
     paths:
-      - 'fleet-desktop-macos/**'
+      - 'apps/fleet-desktop-macos/**'
       - '.github/workflows/fleet-desktop-macos-build.yml'
   pull_request:
     paths:
-      - 'fleet-desktop-macos/**'
+      - 'apps/fleet-desktop-macos/**'
       - '.github/workflows/fleet-desktop-macos-build.yml'
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ defaults:
   run:
     # fail-fast using bash -eo pipefail.
     shell: bash
-    working-directory: fleet-desktop-macos
+    working-directory: apps/fleet-desktop-macos
 
 permissions:
   contents: read
@@ -162,6 +162,6 @@ jobs:
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet_desktop-pkg
-          path: ./fleet-desktop-macos/build/dist/fleet_desktop-v*.pkg
+          path: ./apps/fleet-desktop-macos/build/dist/fleet_desktop-v*.pkg
           retention-days: 30
           if-no-files-found: error
