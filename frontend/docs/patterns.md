@@ -12,6 +12,7 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
+- [Tier modes](#tier-modes)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -335,6 +336,125 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
   // continue with submit logic if no errors
 
 ```
+
+## Tier modes
+
+The UI changes shape in two licensing-related modes. Both can be active at the same time on a Premium Primo tenant, so most gates need to consider them independently:
+
+- **Fleet Free** — the free tier. Many features are hidden, paywalled with `<PremiumFeatureMessage />`, or restricted. Flag: `!isPremiumTier` (the context value is `true` for Premium / Enterprise, `false` for Free, so the Free check is the negation).
+- **Primo mode** — a single-fleet Premium installation for partner deployments. The fleet switcher is hidden, fleet creation is disabled, and empty-state copy collapses. Flag: `isPrimoMode` (derived from `config.partnerships.enable_primo`).
+
+Both flags can be true simultaneously (a Premium Primo tenant), and `isPrimoMode` is computed locally per-component, not in `AppContext` — see Gotchas. `frontend/components/CommandPalette/` is the canonical reference for handling both flags in tandem.
+
+### Fleet Free
+
+#### How to check
+
+```tsx
+const { isPremiumTier } = useContext(AppContext);
+if (!isPremiumTier) {
+  // Fleet Free behavior
+}
+```
+
+`isPremiumTier` is derived from `config.license.tier === "premium"` in `utilities/permissions/permissions.ts` and set once during `AppContext` initialization — `true` for Premium / Enterprise, `false` for Free. **The Free check is the negation, `!isPremiumTier`.** Tests inject the value via the `app` context override.
+
+#### Patterns
+
+**Early-return paywall** — for full-page premium features. Use `<PremiumFeatureMessage />` (`components/PremiumFeatureMessage/`); don't roll your own:
+
+```tsx
+if (!isPremiumTier) {
+  return <PremiumFeatureMessage />;
+}
+// render the feature
+```
+
+**Conditional list inclusion** via array spread — for items in palettes, menus, tables, etc.:
+
+```tsx
+...(isPremiumTier
+  ? [{ id: "add-fleet-maintained-app", label: "Add Fleet-maintained app", ... }]
+  : [])
+```
+
+For other patterns (conditional props on sub-components, React Query `enabled` to defer premium-only fetches, hidden table columns), see `frontend/components/CommandPalette/` and `pages/hosts/details/cards/Software/` as the canonical catalogs.
+
+### Primo mode
+
+Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies empty states. It can be active at the same time as Fleet Free *or* Premium, and at the same time as GitOps mode — these all affect different things.
+
+#### How to check
+
+```tsx
+const { config } = useContext(AppContext);
+const isPrimoMode = config?.partnerships?.enable_primo || false;
+```
+
+There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disabled tooltips.
+
+#### What it affects
+
+- **"Create fleet" button**: disabled on ManageFleetsPage
+- **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
+- **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
+- **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
+- **User form**: fleets dropdown disabled
+- **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
+
+#### Pattern: disable with tooltip
+
+The shared `Button` component doesn't accept a tooltip prop — use one of these patterns instead.
+
+**`TableContainer` action buttons** accept `disabledTooltipContent` directly on the
+`actionButton` config (see `ManageFleetsPage.tsx`):
+
+```tsx
+const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
+
+<TableContainer
+  // ...
+  actionButton={{
+    name: "create fleet",
+    buttonText: "Create fleet",
+    onClick: toggleCreateFleetModal,
+    disabledTooltipContent: disabledTooltip,
+  }}
+/>;
+```
+
+**Standalone controls** (a `Button`, `Radio`, etc.) should be wrapped in
+`TooltipWrapper` and disabled explicitly:
+
+```tsx
+<TooltipWrapper tipContent={PRIMO_TOOLTIP} disableTooltip={!isPrimoMode} showArrow>
+  <Button disabled={isPrimoMode} onClick={onCreate}>
+    Create fleet
+  </Button>
+</TooltipWrapper>
+```
+
+`RevealButton` is the exception — it accepts `disabledTooltipContent` directly.
+
+### Testing both modes
+
+Mock the flag in the test context (`isPremiumTier: false` for Free; `config: createMockConfig({ partnerships: { enable_primo: true } })` for Primo) and assert presence / absence. The established structure (from `CommandPalette/helpers.tests.ts`) is a top-level `describe` block per mode. Add at least one assertion per gate the feature touches.
+
+### Gotchas
+
+1. **`isPrimoMode` is not in AppContext.** Every component derives it from `config?.partnerships?.enable_primo`. If your refactor moves code out of a component that already had `config` in scope, you'll lose the Primo gate silently.
+2. **Both flags can be true.** A Premium Primo tenant. Gates that test only one (e.g., `if (!isPremiumTier) hide` or `if (isPrimoMode) hide`) are usually incomplete.
+3. **Dual-gated UI is common.** Table columns, picker columns, and entity selectors often gate on `isPremiumTier && !isPrimoMode` — premium-only AND multi-fleet-only. If your feature falls in either bucket, the dual gate is probably the right shape.
+4. **`useTeamIdParam` defaults change in Primo.** "Unassigned" instead of "All fleets" for the global default. If your code reads `currentTeamId === -1` to mean "all fleets selected," that path won't fire in Primo.
+
+### How tier modes differ from GitOps mode
+
+| | Fleet Free | Primo mode | GitOps mode |
+|---|---|---|---|
+| Purpose | Free vs Premium feature gating | Single-fleet UI for partners | Repository-driven config management |
+| Config | `license.tier !== "premium"` (i.e., `!isPremiumTier`) | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
+| Main effect | Paywall (`<PremiumFeatureMessage />`) | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
+| Component | Conditional checks + paywall | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
 
 ## React hooks
 
