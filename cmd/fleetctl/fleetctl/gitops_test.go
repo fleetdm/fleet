@@ -7515,16 +7515,18 @@ func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 		return nil
 	}
 
+	// Categories are derived from each software item, so the test feeds them
+	// via a self-service script package. A script package applies from inline
+	// content (no download), keeping the focus on category reconciliation.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte(`echo "hello"`), 0o600))
+
 	teamYAML := func(body string) []string {
-		f, err := os.CreateTemp(t.TempDir(), "categories-*.yml")
-		require.NoError(t, err)
-		_, err = f.WriteString("name: Test Fleet\nteam_settings:\n  secrets:\n" + body)
-		require.NoError(t, err)
-		require.NoError(t, f.Close())
-		return []string{"gitops", "-f", f.Name()}
+		path := filepath.Join(dir, "team.yml")
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\n"+body), 0o600))
+		return []string{"gitops", "-f", path}
 	}
 	unassignedYAML := func(body string) []string {
-		dir := t.TempDir()
 		globalPath := filepath.Join(dir, "global.yml")
 		require.NoError(t, os.WriteFile(globalPath, []byte(`
 controls:
@@ -7559,38 +7561,39 @@ software:
 		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
 	}
 
-	// explicit list reconciles: adds new, keeps existing, deletes stale,
-	// and all inserts run before any deletes (cascade safety).
+	// categories derived from software items reconcile: add new, keep existing,
+	// delete stale, and all inserts run before any deletes (cascade safety).
 	reset(teamExisting, fleet.GitOpsExceptions{})
 	_, err := runAppNoChecks(teamYAML(`controls:
 policies:
 software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "💼 Engineering"
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "🌎 Browsers"
+        - "💼 Engineering"
 `))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"💼 Engineering"}, added)
 	assert.ElementsMatch(t, []uint{101, 102}, deleted)
 	assert.Equal(t, []string{"add", "del", "del"}, actions, "all inserts must run before any deletes")
 
-	// empty list deletes all categories.
-	reset(teamExisting, fleet.GitOpsExceptions{})
-	_, err = runAppNoChecks(teamYAML(`controls:
-policies:
-software:
-  self_service_categories: []
-`))
-	require.NoError(t, err)
-	assert.Empty(t, added)
-	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
-
-	// absent key leaves categories untouched.
+	// software present with no referenced categories deletes all categories.
 	reset(teamExisting, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 software:
   packages: []
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
+
+	// software omitted entirely leaves categories untouched.
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
+policies:
 `))
 	require.NoError(t, err)
 	assert.Empty(t, added)
@@ -7605,24 +7608,31 @@ policies:
 	assert.Empty(t, added)
 	assert.Empty(t, deleted)
 
-	// plain and emoji names treated as distinct.
+	// legacy plain names are normalized to their canonical emoji form, so a
+	// plain and emoji reference to the same default category collapse to one.
 	reset(nil, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 software:
-  self_service_categories:
-    - "Security"
-    - "🔐 Security"
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "Security"
+        - "🔐 Security"
 `))
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"Security", "🔐 Security"}, added)
+	assert.Equal(t, []string{"🔐 Security"}, added)
 
-	// no-team explicit list reconciles under team_id = 0.
+	// no-team categories reconcile under team_id = 0.
 	reset(noTeamExisting, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(unassignedYAML(`software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "💼 Engineering"
+  packages:
+    - path: ./script.sh
+      self_service: true
+      categories:
+        - "🌎 Browsers"
+        - "💼 Engineering"
 `))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"💼 Engineering"}, added)
@@ -7631,10 +7641,10 @@ software:
 		assert.EqualValues(t, 0, id, "no-team reconcile must list categories on team 0")
 	}
 
-	// no-team empty list deletes all.
+	// no-team software present with no referenced categories deletes all.
 	reset(noTeamExisting, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(unassignedYAML(`software:
-  self_service_categories: []
+  packages: []
 `))
 	require.NoError(t, err)
 	assert.Empty(t, added)
