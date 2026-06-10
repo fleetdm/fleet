@@ -121,7 +121,7 @@ GitHub issue: [#31138](https://github.com/fleetdm/fleet/issues/31138)
 - Updated the setup experience Users card with a link to PSSO local account documentation.
 - Updated empty state copy to be action-oriented. Headers describe the current state ("No hosts", "No policies for this fleet") instead of prompting action. Body text explains what to expect. CTA buttons are explicit ("Add policy", "Schedule a report") and permission-gated.
 - Updated empty states on Hosts, Reports, Policies, and Software pages so search bars, filters, and dropdowns remain visible but disabled when empty, avoiding layout shift when the first item is added. Item count remains visible.
-- Updated Settings, Fleets, Ticket destinations, Certificates, and Identity provider pages with consistent page descriptions and learn-more links.
+- Updated Settings, Fleets, Ticketing, Certificate enrollment, and User mapping pages with consistent page descriptions and learn-more links.
 - Updated empty state visuals to a fresher, consistent design.
 - Updated timestamps with tooltips on the host Vitals component to always use `cursor: pointer`.
 - Updated the version of the checkout action in the `fleetctl new` template to avoid Node warnings.

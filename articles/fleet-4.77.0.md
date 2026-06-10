@@ -77,7 +77,7 @@ Fleet added [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-
 - Hid software host count and version table when no hosts have the software installed.
 - Adjusted UI section headers and layout of Settings > Integrations in Fleet Free.
 - Added vulnerability seeding and performance testing tools.
-- Moved end user authentication SSO settings under Integrations > SSO in global settings.
+- Moved end user authentication SSO settings under Integrations > Authentication (SSO) in global settings.
 - Removed the premium check for host OS settings in host summary UI.
 - Reduced Android device reconciler frequency to 1 hour.
 - Reduced Android API usage by listing devices instead of getting and checking Android Enterprise disconnects hourly.
