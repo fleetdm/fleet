@@ -13,7 +13,7 @@ const INCLUDE_LABELS: ILabelPolicy[] = [
 const EXCLUDE_LABELS: ILabelPolicy[] = [{ id: 3, name: "Servers" }];
 
 describe("PolicyLabelModal", () => {
-  it("renders only the include section when only include labels are provided", () => {
+  it("renders only the include section, as plain text, when only include labels are provided and onLabelClick is absent", () => {
     render(
       <PolicyLabelModal
         includeLabels={INCLUDE_LABELS}
@@ -26,6 +26,11 @@ describe("PolicyLabelModal", () => {
     expect(screen.getByText("have any")).toBeInTheDocument();
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText("Design")).toBeInTheDocument();
+
+    // Without onLabelClick, labels render as plain text rather than buttons.
+    expect(
+      screen.queryByRole("button", { name: "Engineering" })
+    ).not.toBeInTheDocument();
 
     expect(
       screen.queryByText(/Policy excludes hosts that/)
@@ -96,21 +101,6 @@ describe("PolicyLabelModal", () => {
     await user.click(screen.getByRole("button", { name: "Design" }));
 
     expect(onLabelClick).toHaveBeenCalledWith(2);
-  });
-
-  it("renders labels as plain text (not buttons) when onLabelClick is not provided", () => {
-    render(
-      <PolicyLabelModal
-        includeLabels={INCLUDE_LABELS}
-        includeScopeLabel="have any"
-        onClose={jest.fn()}
-      />
-    );
-
-    expect(screen.getByText("Engineering")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Engineering" })
-    ).not.toBeInTheDocument();
   });
 
   it("calls onClose when the Done button is clicked", async () => {
