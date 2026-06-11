@@ -1,0 +1,10 @@
+{
+  "name": "Reflector",
+  "unique_identifier": "com.squirrels.Reflector-4",
+  "token": "reflector",
+  "installer_format": "dmg",
+  "slug": "reflector/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

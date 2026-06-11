@@ -1,6 +1,6 @@
 export { default as TargetLabelSelector } from "./TargetLabelSelector";
 export type {
-  ILabelTabConfig,
+  ILabelConfig,
   ITargetLabelSelectorProps,
 } from "./TargetLabelSelector";
 

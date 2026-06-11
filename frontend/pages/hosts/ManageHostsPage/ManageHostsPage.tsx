@@ -1623,9 +1623,20 @@ const ManageHostsPage = ({
 
         const columnIds = tableColumns
           .map((column) => (column.id ? column.id : ""))
-          // "selection" colum does not include any relevent data for the CSV
+          // "selection" column does not include any relevant data for the CSV
           // so we filter it out.
-          .filter((element) => element !== "" && element !== "selection");
+          .filter((element) => element !== "" && element !== "selection")
+          // "agent" is a display-only column that coalesces orbit and osquery
+          // versions; it has no corresponding CSV field on the backend, so we
+          // substitute the real fields it's derived from.
+          .reduce((acc: string[], element) => {
+            if (element === "agent") {
+              acc.push("orbit_version", "osquery_version");
+            } else {
+              acc.push(element);
+            }
+            return acc;
+          }, []);
         visibleColumns = columnIds.join(",");
       }
 
