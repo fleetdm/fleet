@@ -5066,8 +5066,14 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
     {
       "id": 936,
       "name": "Google Chrome",
+      "display_name": "",
       "icon_url": null,
       "source": "apps",
+      "automatic_install_policies": null,
+      "categories": [
+        "Browsers"
+      ],
+      "self_service": true,
       "extension_for": "",
       "status": null,
       "installed_versions": [
@@ -10707,6 +10713,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
+- [Update software](#update-software)
 - [Add package](#add-package)
 - [Update package](#update-package)
 - [Update software icon](#update-software-icon)
@@ -10770,6 +10777,8 @@ Get a list of all software.
     {
       "id": 2792,
       "name": "Slack",
+      "self_service": true,
+      "automatic_install_policies": null,
       "icon_url": null,
       "source": "apps",
       "extension_for": "",
@@ -10788,12 +10797,26 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": [
+        {
+          "name": "Slack-4.50.128-macOS.pkg",
+          "version": "4.50.128",
+          "platform": "darwin",
+          "package_url": ""
+        },
+        {
+          "name": "Slack-4.51.133-macOS.pkg",
+          "version": "4.51.133",
+          "platform": "darwin",
+          "package_url": ""
+        }
+      ],
       "software_package": {
           "name": "Slack-4.50.128-macOS.pkg",
           "automatic_install_policies": null,
           "version": "4.50.128",
           "platform": "darwin",
-          "self_service": false,
+          "self_service": true,
           "last_install": null,
           "last_uninstall": null,
           "package_url": ""
@@ -10833,6 +10856,8 @@ Get a list of all software.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+> Install, pending, and failed counts in `software_title.packages.status` are combined across policy automations, setup experience, and manual installs.
 
 ### List software versions
 
@@ -11019,7 +11044,13 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 2792,
     "name": "Slack",
     "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/f7/27/90f727be-835b-54ad-4d9d-8b597e63e321/electron.png/512x512bb.png",
+    "display_name": "",
     "source": "apps",
+    "self_service": false,
+    "automatic_install_policies": null,
+    "patch_policy": null,
+    "fleet_maintained_app_id": null,
+    "categories": null,
     "extension_for": "",
     "browser": "",
     "hosts_count": 5,
@@ -11039,6 +11070,35 @@ Returns information about the specified software. By default, `versions` are sor
         }
     ],
     "counts_updated_at": "2026-06-04T17:23:45Z",
+    "packages": [
+      {
+        "team_id": 310,
+        "title_id": 2792,
+        "name": "Slack-4.50.128-macOS.pkg",
+        "version": "4.50.128",
+        "platform": "darwin",
+        "uploaded_at": "2026-06-04T17:29:09.155424Z",
+        "installer_id": 36817,
+        "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+        "pre_install_query": "",
+        "post_install_script": "",
+        "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
+        "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+        "status": {
+            "installed": 0,
+            "pending_install": 1,
+            "failed_install": 0,
+            "pending_uninstall": 0,
+            "failed_uninstall": 0
+        },
+        "url": "",
+        "labels_include_any": null,
+        "labels_exclude_any": null,
+        "labels_include_all": null,
+        "display_name": "",
+        "fleet_id": 310
+      }
+    ],
     "software_package": {
         "team_id": 310,
         "title_id": 2792,
@@ -11280,6 +11340,40 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 ```
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
+
+### Update software
+
+_Available in Fleet Premium._
+
+Update software's display name, categories and self-service.
+
+`PATCH /api/v1/fleet/software/titles/:id/`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | path |  **Required.** ID of the software title being updated.|
+| display_name   | string | body | Optional override for the default software title `name`. |
+| self_service   | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| categories   | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**.  |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/123/`
+
+##### Request body
+
+```json
+{
+  "display_name": "Nudge",
+  "self_service": true
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ### Add package
 
