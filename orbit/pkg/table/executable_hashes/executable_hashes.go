@@ -121,7 +121,13 @@ func computeFileSHA256(filePath string) (string, error) {
 	}
 	f, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("couldn't open filepath: %w", err)
+		// The executable named in the bundle's Info.plist may not exist on disk — e.g.
+		// Apple system bundles like XProtect.bundle declare a CFBundleExecutable but ship
+		// no binary at that path. Don't fail the whole table generation (which aborts the
+		// detail query for the host); warn and return an empty hash, matching the
+		// empty-path behavior above.
+		log.Warn().Err(err).Str("path", filePath).Msg("couldn't open executable to compute sha256, returning empty hash")
+		return "", nil
 	}
 	defer f.Close()
 
