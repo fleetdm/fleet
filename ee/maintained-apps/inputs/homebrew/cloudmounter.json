@@ -1,0 +1,10 @@
+{
+  "name": "Eltima CloudMounter",
+  "unique_identifier": "com.eltima.cloudmounter",
+  "token": "cloudmounter",
+  "installer_format": "dmg",
+  "slug": "cloudmounter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
