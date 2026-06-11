@@ -289,7 +289,7 @@ module.exports = {
         return undefined;
       });
       if (matchingCompanyPageInfo) {
-        console.log(_.omit(matchingCompanyPageInfo, ['company_featured_employees_collection', 'company_similar_collection', 'company_specialties_collection', 'company_updates_collection', 'company_also_viewed_collection', 'company_funding_rounds_collection', 'company_featured_investors_collection', 'company_affiliated_collection', 'company_crunchbase_info_collection']));
+
         let companyHasActiveLocation = _.find(matchingCompanyPageInfo.company_locations_collection, (location)=>{
           return location.is_primary === 1;
         });
