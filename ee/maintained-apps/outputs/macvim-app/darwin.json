@@ -4,7 +4,7 @@
       "version": "183",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.vim.MacVim.LSSharedFileList';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.vim.MacVim.LSSharedFileList' AND version_compare(bundle_short_version, '183') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.vim.MacVim' AND version_compare(bundle_short_version, '183') < 0);"
       },
       "installer_url": "https://github.com/macvim-dev/macvim/releases/download/release-183/MacVim.dmg",
       "install_script_ref": "bae18e19",
