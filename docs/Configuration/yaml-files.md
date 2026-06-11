@@ -597,6 +597,8 @@ software:
 ```
 
 #### self_service, labels, categories, and setup_experience
+
+When adding [multiple packages](#multiple-versions-of-the-same-software) to a YAML file, labels must be specified for each package inside the package YAML file, not on the fleet-level YAML file.
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
@@ -676,6 +678,35 @@ software:
       labels_include_any:
       - Engineering
       - Customer Support
+```
+
+##### Multiple versions of the same software
+
+You can specify multiple packages of the same software in the same YAML file. This way you can do a staged rollout of the new version.
+
+`fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+
+```yaml
+software:
+  packages:
+   - path: ../lib/software/santa.package.yml
+     self_service: true
+```
+
+`lib/software/santa.package.yml`
+
+```yaml
+- url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  labels_include_all:
+    - macOS
+- url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  labels_include_all:
+    - macOS
+    - IT test team
 ```
 
 ### app_store_apps
