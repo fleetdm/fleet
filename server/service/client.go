@@ -1125,14 +1125,10 @@ func (c *Client) ApplyGroup(
 			}
 		}
 
-		// Delete categories not referenced by any software.
+		// Delete categories no longer referenced by any of the fleet's software.
 		if !opts.DryRun && !softwareExcepted {
-			for tmName, categories := range categoriesByTeam {
-				teamID, ok := teamIDsByName[getTeamName(tmName)]
-				if !ok {
-					continue
-				}
-				if err := c.deleteUnusedSelfServiceCategories(teamID, categories); err != nil {
+			for tmName, tmID := range teamIDsByName {
+				if err := c.deleteUnusedSelfServiceCategories(tmID, categoriesByTeam[tmName]); err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("deleting unused self-service categories for fleet %q: %w", tmName, err)
 				}
 			}

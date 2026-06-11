@@ -2254,7 +2254,6 @@ const (
 	// the JSON-encoded list of self-service categories this batch added. This is required because
 	// we can only be certain of all categories after downloading all FMA manifests and seeing
 	// which default categories we might need to add.
-
 	batchSoftwareCategoriesSuffix = ":categories"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
@@ -2358,8 +2357,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 
-		if err := trimAndValidateCategories(payload.Categories.Value); err != nil {
-			return "", err
+		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "validating software categories")
 		}
 		categoryNames = append(categoryNames, payload.Categories.Value...)
 	}
@@ -3890,7 +3889,7 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 		return allCategories, nil
 	}
 
-	existingCategories, err := svc.ds.ListSoftwareCategories(ctx, ptr.ValOrZero(teamID))
+	existingCategories, err := svc.ds.ListSoftwareCategories(ctxdb.RequirePrimary(ctx, true), ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing existing software categories")
 	}

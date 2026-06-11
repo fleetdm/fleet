@@ -228,8 +228,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var categoryNames []string
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
-		if err := trimAndValidateCategories(payload.Categories); err != nil {
-			return nil, nil, err
+		if err := trimAndValidateCategories(ctx, payload.Categories); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "validating app store app categories")
 		}
 		categoryNames = append(categoryNames, payload.Categories...)
 
@@ -398,7 +398,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if dryRun {
 				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
 				// That way we validate if a VPP token is available even on dry runs keeping it consistent.
-				return nil, nil, nil
+				return nil, categories, nil
 			}
 
 			var missingAssets []string
@@ -438,7 +438,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if dryRun {
 		// If we're doing a dry run, we stop here and return no error to avoid making any changes.
 		// Another dry run check is inside the payload size > 0 statement.
-		return nil, nil, nil
+		return nil, categories, nil
 	}
 
 	allPlatformApps := slices.Concat(incomingAppleApps, incomingAndroidApps)
