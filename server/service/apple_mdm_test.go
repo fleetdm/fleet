@@ -2949,6 +2949,82 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 	}
 }
 
+// TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList verifies the
+// RemoveProfile ack path queues a CertificateList for an ACME profile, and that
+// it does so BEFORE UpdateOrDeleteHostMDMAppleProfile deletes the host profile
+// row the probe reads.
+func TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList(t *testing.T) {
+	ctx := context.Background()
+	const (
+		hostUUID    = "host-uuid"
+		commandUUID = "cmd-uuid"
+		hostID      = uint(42)
+	)
+
+	ds := new(mock.Store)
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, cmdUUID string) (string, error) {
+		return "RemoveProfile", nil
+	}
+
+	var profileDeleted bool
+	ds.ProfileHasACMEPayloadForCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.ProfileACMECommandResult, error) {
+		require.False(t, profileDeleted, "probe must run before the host profile row is deleted")
+		return fleet.ProfileACMECommandResult{HostID: hostID, Platform: "darwin", HasACMEPayload: true}, nil
+	}
+	var addedCommands []fleet.HostMDMCommand
+	ds.AddHostMDMCommandsFunc = func(ctx context.Context, cmds []fleet.HostMDMCommand) error {
+		addedCommands = append(addedCommands, cmds...)
+		return nil
+	}
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		profileDeleted = true
+		return nil
+	}
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, NewNanoMDMLogger(slog.New(slog.DiscardHandler)))
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	var enqueuedCertList bool
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		if cmd.Command.Command.RequestType == "CertificateList" {
+			enqueuedCertList = true
+			require.Equal(t, []string{hostUUID}, id)
+		}
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(ids))
+		for _, id := range ids {
+			res[id] = &mdm.Push{Token: []byte(id), Topic: "topic", PushMagic: "magic"}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	svc := &MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), commander: cmdr}
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Status:      "Acknowledged",
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.ProfileHasACMEPayloadForCommandFuncInvoked)
+	require.True(t, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+	require.True(t, enqueuedCertList, "CertificateList should be queued on ACME profile removal")
+	require.Len(t, addedCommands, 1)
+	require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, addedCommands[0].CommandType)
+}
+
 func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing.T) {
 	const (
 		hostUUID    = "HOST-UUID-XYZ"

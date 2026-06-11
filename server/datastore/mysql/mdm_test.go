@@ -5727,6 +5727,49 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		require.False(t, got.HasACMEPayload)
 	})
 
+	t.Run("flag persists after the config profile is deleted", func(t *testing.T) {
+		// The RemoveProfile flow: the config profile is gone but the persisted
+		// flag must still report ACME.
+		profUUID := mkProfile(t, "acme-deleted", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, profUUID)
+			return err
+		})
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, "darwin", got.Platform)
+		require.True(t, got.HasACMEPayload, "flag must survive config profile deletion")
+	})
+
+	t.Run("remove-op upsert preserves the install-time flag", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-removeop", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		// Remove-op upsert after the config profile is gone: the subquery
+		// yields 0, but the ON DUPLICATE KEY UPDATE guard must preserve the flag.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, profUUID)
+			return err
+		})
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profUUID,
+			HostUUID:      host.UUID,
+			Checksum:      []byte("0123456789abcdef"),
+			Scope:         fleet.PayloadScopeSystem,
+			OperationType: fleet.MDMOperationTypeRemove,
+			CommandUUID:   cmdUUID,
+		}}))
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, got.HasACMEPayload, "remove-op upsert must not reset the flag")
+	})
+
 	t.Run("unknown command returns not found", func(t *testing.T) {
 		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, "no-such-command")
 		require.Error(t, err)
