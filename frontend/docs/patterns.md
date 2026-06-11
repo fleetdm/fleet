@@ -590,9 +590,10 @@ helpers below.
   string defeats the purpose of using it. See `ExampleWebhookUrlPayloadModal`
   or `HostStatusWebhookPreviewModal` for representative call sites.
 - [`ClickableUrls`](../components/ClickableUrls/ClickableUrls.tsx) — for
-  rendering plain text that may contain URLs as clickable links. It detects
-  URLs in the input, builds anchors with `target="_blank"` and
-  `rel="noreferrer"`, and passes the result through `DOMPurify.sanitize` before
+  rendering user-provided text that may contain URLs as clickable links. It
+  replaces URL-looking substrings with anchors (`target="_blank"` and
+  `rel="noreferrer"`), then sanitizes the resulting HTML with
+  `DOMPurify.sanitize` (assumes the input is text, not pre-built HTML) before
   rendering. Use it instead of constructing anchor HTML by hand when the source
   is user-provided text.
 
