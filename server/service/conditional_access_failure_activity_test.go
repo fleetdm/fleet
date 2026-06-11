@@ -33,12 +33,12 @@ func TestRecordConditionalAccessFailureActivity(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	type recorded struct {
-		acts []fleet.ActivityTypeFailedConditionalAccessPolicyAutomation
+		acts []fleet.ActivityTypeFailedAutomationConditionalAccess
 	}
 	newRecorder := func(r *recorded) activity_api.NewActivityService {
 		return &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
 			require.Nil(t, user)
-			act, ok := activity.(fleet.ActivityTypeFailedConditionalAccessPolicyAutomation)
+			act, ok := activity.(fleet.ActivityTypeFailedAutomationConditionalAccess)
 			require.True(t, ok)
 			r.acts = append(r.acts, act)
 			return nil
@@ -87,19 +87,19 @@ func TestRecordConditionalAccessFailureActivity(t *testing.T) {
 }
 
 // TestRecordSingleSignOnBlockedActivity verifies that a successful non-compliant
-// compliance push records one blocked_single_sign_on_policy_automation activity
+// compliance push records one ran_automation_conditional_access activity
 // per conditional-access policy the host is failing.
 func TestRecordSingleSignOnBlockedActivity(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	type recorded struct {
-		acts []fleet.ActivityTypeBlockedSingleSignOnPolicyAutomation
+		acts []fleet.ActivityTypeRanAutomationConditionalAccess
 	}
 	newRecorder := func(r *recorded) activity_api.NewActivityService {
 		return &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
 			require.Nil(t, user)
-			act, ok := activity.(fleet.ActivityTypeBlockedSingleSignOnPolicyAutomation)
+			act, ok := activity.(fleet.ActivityTypeRanAutomationConditionalAccess)
 			require.True(t, ok)
 			r.acts = append(r.acts, act)
 			return nil
