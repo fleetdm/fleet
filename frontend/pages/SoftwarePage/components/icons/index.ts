@@ -222,6 +222,11 @@ import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
 import FleetDesktop from "./FleetDesktop";
 import Fork from "./Fork";
+import FourKSlideshowMaker from "./FourKSlideshowMaker";
+import FourKStogram from "./FourKStogram";
+import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoToMp3 from "./FourKVideoToMp3";
+import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Front from "./Front";
 import GarminExpress from "./GarminExpress";
 import Gather from "./Gather";
@@ -659,6 +664,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "4k slideshow maker": FourKSlideshowMaker,
+  "4k stogram": FourKStogram,
+  "4k video downloader": FourKVideoDownloader,
+  "4k video to mp3": FourKVideoToMp3,
+  "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
