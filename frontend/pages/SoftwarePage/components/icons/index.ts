@@ -174,7 +174,6 @@ import DBeaverLite from "./DBeaverLite";
 import DBeaverUltimate from "./DBeaverUltimate";
 import DeepL from "./DeepL";
 import DellCommandUpdate from "./DellCommandUpdate";
-import DellDisplayManager from "./DellDisplayManager";
 import DevinDesktop from "./DevinDesktop";
 import DfuBlasterPro from "./DfuBlasterPro";
 import Dialpad from "./Dialpad";
@@ -865,7 +864,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   deepl: DeepL,
   "dell command update": DellCommandUpdate,
-  "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
   "dfu blaster pro": DfuBlasterPro,
   dialpad: Dialpad,
