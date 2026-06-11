@@ -104,7 +104,7 @@ type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlRespons
 
 type MDMSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string)
 
-type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context) (string, error)
+type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context, enrollmentToken string) (string, error)
 
 type GetSSOUserFunc func(ctx context.Context, auth fleet.Auth) (*fleet.User, error)
 
@@ -2618,11 +2618,11 @@ func (s *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResp
 	return s.MDMSSOCallbackFunc(ctx, sessionID, samlResponse)
 }
 
-func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error) {
+func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMAccountDrivenEnrollmentSSOURLFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx)
+	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx, enrollmentToken)
 }
 
 func (s *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {

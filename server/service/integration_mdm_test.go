@@ -16104,9 +16104,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
-	getSSOAccessToken := func(username, password string) string {
-		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
+	getSSOAccessToken := func(username, password, token string) string {
+		ssoResult := s.LoginAccountDrivenEnrollUser(username, password, token)
 		// check location for apple-remotemanagement-user-login://authentication-results?access-token=
 		returnedLocation, err := ssoResult.Location()
 		require.NoError(t, err)
@@ -16117,8 +16118,9 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		return accessToken
 	}
 
-	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#")
-	iPadAccessToken := getSSOAccessToken("sso_user2", "user123#")
+	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
+	iPadAccessToken := getSSOAccessToken("sso_user2", "user123#", string(abmToken.EnrollmentURLToken))
+	oldUrlIphoneAccessToken := getSSOAccessToken("sso_user2", "user123#", "")
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -16158,6 +16160,18 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	)
 	require.ErrorContains(t, iPadMdmDevice.Enroll(), "401 Unauthorized")
 
+	// create a team we can update the ABM token to default the iPad enrollment to
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	// TODO: Update to call DS/SVC method
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), "UPDATE abm_tokens SET byod_default_team_id = ? WHERE id = ?", team.ID, abmToken.ID)
+		return err
+	})
+
 	iPadMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		iPadHwModel,
@@ -16169,6 +16183,21 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
+	require.NoError(t, err)
+	require.NotNil(t, linkedIDPAccount)
+	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
+
+	oldUrlIphoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		"iPhone14,5",
+		oldUrlIphoneAccessToken,
+	)
+	require.NoError(t, oldUrlIphoneMdmDevice.Enroll())
+	assert.Equal(t, oldUrlIphoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
+
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.Model, oldUrlIphoneMdmDevice.EnrollmentID()), 0)
+	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
 	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
@@ -16201,7 +16230,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	var iPhoneHostID *uint
 	var iPadHostID *uint
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 2)
+	require.Len(t, listHostsRes.Hosts, 3)
 	for _, host := range listHostsRes.Hosts {
 		if host.UUID == iPhoneMdmDevice.EnrollmentID() {
 			assert.Equal(t, iPhoneHwModel, host.HardwareModel)
@@ -16210,7 +16239,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			require.NotNil(t, host.MDM.EnrollmentStatus)
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
-			iPhoneHostID = ptr.Uint(host.ID)
+			assert.Nil(t, host.TeamID)
+			iPhoneHostID = &host.ID
 		} else if host.UUID == iPadMdmDevice.EnrollmentID() {
 			assert.Equal(t, "ipados", host.Platform)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.UUID)
@@ -16219,7 +16249,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			require.NotNil(t, host.MDM.EnrollmentStatus)
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
-			iPadHostID = ptr.Uint(host.ID)
+			assert.Equal(t, team.ID, *host.TeamID)
+			iPadHostID = &host.ID
+		} else if host.UUID == oldUrlIphoneMdmDevice.EnrollmentID() {
+			// Primarly assert it was enrolled correctly and fallback to unassigned
+			assert.Equal(t, "ios", host.Platform)
+			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.True(t, *host.MDM.ConnectedToFleet)
+			assert.Nil(t, host.TeamID)
 		}
 	}
 
@@ -16233,6 +16270,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
 	assert.Equal(t, iPhoneHwModel, getHostResp.Host.HardwareModel)
+	assert.Nil(t, getHostResp.Host.HostDetail.TeamID)
 
 	// Confirm that the host MDM endpoint contains the expected values for the iPhone
 	// using an inline struct because the definition of fleet.HostMDM makes it unusable here
@@ -16251,6 +16289,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
 	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
+	assert.Equal(t, team.ID, *getHostResp.Host.TeamID)
 
 	// Confirm that the host MDM endpoint contains the expected values for the iPad
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPadHostID), nil, http.StatusOK, &getHostMDMResponse)
@@ -16268,9 +16307,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
 	getSSOAccessToken := func(username, password string) string {
-		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
+		ssoResult := s.LoginAccountDrivenEnrollUser(username, password, string(abmToken.EnrollmentURLToken))
 		// check location for apple-remotemanagement-user-login://authentication-results?access-token=
 		returnedLocation, err := ssoResult.Location()
 		require.NoError(t, err)
@@ -21067,6 +21107,11 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 	res := serviceDiscoveryResponse{}
 	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
 	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
+	require.Equal(t, "mdm-byod", res.Servers[0].Version)
+
+	// Verify /{token} path works and passes it through
+	s.DoJSON("GET", "/mdm/apple/service_discovery/fake-token", nil, http.StatusOK, &res)
+	require.Contains(t, res.Servers[0].BaseURL, fmt.Sprintf("%s/%s", apple_mdm.AccountDrivenEnrollPath, "fake-token"))
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }
 

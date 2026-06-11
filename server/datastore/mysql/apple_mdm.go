@@ -5710,9 +5710,18 @@ LIMIT 500
 }
 
 func (ds *Datastore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
-	tok, err := ds.getABMToken(ctx, 0, orgName)
+	tok, err := ds.getABMToken(ctx, 0, orgName, "")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by org name")
+	}
+
+	return tok, nil
+}
+
+func (ds *Datastore) GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error) {
+	tok, err := ds.getABMToken(ctx, 0, "", uniqueToken)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token by unique token")
 	}
 
 	return tok, nil
@@ -5821,6 +5830,7 @@ SELECT
 	abt.terms_expired,
 	abt.renew_at,
 	abt.token,
+	abt.enrollment_url_token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
@@ -5904,7 +5914,7 @@ WHERE ID = ?
 }
 
 func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
-	tok, err := ds.getABMToken(ctx, tokenID, "")
+	tok, err := ds.getABMToken(ctx, tokenID, "", "")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token by id")
 	}
@@ -5912,7 +5922,7 @@ func (ds *Datastore) GetABMTokenByID(ctx context.Context, tokenID uint) (*fleet.
 	return tok, nil
 }
 
-func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string) (*fleet.ABMToken, error) {
+func (ds *Datastore) getABMToken(ctx context.Context, tokenID uint, orgName string, uniqueToken string) (*fleet.ABMToken, error) {
 	stmt := `
 SELECT
 	abt.id,
@@ -5921,9 +5931,11 @@ SELECT
 	abt.terms_expired,
 	abt.renew_at,
 	abt.token,
+	abt.enrollment_url_token,
 	abt.macos_default_team_id,
 	abt.ios_default_team_id,
 	abt.ipados_default_team_id,
+	abt.byod_default_team_id,
 	COALESCE(t1.name, :no_team) as macos_team,
 	COALESCE(t2.name, :no_team) as ios_team,
 	COALESCE(t3.name, :no_team) as ipados_team
@@ -5948,6 +5960,9 @@ LEFT OUTER JOIN
 	if tokenID != 0 {
 		clause = "WHERE abt.id = ?"
 		ident = tokenID
+	} else if uniqueToken != "" {
+		clause = "WHERE abt.enrollment_url_token = ?"
+		ident = uniqueToken
 	}
 
 	stmt = fmt.Sprintf(stmt, clause)
@@ -7525,6 +7540,59 @@ func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, te
 		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting software update profile")
+	}
+	return nil
+}
+
+func (ds *Datastore) InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error) {
+	if expiration.Seconds() <= 0 {
+		return "", ctxerr.New(ctx, "challenge expiration must be greater than zero")
+	}
+
+	if idpAccountUUID == "" {
+		return "", ctxerr.New(ctx, "idp account uuid is required")
+	}
+
+	challengeBytes, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating ADUE enrollment challenge")
+	}
+	challenge = string(challengeBytes)
+
+	expireAt := time.Now().Add(expiration)
+	const stmt = `INSERT INTO mdm_adue_enrollment_challenges (challenge, abm_token_id, idp_account_uuid, expires_at) VALUES (?, ?, ?, ?)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challenge, abmTokenID, idpAccountUUID, expireAt); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "inserting ADUE enrollment challenge")
+	}
+
+	return challenge, nil
+}
+
+func (ds *Datastore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	const stmt = `SELECT id, abm_token_id, idp_account_uuid, expires_at, used_at FROM mdm_adue_enrollment_challenges WHERE challenge = ?`
+	var adueChallenge fleet.ADUEEnrollmentChallenge
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &adueChallenge, stmt, challenge); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("ADUEEnrollmentChallenge").
+				WithMessage(fmt.Sprintf("for challenge %s", challenge)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting ADUE enrollment challenge")
+	}
+	return &adueChallenge, nil
+}
+
+func (ds *Datastore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challengeID uint) error {
+	const stmt = `UPDATE mdm_adue_enrollment_challenges SET used_at = NOW() WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challengeID); err != nil {
+		return ctxerr.Wrap(ctx, err, "consuming ADUE enrollment challenge")
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {
+	const stmt = `DELETE FROM mdm_adue_enrollment_challenges WHERE expires_at < NOW() - INTERVAL 24 HOUR`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE enrollment challenges")
 	}
 	return nil
 }

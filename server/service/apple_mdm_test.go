@@ -2381,6 +2381,19 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 	ds.EnqueueSetupExperienceItemsFunc = func(context.Context, string, string, string, uint) (bool, error) {
 		return false, nil
 	}
+	ds.GetADUEEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+		return &fleet.ADUEEnrollmentChallenge{
+			IdPAccountUUID: "idp-uuid",
+		}, nil
+	}
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		return &fleet.ABMToken{
+			BYODDefaultTeamID: nil,
+		}, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		return nil
+	}
 
 	t.Run("UserEnrollmentDevice with linked IDP account persists managed_apple_id", func(t *testing.T) {
 		ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
@@ -2417,8 +2430,8 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetMDMIdPAccountByUUIDFunc = func(_ context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
-			require.Equal(t, "bearer-uuid", uuid)
-			return &fleet.MDMIdPAccount{UUID: "bearer-uuid", Email: "bearer.user@example.com"}, nil
+			require.Equal(t, "idp-uuid", uuid)
+			return &fleet.MDMIdPAccount{UUID: "idp-uuid", Email: "bearer.user@example.com"}, nil
 		}
 		ds.AssociateHostMDMIdPAccountFunc = func(context.Context, string, string) error { return nil }
 		ds.SetHostManagedAppleIDFuncInvoked = false
@@ -2432,7 +2445,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			&mdm.Request{
 				Context:       ctx,
 				EnrollID:      &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
-				Authorization: "Bearer bearer-uuid",
+				Authorization: "Bearer challenge",
 			},
 			&mdm.TokenUpdate{
 				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{

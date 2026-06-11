@@ -1258,6 +1258,8 @@ type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
+type GetABMTokenByUniqueTokenFunc func(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error)
+
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
 type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
@@ -2097,6 +2099,14 @@ type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamI
 type GetTraceSamplerSettingsFunc func(ctx context.Context) (*tracing.Settings, error)
 
 type SetTraceSamplerSettingsFunc func(ctx context.Context, settings *tracing.Settings) error
+
+type InsertADUEEnrollmentChallengeFunc func(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error)
+
+type GetADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
+
+type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challengeID uint) error
+
+type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3950,6 +3960,9 @@ type DataStore struct {
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
 
+	GetABMTokenByUniqueTokenFunc        GetABMTokenByUniqueTokenFunc
+	GetABMTokenByUniqueTokenFuncInvoked bool
+
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
 
@@ -5209,6 +5222,18 @@ type DataStore struct {
 
 	SetTraceSamplerSettingsFunc        SetTraceSamplerSettingsFunc
 	SetTraceSamplerSettingsFuncInvoked bool
+
+	InsertADUEEnrollmentChallengeFunc        InsertADUEEnrollmentChallengeFunc
+	InsertADUEEnrollmentChallengeFuncInvoked bool
+
+	GetADUEEnrollmentChallengeFunc        GetADUEEnrollmentChallengeFunc
+	GetADUEEnrollmentChallengeFuncInvoked bool
+
+	ConsumeADUEEnrollmentChallengeFunc        ConsumeADUEEnrollmentChallengeFunc
+	ConsumeADUEEnrollmentChallengeFuncInvoked bool
+
+	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
+	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9532,6 +9557,13 @@ func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*
 	return s.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
+func (s *DataStore) GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByUniqueTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByUniqueTokenFunc(ctx, uniqueToken)
+}
+
 func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
 	s.mu.Lock()
 	s.SaveABMTokenFuncInvoked = true
@@ -12470,4 +12502,32 @@ func (s *DataStore) SetTraceSamplerSettings(ctx context.Context, settings *traci
 	s.SetTraceSamplerSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetTraceSamplerSettingsFunc(ctx, settings)
+}
+
+func (s *DataStore) InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error) {
+	s.mu.Lock()
+	s.InsertADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertADUEEnrollmentChallengeFunc(ctx, abmTokenID, idpAccountUUID, expiration)
+}
+
+func (s *DataStore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.GetADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetADUEEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challengeID uint) error {
+	s.mu.Lock()
+	s.ConsumeADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeADUEEnrollmentChallengeFunc(ctx, challengeID)
+}
+
+func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupExpiredADUEEnrollmentChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
 }

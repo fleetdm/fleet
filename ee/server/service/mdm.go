@@ -845,7 +845,7 @@ const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll
 
 func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
-	// initiate SSO.
+	// initiate MDM SSO.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
@@ -885,13 +885,24 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 
 	originalURL := "/"
-	switch initiator {
-	case fleet.SSOInitiatorAccountDrivenEnroll:
+	switch {
+	case strings.HasPrefix(initiator, fleet.SSOInitiatorAccountDrivenEnroll):
+		var token string
+
+		if uniqueToken, ok := strings.CutPrefix(initiator, fleet.SSOInitiatorAccountDrivenEnroll+":"); ok {
+			token = uniqueToken
+		}
 		// originalURL is unused in the Setup Experience initiated MDM flow
 		// however because we need slightly different behavior for account driven
 		// enrollment we use it to signal proper behavior on the callback.
-		originalURL = appleMDMAccountDrivenEnrollmentUrl
-	case fleet.SSOInitiatorOTAEnroll:
+		originalURL = apple_mdm.AccountDrivenEnrollPath
+
+		if token != "" {
+			// We need this check for backwards compatibility.
+			tokenURL := apple_mdm.AccountDrivenEnrollTokenPath
+			originalURL = strings.Replace(tokenURL, "{token}", token, 1)
+		}
+	case initiator == fleet.SSOInitiatorOTAEnroll:
 		// for ota_enroll, we support the custom original URL argument, as the
 		// enroll secret used to enroll varies. Other initiators do not support
 		// a custom original URL (and should receive an empty string).
@@ -916,7 +927,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 
 func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
-	// hit the SSO callback.
+	// hit the MDM SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
@@ -952,10 +963,28 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	q.Add("initiator", ssoRequestData.Initiator)
 
 	switch {
-	case originalURL == appleMDMAccountDrivenEnrollmentUrl:
+	case strings.HasPrefix(ssoRequestData.Initiator, fleet.SSOInitiatorAccountDrivenEnroll):
+		var abmTokenID *uint
+
+		if uniqueToken, ok := strings.CutPrefix(ssoRequestData.Initiator, fleet.SSOInitiatorAccountDrivenEnroll+":"); ok {
+			// Extract the unique token to retrieve the ABM token row id.
+			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
+			if err != nil {
+				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get ABM token by unique token for account driven enrollment"))
+				return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			}
+			abmTokenID = &token.ID
+		}
+
+		challenge, err := svc.ds.InsertADUEEnrollmentChallenge(ctx, abmTokenID, enrollmentRef, fleet.ADUEEnrollmentChallengeExpiration)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "insert ADUE enrollment challenge for account driven enrollment"))
+			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+		}
+
 		// For account driven enrollment we have to use this special protocol URL scheme to pass the
 		// access token back to Apple which it will then use to request the enrollment profile.
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef), ""
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", challenge), ""
 
 	case strings.HasPrefix(originalURL, "/enroll?"):
 		// redirect to the original URL with a cookie that identifies this device
