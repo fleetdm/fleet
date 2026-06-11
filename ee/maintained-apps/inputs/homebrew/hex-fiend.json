@@ -1,0 +1,10 @@
+{
+  "name": "Hex Fiend",
+  "unique_identifier": "com.ridiculousfish.HexFiend",
+  "token": "hex-fiend",
+  "installer_format": "dmg",
+  "slug": "hex-fiend/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

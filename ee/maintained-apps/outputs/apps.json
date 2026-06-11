@@ -2319,11 +2319,151 @@
       "description": "Nota Gyazo GIF is a screenshot and screen recording tool."
     },
     {
+      "name": "Hammerspoon",
+      "slug": "hammerspoon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.hammerspoon.Hammerspoon",
+      "description": "Hammerspoon is a desktop automation application."
+    },
+    {
+      "name": "HandBrake",
+      "slug": "handbrake-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "fr.handbrake.HandBrake",
+      "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Hazel",
+      "slug": "hazel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.noodlesoft.Hazel",
+      "description": "Hazel is an automated organisation."
+    },
+    {
+      "name": "HazeOver",
+      "slug": "hazeover/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pointum.hazeover",
+      "description": "HazeOver is a windows manager and desktop organiser."
+    },
+    {
+      "name": "Helium",
+      "slug": "helium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.koushikdutta.Helium",
+      "description": "Helium is a macOS application."
+    },
+    {
+      "name": "Hex Fiend",
+      "slug": "hex-fiend/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ridiculousfish.HexFiend",
+      "description": "Hex Fiend is a hex editor focussing on speed."
+    },
+    {
+      "name": "HEY",
+      "slug": "hey-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hey.app.desktop",
+      "description": "HEY is an access the HEY email service."
+    },
+    {
+      "name": "Hidden Bar",
+      "slug": "hiddenbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dwarvesv.minimalbar",
+      "description": "Hidden Bar is a utility to hide menu bar items."
+    },
+    {
+      "name": "Hides",
+      "slug": "hides/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sweetpproductions.Hides",
+      "description": "Hides is an app to hide all open apps except the current one."
+    },
+    {
+      "name": "HiDock",
+      "slug": "hidock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "design.rafa.HiDock",
+      "description": "HiDock is a set custom Dock settings for when on different displays."
+    },
+    {
+      "name": "Highlight",
+      "slug": "highlight-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.medal.highlight",
+      "description": "Highlight is a context-aware AI assistant."
+    },
+    {
+      "name": "Hive",
+      "slug": "hive-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hive.app",
+      "description": "Hive is an AI agent orchestrator for parallel coding across projects."
+    },
+    {
+      "name": "Home Assistant",
+      "slug": "home-assistant/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.robbie.HomeAssistant",
+      "description": "Home Assistant is a companion app for Home Assistant home automation software."
+    },
+    {
+      "name": "Homerow",
+      "slug": "homerow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superultra.Homerow",
+      "description": "Homerow is a keyboard shortcuts for every button on your screen."
+    },
+    {
+      "name": "Hot",
+      "slug": "hot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xs-labs.Hot",
+      "description": "Hot is a menu bar application that displays the CPU speed limit due to thermal issues."
+    },
+    {
+      "name": "HoudahSpot",
+      "slug": "houdahspot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.houdah.HoudahSpot6",
+      "description": "HoudahSpot is a file searching application."
+    },
+    {
+      "name": "HP Easy Admin",
+      "slug": "hp-easy-admin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hp.hp-easy-admin",
+      "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
+    },
+    {
+      "name": "Hubstaff",
+      "slug": "hubstaff/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.netsoft.Hubstaff",
+      "description": "Hubstaff is a work time tracker."
+    },
+    {
+      "name": "Huly",
+      "slug": "huly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "hc.hcengineering.Huly",
+      "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
       "unique_identifier": "co.zeit.hyper",
       "description": "Hyper is a terminal built on web technologies."
+    },
+    {
+      "name": "Hyperkey",
+      "slug": "hyperkey/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Hyperkey",
+      "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
     },
     {
       "name": "i1Profiler",

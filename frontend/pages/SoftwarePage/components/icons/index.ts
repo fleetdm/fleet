@@ -264,7 +264,27 @@ import Granola from "./Granola";
 import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
+import Hammerspoon from "./Hammerspoon";
+import HandbrakeApp from "./HandbrakeApp";
+import Hazel from "./Hazel";
+import Hazeover from "./Hazeover";
+import Helium from "./Helium";
+import HexFiend from "./HexFiend";
+import HeyDesktop from "./HeyDesktop";
+import Hiddenbar from "./Hiddenbar";
+import Hides from "./Hides";
+import Hidock from "./Hidock";
+import HighlightAi from "./HighlightAi";
+import HiveApp from "./HiveApp";
+import HomeAssistant from "./HomeAssistant";
+import Homerow from "./Homerow";
+import Hot from "./Hot";
+import Houdahspot from "./Houdahspot";
+import HpEasyAdmin from "./HpEasyAdmin";
+import Hubstaff from "./Hubstaff";
+import Huly from "./Huly";
 import Hyper from "./Hyper";
+import Hyperkey from "./Hyperkey";
 import I1Profiler from "./I1Profiler";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
@@ -932,7 +952,27 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   granola: Granola,
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
+  hammerspoon: Hammerspoon,
+  handbrake: HandbrakeApp,
+  hazel: Hazel,
+  hazeover: Hazeover,
+  helium: Helium,
+  "hex fiend": HexFiend,
+  hey: HeyDesktop,
+  "hidden bar": Hiddenbar,
+  hides: Hides,
+  hidock: Hidock,
+  highlight: HighlightAi,
+  hive: HiveApp,
+  "home assistant": HomeAssistant,
+  homerow: Homerow,
+  hot: Hot,
+  houdahspot: Houdahspot,
+  "hp easy admin": HpEasyAdmin,
+  hubstaff: Hubstaff,
+  huly: Huly,
   hyper: Hyper,
+  hyperkey: Hyperkey,
   i1profiler: I1Profiler,
   "ibm notifier": IbmNotifier,
   ice: JordanbairdIce,
