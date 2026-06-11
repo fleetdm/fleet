@@ -3423,7 +3423,7 @@
       "platform": "darwin",
       "unique_identifier": "org.vim.MacVim",
       "description": "MacVim is a text editor."
-    }
+    },
     {
       "name": "MacWhisper",
       "slug": "macwhisper/darwin",
