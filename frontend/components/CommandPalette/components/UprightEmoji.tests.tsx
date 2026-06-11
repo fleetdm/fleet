@@ -44,6 +44,13 @@ describe("splitEmojiSegments", () => {
     ]);
   });
 
+  it("handles emoji modifiers (skin tone) without splitting the grapheme", () => {
+    expect(splitEmojiSegments("👍🏽 Team")).toEqual([
+      { text: "👍🏽", isEmoji: true },
+      { text: " Team", isEmoji: false },
+    ]);
+  });
+
   it("handles a regional indicator pair (flag emoji) as one segment", () => {
     // 🇺🇸 = U+1F1FA U+1F1F8
     expect(splitEmojiSegments("\u{1F1FA}\u{1F1F8} US fleet")).toEqual([
