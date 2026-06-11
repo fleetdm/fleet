@@ -7655,7 +7655,7 @@ Body: <blob>
 _Available in Fleet Premium_
 
 
-List software that can be automatically installed during setup. If `install_during_setup` is `true` it will be installed during setup.
+List software that can be automatically installed during setup. If `install_during_setup` is `true` it will be installed during setup. On Windows and Linux hosts, Fleet checks the software's associated policies first and skips the install when the host passes all of them. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#policies-are-checked-before-install).
 
 `GET /api/v1/fleet/setup_experience/software`
 

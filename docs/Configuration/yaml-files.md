@@ -607,7 +607,7 @@ software:
   - `Productivity`: shown as **🖥️ Productivity**
   - `Security`: shown as **🔐 Security**
   - `Utilities`: shown as **🛠️ Utilities**
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
 
