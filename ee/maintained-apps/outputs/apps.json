@@ -2207,6 +2207,69 @@
       "description": "ExtraDock is a tool to add fully customizable extra docks."
     },
     {
+      "name": "Fantastical",
+      "slug": "fantastical/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.flexibits.fantastical",
+      "description": "Fantastical is a calendar software."
+    },
+    {
+      "name": "far2l",
+      "slug": "far2l/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.far2l",
+      "description": "far2l is a unix fork of FAR Manager v2."
+    },
+    {
+      "name": "Farrago",
+      "slug": "farrago/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rogueamoeba.farrago",
+      "description": "Farrago is an audio player."
+    },
+    {
+      "name": "Fastmail",
+      "slug": "fastmail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fastmail.mac.Fastmail",
+      "description": "Fastmail is an email client."
+    },
+    {
+      "name": "FastScripts",
+      "slug": "fastscripts/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.red-sweater.fastscripts3",
+      "description": "FastScripts is a tool for running time-saving scripts."
+    },
+    {
+      "name": "Fellow",
+      "slug": "fellow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.fellow",
+      "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
+    },
+    {
+      "name": "Ferdium",
+      "slug": "ferdium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ferdium.ferdium-app",
+      "description": "Ferdium is a multi-platform multi-messaging app."
+    },
+    {
+      "name": "Fetch",
+      "slug": "fetch-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fetchsoftworks.Fetch",
+      "description": "Fetch is a file transfer client."
+    },
+    {
+      "name": "fig",
+      "slug": "fig/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mschrage.fig",
+      "description": "fig is a terminal app."
+    },
+    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -2221,11 +2284,53 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
+      "name": "File Juicer",
+      "slug": "file-juicer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.echoone.FileJuicer",
+      "description": "File Juicer is an app that extracts images from PDF, PowerPoint, Word, Excel and other Files."
+    },
+    {
       "name": "FileMaker Pro",
       "slug": "filemaker-pro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.filemaker.client.pro12",
       "description": "FileMaker Pro is a relational database and rapid application development platform."
+    },
+    {
+      "name": "Filen",
+      "slug": "filen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.filen.desktop",
+      "description": "Filen is a desktop client for Filen.io."
+    },
+    {
+      "name": "Fing Desktop",
+      "slug": "fing/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fing.app",
+      "description": "Fing Desktop is a network scanner."
+    },
+    {
+      "name": "Fire Alpaca",
+      "slug": "firealpaca/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.firealpaca",
+      "description": "Fire Alpaca is a digital painting software."
+    },
+    {
+      "name": "Firefly",
+      "slug": "firefly-iota-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.iota.firefly",
+      "description": "Firefly is an official wallet for IOTA."
+    },
+    {
+      "name": "Firefly Shimmer",
+      "slug": "firefly-shimmer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.iota.firefly-shimmer",
+      "description": "Firefly Shimmer is an official wallet for IOTA."
     },
     {
       "name": "Mozilla Firefox",
@@ -2256,11 +2361,74 @@
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
     },
     {
+      "name": "Fission",
+      "slug": "fission/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rogueamoeba.Fission",
+      "description": "Fission is an audio editor."
+    },
+    {
       "name": "Fleet Desktop",
       "slug": "fleet-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.fleetdm.fleet-desktop",
       "description": "Fleet Desktop is a native macOS application that provides end users with a self-service portal for Fleet."
+    },
+    {
+      "name": "FLEXOPTIX App",
+      "slug": "flexoptix/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.flexoptix.flexoptix.app",
+      "description": "FLEXOPTIX App is a connect to your FLEXBOX without cables and configure transceivers."
+    },
+    {
+      "name": "Fluid",
+      "slug": "fluid/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fluidapp.Fluid2",
+      "description": "Fluid is a tool to turn a website into a desktop app."
+    },
+    {
+      "name": "f.lux",
+      "slug": "flux-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.herf.Flux",
+      "description": "f.lux is a screen colour temperature controller."
+    },
+    {
+      "name": "Focusrite Control 2",
+      "slug": "focusrite-control-2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.focusrite.control",
+      "description": "Focusrite Control 2 is a focusrite interface controller for devices of the 4th generation and newer."
+    },
+    {
+      "name": "Folx",
+      "slug": "folx/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.eltima.Folx3",
+      "description": "Folx is a download manager with a torrent client."
+    },
+    {
+      "name": "FontBase",
+      "slug": "fontbase/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dominiklevitsky.fontbase",
+      "description": "FontBase is a font manager."
+    },
+    {
+      "name": "Fontlab",
+      "slug": "fontlab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fontlab.fontlab8",
+      "description": "Fontlab is a professional font editor."
+    },
+    {
+      "name": "Forecast",
+      "slug": "forecast/darwin",
+      "platform": "darwin",
+      "unique_identifier": "fm.overcast.forecast-encoder",
+      "description": "Forecast is a podcast MP3 encoder with chapters."
     },
     {
       "name": "Fork",
@@ -2277,11 +2445,60 @@
       "description": "Fork is a git client."
     },
     {
+      "name": "ForkLift",
+      "slug": "forklift/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.binarynights.ForkLift-4",
+      "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
+    },
+    {
+      "name": "Framer",
+      "slug": "framer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.framer.electron",
+      "description": "Framer is a tool that helps teams design every part of the product experience."
+    },
+    {
+      "name": "Franz",
+      "slug": "franz/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.meetfranz.franz",
+      "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
+    },
+    {
+      "name": "Free Download Manager",
+      "slug": "free-download-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.freedownloadmanager.fdm6",
+      "description": "Free Download Manager is a download accelerator and organizer."
+    },
+    {
+      "name": "FreeFileSync",
+      "slug": "freefilesync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.freefilesync.FreeFileSync",
+      "description": "FreeFileSync is a folder comparison and synchronization software."
+    },
+    {
       "name": "Front",
       "slug": "front/darwin",
       "platform": "darwin",
       "unique_identifier": "com.frontapp.Front",
       "description": "Front is a customer communication platform."
+    },
+    {
+      "name": "FSMonitor",
+      "slug": "fsmonitor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tristan.FSMonitor",
+      "description": "FSMonitor is a tool to visualize filesystem changes in realtime."
+    },
+    {
+      "name": "Funter",
+      "slug": "funter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nektony.Funter-SIII",
+      "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
     },
     {
       "name": "Garmin Express",
