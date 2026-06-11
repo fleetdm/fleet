@@ -635,10 +635,10 @@ You own the code you submit, AI-assisted or otherwise. The handbook covers the
 general principle; this section lists frontend pitfalls that AI tools produce
 often enough to warrant a deliberate check on every diff:
 
-- `dangerouslySetInnerHTML` introduced without an in-diff sanitizer. If the prop
-  is added and the same change does not also pass the input through
-  `DOMPurify.sanitize`, `syntaxHighlight`, or `ClickableUrls`, request the
-  sanitizer before approving.
+- `dangerouslySetInnerHTML` introduced for user-controlled content without an in-diff
+  sanitizer. If the prop is added and the same change does not also pass the
+  input through `DOMPurify.sanitize`, `syntaxHighlight`, or `ClickableUrls`,
+  request a sanitizer before approving.
 - Dynamic code execution: `eval`, `new Function`, and `setTimeout` or
   `setInterval` invoked with string arguments have no legitimate place in
   product code.
