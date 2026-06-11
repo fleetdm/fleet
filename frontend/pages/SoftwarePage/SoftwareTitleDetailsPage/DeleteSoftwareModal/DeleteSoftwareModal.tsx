@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import softwareAPI from "services/entities/software";
-import { NotificationContext } from "context/notification";
 
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
@@ -81,30 +81,35 @@ const DeleteSoftwareModal = ({
   isAppStoreApp = false,
   isAndroidApp = false,
 }: IDeleteSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
       await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
-      renderFlash("success", "Successfully deleted software.");
+      notify.success("Successfully deleted software.");
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
       if (reason.includes("This software has a patch policy")) {
-        renderFlash("error", DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG);
+        notify.error(DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG, {
+          response: error,
+        });
       } else if (reason.includes("Policy automation uses this software")) {
-        renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
+        notify.error(DELETE_SW_USED_BY_POLICY_ERROR_MSG, { response: error });
       } else if (reason.includes("This software is installed during")) {
-        renderFlash("error", DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG);
+        notify.error(DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG, {
+          response: error,
+        });
       } else {
-        renderFlash("error", "Couldn't delete. Please try again.");
+        notify.error("Couldn't delete. Please try again.", {
+          response: error,
+        });
       }
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, teamId, onSuccess, onExit]);
 
   return (
     <Modal
