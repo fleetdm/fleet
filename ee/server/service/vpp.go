@@ -301,6 +301,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
+	// since we actually add categories here, it's possible they can stay orphaned until the next run if the run fails
 	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
 	if err != nil {
 		return nil, nil, err

@@ -1126,7 +1126,7 @@ func (c *Client) ApplyGroup(
 		}
 
 		// Delete categories no longer referenced by any of the fleet's software.
-		if !opts.DryRun && !softwareExcepted {
+		if viaGitOps && !opts.DryRun && !softwareExcepted {
 			for tmName, tmID := range teamIDsByName {
 				if err := c.deleteUnusedSelfServiceCategories(tmID, categoriesByTeam[tmName]); err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("deleting unused self-service categories for fleet %q: %w", tmName, err)

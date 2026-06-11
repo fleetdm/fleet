@@ -7609,7 +7609,7 @@ software:
     - path: ./script.sh
       self_service: true
       categories:
-        - "Security"
+        - "SECURITY"
         - "🔐 Security"
 `))
 	require.NoError(t, err)
@@ -7642,7 +7642,7 @@ software:
 	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
 }
 
-func TestGitOpsSelfServiceCategoriesSoftwareException(t *testing.T) {
+func TestSelfServiceCategoriesPruneSkipped(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
@@ -7668,18 +7668,45 @@ func TestGitOpsSelfServiceCategoriesSoftwareException(t *testing.T) {
 	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
 		return slices.Clone(existing), nil
 	}
+	ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+		for _, c := range existing {
+			if c.ID == id {
+				return &c, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
 	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
 		deleted = append(deleted, id)
 		return nil
 	}
 
 	dir := t.TempDir()
-	path := filepath.Join(dir, "team.yml")
-	require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
 
-	_, err := runAppNoChecks([]string{"gitops", "-f", path})
-	require.NoError(t, err)
-	assert.Empty(t, deleted, "software exception must leave categories untouched")
+	t.Run("software excepted from gitops", func(t *testing.T) {
+		deleted = nil
+		path := filepath.Join(dir, "exception.yml")
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
+		_, err := runAppNoChecks([]string{"gitops", "-f", path})
+		require.NoError(t, err)
+		assert.Empty(t, deleted)
+	})
+
+	t.Run("non-gitops apply", func(t *testing.T) {
+		deleted = nil
+		path := filepath.Join(dir, "apply.yml")
+		require.NoError(t, os.WriteFile(path, []byte(`apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: Test Fleet
+    secrets:
+      - secret: AAA
+`), 0o600))
+		_, err := runAppNoChecks([]string{"apply", "-f", path})
+		require.NoError(t, err)
+		assert.Empty(t, deleted)
+	})
 }
 
 func TestValidateGitOpsGroupEUA(t *testing.T) {
