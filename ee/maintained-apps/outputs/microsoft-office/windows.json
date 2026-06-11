@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "16.0.19929.20090",
+      "version": "16.0.20026.20112",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name LIKE 'Microsoft 365 Apps %' OR name LIKE 'Microsoft Office %') AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Microsoft 365 Apps %' OR name LIKE 'Microsoft Office %') AND publisher = 'Microsoft Corporation') AND version_compare(version, '16.0.19929.20090') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Microsoft 365 Apps %' OR name LIKE 'Microsoft Office %') AND publisher = 'Microsoft Corporation') AND version_compare(version, '16.0.20026.20112') < 0);"
       },
       "installer_url": "https://officecdn.microsoft.com/pr/wsus/setup.exe",
       "install_script_ref": "7e3fc6bb",
