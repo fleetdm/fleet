@@ -260,18 +260,29 @@ import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
 import Hyper from "./Hyper";
+import I1Profiler from "./I1Profiler";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
+import Iconjar from "./Iconjar";
+import Idagio from "./Idagio";
+import Iexplorer from "./Iexplorer";
 import Iina from "./Iina";
+import ImazingConverter from "./ImazingConverter";
 import IMazingProfileEditor from "./IMazingProfileEditor";
+import Imhex from "./Imhex";
 import Inkscape from "./Inkscape";
+import InputSourcePro from "./InputSourcePro";
 import Insomnia from "./Insomnia";
+import Intellidock from "./Intellidock";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import Invesalius from "./Invesalius";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
+import Itsycal from "./Itsycal";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -911,18 +922,29 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
   hyper: Hyper,
+  i1profiler: I1Profiler,
   "ibm notifier": IbmNotifier,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
+  iconjar: Iconjar,
+  idagio: Idagio,
+  iexplorer: Iexplorer,
   iina: Iina,
   imazing: IMazingProfileEditor,
+  "imazing converter": ImazingConverter,
   "imazing profile editor": IMazingProfileEditor,
+  imhex: Imhex,
   inkscape: Inkscape,
+  "input source pro": InputSourcePro,
   insomnia: Insomnia,
   insyncclient: DruvaInSync,
+  intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
+  invesalius: Invesalius,
+  istherenet: Istherenet,
   iterm2: ITerm,
+  itsycal: Itsycal,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
