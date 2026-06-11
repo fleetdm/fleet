@@ -35,7 +35,7 @@ import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/Softwa
 import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
 import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
-import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
 import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
 

@@ -1,0 +1,10 @@
+{
+  "name": "Zulip",
+  "unique_identifier": "org.zulip.zulip-electron",
+  "token": "zulip",
+  "installer_format": "dmg",
+  "slug": "zulip/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

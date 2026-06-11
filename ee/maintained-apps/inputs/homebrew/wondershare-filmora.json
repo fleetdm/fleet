@@ -1,0 +1,10 @@
+{
+  "name": "Wondershare Filmora",
+  "unique_identifier": "com.wondershare.filmoramac",
+  "token": "wondershare-filmora",
+  "installer_format": "dmg",
+  "slug": "wondershare-filmora/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

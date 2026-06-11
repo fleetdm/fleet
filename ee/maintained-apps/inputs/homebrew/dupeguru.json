@@ -1,0 +1,10 @@
+{
+  "name": "dupeGuru",
+  "unique_identifier": "com.hardcoded-software.dupeguru",
+  "token": "dupeguru",
+  "installer_format": "zip",
+  "slug": "dupeguru/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

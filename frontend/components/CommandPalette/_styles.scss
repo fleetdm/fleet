@@ -32,6 +32,17 @@
     overflow: hidden;
   }
 
+  // Below the supported breakpoint the UnsupportedScreenSize layout takes
+  // over the viewport. Hide the palette (overlay + content) without closing
+  // it so internal state, focus intent, and the current picker page survive
+  // a resize back up.
+  @media (max-width: ($break-xs - 1px)) {
+    &__overlay,
+    &__content {
+      display: none;
+    }
+  }
+
   &__input-wrapper {
     position: relative;
     display: flex;
