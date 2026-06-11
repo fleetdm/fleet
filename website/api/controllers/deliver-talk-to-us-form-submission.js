@@ -174,7 +174,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
       let eventUrlForThisUsersTerritory = bookingUrlByUserId[territoryUserId];
       if(!eventUrlForThisUsersTerritory) {
         // If the user ID returned by the helper is not one of the five expected values above, log a warning to alert us, and send the user to the washingtonDc calednly link.
-        sails.log.warn(`When looking up Salesforce territory information to route a user (email: ${emailAddress}) who submitted the "Talk to us" form to the correct meeting link, the user ID returned by the getTerritoryUserId helper (${teritoryUserId}) did not match the hardcoded user IDs in the bookingUrlByUserId dictionary. This user will be sent to the callendly link for the washingtonDc region.`);
+        sails.log.warn(`When looking up Salesforce territory information to route a user (email: ${emailAddress}) who submitted the "Talk to us" form to the correct meeting link, the user ID returned by the getTerritoryUserId helper (${territoryUserId}) did not match the hardcoded user IDs in the bookingUrlByUserId dictionary. This user will be sent to the callendly link for the washingtonDc region.`);
         eventUrlForThisUsersTerritory = 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us';
       }
       return {
