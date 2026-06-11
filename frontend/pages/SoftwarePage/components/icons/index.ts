@@ -1420,7 +1420,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
   (a, platform) => ({ ...a, [platform]: LinuxOS }),
-  {},
+  {}
 );
 
 export const PLATFORM_NAME_TO_ICON_MAP = {
@@ -1514,7 +1514,7 @@ export const getMatchedSoftwareIcon = ({
   if (!Icon) {
     const matchedSource = matchLoosePrefixToKey(
       SOFTWARE_SOURCE_TO_ICON_MAP,
-      source,
+      source
     );
     if (matchedSource) {
       Icon = SOFTWARE_SOURCE_TO_ICON_MAP[matchedSource];
@@ -1533,7 +1533,7 @@ export const getMatchedOsIcon = ({ name = "" }) => {
   // Match only against platform names (never software/app maps)
   const matchedPlatform = matchLoosePrefixToKey(
     PLATFORM_NAME_TO_ICON_MAP,
-    name,
+    name
   );
   return matchedPlatform
     ? PLATFORM_NAME_TO_ICON_MAP[matchedPlatform]
