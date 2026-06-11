@@ -468,6 +468,18 @@ Every internal meeting is inherently "optional" in the sense that if it's not a 
 When choosing a title for Google docs at Fleet, include enough context that someone in the future can understand not just _what_ is being discussed, but _why_ it matters and how it fits in.  This is especially important for meeting agendas.  A bare Google Doc title like "Write up scavenger hunt" is hard to find in search and can be difficult for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating announcement" — now anyone who finds the doc later knows the purpose of the meeting, without needing to ask.  This makes the Google doc more discoverable in search, more accessible, and more useful for everyone at the company — now and in the future.
 
 
+## Why preserve large free blocks on calendars?
+
+Fleet optimizes for the customer experience.  Prospects and customers booking demos or meetings via the website need to find open time slots.  When calendars are cluttered with work blocks, focus time, or other internal holds, those blocks reduce availability for external bookings.  This creates friction for people trying to schedule time with us.
+
+Here's what to keep in mind:
+
+- **Maximize "free" availability.**  Internal calendar holds (focus time, work blocks, etc.) prevent prospects and customers from booking.  Keep calendars as open as possible for customer-facing scheduling, and be mindful that every internal hold is one fewer slot a prospect can choose.
+- **Avoid "Swiss cheese" calendars.**  When meetings are scattered throughout the day with small gaps in between, no single gap is large enough for someone to book.  This is especially problematic when events require buffer time.  For example, a 45-minute meeting with a 15-minute buffer needs a full hour of availability from multiple people simultaneously.  Consolidate meetings and keep large contiguous free blocks so that prospects and customers can actually find and book time.
+
+The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
+
+
 #### Stubs
 
 The following stubs are included only so that old links continue to work (for backwards compatibility.)
