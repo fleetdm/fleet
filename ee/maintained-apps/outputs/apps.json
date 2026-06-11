@@ -2226,7 +2226,7 @@
       "platform": "darwin",
       "unique_identifier": "com.rogueamoeba.farrago",
       "description": "Farrago is an audio player."
-    }
+    },
     {
       "name": "Fastmail",
       "slug": "fastmail/darwin",
@@ -2247,7 +2247,7 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.fellow",
       "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
-    }
+    },
     {
       "name": "Ferdium",
       "slug": "ferdium/darwin",
@@ -2329,7 +2329,7 @@
       "name": "Firefly Shimmer",
       "slug": "firefly-shimmer/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.iota.firefly",
+      "unique_identifier": "org.iota.firefly-shimmer",
       "description": "Firefly Shimmer is an official wallet for IOTA."
     },
     {
@@ -2408,7 +2408,7 @@
       "platform": "darwin",
       "unique_identifier": "com.eltima.Folx3",
       "description": "Folx is a download manager with a torrent client."
-    }
+    },
     {
       "name": "FontBase",
       "slug": "fontbase/darwin",
@@ -2464,14 +2464,14 @@
       "platform": "darwin",
       "unique_identifier": "com.meetfranz.franz",
       "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
-    }
+    },
     {
       "name": "Free Download Manager",
       "slug": "free-download-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "org.freedownloadmanager.fdm6",
       "description": "Free Download Manager is a download accelerator and organizer."
-    }
+    },
     {
       "name": "FreeFileSync",
       "slug": "freefilesync/darwin",
