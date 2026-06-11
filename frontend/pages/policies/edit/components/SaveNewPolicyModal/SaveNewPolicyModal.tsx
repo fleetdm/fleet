@@ -9,12 +9,9 @@ import React, {
 import { size } from "lodash";
 import classNames from "classnames";
 import { useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import {
-  getCustomTargetOptions,
-  LabelScope,
-} from "components/TargetLabelSelector/labelScopes";
-
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
@@ -26,6 +23,7 @@ import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
 
 import configAPI from "services/entities/config";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
 
@@ -34,7 +32,12 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import {
+  TargetLabelSelector,
+  ILabelTabConfig,
+  LabelTargetMode,
+  TargetType,
+} from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 
 import PolicyAutomationsFields, {
@@ -71,6 +74,7 @@ export interface ISaveNewPolicyModalProps {
   globalConfig: IConfig | undefined;
   /** Display name of the fleet the new policy belongs to. */
   fleetName: string;
+  router: InjectedRouter;
 }
 
 const validatePolicyName = (name: string) => {
@@ -103,6 +107,7 @@ const SaveNewPolicyModal = ({
   automationsConfig,
   globalConfig,
   fleetName,
+  router,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier, setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
@@ -123,15 +128,23 @@ const SaveNewPolicyModal = ({
     backendValidators
   );
 
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
-    "labelsIncludeAny"
+  const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
+    "All hosts"
   );
-  const [selectedLabels, setSelectedLabels] = useState({});
-  const customTargetOptions = useMemo(
-    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
-    [isPremiumTier]
-  );
+  const [
+    selectedIncludeMode,
+    setSelectedIncludeMode,
+  ] = useState<LabelTargetMode>("any");
+  const [
+    selectedExcludeMode,
+    setSelectedExcludeMode,
+  ] = useState<LabelTargetMode>("any");
+  const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
+    Record<string, boolean>
+  >({});
+  const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
+    Record<string, boolean>
+  >({});
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
@@ -148,28 +161,70 @@ const SaveNewPolicyModal = ({
     [policyTeamId]
   );
 
-  const onSelectLabel = ({
-    name: labelName,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    setSelectedLabels({
-      ...selectedLabels,
-      [labelName]: value,
-    });
+  const includeTab: ILabelTabConfig = {
+    selectedLabels: selectedIncludeLabels,
+    onSelectLabel: ({ name, value }) =>
+      setSelectedIncludeLabels((prev) => ({ ...prev, [name]: value })),
+    showModeToggle: true,
+    mode: selectedIncludeMode,
+    onSelectMode: setSelectedIncludeMode,
+    anyTooltip: (
+      <>
+        Will only target hosts that have{" "}
+        <em>
+          <b>any</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+    allTooltip: (
+      <>
+        Will only target hosts that have{" "}
+        <em>
+          <b>all</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
   };
+
+  const excludeTab: ILabelTabConfig = {
+    selectedLabels: selectedExcludeLabels,
+    onSelectLabel: ({ name, value }) =>
+      setSelectedExcludeLabels((prev) => ({ ...prev, [name]: value })),
+    showModeToggle: true,
+    mode: selectedExcludeMode,
+    onSelectMode: setSelectedExcludeMode,
+    anyTooltip: (
+      <>
+        Will not target hosts that have{" "}
+        <em>
+          <b>any</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+    allTooltip: (
+      <>
+        Will not target hosts that have{" "}
+        <em>
+          <b>all</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+  };
+
+  const hasCustomLabels =
+    listNamesFromSelectedLabels(selectedIncludeLabels).length > 0 ||
+    listNamesFromSelectedLabels(selectedExcludeLabels).length > 0;
 
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
   const disableSave =
     !platformSelector.isAnyPlatformSelected ||
     disableForm ||
-    (selectedTargetType === "Custom" &&
-      !Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
+    (selectedTargetType === "Custom" && !hasCustomLabels);
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -217,18 +272,22 @@ const SaveNewPolicyModal = ({
       critical: lastEditedQueryCritical,
     };
     if (isPremiumTier) {
-      const customLabelNames =
+      const includeNames =
         selectedTargetType === "Custom"
-          ? Object.entries(selectedLabels)
-              .filter(([, selected]) => selected)
-              .map(([labelName]) => labelName)
+          ? listNamesFromSelectedLabels(selectedIncludeLabels)
+          : [];
+      const excludeNames =
+        selectedTargetType === "Custom"
+          ? listNamesFromSelectedLabels(selectedExcludeLabels)
           : [];
       payload.labels_include_any =
-        selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
+        selectedIncludeMode === "any" ? includeNames : [];
       payload.labels_include_all =
-        selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
+        selectedIncludeMode === "all" ? includeNames : [];
       payload.labels_exclude_any =
-        selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+        selectedExcludeMode === "any" ? excludeNames : [];
+      payload.labels_exclude_all =
+        selectedExcludeMode === "all" ? excludeNames : [];
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -397,19 +456,15 @@ const SaveNewPolicyModal = ({
         />
         {platformSelector.render()}
         {isPremiumTier && (
-          <DropdownTargetLabelSelector
-            selectedTargetType={selectedTargetType}
-            selectedCustomTarget={selectedCustomTarget}
-            customTargetOptions={customTargetOptions}
-            onSelectCustomTarget={(val) =>
-              setSelectedCustomTarget(val as LabelScope)
-            }
-            selectedLabels={selectedLabels}
+          <TargetLabelSelector
             className={`${baseClass}__target`}
+            selectedTargetType={selectedTargetType}
             onSelectTargetType={setSelectedTargetType}
-            onSelectLabel={onSelectLabel}
             labels={labels || []}
-            suppressTitle
+            include={includeTab}
+            exclude={excludeTab}
+            emptyStateDescription="Add a label to target a group of hosts."
+            onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
             disableOptions={disableForm}
           />
         )}

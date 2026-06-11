@@ -919,6 +919,7 @@ const PolicyForm = ({
             automationsConfig={automationsConfig}
             globalConfig={config ?? undefined}
             fleetName={automationsFleetName}
+            router={router}
           />
         )}
       </>

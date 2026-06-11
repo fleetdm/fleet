@@ -58,6 +58,7 @@ export interface IPolicy {
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  labels_exclude_all?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
@@ -130,6 +131,7 @@ export interface IPolicyFormData {
   labels_include_any?: string[];
   labels_include_all?: string[];
   labels_exclude_any?: string[];
+  labels_exclude_all?: string[];
   /** Required for creating patch policy */
   type?: "dynamic" | "patch";
   /** Required for creating patch policy */
