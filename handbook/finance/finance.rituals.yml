@@ -193,7 +193,7 @@
   startedOn: "2026-06-12"
   frequency: "Weekly"
   description: "Sam Pfluger checks all Talk to us Calendly links to ensure demos can be booked."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#update-salesforce-placards"
+  moreInfoUrl:
   dri: "sampfluger88"
   autoIssue:
     labels: [":help-gtm-ops"]
