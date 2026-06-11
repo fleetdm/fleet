@@ -1,3 +1,15 @@
+## 1.56.3 (Jun 11, 2026)
+
+* Added exponential backoff with jitter to Fleet Desktop's server polling. On error (401, 5xx, network failure), Desktop now doubles its retry interval (capped at 30 minutes) instead of retrying at a fixed rate. A single success resets to the normal interval. This prevents request storms that can overwhelm the database when many hosts have expired tokens.
+
+* Added support for on-demand Windows MDM sync. When the Fleet server requests it, fleetd now starts an OMA-DM management session so queued Windows MDM commands are delivered promptly even when the device's MDM poll schedule has been relaxed. This lets the server reduce the Windows MDM poll frequency without increasing command latency.
+
+* Fixed fleetd clearing pre-packaged/user-provided osquery flagfiles (`osquery.flags`) when `command_line_flags` is unset in the agent settings. Setting `command_line_flags` to an empty document (`{}` or `null`) still explicitly clears the flagfile.
+
+* Updated go to 1.26.4
+
+* Updated the Fleet Desktop disk encryption prompt on TPM-backed Linux hosts (e.g., Ubuntu 23.10+) to ask for the disk recovery key saved during installation, instead of a LUKS passphrase.
+
 ## 1.56.2 (Jun 04, 2026)
 
 * Added the `orbit.debug_logging_on_enroll_duration` agent option to allow enabling orbit debug logging for a specified time period after enrollment.
