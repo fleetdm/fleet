@@ -1,0 +1,10 @@
+{
+  "name": "Boom 3D",
+  "unique_identifier": "com.globaldelight.Boom3D",
+  "token": "boom-3d",
+  "installer_format": "dmg",
+  "slug": "boom-3d/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

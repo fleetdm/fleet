@@ -1,0 +1,10 @@
+{
+  "name": "Whispering",
+  "unique_identifier": "com.bradenwong.whispering",
+  "token": "whispering",
+  "installer_format": "dmg",
+  "slug": "whispering/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

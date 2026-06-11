@@ -354,8 +354,7 @@ func (svc *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
 	}
 
-	// Look up the host by UUID
-	host, err := svc.ds.HostByIdentifier(ctx, urlUUID)
+	host, err := svc.ds.HostByUUID(ctx, urlUUID)
 	switch {
 	case err == nil:
 		// OK
