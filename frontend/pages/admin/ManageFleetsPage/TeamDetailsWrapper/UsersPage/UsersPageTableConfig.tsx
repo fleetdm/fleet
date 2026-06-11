@@ -195,10 +195,8 @@ const generateColumnConfigs = (
             showArrow
             underline={false}
             tipContent={
-              <>
-                This user can&apos;t be edited because they&apos;re a member of
+                This user can&apos;t be managed because they&apos;re a member of
                 other fleets you&apos;re not an admin of.
-              </>
             }
           >
             {dropdown}
