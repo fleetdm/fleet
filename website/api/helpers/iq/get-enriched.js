@@ -297,16 +297,16 @@ module.exports = {
         if(companyHasActiveLocation) {
           let systemPromptForAddressInformation = 'You are a precise data-extraction function. Respond with a single raw JSON object and nothing else.';
           let locationPrompt =
-          `Extract the location from the following company headquarters address.
+`Extract the location from the following company headquarters address.
 
-          Address: "${companyHasActiveLocation.location_address}"
+Address: "${companyHasActiveLocation.location_address}"
 
-          Respond with a JSON object using these keys:
-          - "city": the city name.
-          - "country": the full country name in English (for example, "United States").
-          - "state": the full state name. Only include this key when the country is the United States.
+Respond with a JSON object using these keys:
+- "city": the city name.
+- "country": the full country name in English (for example, "United States").
+- "state": the full state name. Only include this key when the country is the United States.
 
-          Only include a key when its value is present in the address. Omit any key whose value you cannot determine; do not guess, and do not use null or empty strings.`;
+Only include a key when its value is present in the address. Omit any key whose value you cannot determine; do not guess, and do not use null or empty strings.`;
 
           locationInfo = await sails.helpers.ai.prompt.with({
             prompt: locationPrompt,
