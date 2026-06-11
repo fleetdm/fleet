@@ -94,58 +94,61 @@ module.exports = {
       marketingAttributionCookie: attributionCookieOrUndefined
     };
 
-    // If the user said they have 700+ hosts, Update/create a contact and account, and send them to the "Talk to us" Calendly event.
-    if(numberOfHosts >= 700){
+
+
+    // TODO: Send prompt to try to find this information in paralell.
+    let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
+      emailAddress,
+    }).tolerate((err)=>{
+      sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
+      return {};
+    });
+
+    // If we got a employer.numberOfEmployees value from the getEnriched helper, send the user to the "talk to us" calendly event if it is 700+.
+    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees && enrichmentInformation.employer.numberOfEmployees >= 700) {
       contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
-      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${enrichmentInformation.employer.numberOfEmployees}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
+        if(err) {
+          sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Full Error: ${require('util').inspect(err)}`);
+        }
+      });
+      console.log(enrichmentInformation);
+      let teritoryUserId = await sails.helpers.salesforce.getTerritoryUserId.with({
+        state: enrichmentInformation.employer.state,
+        country: enrichmentInformation.employer.country,
+        city: enrichmentInformation.employer.city
+      }).tolerate((err)=>{
+        sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce teritory information could not be found using the provided information. This user will be sent to the calendly link for the washingtonDc region. Full error: ${require('util').inspect(err)}`)
+        return '0054x0000086sOlAAI';
+      });
+      let bookingUrlByUserId = {
+        '005UG000006YYDVYA4': 'https://calendly.com/d/d3fs-28g-vdk/talk-to-us', //newYorkCity
+        '0054x0000086sOlAAI': 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us', //washingtonDc
+        '005UG000008y0wbYAA': 'https://calendly.com/d/ds9c-9vt-mz6/talk-to-us', //losAngeles
+        '0054x0000086wsGAAQ': 'https://calendly.com/d/dz4c-mjx-6xv/talk-to-us', //sanFrancisco
+        '005UG000009NnSfYAK': 'https://calendly.com/d/ds88-n2m-ddt/talk-to-us', //stockholm
+      };
+
+      let eventUrlForThisUsersTeritory = bookingUrlByUserId[teritoryUserId];
+
+      return {
+        icp: true,
+        eventUrl: eventUrlForThisUsersTeritory,
+      };
+    } else {
+      // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <700 hosts, send them to the "Let's get you set up!" Calendly event
+      contactInformation.contactSource = 'Website - Contact forms - Demo';
+      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
         }
       });
       return {
-        icp: true,
-        eventUrl: `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
+        icp: false,
+        eventUrl: `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
       };
-    } else {
-      // If the user has <700 hosts, use the get-enriched helper to try to find the number of employees at their organization.
-
-      let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
-        emailAddress,
-        firstName,
-        lastName,
-      }).tolerate((err)=>{
-        sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
-        return {};
-      });
-
-      // If we got a employer.numberOfEmployees value from the getEnriched helper, send the user to the "talk to us" calendly event if it is 700+.
-      if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees && enrichmentInformation.employer.numberOfEmployees >= 700) {
-        contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
-        contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${enrichmentInformation.employer.numberOfEmployees}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
-        sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
-          if(err) {
-            sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
-          }
-        });
-        return {
-          icp: true,
-          eventUrl:`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
-        };
-      } else {
-        // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <700 hosts, send them to the "Let's get you set up!" Calendly event
-        contactInformation.contactSource = 'Website - Contact forms - Demo';
-        contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
-        sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
-          if(err) {
-            sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
-          }
-        });
-        return {
-          icp: false,
-          eventUrl: `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
-        };
-      }
     }
   }
 

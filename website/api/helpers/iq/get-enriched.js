@@ -289,6 +289,35 @@ module.exports = {
         return undefined;
       });
       if (matchingCompanyPageInfo) {
+        console.log(_.omit(matchingCompanyPageInfo, ['company_featured_employees_collection', 'company_similar_collection', 'company_specialties_collection', 'company_updates_collection', 'company_also_viewed_collection', 'company_funding_rounds_collection', 'company_featured_investors_collection', 'company_affiliated_collection', 'company_crunchbase_info_collection']));
+        let companyHasActiveLocation = _.find(matchingCompanyPageInfo.company_locations_collection, (location)=>{
+          return location.is_primary === 1;
+        });
+        let locationInfo = {};
+        if(companyHasActiveLocation) {
+          let systemPromptForAddressInformation = 'You are a precise data-extraction function. Respond with a single raw JSON object and nothing else.';
+          let locationPrompt =
+          `Extract the location from the following company headquarters address.
+
+          Address: "${companyHasActiveLocation.location_address}"
+
+          Respond with a JSON object using these keys:
+          - "city": the city name.
+          - "country": the full country name in English (for example, "United States").
+          - "state": the full state name. Only include this key when the country is the United States.
+
+          Only include a key when its value is present in the address. Omit any key whose value you cannot determine; do not guess, and do not use null or empty strings.`;
+
+          locationInfo = await sails.helpers.ai.prompt.with({
+            prompt: locationPrompt,
+            baseModel: 'gpt-5-nano-2025-08-07',
+            expectJson: true,
+            systemPrompt: systemPromptForAddressInformation,
+          }).tolerate((err)=>{
+            sails.log.warn(`When parsing a company's headquarters address ("${companyHasActiveLocation.location_address}") into structured location data, the prompt helper responded with an error: `, err);
+            return {};
+          });
+        }
         let emailDomain;
         if(matchingCompanyPageInfo.website) {
           let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
@@ -300,6 +329,9 @@ module.exports = {
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
           emailDomain: emailDomain,
           linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          state: locationInfo.state,
+          country: locationInfo.country,
+          city: locationInfo.city,
         };
         if (organization && employer.organization && employer.organization !== organization) {
           sails.log.info(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
