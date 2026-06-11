@@ -2267,7 +2267,7 @@
       "slug": "fig/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a reimagine your terminal."
+      "description": "fig is a terminal app."
     },
     {
       "name": "Figma",
@@ -2288,7 +2288,7 @@
       "slug": "file-juicer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.echoone.FileJuicer",
-      "description": "File Juicer is an extract images from PDF, PowerPoint, Word, Excel and other Files."
+      "description": "File Juicer is an app that extracts images from PDF, PowerPoint, Word, Excel and other Files."
     },
     {
       "name": "FileMaker Pro",
