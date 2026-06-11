@@ -1,5 +1,5 @@
-$displayNameLike = "Dell Display Manager*"
-$publisherLike = "Dell Inc.*"
+$displayNameLike = "Dell Display and Peripheral Manager*"
+$publisherLike = "Dell Technologies*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -23,7 +23,7 @@ if (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstall
   Exit 0
 }
 
-Stop-Process -Name "ddm" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "ddpm" -Force -ErrorAction SilentlyContinue
 
 $uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
 
@@ -39,10 +39,11 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
     Throw "Could not parse uninstall string: $uninstallCommand"
 }
 
-if ($existingArgs -notmatch '(?i)(^|\s)/S(\s|$)') { $existingArgs = ("$existingArgs /S").Trim() }
-if ($entry.InstallLocation -and ($existingArgs -notmatch '_\?=')) {
-    $installDir = $entry.InstallLocation.TrimEnd('\')
-    $existingArgs = ("$existingArgs _?=`"$installDir`"").Trim()
+if ($exePath -match '(?i)msiexec') {
+    if ($existingArgs -notmatch '(?i)/qn') { $existingArgs = ("$existingArgs /qn").Trim() }
+    if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
+} else {
+    if ($existingArgs -notmatch '(?i)(^|\s)/Silent(\s|$)') { $existingArgs = ("$existingArgs /Silent").Trim() }
 }
 
 Write-Host "Uninstall command: $exePath"

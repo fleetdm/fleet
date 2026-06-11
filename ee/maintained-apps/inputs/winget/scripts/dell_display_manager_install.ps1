@@ -5,7 +5,7 @@ try {
 
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/Silent"
   PassThru = $true
   Wait = $true
 }
