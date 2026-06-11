@@ -1,22 +1,28 @@
 package service
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"io"
+	"log/slog"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	jose "github.com/go-jose/go-jose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestPSSO_SymmetricRoundTrip exercises the AES-256-GCM envelope used for
-// key_exchange and password_request responses. Encrypting and then
-// decrypting under the same session key must yield the original plaintext.
+// TestPSSO_SymmetricRoundTrip exercises the AES-256-GCM envelope used to
+// seal key_context blobs. Encrypting and then decrypting under the same
+// session key must yield the original plaintext.
 func TestPSSO_SymmetricRoundTrip(t *testing.T) {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
@@ -81,13 +87,13 @@ func TestPSSO_HKDFDifferentSaltDifferentKey(t *testing.T) {
 }
 
 // TestPSSO_AsymmetricEncryptRoundTrip confirms that a payload encrypted to
-// a device's encryption pubkey via JWE ECDH-ES + A256GCM can be decrypted
-// with the corresponding private key. This is the key_request flow.
+// a device's encryption pubkey via JWE ECDH-ES + A256GCM produces a valid
+// compact JWE.
 func TestPSSO_AsymmetricEncryptRoundTrip(t *testing.T) {
 	deviceKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	payload := []byte(`{"key_exchange_key":"AAECAwQF"}`)
+	payload := []byte(`{"claims":"AAECAwQF"}`)
 	jweCompact, err := buildAsymmetricJWE(payload, &deviceKey.PublicKey, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, jweCompact)
@@ -273,6 +279,108 @@ func TestPSSO_ParseECPublicKey(t *testing.T) {
 
 	_, err = parseECPublicKeyPEM([]byte("not a pem block"))
 	require.Error(t, err)
+}
+
+// TestPSSO_ResolveEncryptionKey covers resolving the response-encryption key
+// from a request's apv blob: the kid is recomputed as SHA-256 of the raw key
+// bytes the device placed in apv (matching how the extension registers its
+// kids), looked up, and validated as an encryption key belonging to the
+// requesting host. When the kid lookup misses, the host's registered
+// encryption keys are compared point-by-point as a fallback.
+func TestPSSO_ResolveEncryptionKey(t *testing.T) {
+	const hostUUID = "ABCDEFGH-0000-0000-0000-111111111111"
+
+	encPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	encECDH, err := encPriv.PublicKey.ECDH()
+	require.NoError(t, err)
+	rawPoint := encECDH.Bytes()
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: rawPoint})
+
+	sum := sha256.Sum256(rawPoint)
+	kid := canonicalizeKID(base64.RawURLEncoding.EncodeToString(sum[:]))
+
+	apv := base64.RawURLEncoding.EncodeToString(
+		encodeApplePartyInfo([]byte(apvPartyLabel), rawPoint, []byte("nonce")))
+
+	newSvc := func() (*Service, *mock.DataStore) {
+		ds := new(mock.DataStore)
+		svc := &Service{ds: ds, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		return svc, ds
+	}
+	registeredKey := &fleet.PSSOKey{
+		KID:      kid,
+		HostUUID: hostUUID,
+		KeyType:  fleet.PSSOKeyTypeEncryption,
+		PEM:      string(pemBytes),
+	}
+
+	t.Run("resolves by kid computed from apv", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.GetPSSOKeyFunc = func(ctx context.Context, gotKID string) (*fleet.PSSOKey, error) {
+			require.Equal(t, kid, gotKID)
+			return registeredKey, nil
+		}
+		pub, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID, apv)
+		require.NoError(t, err)
+		assert.True(t, pub.Equal(&encPriv.PublicKey))
+	})
+
+	t.Run("rejects a key registered to a different host", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.GetPSSOKeyFunc = func(ctx context.Context, _ string) (*fleet.PSSOKey, error) {
+			other := *registeredKey
+			other.HostUUID = "some-other-host"
+			return &other, nil
+		}
+		_, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID, apv)
+		require.Error(t, err)
+	})
+
+	t.Run("rejects a signing key", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.GetPSSOKeyFunc = func(ctx context.Context, _ string) (*fleet.PSSOKey, error) {
+			other := *registeredKey
+			other.KeyType = fleet.PSSOKeyTypeSigning
+			return &other, nil
+		}
+		_, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID, apv)
+		require.Error(t, err)
+	})
+
+	t.Run("falls back to comparing the host's registered keys", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.GetPSSOKeyFunc = func(ctx context.Context, _ string) (*fleet.PSSOKey, error) {
+			return nil, &testNotFoundError{}
+		}
+		ds.ListPSSOKeysFunc = func(ctx context.Context, gotUUID string) ([]*fleet.PSSOKey, error) {
+			require.Equal(t, hostUUID, gotUUID)
+			return []*fleet.PSSOKey{registeredKey}, nil
+		}
+		pub, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID, apv)
+		require.NoError(t, err)
+		assert.True(t, pub.Equal(&encPriv.PublicKey))
+		assert.True(t, ds.ListPSSOKeysFuncInvoked)
+	})
+
+	t.Run("rejects when no registered key matches", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.GetPSSOKeyFunc = func(ctx context.Context, _ string) (*fleet.PSSOKey, error) {
+			return nil, &testNotFoundError{}
+		}
+		ds.ListPSSOKeysFunc = func(ctx context.Context, _ string) ([]*fleet.PSSOKey, error) {
+			return nil, nil
+		}
+		_, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID, apv)
+		require.Error(t, err)
+	})
+
+	t.Run("rejects a malformed apv", func(t *testing.T) {
+		svc, _ := newSvc()
+		_, err := svc.resolvePSSOEncryptionKey(t.Context(), hostUUID,
+			base64.RawURLEncoding.EncodeToString([]byte("not party info")))
+		require.Error(t, err)
+	})
 }
 
 // TestPSSO_ParseRawECPointPEM covers the form the macOS extension actually

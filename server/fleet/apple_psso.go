@@ -5,15 +5,15 @@ import (
 	"time"
 )
 
-// PSSODevice is a Mac host's Apple Platform SSO registration record.
+// PSSODevice marks a Mac host as Apple Platform SSO-registered. It carries no
+// key material itself — the device's public keys live in PSSOKey rows that
+// cascade-delete with this record, so removing it completely clears a host's
+// PSSO registration. HostUUID is the hardware UUID (matches hosts.uuid; no FK,
+// like other host-adjacent tables).
 type PSSODevice struct {
-	HostID           uint      `db:"host_id"`
-	DeviceUUID       string    `db:"device_uuid"`
-	SigningKeyPEM    string    `db:"signing_key_pem"`
-	EncryptionKeyPEM string    `db:"encryption_key_pem"`
-	KeyExchangeKey   []byte    `db:"key_exchange_key"`
-	CreatedAt        time.Time `db:"created_at"`
-	UpdatedAt        time.Time `db:"updated_at"`
+	HostUUID  string    `db:"host_uuid"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // PSSOKeyType discriminates a device's signing key from its encryption key.
@@ -24,15 +24,18 @@ const (
 	PSSOKeyTypeEncryption PSSOKeyType = "encryption"
 )
 
-// PSSOKeyID indexes a device key by its kid (base64 SHA-256 of the key) so the
-// server can look up the owning device when an extension presents a JWT with
-// that kid in its header.
-type PSSOKeyID struct {
+// PSSOKey is one of a registered device's public keys, indexed by kid (base64
+// SHA-256 of the key bytes) so the server can resolve the owning device when
+// an extension presents a JWT with that kid in its header. A host may hold
+// several keys of the same type: re-registration adds new keys without
+// invalidating old ones.
+type PSSOKey struct {
 	KID       string      `db:"kid"`
-	HostID    uint        `db:"host_id"`
+	HostUUID  string      `db:"host_uuid"`
 	KeyType   PSSOKeyType `db:"key_type"`
 	PEM       string      `db:"pem"`
 	CreatedAt time.Time   `db:"created_at"`
+	UpdatedAt time.Time   `db:"updated_at"`
 }
 
 // PSSOClaims is the OIDC-shaped claim set the upstream IdP returns after a

@@ -10,114 +10,89 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// SetOrUpdatePSSODevice replaces (or creates) a host's PSSO registration in a
-// single transaction: upserts the device row, deletes any stale KeyID rows for
-// the host, then inserts the two new KeyID rows (signing + encryption).
-func (ds *Datastore) SetOrUpdatePSSODevice(
-	ctx context.Context,
-	device fleet.PSSODevice,
-	signKeyID fleet.PSSOKeyID,
-	encKeyID fleet.PSSOKeyID,
-) error {
+// SetOrUpdatePSSODevice upserts a host's PSSO registration: the device row
+// plus the given key rows in a single transaction. Keys are upserted by kid;
+// keys from earlier registrations are left in place so they keep working.
+func (ds *Datastore) SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []fleet.PSSOKey) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		const upsertDevice = `
-			INSERT INTO mdm_apple_psso_devices
-				(host_id, device_uuid, signing_key_pem, encryption_key_pem, key_exchange_key)
-			VALUES (?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				device_uuid        = VALUES(device_uuid),
-				signing_key_pem    = VALUES(signing_key_pem),
-				encryption_key_pem = VALUES(encryption_key_pem),
-				key_exchange_key   = VALUES(key_exchange_key)
+			INSERT INTO mdm_apple_psso_devices (host_uuid)
+			VALUES (?)
+			ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP(6)
 		`
-		if _, err := tx.ExecContext(ctx, upsertDevice,
-			device.HostID,
-			device.DeviceUUID,
-			device.SigningKeyPEM,
-			device.EncryptionKeyPEM,
-			device.KeyExchangeKey,
-		); err != nil {
+		if _, err := tx.ExecContext(ctx, upsertDevice, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert psso device")
 		}
 
-		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM mdm_apple_psso_key_ids WHERE host_id = ?`,
-			device.HostID,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear existing psso key_ids")
-		}
-
-		const insertKeyID = `
-			INSERT INTO mdm_apple_psso_key_ids (kid, host_id, key_type, pem)
+		const upsertKey = `
+			INSERT INTO mdm_apple_psso_keys (kid, host_uuid, key_type, pem)
 			VALUES (?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+				host_uuid = VALUES(host_uuid),
+				key_type  = VALUES(key_type),
+				pem       = VALUES(pem)
 		`
-		for _, k := range []fleet.PSSOKeyID{signKeyID, encKeyID} {
-			if _, err := tx.ExecContext(ctx, insertKeyID, k.KID, k.HostID, k.KeyType, k.PEM); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert psso key_id")
+		for _, k := range keys {
+			if _, err := tx.ExecContext(ctx, upsertKey, k.KID, hostUUID, k.KeyType, k.PEM); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert psso key")
 			}
 		}
 		return nil
 	})
 }
 
-// GetPSSODeviceByKeyID resolves a kid back to its owning device and the
-// specific KeyID row that matched (so callers know whether they're holding the
-// signing or encryption side of the device's keypair).
-func (ds *Datastore) GetPSSODeviceByKeyID(ctx context.Context, kid string) (*fleet.PSSODevice, *fleet.PSSOKeyID, error) {
-	type joined struct {
-		// device columns
-		HostID           uint   `db:"host_id"`
-		DeviceUUID       string `db:"device_uuid"`
-		SigningKeyPEM    string `db:"signing_key_pem"`
-		EncryptionKeyPEM string `db:"encryption_key_pem"`
-		KeyExchangeKey   []byte `db:"key_exchange_key"`
-		DeviceCreatedAt  []byte `db:"device_created_at"`
-		DeviceUpdatedAt  []byte `db:"device_updated_at"`
-		// key_id columns
-		KID         string             `db:"kid"`
-		KeyType     fleet.PSSOKeyType  `db:"key_type"`
-		PEM         string             `db:"pem"`
-		KIDCreated  []byte             `db:"kid_created_at"`
-	}
-
+func (ds *Datastore) GetPSSODevice(ctx context.Context, hostUUID string) (*fleet.PSSODevice, error) {
 	const stmt = `
-		SELECT
-			d.host_id            AS host_id,
-			d.device_uuid        AS device_uuid,
-			d.signing_key_pem    AS signing_key_pem,
-			d.encryption_key_pem AS encryption_key_pem,
-			d.key_exchange_key   AS key_exchange_key,
-			d.created_at         AS device_created_at,
-			d.updated_at         AS device_updated_at,
-			k.kid                AS kid,
-			k.key_type           AS key_type,
-			k.pem                AS pem,
-			k.created_at         AS kid_created_at
-		FROM mdm_apple_psso_key_ids k
-		JOIN mdm_apple_psso_devices d ON d.host_id = k.host_id
-		WHERE k.kid = ?
+		SELECT host_uuid, created_at, updated_at
+		FROM mdm_apple_psso_devices
+		WHERE host_uuid = ?
 	`
-
-	var row joined
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, kid); err != nil {
+	var device fleet.PSSODevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, ctxerr.Wrap(ctx, notFound("PSSOKeyID").WithName(kid))
+			return nil, ctxerr.Wrap(ctx, notFound("PSSODevice").WithName(hostUUID))
 		}
-		return nil, nil, ctxerr.Wrap(ctx, err, "get psso device by kid")
+		return nil, ctxerr.Wrap(ctx, err, "get psso device")
 	}
+	return &device, nil
+}
 
-	device := &fleet.PSSODevice{
-		HostID:           row.HostID,
-		DeviceUUID:       row.DeviceUUID,
-		SigningKeyPEM:    row.SigningKeyPEM,
-		EncryptionKeyPEM: row.EncryptionKeyPEM,
-		KeyExchangeKey:   row.KeyExchangeKey,
+func (ds *Datastore) GetPSSOKey(ctx context.Context, kid string) (*fleet.PSSOKey, error) {
+	const stmt = `
+		SELECT kid, host_uuid, key_type, pem, created_at, updated_at
+		FROM mdm_apple_psso_keys
+		WHERE kid = ?
+	`
+	var key fleet.PSSOKey
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &key, stmt, kid); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("PSSOKey").WithName(kid))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get psso key")
 	}
-	keyID := &fleet.PSSOKeyID{
-		KID:     row.KID,
-		HostID:  row.HostID,
-		KeyType: row.KeyType,
-		PEM:     row.PEM,
+	return &key, nil
+}
+
+func (ds *Datastore) ListPSSOKeys(ctx context.Context, hostUUID string) ([]*fleet.PSSOKey, error) {
+	const stmt = `
+		SELECT kid, host_uuid, key_type, pem, created_at, updated_at
+		FROM mdm_apple_psso_keys
+		WHERE host_uuid = ?
+		ORDER BY created_at DESC, kid
+	`
+	var keys []*fleet.PSSOKey
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list psso keys")
 	}
-	return device, keyID, nil
+	return keys, nil
+}
+
+// DeletePSSODevice clears a host's PSSO registration; the keys cascade.
+func (ds *Datastore) DeletePSSODevice(ctx context.Context, hostUUID string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM mdm_apple_psso_devices WHERE host_uuid = ?`, hostUUID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete psso device")
+	}
+	return nil
 }

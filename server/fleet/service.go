@@ -1556,8 +1556,8 @@ type Service interface {
 	// validates the device-key payload, and persists the registration.
 	PSSORegisterComplete(ctx context.Context, req PSSORegisterRequest) error
 	// PSSOToken handles the per-sign-in protocol message: parses the inbound
-	// signed JWT, dispatches on RequestType (key_request / key_exchange /
-	// password_request), and returns the JWE response body.
+	// signed JWT, dispatches on grant_type (password login) or request_type
+	// (key_request / key_exchange), and returns the JWE response body.
 	PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error)
 	// PSSOJWKS returns the JSON web key set that publishes Fleet's PSSO
 	// signing public key.

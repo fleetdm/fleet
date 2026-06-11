@@ -10,36 +10,36 @@ func init() {
 }
 
 func Up_20260611140639(tx *sql.Tx) error {
+	// Like most host-adjacent tables, these are keyed by host UUID with no FK
+	// to hosts (avoided for performance). A device row marks a host as
+	// PSSO-registered and is the cascade anchor for clearing all of a host's
+	// PSSO state; the public keys themselves live in mdm_apple_psso_keys,
+	// possibly several per host since old keys keep working after the device
+	// rotates or re-registers.
 	if _, err := tx.Exec(`
 		CREATE TABLE mdm_apple_psso_devices (
-			host_id              INT UNSIGNED NOT NULL,
-			device_uuid          VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-			signing_key_pem      TEXT          COLLATE utf8mb4_unicode_ci NOT NULL,
-			encryption_key_pem   TEXT          COLLATE utf8mb4_unicode_ci NOT NULL,
-			key_exchange_key     VARBINARY(64) NOT NULL,
-			created_at           TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-			updated_at           TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-			PRIMARY KEY (host_id),
-			UNIQUE KEY idx_mdm_apple_psso_devices_device_uuid (device_uuid),
-			CONSTRAINT fk_mdm_apple_psso_devices_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
+			host_uuid  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+			PRIMARY KEY (host_uuid)
 		)
 	`); err != nil {
 		return fmt.Errorf("creating mdm_apple_psso_devices table: %w", err)
 	}
 
 	if _, err := tx.Exec(`
-		CREATE TABLE mdm_apple_psso_key_ids (
-			kid                  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-			host_id              INT UNSIGNED NOT NULL,
-			key_type             ENUM('signing','encryption') COLLATE utf8mb4_unicode_ci NOT NULL,
-			pem                  TEXT          COLLATE utf8mb4_unicode_ci NOT NULL,
-			created_at           TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+		CREATE TABLE mdm_apple_psso_keys (
+			kid        VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			host_uuid  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			key_type   ENUM('signing','encryption') COLLATE utf8mb4_unicode_ci NOT NULL,
+			pem        TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+			updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (kid),
-			UNIQUE KEY idx_mdm_apple_psso_key_ids_host_type (host_id, key_type),
-			CONSTRAINT fk_mdm_apple_psso_key_ids_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
+			CONSTRAINT fk_mdm_apple_psso_keys_host_uuid FOREIGN KEY (host_uuid) REFERENCES mdm_apple_psso_devices (host_uuid) ON DELETE CASCADE
 		)
 	`); err != nil {
-		return fmt.Errorf("creating mdm_apple_psso_key_ids table: %w", err)
+		return fmt.Errorf("creating mdm_apple_psso_keys table: %w", err)
 	}
 
 	return nil

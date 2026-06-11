@@ -2090,9 +2090,15 @@ type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, 
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
 
-type SetOrUpdatePSSODeviceFunc func(ctx context.Context, device fleet.PSSODevice, signKeyID fleet.PSSOKeyID, encKeyID fleet.PSSOKeyID) error
+type SetOrUpdatePSSODeviceFunc func(ctx context.Context, hostUUID string, keys []fleet.PSSOKey) error
 
-type GetPSSODeviceByKeyIDFunc func(ctx context.Context, kid string) (*fleet.PSSODevice, *fleet.PSSOKeyID, error)
+type GetPSSODeviceFunc func(ctx context.Context, hostUUID string) (*fleet.PSSODevice, error)
+
+type GetPSSOKeyFunc func(ctx context.Context, kid string) (*fleet.PSSOKey, error)
+
+type ListPSSOKeysFunc func(ctx context.Context, hostUUID string) ([]*fleet.PSSOKey, error)
+
+type DeletePSSODeviceFunc func(ctx context.Context, hostUUID string) error
 
 type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
 
@@ -5205,8 +5211,17 @@ type DataStore struct {
 	SetOrUpdatePSSODeviceFunc        SetOrUpdatePSSODeviceFunc
 	SetOrUpdatePSSODeviceFuncInvoked bool
 
-	GetPSSODeviceByKeyIDFunc        GetPSSODeviceByKeyIDFunc
-	GetPSSODeviceByKeyIDFuncInvoked bool
+	GetPSSODeviceFunc        GetPSSODeviceFunc
+	GetPSSODeviceFuncInvoked bool
+
+	GetPSSOKeyFunc        GetPSSOKeyFunc
+	GetPSSOKeyFuncInvoked bool
+
+	ListPSSOKeysFunc        ListPSSOKeysFunc
+	ListPSSOKeysFuncInvoked bool
+
+	DeletePSSODeviceFunc        DeletePSSODeviceFunc
+	DeletePSSODeviceFuncInvoked bool
 
 	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
 	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
@@ -12454,18 +12469,39 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
 }
 
-func (s *DataStore) SetOrUpdatePSSODevice(ctx context.Context, device fleet.PSSODevice, signKeyID fleet.PSSOKeyID, encKeyID fleet.PSSOKeyID) error {
+func (s *DataStore) SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []fleet.PSSOKey) error {
 	s.mu.Lock()
 	s.SetOrUpdatePSSODeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdatePSSODeviceFunc(ctx, device, signKeyID, encKeyID)
+	return s.SetOrUpdatePSSODeviceFunc(ctx, hostUUID, keys)
 }
 
-func (s *DataStore) GetPSSODeviceByKeyID(ctx context.Context, kid string) (*fleet.PSSODevice, *fleet.PSSOKeyID, error) {
+func (s *DataStore) GetPSSODevice(ctx context.Context, hostUUID string) (*fleet.PSSODevice, error) {
 	s.mu.Lock()
-	s.GetPSSODeviceByKeyIDFuncInvoked = true
+	s.GetPSSODeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPSSODeviceByKeyIDFunc(ctx, kid)
+	return s.GetPSSODeviceFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetPSSOKey(ctx context.Context, kid string) (*fleet.PSSOKey, error) {
+	s.mu.Lock()
+	s.GetPSSOKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPSSOKeyFunc(ctx, kid)
+}
+
+func (s *DataStore) ListPSSOKeys(ctx context.Context, hostUUID string) ([]*fleet.PSSOKey, error) {
+	s.mu.Lock()
+	s.ListPSSOKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPSSOKeysFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) DeletePSSODevice(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeletePSSODeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePSSODeviceFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
