@@ -43,7 +43,7 @@ func TestZendeskOnFinalFailure(t *testing.T) {
 		require.NoError(t, z.OnFinalFailure(ctx, args, `422: {"error":"RecordInvalid"}`))
 
 		require.Len(t, recorded, 1)
-		act, ok := recorded[0].(fleet.ActivityTypeFailedTicketPolicyAutomation)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedAutomationTicket)
 		require.True(t, ok)
 		require.Equal(t, uint(6), act.PolicyID)
 		require.Equal(t, []uint{3}, act.HostIDList)
@@ -108,7 +108,7 @@ func TestZendeskRunRecordsCreatedActivity(t *testing.T) {
 		require.NoError(t, z.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), args))
 
 		require.Len(t, recorded, 1)
-		act, ok := recorded[0].(fleet.ActivityTypeQueuedTicketPolicyAutomation)
+		act, ok := recorded[0].(fleet.ActivityTypeRanAutomationTicket)
 		require.True(t, ok)
 		require.Equal(t, uint(6), act.PolicyID)
 		require.Equal(t, []uint{3}, act.HostIDList)

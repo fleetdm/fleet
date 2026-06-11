@@ -305,7 +305,7 @@ func TestJiraOnFinalFailure(t *testing.T) {
 		require.NoError(t, j.OnFinalFailure(ctx, args, "create issue: 401 Unauthorized"))
 
 		require.Len(t, recorded, 1)
-		act, ok := recorded[0].(fleet.ActivityTypeFailedTicketPolicyAutomation)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedAutomationTicket)
 		require.True(t, ok)
 		require.Equal(t, uint(5), act.PolicyID)
 		require.Equal(t, []uint{1, 2}, act.HostIDList)
@@ -370,7 +370,7 @@ func TestJiraRunRecordsCreatedActivity(t *testing.T) {
 		require.NoError(t, j.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), args))
 
 		require.Len(t, recorded, 1)
-		act, ok := recorded[0].(fleet.ActivityTypeQueuedTicketPolicyAutomation)
+		act, ok := recorded[0].(fleet.ActivityTypeRanAutomationTicket)
 		require.True(t, ok)
 		require.Equal(t, uint(5), act.PolicyID)
 		require.Equal(t, []uint{1, 2}, act.HostIDList)

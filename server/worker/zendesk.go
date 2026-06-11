@@ -267,7 +267,7 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 }
 
-// OnFinalFailure records a failed_ticket_policy_automation host activity once
+// OnFinalFailure records a failed_automation_ticket host activity once
 // the worker has exhausted all retries for a failing-policy job. Vulnerability
 // jobs are ignored as they are not host- or policy-scoped.
 func (z *Zendesk) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
@@ -283,7 +283,7 @@ func (z *Zendesk) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, 
 		return nil
 	}
 
-	return z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedTicketPolicyAutomation{
+	return z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationTicket{
 		PolicyID:      args.FailingPolicy.PolicyID,
 		HostIDList:    args.FailingPolicy.hostIDs(),
 		Type:          "zendesk",
@@ -355,7 +355,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 	z.Log.DebugContext(ctx, "created zendesk ticket for failing policy", attrs...)
 
 	if z.NewActivitySvc != nil {
-		if err := z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeQueuedTicketPolicyAutomation{
+		if err := z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
 			PolicyID:   args.FailingPolicy.PolicyID,
 			HostIDList: args.FailingPolicy.hostIDs(),
 			Type:       "zendesk",

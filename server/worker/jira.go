@@ -264,7 +264,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 }
 
-// OnFinalFailure records a failed_ticket_policy_automation host activity once
+// OnFinalFailure records a failed_automation_ticket host activity once
 // the worker has exhausted all retries for a failing-policy job. Vulnerability
 // jobs are ignored as they are not host- or policy-scoped.
 func (j *Jira) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
@@ -280,7 +280,7 @@ func (j *Jira) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, job
 		return nil
 	}
 
-	return j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedTicketPolicyAutomation{
+	return j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationTicket{
 		PolicyID:      args.FailingPolicy.PolicyID,
 		HostIDList:    args.FailingPolicy.hostIDs(),
 		Type:          "jira",
@@ -353,7 +353,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 	j.Log.DebugContext(ctx, "created jira issue for failing policy", attrs...)
 
 	if j.NewActivitySvc != nil {
-		if err := j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeQueuedTicketPolicyAutomation{
+		if err := j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
 			PolicyID:   args.FailingPolicy.PolicyID,
 			HostIDList: args.FailingPolicy.hostIDs(),
 			Type:       "jira",

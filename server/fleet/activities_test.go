@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFailedPolicyAutomationActivities(t *testing.T) {
+func TestFailedAutomationTicketActivities(t *testing.T) {
 	t.Run("ticket (jira)", func(t *testing.T) {
-		act := ActivityTypeFailedTicketPolicyAutomation{
+		act := ActivityTypeFailedAutomationTicket{
 			PolicyID:      8,
 			HostIDList:    []uint{11},
 			Type:          "jira",
 			ErrorResponse: "401 Unauthorized",
 		}
 
-		assert.Equal(t, "failed_ticket_policy_automation", act.ActivityName())
+		assert.Equal(t, "failed_automation_ticket", act.ActivityName())
 		assert.Equal(t, []uint{11}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -33,14 +33,14 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 	})
 
 	t.Run("ticket (zendesk)", func(t *testing.T) {
-		act := ActivityTypeFailedTicketPolicyAutomation{
+		act := ActivityTypeFailedAutomationTicket{
 			PolicyID:      9,
 			HostIDList:    []uint{12, 13},
 			Type:          "zendesk",
 			ErrorResponse: "422: {\"error\":\"RecordInvalid\"}",
 		}
 
-		assert.Equal(t, "failed_ticket_policy_automation", act.ActivityName())
+		assert.Equal(t, "failed_automation_ticket", act.ActivityName())
 		assert.Equal(t, []uint{12, 13}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -56,7 +56,7 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 	})
 }
 
-func TestSuccessPolicyAutomationActivities(t *testing.T) {
+func TestRanAutomationTicketActivities(t *testing.T) {
 	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
 	// host ID list or a policy name (both are intentionally omitted; hosts
 	// live one-per-row in activity_host_past).
@@ -68,15 +68,15 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		assert.False(t, hasPolicyName)
 	}
 
-	t.Run("ticket queued (jira)", func(t *testing.T) {
-		act := ActivityTypeQueuedTicketPolicyAutomation{
+	t.Run("ticket (jira)", func(t *testing.T) {
+		act := ActivityTypeRanAutomationTicket{
 			PolicyID:   8,
 			HostIDList: []uint{11},
 			Type:       "jira",
 			TicketKey:  "ABC-123",
 		}
 
-		assert.Equal(t, "queued_ticket_policy_automation", act.ActivityName())
+		assert.Equal(t, "ran_automation_ticket", act.ActivityName())
 		assert.Equal(t, []uint{11}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -93,15 +93,15 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		assertNoHostIDsOrPolicyName(t, got)
 	})
 
-	t.Run("ticket queued (zendesk)", func(t *testing.T) {
-		act := ActivityTypeQueuedTicketPolicyAutomation{
+	t.Run("ticket (zendesk)", func(t *testing.T) {
+		act := ActivityTypeRanAutomationTicket{
 			PolicyID:   9,
 			HostIDList: []uint{12, 13},
 			Type:       "zendesk",
 			TicketID:   4567,
 		}
 
-		assert.Equal(t, "queued_ticket_policy_automation", act.ActivityName())
+		assert.Equal(t, "ran_automation_ticket", act.ActivityName())
 		assert.Equal(t, []uint{12, 13}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
