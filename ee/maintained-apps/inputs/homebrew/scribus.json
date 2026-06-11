@@ -1,0 +1,10 @@
+{
+  "name": "Scribus",
+  "unique_identifier": "net.scribus",
+  "token": "scribus",
+  "installer_format": "dmg",
+  "slug": "scribus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

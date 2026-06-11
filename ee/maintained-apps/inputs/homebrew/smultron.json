@@ -1,0 +1,10 @@
+{
+  "name": "Smultron",
+  "unique_identifier": "com.peterborgapps.Smultron14",
+  "token": "smultron",
+  "installer_format": "zip",
+  "slug": "smultron/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

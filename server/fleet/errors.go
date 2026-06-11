@@ -37,6 +37,7 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
+	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -233,9 +234,22 @@ func (e *OTAForbiddenError) IsClientError() bool {
 // licenseError is returned when the application is not properly licensed.
 type licenseError struct {
 	ErrorWithUUID
+	cause *string
+}
+
+func NewLicenseErrorWithCause(cause string) *licenseError {
+	return &licenseError{cause: &cause}
+}
+
+func (e *licenseError) Is(target error) bool {
+	_, ok := target.(*licenseError)
+	return ok
 }
 
 func (e *licenseError) Error() string {
+	if e.cause != nil {
+		return fmt.Sprintf("%s requires Fleet Premium license", *e.cause)
+	}
 	return "Requires Fleet Premium license"
 }
 

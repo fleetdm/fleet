@@ -1,0 +1,10 @@
+{
+  "name": "Kaleidoscope",
+  "unique_identifier": "app.kaleidoscope.v6",
+  "token": "kaleidoscope",
+  "installer_format": "zip",
+  "slug": "kaleidoscope/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

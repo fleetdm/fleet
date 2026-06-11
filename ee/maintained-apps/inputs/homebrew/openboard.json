@@ -1,0 +1,10 @@
+{
+  "name": "OpenBoard",
+  "unique_identifier": "org.oe-f.OpenBoard",
+  "token": "openboard",
+  "installer_format": "dmg",
+  "slug": "openboard/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

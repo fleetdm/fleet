@@ -1,0 +1,10 @@
+{
+  "name": "KeepingYouAwake",
+  "unique_identifier": "info.marcel-dierkes.KeepingYouAwake",
+  "token": "keepingyouawake",
+  "installer_format": "zip",
+  "slug": "keepingyouawake/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
