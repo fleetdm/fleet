@@ -400,14 +400,14 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Create a token object' is set to an empty list
+  name: CIS - Ensure 'Create a token object' is set to 'No One'
   platforms: win11
   platform: windows
   description: |
     This policy setting allows a process to create an access token, which may provide elevated rights to access sensitive data.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateToken</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -436,7 +436,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Create permanent shared objects' is set to an empty list
+  name: CIS - Ensure 'Create permanent shared objects' is set to 'No One'
   platforms: win11
   platform: windows
   description: |
@@ -445,7 +445,7 @@ spec:
     not necessary to specifically assign this user right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreatePermanentSharedObjects</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -505,7 +505,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny access to this computer from the network' includes 'Guest'
+  name: CIS - Ensure 'Deny access to this computer from the network' to include 'Guests, Local account'
   platforms: win11
   platform: windows
   description: |
@@ -516,10 +516,10 @@ spec:
     this computer from the network user right if an account is subject to both policies.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guest'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
@@ -527,7 +527,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on as a batch job' includes 'Guests'
+  name: CIS - Ensure 'Deny log on as a batch job' to include 'Guests'
   platforms: win11
   platform: windows
   description: |
@@ -546,7 +546,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on as a service' includes 'Guests'
+  name: CIS - Ensure 'Deny log on as a service' to include 'Guests'
   platforms: win11
   platform: windows
   description: |
@@ -565,7 +565,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on locally' includes 'Guest'
+  name: CIS - Ensure 'Deny log on locally' to include 'Guests'
   platforms: win11
   platform: windows
   description: |
@@ -585,17 +585,17 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on through Remote Desktop Services' includes 'Guest'
+  name: CIS - Ensure 'Deny log on through Remote Desktop Services' to include 'Guests, Local account'
   platforms: win11
   platform: windows
   description: |
     This policy setting determines whether users can log on as Remote Desktop clients. This user right supersedes the Allow log on through Remote Desktop Services user right if an account is subject to both policies.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
@@ -603,14 +603,14 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to an empty list
+  name: CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to 'No One'
   platforms: win11
   platform: windows
   description: |
     This policy setting allows users to change the Trusted for Delegation setting on a computer object in Active Directory. Abuse of this privilege could allow unauthorized users to impersonate other users on the network.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/EnableDelegation</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -632,7 +632,7 @@ spec:
     right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RemoteShutdown</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -650,7 +650,7 @@ spec:
     This policy setting determines which users or processes can generate audit records in the Security log.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'LOCAL SERVICE, NETWORK SERVICE'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/GenerateSecurityAudits</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(LOCAL SERVICE|NETWORK SERVICE).*",0) is not null);
@@ -672,7 +672,7 @@ spec:
     they have created to impersonate that client, which could elevate the unauthorized user's permissions to administrative or system levels.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ImpersonateClient</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
@@ -692,7 +692,7 @@ spec:
     user right is not required by administrative tools that are supplied with the operating system but might be required by software development tools.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, Window Manager\Window Manager Group'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/IncreaseSchedulingPriority</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Window Manager Group).*",0) is not null);
@@ -713,8 +713,8 @@ spec:
     Windows.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Load and unload device drivers'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LoadUnloadDeviceDrivers</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
@@ -724,14 +724,14 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Lock pages in memory' is set to an empty list
+  name: CIS - Ensure 'Lock pages in memory' is set to 'No One'
   platforms: win11
   platform: windows
   description: |
     This policy setting allows a process to keep data in physical memory, which prevents the system from paging the data to virtual memory on disk. If this user right is assigned, significant degradation of system performance can occur.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Lock pages in memory'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LockMemory</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -753,7 +753,7 @@ spec:
     after gaining user level access to a computer.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a batch job'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.28" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
@@ -775,7 +775,7 @@ spec:
     Vista-based (and newer) computers, no users or groups have this privilege by default.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.29" AND value = ",";
@@ -793,7 +793,7 @@ spec:
     This policy setting determines which users can change the auditing options for files and directories and clear the Security log.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ManageAuditingAndSecurityLog</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -804,7 +804,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Modify an object label' is set to an empty list
+  name: CIS - Ensure 'Modify an object label' is set to 'No One'
   platforms: win11
   platform: windows
   description: |
@@ -813,7 +813,7 @@ spec:
     can modify the label of an object owned by that user to a lower level without this privilege.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify an object label'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyObjectLabel</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -833,7 +833,7 @@ spec:
     Configuration. Modification of these values and could lead to a hardware failure that would result in a denial of service condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify firmware environment values'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyFirmwareEnvironment</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -851,7 +851,7 @@ spec:
     This policy setting allows users to manage the system's volume or disk configuration, which could allow a user to delete a volume and cause data loss as well as a denial-ofservice condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Perform volume maintenance tasks'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.33" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
@@ -874,7 +874,7 @@ spec:
     information that could be used to mount an attack on the system.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Profile single process'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ProfileSingleProcess</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -935,7 +935,7 @@ spec:
     directories user right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Restore files and directories'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RestoreFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -973,7 +973,7 @@ spec:
     or threads. This user right bypasses any permissions that are in place to protect objects to give ownership to the specified user.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Take ownership of files or other objects'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -1119,7 +1119,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1144,7 +1145,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1169,7 +1171,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally sign secure channel data (when possible)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally sign secure channel data (when possible)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1195,7 +1198,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Disable machine account password changes' is set to 'Disabled'
+  name: >
+    CIS - Ensure 'Domain member: Disable machine account password changes' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
@@ -1224,7 +1228,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Maximum machine account password age' is set to '30 or fewer days, but not 0'
+  name: >
+    CIS - Ensure 'Domain member: Maximum machine account password age' is set to '30 or fewer days, but not 0'
   platforms: win11
   platform: windows
   description: |
@@ -1254,7 +1259,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Require strong (Windows 2000 or later) session key' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Require strong (Windows 2000 or later) session key' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1440,7 +1446,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1458,7 +1465,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (if server agrees)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Digitally sign communications (if server agrees)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1476,7 +1484,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Send unencrypted password to third-party SMB servers' is set to 'Disabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Send unencrypted password to third-party SMB servers' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
@@ -1494,7 +1503,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
+  name: >
+    CIS - Ensure 'Microsoft network server: Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
   platforms: win11
   platform: windows
   description: |
@@ -1515,7 +1525,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1535,7 +1546,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (if client agrees)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1555,7 +1567,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Disconnect clients when logon hours expire' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Disconnect clients when logon hours expire' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1575,7 +1588,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Server SPN target name validation level' is set to 'Accept if provided by client'
+  name: >
+    CIS - Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client'
   platforms: win11
   platform: windows
   description: |
@@ -1931,7 +1945,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Network security Do not store LAN Manager hash value on next password change' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Network security: Do not store LAN Manager hash value on next password change' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -3878,7 +3893,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Audit PNP Activity' is set to 'Success'
+  name: CIS - Ensure 'Audit User Account Management' is set to 'Success and Failure'
   platforms: win11
   platform: windows
   description: |
@@ -11181,3 +11196,318 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should follow through the network.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting IPv6) IP source routing protection level'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should follow through the network.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit insecure guest logon' (Lanman Server) is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy determines whether the SMB server will log events when the client is logged on as guest account. Insecure guest logons can be used by file servers to allow unauthenticated access to shared folders.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit insecure guest logon'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditInsecureGuestLogon' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable remote mailslots' (Lanman Server) is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls whether the SMB server will use remote mailslots over the computer browser service. The remote mailslots protocol is an old, simple, unreliable, and insecure inter-process communication method.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable remote mailslots'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Bowser\EnableMailslots' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Server) is set to 'Enabled: 3.1.1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls the minimum version of Server Message Block (SMB) protocol that can be used on the system. SMBv1 is no longer enabled by default due to its security risks, and although SMBv2 is more robust than v1, it does not support encryption like its successor.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 3.1.1:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Mandate the minimum version of SMB'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\MinSmb2Dialect' AND CAST(data AS INTEGER) = 785;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit insecure guest logon' (Lanman Workstation) is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy determines whether the SMB client will log events when the client is logged on as guest account. Insecure guest logons can be used by file servers to allow unauthenticated access to shared folders.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit insecure guest logon'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditInsecureGuestLogon' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable remote mailslots' (Lanman Workstation) is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls whether the SMB client will use remote mailslots over Multiple UNC Provider (MUP). The remote mailslots protocol is an old, simple, unreliable, and insecure inter-process communication method.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Enable remote mailslots'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\EnableMailslots' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Workstation) is set to 'Enabled: 3.1.1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls the minimum version of Server Message Block (SMB) protocol that can be used on the system. The newer SMB v3 is supported on all currently supported Microsoft Windows OSes.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 3.1.1:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Mandate the minimum version of SMB'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\MinSmb2Dialect' AND CAST(data AS INTEGER) = 785;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Minimize the number of simultaneous connections to the Internet or a Windows Domain' is set to 'Enabled: 3 = Prevent Wi-Fi when on Ethernet'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting prevents computers from establishing multiple simultaneous connections to either the Internet or to a Windows domain.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 3 = Prevent Wi-Fi when on Ethernet:
+    'Computer Configuration\Policies\Administrative Templates\Network\Windows Connection Manager\Minimize the number of simultaneous connections to the Internet or a Windows Domain'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy\fMinimizeConnections' AND CAST(data AS INTEGER) = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Prohibit connection to non-domain networks when connected to domain authenticated network' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting prevents computers from connecting to both a domain based network and a non-domain based network at the same time.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Windows Connection Manager\Prohibit connection to non-domain networks when connected to domain authenticated network'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy\fBlockNonDomain' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow Windows to automatically connect to suggested open hotspots, to networks shared by contacts, and to hotspots offering paid services' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether users can enable WLAN settings including Connect to suggested open hotspots, Connect to networks shared by my contacts, and Enable paid services. Automatically connecting to an open hotspot or network can introduce the system to a rogue network with malicious intent.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\WLAN Service\WLAN Settings\Allow Windows to automatically connect to suggested open hotspots, to networks shared by contacts, and to hotspots offering paid services'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config\AutoConnectAllowedOEM' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections' is set to 'Enabled: Negotiate' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls which protocols incoming Remote Procedure Call (RPC) connections to the print spooler are allowed to use. Configuring this setting to Enabled: Kerberos also conforms to the benchmark.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Negotiate or Enabled: Kerberos:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC listener settings: Configure protocol options for incoming RPC connections'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\ForceKerberosForRpc' AND (data = 0 OR data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure RPC over TCP port' is set to 'Enabled: 0'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls which port is used for RPC over TCP for incoming connections to the print spooler and outgoing connections to remote print spoolers. Using dynamic ports makes it more difficult for a threat actor to know which port is being used.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 0:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC over TCP port'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcTcpPort' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable / disable CLFS logfile authentication' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures Common Log File System (CLFS) logfile authentication. Logfile authentication provides the ability for the CLFS driver to detect malicious modifications made to logfiles. CLFS is a security feature which hardens logfile parsing. If modifications to logfiles are detected, CLFS will consider the logfile unsafe for parsing and return an error to the caller. It is also able to detect modifications by writing authentication codes to logfiles which combines file data with a system-unique cryptographic key.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Filesystem\Enable / disable CLFS logfile authentication'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Policies\ClfsAuthenticationChecking' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow Recall to be enabled' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the Recall optional component is available for end users to enable on the system. Microsoft Recall periodically captures screenshots of the system display, creating a searchable timeline of activity including apps, documents, and websites. Saving snapshots of all user activity could result in sensitive information such as passwords or banking details being stored insecurely and making it easily accessible.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows AI\Allow Recall to be enabled'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\AllowRecallEnablement' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable HTTP proxy features: Disable WPAD' is set to 'Enabled: Checked'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Web Proxy Auto-Discovery protocol (WPAD) is disabled on the system. WPAD is used to discover Proxy Auto-Config (PAC) files from the local network. WPAD could expose the system to Man-In-The-Middle (MITM) attacks. If an organization depends on HTTP proxy configuration, it is recommended that other client configuration mechanisms be used instead, such as Group Policy.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Checked:
+    'Computer Configuration\Policies\Administrative Templates\Center for Internet Security (CIS)\Additional Benchmark Settings\Disable HTTP proxy features: Disable WPAD'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp\DisableWpad' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable HTTP proxy features: Disable proxy authentication' is set to 'Enabled: Disable authentication over loopback interfaces' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Windows can authenticate over a loopback interface. It is best to limit the sign-in interface to only known and trusted services, so malicious actors can't impersonate them. Configuring this setting to 'Disable all authentication protocols and loopback authentication' also conforms to the benchmark.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Disable authentication over loopback interfaces or Disable all authentication protocols and loopback authentication:
+    'Computer Configuration\Policies\Administrative Templates\Center for Internet Security (CIS)\Additional Benchmark Settings\Disable HTTP proxy features: Disable proxy authentication'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\DisableProxyAuthenticationSchemes' AND (data = 256 OR data = 287);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm

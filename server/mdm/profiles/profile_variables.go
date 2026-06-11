@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -62,7 +61,7 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger *slog.Logger,
 		return "", nil, false, ctxerr.Wrap(ctx, err, "generating SCEP challenge")
 	}
 	// Insert the SCEP URL into the profile contents
-	proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+	proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), SCEPProxyPath,
 		url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
 	contents, err = ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPProxyURLPrefix), ca.Name, profileContents, proxyURL)
 	if err != nil {
@@ -224,6 +223,21 @@ func IsCustomSCEPConfigured(ctx context.Context,
 	}
 
 	return nil
+}
+
+// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by an identifier.
+const SCEPProxyPath = "/mdm/scep/proxy/"
+
+// BuildNDESSCEPProxyURL constructs the NDES SCEP proxy URL for a given host and profile.
+func BuildNDESSCEPProxyURL(mdmURL string, hostUUID string, profileUUID string) string {
+	return fmt.Sprintf("%s%s%s", mdmURL, SCEPProxyPath,
+		url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profileUUID)))
+}
+
+// ReplaceNDESSCEPProxyURLVariable replaces the NDES SCEP proxy URL variable in profile contents.
+func ReplaceNDESSCEPProxyURLVariable(mdmURL string, hostUUID string, profileUUID string, profileContents string) string {
+	proxyURL := BuildNDESSCEPProxyURL(mdmURL, hostUUID, profileUUID)
+	return ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPProxyURLRegexp, profileContents, proxyURL)
 }
 
 func HydrateHost(ctx context.Context, ds fleet.Datastore, hostLite fleet.Host, onHostCountMismatch func(int) error) (fleet.Host, bool, error) {

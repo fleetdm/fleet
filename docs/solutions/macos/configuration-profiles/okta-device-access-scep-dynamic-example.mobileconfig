@@ -24,6 +24,10 @@
 							<string>CN</string>
 							<string>managementAttestation %HardwareUUID%</string>
 						</array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+						</array>
 					</array>
 				</array>
 				<key>URL</key>

@@ -17,6 +17,7 @@ interface IOSSettingsModalProps {
    * This behaviour is dynamic based on the page this modal is rendered on
    * so we allow the request function to be passed in */
   resendRequest: (profileUUID: string) => Promise<void>;
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
   onClose: () => void;
   /** handler that fires when a profile was reset. Requires `canResendProfiles` prop
@@ -34,6 +35,7 @@ const OSSettingsModal = ({
   canRotateRecoveryLockPassword = false,
   onClose,
   resendRequest,
+  resendCertificateRequest,
   rotateRecoveryLockPassword,
   onProfileResent,
 }: IOSSettingsModalProps) => {
@@ -57,11 +59,12 @@ const OSSettingsModal = ({
         canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
         tableData={memoizedTableData ?? []}
         resendRequest={resendRequest}
+        resendCertificateRequest={resendCertificateRequest}
         rotateRecoveryLockPassword={rotateRecoveryLockPassword}
         onProfileResent={onProfileResent}
       />
       <div className="modal-cta-wrap">
-        <Button onClick={onClose}>Done</Button>
+        <Button onClick={onClose}>Close</Button>
       </div>
     </Modal>
   );

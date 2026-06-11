@@ -10,7 +10,7 @@ const RotatedHostRecoveryLockPasswordActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      rotated the Recovery Lock password for this host.
+      triggered rotation of the Recovery Lock password for this host.
     </ActivityItem>
   );
 };

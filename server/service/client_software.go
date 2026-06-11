@@ -40,7 +40,7 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
 	var responseBody getSetupExperienceSoftwareResponse
-	query := fmt.Sprintf("platform=%s&team_id=%d", platform, teamID)
+	query := fmt.Sprintf("platform=%s&fleet_id=%d", platform, teamID)
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fle
 func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	var query string
 	if teamID != nil {
-		query = fmt.Sprintf("team_id=%d", *teamID)
+		query = fmt.Sprintf("fleet_id=%d", *teamID)
 	}
 	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
 	var responseBody getSoftwareTitleResponse
@@ -67,12 +67,12 @@ func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTit
 
 func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID)
-	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("team_id=%d", teamID), nil)
+	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("fleet_id=%d", teamID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("parsing icon response: %w", err)
 	}
@@ -86,39 +86,39 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
-			return nil, errors.New(resp.Message)
+			return nil, nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:
-			return matchPackageIcons(softwareInstallers, resp.Packages), nil
+			return matchPackageIcons(softwareInstallers, resp.Packages), resp.DeletedPackages, nil
 		default:
-			return nil, fmt.Errorf("unknown status: %q", resp.Status)
+			return nil, nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
 }
@@ -206,12 +206,18 @@ func (c *Client) UpdateIcon(teamID uint, titleID uint, filename string, hash str
 	return c.putIcon(teamID, titleID, writer, buf)
 }
 
+// ErrIconBytesMissing is returned by UpdateIcon when the server has the
+// software_title_icons row but the underlying bytes for the requested storage
+// hash are missing or fail integrity. Callers can fall back to a full upload
+// to recover.
+var ErrIconBytesMissing = errors.New("icon bytes missing on server")
+
 func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, buf bytes.Buffer) error {
 	response, err := c.doContextWithBodyAndHeaders(
 		context.Background(),
 		"PUT",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		buf.Bytes(),
 		map[string]string{
 			"Content-Type":  writer.FormDataContentType(),
@@ -224,18 +230,21 @@ func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, bu
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusConflict:
+		return ErrIconBytesMissing
+	default:
 		return fmt.Errorf("update icon: unexpected status code: %d", response.StatusCode)
 	}
-
-	return nil
 }
 
 func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
 	response, err := c.AuthenticatedDo(
 		"DELETE",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
-		fmt.Sprintf("team_id=%d", teamID),
+		fmt.Sprintf("fleet_id=%d", teamID),
 		nil,
 	)
 	if err != nil {
@@ -255,5 +264,53 @@ func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
 func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
 	verb, path := "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostID, softwareTitleID)
 	var responseBody installSoftwareResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}
+
+func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", id)
+	var responseBody getFleetMaintainedAppResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApp, nil
+}
+
+func (c *Client) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
+	verb, path := "GET", "/api/latest/fleet/software/fleet_maintained_apps"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+
+	var responseBody listFleetMaintainedAppsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.FleetMaintainedApps, nil
+}
+
+func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	verb, path := "GET", "/api/latest/fleet/software/self_service_categories"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+	var responseBody getSelfServiceCategoriesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategories, nil
+}
+
+func (c *Client) AddSelfServiceCategory(teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	verb, path := "POST", "/api/latest/fleet/software/self_service_categories"
+	body := addSelfServiceCategoriesRequest{TeamID: &teamID, Name: name}
+	var responseBody addSelfServiceCategoriesResponse
+	if err := c.authenticatedRequest(body, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategory, nil
+}
+
+func (c *Client) DeleteSelfServiceCategory(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
+	var responseBody deleteSelfServiceCategoriesResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

@@ -54,7 +54,7 @@ const PolicyFailingCount = ({
     );
 
   return failCount ? (
-    <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
+    <InfoBanner className={baseClass} borderRadius="xlarge">
       <IconStatusMessage
         iconName="error-outline"
         iconColor="ui-fleet-black-50"

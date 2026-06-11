@@ -22,7 +22,8 @@ Fleet is organized into three main product groups:
 
 - [MDM](product-groups/mdm/README.md) - Mobile Device Management
 - [Orchestration](product-groups/orchestration/README.md) - Device orchestration using osquery
-- [Software](product-groups/software/README.md) - Software inventory, vulnerability management, and software installation
+- [Security & Compliance](product-groups/security-compliance/README.md) - Software inventory, vulnerability management
+- [Software](product-groups/software/README.md) - Software installation
 
 ## Contributing
 

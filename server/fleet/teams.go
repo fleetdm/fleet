@@ -51,7 +51,30 @@ type TeamPayload struct {
 	Integrations       *TeamIntegrations    `json:"integrations"`
 	MDM                *TeamPayloadMDM      `json:"mdm"`
 	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
+	Features           *TeamPayloadFeatures `json:"features"`
 	// Note AgentOptions must be set by a separate endpoint.
+}
+
+// TeamPayloadFeatures is a payload-only subset of Features writable via
+// `PATCH /api/v1/fleet/fleets/{id}`. It mirrors the global config's
+// `features` shape so admins can use the same JSON path on both endpoints.
+//
+// Only the sub-fields defined here take effect; the broader Features
+// fields (enable_host_users, enable_software_inventory, additional_queries,
+// detail_query_overrides) remain settable per-fleet only via the
+// `/spec/fleets` GitOps path.
+type TeamPayloadFeatures struct {
+	HistoricalData *HistoricalDataPayload `json:"historical_data"`
+}
+
+// HistoricalDataPayload is the per-sub-key partial-PATCH form of
+// HistoricalDataSettings. Each field uses optjson.Bool so a sub-key omitted
+// from a PATCH body retains its current stored value, while a sub-key
+// explicitly set to `false` flips it. Mirrors how MDM.EnableDiskEncryption
+// behaves on this endpoint.
+type HistoricalDataPayload struct {
+	Uptime          optjson.Bool `json:"uptime"`
+	Vulnerabilities optjson.Bool `json:"vulnerabilities"`
 }
 
 // TeamPayloadMDM is a distinct struct than TeamMDM because in ModifyTeam we
@@ -185,7 +208,7 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
-		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(x.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 	*t = Team{
 		ID:          x.ID,
@@ -274,6 +297,7 @@ type TeamSpecAppStoreApp struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsIncludeAll []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
@@ -332,7 +356,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
@@ -423,6 +447,12 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	}
 	if !t.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		t.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		t.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 	return json.Marshal(t)
 }

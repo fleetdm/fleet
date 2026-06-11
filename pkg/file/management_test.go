@@ -61,6 +61,9 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 		gotScript = GetUninstallScript(itype)
 		assertGoldenMatches(t, scripts["uninstall"], gotScript, *update)
 	}
+
+	// Fleetd-specific install script for pkg
+	assertGoldenMatches(t, "./scripts/install_pkg_fleetd.sh", InstallPkgFleetdScript, *update)
 }
 
 func TestValidatePackageIdentifiers(t *testing.T) {

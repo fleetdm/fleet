@@ -29,7 +29,7 @@ const AuthenticationNav = ({
     return () => {
       document.removeEventListener("keydown", closeWithEscapeKey);
     };
-  }, []);
+  }, [router]);
 
   const onClick = (): void => {
     if (previousLocation) {

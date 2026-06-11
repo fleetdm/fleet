@@ -6,6 +6,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -31,22 +34,25 @@ spec:
       windows_updates:
         deadline_days: null
         grace_period_days: null
-      macos_settings:
-        custom_settings: null
+      apple_settings:
+        configuration_profiles: null
       windows_settings:
-        custom_settings: null
+        configuration_profiles: null
       android_settings:
-        custom_settings: null
+        configuration_profiles: null
         certificates: null
-      macos_setup:
-        bootstrap_package:
+      setup_experience:
+        macos_bootstrap_package:
+        enable_create_local_admin_account:
         enable_end_user_authentication: false
-        enable_release_device_manually: false
+        apple_enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
-        macos_setup_assistant:
-        manual_agent_install:
+        apple_setup_assistant:
+        macos_manual_agent_install:
         require_all_software_macos: false
-        script:
+        require_all_software_windows: false
+        macos_script:
         software:
     scripts: null
     secrets: null
@@ -58,6 +64,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -93,11 +102,14 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_managed_local_account:
         enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null
@@ -123,6 +135,9 @@ spec:
         foo: bar
       enable_host_users: false
       enable_software_inventory: false
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
@@ -142,22 +157,25 @@ spec:
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
       windows_settings:
-        custom_settings:
+        configuration_profiles:
       android_settings:
-        custom_settings:
+        configuration_profiles:
         certificates:
-      macos_setup:
-        bootstrap_package:
+      setup_experience:
+        macos_bootstrap_package:
+        enable_create_local_admin_account:
         enable_end_user_authentication: false
-        enable_release_device_manually: false
+        apple_enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
-        macos_setup_assistant:
-        manual_agent_install:
+        apple_setup_assistant:
+        macos_manual_agent_install:
         require_all_software_macos: false
-        script:
+        require_all_software_windows: false
+        macos_script:
         software:
     scripts: null
     webhook_settings:
@@ -176,6 +194,9 @@ spec:
         foo: bar
       enable_host_users: false
       enable_software_inventory: false
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
@@ -205,11 +226,14 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_managed_local_account:
         enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null

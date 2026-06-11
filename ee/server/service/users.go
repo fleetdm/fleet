@@ -39,9 +39,15 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		}
 
 		// Load custom roles from SSO attributes.
-		ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+		ssoRolesInfo, coercedAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
+		}
+		if len(coercedAttrs) > 0 {
+			svc.logger.WarnContext(ctx,
+				"SAML role attribute(s) coerced to null due to empty value",
+				"attributes", coercedAttrs,
+			)
 		}
 		if !ssoRolesInfo.IsSet() {
 			// If role attributes were not set, then there's nothing to do here.
@@ -92,9 +98,15 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		teamRoles  []fleet.UserTeam
 	)
 	// Attempt to retrieve user roles from SAML custom attributes.
-	ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+	ssoRolesInfo, coercedAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
+	}
+	if len(coercedAttrs) > 0 {
+		svc.logger.WarnContext(ctx,
+			"SAML role attribute(s) coerced to null due to empty value",
+			"attributes", coercedAttrs,
+		)
 	}
 	if ssoRolesInfo.IsSet() {
 		globalRole, teamRoles, err = svc.userRolesFromSSOAttributes(ctx, ssoRolesInfo)

@@ -21,7 +21,7 @@ const getHostStatusPreview = (teamScope?: boolean) => {
 
   return {
     text:
-      "More than X% of your hosts have not checked into Fleet for more than Y days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
+      "More than X% of your hosts have not checked into Fleet for more than Y days. You've been sent this message because the Host status webhook is enabled in your Fleet instance.",
     data,
   };
 };
@@ -54,7 +54,7 @@ const HostStatusWebhookPreviewModal = ({
       </div>
       <div className="modal-cta-wrap">
         <Button type="button" onClick={toggleModal}>
-          Done
+          Close
         </Button>
       </div>
     </Modal>

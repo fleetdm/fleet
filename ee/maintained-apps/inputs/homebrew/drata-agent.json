@@ -1,0 +1,10 @@
+{
+  "name": "Drata Agent",
+  "unique_identifier": "com.drata.agent",
+  "token": "drata-agent",
+  "installer_format": "dmg",
+  "slug": "drata-agent/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

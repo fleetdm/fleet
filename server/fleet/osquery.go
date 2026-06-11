@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
 
 // OsqueryDistributedQueryResults represents the format of the results of an
@@ -77,15 +77,14 @@ type PermissivePacks map[string]PermissivePackContent
 
 // DatastoreEnrollOsqueryConfig holds the configuration for datastore Host enrollment
 type DatastoreEnrollOsqueryConfig struct {
-	IsMDMEnabled     bool
-	OsqueryHostID    string
-	HardwareUUID     string
-	HardwareSerial   string
-	NodeKey          string
-	TeamID           *uint
-	Cooldown         time.Duration
-	IdentityCert     *types.HostIdentityCertificate
-	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
+	IsMDMEnabled   bool
+	OsqueryHostID  string
+	HardwareUUID   string
+	HardwareSerial string
+	NodeKey        string
+	TeamID         *uint
+	Cooldown       time.Duration
+	IdentityCert   *types.HostIdentityCertificate
 }
 
 // DatastoreEnrollOsqueryOption is a functional option for configuring datastore Host enrollment
@@ -143,13 +142,5 @@ func WithEnrollOsqueryCooldown(cooldown time.Duration) DatastoreEnrollOsqueryOpt
 func WithEnrollOsqueryIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOsqueryOption {
 	return func(c *DatastoreEnrollOsqueryConfig) {
 		c.IdentityCert = identityCert
-	}
-}
-
-// WithEnrollOsqueryIgnoreTeamUpdate sets whether to ignore team updates for datastore Host enrollment
-// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
-func WithEnrollOsqueryIgnoreTeamUpdate(ignore bool) DatastoreEnrollOsqueryOption {
-	return func(c *DatastoreEnrollOsqueryConfig) {
-		c.IgnoreTeamUpdate = ignore
 	}
 }

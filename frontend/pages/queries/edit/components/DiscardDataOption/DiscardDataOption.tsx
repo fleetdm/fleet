@@ -78,7 +78,7 @@ const DiscardDataOption = ({
   return (
     <div className={baseClass}>
       {isReportsLoggingIgnored && (
-        <InfoBanner color="grey">
+        <InfoBanner>
           The <b>Discard data</b> setting is ignored when differential logging
           is enabled. This report&apos;s results will not be saved in Fleet.
         </InfoBanner>

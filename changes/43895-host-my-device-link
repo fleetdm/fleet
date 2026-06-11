@@ -1,0 +1,3 @@
+- Added a "My device" button on the host details User card so global admins can open the host's end-user My device page in a new tab; Fleet refreshes or generates the device auth token as needed so the link is always valid.
+- Showed the end user's IdP full name (e.g. "Jane Doe's device") on the My device page header and browser tab when available; falls back to "My device" otherwise.
+- Updated self-service activity copy to passive voice without an "end user" actor (e.g. "GitHub Desktop was installed on this host (self-service).") on both the host activity feed and the dashboard global activity feed.

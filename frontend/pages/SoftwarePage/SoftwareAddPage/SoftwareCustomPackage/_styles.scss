@@ -1,9 +1,7 @@
 .software-custom-package {
+  @include vertical-page-layout;
+
   &__premium-message {
     margin-top: $pad-xxxlarge;
   }
-}
-
-.info-banner {
-  margin-bottom: $pad-xlarge;
 }

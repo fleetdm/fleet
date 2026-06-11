@@ -1,27 +1,4 @@
-import React, { MouseEvent } from "react";
-
 import { hyphenateString } from "utilities/strings/stringUtils";
-
-// Helper to join items with commas and Oxford comma before "and"
-const joinWithCommasAnd = (
-  elements: { key: string; element: JSX.Element }[]
-) => {
-  return elements.map((item, idx) => {
-    if (idx === 0) return item.element;
-    if (idx === elements.length - 1) {
-      return (
-        <React.Fragment key={`and-${item.key}`}>
-          {elements.length > 2 ? "," : ""} and {item.element}
-        </React.Fragment>
-      );
-    }
-    return (
-      <React.Fragment key={`comma-${item.key}`}>
-        , {item.element}
-      </React.Fragment>
-    );
-  });
-};
 
 interface CreatePackageYamlParams {
   softwareTitle: string;

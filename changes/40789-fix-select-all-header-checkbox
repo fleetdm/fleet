@@ -1,1 +1,0 @@
-* Fixed select-all header checkbox not selecting rows on partial pages where not all rows are selectable.

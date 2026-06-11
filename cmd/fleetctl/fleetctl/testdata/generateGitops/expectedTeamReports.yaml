@@ -7,4 +7,4 @@
   name: Team Query
   observer_can_run: false
   platform: linux,windows
-  query: SELECT * FROM team_query WHERE id = 1
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';

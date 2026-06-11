@@ -1,4 +1,9 @@
 .manage-labels-page {
+  // Opt out of MainContent's `overflow: auto` so the actions dropdown menu
+  // can spill below the page without triggering a second scrollbar on
+  // MainContent. Matches the pattern used by `.admin-wrapper`.
+  overflow: visible;
+
   @include vertical-page-layout;
 
   &__header-wrap {

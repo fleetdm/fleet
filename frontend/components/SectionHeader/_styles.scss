@@ -1,6 +1,7 @@
 .section-header {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
 
   &__left-header {
     display: flex;
@@ -9,18 +10,20 @@
 
     &--vertical {
       flex-direction: column;
+      gap: $pad-xsmall;
     }
   }
 
   &__sub-title {
+    font-size: $x-small;
+    font-weight: $regular;
     &--grey {
-      font-size: $x-small;
       @include grey-text;
     }
   }
 
   h2 {
-    font-size: $medium;
+    font-size: $small;
     width: 100%;
   }
 

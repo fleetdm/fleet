@@ -1,6 +1,10 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  .date-tooltip {
+    cursor: pointer;
+  }
+
   .truncated-tooltip {
     .vitals-card__device-mapping__source {
       color: inherit;
@@ -54,9 +58,10 @@
   }
 
   // OS version with requirement icon + tooltip truncation
-  &__os-version {
+  // MDM status may have an error icon if status is off
+  &__os-version,
+  &__mdm-status {
     display: flex;
-    align-items: center;
     gap: $pad-xsmall;
     min-width: 0;
 
@@ -81,13 +86,22 @@
     white-space: nowrap;
   }
 
-  &__os-data-set {
-    .component__tooltip-wrapper {
-      margin-left: $pad-xsmall;
-    }
+  &__os-version {
+    display: flex;
+    gap: $pad-xsmall;
 
     .component__tooltip-wrapper__element {
       line-height: inherit;
+    }
+  }
+
+  &__mdm-status,
+  &__location {
+    dd {
+      display: flex;
+      gap: $pad-xsmall;
+      margin: -6px; // See underline under link and border with keyboard nav
+      padding: 6px; // See underline under link and border with keyboard nav
     }
   }
 

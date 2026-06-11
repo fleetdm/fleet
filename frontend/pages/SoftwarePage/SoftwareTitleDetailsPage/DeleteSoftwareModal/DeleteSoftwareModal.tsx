@@ -11,6 +11,8 @@ import InfoBanner from "components/InfoBanner";
 
 const baseClass = "delete-software-modal";
 
+const DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG =
+  "Couldn't delete. This software has a patch policy. Please remove the patch policy and try again.";
 const DELETE_SW_USED_BY_POLICY_ERROR_MSG =
   "Couldn't delete. Policy automation uses this software. Please disable policy automation for this software and try again.";
 const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG = (
@@ -90,7 +92,9 @@ const DeleteSoftwareModal = ({
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
-      if (reason.includes("Policy automation uses this software")) {
+      if (reason.includes("This software has a patch policy")) {
+        renderFlash("error", DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG);
+      } else if (reason.includes("Policy automation uses this software")) {
         renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
       } else if (reason.includes("This software is installed during")) {
         renderFlash("error", DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG);

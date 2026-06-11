@@ -429,13 +429,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/31303
-		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-		// 	includedCVEs: []cve{
-		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-		// 	},
-		// 	continuesToUpdate: true,
-		// },
+		"cpe:2.3:a:citrix:workspace:2203.1:*:*:*:ltsr:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2311.1:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2403.1"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -448,6 +453,19 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// 	},
 		// 	continuesToUpdate: true,
 		// },
+		// Ensure malformed ipswitch whatsup cpe is successfully matched to CVE
+		// See https://github.com/fleetdm/fleet/issues/32662.
+		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2006-2351"},
+				{ID: "CVE-2006-2352"},
+				{ID: "CVE-2006-2353"},
+				{ID: "CVE-2006-2354"},
+				{ID: "CVE-2006-2355"},
+				{ID: "CVE-2006-2356"},
+				{ID: "CVE-2006-2357"},
+			},
+		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
 		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -537,66 +555,72 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-12254"},
 			continuesToUpdate: true,
 		},
+		// NOTE: VulnCheck (the sole source — NVD has no CPE config for these CVEs)
+		// currently mislabels several CPython version ranges under product
+		// cpe:2.3:a:libexpat_project:libexpat instead of cpe:2.3:a:python:python.
+		// libexpat's real versions are 2.x, so the 3.x ranges clearly belong to CPython.
+		// These entries are commented out below until VulnCheck corrects the feed —
+		// uncomment them once upstream relabels the CVEs back to python:python.
 		"cpe:2.3:a:python:python:3.12.0:-:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2025-1795",
-					resolvedInVersion: "3.12.3",
-				},
+				// {
+				// 	ID:                "CVE-2025-1795",
+				// 	resolvedInVersion: "3.12.3",
+				// },
 				{
 					ID:                "CVE-2024-7592",
 					resolvedInVersion: "3.12.6",
 				},
-				{
-					ID:                "CVE-2024-6923",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2024-0397",
-					resolvedInVersion: "3.12.3",
-				},
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.12.9",
-				},
+				// {
+				// 	ID:                "CVE-2024-6923",
+				// 	resolvedInVersion: "3.12.5",
+				// },
+				// {
+				// 	ID:                "CVE-2024-0397",
+				// 	resolvedInVersion: "3.12.3",
+				// },
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.12.9",
+				// },
 				{
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "3.12.8",
 				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.12.9",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.12.9",
+				// },
 				{
 					ID: "CVE-2023-6507",
 					// TODO: fix missing version here (according to vulncheck it was fixed in
 					// 3.12.1, but the generated feed data doesn't have this value)
 					resolvedInVersion: "",
 				},
-				{
-					ID:                "CVE-2024-8088",
-					resolvedInVersion: "3.12.6",
-				},
-				{
-					ID:                "CVE-2024-4032",
-					resolvedInVersion: "3.12.4",
-				},
-				{
-					ID:                "CVE-2024-3219",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2024-0450",
-					resolvedInVersion: "3.12.2",
-				},
-				{
-					ID:                "CVE-2023-6597",
-					resolvedInVersion: "3.12.1",
-				},
-				{
-					ID:                "CVE-2024-3220",
-					resolvedInVersion: "3.14.0",
-				},
+				// {
+				// 	ID:                "CVE-2024-8088",
+				// 	resolvedInVersion: "3.12.6",
+				// },
+				// {
+				// 	ID:                "CVE-2024-4032",
+				// 	resolvedInVersion: "3.12.4",
+				// },
+				// {
+				// 	ID:                "CVE-2024-3219",
+				// 	resolvedInVersion: "3.12.5",
+				// },
+				// {
+				// 	ID:                "CVE-2024-0450",
+				// 	resolvedInVersion: "3.12.2",
+				// },
+				// {
+				// 	ID:                "CVE-2023-6597",
+				// 	resolvedInVersion: "3.12.1",
+				// },
+				// {
+				// 	ID:                "CVE-2024-3220",
+				// 	resolvedInVersion: "3.14.0",
+				// },
 				{
 					ID:                "CVE-2024-6232",
 					resolvedInVersion: "3.12.6",
@@ -606,41 +630,41 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.14.0a3",
-				},
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.14.0a3",
+				// },
 				{
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "",
 				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.14.0a3",
-				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.14.0a3",
+				// },
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha3:*:*:*:macos:*:*": {
 			excludedCVEs: []string{"CVE-2024-12254"},
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
@@ -653,12 +677,23 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
+		},
+		// #41586 - Admin By Request false positives on macOS/Linux
+		// These CVEs are Windows-only but NVD data uses target_sw=* so they would match any platform without our fix.
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{"CVE-2019-17201", "CVE-2019-17202"},
+		},
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2019-17201", resolvedInVersion: "6.2.0.0"},
+				{ID: "CVE-2019-17202", resolvedInVersion: "6.2.0.0"},
+			},
 		},
 	}
 
@@ -1242,6 +1277,14 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	ipswitchWhatsup := &wfn.Attributes{
+		Vendor:  "ipswitch",
+		Product: "whatsup",
+		Version: "2006",
+	}
+	ipswitchWhatsupAlias := *ipswitchWhatsup
+	ipswitchWhatsupAlias.Product = "whatsup_professional"
+
 	pgadminMacOS := &wfn.Attributes{
 		Vendor:   "pgadmin",
 		Product:  "pgadmin",
@@ -1311,6 +1354,11 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:            "ipswitch whatsup alias",
+			cpeItem:         ipswitchWhatsup,
+			expectedAliases: []*wfn.Attributes{ipswitchWhatsup, &ipswitchWhatsupAlias},
 		},
 		{
 			name:    "pgadmin on macos",

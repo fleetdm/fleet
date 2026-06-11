@@ -11,7 +11,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -27,7 +26,6 @@ func queryCommand() *cli.Command {
 		Usage:     "Run a live report",
 		UsageText: `fleetctl report [options]`,
 		Before: func(c *cli.Context) error {
-			logging.DisableTopic(logging.DeprecatedFieldTopic)
 			applyLogTopicFlags(c)
 			logDeprecatedCommandName(c, []string{"query"}, "report")
 			logDeprecatedFlagName(c, "query-name", "report-name")

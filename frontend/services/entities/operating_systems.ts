@@ -12,6 +12,7 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "chrome",
   "ios",
   "ipados",
+  "android",
 ];
 
 export interface IGetOSVersionsQueryParams {
@@ -75,7 +76,7 @@ export const getOSVersions = ({
 
   const params: IGetOSVersionsRequestQueryParams = {
     platform,
-    team_id: teamId,
+    fleet_id: teamId,
     os_name,
     os_version,
     order_key,
@@ -99,7 +100,7 @@ const getOSVersion = ({
 }: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
   const endpoint = endpoints.OS_VERSION(os_version_id);
   const queryString = buildQueryStringFromParams({
-    team_id: teamId,
+    fleet_id: teamId,
     max_vulnerabilities,
   });
   const path = queryString ? `${endpoint}?${queryString}` : endpoint;

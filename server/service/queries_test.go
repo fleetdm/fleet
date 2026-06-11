@@ -8,7 +8,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -140,6 +140,29 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"Nil name",
+			fleet.QueryPayload{
+				Query:   ptr.String("select 1"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil query",
+			fleet.QueryPayload{
+				Name:    ptr.String("test query"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil name and query",
+			fleet.QueryPayload{
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
 	}
 
 	testAdmin := fleet.User{
@@ -163,7 +186,7 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	}
 }
 
-func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
+func TestModifyQueryLabelsScopeRequiresPremium(t *testing.T) {
 	ds := new(mock.Store)
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
@@ -198,9 +221,9 @@ func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			},
 		},
 		{
-			name: "with empty slice",
+			name: "with include_all label",
 			payload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{"some-label"},
 			},
 		},
 	}
@@ -211,6 +234,30 @@ func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		})
 	}
+}
+
+func TestModifyQueryEmptyLabelSlicesNotPremium(t *testing.T) {
+	ds := new(mock.Store)
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		return nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	_, err := svc.ModifyQuery(viewerCtx, 1, fleet.QueryPayload{
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+	})
+	require.NoError(t, err)
 }
 
 func TestApplyQuerySpecsLabelsIncludeAnyRequiresPremium(t *testing.T) {
@@ -238,10 +285,16 @@ func TestApplyQuerySpecsLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 }
 
-func TestApplyQuerySpecsEmptyLabelsIncludeAnyRequiresPremium(t *testing.T) {
+func TestApplyQuerySpecsEmptyLabelsNotPremium(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, newNotFoundError()
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+		return nil
 	}
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -259,7 +312,7 @@ func TestApplyQuerySpecsEmptyLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			LabelsIncludeAny: []string{}, // explicit empty slice, not nil
 		},
 	})
-	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	require.NoError(t, err)
 }
 
 // similar for modify
@@ -857,7 +910,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 }
 
 func TestInheritedQueryReportTeamPermissions(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)

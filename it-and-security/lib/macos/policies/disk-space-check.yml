@@ -12,3 +12,4 @@
 
     If the issue persists, please reach out in #help-it.
   platform: darwin
+  webhooks_and_tickets_enabled: true

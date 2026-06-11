@@ -128,6 +128,8 @@ type Options struct {
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string
+	// EnableEUATokenProperty is a boolean indicating whether to enable EUA_TOKEN property in Windows MSI package.
+	EnableEUATokenProperty bool
 	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
 	DisableKeystore bool
 	// OsqueryDB is the directory to use for the osquery database.

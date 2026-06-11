@@ -26,6 +26,7 @@
   }
 
   &__tooltip-text {
+    display: block;
     @include ellipse-text(166px);
   }
 }

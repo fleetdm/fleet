@@ -29,9 +29,10 @@ interface IActionsDropdownProps {
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
   variant?: "button" | "brand-button" | "small-button";
+  buttonLabel?: string;
 }
 
-const getOptionBackgroundColor = (state: any) => {
+const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
@@ -122,6 +123,7 @@ const ActionsDropdown = ({
   menuAlign = "default",
   menuPlacement = "bottom",
   variant,
+  buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -161,7 +163,7 @@ const ActionsDropdown = ({
       aria-haspopup="listbox"
       aria-expanded={menuIsOpen}
     >
-      <span>Actions</span>
+      <span>{buttonLabel || "Actions"}</span>
       <Icon
         name="chevron-down"
         color="core-fleet-white"
@@ -187,7 +189,7 @@ const ActionsDropdown = ({
       width: "max-content",
       // Need minHeight to override default
       minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
-      padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
+      padding: variant === "small-button" ? "4px" : "8px", // Match button padding
       backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
       border: 0,
       boxShadow: "none",
@@ -227,7 +229,7 @@ const ActionsDropdown = ({
         state.isFocused || variant === "button" || variant === "small-button"
           ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
-      fontSize: "13px",
+      fontSize: "14px",
       fontWeight:
         variant === "button" || variant === "small-button" ? "600" : undefined,
       lineHeight: "normal",
@@ -252,7 +254,8 @@ const ActionsDropdown = ({
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--dropdown-menu-outline, transparent)`,
       borderRadius: "4px",
       zIndex: 6,
       border: 0,

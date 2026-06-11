@@ -13,13 +13,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -31,8 +32,16 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 	}
 
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
 	var teamName string
 	if teamID > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -40,12 +49,18 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		teamName = tm.Name
 	}
 
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
+	}
+
 	cp := fleet.MDMWindowsConfigProfile{
 		TeamID: &teamID,
 		Name:   profileName,
 		SyncML: data,
 	}
-	if err := cp.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+	if err := cp.ValidateUserProvided(); err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, ctxerr.Wrap(ctx,
@@ -61,28 +76,24 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labels)
+	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
+	}
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
-	case fleet.LabelsExcludeAny:
-		cp.LabelsExcludeAny = labelMap
+		cp.LabelsIncludeAny = includeLabels
 	default:
 		// default include all
-		cp.LabelsIncludeAll = labelMap
+		cp.LabelsIncludeAll = includeLabels
 	}
+	cp.LabelsExcludeAny = excludeLabels
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
-	}
-
-	// Get license for validation
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -101,6 +112,10 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
+	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling windows profile software update")
+	}
+
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
@@ -109,10 +124,6 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 				WithStatus(http.StatusConflict)
 		}
 		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	var (
@@ -135,6 +146,59 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
+// handleWindowsProfileSoftwareUpdate validates the preconditions for an OS-update
+// (software update) profile: premium license and OS updates not already configured
+// via settings. The "already exists" check and tracking-table insert happen
+// atomically in ds.NewMDMWindowsConfigProfile.
+func (svc *Service) handleWindowsProfileSoftwareUpdate(
+	ctx context.Context,
+	syncML []byte,
+	teamID uint,
+) error {
+	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		return nil
+	}
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+
+	osUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
+	}
+	if osUpdatesConfigured {
+		return &fleet.BadRequestError{
+			Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+		}
+	}
+
+	return nil
+}
+
+func isWindowsOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
+	var windowsOSUpdates fleet.WindowsUpdates
+	if teamID > 0 {
+		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		windowsOSUpdates = teamConfig.WindowsUpdates
+	} else {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		windowsOSUpdates = appConfig.MDM.WindowsUpdates
+	}
+
+	if windowsOSUpdates.Configured() {
+		return true, nil
+	}
+	return false, nil
+}
+
 // fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
 // supported in Windows configuration profiles.
 // except prefix variables
@@ -143,12 +207,27 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostHardwareSerial,
 	fleet.FleetVarSCEPWindowsCertificateID,
 	fleet.FleetVarSCEPRenewalID,
+	fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostEndUserIDPUsername,
 	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarHostEndUserIDPDepartment,
 	fleet.FleetVarHostEndUserIDPGroups,
 	fleet.FleetVarHostPlatform,
+	fleet.FleetVarNDESSCEPChallenge,
+	fleet.FleetVarNDESSCEPProxyURL,
+}
+
+// subjectNameHasRenewalIDMarker reports whether a SubjectName data string
+// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
+// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
+func subjectNameHasRenewalIDMarker(data string) bool {
+	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
+		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -171,7 +250,7 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, nil, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +258,112 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 	// Do additional validation that both custom SCEP URL and challenge vars are provided and not using different CA names etc.
 
 	return foundVars, nil
+}
+
+// collectAllSyncMLItems returns all CmdItems from a SyncMLCmd, including items from nested
+// commands within Atomic blocks (ReplaceCommands, AddCommands, ExecCommands).
+func collectAllSyncMLItems(cmd *fleet.SyncMLCmd) []fleet.CmdItem {
+	items := cmd.Items
+	for _, nested := range cmd.ReplaceCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.AddCommands {
+		items = append(items, nested.Items...)
+	}
+	for _, nested := range cmd.ExecCommands {
+		items = append(items, nested.Items...)
+	}
+	return items
+}
+
+// containsFleetVar checks if s contains the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func containsFleetVar(s string, v fleet.FleetVarName) bool {
+	return strings.Contains(s, v.WithPrefix()) || strings.Contains(s, v.WithBraces())
+}
+
+// isFleetVar checks if s is exactly the given Fleet variable in either $FLEET_VAR_ or ${FLEET_VAR_} form.
+func isFleetVar(s string, v fleet.FleetVarName) bool {
+	return s == v.WithPrefix() || s == v.WithBraces()
+}
+
+func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESVarsFound) error {
+	if ndesVars == nil {
+		return nil
+	}
+
+	var cmdMsg *fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
+			if cmd.Target == nil {
+				continue
+			}
+
+			dataContent := ""
+			if cmd.Data != nil {
+				dataContent = cmd.Data.Content
+			}
+
+			isChallenge := strings.HasSuffix(*cmd.Target, "/Install/Challenge")
+			isServerURL := strings.HasSuffix(*cmd.Target, "/Install/ServerURL")
+			isSubjectName := strings.HasSuffix(*cmd.Target, "/Install/SubjectName")
+
+			// Verify that each NDES variable appears ONLY in its expected field.
+			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
+			// where it could be exfiltrated, since variable replacement is a global string substitution.
+			if !isChallenge && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+				}
+			}
+			if !isServerURL && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
+				}
+			}
+
+			// Variables must not appear in LocURI target paths.
+			if containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPChallenge) ||
+				containsFleetVar(*cmd.Target, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: "NDES Fleet variables must not appear in LocURI target paths.",
+				}
+			}
+
+			// Verify the expected fields contain the correct variables.
+			if isChallenge && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix()),
+				}
+			}
+			if isServerURL && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
+				}
+			}
+			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCEPVars *CustomSCEPVarsFound) error {
@@ -199,9 +384,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 			break
 		}
 
-		// cmdMsg represents a top-level command (<Replace>...</Replace>)
-		// so we look through all items, often there is only one item per command.
-		for _, cmd := range cmdMsg.Items {
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
 			if cmd.Target == nil {
 				continue
 			}
@@ -212,9 +395,8 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 					return errors.New("SubjectName item is missing data")
 				}
 
-				if !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) && !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
-					// Does not contain the renewal ID in any of it's two fleet var forms as the OU field
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix())
+				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
+					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
 				}
 			}
 		}

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { browserHistory, InjectedRouter, Link } from "react-router";
+import { browserHistory, InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";

@@ -91,3 +91,4 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 <meta name="description" value="Worldwide security and authentication platform switches to Fleet for Linux device management">
 <meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" >
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Security and authentication platform">

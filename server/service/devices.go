@@ -108,10 +108,14 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host                      *HostDetailResponse      `json:"host"`
-	SelfService               bool                     `json:"self_service"`
-	OrgLogoURL                string                   `json:"org_logo_url"`
+	Host *fleet.HostDetailResponse `json:"host"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string                   `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string                   `json:"org_logo_url_light_mode"`
+	SelfService               bool                     `json:"self_service"`
 	OrgContactURL             string                   `json:"org_contact_url"`
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
@@ -195,7 +199,12 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
-		if err != nil && !fleet.IsNotFound(err) {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			// Fleet Free does not support teams, so team-specific config
+			// (software inventory, conditional access, etc.) falls back to
+			// the global defaults set above.
+			tm = nil
+		} else if err != nil && !fleet.IsNotFound(err) {
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
@@ -232,6 +241,8 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		Host:                      resp,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
+		OrgLogoURLDarkMode:        ac.OrgInfo.OrgLogoURLDarkMode,
+		OrgLogoURLLightMode:       ac.OrgInfo.OrgLogoURLLightMode,
 		OrgContactURL:             ac.OrgInfo.ContactURL,
 		License:                   *license,
 		GlobalConfig:              deviceGlobalConfig,
@@ -343,8 +354,7 @@ func (svc *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
 	}
 
-	// Look up the host by UUID
-	host, err := svc.ds.HostByIdentifier(ctx, urlUUID)
+	host, err := svc.ds.HostByUUID(ctx, urlUUID)
 	switch {
 	case err == nil:
 		// OK

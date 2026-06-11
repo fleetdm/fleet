@@ -1,0 +1,74 @@
+.policy-details-page {
+  @include vertical-page-layout;
+
+  p {
+    margin: 0; // Until this is an app-wide style
+  }
+
+  &__title-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-xlarge;
+  }
+
+  &__name-description,
+  &__platform-list,
+  &__labels-section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__platform-list {
+    flex-direction: row;
+  }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: flex-end;
+    min-width: max-content;
+    gap: $pad-medium;
+  }
+
+  &__policy-name {
+    font-size: $large;
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .critical-policy-icon {
+      flex-shrink: 0;
+    }
+  }
+
+  // Override DataSet 4px gap to 8px for all instances on this page
+  .data-set {
+    gap: $pad-small;
+  }
+
+  &__author-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__platform-item {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__labels-help-text {
+    margin: 0;
+    font-weight: $regular;
+  }
+
+  &__labels-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}

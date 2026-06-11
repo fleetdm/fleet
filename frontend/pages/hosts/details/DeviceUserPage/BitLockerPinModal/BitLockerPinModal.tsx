@@ -56,7 +56,7 @@ const BitLockerPinModal = ({
           </ol>
         </p>
       </div>
-      <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+      <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
     </Modal>
   );
 };

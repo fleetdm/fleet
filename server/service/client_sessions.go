@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Login attempts to login to the current Fleet instance. If login is successful,
 // an auth token is returned.
 func (c *Client) Login(email, password string) (string, error) {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
@@ -33,7 +33,7 @@ func (c *Client) Login(email, password string) (string, error) {
 		)
 	}
 
-	var responseBody loginResponse
+	var responseBody fleet.LoginResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return "", fmt.Errorf("decode login response: %w", err)
@@ -49,6 +49,6 @@ func (c *Client) Login(email, password string) (string, error) {
 // Logout attempts to logout to the current Fleet instance.
 func (c *Client) Logout() error {
 	verb, path := "POST", "/api/latest/fleet/logout"
-	var responseBody logoutResponse
+	var responseBody fleet.LogoutResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

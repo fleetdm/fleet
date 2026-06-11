@@ -4,7 +4,6 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";

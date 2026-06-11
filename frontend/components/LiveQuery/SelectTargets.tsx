@@ -192,7 +192,7 @@ const SelectTargets = ({
     ({ queryKey }) => {
       const { query_id, query, selected } = queryKey[0];
       return targetsAPI.search({
-        query_id: query_id || null,
+        report_id: query_id || null,
         query: query || "",
         excluded_host_ids: selected?.hosts || null,
       });
@@ -223,7 +223,10 @@ const SelectTargets = ({
     ],
     ({ queryKey }) => {
       const { query_id, selected } = queryKey[0];
-      return targetsAPI.count({ query_id, selected: selected || null });
+      return targetsAPI.count({
+        report_id: query_id,
+        selected: selected || null,
+      });
     },
     {
       enabled: !!selectedTargets.length,
@@ -282,6 +285,12 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
+    // `setSelectedTargets` comes from the (unmemoized) QueryContext, so it's a
+    // new function reference on every render. Including it here would re-run
+    // this effect every render, which dispatches a context update and causes an
+    // infinite render loop ("Maximum update depth exceeded"), freezing the
+    // Select targets UI (e.g. the X to remove a host stops responding).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetedHosts, targetedLabels, targetedTeams]);
 
   useEffect(() => {
@@ -291,7 +300,7 @@ const SelectTargets = ({
   useEffect(() => {
     setIsDebouncing(true);
     debounceSearch(searchTextHosts);
-  }, [searchTextHosts]);
+  }, [searchTextHosts, debounceSearch]);
 
   const handleClickCancel = () => {
     goToQueryEditor();
@@ -404,6 +413,7 @@ const SelectTargets = ({
 
     const emptySearchString = `No matching ${displayType}.`;
 
+    // Purposefully not using <EmptyState/> as we just want a simple string rendered
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
         return (

@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,17 +32,6 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
-
-// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
-// But also allows us to modify the limit at a laterp oint.
-type LimitedReadCloser struct {
-	*io.LimitedReader
-	Closer io.Closer
-}
-
-func (lrc *LimitedReadCloser) Close() error {
-	return lrc.Closer.Close()
-}
 
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
@@ -164,12 +156,16 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 		// Check this field for a renameto tag.
 		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
 		if hasRenameTo && renameTo != "" {
+			// Split the new key name from options like ",inline".
+			newKeyName, renameOpts, _ := strings.Cut(renameTo, ",")
+			inline := slices.Contains(strings.Split(renameOpts, ","), "inline")
+
 			jsonTag, hasJSON := structField.Tag.Lookup("json")
-			if hasJSON && jsonTag != "" && jsonTag != "-" {
+			if hasJSON && jsonTag != "" && jsonTag != "-" && newKeyName != "" {
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: newKeyName, Inline: inline}
 					if !seen[rule] {
 						seen[rule] = true
 						*rules = append(*rules, rule)
@@ -499,23 +495,7 @@ type requestValidator interface {
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
 //
-// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
-
-// limitExhaustedBody returns true when the LimitedReader was the cause of an
-// unexpected EOF — i.e. the underlying body actually had more data beyond the
-// limit. It does this by attempting a single-byte read from the underlying
-// reader (limitedReader.R) which bypasses the limit wrapper. A successful read
-// means the body exceeded the limit; an immediate EOF means the body ended
-// exactly at the limit (malformed JSON, not an oversized payload).
-//
-// This is used to avoid false-positive PayloadTooLargeError responses for
-// bodies whose JSON is malformed and happen to be exactly maxRequestBodySize
-// bytes long.
-func limitExhaustedBody(limitedReader *io.LimitedReader) bool {
-	var peek [1]byte
-	n, _ := limitedReader.R.Read(peek[:])
-	return n > 0
-}
+// If adding a new way to parse/decode the request, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
 
 func MakeDecoder(
 	iface interface{},
@@ -535,18 +515,50 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			var limitedReader *io.LimitedReader
 			if maxRequestBodySize != -1 {
-				limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-				r.Body = &LimitedReadCloser{
-					LimitedReader: limitedReader,
-					Closer:        r.Body,
+				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
+			}
+			//
+			// We take care of gzip encoding here to prevent any future DecodeRequest
+			// implementations from missing gzip bomb checks.
+			//
+			gzipped := false
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
+				gzr, err := gzip.NewReader(r.Body)
+				if err != nil {
+					return nil, BadRequestErr("gzip decoder error", err)
 				}
+				defer gzr.Close()
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					r.Body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					r.Body = io.NopCloser(gzr)
+				}
+				// Clear so implementations don't try to decompress again.
+				r.Header.Del("Content-Encoding")
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+
+			// Some DecodeRequest implementations (like getHostSoftwareRequest)
+			// themselves return platform_http.PayloadTooLargeError.
+			if inner, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err); isPayloadTooLargeError {
+				// Preserve the inner error's MaxRequestSize and ContentLength
+				// (it knows the actual limit that was hit), only add Gzipped.
+				inner.Gzipped = gzipped
+				return nil, inner
+			}
+
+			// This is the DecodeRequest implementation returning http.MaxBytesError
+			// (e.g. there's a size limit when uploading installers.)
+			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
+				return nil, platform_http.PayloadTooLargeError{
+					ContentLength:  r.Header.Get("Content-Length"),
+					MaxRequestSize: maxRequestBodySize,
+					Gzipped:        gzipped,
+				}
 			}
 			return ret, err
 		}
@@ -562,28 +574,30 @@ func MakeDecoder(
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
 
-		var limitedReader *io.LimitedReader
 		if maxRequestBodySize != -1 {
-			limitedReader = io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-			r.Body = &LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
+			r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
+		gzipped := false
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
 					return nil, BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
-				body = gzr
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					body = gzr
+				}
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
@@ -608,35 +622,18 @@ func MakeDecoder(
 							InternalErr: ace,
 						}
 					}
-
-					if errors.Is(err, io.ErrUnexpectedEOF) && limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
 					}
-
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
 
-			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					newNames := make([]string, len(deprecated))
-					for i, old := range deprecated {
-						for _, rule := range aliasRules {
-							if rule.OldKey == old {
-								newNames[i] = rule.NewKey
-								break
-							}
-						}
-					}
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
-					)
-				}
-			}
 		}
 
 		fields := allFields(v)
@@ -699,25 +696,38 @@ func MakeDecoder(
 					}
 				}
 
-				if errors.Is(err, io.ErrUnexpectedEOF) {
-					if limitedReader != nil && limitedReader.N == 0 && limitExhaustedBody(limitedReader) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					return nil, platform_http.PayloadTooLargeError{
+						ContentLength:  r.Header.Get("Content-Length"),
+						MaxRequestSize: maxRequestBodySize,
+						Gzipped:        gzipped,
 					}
+				}
+				if errors.Is(err, io.ErrUnexpectedEOF) {
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}
 
-			// Log deprecation warnings when deprecated field names are used
-			// (bodyDecoder path).
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
-					)
+		}
+
+		// Log deprecation warnings when deprecated field names are used.
+		if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+				newNames := make([]string, len(deprecated))
+				for i, old := range deprecated {
+					for _, rule := range aliasRules {
+						if rule.OldKey == old {
+							newNames[i] = rule.NewKey
+							break
+						}
+					}
 				}
+				logging.WithLevel(ctx, slog.LevelWarn)
+				logging.WithExtras(ctx,
+					"deprecated_fields", fmt.Sprintf("%v", deprecated),
+					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+				)
 			}
 		}
 
@@ -748,7 +758,29 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
+func newNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
+	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
+	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
+	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
+	nonce := "disabled"
+	nonceExtraParam := ""
+	// generate a unique nonce for this response
+	if includeNonce {
+		var err error
+		nonce, err = newNonce()
+		if err != nil {
+			return "", err
+		}
+		nonceExtraParam = fmt.Sprintf(" 'nonce-%s'", nonce)
+	}
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
@@ -764,6 +796,25 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	if serveCSP {
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for others.
+		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'"+nonceExtraParam+"; font-src 'self'; script-src 'self'"+nonceExtraParam)
+	}
+	return nonce, nil
+}
+
+func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// We don't implement the nonce here in the generic case, however the few endpoints that need it should implement
+		// their own handling
+		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
+		if err != nil {
+			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -863,6 +914,10 @@ type CommonEndpointer[H any] struct {
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
+	// HTTPPreAuthMiddleware wraps the final http.Handler, running BEFORE the
+	// kithttp decode-body step.
+	HTTPPreAuthMiddleware func(http.Handler) http.Handler
+
 	// HandlerRegistry, if set, records handlers by method+path for deprecated
 	// path alias lookup. The pointer is shared across shallow copies (created
 	// by builder methods like WithAltPaths) so all registrations land in the
@@ -945,7 +1000,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
 		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
 	}
-	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	h := newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
+	// short-circuit requests before the decode-body step reads any bytes.
+	if e.HTTPPreAuthMiddleware != nil {
+		h = e.HTTPPreAuthMiddleware(h)
+	}
+	return h
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -1013,6 +1074,14 @@ func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpo
 func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
 	ae := *e
 	ae.requestBodySizeLimit = -1
+	return &ae
+}
+
+// WithHTTPPreAuth installs a raw http.Handler middleware that runs outside the
+// kithttp server, before the decoder reads the body.
+func (e *CommonEndpointer[H]) WithHTTPPreAuth(mw func(http.Handler) http.Handler) *CommonEndpointer[H] {
+	ae := *e
+	ae.HTTPPreAuthMiddleware = mw
 	return &ae
 }
 
@@ -1109,6 +1178,9 @@ func EncodeCommonResponse(
 ) error {
 	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
+	if br, ok := response.(beforeRenderer); ok {
+		br.BeforeRender(ctx, w)
+	}
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
@@ -1117,7 +1189,8 @@ func EncodeCommonResponse(
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w)
+		// This will not return an error if disabled
+		_, _ = WriteBrowserSecurityHeaders(w, false, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
@@ -1180,6 +1253,21 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// beforeRenderer can be implemented by response values that need to hook into the
+// raw rendering process, with access to the ResponseWriter before any response is
+// written, while continuing with the normal rendering process after the call.
+// It can be used to set headers, for example, and since the processing happens before
+// any Errorer check, it can also be used to fail the request by storing an error on
+// the Errorer. It should not set the status code of the response, as the standard
+// approach of implementing the statuser interface should be used for that.
+//
+// Unlike renderHijacker and the htmlPage interfaces, this interface does not stop
+// processing, and while it behaves similarly to cookieSetter, it is more generally-named
+// and does not have the specific connotation of setting cookies.
+type beforeRenderer interface {
+	BeforeRender(ctx context.Context, w http.ResponseWriter)
 }
 
 // bufferedResponseWriter wraps an http.ResponseWriter but redirects Write

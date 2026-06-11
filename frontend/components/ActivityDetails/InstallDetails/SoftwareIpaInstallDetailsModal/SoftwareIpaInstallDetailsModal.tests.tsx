@@ -99,6 +99,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     });
     expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
     expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
   });
 
   it("renders manual install message when installed not through Fleet", async () => {
@@ -114,6 +115,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
       expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
   });
 
@@ -130,6 +132,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
       expect(screen.getByText(/the host/i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
   });
 
@@ -158,10 +161,12 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
       expect(screen.getByText(/Current version/i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
 
     // No failure wording when treated as installed
     expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Please re-attempt this installation/i)
     ).not.toBeInTheDocument();
@@ -190,9 +195,10 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     expect(
       screen.getByText(/Please re-attempt this installation/i)
     ).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
   });
 
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     renderModal({
@@ -205,8 +211,8 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
       },
     });
 
-    const doneBtn = await screen.findByRole("button", { name: /done/i });
-    doneBtn.click();
+    const closeBtn = await screen.findByRole("button", { name: /close/i });
+    closeBtn.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

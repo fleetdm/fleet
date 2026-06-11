@@ -114,6 +114,14 @@ parasails.registerPage('login', {
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
       }
+      if(typeof window.qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.signupFormData.emailAddress,
+          name: this.signupFormData.firstName +' '+ this.signupFormData.lastName,
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
+      }
       this.goto(this.pageToRedirectToAfterFormSubmission);
     },
     submittedLoginForm: async function() {

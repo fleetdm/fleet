@@ -8,7 +8,6 @@ import configAPI from "services/entities/config";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";

@@ -56,6 +56,7 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
+		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -560,6 +561,19 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
+
+	for _, key := range []string{"id", "name", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
@@ -787,6 +801,11 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		pending, err = ds.ListPendingHostScriptExecutions(ctx, 43, false)
 		require.NoError(t, err)
 		require.Len(t, pending, 0)
+	})
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
+		require.Error(t, err)
 	})
 }
 
@@ -1950,6 +1969,12 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(3))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
+
+	// Get summary for nonexistent execution ID
+	summary, err = ds.BatchExecuteSummary(ctx, "fake-bogus-id")
+	require.Nil(t, summary)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
@@ -2166,6 +2191,14 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumCanceled, uint(7))
 	require.Equal(t, *summary.NumIncompatible, uint(8))
 	require.Equal(t, *summary.NumTargeted, uint(9))
+
+	// Get summary for nonexistent execution ID
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: ptr.String("fake-bogus-id"),
+	})
+	require.Nil(t, summaryList)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
@@ -3219,4 +3252,42 @@ func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, int64(0), *results[1].AttemptNumber)
 	require.True(t, results[1].Canceled)
+}
+
+func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	res, err := ds.NewInternalHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo internal",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, res.ID)
+	require.Nil(t, res.UserID)
+
+	// The internal-only filter on ListPendingHostScriptExecutions surfaces
+	// internal scripts; the default (all-pending) listing includes them
+	// alongside user-initiated ones.
+	pendingAll, err := ds.ListPendingHostScriptExecutions(ctx, 1, false)
+	require.NoError(t, err)
+	require.Len(t, pendingAll, 1)
+	require.Equal(t, res.ID, pendingAll[0].ID)
+
+	pendingInternal, err := ds.ListPendingHostScriptExecutions(ctx, 1, true)
+	require.NoError(t, err)
+	require.Len(t, pendingInternal, 1)
+	require.Equal(t, res.ID, pendingInternal[0].ID)
+
+	// A non-internal request should NOT appear under the internal-only filter,
+	// confirming the new entry routed through the internal codepath.
+	resUser, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         2,
+		ScriptContents: "echo user",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, resUser.ID)
+
+	pendingUserViaInternal, err := ds.ListPendingHostScriptExecutions(ctx, 2, true)
+	require.NoError(t, err)
+	require.Empty(t, pendingUserViaInternal)
 }

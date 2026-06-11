@@ -56,11 +56,33 @@ func TestIsVulnPatched(t *testing.T) {
 			require.Equal(t, prod.Name(), actual.ProductName)
 		})
 	})
+
+	// Regression test for https://github.com/fleetdm/fleet/issues/45602:
+	// A bulletin with no vulnerabilities (e.g., a corrupted artifact) must cause Analyze
+	// to return an error rather than silently marking every existing MSRC OS vulnerability
+	// for the host as remediated.
+	t.Run("Analyze rejects bulletin with no vulnerabilities", func(t *testing.T) {
+		d := time.Now()
+		dir := t.TempDir()
+
+		b := parsed.NewSecurityBulletin(prod.Name())
+		b.Products["1235"] = prod
+		// Vulnerabilities map intentionally left empty.
+
+		fileName := io.MSRCFileName(b.ProductName, d)
+		payload, err := json.Marshal(b)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, fileName), payload, 0o644))
+
+		_, err = Analyze(t.Context(), nil, op, dir, false, slog.New(slog.DiscardHandler))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no vulnerabilities")
+	})
 }
 
 func TestIsOSVulnerable(t *testing.T) {
 	b := parsed.SecurityBulletin{
-		Vulnerabities: map[string]parsed.Vulnerability{
+		Vulnerabilities: map[string]parsed.Vulnerability{
 			"CVE-Win11": {
 				RemediatedBy: map[uint]bool{
 					123: true,
@@ -201,7 +223,7 @@ func TestIsOSVulnerable(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			isVuln, resolvedIn := isOSVulnerable(t.Context(), c.os, &b, b.Vulnerabities[c.feed], map[string]bool{"123": true}, c.feed, slog.New(slog.DiscardHandler))
+			isVuln, resolvedIn := isOSVulnerable(t.Context(), c.os, &b, b.Vulnerabilities[c.feed], map[string]bool{"123": true}, c.feed, slog.New(slog.DiscardHandler))
 			require.Equal(t, c.isVulnerable, isVuln)
 			require.Equal(t, c.resolvedIn, resolvedIn)
 		})

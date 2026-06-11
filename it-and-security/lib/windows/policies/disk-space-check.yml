@@ -12,3 +12,4 @@
 
     If the issue persists, please reach out in #help-it.
   platform: windows
+  webhooks_and_tickets_enabled: true

@@ -1,14 +1,12 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // SearchTargets searches for the supplied targets in the Fleet instance.
 func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.TargetSearchResults, error) {
-	req := searchTargetsRequest{
+	req := fleet.SearchTargetsRequest{
 		MatchQuery: query,
 		Selected: fleet.HostTargets{
 			LabelIDs: labelIDs,
@@ -17,10 +15,10 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 		},
 	}
 	verb, path := "POST", "/api/latest/fleet/targets"
-	var responseBody searchTargetsResponse
+	var responseBody fleet.SearchTargetsResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, fmt.Errorf("SearchTargets: %s", err)
+		return nil, err
 	}
 
 	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))

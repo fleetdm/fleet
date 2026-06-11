@@ -21,6 +21,7 @@ import { validateQuery } from "components/forms/validators/validate_query";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
@@ -37,7 +38,6 @@ import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -594,6 +594,18 @@ const NewLabelPage = ({
       </div>
       {renderVariableFields()}
       <div className="button-wrap">
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdating}
+              disabled={disableChildren || isUpdating || !formErrors.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
         <Button
           onClick={() => {
             router.goBack();
@@ -602,13 +614,6 @@ const NewLabelPage = ({
           disabled={isUpdating}
         >
           Cancel
-        </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdating}
-          disabled={isUpdating || !formErrors.isValid}
-        >
-          Save
         </Button>
       </div>
     </form>

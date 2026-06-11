@@ -514,7 +514,7 @@ func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMe
 		var policy *calendar.PolicyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
-			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			id, err := strconv.ParseUint(policyIDs[0], 10, strconv.IntSize)
 			if err != nil {
 				logger.ErrorContext(ctx, "parse policy id", "err", err)
 				// Do nothing
@@ -633,16 +633,11 @@ func attemptCreatingEventOnUserCalendar(
 	}
 }
 
+// getPreferredCalendarEventDate returns the next business day after the
+// given date, skipping weekends.
 func getPreferredCalendarEventDate(year int, month time.Month, today int) time.Time {
-	const (
-		// Any Tuesday of Month
-		preferredWeekDay = time.Tuesday
-	)
 	currentDate := time.Date(year, month, today, 0, 0, 0, 0, time.UTC)
-	for currentDate.Weekday() != preferredWeekDay {
-		currentDate = currentDate.AddDate(0, 0, 1)
-	}
-	return currentDate
+	return addBusinessDay(currentDate)
 }
 
 func addBusinessDay(date time.Time) time.Time {

@@ -14,7 +14,9 @@ import AuthenticationNav from "components/AuthenticationNav";
 
 const baseClass = "reset-password-page";
 interface IResetPasswordPageProps {
-  location: any; // no type in react-router v3
+  location: {
+    query: { token?: string };
+  };
   router: InjectedRouter;
 }
 

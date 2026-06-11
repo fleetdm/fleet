@@ -1,13 +1,10 @@
 import React, { useState } from "react";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { INDESFormValidation, validateFormData } from "./helpers";
-
-const baseClass = "ndes-form";
 
 export interface INDESFormData {
   scepURL: string;
@@ -88,7 +85,8 @@ const NDESForm = ({
         onChange={onInputChange}
         parseTarget
         placeholder="username@example.microsoft.com"
-        helpText="For NDES, this is the username in the down-level logon name format required to log in to the SCEP admin page."
+        helpText="For NDES, this is the username in the down-level logon name
+        format required to log in to the SCEP admin page. Okta generates this for you."
       />
       <InputField
         label="Password"
@@ -101,7 +99,8 @@ const NDESForm = ({
         helpText={
           <>
             For NDES, the password required to log in to the{" "}
-            <b>Network Device Enrollment Service</b> page.
+            <b>Network Device Enrollment Service</b> page. Okta generates this
+            for you.
           </>
         }
       />

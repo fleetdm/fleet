@@ -161,6 +161,15 @@
   },
   {
     "software": {
+      "name": ["slate"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["Flock.app"],
       "source": ["apps"]
     },
@@ -747,6 +756,16 @@
     },
     "filter": {
       "product": ["acrobat_reader_dc"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Mattermost", "/^Mattermost \\d/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["mattermost_desktop"],
+      "vendor": ["mattermost"]
     }
   }
 ]

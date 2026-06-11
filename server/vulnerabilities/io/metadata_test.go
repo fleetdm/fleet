@@ -27,6 +27,16 @@ func TestSecurityBulletinName(t *testing.T) {
 		require.Contains(t, result, strconv.Itoa(now.Day()))
 	})
 
+	t.Run("WinOfficeFileName", func(t *testing.T) {
+		now := time.Now()
+		result := WinOfficeFileName(now)
+		require.Contains(t, result, "fleet_winoffice_")
+		require.Contains(t, result, "bulletin")
+		require.Contains(t, result, strconv.Itoa(now.Year()))
+		require.Contains(t, result, strconv.Itoa(int(now.Month())))
+		require.Contains(t, result, strconv.Itoa(now.Day()))
+	})
+
 	t.Run("String", func(t *testing.T) {
 		sut, err := NewMSRCMetadata("Windows_10-2022_09_10.json")
 		require.NoError(t, err)

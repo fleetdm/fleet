@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )

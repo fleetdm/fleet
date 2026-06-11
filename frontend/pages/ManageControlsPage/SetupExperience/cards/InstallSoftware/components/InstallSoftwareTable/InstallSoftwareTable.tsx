@@ -4,13 +4,24 @@ import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateTableConfig from "./InstallSoftwareTableConfig";
 
 const DEFAULT_PAGE_SIZE = 10;
 
 const baseClass = "select-software-table";
+
+const generateHelpText = (platform: SetupExperiencePlatform) => {
+  switch (platform) {
+    case "windows":
+      return "Policies are checked before install. Currently, custom targets (labels) don't apply during setup experience.";
+    case "linux":
+      return "Policies are checked before software is installed on compatible platforms. Currently, custom targets (labels) don't apply during setup experience.";
+    default:
+      return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience.";
+  }
+};
 
 const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<Record<string, boolean>>((acc, software) => {
@@ -60,7 +71,7 @@ const InstallSoftwareTable = ({
       columnConfigs={tableConfig}
       isLoading={false}
       emptyComponent={() => (
-        <EmptyTable
+        <EmptyState
           header="No software available"
           info=" There are no results to your query."
           className={baseClass}
@@ -78,10 +89,7 @@ const InstallSoftwareTable = ({
       isClientSideFilter
       renderTableHelpText={() => (
         <p className={`${baseClass}__help-text`}>
-          Software will be installed on{" "}
-          {platform === "linux" ? "compatible platforms" : "all hosts"}.
-          Currently, custom targets (labels) don&apos;t apply during setup
-          experience.
+          {generateHelpText(platform)}
         </p>
       )}
       suppressHeaderActions

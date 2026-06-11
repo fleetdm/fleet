@@ -149,7 +149,7 @@ describe("LocationModal", () => {
     expect(screen.getByRole("button", { name: "Lock" })).toBeVisible();
   });
 
-  it("renders Done footer button otherwise", () => {
+  it("renders Close footer button otherwise", () => {
     render(
       <LocationModal
         hostGeolocation={createMockHostGeolocation()}
@@ -160,6 +160,6 @@ describe("LocationModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 });

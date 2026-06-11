@@ -2,7 +2,8 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
+  name: CIS - Ensure Apple-provided Software Updates Are Installed (Fleetd Required)
+  cis_id: "1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -11,10 +12,14 @@ spec:
   resolution: |
     Graphical Method:
     Perform the following to install all available software updates:
-      1. Open System Settings 
+      1. Open System Settings
       2. Select General
       3. Select Software Update
       4. Select Update All
+    Terminal Method:
+    Run the following command to install all available updates:
+      /usr/bin/sudo /usr/sbin/softwareupdate -i -a
+    If an update listed by `softwareupdate -l` requires a restart, attach the `-R` flag to force a system restart.
   query: SELECT 1 FROM software_update WHERE software_update_required = '0';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -101,33 +106,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure XProtect Is Running and Updated
-  platforms: macOS
-  platform: darwin
-  description: |
-    XProtect is Apple's native signature-based antivirus technology. XProtect both finds and blocks the execution of known malware. There are many AV and Endpoint Threat Detection and Response (ETDR) tools available for Mac OS. The native Apple provisioned tool looks for specific known malware and is completely integrated into the OS. No matter what other tools are being used, XProtect should have the latest signatures available.
-  resolution: |
-        Ask your system administrator to deploy a script that will configure:
-        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
-        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
-        /usr/bin/sudo /usr/bin/xprotect update
-  query: |
-      SELECT 1
-      WHERE (
-          SELECT COUNT(*)
-          FROM launchd
-          WHERE path IN (
-              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist',
-              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist'
-          )
-      ) = 2;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth, getvictor
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -159,6 +137,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)
+  cis_id: "1.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -168,6 +147,10 @@ spec:
     and configurations that may be negatively impacted by Apple updates. If software
     updates are deferred, they should not be deferred for more than 30 days.
     This control only verifies that deferred software updates are not deferred for more than 30 days.
+    Note: Software deferment is deprecated by Apple and will be removed in a future OS release/update.
+    Rationale:
+    Apple software updates almost always include security updates. Attackers evaluate updates to create exploit code in order to attack unpatched systems. The longer a system remains unpatched, the greater an exploit possibility exists in which there are publicly reported vulnerabilities.
+    Software updates being deferred are specifically referring to OS updates and not either major upgrades (ex. upgrading from macOS 15.0 to macOS 26) or applications from the App Store.
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
   query: |
     SELECT 1 WHERE 
@@ -262,14 +245,18 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  name: CIS - Ensure iCloud Passwords & Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
-    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
-    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    The iCloud Passwords & Keychain is Apple's synchronization service that works with Apple Accounts to synchronize password, passkey, and credit card information across macOS, iOS, iPadOS. The capability allows users to use synced password, passkey, and credit card information in either macOS, iOS, or iPadOS for use in Safari and other applications.
+    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on enterprise-managed computers.
+    When using personal Apple Accounts, credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
     Rationale:
-    Ensure that the iCloud keychain is used consistently with organizational requirements.
+    Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
+    Impact:
+    When iCloud Passwords & Keychain is turned off, password, passkey, and credit card information are no longer synchronized across devices signed in with the same Apple Account. Passwords, passkeys, and credit card information can still be stored locally and accessed through the Passwords and Keychain apps, even when iCloud Passwords & Keychain is turned off.
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
@@ -299,14 +286,18 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  name: CIS - Ensure iCloud Passwords & Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
-    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
-    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    The iCloud Passwords & Keychain is Apple's synchronization service that works with Apple Accounts to synchronize password, passkey, and credit card information across macOS, iOS, iPadOS. The capability allows users to use synced password, passkey, and credit card information in either macOS, iOS, or iPadOS for use in Safari and other applications.
+    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on an Enterprise-managed computer.
+    When using personal Apple Accounts, credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
     Rationale:
-    Ensure that the iCloud keychain is used consistently with organizational requirements.
+    Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
+    Impact:
+    When iCloud Passwords & Keychain is enabled, password, passkey, and credit card information are synchronized across devices signed in with the same Apple Account. This may result in those items being stored in Apple's cloud and accessible across the user's Apple devices and applications that use iCloud Keychain.
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
@@ -402,6 +393,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure AirDrop Is Disabled (MDM Required)
+  cis_id: "2.3.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -413,20 +405,23 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
+    Note: AirDrop can only be enabled or disabled through configuration profiles. If your
+    organization allows AirDrop, that policy must be set through MDM; users may then use
+    the GUI to transfer files if AirDrop is permitted.
   query: |
-    SELECT 1 WHERE 
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAirDrop' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.applicationaccess' AND
+            name='allowAirDrop' AND
             (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAirDrop' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.applicationaccess' AND
+            name='allowAirDrop' AND
             (value != 0 AND value != 'false')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
@@ -613,14 +608,16 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Remote Login Is Disabled
+  cis_id: "2.3.3.4"
   platforms: macOS
   platform: darwin
   description: |
-    Remote Login allows an interactive terminal session to a computer.
-    The SSH server built into macOS should not be enabled on a standard user computer,
-    particularly one that changes locations and IP addresses.
-    A standard user that runs local applications, including email, web browser,
-    and productivity tools, should not use the same device as a server
+    Remote Login allows an interactive terminal connection to a computer.
+    Disabling Remote Login mitigates the risk of an unauthorized person gaining access
+    to the system via Secure Shell (SSH). The SSH server built into macOS should not be
+    enabled on a standard user computer, particularly one that changes locations and IP
+    addresses. A standard user that runs local applications, including email, web
+    browser, and productivity tools, should not use the same device as a server.
 
   resolution: |
     Graphical Method:
@@ -628,16 +625,25 @@ spec:
     2. Select General
     3. Select Sharing
     4. Set Remote Login to disabled
+    Terminal Method:
+    Run the following command to disable Remote Login:
+      /usr/bin/sudo /usr/sbin/systemsetup -setremotelogin off
+    Note: This command disables Remote Login and stops the SSH service immediately.
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT * FROM plist WHERE
         path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
         key = 'com.openssh.sshd' AND
         value = '0'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM processes WHERE path = '/usr/sbin/sshd'
     );
-  # We are not using the launchd table because it does not check if services
-  # are disabled via disabled.plist, which the preference pane uses whenever
-  # a service is disabled after it has been enabled in the past.
+  # The plist check catches services toggled off via the preference pane
+  # (which the launchd table does not reflect). The processes check catches
+  # the v2.0.0 audit's "service not running at the time of audit" requirement,
+  # which the plist check alone misses when SSH is started outside the
+  # preference pane.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
@@ -913,77 +919,6 @@ spec:
     UNION
     SELECT 'time machines destinations with encryption with automatic backup' as output
     FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    The Wi-Fi status in the menu bar indicates if the system's wireless internet capabilities are enabled.
-    If so, the system will scan for available wireless networks in order to connect.
-    Enabling "Show Wi-Fi status in menu bar" is a security awareness method that helps mitigate public area
-    wireless exploits by making the user aware of their wireless connectivity status.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Wi-Fi status in the menu bar.
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The `PayloadType` string is `com.apple.controlcenter`.
-    2. The key to include is `WiFi`.
-    3. The key must be set to `<integer>18</integer>`.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='WiFi' AND 
-            value = 18
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='WiFi' AND 
-            value != 18
-        );  
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    Enabling "Show Bluetooth status in menu bar" is a security awareness method that
-    helps understand the current state of Bluetooth, including whether it is enabled,
-    discoverable, what paired devices exist, and what paired devices are currently active.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The `PayloadType` string is `com.apple.controlcenter`.
-    2. The key to include is `Bluetooth`.
-    3. The key must be set to `<integer>18</integer>`.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='Bluetooth' AND 
-            value = 18
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='Bluetooth' AND 
-            value != 18
-        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
@@ -1808,6 +1743,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)
+  cis_id: "2.6.3.1, 2.6.3.2, 2.6.3.3, 2.6.3.4"
   platforms: macOS
   platform: darwin
   description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
@@ -1844,9 +1780,9 @@ spec:
             (value = 0 OR value = 'false')
         )
       AND EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='Siri Data Sharing Opt-In Status' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.assistant.support' AND
+            name='Siri Data Sharing Opt-In Status' AND
             value = 2
         )
       AND NOT EXISTS (
@@ -3024,43 +2960,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show All Filename Extensions Setting is Enabled
-  platforms: macOS
-  platform: darwin
-  description: |
-    A filename extension is a suffix added to a base filename that indicates the
-    base filename's file format. This is intended for any user that logs into
-    the GUI and has a home folder and not for service accounts. For the audit,
-    we will continue to verify that every account with a home folder has
-    filename extensions enabled.
-    Visible filename extensions allow the user to identify the file type and the
-    application it is associated with which leads to quick identification of
-    misrepresented malicious files.
-  resolution: |
-    Automated method:
-    Ask your administrator to deploy a script that runs the following command
-    for each user:
-    /usr/bin/sudo -u <username> /usr/bin/defaults write \
-    /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM users AS u
-      LEFT JOIN (
-        SELECT * FROM plist WHERE
-          path LIKE '/Users/%/Library/Preferences/.GlobalPreferences.plist' AND
-          key = 'AppleShowAllExtensions' AND
-          value = '1') AS p
-      ON p.path = CONCAT(u.directory, '/Library/Preferences/.GlobalPreferences.plist')
-        WHERE u.directory LIKE '/Users/%' AND
-        p.value IS NULL
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work, getvictor
 ---
 apiVersion: v1
 kind: policy

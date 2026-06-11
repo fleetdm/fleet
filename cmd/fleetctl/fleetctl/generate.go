@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -23,6 +24,7 @@ func generateCommand() *cli.Command {
 		},
 		Subcommands: []*cli.Command{
 			generateMDMAppleCommand(),
+			generateMDMABCommand(),
 			generateMDMAppleBMCommand(),
 		},
 	}
@@ -87,62 +89,83 @@ Go to %s/settings/integrations/mdm/apple and follow the steps.
 	}
 }
 
+func generateMDMABCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-ab",
+		Aliases: []string{"mdm_ab"},
+		Usage:   "Generate Apple Business (AB) public key to enable automatic enrollment for macOS hosts.",
+		Flags:   generateMDMABFlags(),
+		Action:  runGenerateMDMAB,
+	}
+}
+
 func generateMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Generate Apple Business Manager public key to enable automatic enrollment for macOS hosts.",
-		Flags: []cli.Flag{
-			contextFlag(),
-			debugFlag(),
-			&cli.StringFlag{
-				Name:  "public-key",
-				Usage: "The output path for the Apple Business Manager public key certificate.",
-				Value: bmPublicKeyCertPath,
-			},
-		},
+		Usage:   "Deprecated. Use mdm-ab instead.",
+		Flags:   generateMDMABFlags(),
 		Action: func(c *cli.Context) error {
-			publicKeyPath := c.String("public-key")
-
-			// get the fleet API client first, so that any login requirement are met
-			// before printing the CSR output message.
-			client, err := clientFromCLI(c)
-			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "client from CLI: %s", err)
-				return ErrGeneric
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl generate mdm-apple-bm' is deprecated; use 'fleetctl generate mdm-ab' instead\n")
 			}
+			return runGenerateMDMAB(c)
+		},
+	}
+}
 
-			publicKey, err := client.RequestAppleABM()
-			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "requesting ABM public key: %s", err)
-				return ErrGeneric
-			}
+func generateMDMABFlags() []cli.Flag {
+	return []cli.Flag{
+		contextFlag(),
+		debugFlag(),
+		&cli.StringFlag{
+			Name:  "public-key",
+			Usage: "The output path for the Apple Business (AB) public key certificate.",
+			Value: bmPublicKeyCertPath,
+		},
+	}
+}
 
-			if err := os.WriteFile(publicKeyPath, publicKey, defaultFileMode); err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "write public key: %s", err)
-				return ErrGeneric
-			}
+func runGenerateMDMAB(c *cli.Context) error {
+	publicKeyPath := c.String("public-key")
 
-			appCfg, err := client.GetAppConfig()
-			if err != nil {
-				fmt.Fprintf(c.App.ErrWriter, "fetching app config: %s", err)
-				return ErrGeneric
-			}
+	// get the fleet API client first, so that any login requirement are met
+	// before printing the CSR output message.
+	client, err := clientFromCLI(c)
+	if err != nil {
+		fmt.Fprintf(c.App.ErrWriter, "client from CLI: %s", err)
+		return ErrGeneric
+	}
 
-			fmt.Fprintf(
-				c.App.Writer,
-				`Success!
+	publicKey, err := client.RequestAppleABM()
+	if err != nil {
+		fmt.Fprintf(c.App.ErrWriter, "requesting Apple Business public key: %s", err)
+		return ErrGeneric
+	}
+
+	if err := os.WriteFile(publicKeyPath, publicKey, defaultFileMode); err != nil {
+		fmt.Fprintf(c.App.ErrWriter, "write public key: %s", err)
+		return ErrGeneric
+	}
+
+	appCfg, err := client.GetAppConfig()
+	if err != nil {
+		fmt.Fprintf(c.App.ErrWriter, "fetching app config: %s", err)
+		return ErrGeneric
+	}
+
+	fmt.Fprintf(
+		c.App.Writer,
+		`Success!
 
 Generated your public key at %s
 
 Go to %s/settings/integrations/automatic-enrollment/apple and follow the steps.
 
 `,
-				publicKeyPath,
-				appCfg.ServerSettings.ServerURL,
-			)
+		publicKeyPath,
+		appCfg.ServerSettings.ServerURL,
+	)
 
-			return nil
-		},
-	}
+	return nil
 }

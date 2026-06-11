@@ -9,15 +9,16 @@
   }
 
   h2 {
-    font-size: $medium;
-    color: $ui-fleet-black-75;
+    font-size: $small;
   }
 
   p {
     margin-top: 0;
   }
 
-  &__mdm-urls-container, &__tenants-container {
+  &__mdm-urls-container,
+  &__tenants-container,
+  &__client-ids-container {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
@@ -42,8 +43,8 @@
     align-items: column;
     gap: $pad-small;
   }
-   
-  &__empty-tenant-message, .empty-table__container {
+
+  .empty-table__container {
     margin: $pad-small auto;
   }
 }

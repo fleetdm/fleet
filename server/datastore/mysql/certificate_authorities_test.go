@@ -378,6 +378,31 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
+
+	// Test that deleting a CA referenced by a certificate template returns a conflict error
+	ca, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy),
+		Name: ptr.String("Referenced CA"),
+		URL:  ptr.String("https://localhost"),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, ca)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "cert-test-team"})
+	require.NoError(t, err)
+
+	// Insert a certificate template that references the CA
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO certificate_templates (team_id, certificate_authority_id, name, subject_name) VALUES (?, ?, ?, ?)`,
+		team.ID, ca.ID, "test-cert", "CN=test",
+	)
+	require.NoError(t, err)
+
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.Error(t, err)
+	var conflictErr fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	require.Contains(t, conflictErr.Error(), fleet.DeleteCAReferencedByTemplatesErrMsg)
 }
 
 func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {

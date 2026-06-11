@@ -1,6 +1,7 @@
 import React from "react";
 import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
@@ -14,8 +15,8 @@ import {
   isTeamTechnician,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
+import ActionsDropdown from "components/ActionsDropdown";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
@@ -75,7 +76,9 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
 
 const generateActionDropdownOptions = (
   currentUser: IUser,
-  label: ILabel
+  label: ILabel,
+  labelsGitOpsManaged: boolean,
+  repoURL?: string
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [
     {
@@ -84,6 +87,11 @@ const generateActionDropdownOptions = (
       value: "view_hosts",
     },
   ];
+
+  const gitOpsTooltip =
+    labelsGitOpsManaged && repoURL
+      ? getGitOpsModeTipContent(repoURL)
+      : undefined;
 
   if (hasEditPermission(currentUser, label)) {
     if (label.label_membership_type !== "host_vitals") {
@@ -96,8 +104,9 @@ const generateActionDropdownOptions = (
 
     options.push({
       label: "Delete",
-      disabled: false,
+      disabled: labelsGitOpsManaged,
       value: "delete",
+      tooltipContent: gitOpsTooltip,
     });
   }
 
@@ -106,7 +115,9 @@ const generateActionDropdownOptions = (
 
 const generateTableHeaders = (
   currentUser: IUser,
-  onClickAction: (action: string, label: ILabel) => void
+  onClickAction: (action: string, label: ILabel) => void,
+  labelsGitOpsManaged = false,
+  repoURL?: string
 ): IDataColumn[] => {
   return [
     {
@@ -159,17 +170,17 @@ const generateTableHeaders = (
         const label = cellProps.row.original;
         const dropdownOptions = generateActionDropdownOptions(
           currentUser,
-          label
+          label,
+          labelsGitOpsManaged,
+          repoURL
         );
         return (
-          <ViewAllHostsLink
-            rowHover
-            noLink
-            excludeChevron
-            dropdown={{
-              options: dropdownOptions,
-              onChange: (value: string) => onClickAction(value, label),
-            }}
+          <ActionsDropdown
+            options={dropdownOptions}
+            onChange={(value: string) => onClickAction(value, label)}
+            placeholder="Actions"
+            menuAlign="right"
+            variant="small-button"
           />
         );
       },

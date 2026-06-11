@@ -4,12 +4,15 @@ import { pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ISliderProps {
   onChange: () => void;
   value: boolean;
   inactiveText: JSX.Element | string;
   activeText: JSX.Element | string;
+  /** Use to display slider label tooltip, compatible with disabled state */
+  labelTooltip?: JSX.Element | string;
   className?: string;
   helpText?: JSX.Element | string;
   autoFocus?: boolean;
@@ -24,6 +27,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     value,
     inactiveText,
     activeText,
+    labelTooltip,
     autoFocus,
     disabled,
   } = props;
@@ -63,6 +67,8 @@ const Slider = (props: ISliderProps): JSX.Element => {
   const wrapperClassNames = classnames(`${baseClass}__wrapper`, {
     [`${baseClass}__wrapper--disabled`]: disabled,
   });
+
+  const text = value ? activeText : inactiveText;
   return (
     <FormField {...formFieldProps} type="slider">
       <div className={wrapperClassNames}>
@@ -76,13 +82,26 @@ const Slider = (props: ISliderProps): JSX.Element => {
         >
           <div className={sliderDotClass} />
         </button>
-        <span
-          className={`${baseClass}__label ${baseClass}__label--${
-            value ? "active" : "inactive"
-          }`}
-        >
-          {value ? activeText : inactiveText}
-        </span>
+        {labelTooltip ? (
+          <TooltipWrapper tipContent={labelTooltip}>
+            {" "}
+            <span
+              className={`${baseClass}__label ${baseClass}__label--${
+                value ? "active" : "inactive"
+              }`}
+            >
+              {text}
+            </span>
+          </TooltipWrapper>
+        ) : (
+          <span
+            className={`${baseClass}__label ${baseClass}__label--${
+              value ? "active" : "inactive"
+            }`}
+          >
+            {text}
+          </span>
+        )}
       </div>
     </FormField>
   );

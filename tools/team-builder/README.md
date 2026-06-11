@@ -1,7 +1,7 @@
 
-# Fleet Team Builder
+# Fleet fleet builder
 
-Using a list of teams in a file as input, adds the listed teams to Fleet and generates installer processes. 
+Using a list of fleets (formerly "teams") in a file as input, adds the listed teams to Fleet and generates installer processes. 
 
 For each team, an enroll secret will be created, the team added to Fleet using the team yaml template, and `.msi`,`.deb`, `.pkg` and `.rpm` installer packages will be created. 
 

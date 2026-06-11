@@ -8,8 +8,16 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":       "fma.id",
+	"name":     "fma.name",
+	"platform": "fma.platform",
+	"slug":     "fma.slug",
+}
 
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
@@ -34,6 +42,40 @@ ON DUPLICATE KEY UPDATE
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
+
+		// For darwin apps, update existing software_titles and software entries
+		// to use the FMA canonical name. This ensures consistency when an FMA
+		// is added for software that was previously ingested with osquery-reported names.
+		//
+		// We only run these UPDATEs when the FMA was actually inserted or modified.
+		// MySQL's ON DUPLICATE KEY UPDATE returns RowsAffected:
+		//   0 = duplicate key, no changes (existing FMA with same values)
+		//   1 = new row inserted
+		//   2 = duplicate key, values changed
+		// Skip if RowsAffected == 0 since nothing changed.
+		rowsAffected, _ := res.RowsAffected()
+		if app.Platform == "darwin" && app.UniqueIdentifier != "" && rowsAffected > 0 {
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software_titles
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software_titles names for FMA")
+			}
+
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software names for FMA")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -164,7 +206,10 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		}
 	}
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, maintainedAppsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list fleet maintained apps")
+	}
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
@@ -178,6 +223,30 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	}
 
 	return avail, meta, nil
+}
+
+func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
+	query := `SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query FMA names by identifier")
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var identifier, name string
+		if err := rows.Scan(&identifier, &name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scan FMA name row")
+		}
+		result[identifier] = name
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterate FMA name rows")
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {

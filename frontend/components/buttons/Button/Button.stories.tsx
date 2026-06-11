@@ -68,8 +68,7 @@ export const InverseVariant = Template("inverse");
 export const InverseAlertVariant = Template("inverse-alert");
 
 export const PillVariant = Template("pill");
-export const TextLinkVariant = Template("text-link");
-export const TextLinkDarkVariant = Template("text-link-dark");
+export const LinkVariant = Template("link");
 export const TextIconVariant = Template(
   "text-icon",
   <>

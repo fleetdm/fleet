@@ -59,24 +59,27 @@ type addAppStoreAppRequest struct {
 	AutomaticInstall bool                            `json:"automatic_install"`
 	LabelsIncludeAny []string                        `json:"labels_include_any"`
 	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
+	LabelsIncludeAll []string                        `json:"labels_include_all"`
 	Categories       []string                        `json:"categories"`
 	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
 type addAppStoreAppResponse struct {
-	TitleID uint  `json:"software_title_id,omitempty"`
-	Err     error `json:"error,omitempty"`
+	TitleID uint   `json:"software_title_id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Err     error  `json:"error,omitempty"`
 }
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
-	titleID, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
+	titleID, name, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
 		SelfService:          req.SelfService,
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
+		LabelsIncludeAll:     req.LabelsIncludeAll,
 		AddAutoInstallPolicy: req.AutomaticInstall,
 		Categories:           req.Categories,
 		Configuration:        req.Configuration,
@@ -85,15 +88,15 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
 
-	return &addAppStoreAppResponse{TitleID: titleID}, nil
+	return &addAppStoreAppResponse{TitleID: titleID, Name: name}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, error) {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return 0, fleet.ErrMissingLicense
+	return 0, "", fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -106,6 +109,7 @@ type updateAppStoreAppRequest struct {
 	SelfService       *bool           `json:"self_service"`
 	LabelsIncludeAny  []string        `json:"labels_include_any"`
 	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string        `json:"labels_include_all"`
 	Categories        []string        `json:"categories"`
 	Configuration     json.RawMessage `json:"configuration,omitempty"`
 	DisplayName       *string         `json:"display_name"`
@@ -133,6 +137,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
@@ -205,7 +210,7 @@ func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 		}
 	}
 
-	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+	if len(r.MultipartForm.File["token"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "token multipart field is required",
 			InternalErr: err,
@@ -272,7 +277,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 		}
 	}
 
-	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+	if len(r.MultipartForm.File["token"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "token multipart field is required",
 			InternalErr: err,

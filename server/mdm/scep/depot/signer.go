@@ -74,11 +74,14 @@ func WithSeverAttrs() Option {
 
 // SignCSR signs a certificate using Signer's Depot CA
 func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
-	id, err := cryptoutil.GenerateSubjectKeyID(m.CSR.PublicKey)
+	return s.Signx509CSR(m.CSR)
+}
+
+func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	id, err := cryptoutil.GenerateSubjectKeyID(csr.PublicKey)
 	if err != nil {
 		return nil, err
 	}
-
 	serial, err := s.depot.Serial()
 	if err != nil {
 		return nil, err
@@ -92,7 +95,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	// create cert template
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      m.CSR.Subject,
+		Subject:      csr.Subject,
 		NotBefore:    time.Now().Add(time.Second * -600).UTC(),
 		NotAfter:     time.Now().AddDate(0, 0, s.validityDays).UTC(),
 		SubjectKeyId: id,
@@ -101,10 +104,10 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 			x509.ExtKeyUsageClientAuth,
 		},
 		SignatureAlgorithm: signatureAlgo,
-		DNSNames:           m.CSR.DNSNames,
-		EmailAddresses:     m.CSR.EmailAddresses,
-		IPAddresses:        m.CSR.IPAddresses,
-		URIs:               m.CSR.URIs,
+		DNSNames:           csr.DNSNames,
+		EmailAddresses:     csr.EmailAddresses,
+		IPAddresses:        csr.IPAddresses,
+		URIs:               csr.URIs,
 	}
 
 	if s.serverAttrs {
@@ -117,7 +120,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		return nil, err
 	}
 
-	crtBytes, err := x509.CreateCertificate(rand.Reader, tmpl, caCerts[0], m.CSR.PublicKey, caKey)
+	crtBytes, err := x509.CreateCertificate(rand.Reader, tmpl, caCerts[0], csr.PublicKey, caKey)
 	if err != nil {
 		return nil, err
 	}

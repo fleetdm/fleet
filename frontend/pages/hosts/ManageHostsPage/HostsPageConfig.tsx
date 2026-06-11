@@ -5,6 +5,7 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "fleet_id",
   "policy_id",
   "policy_response",
+  "apple_settings",
   "macos_settings",
   "software_id",
   "software_version_id",
@@ -15,11 +16,18 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "mdm_enrollment_status",
   "os_name",
   "os_version",
+  "os_version_id",
+  "vulnerability",
   "munki_issue_id",
   "low_disk_space",
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
   "bootstrap_package",
+  "profile_status",
+  "profile_uuid",
+  "dep_profile_error",
+  "dep_assign_profile_response",
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
@@ -35,7 +43,9 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   "software_version_id",
   "software_title_id",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+  "macos_bootstrap_package",
   "bootstrap_package",
+  "apple_settings",
   "macos_settings",
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
@@ -58,38 +68,50 @@ export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
-export const hostSelectStatuses = [
-  {
-    disabled: false,
-    label: "All hosts",
-    value: "",
-    helpText: "All hosts added to Fleet.",
-  },
-  {
-    disabled: false,
-    label: "Online hosts",
-    value: "online",
-    helpText: "Hosts that will respond to a live report.",
-  },
-  {
-    disabled: false,
-    label: "Offline hosts",
-    value: "offline",
-    helpText: "Hosts that won't respond to a live report.",
-  },
-  {
-    disabled: false,
-    label: "Missing hosts",
-    value: "missing",
-    helpText: "Hosts that have been offline for 30 days or more.",
-  },
-  {
-    disabled: false,
-    label: "New hosts",
-    value: "new",
-    helpText: "Hosts added to Fleet in the last 24 hours.",
-  },
-];
+export const hostSelectStatuses = (isPremiumTier: boolean) => {
+  const baseStatuses = [
+    {
+      disabled: false,
+      label: "All hosts",
+      value: "",
+      helpText: "All hosts added to Fleet.",
+    },
+    {
+      disabled: false,
+      label: "Online hosts",
+      value: "online",
+      helpText: "Hosts that will respond to a live report.",
+    },
+    {
+      disabled: false,
+      label: "Offline hosts",
+      value: "offline",
+      helpText: "Hosts that won't respond to a live report.",
+    },
+    {
+      disabled: false,
+      label: "Missing hosts",
+      value: "missing",
+      helpText: "Hosts that have been offline for 30 days or more.",
+    },
+    {
+      disabled: false,
+      label: "New hosts",
+      value: "new",
+      helpText: "Hosts added to Fleet in the last 24 hours.",
+    },
+  ];
+
+  const premiumStatuses = [
+    {
+      disabled: false,
+      label: "Pending hosts",
+      value: "pending",
+      helpText: "Hosts pending enrollment.",
+    },
+  ];
+  return [...baseStatuses, ...(isPremiumTier ? premiumStatuses : [])];
+};
 
 export const OS_SETTINGS_FILTER_OPTIONS = [
   {

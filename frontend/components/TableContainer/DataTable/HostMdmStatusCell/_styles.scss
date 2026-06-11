@@ -2,9 +2,11 @@
   display: inline-flex;
   flex-direction: row;
   text-wrap: nowrap;
-  gap: $pad-small;
+  gap: $gap-icon-text;
+  align-items: center;
+}
 
-  .tooltip__tooltip-text {
-    text-wrap: wrap;
-  }
+.host-mdm-status-cell .component__tooltip-wrapper.host-mdm-status-cell__tooltip .component__tooltip-wrapper__element {
+  // prevent status name from wrapping to multiple lines
+  white-space: nowrap;
 }

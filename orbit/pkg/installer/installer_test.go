@@ -15,6 +15,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1251,4 +1252,163 @@ func tempDirFn(t *testing.T) func(string, string) (string, error) {
 	return func(dir, pattern string) (string, error) {
 		return t.TempDir(), nil
 	}
+}
+
+// TestInstallSoftwareNotFoundRetryWindow covers the retry-window behavior for
+// orphaned installer 404s (#44084). Not parallel: it mutates the package-level
+// installerNotFoundRetryWindow.
+func TestInstallSoftwareNotFoundRetryWindow(t *testing.T) {
+	prevWindow := installerNotFoundRetryWindow
+	installerNotFoundRetryWindow = time.Minute
+	t.Cleanup(func() { installerNotFoundRetryWindow = prevWindow })
+
+	const execID = "exec-uuid-1"
+
+	notFoundErr := &client.NotFoundErr{Msg: "SoftwareInstallerDetails was not found in the datastore"}
+
+	t.Run("first failure records timestamp and returns nil payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		now := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.Nil(t, payload)
+		require.NoError(t, err, "in-window 404 must not surface an error so run() doesn't log ERR every cycle (#44084)")
+		require.Equal(t, now, r.installerNotFoundFirstSeen[execID])
+	})
+
+	t.Run("subsequent failures within window keep returning nil payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+
+		now = start.Add(installerNotFoundRetryWindow - time.Second)
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.Nil(t, payload)
+		require.NoError(t, err)
+		require.Equal(t, start, r.installerNotFoundFirstSeen[execID], "tracker should not be reset within window")
+	})
+
+	t.Run("after window elapses returns synthetic failure payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+
+		now = start.Add(installerNotFoundRetryWindow + time.Second)
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err, "synthetic failure should be returned without error so caller reports it")
+		require.NotNil(t, payload)
+		require.Equal(t, execID, payload.InstallUUID)
+		require.NotNil(t, payload.InstallScriptExitCode)
+		require.Equal(t, fleet.ExitCodeInstallerNotFound, *payload.InstallScriptExitCode)
+		require.Equal(t, fleet.SoftwareInstallFailed, payload.Status())
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "tracker should be cleared after firing")
+	})
+
+	t.Run("successful fetch clears tracker", func(t *testing.T) {
+		var callCount int
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				callCount++
+				if callCount == 1 {
+					return nil, notFoundErr
+				}
+				return &fleet.SoftwareInstallDetails{
+					InstallerID:   1,
+					ExecutionID:   execID,
+					InstallScript: "echo hi",
+				}, nil
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+			// stop-here error short-circuits attemptInstall after GetInstallerDetails.
+			tempDirFn: func(string, string) (string, error) { return "", errors.New("stop here") },
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+		require.Equal(t, start, r.installerNotFoundFirstSeen[execID])
+
+		_, _ = r.installSoftware(context.Background(), execID, r.logger)
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "successful fetch must clear tracker so future 404s start a fresh window")
+	})
+
+	t.Run("non-404 error clears tracker so unrelated transient errors don't leak into window", func(t *testing.T) {
+		var returnNotFound bool
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				if returnNotFound {
+					return nil, notFoundErr
+				}
+				return nil, errors.New("some other transport error")
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		returnNotFound = true
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+		require.Contains(t, r.installerNotFoundFirstSeen, execID)
+
+		returnNotFound = false
+		_, err = r.installSoftware(context.Background(), execID, r.logger)
+		require.Error(t, err)
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "non-404 error path must clear tracker")
+	})
 }

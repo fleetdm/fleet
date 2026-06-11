@@ -8,8 +8,8 @@ export type ButtonVariant =
   | "default"
   | "alert"
   | "pill"
-  | "text-link" // Underlines on hover
-  | "text-link-dark" // underline on hover, dark text
+  | "grey-pill"
+  | "link" // Looks like CustomLink with animated underline on hover
   | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
@@ -142,11 +142,12 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       }
     );
     const onWhite =
-      variant === "text-link" ||
+      variant === "link" ||
       variant === "inverse" ||
       variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
-      variant === "pill";
+      variant === "pill" ||
+      variant === "grey-pill";
 
     return (
       <button
@@ -165,7 +166,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
         </div>
-        {isLoading && <Spinner small button white={!onWhite} />}
+        {isLoading && <Spinner small button white={!onWhite} delay={0} />}
       </button>
     );
   }

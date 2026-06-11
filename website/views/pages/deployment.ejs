@@ -1,0 +1,133 @@
+<div id="deployment" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>Choose how to deploy Fleet</h4>
+            <h1>Flexible deployment options</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Run Fleet the way that fits your team. Every deployment option includes the same features. The difference is who manages the infrastructure and where it runs.</p>
+          </div>
+          <div purpose="button-row" class="justify-content-center">
+            <a href="/contact" purpose="cta-button">Talk to us</a>
+          </div>
+        </div>
+      </div><%/* page-hero */%>
+      <div purpose="page-body">
+        <div purpose="page-section">
+          <div purpose="deployment-cards">
+            <div purpose="deployment-card">
+              <div purpose="card-body">
+                <div purpose="card-title">
+                  <img alt="Managed cloud" src="/images/icon-managed-cloud-20x20@2x.png">
+                  <h5>Managed cloud</h5>
+                </div>
+                <p>Fleet hosts and operates your instance. Get automatic updates and a production-ready environment.</p>
+                <div purpose="checklist">
+                  <p>Get started in minutes</p>
+                  <p>No infrastructure to manage</p>
+                  <p>SOC 2 Type 2 certified</p>
+                </div>
+              </div>
+              <div purpose="card-link">
+                <animated-arrow-button href="/pricing">Get started</animated-arrow-button>
+              </div>
+            </div>
+            <div purpose="deployment-card">
+              <div purpose="card-body">
+                <div purpose="card-title">
+                  <img alt="Self-hosted" src="/images/icon-self-hosted-20x20@2x.png">
+                  <h5>Self-hosted</h5>
+                </div>
+                <p>Run Fleet on your own servers or any cloud infrastructure. You control data location, network boundaries, and upgrades.</p>
+                <div purpose="checklist">
+                  <p>Full feature set, same as managed cloud</p>
+                  <p>No cloud vendor lock-in</p>
+                  <p>Air-gapped support for regulated environments</p>
+                </div>
+                <div purpose="card-link">
+                  <animated-arrow-button href="/docs/deploy">See deployment guides</animated-arrow-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div purpose="page-section">
+          <div purpose="section-heading">
+            <h2>Architecture overview</h2>
+            <p>Run Fleet as a single instance or as a highly available deployment.</p>
+          </div>
+          <div purpose="section-image">
+            <img alt="An architecture overview of Fleet" src="/images/deployment-architecture-overview-990x479@2x.png">
+          </div>
+        </div>
+
+        <div purpose="page-section">
+          <div purpose="two-column-list">
+            <div purpose="column-list">
+              <h3>Scale and availability</h3>
+              <p>Scale Fleet to match your environment, from single instance to highly available.</p>
+              <div purpose="checklist">
+                <p>Start with a single instance for small fleets.</p>
+                <p>Scale horizontally as your fleet grows.</p>
+                <p>Design high availability through your own infrastructure choices.</p>
+              </div>
+              <animated-arrow-button href="/docs/deploy">See deployment guides</animated-arrow-button>
+            </div>
+            <div purpose="column-list">
+              <h3>Fits into your existing stack</h3>
+              <p>Fit Fleet into your existing stack. Export data, trigger workflows, and connect to downstream systems without changing how Fleet is deployed.</p>
+              <div purpose="checklist">
+                <p>Send data to logging and SIEM platforms</p>
+                <p>Stream data to pipelines and warehouses</p>
+                <p>Trigger tickets and alerts</p>
+                <p>Build custom workflows using the API</p>
+              </div>
+              <animated-arrow-button href="/integrations">View integrations</animated-arrow-button>
+            </div>
+          </div>
+        </div>
+        <div purpose="page-large-section">
+          <div purpose="section-heading">
+            <h2>Compare deployment models</h2>
+          </div>
+          <div purpose="details-cards">
+            <div purpose="details-card">
+              <div purpose="card-heading">
+                <h3 purpose="card-heading">Managed cloud (SaaS)</h3>
+              </div>
+              <p>Best for teams that want Fleet up and running with minimal infrastructure overhead.</p>
+              <div purpose="checklist">
+                <p>Fleet manages infrastructure</p>
+                <p>Fastest way to get started</p>
+                <p>Lowest operational overhead</p>
+              </div>
+              <a purpose="cta-button" class="btn btn-primary" href="/contact" no-underline>Get started</a>
+            </div>
+            <div purpose="details-card">
+              <div >
+                <h3 purpose="card-heading">Self-hosted (cloud, on-prem, air-gapped)</h3>
+              </div>
+              <p>Best for teams that need full control over infrastructure, data location, or network boundaries.</p>
+              <div purpose="checklist">
+                <p>You manage infrastructure</p>
+                <p>Maximum control over data location</p>
+                <p>Fits existing cloud or on-prem environments</p>
+              </div>
+              <div purpose="button-row">
+                <a purpose="cta-button" class="btn btn-primary" href="/docs/deploy/deploy-fleet" no-underline>Deploy Fleet</a>
+                <animated-arrow-button href="/pricing">See pricing</animated-arrow-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><%/* page-body */%>
+    </div><%/* page-content */%>
+  </div><%/* page-container */%>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

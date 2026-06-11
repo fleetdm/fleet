@@ -739,9 +739,9 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		var count uint
-		err := sqlx.GetContext(ctx, q, &count, "SELECT hosts_count FROM kernel_host_counts WHERE os_version_id = ?", os1.OSVersionID)
+		err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM kernel_host_counts WHERE os_version_id = ?", os1.OSVersionID)
 		require.NoError(t, err)
-		assert.Zero(t, count)
+		assert.Zero(t, count, "expected no rows in kernel_host_counts after all hosts with this kernel were deleted")
 		return nil
 	})
 

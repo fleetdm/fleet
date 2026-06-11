@@ -19,10 +19,10 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 )
 
@@ -271,11 +271,17 @@ func isDarkMode() bool {
 }
 
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	icon := m.props.OrgInfo.OrgLogoURL
-
-	// If the user is using light mode we will set the icon to use the light background logo
-	if !isDarkMode() {
-		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	var icon string
+	if isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLDarkMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURL
+		}
+	} else {
+		icon = m.props.OrgInfo.OrgLogoURLLightMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURLLightBackground
+		}
 	}
 
 	// If the user has not set an org logo url, we will use the default fleet logo.
@@ -666,7 +672,7 @@ func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 }
 
 type offlineWatcher struct {
-	client          *service.DeviceClient
+	client          *fleetclient.DeviceClient
 	swiftDialogPath string
 	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
 	swiftDialogCh chan struct{}
@@ -676,7 +682,7 @@ type offlineWatcher struct {
 // StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
 // device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
 // dialog to prompt the user to connect to the internet.
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *fleetclient.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
 	if cap(swiftDialogCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
 	}

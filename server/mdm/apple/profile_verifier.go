@@ -92,7 +92,7 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 			retriesByProfileIdentifier[r.ProfileIdentifier] = r.Retries
 		}
 		for _, key := range missing {
-			if retriesByProfileIdentifier[key] < mdm.MaxProfileRetries {
+			if retriesByProfileIdentifier[key] < mdm.MaxAppleProfileRetries {
 				// if we haven't hit the max retries, we set the host profile status to nil (which
 				// causes an install profile command to be enqueued the next time the profile
 				// manager cron runs) and increment the retry count
@@ -110,13 +110,41 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 // HandleHostMDMProfileInstallResult ingests the result of an install profile command reported via
 // the MDM protocol and updates the verification status in the datastore. It is intended to be
 // called by the Fleet MDM checkin and command service install profile request handler.
-func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string, newActivityFn fleet.NewActivityFunc) error {
 	if status != nil && *status == fleet.MDMDeliveryFailed {
 		// Here we set the host.Platform to "darwin" but it applies to iOS/iPadOS too.
 		// The logic in GetHostMDMProfileRetryCountByCommandUUID and UpdateHostMDMProfilesVerification
 		// is the exact same when platform is "darwin", "ios" or "ipados".
 		host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
+		if fleet.IsNotFound(err) {
+			// Check if the cmdUUID is an enrollment renewal
+			isEnrollmentRenewalCmd, enrollmentRenewalError := ds.IsAppleEnrollmentRenewalCommand(ctx, cmdUUID, hostUUID)
+			if enrollmentRenewalError != nil {
+				return ctxerr.Wrap(ctx, enrollmentRenewalError, "checking if command is Apple enrollment renewal command")
+			}
+
+			if isEnrollmentRenewalCmd {
+				hostLite, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "fetching host details for Apple enrollment renewal command")
+				}
+				// Generate a new activity, to mark that we failed to install the profile for the enrollment renewal.
+				// This won't trigger on manually enrolled devices, since they will break the connection and send a CheckOut,
+				// without responding to the command with an error.
+				activityErr := newActivityFn(ctx, nil, &fleet.ActivityTypeFailedEnrollmentProfileRenewal{
+					CommandUUID:     cmdUUID,
+					HostID:          hostLite.ID,
+					HostDisplayName: hostLite.DisplayName(),
+				})
+				if activityErr != nil {
+					return ctxerr.Wrap(ctx, activityErr, "creating activity for failed enrollment profile renewal")
+				}
+
+				// Stop returning an error here, since we handled the path.
+				return nil
+			}
+		}
 		if err != nil {
 			// FIXME: In cases where the command is superseded before the host reports the results,
 			// for example, when the scep proxy profile is resent due to challenge expiration, we
@@ -125,7 +153,7 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 			return err
 		}
 
-		if m.Retries < mdm.MaxProfileRetries {
+		if m.Retries < mdm.MaxAppleProfileRetries {
 			// if we haven't hit the max retries, we set the host profile status to nil (which
 			// causes an install profile command to be enqueued the next time the profile
 			// manager cron runs) and increment the retry count

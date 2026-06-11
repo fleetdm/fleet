@@ -36,7 +36,7 @@ const InstalledPathCell = ({
 
   // 2 or more installed versions
   return (
-    <Button variant="text-link" onClick={onClickMultiplePaths}>
+    <Button variant="link" onClick={onClickMultiplePaths}>
       {uniquePathsCount.toString()} paths
     </Button>
   );

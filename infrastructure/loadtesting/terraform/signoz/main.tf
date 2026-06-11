@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.23"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 
   backend "s3" {
@@ -137,7 +141,7 @@ module "eks" {
       min_size       = 1
       max_size       = 1
       desired_size   = 1
-      instance_types = ["t3.2xlarge"]
+      instance_types = ["m6i.8xlarge"]
     }
   }
 
@@ -255,7 +259,7 @@ resource "helm_release" "signoz" {
   # Clickhouse storage configuration
   set {
     name  = "clickhouse.persistence.size"
-    value = "200Gi"
+    value = "600Gi"
   }
 
   set {
@@ -279,53 +283,102 @@ resource "helm_release" "signoz" {
   # Default 100m CPU and 200Mi memory are way too low for high-volume telemetry
   set {
     name  = "clickhouse.resources.requests.cpu"
-    value = "2000m"
+    value = "6000m"
   }
 
   set {
     name  = "clickhouse.resources.requests.memory"
-    value = "4Gi"
+    value = "12Gi"
   }
 
   set {
     name  = "clickhouse.resources.limits.cpu"
-    value = "4000m"
+    value = "12000m"
   }
 
   set {
     name  = "clickhouse.resources.limits.memory"
-    value = "8Gi"
+    value = "24Gi"
   }
 
   # OTEL Collector resource configuration for loadtest
   set {
     name  = "otelCollector.resources.requests.memory"
-    value = "8Gi"
+    value = "24Gi"
   }
 
   set {
     name  = "otelCollector.resources.limits.memory"
-    value = "12Gi"
+    value = "36Gi"
   }
 
   set {
     name  = "otelCollector.resources.requests.cpu"
-    value = "1000m"
+    value = "3000m"
   }
 
   set {
     name  = "otelCollector.resources.limits.cpu"
-    value = "4000m"
+    value = "12000m"
   }
 
-  # Only need 1 replica since we have 1 LoadBalancer endpoint
   set {
     name  = "otelCollector.replicaCount"
-    value = "1"
+    value = "3"
   }
 
   depends_on = [
     module.eks,
     kubernetes_storage_class_v1.gp3
   ]
+}
+
+# Pre-destroy cleanup for the known signoz destroy hang (fleetdm/fleet#35405).
+#
+# Root cause: the signoz chart installs the Altinity clickhouse-operator, which puts a finalizer on its
+# ClickHouseInstallation custom resource. During `helm uninstall` the operator is removed, so nothing processes that
+# finalizer; CHI deletion wedges, which wedges PVC and namespace deletion, which wedges the helm_release destroy
+# (wait = true) for its full timeout.
+#
+# This resource depends_on the helm_release, so on destroy Terraform runs this provisioner FIRST (dependents are
+# destroyed before dependencies). It: (1) strips the CHI finalizer, (2) deletes the LoadBalancer services so the AWS
+# ELBs release before the EKS/VPC teardown, and (3) queues PVC deletion so the EBS CSI driver releases the volumes
+# (600Gi ClickHouse included) while the cluster is still alive. Otherwise the volumes orphan when the cluster dies.
+# Every step is idempotent and failure-tolerant (a fresh or partially-created stack simply has nothing to clean).
+resource "null_resource" "signoz_predestroy_cleanup" {
+  triggers = {
+    cluster_name = local.cluster_name
+    region       = var.aws_region
+  }
+
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = <<-EOT
+      set -x
+      KUBECONFIG_TMP=$(mktemp)
+      trap 'rm -f "$KUBECONFIG_TMP"' EXIT
+      aws eks update-kubeconfig --region ${self.triggers.region} --name ${self.triggers.cluster_name} --kubeconfig "$KUBECONFIG_TMP" || exit 0
+      export KUBECONFIG="$KUBECONFIG_TMP"
+      # Delete the clickhouse-operator FIRST: while it runs it immediately re-adds the CHI finalizer, so a patch alone
+      # loses the race.
+      kubectl delete deployment -n signoz signoz-clickhouse-operator --ignore-not-found --timeout=60s || true
+      kubectl delete deployment -n signoz -l app.kubernetes.io/name=clickhouse-operator --ignore-not-found --timeout=60s || true
+      # Wait until the operator pods are actually gone (deployment deletion returns before pod termination). Match by
+      # pod name rather than labels so this works regardless of chart label conventions. Bounded at 120s.
+      kubectl wait -n signoz --for=delete pod -l app.kubernetes.io/name=clickhouse-operator --timeout=120s || true
+      for _ in $(seq 1 24); do
+        kubectl get pods -n signoz --no-headers 2>/dev/null | grep -q clickhouse-operator || break
+        sleep 5
+      done
+      # With the operator gone the patch sticks; without it, helm uninstall hangs on CHI deletion (#35405).
+      kubectl patch clickhouseinstallations.clickhouse.altinity.com signoz-clickhouse -n signoz --type merge -p '{"metadata":{"finalizers":[]}}' || true
+      # Release the AWS load balancers before the EKS/VPC teardown.
+      kubectl delete svc -n signoz signoz signoz-otel-collector --ignore-not-found --timeout=120s || true
+      # Queue PVC deletion so the CSI driver releases the EBS volumes while the cluster still exists.
+      kubectl delete pvc -n signoz --all --wait=false || true
+    EOT
+  }
+
+  depends_on = [helm_release.signoz]
 }

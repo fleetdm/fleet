@@ -16,6 +16,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import PageDescription from "components/PageDescription";
 
 import {
   FmaPlatformValue,
@@ -105,7 +106,7 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
     fleet_id: location.query.fleet_id,
   });
 
@@ -121,6 +122,7 @@ const SoftwareAddPage = ({
             />
           </div>
           <h1>Add software</h1>
+          <PageDescription content="Add software to your library. You can add it to self-service later." />
           <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}
@@ -137,12 +139,14 @@ const SoftwareAddPage = ({
               </TabList>
             </Tabs>
           </TabNav>
-          {React.cloneElement(children, {
-            router,
-            currentTeamId: parseInt(location.query.fleet_id, 10),
-            isSidePanelOpen,
-            setSidePanelOpen,
-          })}
+          <div key={location?.pathname} className="tab-nav-routed-content">
+            {React.cloneElement(children, {
+              router,
+              currentTeamId: parseInt(location.query.fleet_id, 10),
+              isSidePanelOpen,
+              setSidePanelOpen,
+            })}
+          </div>
         </MainContent>
         {isSidePanelOpen && (
           <SidePanelContent>

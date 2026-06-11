@@ -4,3 +4,4 @@
   description: This policy checks if disk encryption is enabled.
   resolution: Disk encryption can only be configured during initial operating system install. Please re-install your operating system ensuring disk encryption is enabled.
   platform: linux
+  webhooks_and_tickets_enabled: true

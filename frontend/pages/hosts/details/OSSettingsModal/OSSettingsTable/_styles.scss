@@ -6,22 +6,21 @@
     &__wrapper {
       width: initial;
     }
-    tbody td.detail__cell {
-      // these styles are a little trick that allows the cell to
-      // shrink while still follwing the auto width behavior of the table.
-      // This is needed to show the error text and button in the
-      // error cell correctly without overflowing outside of the table.
-      max-width: 0;
-      width: 100%;
+    &__table {
+      table-layout: fixed;
     }
-    tbody td {
-      .os-settings-name-cell {
-        max-width: 166px;
-      }
-      .os-settings-error-cell {
-        min-width: 0;
-        width: 100%;
-      }
+    th.detail__header {
+      border-left: none;
+      width: 120px;
+    }
+    th.status__header {
+      width: 200px;
+    }
+    // Name column absorbs remaining space and truncates with ellipsis.
+    tbody td.name__cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
@@ -33,25 +32,25 @@
 
   // row hover effect for resend button. we dont want this behavior when the
   // button is resending
-  .resend-link:not(.os-settings-error-cell__resending) {
+  .resend-link:not(.os-settings-resend-cell__resending) {
     opacity: 0;
     transition: opacity 250ms;
   }
 
   tr:hover {
-    .resend-link:not(.os-settings-error-cell__resending) {
+    .resend-link:not(.os-settings-resend-cell__resending) {
       opacity: 1;
     }
   }
 
   // row hover effect for rotate button, matching resend pattern
-  .rotate-link:not(.os-settings-error-cell__rotating) {
+  .rotate-link:not(.os-settings-resend-cell__rotating) {
     opacity: 0;
     transition: opacity 250ms;
   }
 
   tr:hover {
-    .rotate-link:not(.os-settings-error-cell__rotating) {
+    .rotate-link:not(.os-settings-resend-cell__rotating) {
       opacity: 1;
     }
   }

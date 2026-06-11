@@ -1,11 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
-sed -i "s/placeholder/${ENROLL_SECRET}/g" /etc/default/orbit
-export $(cat /etc/default/orbit | xargs)
+: "${ENROLL_SECRET:?ENROLL_SECRET must be set}"
 
-while true; do
-	echo "Starting orbit..."
-	/opt/orbit/bin/orbit/orbit
-	echo "orbit exit code: $?"
-	sleep 5
-done
+awk -v s="$ENROLL_SECRET" '{gsub(/placeholder/, s)}1' \
+	/etc/default/orbit > /etc/default/orbit.new \
+	&& mv /etc/default/orbit.new /etc/default/orbit
+
+set -a; . /etc/default/orbit; set +a
+
+exec /opt/orbit/bin/orbit/orbit

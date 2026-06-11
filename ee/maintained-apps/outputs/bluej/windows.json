@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "5.5.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BlueJ' AND publisher = 'BlueJ Team' AND version_compare(version, '5.5.0') < 0);"
+      },
+      "installer_url": "https://github.com/k-pet-group/BlueJ-Greenfoot/releases/download/BLUEJ-RELEASE-5.5.0/BlueJ-windows-5.5.0.msi",
+      "install_script_ref": "29a9338f",
+      "uninstall_script_ref": "d85b3e22",
+      "sha256": "697404b7f704235878861bd4133e24480e17e74942f0a9d31db08ddfe4ee21c0",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "29a9338f": "# BlueJ ships a per-user WiX MSI. Fleet runs installs elevated (SYSTEM), so we\n# pass ALLUSERS=2 — the same switch winget uses — which resolves to a per-machine\n# install (into %ProgramFiles%\\BlueJ) when run elevated.\n\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\" ALLUSERS=2\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "d85b3e22": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{F4B4357E-6101-4CB1-8E38-3D4F3AFB4BE2}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

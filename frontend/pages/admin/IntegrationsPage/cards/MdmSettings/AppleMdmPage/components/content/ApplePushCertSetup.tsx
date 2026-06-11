@@ -6,7 +6,6 @@ import mdmAppleApi from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import ClickableUrls from "components/ClickableUrls";
 import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {
@@ -33,13 +32,22 @@ const ApplePushCertSetup = ({
         onSetupSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        if (
-          msg.toLowerCase().includes("invalid certificate") ||
-          msg.toLowerCase().includes("download the certificate signing request")
-        ) {
-          renderFlash("error", msg);
+        if (msg.toLowerCase().includes("required private key")) {
+          renderFlash(
+            "error",
+            <>
+              Couldn&apos;t add APNs certificate. Please configure a private
+              key.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
         } else {
-          renderFlash("error", "Couldn’t connect. Please try again.");
+          renderFlash("error", msg || "Couldn’t connect. Please try again.");
         }
         setIsUploading(false);
       }
@@ -50,11 +58,21 @@ const ApplePushCertSetup = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("email address")) {
+      if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else if (msg.toLowerCase().includes("required private key")) {
-        // replace link with actually clickable link
-        renderFlash("error", ClickableUrls({ text: msg }));
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t download. Please configure a private key.{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+              text="Learn how"
+              newTab
+              variant="flash-message-link"
+            />
+          </>
+        );
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
@@ -65,61 +83,26 @@ const ApplePushCertSetup = ({
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
       <p className={`${baseClass}__setup-description`}>
-        Connect Fleet to Apple Push Certificates Portal to turn on MDM.
-      </p>
-      <div>
-        <ol className={`${baseClass}__setup-instructions-list`}>
-          <li>
-            <span>1. </span>
-            <span>
-              <span>
-                Download a certificate signing request (CSR) for Apple Push
-                Notification service (APNs).
-              </span>
-              <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
-            </span>
-          </li>
-          <li>
-            <span>2. </span>
-            <span>
-              Sign in to{" "}
-              <CustomLink
-                url="https://identity.apple.com/pushcert/"
-                text="Apple Push Certificates Portal"
-                newTab
-              />
-              <br />
-              <br />
-              If you don&apos;t have an Apple ID, select <b>Create yours now</b>
-              .
-            </span>
-          </li>
-          <li>
-            <span>3. </span>
-            <span>
-              In Apple Push Certificates Portal, select{" "}
-              <b>Create a Certificate</b>, upload your CSR, and download your
-              APNs certificate.
-            </span>
-          </li>
-          <li>
-            <span>4. </span>
-            <span>Upload APNs certificate (.pem file) below.</span>
-          </li>
-        </ol>
-        <FileUploader
-          className={`${baseClass}__file-uploader ${
-            isUploading ? `${baseClass}__file-uploader--loading` : ""
-          }`}
-          accept=".pem"
-          buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          buttonType="brand-inverse-icon"
-          disabled={isUploading}
-          graphicName="file-pem"
-          message="APNs certificate (.pem)"
-          onFileUpload={onFileUpload}
+        Follow the step-by-step guide to turn on Apple MDM.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/turn-on-apple-mdm"
+          text="Learn how"
+          newTab
         />
-      </div>
+      </p>
+      <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
+      <FileUploader
+        className={`${baseClass}__file-uploader ${
+          isUploading ? `${baseClass}__file-uploader--loading` : ""
+        }`}
+        accept=".pem"
+        buttonMessage={isUploading ? "Uploading..." : "Upload"}
+        buttonType="brand-inverse-icon"
+        disabled={isUploading}
+        graphicName="file-pem"
+        message="APNs certificate (.pem)"
+        onFileUpload={onFileUpload}
+      />
     </div>
   );
 };

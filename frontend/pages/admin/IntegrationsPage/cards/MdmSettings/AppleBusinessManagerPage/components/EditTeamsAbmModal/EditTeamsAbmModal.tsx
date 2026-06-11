@@ -3,7 +3,7 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbToken } from "interfaces/mdm";
 import { ITeamSummary } from "interfaces/team";
 
 import mdmAbmAPI from "services/entities/mdm_apple_bm";
@@ -16,7 +16,7 @@ import Button from "components/buttons/Button";
 const baseClass = "edit-teams-abm-modal";
 
 interface IEditTeamsAbmModalProps {
-  token: IMdmAbmToken;
+  token: IMdmAbToken;
   onCancel: () => void;
   onSuccess: () => void;
 }
@@ -38,9 +38,9 @@ export const getOptions = (availableTeams: ITeamSummary[] = []) => {
  * returned by the get token API.
  */
 interface SelectedTeamNames {
-  ios_team: IMdmAbmToken["ios_team"]["name"];
-  ipados_team: IMdmAbmToken["ipados_team"]["name"];
-  macos_team: IMdmAbmToken["macos_team"]["name"];
+  ios_team: IMdmAbToken["ios_fleet"]["name"];
+  ipados_team: IMdmAbToken["ipados_fleet"]["name"];
+  macos_team: IMdmAbToken["macos_fleet"]["name"];
 }
 
 /**
@@ -64,9 +64,9 @@ export const getSelectedTeamIds = (
     return acc;
   }, {} as Record<string, number>);
   return {
-    ios_team_id: byName[ios_team],
-    ipados_team_id: byName[ipados_team],
-    macos_team_id: byName[macos_team],
+    ios_fleet_id: byName[ios_team],
+    ipados_fleet_id: byName[ipados_team],
+    macos_fleet_id: byName[macos_team],
   };
 };
 
@@ -82,9 +82,9 @@ const EditTeamsAbmModal = ({
 
   const [selectedTeamNames, setSelectedTeamNames] = useState<SelectedTeamNames>(
     {
-      ios_team: token.ios_team.name,
-      ipados_team: token.ipados_team.name,
-      macos_team: token.macos_team.name,
+      ios_team: token.ios_fleet.name,
+      ipados_team: token.ipados_fleet.name,
+      macos_team: token.macos_fleet.name,
     }
   );
 
@@ -147,8 +147,10 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--macos`}
           tooltip={
             <>
-              macOS hosts are automatically added to this fleet in Fleet when
-              they appear in Apple Business Manager.
+              macOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
             </>
           }
         />
@@ -163,8 +165,10 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--ios`}
           tooltip={
             <>
-              iOS hosts are automatically added to this fleet in Fleet when they
-              appear in Apple Business Manager.
+              iOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
             </>
           }
         />
@@ -179,8 +183,10 @@ const EditTeamsAbmModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--ipados`}
           tooltip={
             <>
-              iPadOS hosts are automatically added to this fleet in Fleet when
-              they appear in Apple Business Manager.
+              iPadOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
             </>
           }
         />

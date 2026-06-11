@@ -1,0 +1,8 @@
+{
+  "name": "Google Antigravity IDE",
+  "unique_identifier": "com.google.antigravity-ide",
+  "token": "antigravity-ide",
+  "installer_format": "dmg",
+  "slug": "antigravity-ide/darwin",
+  "default_categories": ["Developer tools"]
+}

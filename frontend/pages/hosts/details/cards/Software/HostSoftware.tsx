@@ -12,7 +12,12 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import {
+  HostPlatform,
+  isAndroid,
+  isIPadOrIPhone,
+  isMacOS,
+} from "interfaces/platform";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -31,7 +36,7 @@ import {
   buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
@@ -82,6 +87,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   self_service?: string;
   category_id?: string;
   fleet_id?: string;
+  macos_applications?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -100,6 +106,14 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   const teamId = queryParams?.fleet_id
     ? parseInt(queryParams.fleet_id, 10)
     : undefined;
+  // Tri-state: true/false when explicitly set in the URL, otherwise undefined so
+  // the platform-specific default can be applied where the platform is known.
+  let macosApplications: boolean | undefined;
+  if (queryParams?.macos_applications === "true") {
+    macosApplications = true;
+  } else if (queryParams?.macos_applications === "false") {
+    macosApplications = false;
+  }
 
   return {
     page,
@@ -115,6 +129,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     available_for_install: false, // always false for host software
     category_id: categoryId,
     fleet_id: teamId,
+    macos_applications: macosApplications,
   };
 };
 
@@ -132,6 +147,14 @@ const HostSoftware = ({
   hostMdmEnrollmentStatus = null,
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
+
+  // The /Applications filter only applies to macOS hosts, and defaults to ON
+  // (only top-level applications) when the host is macOS and no explicit value
+  // is set in the URL. It is left undefined for other platforms so the param is
+  // not sent to the API.
+  const macosApplicationsFilter = isMacOS(platform)
+    ? queryParams.macos_applications ?? true
+    : undefined;
 
   const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable; // no Android software and no vulnerable software for iOS
 
@@ -156,6 +179,7 @@ const HostSoftware = ({
         id: id as number,
         softwareUpdatedAt,
         ...queryParams,
+        macos_applications: macosApplicationsFilter,
       },
     ],
     ({ queryKey }) => {
@@ -234,6 +258,10 @@ const HostSoftware = ({
       perPage: queryParams.per_page,
       page: 0, // resets page index
       fleet_id: queryParams.fleet_id,
+      // Preserve an explicit macOS /Applications filter selection across vuln
+      // filter changes. Left undefined when not set so the platform default
+      // continues to apply.
+      macos_applications: queryParams.macos_applications,
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
@@ -311,6 +339,7 @@ const HostSoftware = ({
               max_cvss_score: queryParams.max_cvss_score,
             })}
             teamId={queryParams.fleet_id}
+            macosApplicationsFilter={macosApplicationsFilter}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}

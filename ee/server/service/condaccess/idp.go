@@ -9,11 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/crewjam/saml"
@@ -21,10 +23,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/google/uuid"
 	dsig "github.com/russellhaering/goxmldsig"
+	"github.com/throttled/throttled/v2"
 )
 
 const (
@@ -43,6 +48,10 @@ const (
 
 	// Policy response values
 	policyResponseFail = "fail"
+
+	// Metadata cache TTL (for DDoS protection). Keep this short because the cached response
+	// depends on the server URL from AppConfig; a URL change will serve stale data until expiry.
+	metadataCacheTTL = 1 * time.Minute
 )
 
 // notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
@@ -58,11 +67,42 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
+// metadataCache caches the SAML IdP metadata XML response (body + headers). Unlike authenticated
+// endpoints that rely on the datastore's AppConfig cache, this unauthenticated endpoint uses its own
+// cache to avoid hitting the database entirely, even the datastore cache lookup is skipped, providing
+// an extra layer of protection against DDoS-driven load.
+type metadataCache struct {
+	mu        sync.RWMutex
+	data      []byte
+	headers   http.Header
+	expiresAt time.Time
+}
+
+// get returns the cached metadata and headers if the cache hasn't expired.
+func (c *metadataCache) get() ([]byte, http.Header, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.data == nil || time.Now().After(c.expiresAt) {
+		return nil, nil, false
+	}
+	return c.data, c.headers, true
+}
+
+// set stores the metadata and headers in the cache with the given TTL.
+func (c *metadataCache) set(data []byte, headers http.Header, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.data = data
+	c.headers = headers.Clone()
+	c.expiresAt = time.Now().Add(ttl)
+}
+
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
 	ds               fleet.Datastore
 	logger           *slog.Logger
 	certSerialFormat string
+	mdCache          *metadataCache
 }
 
 // RegisterIdP registers the HTTP handlers for Okta conditional access IdP endpoints.
@@ -71,6 +111,7 @@ func RegisterIdP(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
+	limitStore throttled.GCRAStore,
 ) error {
 	if fleetConfig == nil {
 		return errors.New("fleet config is nil")
@@ -80,17 +121,36 @@ func RegisterIdP(
 		ds:               ds,
 		logger:           logger.With("component", "conditional-access-idp"),
 		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
+		mdCache:          &metadataCache{},
+	}
+
+	// Create IP extraction strategy for real client IP behind load balancers.
+	// This reuses the same trusted_proxies configuration as the main API handler.
+	ipStrategy, err := endpointer.NewClientIPStrategy(fleetConfig.Server.TrustedProxies)
+	if err != nil {
+		return fmt.Errorf("create ip strategy: %w", err)
+	}
+
+	// Create per-IP rate limiter for unauthenticated IdP endpoints.
+	// These endpoints are publicly accessible (required by SAML standard),
+	// so rate limiting prevents DDoS-driven database overload.
+	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, ratelimit.DefaultHTTPRateQuota(), ipStrategy)
+	if err != nil {
+		return fmt.Errorf("create idp rate limiter: %w", err)
 	}
 
 	// Create logging middleware
 	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
 
-	// Register handlers with logging and OpenTelemetry middleware
-	// Order: OTEL wraps logging to capture full request lifecycle
-	metadataHandler := loggingMiddleware(http.HandlerFunc(svc.serveMetadata))
+	// Register handlers with logging, rate limiting, and OpenTelemetry middleware.
+	// Order (outermost first): OTEL -> logging -> rate limit -> handler
+	// Logging wraps rate limiting so that 429 responses are also logged.
+	metadataHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveMetadata))
+	metadataHandler = loggingMiddleware(metadataHandler)
 	metadataHandler = otel.WrapHandler(metadataHandler, idpMetadataPath, *fleetConfig)
 
-	ssoHandler := loggingMiddleware(http.HandlerFunc(svc.serveSSO))
+	ssoHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveSSO))
+	ssoHandler = loggingMiddleware(ssoHandler)
 	ssoHandler = otel.WrapHandler(ssoHandler, idpSSOPath, *fleetConfig)
 
 	mux.Handle(idpMetadataPath, metadataHandler)
@@ -112,7 +172,16 @@ func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logge
 
 // serveMetadata handles GET /api/fleet/conditional_access/idp/metadata
 // Returns SAML IdP metadata for Okta to consume.
+// Responses are cached in memory to avoid repeated database queries.
 func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	// Return cached response if available
+	if cached, cachedHeaders, ok := s.mdCache.get(); ok {
+		maps.Copy(w.Header(), cachedHeaders)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(cached)
+		return
+	}
+
 	ctx := r.Context()
 
 	// Load AppConfig to get Okta settings
@@ -142,8 +211,41 @@ func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ServeMetadata writes XML directly to the response
-	idp.ServeMetadata(w, r)
+	// Capture the metadata response so we can cache it
+	rec := &responseRecorder{header: make(http.Header)}
+	idp.ServeMetadata(rec, r)
+
+	// Only cache successful responses
+	if rec.statusCode == http.StatusOK || rec.statusCode == 0 {
+		s.mdCache.set(rec.body, rec.header, metadataCacheTTL)
+	}
+
+	// Write the captured response to the actual client
+	maps.Copy(w.Header(), rec.header)
+	if rec.statusCode > 0 {
+		w.WriteHeader(rec.statusCode)
+	}
+	_, _ = w.Write(rec.body)
+}
+
+// responseRecorder captures an HTTP response for caching purposes.
+type responseRecorder struct {
+	header     http.Header
+	body       []byte
+	statusCode int
+}
+
+func (r *responseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	r.body = append(r.body, b...)
+	return len(b), nil
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
 }
 
 // serveSSO handles POST /api/fleet/conditional_access/idp/sso
@@ -330,7 +432,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	if hostLite.TeamID != nil {
 		teamID = *hostLite.TeamID
 	}
-	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID)
+	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID, hostLite.Platform)
 	if err != nil {
 		handleInternalServerError(ctx, w, p.logger, "failed to get conditional access policies", err, "host_id", p.hostID)
 		return nil

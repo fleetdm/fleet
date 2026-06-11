@@ -50,7 +50,7 @@ const InventoryVersionsModal = ({
       isTopScrolling={isTopScrolling}
       primaryButtons={
         <Button type="submit" onClick={onExit}>
-          Done
+          Close
         </Button>
       }
     />

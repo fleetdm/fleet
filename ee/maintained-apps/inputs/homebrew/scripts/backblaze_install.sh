@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 quit_application() {
   bundle_id="$1"

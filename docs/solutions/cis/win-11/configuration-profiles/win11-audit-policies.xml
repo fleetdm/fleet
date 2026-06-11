@@ -1,0 +1,325 @@
+<!-- CIS Windows 11 Enterprise v4.0.0 – Audit Policies (Section 17) -->
+<Replace>
+  <!-- 17.1.1: Credential Validation = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogon_AuditCredentialValidation</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.2.1: Application Group Management = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditApplicationGroupManagement</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.2.4: Security Group Management = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditSecurityGroupManagement</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.2.6: User Account Management = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditUserAccountManagement</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.3.1: PNP Activity = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditPNPActivity</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.3.2: Process Creation = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditProcessCreation</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.1: Account Lockout = Failure (2) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditAccountLockout</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.2: Group Membership = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.3: Logoff = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditLogoff</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.4: Logon = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditLogon</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.5: Other Logon/Logoff Events = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditOtherLogonLogoffEvents</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.5.6: Special Logon = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditSpecialLogon</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.6.1: Detailed File Share = Failure (2) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditDetailedFileShare</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.6.2: File Share = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditFileShare</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.6.3: Other Object Access Events = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditOtherObjectAccessEvents</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.6.4: Removable Storage = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditRemovableStorage</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.7.1: Audit Policy Change = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditPolicyChange</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.7.2: Authentication Policy Change = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthenticationPolicyChange</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.7.3: Authorization Policy Change = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthorizationPolicyChange</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.7.4: MPSSVC Rule-Level Policy Change = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditMPSSVCRuleLevelPolicyChange</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.7.5: Other Policy Change Events = Failure (2) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditOtherPolicyChangeEvents</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.8.1: Sensitive Privilege Use = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.9.1: IPsec Driver = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditIPsecDriver</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.9.2: Other System Events = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditOtherSystemEvents</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.9.3: Security State Change = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecurityStateChange</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.9.4: Security System Extension = Success (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecuritySystemExtension</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 17.9.5: System Integrity = Success and Failure (3) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSystemIntegrity</LocURI>
+    </Target>
+    <Data>3</Data>
+  </Item>
+</Replace>

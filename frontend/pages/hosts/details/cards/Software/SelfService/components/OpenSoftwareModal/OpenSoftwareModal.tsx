@@ -41,7 +41,7 @@ const OpenSoftwareModal = ({
   return (
     <Modal className={baseClass} title="How to open" onExit={onExit}>
       {getOpenSoftwareInstructions(softwareName, softwareSource)}
-      <ModalFooter primaryButtons={<Button onClick={onExit}>Done</Button>} />
+      <ModalFooter primaryButtons={<Button onClick={onExit}>Close</Button>} />
     </Modal>
   );
 };

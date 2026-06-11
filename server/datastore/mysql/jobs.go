@@ -2,9 +2,13 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -135,6 +139,30 @@ func (ds *Datastore) CleanupWorkerJobs(ctx context.Context, failedSince, complet
 	}
 	n, _ := res.RowsAffected()
 	return n, nil
+}
+
+// HasQueuedJobWithArgs determines whether a job with the given name and args
+// is currently queued. Can be used to deduplicate jobs that would be redundant
+// (or harmful) to enqueue multiple times.
+//
+// Uses the primary to avoid replica lag, since one of the primary use cases
+// is handling thrash from rapid user action such as quickly disabling
+// and re-enabling a chart dataset multiple times.
+func (ds *Datastore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+	const query = `
+SELECT 1 FROM jobs
+WHERE name = ? AND state = ? AND args = CAST(? AS JSON)
+LIMIT 1`
+	var found int
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &found, query, name, fleet.JobStateQueued, []byte(args))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check queued job with args")
+	}
+	return true, nil
 }
 
 func (ds *Datastore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) {

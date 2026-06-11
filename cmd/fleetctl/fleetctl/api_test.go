@@ -73,6 +73,8 @@ func TestRunApiCommand(t *testing.T) {
     "platform": "darwin,windows,linux,chrome",
     "calendar_events_enabled": false,
     "conditional_access_enabled": false,
+    "type": "dynamic",
+    "continuous_automations_enabled": false,
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
@@ -218,7 +220,7 @@ func TestRunApiCommand(t *testing.T) {
 
 			args = append(args, c.args...)
 
-			b, err := RunAppNoChecks(args)
+			b, err := runAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)

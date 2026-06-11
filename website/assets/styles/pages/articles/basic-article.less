@@ -1,3 +1,4 @@
+// lesshint-disable spaceAroundComma
 #basic-article {
   h1 {
     font-size: 36px;
@@ -51,6 +52,7 @@
     max-width: 1072px;
     margin: auto;
     font-size: 14px;
+    display: flex;
     [purpose='breadcrumbs'] {
       margin-right: 24px;
       max-width: 690px;
@@ -168,6 +170,8 @@
     transition-property: transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
+    display: flex;
+    flex-direction: column;
   }
   [purpose='sidebar-link'] {
     margin-bottom: 12px;
@@ -219,6 +223,7 @@
   }
   [purpose='subtopics'] {
     margin-bottom: 24px;
+    display: flex;
     a {
       text-decoration: none;
       margin-bottom: 8px;
@@ -504,7 +509,7 @@
       padding-bottom: 16px;
     }
     li::marker {
-      color: @core-vibrant-blue;
+      color: @core-vibrant-green;
     }
     .markdown-heading {
       scroll-margin-top: 140px;
@@ -518,7 +523,7 @@
         align-self: center;
       }
       input:checked, input:active {
-        accent-color: @core-vibrant-blue;
+        accent-color: @core-vibrant-green;
       }
       [purpose='task'] {
         margin-left: 16px;
@@ -597,12 +602,14 @@
       text-decoration: inherit;
     }
     code:not(.bash):not(.hljs):not(.nohighlight):not(.mermaid) {
-      background: #F1F0FF;
-      padding: 4px 8px;
-      font-family: @code-font;
+      background-color: @ui-off-white;
+      border: 1px solid @border-lt-gray;
+      color: @core-fleet-black-75;
       font-size: 13px;
+      padding: 2px 6px;
       line-height: 16px;
-      color: @core-fleet-black;
+      font-weight: 400;
+      border-radius: 4px;
     }
     pre {
       code {
@@ -613,6 +620,40 @@
         line-height: 16px;
         color: @core-fleet-black;
       }
+
+      .hljs-keyword,
+      .hljs-selector-tag,
+      .hljs-name {
+        color: #515774;
+      }
+      .hljs-built_in {
+        color: #4271ae;
+      }
+      .hljs-variable {
+        color: #c82829;
+      }
+      .hljs-symbol,
+      .hljs-attribute,
+      .hljs-function-keyword,
+      .hljs-attr,
+      .hljs-class,
+      .hljs-title,
+      .hljs-string,
+      .hljs-type,
+      .hljs-builtin-name,
+      .hljs-selector-id,
+      .hljs-selector-attr,
+      .hljs-selector-pseudo,
+      .hljs-addition,
+      .hljs-template-variable {
+        color: #4fd061;
+      }
+      .hljs-comment,
+      .hljs-deletion,
+      .hljs-meta {
+        color: @core-fleet-black-50;
+      }
+
       padding: 24px;
       border: 1px solid #E2E4EA;
       border-radius: 6px;
@@ -713,65 +754,10 @@
       height: 17px;
     }
     [purpose='checklist'] {
-      margin-bottom: 32px;
-      p {
-        font-size: 16px;
-        line-height: 150%;
-        font-style: normal;
-        font-weight: 400;
-        padding-left: 40px;
-        text-indent: -40px;
-        margin-bottom: 16px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        &:last-of-type {
-          margin-bottom: 0px;
-        }
-      }
-      p::before {
-        content: ' ';
-        background-image: url('/images/icon-checkbox-checked-24x24@2x.png');
-        background-size: 24px 24px;
-        display: inline-block;
-        position: relative;
-        top: 7px;
-        margin-right: 16px;
-        width: 24px;
-        height: 24px;
-      }
+      .article-checklist();
     }
     [purpose='tip'] {
-      margin: 16px 0 32px;
-      background: #F7F7FC;
-      border: 1px solid @core-vibrant-blue-50;
-      padding: 16px;
-      border-radius: 8px;
-      display: flex;
-      img {
-        display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 16px;
-        line-height: 24px;
-        font-size: 16px;
-      }
-      p:only-child, p:last-child {
-        margin-bottom: 0px;
-      }
-      ul:last-child {
-        margin-bottom: 0px;
-      }
-      li:last-child {
-        padding-bottom: 0px;
-      }
-      :first-child {// Remove top padding from the first element inside purpose="tip" blockquotes
-        padding-top: 0;
-      }
+      .tip-block();
     }
     [purpose='embedded-content'] {
       position: relative;
@@ -843,6 +829,37 @@
     .header-hidden {
       transform: translateY(0);
     }
+    .hidden-on-mobile {
+      display: none;
+    }
+    .mobile-nav {
+      [purpose='right-sidebar'] {
+        flex-direction: row;
+        justify-content: space-between;
+        border-top: 1px solid var(--Fleet-Black-10, #E2E4EA);
+        padding-top: 24px;
+      }
+      [purpose='edit-link'] {
+        border-top: none;
+        padding-top: 0;
+        margin-top: 0;
+        padding-bottom: 0;
+        order: 2;
+      }
+      [purpose='subtopics'] {
+        display: none;
+      }
+      [purpose='social-share-buttons'] {
+        padding-top: 0;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        p {
+          display: none;
+        }
+      }
+      order: 3;
+
+    }
     [purpose='article-container'] {
       max-width: 100%;
       padding-right: 0px;
@@ -876,7 +893,7 @@
   @media (max-width: 769px) {
     [purpose='article-title'] {
       padding-top: 40px;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
       h1 {
         font-size: 28px;
         line-height: 38px;

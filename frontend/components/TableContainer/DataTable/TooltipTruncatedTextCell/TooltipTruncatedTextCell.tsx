@@ -14,8 +14,6 @@ interface ITooltipTruncatedTextCellProps {
   /** If set to `true` the text inside the tooltip will break on words instead of any character.
    * By default the tooltip text breaks on any character. Default: false */
   tooltipBreakOnWord?: boolean;
-  /** @deprecated use the prop `className` in order to add custom classes to this component */
-  classes?: string;
   className?: string;
   /** Content does not get truncated */
   prefix?: React.ReactNode;
@@ -29,12 +27,11 @@ const TooltipTruncatedTextCell = ({
   value,
   tooltip,
   tooltipBreakOnWord = false,
-  classes = "w250",
   className,
   prefix,
   suffix,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
-  const classNames = classnames(baseClass, classes, className, {
+  const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
   });
 

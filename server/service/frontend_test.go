@@ -22,7 +22,7 @@ func TestServeFrontend(t *testing.T) {
 		t.Skip("This test requires running with -tags full")
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	h := ServeFrontend("", false, logger)
+	h := ServeFrontend("", false, logger, false)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()
@@ -80,7 +80,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
 
 			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-			h := ServeEndUserEnrollOTA(svc, "", ds, logger)
+			h := ServeEndUserEnrollOTA(svc, "", ds, logger, false)
 			ts := httptest.NewServer(h)
 			t.Cleanup(func() {
 				ts.Close()

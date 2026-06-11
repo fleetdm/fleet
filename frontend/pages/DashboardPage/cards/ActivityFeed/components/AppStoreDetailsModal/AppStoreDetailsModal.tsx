@@ -72,7 +72,7 @@ const AppStoreDetailsModal = ({
         />
       </div>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </Modal>
   );

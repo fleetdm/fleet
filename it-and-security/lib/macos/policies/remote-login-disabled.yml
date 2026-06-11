@@ -1,0 +1,10 @@
+- name: macOS - Remote Login (SSH) disabled
+  query: SELECT 1 FROM sharing_preferences WHERE CAST(remote_login AS INTEGER) = 0;
+  critical: false
+  description: |-
+    Workstations should not accept inbound SSH (Remote Login).
+  resolution: |-
+    Turn off Remote Login in  > System Settings > General > Sharing > Remote Login.
+
+    If you need help, please reach out in #help-it.
+  platform: darwin

@@ -1,6 +1,8 @@
 package endpointer
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -34,7 +37,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		afterSecondIndex = 0
 	)
 	beforeAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			beforeIndex = i
 			return next(ctx, req)
@@ -42,7 +45,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			authIndex = i
 			if authctx, ok := authz_ctx.FromContext(ctx); ok {
@@ -53,14 +56,14 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	afterAuthMiddlewareFirst := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			afterFirstIndex = i
 			return next(ctx, req)
 		}
 	}
 	afterAuthMiddlewareSecond := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			afterSecondIndex = i
 			return next(ctx, req)
@@ -129,6 +132,110 @@ func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request a
 
 func (n nopEP) Service() any {
 	return nil
+}
+
+// TestHTTPPreAuthMiddlewareRunsBeforeDecode asserts that HTTPPreAuthMiddleware
+// short-circuits the request before the body decoder is invoked.
+func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
+	var decodeCalled bool
+	var authCalled bool
+
+	authMw := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			authCalled = true
+			return next(ctx, req)
+		}
+	}
+
+	r := mux.NewRouter()
+	ce := (&CommonEndpointer[testHandlerFunc]{
+		EP: nopEP{},
+		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+			return func(ctx context.Context, r *http.Request) (any, error) {
+				decodeCalled = true
+				return nopRequest{}, nil
+			}
+		},
+		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+			w.WriteHeader(http.StatusOK)
+			return nil
+		},
+		AuthMiddleware: authMw,
+		Router:         r,
+	}).WithHTTPPreAuth(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Reject without calling next — decoder and auth must not run.
+			w.WriteHeader(http.StatusUnauthorized)
+		})
+	})
+
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+		return nopResponse{}, nil
+	}, nil, "POST")
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Post(srv.URL+"/", "application/json", strings.NewReader(`{"x":1}`))
+	require.NoError(t, err)
+	t.Cleanup(func() { resp.Body.Close() })
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.False(t, decodeCalled, "decoder must not run when pre-auth rejects")
+	assert.False(t, authCalled, "auth middleware must not run when pre-auth rejects")
+}
+
+// TestHTTPPreAuthMiddlewarePassThrough asserts that when the pre-auth
+// middleware calls next, the decoder and auth chain run as normal.
+func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
+	var decodeCalled bool
+	var authCalled bool
+
+	authMw := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			authCalled = true
+			if authctx, ok := authz_ctx.FromContext(ctx); ok {
+				authctx.SetChecked()
+			}
+			return next(ctx, req)
+		}
+	}
+
+	r := mux.NewRouter()
+	ce := (&CommonEndpointer[testHandlerFunc]{
+		EP: nopEP{},
+		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+			return func(ctx context.Context, r *http.Request) (any, error) {
+				decodeCalled = true
+				return nopRequest{}, nil
+			}
+		},
+		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+			w.WriteHeader(http.StatusOK)
+			return nil
+		},
+		AuthMiddleware: authMw,
+		Router:         r,
+	}).WithHTTPPreAuth(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+		return nopResponse{}, nil
+	}, nil, "POST")
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Post(srv.URL+"/", "application/json", strings.NewReader(`{"x":1}`))
+	require.NoError(t, err)
+	t.Cleanup(func() { resp.Body.Close() })
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.True(t, decodeCalled, "decoder must run when pre-auth passes through")
+	assert.True(t, authCalled, "auth middleware must run when pre-auth passes through")
 }
 
 func TestRegisterDeprecatedPathAliases(t *testing.T) {
@@ -276,9 +383,9 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 
 	t.Run("malformed JSON exactly at limit returns decode error, not 413", func(t *testing.T) {
 		// Build a body of exactly `limit` bytes that is malformed JSON (no closing
-		// brace). The LimitedReader is exhausted (N==0), but a peek at the
-		// underlying reader returns EOF — the body ended at the limit, it was not
-		// cut short. Must not produce PayloadTooLargeError.
+		// brace). The MaxBytesReader allows the full read (body fits within limit),
+		// so the JSON decoder sees io.ErrUnexpectedEOF — not *http.MaxBytesError.
+		// Must not produce PayloadTooLargeError.
 		prefix := `{"data":"`
 		body := strings.NewReader(prefix + strings.Repeat("x", limit-len(prefix))) // exactly limit bytes, no closing
 		r := httptest.NewRequest("POST", "/", body)
@@ -308,5 +415,163 @@ func TestMakeDecoderRequestDecoderFalsePositive(t *testing.T) {
 		rd, ok := result.(*testRequestDecoderType)
 		require.True(t, ok)
 		assert.Equal(t, "hello", rd.Data)
+	})
+}
+
+func TestMakeDecoderRequestDecoderGzipBomb(t *testing.T) {
+	const limit = 100
+
+	makeDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(&testRequestDecoderType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+	}
+
+	gzipBody := func(data string) *bytes.Buffer {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte(data))
+		require.NoError(t, err)
+		require.NoError(t, gw.Close())
+		return &buf
+	}
+
+	t.Run("gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb via RequestDecoder must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
+	})
+
+	t.Run("valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testRequestDecoderType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
+	})
+
+	t.Run("Content-Encoding header is cleared after decompression", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		assert.Empty(t, r.Header.Get("Content-Encoding"), "Content-Encoding should be cleared after framework decompression")
+	})
+}
+
+type testGzipRequestType struct {
+	Data string `json:"data"`
+}
+
+// testRequestDecoderPayloadTooLargeType implements RequestDecoder and returns
+// a PayloadTooLargeError directly from DecodeRequest (simulating implementations
+// like getHostSoftwareRequest that enforce their own size limits).
+type testRequestDecoderPayloadTooLargeType struct {
+	Data string `json:"data"`
+}
+
+func (d *testRequestDecoderPayloadTooLargeType) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
+	return nil, platform_http.PayloadTooLargeError{
+		ContentLength:  r.Header.Get("Content-Length"),
+		MaxRequestSize: 42,
+	}
+}
+
+type testGzipBodyDecoderType struct {
+	Data string `json:"data"`
+}
+
+func TestMakeDecoderGzipBomb(t *testing.T) {
+	const limit = 100
+
+	makeDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(testGzipRequestType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+	}
+
+	gzipBody := func(data string) *bytes.Buffer {
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		_, err := gw.Write([]byte(data))
+		require.NoError(t, err)
+		require.NoError(t, gw.Close())
+		return &buf
+	}
+
+	t.Run("gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		// Compressed payload is small but decompresses well beyond the limit.
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
+	})
+
+	t.Run("valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testGzipRequestType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
+	})
+
+	// Sub-tests for the bodyDecoder (DecodeBody) code path, where isBodyDecoder
+	// returns true and decodeBody is called instead of jsonUnmarshal.
+	isBodyDecoder := func(v reflect.Value) bool {
+		_, ok := v.Interface().(*testGzipBodyDecoderType)
+		return ok
+	}
+	decodeBodyFn := func(_ context.Context, _ *http.Request, v reflect.Value, body io.Reader) error {
+		bd := v.Interface().(*testGzipBodyDecoderType)
+		return json.NewDecoder(body).Decode(bd)
+	}
+	makeBodyDecoder := func() kithttp.DecodeRequestFunc {
+		return MakeDecoder(testGzipBodyDecoderType{}, defaultJSONUnmarshal, nil, isBodyDecoder, decodeBodyFn, nil, limit)
+	}
+
+	t.Run("DecodeBody gzip bomb exceeding decompressed limit returns 413", func(t *testing.T) {
+		big := `{"data":"` + strings.Repeat("x", limit*10) + `"}`
+		r := httptest.NewRequest("POST", "/", gzipBody(big))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makeBodyDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "gzip bomb via DecodeBody must produce PayloadTooLargeError, got: %v", err)
+		assert.True(t, ple.Gzipped, "PayloadTooLargeError from gzip bomb must have Gzipped set")
+	})
+
+	t.Run("DecodeBody valid gzip body within limit is decoded successfully", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		result, err := makeBodyDecoder()(context.Background(), r)
+		require.NoError(t, err)
+		rd, ok := result.(*testGzipBodyDecoderType)
+		require.True(t, ok)
+		assert.Equal(t, "hi", rd.Data)
+	})
+
+	// Sub-test for the RequestDecoder code path where DecodeRequest itself
+	// returns a PayloadTooLargeError (covers lines 545-546).
+	t.Run("DecodeRequest returning PayloadTooLargeError preserves inner fields and sets Gzipped", func(t *testing.T) {
+		makePayloadDecoder := func() kithttp.DecodeRequestFunc {
+			return MakeDecoder(&testRequestDecoderPayloadTooLargeType{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)
+		}
+		r := httptest.NewRequest("POST", "/", gzipBody(`{"data":"hi"}`))
+		r.Header.Set("Content-Encoding", "gzip")
+		_, err := makePayloadDecoder()(context.Background(), r)
+		require.Error(t, err)
+		var ple platform_http.PayloadTooLargeError
+		require.True(t, errors.As(err, &ple), "DecodeRequest returning PayloadTooLargeError must propagate, got: %v", err)
+		assert.True(t, ple.Gzipped, "Gzipped must be set when the request was gzip-encoded")
+		assert.Equal(t, int64(42), ple.MaxRequestSize, "MaxRequestSize from inner error must be preserved")
 	})
 }

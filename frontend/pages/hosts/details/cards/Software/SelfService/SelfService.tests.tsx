@@ -185,7 +185,11 @@ describe("SelfService", () => {
 
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
-    const dropdown = document.getElementById("react-select-9-listbox");
+    // react-select generates instance-numbered listbox IDs; read aria-controls
+    // off the combobox so this stays stable as more react-select instances are
+    // added/removed elsewhere on the page.
+    const listboxId = moreDropdown.getAttribute("aria-controls");
+    const dropdown = listboxId ? document.getElementById(listboxId) : null;
     if (!dropdown) {
       throw new Error("Could not find the dropdown actions");
     }
@@ -276,7 +280,15 @@ describe("SelfService", () => {
     expect(moreDropdown).toBeDisabled();
   });
 
-  it("renders self service unsupported message for BYOD Account-Driven User Enrollment on mobile view", () => {
+  it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "user-enrolled-app" }),
+        ],
+      })
+    );
+
     const render = createCustomRenderer({ withBackendMock: true });
 
     render(
@@ -287,13 +299,11 @@ describe("SelfService", () => {
       />
     );
 
+    // The "not supported" gate has been removed; the user-enrolled host gets
+    // the same self-service list as a manually-enrolled iOS/iPadOS host.
+    expect(await screen.findByText("user-enrolled-app")).toBeInTheDocument();
     expect(
-      screen.getByText(/Self-service isn't supported/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Self-service is currently not supported on personal iOS and iPadOS devices/i
-      )
-    ).toBeInTheDocument();
+      screen.queryByText(/Self-service isn't supported/i)
+    ).not.toBeInTheDocument();
   });
 });

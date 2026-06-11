@@ -158,7 +158,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", *hostUUID, teamID)
+	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", *hostUUID, teamID)
 	if err != nil {
 		log.Fatalf("failed to enqueue setup experience items for host %s: %v", *hostUUID, err)
 	}

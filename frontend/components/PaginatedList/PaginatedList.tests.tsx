@@ -47,13 +47,6 @@ describe("PaginatedList", () => {
     },
   ];
 
-  const fetchTinyPage = (pageNumber: number) => {
-    if (pageNumber <= 2) {
-      return [items[pageNumber]];
-    }
-    throw new Error("Invalid page number");
-  };
-
   const fetchSmallPage = (pageNumber: number) => {
     if (pageNumber === 0) {
       return [items[0], items[1]];

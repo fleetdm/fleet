@@ -1,6 +1,6 @@
 ---
 name: 💡  Feature request
-about: Propose a new feature or enhancement in Fleet.
+about: Propose a new feature or Fleet-maintained app.
 title: ''
 labels: ':product'
 assignees: ''

@@ -77,3 +77,4 @@ The cloud data platform's adoption of Fleet Device Management exemplifies how mo
 <meta name="articleTitle" value="Cloud-based data leader chooses Fleet for orchestration">
 <meta name="description" value="Cloud-based data leader chooses Fleet for orchestration">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Cloud data platform">

@@ -6,7 +6,7 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 ## config 
 
-The `config` section allows you to update settings like performance and and how often the agent checks-in.
+The `config` section allows you to update settings like performance and how often the agent checks-in.
 
 #### Example
 
@@ -49,6 +49,11 @@ command_line_flags:
 
 - `options` include the agent settings listed under `osqueryOptions` in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
 - `command_line_flags` include the agent settings listed under osqueryCommandLineFlags in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
+
+Setting `command_line_flags` to an empty value (`{}` or `null`) is not the same as leaving the key out:
+
+- If `command_line_flags` isn't present in your agent options, Fleet leaves each host's osquery flags as they are. Flags that shipped with the fleetd installer, or were set locally on the host, are preserved.
+- If `command_line_flags` is set to `{}` or `null`, Fleet clears all local osquery flags on your hosts. On each host, fleetd empties the `osquery.flags` file and restarts osquery without those flags.
 
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
@@ -201,6 +206,10 @@ _Available in Fleet Premium_
 
 Users can configure fleetd component TUF [auto-update channels](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels) from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
 
+New agents default to the latest versions unless specific versions are set in the `fleetctl package` command. If `update_channels` specifies versions, agents will use those instead, even if it means downgrading (e.g., generating at 1.53.1 but enrolling with `update_channels.orbit` set to 1.50.0).
+
+> Because Fleet moved the update server from tuf.fleetctl.com to updates.fleetdm.com, Orbit versions below 1.38.1 can’t upgrade directly to newer versions. You’ll see this error in Orbit logs: `update failed error="lookup failed: lookup orbit: tuf: file not found`. To upgrade from a version below 1.38.1 (e.g., 1.29.1) to a newer version (e.g., 1.50.2), first upgrade to 1.38.1, wait for agents to update, then upgrade to the newer version.
+
 #### Examples
 
 ```yaml
@@ -293,7 +302,7 @@ You can use Fleet to query local SQLite databases as tables. For more informatio
 
 ## script_execution_timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `3600`).
+The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `18000`).
 
 #### Example
 
@@ -302,5 +311,42 @@ agent_options:
   script_execution_timeout: 600
 ```
 
+## orbit
+
+The `orbit` block configures the orbit agent itself (as opposed to osquery). It's kept separate from `command_line_flags` so orbit-specific settings don't need to satisfy the osquery flag schema.
+
+To learn where to find fleetd logs on each platform, see [Finding fleetd logs](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#finding-fleetd-logs).
+
+### debug_logging (_Coming soon_)
+
+When `true`, orbit runs at debug log level and passes `--verbose` and `--tls_dump` to osqueryd on every host in the team (or globally, if set on no-team agent options). Unlike `command_line_flags`, toggling this does **not** require an orbit restart: the change is applied on each host's next config poll (up to 30 seconds). Default: `false`.
+
+Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/rest-api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging: true
+```
+
+### debug_logging_on_enroll_duration
+
+A Go duration number in seconds (e.g. `3600`, `14400`). When greater than zero, every host that orbit-enrolls (or re-enrolls) into this team — or no-team for global agent options — is automatically put into debug mode for the configured duration after *its* enrollment. The host then reverts to the team default. Default: unset (no auto-stamp). Maximum: `86400` (24 hours).
+
+Use this during a rollout to capture verbose Setup Experience logs from new hosts without having to flip debug per host afterward. Each host's debug expires `duration` after its own enrollment moment, not at a shared wall-clock time.
+
+There is **no global fallback**: a host that enrolls into a team uses that team's setting, regardless of what's on global agent options. To apply this option broadly, set it on each team (typically via gitops).
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging_on_enroll_duration: 3600
+```
+
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
+<meta name="keywordsForDocsearch" value="command line flags, agent config file">

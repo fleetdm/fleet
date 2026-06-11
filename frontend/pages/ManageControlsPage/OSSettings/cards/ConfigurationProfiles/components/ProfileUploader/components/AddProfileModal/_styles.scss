@@ -1,0 +1,79 @@
+.add-profile-modal {
+  &__modal-content-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    .add-profile__file {
+      padding: $pad-medium $pad-large;
+    }
+  }
+
+  &__upload-button {
+    margin-top: 8px;
+  }
+
+  &__file-chooser {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: $pad-medium;
+
+    input {
+      display: none;
+    }
+
+    &--button-wrap {
+      display: flex;
+      justify-content: center;
+      gap: $pad-small;
+      cursor: pointer;
+      height: 36px;
+      align-items: center;
+    }
+  }
+
+  &__selected-file {
+    display: flex;
+    gap: 16px;
+
+    &--details {
+      display: flex;
+      flex-direction: column;
+
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $x-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+
+  &__profile-graphic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+
+    &--message {
+      text-align: center;
+      line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--title {
+      color: $ui-fleet-black-75;
+      font-weight: $bold;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-small;
+  }
+}

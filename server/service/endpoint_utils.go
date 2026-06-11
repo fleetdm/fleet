@@ -12,11 +12,10 @@ import (
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -102,6 +101,14 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 		}
 		field.Set(reflect.ValueOf(opts))
 		return true, nil
+
+	case "label_list_options":
+		opts, err := labelListOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
 	}
 	return false, nil
 }
@@ -136,6 +143,9 @@ func (e *fleetEndpointer) Service() any {
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
+	// Full-slice expression prevents aliasing into the caller's backing array
+	// if it happens to have spare capacity.
+	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(auth.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &fleetEndpointer{
 			svc: svc,
@@ -144,7 +154,7 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
-			return auth.AuthenticatedUser(svc, next)
+			return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 		},
 		Router:   r,
 		Versions: versions,
@@ -313,24 +323,5 @@ func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.Capabilit
 }
 
 func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) error {
-	if err := r.ParseMultipartForm(maxMemory); err != nil {
-		return err
-	}
-	// Check if a "team_id" field is present and valid. If so, log a deprecation warning, add a "fleet_id" field with the same value, and remove the "team_id" field to prevent confusion in handlers.
-	teamIDs, teamIDPresent := r.Form["team_id"]
-	if teamIDPresent && len(teamIDs) > 0 {
-		teamID := teamIDs[0]
-		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
-			logging.WithExtras(ctx,
-				"deprecated_param", "team_id",
-				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
-			)
-			logging.WithLevel(ctx, slog.LevelWarn)
-		}
-		r.Form.Set("fleet_id", teamID)
-		r.Form.Del("team_id")
-		r.MultipartForm.Value["fleet_id"] = []string{teamID}
-		delete(r.MultipartForm.Value, "team_id")
-	}
-	return nil
+	return multipartform.Parse(ctx, r, maxMemory)
 }

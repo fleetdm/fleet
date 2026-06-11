@@ -57,8 +57,8 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"global observer+ team 0", test.UserObserverPlus, ptr.Uint(0), true, true},
 		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
 		{"global gitops no team", test.UserGitOps, nil, true, false},
-		{"global gitops team 0", test.UserGitOps, ptr.Uint(0), true, false},
-		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
+		{"global gitops team 0", test.UserGitOps, ptr.Uint(0), false, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), false, false},
 		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
 		{"team admin team 0", test.UserTeamAdminTeam1, ptr.Uint(0), true, true},
 		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
@@ -77,7 +77,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
 		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
 		{"team gitops team 0", test.UserTeamGitOpsTeam1, ptr.Uint(0), true, true},
-		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), false, false},
 		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
 	}
 
@@ -160,7 +160,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				checkAuthErr(t, true, err)
 			}
 
-			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else if tt.shouldFailWrite {
@@ -212,7 +212,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate no update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -220,7 +220,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -267,6 +267,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			name              string
 			payloadIncludeAny []string
 			payloadExcludeAny []string
+			payloadIncludeAll []string
 			expectLabels      map[string]fleet.LabelIdent
 			expectScope       fleet.LabelScope
 			expectError       string
@@ -276,12 +277,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 				"",
 				"",
 			},
 			{
 				"include labels",
 				[]string{"foo", "bar"},
+				nil,
 				nil,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -294,6 +297,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				"exclude labels",
 				nil,
 				[]string{"bar", "baz"},
+				nil,
 				map[string]fleet.LabelIdent{
 					"bar": {LabelID: 2, LabelName: "bar"},
 					"baz": {LabelID: 3, LabelName: "baz"},
@@ -306,12 +310,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				[]string{"foo"},
 				[]string{"bar"},
 				nil,
+				nil,
 				"",
-				`Only one of "labels_include_any" or "labels_exclude_any" can be included.`,
+				`Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`,
 			},
 			{
 				"non-existent label",
 				[]string{"foo", "qux"},
+				nil,
 				nil,
 				nil,
 				"",
@@ -320,6 +326,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			{
 				"duplicate label",
 				[]string{"foo", "foo"},
+				nil,
 				nil,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -332,6 +339,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				[]string{},
 				nil,
+				nil,
 				"",
 				"",
 			},
@@ -340,13 +348,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				[]string{""},
 				nil,
+				nil,
 				"",
 				`Couldn't update. Label "" doesn't exist. Please remove the label from the software`,
 			},
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny, tt.payloadIncludeAll)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)
@@ -362,7 +371,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(context.Background(), svc, nil, nil, nil)
+			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(context.Background(), svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -370,7 +379,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, nil, nil, nil)
+			_, _, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, nil, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -402,6 +411,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			existingInstaller *fleet.SoftwareInstaller
 			payloadIncludeAny []string
 			payloadExcludeAny []string
+			payloadIncludeAll []string
 			shouldUpdate      bool
 			expectLabels      map[string]fleet.LabelIdent
 			expectScope       fleet.LabelScope
@@ -412,6 +422,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				[]string{"foo"},
+				nil,
 				false,
 				nil,
 				"",
@@ -420,6 +431,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			{
 				"no labels",
 				&fleet.SoftwareInstaller{},
+				nil,
 				nil,
 				nil,
 				false,
@@ -434,6 +446,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 					LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
 				},
 				[]string{"foo", "bar"},
+				nil,
 				nil,
 				true,
 				map[string]fleet.LabelIdent{
@@ -451,6 +464,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				nil,
 				[]string{"foo"},
+				nil,
 				true,
 				map[string]fleet.LabelIdent{
 					"foo": {LabelID: 1, LabelName: "foo"},
@@ -466,6 +480,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				[]string{},
 				nil,
+				nil,
 				true,
 				nil,
 				"",
@@ -479,6 +494,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				},
 				[]string{"foo"},
 				nil,
+				nil,
 				false,
 				nil,
 				"",
@@ -488,7 +504,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				shouldUpate, got, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, tt.existingInstaller, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				shouldUpate, got, err := eeservice.ValidateSoftwareLabelsForUpdate(ctx, svc, tt.existingInstaller, tt.payloadIncludeAny, tt.payloadExcludeAny, tt.payloadIncludeAll)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)
@@ -603,16 +619,24 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return nil
 	}
 
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return []fleet.SoftwarePackageResponse{}, nil
+	}
+
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
 	}
 
 	baseDir := getPathRelative("./testdata/software-installers/")
@@ -643,7 +667,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

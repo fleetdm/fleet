@@ -95,7 +95,7 @@ type SoftwareInstaller struct {
 	// UninstallScriptContentID is the ID of the uninstall script content.
 	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// UninstallScript is the script to run to uninstall the software package.
@@ -123,6 +123,8 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// LabelsIncludeAll is the list of "include all" labels for this software installer (if not nil).
+	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
 	// Source is the osquery source for this software.
 	Source string `json:"-" db:"source"`
 	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
@@ -133,6 +135,14 @@ type SoftwareInstaller struct {
 
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name"`
+
+	// PatchPolicy is present for Fleet maintained apps with an associated patch policy
+	PatchPolicy *PatchPolicyData `json:"patch_policy"`
+	// PatchQuery is the query to use for creating a patch policy
+	PatchQuery string `json:"-" db:"patch_query"`
+
+	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
+	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -174,6 +184,32 @@ func (p SoftwarePackageResponse) GetIconHash() string      { return p.IconHash }
 func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilename }
 func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
 func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
+
+// SoftwareTitleIdentifier identifies a software title using the same matching
+// semantics as the software batch-set deletion: titles match on
+// (unique_identifier, source), where unique_identifier is the bundle
+// identifier when present and the title name otherwise.
+type SoftwareTitleIdentifier struct {
+	// UniqueIdentifier is the title's bundle identifier when present,
+	// otherwise its name (mirrors software_titles.unique_identifier).
+	UniqueIdentifier string
+	// Source is the title's source (e.g. "apps", "programs").
+	Source string
+}
+
+// DeletedSoftwarePackage describes a software package that a batch-set
+// operation will delete (or, on a dry run, would delete) because its title
+// matches no incoming payload.
+type DeletedSoftwarePackage struct {
+	// TeamID is the ID of the team. A value of nil means it is scoped to
+	// hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID uint `json:"title_id" db:"title_id"`
+	// DisplayName is the team's display-name override for the title when
+	// set, otherwise the software title name.
+	DisplayName string `json:"display_name" db:"display_name"`
+}
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
@@ -259,6 +295,27 @@ func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []
 	for i := range vppApps {
 		software = append(software, vppApps[i])
 	}
+
+	// Dedup by title ID, preferring the row with a populated LocalIconHash.
+	// Otherwise an unmatched duplicate response row would append the title
+	// to TitleIDsToRemoveIconsFrom and race with the active row's planning.
+	seen := make(map[uint]int, len(software))
+	deduped := make([]CanHaveSoftwareIcon, 0, len(software))
+	for _, sw := range software {
+		titleID := sw.GetTitleID()
+		if titleID == nil {
+			continue
+		}
+		if idx, found := seen[*titleID]; found {
+			if deduped[idx].GetLocalIconHash() == "" && sw.GetLocalIconHash() != "" {
+				deduped[idx] = sw
+			}
+			continue
+		}
+		seen[*titleID] = len(deduped)
+		deduped = append(deduped, sw)
+	}
+	software = deduped
 
 	// don't (duplicate) upload (of) icons that we don't need to
 	for _, sw := range software {
@@ -370,6 +427,11 @@ type HostLastInstallData struct {
 	ExecutionID string `db:"execution_id"`
 	// Status is the status of the installation on the host.
 	Status *SoftwareInstallerStatus `db:"status"`
+	// UpdatedAt is when the install record was last updated. For a completed install
+	// this reflects when it reached its terminal status (e.g. installed), which is what
+	// requests the host refetch; it is used to throttle continuous policy automation
+	// re-installs (see continuousAutomationOnCooldown).
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -395,7 +457,7 @@ type HostSoftwareInstallerResult struct {
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
@@ -435,6 +497,7 @@ Exit code: %d (Failed)
 %s
 `
 	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -464,6 +527,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerDownloadFailed:
 		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	case ExitCodeInstallerNotFound:
+		*h.Output = SoftwareInstallerNotFoundCopy
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -522,6 +588,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
 	LabelsIncludeAny   []string // names of "include any" labels
 	LabelsExcludeAny   []string // names of "exclude any" labels
+	LabelsIncludeAll   []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -534,6 +601,15 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
+	// AlwaysDownload disables conditional HTTP downloads using ETag. When false
+	// (the default), the download request includes If-None-Match with the stored ETag.
+	AlwaysDownload bool
+	// HTTPETag stores the ETag from the last download response, used for
+	// conditional GET requests when AlwaysDownload is false.
+	HTTPETag   *string
+	PatchQuery string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -567,17 +643,20 @@ func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
-	PackageIDList    string  `db:"package_ids"`
-	PackageIDs       []string
+	InstallerID            uint    `db:"installer_id"`
+	TeamID                 *uint   `db:"team_id"`
+	Filename               string  `db:"filename"`
+	Extension              string  `db:"extension"`
+	Version                string  `db:"version"`
+	Platform               string  `db:"platform"`
+	Source                 string  `db:"source"`
+	BundleIdentifier       *string `db:"bundle_identifier"`
+	Title                  string  `db:"title"`
+	PackageIDList          string  `db:"package_ids"`
+	PackageIDs             []string
+	StorageID              string  `db:"storage_id"`
+	HTTPETag               *string `db:"http_etag"`
+	InstallScriptContentID uint    `db:"install_script_content_id"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -605,6 +684,7 @@ type UpdateSoftwareInstallerPayload struct {
 	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
+	LabelsIncludeAll  []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
@@ -612,13 +692,15 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
+	Configuration []byte
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil &&
-		u.CategoryIDs == nil
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -684,6 +766,7 @@ func IsScriptPackage(ext string) bool {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
@@ -726,6 +809,12 @@ type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
 	TitleID uint   `json:"-" db:"software_title_id"`
+	Type    string `json:"type" db:"type"`
+}
+
+type PatchPolicyData struct {
+	ID   uint   `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -775,14 +864,17 @@ func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
+	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
 	// FMA
 	Slug    *string `json:"slug"`
@@ -790,7 +882,7 @@ type SoftwarePackageSpec struct {
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
-	// side of processing. This is required to match a macos_setup.software to
+	// side of processing. This is required to match a setup_experience.software to
 	// its corresponding software package, as we do this matching by yaml path.
 	//
 	// It must be JSON-marshaled because it gets set during gitops file processing,
@@ -800,6 +892,11 @@ type SoftwarePackageSpec struct {
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
 	DisplayName        string   `json:"display_name,omitempty"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	// When false (the default), Fleet sends If-None-Match with the stored ETag
+	// on subsequent downloads. If the server returns 304 Not Modified, the
+	// download is skipped entirely.
+	AlwaysDownload bool `json:"always_download"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
@@ -808,13 +905,14 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
-		spec.SelfService || spec.InstallDuringSetup.Valid
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
+		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -829,12 +927,13 @@ type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
 	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	Categories         []string              `json:"categories"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
@@ -851,6 +950,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		SelfService:        spec.SelfService,
 		LabelsIncludeAny:   spec.LabelsIncludeAny,
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		LabelsIncludeAll:   spec.LabelsIncludeAll,
 		InstallDuringSetup: spec.InstallDuringSetup,
 		Icon:               spec.Icon,
 		Categories:         spec.Categories,
@@ -990,6 +1090,11 @@ const (
 	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
 	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
 	ExitCodeInstallerDownloadFailed = -3
+	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
+	// details from the server for longer than the retry window (e.g. because the
+	// installer was deleted/replaced while a setup-experience install was in flight).
+	ExitCodeInstallerNotFound = -4
 )
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
@@ -1076,10 +1181,11 @@ func NewTempFileReader(from io.Reader, tempDirFn func() string) (*TempFileReader
 // NOTE: depending on how/where this struct is used, fields MAY BE
 // UNRELIABLE insofar as they represent default, empty values.
 type SoftwareScopeLabel struct {
-	LabelName string `db:"label_name" json:"name"`
-	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
-	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
-	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	LabelName  string `db:"label_name" json:"name"`
+	LabelID    uint   `db:"label_id" json:"id"`   // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
+	Exclude    bool   `db:"exclude" json:"-"`     // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
+	TitleID    uint   `db:"title_id" json:"-"`    // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+	RequireAll bool   `db:"require_all" json:"-"` // not rendered in JSON, used when processing LabelsIncludeAll, LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 }
 
 // Max total attempts (including initial) for a non-policy software install.
@@ -1118,6 +1224,25 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+// PreflightInstallFailedError signals that Fleet failed an install before
+// reaching the device (e.g. an unresolvable Fleet variable in the managed app
+// configuration). The corresponding failed-install activity has already been
+// emitted by the time this is returned.
+//
+// Admin/self-service/policy/auto-update entry points treat the pre-flight
+// failure as success at the API layer (the activity records the outcome), so
+// the install service returns nil there. The setup-experience drivers
+// (ee/server/service/setup_experience.go, server/worker/apple_mdm.go) branch
+// only on err != nil to transition a step out of Running — without an error
+// signal they'd stash the install's command UUID and wait indefinitely for an
+// MDM command result that will never arrive. For ForSetupExperience=true the
+// install service returns this error so those drivers transition to Failure.
+type PreflightInstallFailedError struct {
+	Reason string
+}
+
+func (e *PreflightInstallFailedError) Error() string { return e.Reason }
 
 const (
 	BatchDownloadMaxRetries = 3

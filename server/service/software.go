@@ -212,6 +212,21 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	return software, nil
 }
 
+func (svc *Service) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
+	if err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+
+	return swLite, nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Count
 /////////////////////////////////////////////////////////////////////////////////

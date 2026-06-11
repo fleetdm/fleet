@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,9 +36,9 @@ func testListActivities(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert activities
-	s.InsertActivity(t, ptr.Uint(userID), "applied_spec_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "deleted_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "edited_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "edited_pack", map[string]any{})
 
 	result, statusCode := s.getActivities(t, "per_page=100")
 
@@ -58,7 +57,7 @@ func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
 
 	// Insert 5 activities
 	for i := range 5 {
-		s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
+		s.InsertActivity(t, &userID, "test_activity", map[string]any{"index": i})
 	}
 
 	// First page
@@ -84,9 +83,9 @@ func testListActivitiesCursorPagination(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "admin", "admin@example.com")
 
 	// Insert 3 activities
-	s.InsertActivity(t, ptr.Uint(userID), "applied_spec_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "deleted_pack", map[string]any{})
-	s.InsertActivity(t, ptr.Uint(userID), "edited_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "applied_spec_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "deleted_pack", map[string]any{})
+	s.InsertActivity(t, &userID, "edited_pack", map[string]any{})
 
 	// Test cursor-based pagination with after=0
 	// Meta should be nil for cursor-based pagination (doesn't return metadata)
@@ -117,10 +116,10 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Insert activities with different types, times, and users
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_a", map[string]any{}, now.Add(-48*time.Hour))
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_a", map[string]any{}, now.Add(-24*time.Hour))
-	s.InsertActivityWithTime(t, ptr.Uint(johnUserID), "type_b", map[string]any{}, now)
-	s.InsertActivityWithTime(t, ptr.Uint(janeUserID), "type_a", map[string]any{}, now) // Jane's activity
+	s.InsertActivityWithTime(t, &johnUserID, "type_a", map[string]any{}, now.Add(-48*time.Hour))
+	s.InsertActivityWithTime(t, &johnUserID, "type_a", map[string]any{}, now.Add(-24*time.Hour))
+	s.InsertActivityWithTime(t, &johnUserID, "type_b", map[string]any{}, now)
+	s.InsertActivityWithTime(t, &janeUserID, "type_a", map[string]any{}, now) // Jane's activity
 
 	// Filter by type
 	result, _ := s.getActivities(t, "per_page=100&activity_type=type_a")
@@ -152,7 +151,7 @@ func testListActivitiesFilters(t *testing.T, s *integrationTestSuite) {
 func testListActivitiesUserEnrichment(t *testing.T, s *integrationTestSuite) {
 	userID := s.insertUser(t, "John Doe", "john@example.com")
 
-	s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{})
+	s.InsertActivity(t, &userID, "test_activity", map[string]any{})
 
 	result, _ := s.getActivities(t, "per_page=100")
 	require.Len(t, result.Activities, 1)
@@ -175,9 +174,9 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 	hostB := s.insertHost(t, "host-b.example.com", nil)
 
 	// Create activities linked to different hosts
-	actA := s.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host": "host-a"})
-	actB := s.InsertActivity(t, ptr.Uint(userID), "installed_software", map[string]any{"host": "host-a"})
-	actC := s.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host": "host-b"})
+	actA := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-a"})
+	actB := s.InsertActivity(t, &userID, "installed_software", map[string]any{"host": "host-a"})
+	actC := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-b"})
 
 	// Link activities to hosts
 	s.InsertHostActivity(t, hostA, actA)
@@ -211,7 +210,7 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 
 		// Insert 5 activities for the host
 		for i := range 5 {
-			actID := s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
+			actID := s.InsertActivity(t, &userID, "test_activity", map[string]any{"index": i})
 			s.InsertHostActivity(t, host, actID)
 		}
 

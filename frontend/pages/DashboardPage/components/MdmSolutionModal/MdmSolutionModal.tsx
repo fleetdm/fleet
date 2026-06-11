@@ -65,7 +65,7 @@ const MdmSolutionModal = ({
       </div>
       <div className="modal-cta-wrap">
         <Button type="button" onClick={onCancel}>
-          Done
+          Close
         </Button>
       </div>
     </Modal>

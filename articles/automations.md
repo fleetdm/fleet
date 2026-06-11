@@ -27,13 +27,13 @@ To learn how to use Fleet's maintenance windows, head to this [article](https://
 
 ### Software and scripts
 
-Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) retry up to 3 times by default. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 
 ### Webhooks and tickets
 
 For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
 
-Fleet checks whether to trigger webhooks or tickets once per day by default.
+Fleet checks whether to trigger webhooks or tickets once per day by default ([configurable](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings)).
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 

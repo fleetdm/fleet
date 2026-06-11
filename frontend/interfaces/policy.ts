@@ -20,6 +20,10 @@ export default PropTypes.shape({
   updated_at: PropTypes.string.isRequired,
 });
 
+export type OtherAutomationType = "webhook" | "ticket";
+
+export type TicketOrWebhookState = OtherAutomationType | "disabled";
+
 export interface IStoredPolicyResponse {
   policy: IPolicy;
 }
@@ -46,15 +50,21 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  patch_software?: IPolicySoftwareToInstall;
+  continuous_automations_enabled?: boolean;
   labels_include_any?: ILabelPolicy[];
+  labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  labels_exclude_all?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
   display_name?: string;
   software_title_id: number;
+  icon_url?: string | null;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -114,11 +124,18 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  continuous_automations_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
+  labels_exclude_all?: string[];
+  /** Required for creating patch policy */
+  type?: "dynamic" | "patch";
+  /** Required for creating patch policy */
+  patch_software_title_id?: number;
 }
 
 export interface IPolicyNew {

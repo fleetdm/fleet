@@ -51,7 +51,7 @@ All Fleet-specific OID extensions follow the pattern `1.3.6.1.4.1.63991.x.y`.
   }
   ```
 - **Usage**: SCEP certificate renewal (because our SCEP library doesn't support ECC certificate renewal)
-- **Implementation**: `RenewalExtensionOID` in `ee/server/service/hostidentity/types/host_identity_certificates.go`
+- **Implementation**: `RenewalExtensionOID` in `ee/pkg/hostidentity/types/host_identity_certificates.go`
 
 ## Adding New Custom Extensions
 

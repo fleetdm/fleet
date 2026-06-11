@@ -1,0 +1,10 @@
+{
+  "name": "Jellyfin",
+  "unique_identifier": "Jellyfin.Server",
+  "token": "jellyfin",
+  "installer_format": "dmg",
+  "slug": "jellyfin/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

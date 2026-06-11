@@ -1,0 +1,10 @@
+{
+  "name": "Dynalist",
+  "unique_identifier": "io.dynalist",
+  "token": "dynalist",
+  "installer_format": "dmg",
+  "slug": "dynalist/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -416,55 +416,6 @@ func TestAppendListOptionsToSQLSecure(t *testing.T) {
 	require.Equal(t, "invalid_column", invalidKeyErr.Key)
 }
 
-func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM my_table"
-	opts := fleet.ListOptions{
-		OrderKey: "***name***",
-	}
-
-	actual, _ := appendListOptionsToSQL(sql, &opts)
-	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	sql = "SELECT * FROM my_table"
-	opts.OrderDirection = fleet.OrderDescending
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	opts = fleet.ListOptions{
-		PerPage: 10,
-	}
-
-	sql = "SELECT * FROM my_table"
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 10"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	sql = "SELECT * FROM my_table"
-	opts.Page = 2
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM my_table"
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 1000000"
-
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-}
-
 func TestWhereFilterHostsByTeams(t *testing.T) {
 	t.Parallel()
 

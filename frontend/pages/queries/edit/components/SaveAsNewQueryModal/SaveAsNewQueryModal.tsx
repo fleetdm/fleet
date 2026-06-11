@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 
-import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
+import { ICreateQueryFormData } from "interfaces/schedulable_query";
 
 import queryAPI from "services/entities/queries";
 import { NotificationContext } from "context/notification";
@@ -24,7 +24,6 @@ import {
 } from "interfaces/team";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
@@ -34,7 +33,7 @@ const baseClass = "save-as-new-query-modal";
 interface ISaveAsNewQueryModal {
   router: InjectedRouter;
   location: Location;
-  initialQueryData: ICreateQueryRequestBody;
+  initialQueryData: ICreateQueryFormData;
   hostId?: number;
   onExit: () => void;
 }
@@ -72,7 +71,7 @@ const SaveAsNewQueryModal = ({
   const [formData, setFormData] = useState<ISANQFormData>({
     queryName: `Copy of ${initialQueryData.name}`,
     team: {
-      id: initialQueryData.team_id,
+      id: initialQueryData.fleet_id,
       name: undefined,
     },
   });
@@ -155,7 +154,7 @@ const SaveAsNewQueryModal = ({
     const createBody = {
       ...initialQueryData,
       name: queryName,
-      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
+      fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
@@ -198,7 +197,6 @@ const SaveAsNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          ignore1password
           parseTarget
         />
         {isPremiumTier && (userTeams?.length || 0) > 1 && (

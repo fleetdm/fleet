@@ -99,7 +99,7 @@ const Agents = ({
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
         {isPremiumTier ? (
-          <InfoBanner color="grey">
+          <InfoBanner>
             <div>
               These options are not applied to hosts in a fleet. To update agent
               options for hosts in a fleet, head to the&nbsp;
@@ -107,7 +107,7 @@ const Agents = ({
             </div>
           </InfoBanner>
         ) : (
-          <InfoBanner color="grey">
+          <InfoBanner>
             Want some hosts to have different options?&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/teams"
@@ -127,7 +127,6 @@ const Agents = ({
           disabled={gitOpsModeEnabled}
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   getInstallUninstallStatusPredicate,
+  getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 
@@ -20,16 +21,40 @@ const InstalledSoftwareActivityItem = ({
   isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, software_title: title, source } = details;
+  const {
+    self_service,
+    software_title: title,
+    source,
+    from_setup_experience,
+  } = details;
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-  const actorDisplayName = self_service ? (
-    <span>End user</span>
-  ) : (
-    <b>{actorName ?? "Fleet"}</b>
-  );
+  // Self-service installs/uninstalls can be triggered by anyone who opens the
+  // host's My device page, including admins. Drop the actor and switch to
+  // passive voice so the activity reads "<software> was installed on this
+  // host (self-service)." without misrepresenting who initiated it.
+  if (self_service) {
+    const passivePrefix = getInstallUninstallStatusPredicatePassive(
+      status,
+      isScriptPackageSource
+    );
+    return (
+      <ActivityItem
+        className={baseClass}
+        activity={activity}
+        hideCancel={hideCancel}
+        onShowDetails={onShowDetails}
+        onCancel={onCancel}
+        isSoloActivity={isSoloActivity}
+      >
+        <b>{title}</b> {passivePrefix} on this host
+        {from_setup_experience ? " during setup experience" : ""} (self-service)
+        .
+      </ActivityItem>
+    );
+  }
 
   let installedSoftwarePrefix = getInstallUninstallStatusPredicate(
     status,
@@ -49,8 +74,9 @@ const InstalledSoftwareActivityItem = ({
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
     >
-      <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
-      host{self_service && " (self-service)"}.{" "}
+      <b>{actorName ?? "Fleet"}</b> {installedSoftwarePrefix} <b>{title}</b> on
+      this host
+      {from_setup_experience ? " during setup experience" : ""}.
     </ActivityItem>
   );
 };

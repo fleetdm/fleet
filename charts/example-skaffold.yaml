@@ -18,7 +18,7 @@ deploy:
         database.secretName: fleet-mysql
         database.address: fleet-mysql:3306
         cache.secretName: fleet-redis
-        cache.address: fleet-redis-master:6379
+        cache.address: fleet-valkey:6379
         ingress.enabled: true
         ingress.hosts[0].host: fleet.example.com
         ingress.tls[0].secretName: fleet-web-tls
@@ -27,9 +27,6 @@ deploy:
         mysql.enabled: true
         mysql.auth.username: fleet
         mysql.auth.database: fleet
-        mysql.primary.livenessProbe.enabled: false
-        mysql.primary.readinessProbe.enabled: false
-        mysql.primary.startupProbe.enabled: false
         redis.enabled: true
-        redis.architecture: standalone
-        redis.auth.enabled: false
+        valkey.auth.enabled: false
+        valkey.replica.enabled: false

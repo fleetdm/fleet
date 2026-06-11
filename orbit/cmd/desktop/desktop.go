@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"fyne.io/systray"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/cmd/desktop/menu"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
@@ -27,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/gofrs/flock"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
@@ -150,6 +151,12 @@ func main() {
 	const pingInterval = 10 * time.Second // same value as default distributed/read
 	pingTicker := time.NewTicker(pingInterval)
 
+	// Backoff is only needed in checkToken (see below), which is the
+	// tight retry loop that caused #44816. The main ping loop doesn't
+	// need backoff because Ping is unauthenticated (no DB cost) and
+	// DesktopSummary already runs at most once every 5 minutes.
+	// See #45553 for the full behavioral contract.
+
 	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
 	var fleetDesktopCheckTrigger atomic.Bool
 
@@ -199,7 +206,7 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(
+		client, err := fleetclient.NewDeviceClient(
 			fleetURL,
 			insecureSkipVerify,
 			rootCA,
@@ -266,7 +273,10 @@ func main() {
 			done := make(chan interface{})
 
 			go func() {
-				ticker := time.NewTicker(5 * time.Second)
+				const checkTokenBase = 1 * time.Second
+				const maxTokenBackoff = 5 * time.Minute
+				tokenBackoff := backoff.New(checkTokenBase, maxTokenBackoff)
+				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()
 				defer close(done)
 
@@ -274,9 +284,9 @@ func main() {
 					refetchToken()
 					summary, err := client.DesktopSummary(tokenReader.GetCached())
 
-					if err == nil || errors.Is(err, service.ErrMissingLicense) {
+					if err == nil || errors.Is(err, fleetclient.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
-						isFreeTier := errors.Is(err, service.ErrMissingLicense)
+						isFreeTier := errors.Is(err, fleetclient.ErrMissingLicense)
 						var desktopSummary *fleet.DesktopSummary
 						if summary != nil {
 							desktopSummary = &summary.DesktopSummary
@@ -286,7 +296,11 @@ func main() {
 						return
 					}
 
-					log.Error().Err(err).Msg("get device URL")
+					tokenBackoff.RecordFailure()
+					nextInterval := tokenBackoff.Interval()
+					log.Error().Err(err).Str("next_retry", nextInterval.String()).
+						Msg("get device URL, backing off")
+					ticker.Reset(nextInterval)
 
 					<-ticker.C
 				}
@@ -370,13 +384,14 @@ func main() {
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				if err != nil {
 					switch {
-					case errors.Is(err, service.ErrMissingLicense):
+					case errors.Is(err, fleetclient.ErrMissingLicense):
 						// Policy reporting in Fleet Desktop requires a license,
 						// so we just show the "My device" item as usual.
 						menuManager.SetConnected(&fleet.DesktopSummary{}, true)
-					case errors.Is(err, service.ErrUnauthenticated):
+					case errors.Is(err, fleetclient.ErrUnauthenticated):
 						log.Debug().Err(err).Msg("get desktop summary auth failure")
 						// This usually happens every ~1 hour when the token expires.
+						// checkToken has its own backoff to avoid retry storms (#44816).
 						<-checkToken()
 					default:
 						log.Error().Err(err).Msg("get desktop summary failed")
@@ -559,7 +574,7 @@ func main() {
 }
 
 type mdmMigrationHandler struct {
-	client      *service.DeviceClient
+	client      *fleetclient.DeviceClient
 	tokenReader *token.Reader
 }
 
@@ -715,7 +730,7 @@ func logDir() (string, error) {
 	return dir, nil
 }
 
-func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *fleetclient.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
 	dir, err := migration.Dir()
 	if err != nil {
 		return nil, nil, nil, err

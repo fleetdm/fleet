@@ -94,7 +94,7 @@ const DiskEncryption = ({
       refetchOnWindowFocus: false,
       retry: false,
       enabled: currentTeamId !== 0,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (res) => {
         const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
@@ -206,11 +206,7 @@ const DiskEncryption = ({
           </>
         }
       />
-      {!isPremiumTier && (
-        <PremiumFeatureMessage
-          className={`${baseClass}__premium-feature-message`}
-        />
-      )}
+      {!isPremiumTier && <PremiumFeatureMessage />}
       {isPremiumTier && isLoadingTeam && <Spinner />}
       {isPremiumTier && !isLoadingTeam && !showAggregate && isTechnician && (
         <p>Disk encryption is disabled.</p>
@@ -275,7 +271,6 @@ const DiskEncryption = ({
           )}
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
-              tipOffset={-12}
               renderChildren={(d) => (
                 <Button
                   disabled={d}

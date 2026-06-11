@@ -65,15 +65,14 @@
   // color styles
   &__white {
     background-color: $core-fleet-white;
+
+    body.dark-mode & {
+      background-color: $ui-fleet-black-5;
+    }
   }
 
   &__grey {
     background-color: $ui-off-white;
-  }
-
-  &__purple {
-    background-color: $ui-vibrant-blue-10;
-    border-color: $ui-vibrant-blue-50;
   }
 
   &__yellow {

@@ -11,7 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
-  compatiblePlatforms: any[] | null;
+  compatiblePlatforms: QueryablePlatform[] | null;
   error: Error | null;
 }
 

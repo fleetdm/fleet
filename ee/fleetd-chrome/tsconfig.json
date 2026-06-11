@@ -3,16 +3,16 @@
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "jsx": "react",
-        "lib": [
-            "es2020",
-            "dom"
-        ],
+        "lib": ["es2020", "dom"],
         "module": "es2020",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "outDir": "dist/js",
         "rootDir": "src",
         "sourceMap": true,
-        "target": "es2015"
+        "skipLibCheck": true,
+        "strict": false,
+        "target": "es2015",
+        "types": ["chrome", "jest", "node"]
     },
     "exclude": [
         "node_modules",

@@ -37,5 +37,6 @@
     "prettier.requireConfig": true,
     "yaml.schemas": {
         "https://json.schemastore.org/codecov.json": ".github/workflows/codecov.yml"
-    }
+    },
+    "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

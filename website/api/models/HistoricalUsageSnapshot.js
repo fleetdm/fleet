@@ -51,6 +51,12 @@ module.exports = {
     numHostsABMPending: {required: true, type: 'number' },
     fleetMaintainedAppsMacOS: {required: true, type: 'json'},
     fleetMaintainedAppsWindows: {required: true, type: 'json'},
+    oktaConditionalAccessConfigured: {required: true, type: 'boolean'},
+    conditionalAccessEnabled: {required: true, type: 'boolean'},
+    conditionalAccessBypassDisabled: {required: true, type: 'boolean'},
+    entraConditionalAccessConfigured: {required: true, type: 'boolean'},
+    gitOpsModeEnabled: {required: true, type: 'boolean'},
+    gitOpsModeExceptions: {required: true, type: 'json'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

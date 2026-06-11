@@ -79,3 +79,4 @@ By adopting Fleet for server observability, they've successfully addressed scala
 <meta name="articleTitle" value="Large gaming company enhances server observability with Fleet">
 <meta name="description" value="Large gaming company enhances server observability with Fleet">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Online gaming platform">

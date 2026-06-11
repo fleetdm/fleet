@@ -97,4 +97,16 @@ org_settings:
     databases_path: ""
   secrets: 
     - secret: ABC
+labels:
+  - name: A
+    label_membership_type: manual
+    hosts:
+      - host2
+      - host3
+  - name: B
+    label_membership_type: dynamic
+    query: SELECT 1 from osquery_info
+  - name: C
+    label_membership_type: dynamic
+    query: SELECT 1 from osquery_info
 software:

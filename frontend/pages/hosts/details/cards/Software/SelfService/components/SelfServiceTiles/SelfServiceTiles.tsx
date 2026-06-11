@@ -4,7 +4,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import Card from "components/Card";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -24,6 +24,8 @@ interface SelfServiceTilesProps {
     isSoftwarePackage?: boolean
   ) => void;
   isEmptySearch?: boolean;
+  /** Category filter produced no results; takes precedence under isEmptySearch */
+  isEmptyCategory?: boolean;
   isFetching?: boolean;
 }
 
@@ -32,6 +34,7 @@ const SelfServiceTiles = ({
   contactUrl,
   onClickInstallAction,
   isEmptySearch,
+  isEmptyCategory,
   isFetching,
 }: SelfServiceTilesProps) => {
   if (isFetching) {
@@ -40,8 +43,8 @@ const SelfServiceTiles = ({
 
   if (isEmptySearch) {
     return (
-      <EmptyTable
-        graphicName="empty-search-question"
+      <EmptyState
+        variant="list"
         header="No items match your search"
         info={
           <>
@@ -51,6 +54,10 @@ const SelfServiceTiles = ({
         }
       />
     );
+  }
+
+  if (isEmptyCategory) {
+    return <EmptyState variant="list" header="No items in this category" />;
   }
 
   return (

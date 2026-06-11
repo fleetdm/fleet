@@ -78,7 +78,7 @@ const ResetPasswordForm = ({
     const valid = validate();
 
     if (valid) {
-      return handleSubmit(formData);
+      handleSubmit(formData);
     }
   };
 
@@ -107,6 +107,7 @@ const ResetPasswordForm = ({
         className={`${baseClass}__input`}
         type="password"
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+        ignore1Password={false}
       />
       <InputFieldWithIcon
         error={errors.new_password_confirmation}
@@ -116,6 +117,7 @@ const ResetPasswordForm = ({
         value={formData.new_password_confirmation || ""}
         className={`${baseClass}__input`}
         type="password"
+        ignore1Password={false}
       />
       <div className="button-wrap--center">
         <Button type="submit" onClick={onFormSubmit} size="wide">

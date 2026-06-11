@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 import { isEmpty, omit } from "lodash";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import PATHS from "router/paths";
 
@@ -33,7 +34,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import validUrl from "components/forms/validators/valid_url";
@@ -136,7 +136,7 @@ const ManageAutomationsModal = ({
   const { config: globalConfigFromContext, isFreeTier } = useContext(
     AppContext
   );
-  const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
     ? softwareConfig.vulnerabilities.recent_vulnerability_max_age
@@ -533,6 +533,7 @@ const ManageAutomationsModal = ({
     );
     return (
       <GitOpsModeTooltipWrapper
+        entityType="software"
         renderChildren={renderRawButton}
         tipOffset={6}
       />

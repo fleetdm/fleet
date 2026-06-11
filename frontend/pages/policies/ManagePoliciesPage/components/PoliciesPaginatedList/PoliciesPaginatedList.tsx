@@ -21,12 +21,16 @@ import teamPoliciesAPI, {
   IPoliciesApiParams,
   IPoliciesCountApiParams,
 } from "services/entities/team_policies";
-import globalPoliciesAPI from "services/entities/global_policies";
+import globalPoliciesAPI, {
+  IGlobalPoliciesApiQueryParams,
+} from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { QueryablePlatform, isQueryablePlatform } from "interfaces/platform";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 
 // Extend the IPolicy interface with some virtual properties that make it easier
 // to track item state. These are set by the various Manage Automations modals.
@@ -55,6 +59,8 @@ interface IPoliciesPaginatedListProps {
   isUpdating: boolean;
   disableList?: boolean;
   disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
+  /** Whether to render platform icons to the right of the policy name. */
+  renderPlatform?: boolean;
   teamId: number;
   helpText: ReactElement | undefined | null;
 }
@@ -74,6 +80,7 @@ function PoliciesPaginatedList(
     isUpdating,
     disableList = false,
     disableSave,
+    renderPlatform = false,
     teamId,
     helpText,
   }: IPoliciesPaginatedListProps,
@@ -122,6 +129,28 @@ function PoliciesPaginatedList(
     [disableSave]
   );
 
+  // When renderPlatform is enabled, compose renderItemRow to include platform
+  // icons at the rightmost side of the row.
+  const composedRenderItemRow = (
+    item: IFormPolicy,
+    onChange: (item: IFormPolicy) => void
+  ) => {
+    const callerRow = renderItemRow ? renderItemRow(item, onChange) : null;
+
+    const platforms = item.platform
+      ? (item.platform
+          .split(",")
+          .filter(isQueryablePlatform) as QueryablePlatform[])
+      : [];
+
+    return (
+      <>
+        {callerRow}
+        <PlatformCell platforms={platforms} />
+      </>
+    );
+  };
+
   // Fetch a single page of policies.
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
@@ -137,10 +166,12 @@ function PoliciesPaginatedList(
       orderDirection: "asc" as const,
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
+      automationType: undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
+      automationType: undefined,
     };
   } else {
     policiesQueryKey = {
@@ -151,11 +182,13 @@ function PoliciesPaginatedList(
       orderKey: DEFAULT_SORT_COLUMN,
       teamId,
       mergeInherited: false,
+      automationType: undefined,
     };
     countQueryKey = {
       query: "",
       teamId,
       mergeInherited: false,
+      automationType: undefined,
     };
   }
 
@@ -179,11 +212,18 @@ function PoliciesPaginatedList(
     ILoadAllPoliciesResponse,
     Error,
     IFormPolicy[]
-  >([policiesQueryKey], () => globalPoliciesAPI.loadAllNew(policiesQueryKey), {
-    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
-    keepPreviousData: true,
-    select: marshallApiResponse,
-  });
+  >(
+    [policiesQueryKey],
+    () =>
+      globalPoliciesAPI.loadAllNew(
+        policiesQueryKey as IGlobalPoliciesApiQueryParams
+      ),
+    {
+      enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
+      keepPreviousData: true,
+      select: marshallApiResponse,
+    }
+  );
 
   // Team policies query
   const { data: teamData, isFetching: teamIsLoading } = useQuery<
@@ -205,10 +245,20 @@ function PoliciesPaginatedList(
     IPoliciesCountResponse,
     Error,
     number
-  >([countQueryKey], () => globalPoliciesAPI.getCount(countQueryKey), {
-    enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
-    select: (countResponse: IPoliciesCountResponse) => countResponse.count,
-  });
+  >(
+    [countQueryKey],
+    () =>
+      globalPoliciesAPI.getCount(
+        countQueryKey as Pick<
+          IGlobalPoliciesApiQueryParams,
+          "query" | "automationType"
+        >
+      ),
+    {
+      enabled: teamId === APP_CONTEXT_ALL_TEAMS_ID,
+      select: (countResponse: IPoliciesCountResponse) => countResponse.count,
+    }
+  );
 
   // Team count query
   const { data: teamCount, isFetching: teamIsFetchingCount } = useQuery<
@@ -241,7 +291,7 @@ function PoliciesPaginatedList(
           getItemTooltipContent={getPolicyTooltipContent}
           onClickRow={onToggleItem}
           renderItemLabel={renderItemLabel}
-          renderItemRow={renderItemRow}
+          renderItemRow={renderPlatform ? composedRenderItemRow : renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
           disabled={disableList || gitOpsModeEnabled}

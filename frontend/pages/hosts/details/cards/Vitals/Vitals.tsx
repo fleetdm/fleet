@@ -15,11 +15,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-import {
-  DEFAULT_EMPTY_CELL_VALUE,
-  MDM_STATUS_TOOLTIP,
-  BATTERY_TOOLTIP,
-} from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
@@ -46,7 +42,18 @@ interface IVitalsProps {
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
+  /**
+   * Opens the Location modal. Presence of this handler also makes the
+   * Location row interactive — omit it for read-only contexts (e.g., the
+   * My device page) so the row renders as plain text instead of a link.
+   */
   toggleLocationModal?: () => void;
+  /**
+   * Opens the MDM status modal. Presence of this handler also makes the
+   * MDM status row interactive — omit it for read-only contexts (e.g.,
+   * the My device page) so the row renders as plain text instead of a link.
+   */
+  toggleMDMStatusModal?: () => void;
 }
 
 type VitalForSort = { sortKey: string; element: React.ReactNode };
@@ -117,6 +124,7 @@ const Vitals = ({
   osVersionRequirement,
   className,
   toggleLocationModal,
+  toggleMDMStatusModal,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -125,6 +133,7 @@ const Vitals = ({
   const {
     platform,
     os_version,
+    mdm_enrollment_hardware_attested,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = vitalsData;
 
@@ -365,22 +374,52 @@ const Vitals = ({
     const isAdeIDevice =
       isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
 
-    if (isAdeIDevice || geolocation) {
-      const geoLocationButton = (
-        <Button variant="text-link" onClick={toggleLocationModal}>
-          {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
+    if (isAdeIDevice ? toggleLocationModal : geolocation) {
+      const label = isAdeIDevice
+        ? "Show location"
+        : getCityCountryLocation(geolocation);
+      const locationValue = toggleLocationModal ? (
+        <Button variant="link" onClick={toggleLocationModal}>
+          {label}
         </Button>
+      ) : (
+        label
       );
       vitals.push({
         sortKey: "Location",
         element: (
-          <DataSet key="location" title="Location" value={geoLocationButton} />
+          <DataSet
+            className={`${baseClass}__location`}
+            key="location"
+            title="Location"
+            value={locationValue}
+          />
+        ),
+      });
+    }
+
+    // MDM attestation
+    if (mdm_enrollment_hardware_attested) {
+      vitals.push({
+        sortKey: "MDM attestation",
+        element: (
+          <DataSet
+            key="mdm-attestation"
+            title="MDM attestation"
+            value={
+              <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
+                Yes
+              </TooltipWrapper>
+            }
+          />
         ),
       });
     }
 
     // MDM
     if (mdm?.enrollment_status) {
+      const mdmStatusLabel =
+        MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName;
       vitals.push(
         {
           sortKey: "MDM status",
@@ -388,16 +427,18 @@ const Vitals = ({
             <DataSet
               key="mdm-status"
               title="MDM status"
+              className={`${baseClass}__mdm-status`}
               value={
-                <TooltipWrapper
-                  tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-                  underline={mdm.enrollment_status !== "Off"}
-                >
-                  {
-                    MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                      .displayName
-                  }
-                </TooltipWrapper>
+                <>
+                  {mdm.dep_profile_error && <Icon name="error" />}
+                  {toggleMDMStatusModal ? (
+                    <Button variant="link" onClick={toggleMDMStatusModal}>
+                      {mdmStatusLabel}
+                    </Button>
+                  ) : (
+                    mdmStatusLabel
+                  )}
+                </>
               }
             />
           ),
@@ -543,6 +584,16 @@ const Vitals = ({
               </TooltipWrapper>
             }
             value={<TooltipTruncatedText value={vitalsData.public_ip} />}
+          />
+        ),
+      });
+      vitals.push({
+        sortKey: "MAC address",
+        element: (
+          <DataSet
+            key="mac-address"
+            title="MAC address"
+            value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
           />
         ),
       });

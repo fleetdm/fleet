@@ -27,11 +27,11 @@ export interface IGetVppTokensResponse {
   vpp_tokens: IMdmVppToken[];
 }
 
-export interface IUploadVppTokenReponse {
+export interface IUploadVppTokenResponse {
   vpp_token: IMdmVppToken;
 }
 
-export type IRenewVppTokenResponse = IUploadVppTokenReponse;
+export type IRenewVppTokenResponse = IUploadVppTokenResponse;
 
 export default {
   getAppleAPNInfo: () => {
@@ -64,7 +64,7 @@ export default {
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;
-    const path = `${SOFTWARE_APP_STORE_APPS}?team_id=${teamId}`;
+    const path = `${SOFTWARE_APP_STORE_APPS}?fleet_id=${teamId}`;
     return sendRequest("GET", path);
   },
 
@@ -73,7 +73,7 @@ export default {
     return sendRequest("GET", MDM_VPP_TOKENS);
   },
 
-  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+  uploadVppToken: (token: File): Promise<IUploadVppTokenResponse> => {
     const { MDM_VPP_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
@@ -100,6 +100,6 @@ export default {
   }) => {
     const { MDM_VPP_TOKEN_TEAMS } = endpoints;
     const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
-    return sendRequest("PATCH", path, { teams: params.teamIds });
+    return sendRequest("PATCH", path, { fleets: params.teamIds });
   },
 };

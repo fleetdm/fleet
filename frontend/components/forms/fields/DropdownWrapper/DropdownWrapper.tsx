@@ -130,7 +130,9 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
+  if (state.isFocused) return COLORS["ui-fleet-black-5"];
+  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  return "transparent";
 };
 
 const getOptionFontWeight = (
@@ -152,14 +154,15 @@ const getOptionFontWeight = (
 export const generateCustomDropdownStyles = (
   variant?: DropdownWrapperVariant,
   isDisabled = false,
-  nowrapMenu = false
+  nowrapMenu = false,
+  maxMenuHeight?: number
 ): StylesConfig<CustomOptionType, false> => {
   return {
     container: (provided) => {
       const buttonVariantContainer = {
         borderRadius: "6px",
         "&:active": {
-          backgroundColor: "rgba(25, 33, 71, 0.05)",
+          backgroundColor: COLORS["ui-fleet-black-5"],
         },
         height: "38px",
       };
@@ -189,7 +192,7 @@ export const generateCustomDropdownStyles = (
             stroke: COLORS["ui-fleet-black-75"],
           },
           "&:hover": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            backgroundColor: COLORS["ui-fleet-black-5"],
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
               color: COLORS["ui-fleet-black-75-over"],
@@ -198,28 +201,20 @@ export const generateCustomDropdownStyles = (
               stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
-          ".react-select__control--is-focused": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-down"],
-            },
-          },
-          ...(state.isFocused && {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-down"],
-            },
-          }),
-          // TODO: Figure out a way to apply separate &:focus-visible styling
-          // Currently only relying on &:focus styling for tabbing through app
+          // Note: state.isFocused is intentionally not used as a highlight
+          // trigger here. react-select's internal input retains focus after
+          // the menu closes (outside click, post-modal-close, etc.), so
+          // styling on it would leave the trigger visually highlighted
+          // indefinitely (#45853). Hover + menuIsOpen cover the meaningful
+          // interactive states for an action button.
           ...(state.menuIsOpen && {
+            backgroundColor: COLORS["ui-fleet-black-5"],
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["ui-fleet-black-75-down"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["ui-fleet-black-75-down"],
+            },
             ".dropdown-wrapper__indicator svg": {
               transform: "rotate(180deg)",
               transition: "transform 0.25s ease",
@@ -322,11 +317,24 @@ export const generateCustomDropdownStyles = (
 
       return {
         ...provided,
+        fontSize: "13px",
         ...(variant === "button" && buttonVariantPlaceholder),
       };
     },
-    singleValue: (provided) => ({
+    input: (provided) => {
+      return {
+        ...provided,
+        color: COLORS["core-fleet-black"],
+        fontSize: "13px",
+        margin: 0,
+        padding: 0,
+      };
+    },
+    singleValue: (provided, state) => ({
       ...provided,
+      color: state.isDisabled
+        ? COLORS["ui-fleet-black-50"]
+        : COLORS["core-fleet-black"],
       fontSize: "13px",
       margin: 0,
       padding: 0,
@@ -342,7 +350,8 @@ export const generateCustomDropdownStyles = (
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",
@@ -361,7 +370,7 @@ export const generateCustomDropdownStyles = (
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
-      maxHeight: "none",
+      maxHeight: maxMenuHeight != null ? `${maxMenuHeight}px` : "none",
       ...(nowrapMenu && { width: "fit-content" }),
     }),
     valueContainer: (provided) => ({
@@ -446,8 +455,18 @@ const DropdownWrapper = ({
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
+    [`${baseClass}__button`]: variant === "button",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
+
+  // To prevent excessively long dropdowns, this sets a max menu height for
+  // more than 9 options or more than than 6 options with help text
+  const hasHelpText = options.some((opt) => !!opt.helpText);
+  const enableMaxMenuHeight = hasHelpText
+    ? options.length > 6
+    : options.length > 9;
+
+  const maxMenuHeight = enableMaxMenuHeight ? 305 : undefined;
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
     onChange(newValue);
@@ -455,6 +474,13 @@ const DropdownWrapper = ({
 
   // Ability to handle value of type string or CustomOptionType
   const getCurrentValue = () => {
+    // Button variant is a fire-and-forget action menu (selection isn't displayed
+    // via `controlShouldRenderValue`). Forcing null prevents react-select from
+    // tracking the last click as the selected value and re-focusing it on reopen
+    // (#45853).
+    if (variant === "button") {
+      return null;
+    }
     if (typeof value === "string") {
       return options.find((option) => option.value === value) || null;
     }
@@ -512,7 +538,12 @@ const DropdownWrapper = ({
       <Select<CustomOptionType, false>
         classNamePrefix="react-select"
         isSearchable={isSearchable}
-        styles={generateCustomDropdownStyles(variant, isDisabled, nowrapMenu)}
+        styles={generateCustomDropdownStyles(
+          variant,
+          isDisabled,
+          nowrapMenu,
+          maxMenuHeight
+        )}
         options={options}
         components={{
           Option: CustomOption,

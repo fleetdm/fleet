@@ -243,7 +243,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
   });
 
   describe("Confirming configured", () => {
-    it("Renders a spinner when Entra tenant id is present but configuration not yet confirmed", () => {
+    it("Renders a spinner when Entra tenant id is present but configuration not yet confirmed", async () => {
       const mockConfig = createMockConfig({
         conditional_access: {
           microsoft_entra_tenant_id: TEST_TENANT_ID,
@@ -268,7 +268,8 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       render(<ConditionalAccess />);
 
-      expect(screen.getByTestId("spinner")).toBeVisible();
+      // Spinner has a built-in anti-flash delay, so wait for it to appear.
+      expect(await screen.findByTestId("spinner")).toBeVisible();
     });
   });
 
@@ -468,6 +469,26 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       expect(
         screen.getByText(/This feature is included in Fleet Premium/i)
+      ).toBeInTheDocument();
+    });
+
+    it("Renders the 'Conditional access' section header on Fleet Free", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: false,
+          },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      expect(
+        screen.getByRole("heading", {
+          level: 2,
+          name: /Conditional access/i,
+        })
       ).toBeInTheDocument();
     });
   });

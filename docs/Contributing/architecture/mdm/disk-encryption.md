@@ -118,10 +118,18 @@ When disk encryption is enabled, the server sends a notification to orbit, which
 [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume)
 to encrypt the used space of the disk with TPM and Numerical Password protectors and generate an encryption key.
 
-If the disk is already encrypted, it will first be decrypted and then re-encrypted.
+If the disk is already encrypted, orbit rotates the recovery key: it adds a new Fleet-managed
+Numerical Password protector, removes old recovery key protectors, and escrows the new key. The disk
+is never decrypted. This matches how other MDM platforms handle pre-encrypted disks and avoids issues
+with secondary drives that use BitLocker auto-unlock (which prevents decrypting the OS drive).
 
-After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated
-endpoint (`POST /api/fleet/orbit/disk_encryption_key`).
+After the disk is encrypted (or the key is rotated), orbit sends the key back to the server using an
+orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`).
+
+The server determines whether the disk is encrypted by checking both `conversion_status` (whether
+the data is encrypted) and `protection_status` (whether the TPM protector is active) from the
+osquery `bitlocker_info` table. If the disk is encrypted but protection is off (e.g., BitLocker
+suspended for a BIOS update), the host shows "Action required" in the Fleet UI.
 
 ```mermaid
 sequenceDiagram
@@ -135,14 +143,19 @@ sequenceDiagram
         host->>fleet: Enroll in Fleet MDM
         fleet->>host: Orbit/osquery installed
         fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return reports including encryption status
+        fleet->>fleetd: Return reports including encryption status<br>(protection_status and conversion_status)
         fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Enable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted but no<br>key is escrowed or host is not encrypted
-        fleetd->>host: Decrypt OS volume(if encrypted)
-        fleetd->>fleetd: Wait for decryption
+        alt Disk not encrypted
         fleetd->>host: Create TPM and Numerical Password protectors
         host->>fleetd: Return recovery key after creating protectors
         fleetd->>host: Encrypt OS volume
+        else Disk already encrypted
+        fleetd->>host: Add new Numerical Password protector
+        host->>fleetd: Return new recovery key
+        fleetd->>host: Remove old recovery key protectors
+        fleetd->>host: Ensure TPM protector exists
+        end
         fleetd->>fleet: Send recovery key
         fleetd->>fleet: request vitals reports
         fleet->>fleetd: Return vitals reports including query<br>to check encryption status

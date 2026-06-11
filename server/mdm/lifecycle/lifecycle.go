@@ -58,7 +58,7 @@ type HostLifecycle struct {
 // NewActivityFunc is the signature type of the service-layer function that can
 // create activities and handle the webhook notification and all other
 // mechanisms required when creating an activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error
+type NewActivityFunc = fleet.NewActivityFunc
 
 // New creates a new HostLifecycle struct
 func New(ds fleet.Datastore, logger *slog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
@@ -144,7 +144,6 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
 	isPersonalEnrollment := false
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
-		// We are doing user enrollment, where we don't have access to device hardware details
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
 		isPersonalEnrollment = true
@@ -305,6 +304,21 @@ func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error
 	}
 
 	if dep != nil && dep.DeletedAt == nil {
+		// Don't recreate a pending "ghost" host if a duplicate host for the same
+		// serial still exists. This happens when an operator deletes one of a set
+		// of duplicate hosts (e.g. from a Migration Assistant flow) to resolve the
+		// duplicate — restoring a ghost here would just recreate the duplicate they
+		// removed. If the surviving duplicate has no DEP assignment of its own, the
+		// deleted host's assignment is transferred to it to preserve the ABM
+		// relationship.
+		dupExists, err := t.ds.ReconcileDuplicateDEPHostOnDelete(ctx, opts.Host.HardwareSerial, opts.Host.Platform, opts.Host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile duplicate dep host")
+		}
+		if dupExists {
+			return nil
+		}
+
 		return t.restorePendingDEPHost(ctx, opts.Host, dep.ABMTokenID)
 	}
 
