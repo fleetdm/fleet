@@ -1318,7 +1318,7 @@ func registerMDMServiceDiscovery(
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
-			mdmEnrollmentURL = fmt.Sprintf("%s/%s", fullMDMEnrollmentURL, token)
+			mdmEnrollmentURL = fmt.Sprintf("%s/%s", fullMDMEnrollmentURL, url.PathEscape(token))
 		} else {
 			mdmEnrollmentURL = fullMDMEnrollmentURL
 		}

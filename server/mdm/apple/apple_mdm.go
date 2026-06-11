@@ -44,7 +44,7 @@ const (
 	//
 	// Deprecated: Use ServiceDiscoveryTokenPath instead.
 	ServiceDiscoveryPath      = "/mdm/apple/service_discovery"
-	ServiceDiscoveryTokenPath = "/mdm/apple/service_discovery/{token}"
+	ServiceDiscoveryTokenPath = "/mdm/apple/service_discovery/{token}" // nolint:gosec // Not a secret
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
@@ -52,7 +52,7 @@ const (
 	//
 	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
 	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
-	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}"
+	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 

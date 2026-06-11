@@ -895,7 +895,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		// originalURL is unused in the Setup Experience initiated MDM flow
 		// however because we need slightly different behavior for account driven
 		// enrollment we use it to signal proper behavior on the callback.
-		originalURL = apple_mdm.AccountDrivenEnrollPath
+		originalURL = apple_mdm.AccountDrivenEnrollPath // nolint:staticcheck // This is kept for backwards compatibility
 
 		if token != "" {
 			// We need this check for backwards compatibility.

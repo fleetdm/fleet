@@ -2104,7 +2104,7 @@ type InsertADUEEnrollmentChallengeFunc func(ctx context.Context, abmTokenID *uin
 
 type GetADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
 
-type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challengeID uint) error
+type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
 
 type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
@@ -12518,11 +12518,11 @@ func (s *DataStore) GetADUEEnrollmentChallenge(ctx context.Context, challenge st
 	return s.GetADUEEnrollmentChallengeFunc(ctx, challenge)
 }
 
-func (s *DataStore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challengeID uint) error {
+func (s *DataStore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
 	s.mu.Lock()
 	s.ConsumeADUEEnrollmentChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConsumeADUEEnrollmentChallengeFunc(ctx, challengeID)
+	return s.ConsumeADUEEnrollmentChallengeFunc(ctx, challenge)
 }
 
 func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {
