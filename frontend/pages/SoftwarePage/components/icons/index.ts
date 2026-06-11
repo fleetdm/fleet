@@ -413,6 +413,7 @@ import PowerBi from "./PowerBi";
 import PowerMonitor from "./PowerMonitor";
 import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
+import PppcUtility from "./PppcUtility";
 import Prisma from "./Prisma";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
@@ -1087,6 +1088,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "power monitor": PowerMonitor,
   powershell: Powershell,
   powertoys: Powertoys,
+  "pppc utility": PppcUtility,
   prisma: Prisma,
   pritunl: Pritunl,
   privileges: Privileges,

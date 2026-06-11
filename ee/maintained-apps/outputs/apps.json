@@ -3635,6 +3635,13 @@
       "description": "PowerToys is a set of utilities from Microsoft for power users to tune and streamline their Windows experience for greater productivity."
     },
     {
+      "name": "PPPC Utility",
+      "slug": "pppc-utility/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jamf.opensource.pppcutility",
+      "description": "PPPC Utility is an open-source tool from Jamf for creating configuration profiles that contain Privacy Preferences Policy Control (PPPC) payloads."
+    },
+    {
       "name": "Prisma Browser",
       "slug": "prisma-browser/windows",
       "platform": "windows",
