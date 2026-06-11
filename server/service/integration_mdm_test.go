@@ -16240,7 +16240,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Nil(t, host.TeamID)
-			iPhoneHostID = &host.ID
+			id := host.ID
+			iPhoneHostID = &id
 		} else if host.UUID == iPadMdmDevice.EnrollmentID() {
 			assert.Equal(t, "ipados", host.Platform)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.UUID)
@@ -16250,9 +16251,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			assert.Equal(t, team.ID, *host.TeamID)
-			iPadHostID = &host.ID
+			id := host.ID
+			iPadHostID = &id
 		} else if host.UUID == oldUrlIphoneMdmDevice.EnrollmentID() {
-			// Primarly assert it was enrolled correctly and fallback to unassigned
+			// Primarily assert it was enrolled correctly and fallback to unassigned
 			assert.Equal(t, "ios", host.Platform)
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)

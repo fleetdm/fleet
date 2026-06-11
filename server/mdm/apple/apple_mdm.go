@@ -2324,7 +2324,7 @@ func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, 
 
 	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
 	if block == nil || block.Type != "CERTIFICATE" {
-		return "", ctxerr.Wrap(ctx, err, "decoding PEM data")
+		return "", ctxerr.New(ctx, "decoding APNs certificate PEM data")
 	}
 
 	apnsCert, err := x509.ParseCertificate(block.Bytes)

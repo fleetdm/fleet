@@ -7569,24 +7569,55 @@ func (ds *Datastore) InsertADUEEnrollmentChallenge(ctx context.Context, abmToken
 }
 
 func (ds *Datastore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
-	const stmt = `SELECT id, abm_token_id, idp_account_uuid, expires_at, used_at FROM mdm_adue_enrollment_challenges WHERE challenge = ?`
+	return ds.getADUEEnrollmentChallenge(ctx, ds.reader(ctx), challenge)
+}
+
+func (ds *Datastore) getADUEEnrollmentChallenge(ctx context.Context, tx sqlx.QueryerContext, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	const stmt = `SELECT id, abm_token_id, idp_account_uuid, expires_at, used_at FROM mdm_adue_enrollment_challenges WHERE challenge = ? FOR UPDATE`
 	var adueChallenge fleet.ADUEEnrollmentChallenge
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &adueChallenge, stmt, challenge); err != nil {
+	if err := sqlx.GetContext(ctx, tx, &adueChallenge, stmt, challenge); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("ADUEEnrollmentChallenge").
-				WithMessage(fmt.Sprintf("for challenge %s", challenge)))
+			return nil, ctxerr.Wrap(ctx, notFound("ADUEEnrollmentChallenge"))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "getting ADUE enrollment challenge")
+		return nil, ctxerr.Wrap(ctx, err, "getting ADUE enrollment challenge with lock")
 	}
 	return &adueChallenge, nil
 }
 
-func (ds *Datastore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challengeID uint) error {
-	const stmt = `UPDATE mdm_adue_enrollment_challenges SET used_at = NOW() WHERE id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challengeID); err != nil {
-		return ctxerr.Wrap(ctx, err, "consuming ADUE enrollment challenge")
+func (ds *Datastore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	var enrollChallenge *fleet.ADUEEnrollmentChallenge
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		enrollChallenge, err := ds.getADUEEnrollmentChallenge(ctx, tx, challenge)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching account driven enrollment challenge")
+		}
+
+		if enrollChallenge == nil {
+			// It should not be nil, as that would have produced an error, but better safe than sorry.
+			return ctxerr.New(ctx, "account driven enrollment challenge not found")
+		}
+
+		if enrollChallenge.UsedAt != nil {
+			return &fleet.BadRequestError{
+				Message: "account driven enrollment challenge can only be used once",
+			}
+		}
+
+		if time.Now().After(enrollChallenge.ExpiresAt) {
+			return &fleet.BadRequestError{
+				Message: "account driven enrollment challenge has expired",
+			}
+		}
+		const stmt = `UPDATE mdm_adue_enrollment_challenges SET used_at = NOW() WHERE id = ? AND used_at IS NULL`
+		if _, err := tx.ExecContext(ctx, stmt, enrollChallenge.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "consuming ADUE enrollment challenge")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return enrollChallenge, nil
 }
 
 func (ds *Datastore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {

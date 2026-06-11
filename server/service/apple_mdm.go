@@ -2129,7 +2129,6 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 	}
 
 	token := mux.Vars(r)["token"]
-	fmt.Printf("Decoded enrollment token: %s\n", token)
 	if token != "" {
 		decoded.EnrollmentToken = token
 	}
@@ -2171,12 +2170,10 @@ func mdmAppleAccountEnrollEndpoint(ctx context.Context, request any, svc fleet.S
 		}, nil
 	}
 
-	// TODO: Validate the req.EnrollmentToken if provided, in case a non-matching value reaches the enrollment, we default to the Unassigned fleet.
-
 	if req.EnrollReference == nil {
 		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx, req.EnrollmentToken)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+			return mdmAppleAccountEnrollResponse{Err: err}, nil
 		}
 		return mdmAppleAccountEnrollResponse{mdmSSOUrl: mdmSSOUrl}, nil
 	}
@@ -3888,17 +3885,17 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
 		}
 
-		var boydTeamID *uint
+		var byodTeamID *uint
 		if enrollChallenge.ABMTokenID != nil {
 			abmToken, err := svc.ds.GetABMTokenByID(r.Context, *enrollChallenge.ABMTokenID)
 			if err != nil {
 				return ctxerr.Wrap(r.Context, err, "getting abm token by id")
 			}
-			boydTeamID = abmToken.BYODDefaultTeamID
+			byodTeamID = abmToken.BYODDefaultTeamID
 
-			if boydTeamID != nil {
+			if byodTeamID != nil {
 				// Only move if team is non nil (which is unassigned), since that would be a no-op
-				err = svc.ds.AddHostsToTeam(r.Context, fleet.NewAddHostsToTeamParams(boydTeamID, []uint{info.HostID}))
+				err = svc.ds.AddHostsToTeam(r.Context, fleet.NewAddHostsToTeamParams(byodTeamID, []uint{info.HostID}))
 				if err != nil {
 					svc.logger.ErrorContext(r.Context, "failed to add host to fleet during account-driven enrollment", "host_id", info.HostID, "fleet_id", abmToken.BYODDefaultTeamID, "err", err)
 					// no-op on team transfer failure, but log the error.
@@ -6928,8 +6925,10 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 		if gotURL != sdURLWithToken {
 			logger.InfoContext(ctx, "account driven enrollment service discovery url needs update", "new_url", sdURLWithToken)
 			// proced to assignment
-			return ctxerr.Wrap(ctx, depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, sdURLWithToken),
-				"assigning account driven enrollment service discovery URL")
+			if err := depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, sdURLWithToken); err != nil {
+				logger.ErrorContext(ctx, "assigning account driven enrollment service discovery URL", "org_name", orgName, "err", err)
+			}
+			continue
 		}
 	}
 

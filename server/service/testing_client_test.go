@@ -600,9 +600,9 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
-	/* if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
-	} */
+	}
 
 	cookieSecure = false
 	jar, err := cookiejar.New(nil)

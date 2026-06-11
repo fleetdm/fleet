@@ -3460,7 +3460,7 @@ type Datastore interface {
 	// GetADUEEnrollmentChallenge retrieves the ADUE enrollment challenge by its challenge value.
 	GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
 	// ConsumeADUEEnrollmentChallenge, consumes (used_at=NOW()) the challenge row, so it can't be re-used.
-	ConsumeADUEEnrollmentChallenge(ctx context.Context, challengeID uint) error
+	ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
 	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
 	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
 }

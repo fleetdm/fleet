@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -32,31 +31,8 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	// skipauth: This enrollment endpoint is authenticated only by the enrollment reference.
 	svc.authz.SkipAuthorization(ctx)
 
-	enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(ctx, enrollRef)
+	enrollChallenge, err := svc.ds.ConsumeADUEEnrollmentChallenge(ctx, enrollRef)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching account driven enrollment challenge")
-	}
-
-	if enrollChallenge == nil {
-		// It should not be nil, as that would have produced an error, but better safe than sorry.
-		return nil, ctxerr.New(ctx, "account driven enrollment challenge not found")
-	}
-
-	if enrollChallenge.UsedAt != nil {
-		return nil, &fleet.BadRequestError{
-			Message: "account driven enrollment challenge can only be used once",
-			InternalErr: fmt.Errorf("account driven enrollment challenge with reference %q has already been used at %s",
-				enrollRef, enrollChallenge.UsedAt.Format(time.RFC3339)),
-		}
-	}
-
-	if time.Now().After(enrollChallenge.ExpiresAt) {
-		return nil, &fleet.BadRequestError{
-			Message: "account driven enrollment challenge has expired",
-		}
-	}
-
-	if err := svc.ds.ConsumeADUEEnrollmentChallenge(ctx, enrollChallenge.ID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "consuming account driven enrollment challenge")
 	}
 
