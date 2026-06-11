@@ -54,7 +54,7 @@ func TestVerifyPolicyLabelScopes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := verifyPolicyLabelScopes(tc.includeAny, tc.includeAll, tc.excludeAny, tc.excludeAll)
+			err := VerifyPolicyLabelScopes(tc.includeAny, tc.includeAll, tc.excludeAny, tc.excludeAll)
 			switch {
 			case tc.wantErrContains != "":
 				require.ErrorContains(t, err, tc.wantErrContains)

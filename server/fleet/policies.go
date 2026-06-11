@@ -164,7 +164,7 @@ func (p PolicyPayload) Verify() error {
 		if p.PatchSoftwareTitleID == nil {
 			return errPolicyPatchNoTitleID
 		}
-		if err := verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll); err != nil {
+		if err := VerifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll); err != nil {
 			return err
 		}
 		return nil
@@ -189,16 +189,16 @@ func (p PolicyPayload) Verify() error {
 		return err
 	}
 
-	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+	return VerifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
-// verifyPolicyLabelScopes enforces the policy label-targeting rules: at most one
+// VerifyPolicyLabelScopes enforces the policy label-targeting rules: at most one
 // include scope (labels_include_any or labels_include_all) and at most one
 // exclude scope (labels_exclude_any or labels_exclude_all) may carry values, and
 // no label may appear in both an include and an exclude list. An include scope
 // and an exclude scope may be combined. Empty slices ([]) are treated as "no
 // value", so e.g. {LabelsIncludeAny: [], LabelsIncludeAll: [A]} is valid.
-func verifyPolicyLabelScopes(includeAny, includeAll, excludeAny, excludeAll []string) error {
+func VerifyPolicyLabelScopes(includeAny, includeAll, excludeAny, excludeAll []string) error {
 	includeScopes := 0
 	if len(includeAny) > 0 {
 		includeScopes++
@@ -341,7 +341,7 @@ func (p ModifyPolicyPayload) Verify() error {
 		if p.Platform != nil {
 			return errPolicyPlatformUpdated
 		}
-		return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+		return VerifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 	}
 
 	if p.Name != nil {
@@ -359,7 +359,7 @@ func (p ModifyPolicyPayload) Verify() error {
 			return err
 		}
 	}
-	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+	return VerifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // PolicyData holds data of a fleet policy.
@@ -607,7 +607,7 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
 	}
-	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+	return VerifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found

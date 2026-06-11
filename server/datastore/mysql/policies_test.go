@@ -920,6 +920,17 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{pCombined.ID})
 	require.NoError(t, err)
 
+	// The datastore guard (updatePolicyLabelsTx) rejects invalid scope
+	// combinations even when a caller skips PolicyPayload.Verify: two include
+	// scopes is not allowed.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-two-include-scopes",
+		Query:            "select 2;",
+		LabelsIncludeAny: []string{label2.Name},
+		LabelsIncludeAll: []string{label1.Name},
+	})
+	require.ErrorIs(t, err, fleet.ErrPolicyConflictingIncludeLabels)
+
 	// Can create a policy with include_all labels.
 	pIncludeAll, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:             "query-include-all",

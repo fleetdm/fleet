@@ -165,6 +165,15 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		WHERE name IN (?)
 	`
 
+	if err := fleet.VerifyPolicyLabelScopes(
+		fleet.LabelIdentsToNames(policy.LabelsIncludeAny),
+		fleet.LabelIdentsToNames(policy.LabelsIncludeAll),
+		fleet.LabelIdentsToNames(policy.LabelsExcludeAny),
+		fleet.LabelIdentsToNames(policy.LabelsExcludeAll),
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
+	}
+
 	if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting old policy labels")
 	}
