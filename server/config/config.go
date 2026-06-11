@@ -926,17 +926,17 @@ type MDMConfig struct {
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent             AndroidAgentConfig `yaml:"android_agent"`
-	AndroidProfilesBatchSize int                `yaml:"android_profiles_batch_size"`
+	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
 func (m MDMConfig) IsCustomFileVaultEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
 }
 
-// ValidateAndroidProfilesBatchSize checks that the configured batch size is non-negative.
-func (m MDMConfig) ValidateAndroidProfilesBatchSize(initFatal func(err error, msg string)) {
-	if m.AndroidProfilesBatchSize < 0 {
-		initFatal(errors.New("mdm.android_profiles_batch_size must be non-negative (0 = no limit)"),
+// ValidateAndroidBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidBatchSize < 0 {
+		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
 			"Android MDM configuration")
 	}
 }
@@ -1764,8 +1764,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
-	man.addConfigInt("mdm.android_profiles_batch_size", 1000, "Maximum number of hosts to send policy updates to per Android profile reconciliation tick (1000 default; 0 = no limit)")
-	man.hideConfig("mdm.android_profiles_batch_size")
+	man.addConfigInt("mdm.android_batch_size", 1000, "Maximum number of hosts per batch for Android MDM API operations (1000 default; 0 = no limit)")
+	man.hideConfig("mdm.android_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2098,7 +2098,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
-			AndroidProfilesBatchSize: man.getConfigInt("mdm.android_profiles_batch_size"),
+			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

@@ -803,23 +803,23 @@ func TestAndroidAgentConfigValidate(t *testing.T) {
 	})
 }
 
-func TestAndroidProfilesBatchSizeValidate(t *testing.T) {
+func TestAndroidBatchSizeValidate(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid when positive", func(t *testing.T) {
-		cfg := MDMConfig{AndroidProfilesBatchSize: 1000}
-		cfg.ValidateAndroidProfilesBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+		cfg := MDMConfig{AndroidBatchSize: 1000}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
 	})
 
 	t.Run("valid when zero", func(t *testing.T) {
-		cfg := MDMConfig{AndroidProfilesBatchSize: 0}
-		cfg.ValidateAndroidProfilesBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+		cfg := MDMConfig{AndroidBatchSize: 0}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
 	})
 
 	t.Run("invalid when negative", func(t *testing.T) {
-		cfg := MDMConfig{AndroidProfilesBatchSize: -1}
+		cfg := MDMConfig{AndroidBatchSize: -1}
 		called := false
-		cfg.ValidateAndroidProfilesBatchSize(func(err error, msg string) { called = true })
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
 }
