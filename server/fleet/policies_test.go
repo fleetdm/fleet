@@ -50,6 +50,8 @@ func TestVerifyPolicyLabelScopes(t *testing.T) {
 		{name: "exclude_any + exclude_all conflict", excludeAny: []string{"a"}, excludeAll: []string{"b"}, wantErr: ErrPolicyConflictingExcludeLabels},
 		{name: "overlap include_any/exclude_any", includeAny: []string{"a"}, excludeAny: []string{"a"}, wantErrContains: `label "a" cannot appear in both an include and an exclude list`},
 		{name: "overlap include_all/exclude_all", includeAll: []string{"a"}, excludeAll: []string{"a"}, wantErrContains: `label "a" cannot appear in both an include and an exclude list`},
+		{name: "overlap include_any/exclude_all", includeAny: []string{"a"}, excludeAll: []string{"a"}, wantErrContains: `label "a" cannot appear in both an include and an exclude list`},
+		{name: "overlap include_all/exclude_any", includeAll: []string{"a"}, excludeAny: []string{"a"}, wantErrContains: `label "a" cannot appear in both an include and an exclude list`},
 	}
 
 	for _, tc := range testCases {
