@@ -2225,8 +2225,8 @@
       "slug": "farrago/darwin",
       "platform": "darwin",
       "unique_identifier": "com.rogueamoeba.farrago",
-      "description": "Farrago is an audio playback."
-    },
+      "description": "Farrago is an audio player."
+    }
     {
       "name": "Fastmail",
       "slug": "fastmail/darwin",
@@ -2246,8 +2246,8 @@
       "slug": "fellow/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.fellow",
-      "description": "Fellow is a collaborative meeting agendas, notes, and action items."
-    },
+      "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
+    }
     {
       "name": "Ferdium",
       "slug": "ferdium/darwin",
@@ -2407,8 +2407,8 @@
       "slug": "folx/darwin",
       "platform": "darwin",
       "unique_identifier": "com.eltima.Folx3",
-      "description": "Folx is a tool to download manager with a torrent client."
-    },
+      "description": "Folx is a download manager with a torrent client."
+    }
     {
       "name": "FontBase",
       "slug": "fontbase/darwin",
@@ -2463,15 +2463,15 @@
       "slug": "franz/darwin",
       "platform": "darwin",
       "unique_identifier": "com.meetfranz.franz",
-      "description": "Franz is an app for messaging app for WhatsApp, Facebook Messenger, Slack, Telegram and more."
-    },
+      "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
+    }
     {
       "name": "Free Download Manager",
       "slug": "free-download-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "org.freedownloadmanager.fdm6",
-      "description": "Free Download Manager is a tool to download accelerator and organiser."
-    },
+      "description": "Free Download Manager is a download accelerator and organizer."
+    }
     {
       "name": "FreeFileSync",
       "slug": "freefilesync/darwin",
