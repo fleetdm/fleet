@@ -441,7 +441,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	cp.Mobileconfig = data
 	cp.SecretsUpdatedAt = secretsUpdatedAt
 
-	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
 	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
@@ -896,7 +896,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		}
 	}
 
-	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
 	validatedIncludeLabels, excludeLabels, err := svc.validateDeclarationLabelSets(ctx, teamID, labelsInclude, labelsExcludeAny)
