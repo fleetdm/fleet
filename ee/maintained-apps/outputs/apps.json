@@ -6103,14 +6103,14 @@
       "slug": "redcine-x-pro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.red.RED-Tether",
-      "description": "REDCINE-X PRO is a transcode and manipulate REDCODE RAW footage."
+      "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
     },
     {
       "name": "redis-pro",
       "slug": "redis-pro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cmushroom.redis-pro",
-      "description": "redis-pro is a redis desktop."
+      "description": "redis-pro is a Redis desktop client."
     },
     {
       "name": "Reflector",
@@ -6138,7 +6138,7 @@
       "slug": "remote-desktop-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.devolutions.remotedesktopmanager",
-      "description": "Remote Desktop Manager is a centralises all remote connections on a single platform."
+      "description": "Remote Desktop Manager is an app that centralises all remote connections on a single platform."
     },
     {
       "name": "Reqable",
@@ -6152,7 +6152,7 @@
       "slug": "requestly/darwin",
       "platform": "darwin",
       "unique_identifier": "io.requestly.beta",
-      "description": "Requestly is an intercept and modify HTTP requests."
+      "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
       "name": "Retcon",
@@ -6215,7 +6215,7 @@
       "slug": "rive/darwin",
       "platform": "darwin",
       "unique_identifier": "app.rive.editor",
-      "description": "Rive is a tool to design tool that creates functional graphics."
+      "description": "Rive is a design tool for creating interactive graphics."
     },
     {
       "name": "Riverside Studio",
@@ -6264,7 +6264,7 @@
       "slug": "rocket/darwin",
       "platform": "darwin",
       "unique_identifier": "net.matthewpalmer.Rocket",
-      "description": "Rocket is an emoji picker optimised for blind people."
+      "description": "Rocket is an emoji picker for macOS."
     },
     {
       "name": "Rocketman Choices Packager",

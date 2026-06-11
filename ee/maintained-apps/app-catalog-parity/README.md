@@ -11,8 +11,8 @@ Tracking work to ensure Fleet has a [Fleet-maintained app (FMA)](../README.md) f
 | …already a Fleet-maintained app | 213 |
 | …cask exists, FMA missing (work queue) | 879 |
 | **…added as FMAs (A–Z + #)** | **760** |
-| …since added to `main` independently (deduplicated on merge) | 353 |
-| **…net-new FMAs contributed by this PR** | **406** |
+| …since added to `main` independently (deduplicated on merge) | 384 |
+| **…net-new FMAs contributed by this PR** | **376** |
 | …removed after CI validation failure | 78 |
 | …deferred (see below) | 41 |
 | Apps with no Homebrew cask (handoff) | 533 |
@@ -21,7 +21,7 @@ Tracking work to ensure Fleet has a [Fleet-maintained app (FMA)](../README.md) f
 
 All 879 work-queue casks have been processed, one letter per commit (A–Z plus the `#` numeric-leading bucket). **838 were initially added as Fleet-maintained apps; 41 were deferred.** A subsequent run of the Darwin FMA validator (CI) flagged 78 of the added apps as failing, so they were **removed for now** — leaving **760 added**.
 
-**Merge with `main` (deduplication).** While this branch was open, **353** of those 760 casks were independently added to `main` by other PRs. On the latest merge of `main`, those 353 were dropped from this branch in favor of `main`'s versions, so this PR now contributes **406 net-new FMAs**. The 353 remain Fleet-maintained apps — they're just sourced from `main` rather than this branch — so they stay checked in [to-add.md](to-add.md). One pre-existing app, Dell Display Manager, was **removed on `main`** ([#47420](https://github.com/fleetdm/fleet/pull/47420)) and that removal is honored here.
+**Merge with `main` (deduplication).** While this branch was open, **384** of those 760 casks were independently added to `main` by other PRs (including the macOS "R" batch, [#47370](https://github.com/fleetdm/fleet/pull/47370)). On merging `main`, those 384 were dropped from this branch in favor of `main`'s versions, so this PR now contributes **376 net-new FMAs**. The 384 remain Fleet-maintained apps — they're just sourced from `main` rather than this branch — so they stay checked in [to-add.md](to-add.md). One pre-existing app, Dell Display Manager, was **removed on `main`** ([#47420](https://github.com/fleetdm/fleet/pull/47420)) and that removal is honored here.
 
 Remaining open items:
 
