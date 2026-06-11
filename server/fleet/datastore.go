@@ -955,6 +955,22 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
+	// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs. It is used to un-skip only the
+	// setup-experience-gating policies for a host in setup experience, rather than the host's entire team policy set.
+	PolicyQueriesForHostFiltered(ctx context.Context, host *Host, policyIDs []uint) (map[string]string, error)
+
+	// GetSetupExperiencePolicyResult returns the host's fresh (recorded at or after `since`) pass/fail result for the given
+	// gating policy, or nil if there is no fresh definitive result yet. Used by setup experience to gate an install.
+	GetSetupExperiencePolicyResult(ctx context.Context, hostID, policyID uint, since time.Time) (*bool, error)
+
+	// ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies, so the next report
+	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
+	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
+
+	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
+	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
+	ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error
+
 	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
 	// 	- Returns hosts of the team that are failing one or more of the provided policies.
@@ -2313,6 +2329,19 @@ type Datastore interface {
 	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
 	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
+	// GetWindowsProfileReconcileSnapshot returns a consistent snapshot of the state needed by the batched Windows profile reconciler:
+	// the bounded host window (afterHostUUID, batchSize), every Windows profile with its label assignments, host↔label memberships
+	// for labels referenced by those profiles, and current host_mdm_windows_profiles rows for the host window. All reads run inside a
+	// single read-only MySQL transaction so they observe one snapshot. If the host window is empty the remaining slices and maps are
+	// nil. See ReconcileWindowsProfiles.
+	GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (
+		hosts []*WindowsHostReconcileInfo,
+		allProfiles []*WindowsProfileForReconcile,
+		hostLabels map[uint]map[uint]struct{},
+		currentByHost map[string][]*MDMWindowsProfilePayload,
+		err error,
+	)
+
 	// GetAppleMDMHostForReconcile returns reconcile info for a single Apple
 	// MDM-enrolled host UUID, or (nil, nil) if the host is not enrolled or
 	// not an Apple platform. Used by ReconcileAppleProfilesForEnrollingHost (the
@@ -2893,6 +2922,16 @@ type Datastore interface {
 
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
+
+	// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal setup-experience
+	// software items, i.e. the only policies setup experience should run during setup. An item is gated by every policy whose
+	// install-software automation points at its installer, so this returns all of them, not just one per item.
+	GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error)
+
+	// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the
+	// given software installer (scoped to the installer's team). The setup-experience gate skips the install only if every
+	// in-scope policy passes, and installs if any fails.
+	GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error

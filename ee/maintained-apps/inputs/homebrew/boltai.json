@@ -1,0 +1,10 @@
+{
+  "name": "BoltAI 2",
+  "unique_identifier": "co.podzim.boltai-mobile",
+  "token": "boltai",
+  "installer_format": "dmg",
+  "slug": "boltai/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}
