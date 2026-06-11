@@ -403,7 +403,7 @@ func TestSendFailingPoliciesWebhookRecordsFailureActivity(t *testing.T) {
 		require.Error(t, err)
 
 		require.Len(t, recorded, 1)
-		act, ok := recorded[0].(fleet.ActivityTypeFailedWebhookPolicyAutomation)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedAutomationWebhook)
 		require.True(t, ok)
 		assert.Equal(t, p.ID, act.PolicyID)
 		assert.Equal(t, []uint{1, 2}, act.HostIDList)
@@ -443,7 +443,7 @@ func TestSendFailingPoliciesWebhookRecordsFailureActivity(t *testing.T) {
 		// no failure activity recorded on success (the sent activity is
 		// exercised by TestSendFailingPoliciesWebhookRecordsQueuedActivity)
 		for _, act := range recorded {
-			_, isFailure := act.(fleet.ActivityTypeFailedWebhookPolicyAutomation)
+			_, isFailure := act.(fleet.ActivityTypeFailedAutomationWebhook)
 			assert.False(t, isFailure)
 		}
 	})
@@ -482,10 +482,10 @@ func TestSendFailingPoliciesWebhookRecordsQueuedActivity(t *testing.T) {
 			require.NoError(t, failingPolicySet.AddHost(p.ID, host))
 		}
 
-		var recorded []fleet.ActivityTypeQueuedWebhookPolicyAutomation
+		var recorded []fleet.ActivityTypeRanAutomationWebhook
 		newActivitySvc := &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
 			require.Nil(t, user)
-			act, ok := activity.(fleet.ActivityTypeQueuedWebhookPolicyAutomation)
+			act, ok := activity.(fleet.ActivityTypeRanAutomationWebhook)
 			require.True(t, ok)
 			recorded = append(recorded, act)
 			return nil

@@ -176,14 +176,14 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 
 func TestFailedPolicyAutomationActivities(t *testing.T) {
 	t.Run("webhook", func(t *testing.T) {
-		act := ActivityTypeFailedWebhookPolicyAutomation{
+		act := ActivityTypeFailedAutomationWebhook{
 			PolicyID:      7,
 			HostIDList:    []uint{10, 20, 30},
 			StatusCode:    500,
 			ErrorResponse: "internal server error",
 		}
 
-		assert.Equal(t, "failed_webhook_policy_automation", act.ActivityName())
+		assert.Equal(t, "failed_automation_webhook", act.ActivityName())
 		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -210,13 +210,13 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 	}
 
 	t.Run("webhook sent", func(t *testing.T) {
-		act := ActivityTypeQueuedWebhookPolicyAutomation{
+		act := ActivityTypeRanAutomationWebhook{
 			PolicyID:   7,
 			HostIDList: []uint{10, 20, 30},
 			StatusCode: 200,
 		}
 
-		assert.Equal(t, "queued_webhook_policy_automation", act.ActivityName())
+		assert.Equal(t, "ran_automation_webhook", act.ActivityName())
 		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -230,7 +230,7 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 	})
 
 	t.Run("webhook sent omits zero status code", func(t *testing.T) {
-		b, err := json.Marshal(ActivityTypeQueuedWebhookPolicyAutomation{PolicyID: 7, HostIDList: []uint{10}})
+		b, err := json.Marshal(ActivityTypeRanAutomationWebhook{PolicyID: 7, HostIDList: []uint{10}})
 		require.NoError(t, err)
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
