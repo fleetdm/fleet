@@ -476,6 +476,25 @@ Here's what to keep in mind:
 
 - **Maximize "free" availability.**  Internal calendar holds (focus time, work blocks, etc.) prevent prospects and customers from booking.  Keep calendars as open as possible for customer-facing scheduling, and be mindful that every internal hold is one fewer slot a prospect can choose.
 - **Avoid "Swiss cheese" calendars.**  When meetings are scattered throughout the day with small gaps in between, no single gap is large enough for someone to book.  This is especially problematic when events require buffer time.  For example, a 45-minute meeting with a 15-minute buffer needs a full hour of availability from multiple people simultaneously.  Consolidate meetings and keep large contiguous free blocks so that prospects and customers can actually find and book time.
+- **Keep recurring habits marked as "free" longer.**  For recurring habits and tasks (like "do your forecast", "update next steps", "send partner portland"), consider having Reclaim keep your free/busy status on "free" longer for all habits — so those blocks don't prevent prospects from booking.
+- **Book 30-minute breaks instead of 15-minute ones.**  For short breaks between calls (like bathroom breaks), you're better off booking 30-minute blocks instead of 15-minute ones.  Calendly is configured to start meetings at clean :00 or :30 times for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+### Examples
+
+Here are some examples illustrating why this matters:
+
+- Work blocks (like "do your forecast", "update next steps") will block people from being able to book time with you, even though you could take a call during those times.
+- If a meeting is 45 minutes with a 15-minute buffer (needing a full hour of availability from two people at the same time), fragmented calendars make it very hard to find openings.
+
+### FAQ
+
+**Q: "What about blocks for times when I can't really take calls anyway, like when I don't have childcare?  And my usual open time is limited because of having many external calls in a given week."**
+
+A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice is about discretionary internal holds and habits that tools like Reclaim can keep marked as "free" longer.  High external call volume is great — that's the goal.  The focus is on unnecessary fragmentation from internal blocks.
+
+**Q: "Sometimes I'll put a 15-minute block after 3-4 calls in a row to go to the bathroom."**
+
+A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
 
 The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
 
