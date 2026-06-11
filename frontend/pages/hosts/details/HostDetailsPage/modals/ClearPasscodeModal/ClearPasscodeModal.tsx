@@ -82,7 +82,7 @@ const ClearPasscodeModal = ({
         {renderBody()}
         <div className={`${baseClass}__confirm-message`}>
           <span>
-            <b>Please check to confirm:</b>
+            <b>Confirm:</b>
           </span>
           <Checkbox
             wrapperClassName={`${baseClass}__clear-checkbox`}

@@ -1,0 +1,10 @@
+{
+  "name": "GrandPerspective",
+  "unique_identifier": "net.sourceforge.grandperspectiv",
+  "token": "grandperspective",
+  "installer_format": "dmg",
+  "slug": "grandperspective/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

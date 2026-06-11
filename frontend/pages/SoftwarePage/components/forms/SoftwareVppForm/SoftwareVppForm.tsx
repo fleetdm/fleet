@@ -13,7 +13,7 @@ import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
 import FileDetails from "components/FileDetails";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
@@ -275,7 +275,7 @@ const SoftwareVppForm = ({
               }
               teamId={teamId}
             />
-            <TargetLabelSelector
+            <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}
               selectedLabels={formData.labelTargets}
