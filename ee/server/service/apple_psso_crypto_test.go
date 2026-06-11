@@ -12,10 +12,12 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	jose "github.com/go-jose/go-jose/v3"
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -231,6 +233,38 @@ func TestPSSO_KeyExchangeSharedSecretMatches(t *testing.T) {
 	deviceShared, err := devPriv.ECDH(provECDH)
 	require.NoError(t, err)
 	assert.Equal(t, deviceShared, serverShared)
+}
+
+// TestPSSO_TokenClaimsLeeway confirms inbound JWT time claims tolerate small
+// clock skew between the Mac and the server: an iat slightly in the future
+// (Mac clock ahead) or an exp slightly in the past must not fail validation,
+// while skew beyond the leeway still does.
+func TestPSSO_TokenClaimsLeeway(t *testing.T) {
+	now := time.Now()
+	claimsAt := func(iat, exp time.Time) *pssoTokenClaims {
+		return &pssoTokenClaims{RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(iat),
+			ExpiresAt: jwt.NewNumericDate(exp),
+		}}
+	}
+
+	// In sync: valid.
+	require.NoError(t, claimsAt(now, now.Add(5*time.Minute)).Valid())
+
+	// Mac clock slightly ahead: iat in the (server's) future, within leeway.
+	require.NoError(t, claimsAt(now.Add(30*time.Second), now.Add(5*time.Minute)).Valid())
+
+	// exp just passed, within leeway.
+	require.NoError(t, claimsAt(now.Add(-5*time.Minute), now.Add(-30*time.Second)).Valid())
+
+	// Beyond leeway both ways.
+	err := claimsAt(now.Add(pssoJWTLeeway+time.Minute), now.Add(10*time.Minute)).Valid()
+	require.ErrorIs(t, err, jwt.ErrTokenUsedBeforeIssued)
+	err = claimsAt(now.Add(-10*time.Minute), now.Add(-pssoJWTLeeway-time.Minute)).Valid()
+	require.ErrorIs(t, err, jwt.ErrTokenExpired)
+
+	// Absent time claims are not required (registration-era JWTs).
+	require.NoError(t, (&pssoTokenClaims{}).Valid())
 }
 
 // TestPSSO_CanonicalizeKID confirms the padded base64 kid Apple's framework

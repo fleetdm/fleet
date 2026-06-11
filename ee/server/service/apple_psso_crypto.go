@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -67,6 +68,29 @@ type pssoTokenClaims struct {
 	RequestType    pssoRequestType `json:"request_type,omitempty"`
 	OtherPublicKey string          `json:"other_publickey,omitempty"` // device DH public key (key_exchange)
 	KeyContext     string          `json:"key_context,omitempty"`     // server-sealed provisioned key, echoed back
+}
+
+// pssoJWTLeeway is the clock-skew tolerance applied to inbound JWT time
+// claims. The default RegisteredClaims validation allows zero skew, so a Mac
+// whose clock runs even a second ahead of the server gets "token used before
+// issued" on every login.
+const pssoJWTLeeway = time.Minute
+
+// Valid overrides the embedded RegisteredClaims validation to apply
+// pssoJWTLeeway to exp, iat, and nbf. jwt/v4 has no parser-level leeway
+// option (that arrived in v5), so the claims type does it.
+func (c *pssoTokenClaims) Valid() error {
+	now := time.Now()
+	if !c.VerifyExpiresAt(now.Add(-pssoJWTLeeway), false) {
+		return jwt.ErrTokenExpired
+	}
+	if !c.VerifyIssuedAt(now.Add(pssoJWTLeeway), false) {
+		return jwt.ErrTokenUsedBeforeIssued
+	}
+	if !c.VerifyNotBefore(now.Add(pssoJWTLeeway), false) {
+		return jwt.ErrTokenNotValidYet
+	}
+	return nil
 }
 
 // pssoJWECrypto is the jwe_crypto claim the extension sends to tell Fleet how

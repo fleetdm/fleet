@@ -6,10 +6,7 @@ import (
 )
 
 // PSSODevice marks a Mac host as Apple Platform SSO-registered. It carries no
-// key material itself — the device's public keys live in PSSOKey rows that
-// cascade-delete with this record, so removing it completely clears a host's
-// PSSO registration. HostUUID is the hardware UUID (matches hosts.uuid; no FK,
-// like other host-adjacent tables).
+// key material itself. The device's public keys live in PSSOKey rows
 type PSSODevice struct {
 	HostUUID  string    `db:"host_uuid"`
 	CreatedAt time.Time `db:"created_at"`
