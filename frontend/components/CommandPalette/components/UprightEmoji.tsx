@@ -6,10 +6,10 @@ import React from "react";
 // glyph including emoji, so wrapping emoji in `font-style: normal` opts
 // them out of the synthetic slant while leaving Latin text italic via
 // the parent's `font-style: italic`.
-//   ️  = variation selector-16 (force emoji presentation)
-//   ‍  = zero-width joiner (combines emoji into one grapheme,
+//   \uFE0F = variation selector-16 (force emoji presentation)
+//   \u200D = zero-width joiner (combines emoji into one grapheme,
 //             e.g. 👨‍💻 → "man technologist")
-const EMOJI_RUN_RE = /(?:\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*|\p{Regional_Indicator}\p{Regional_Indicator})/gu;
+const EMOJI_RUN_RE = /(?:\p{Extended_Pictographic}(?:\p{Emoji_Modifier})?\uFE0F?(?:\u200D\p{Extended_Pictographic}(?:\p{Emoji_Modifier})?\uFE0F?)*|\p{Regional_Indicator}\p{Regional_Indicator})/gu;
 
 export interface IEmojiSegment {
   text: string;
