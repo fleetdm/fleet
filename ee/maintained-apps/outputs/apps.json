@@ -2879,6 +2879,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logi Tune",
+      "slug": "logitune/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logitech.logitune",
+      "description": "Logi Tune is software for managing Logitech webcams, headsets, and docks for video meetings."
+    },
+    {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",

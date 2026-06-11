@@ -330,6 +330,7 @@ import Linear from "./Linear";
 import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
 import Logioptionsplus from "./Logioptionsplus";
+import LogiTune from "./LogiTune";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
 import Maccy from "./Maccy";
@@ -995,6 +996,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linear: Linear,
   "little snitch": LittleSnitch,
   "logi options+": Logioptionsplus,
+  "logi tune": LogiTune,
   loom: Loom,
   lulu: LuLu,
   maccy: Maccy,
