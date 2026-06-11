@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,9 +21,10 @@ const softwareWorkerJobName = "software_worker"
 type SoftwareWorkerTask string
 
 type SoftwareWorker struct {
-	Datastore     fleet.Datastore
-	AndroidModule android.Service
-	Log           *slog.Logger
+	Datastore        fleet.Datastore
+	AndroidModule    android.Service
+	Log              *slog.Logger
+	AndroidBatchSize int
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -157,21 +159,32 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
-	// Update Android MDM policy to include the app in self service
-	policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hosts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
-	}
+	// Process hosts in batches to avoid overwhelming the AMAPI.
+	batches := splitHostMap(hosts, v.AndroidBatchSize)
+	for i, batch := range batches {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return ctxerr.Wrap(ctx, ctx.Err(), "context done between batches")
+			case <-time.After(androidSoftwareInstallStaggerInterval):
+			}
+		}
 
-	// if this is called from an UPDATE (config changed), mark existing installs
-	// as "pending" (unless already "failed") and with the correct policy version to verify
-	// (currently temporarily stored as a string in associated_event_id, to revisit
-	// when we implement full Android apps support).
-	if appConfigChanged {
-		for hostUUID, policyRequest := range policyRequestsByHost {
-			err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
+		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		}
+
+		// if this is called from an UPDATE (config changed), mark existing installs
+		// as "pending" (unless already "failed") and with the correct policy version to verify
+		// (currently temporarily stored as a string in associated_event_id, to revisit
+		// when we implement full Android apps support).
+		if appConfigChanged {
+			for hostUUID, policyRequest := range policyRequestsByHost {
+				err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
+				}
 			}
 		}
 	}
@@ -471,7 +484,34 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
-func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
+func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, batchSize int) error {
+	if batchSize <= 0 || len(hostsUUIDToPolicyID) <= batchSize {
+		return queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, hostsUUIDToPolicyID, enterpriseName, 0)
+	}
+
+	batch := make(map[string]string, batchSize)
+	batchIdx := 0
+	for uuid, policyID := range hostsUUIDToPolicyID {
+		batch[uuid] = policyID
+		if len(batch) >= batchSize {
+			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+			if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
+				return err
+			}
+			batch = make(map[string]string, batchSize)
+			batchIdx++
+		}
+	}
+	if len(batch) > 0 {
+		delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+		if err := queueMakeAndroidAppUnavailableJob(ctx, ds, logger, applicationID, batch, enterpriseName, delay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func queueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string, delay time.Duration) error {
 	args := &softwareWorkerArgs{
 		Task:               makeAndroidAppUnavailableTask,
 		ApplicationID:      applicationID,
@@ -479,12 +519,12 @@ func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, 
 		EnterpriseName:     enterpriseName,
 	}
 
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	job, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(hostsUUIDToPolicyID))
 	return nil
 }
 
@@ -569,12 +609,52 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 	return nil
 }
 
+const androidSoftwareInstallStaggerInterval = 60 * time.Second
+
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	uuidsToIDs map[string]uint,
 	enterpriseName string,
+	batchSize int,
+) error {
+	if batchSize <= 0 || len(uuidsToIDs) <= batchSize {
+		// No batching needed.
+		return queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, uuidsToIDs, enterpriseName, 0)
+	}
+
+	// Chunk the host map into batches and stagger with not_before.
+	batch := make(map[string]uint, batchSize)
+	batchIdx := 0
+	for uuid, id := range uuidsToIDs {
+		batch[uuid] = id
+		if len(batch) >= batchSize {
+			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+			if err := queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, batch, enterpriseName, delay); err != nil {
+				return err
+			}
+			batch = make(map[string]uint, batchSize)
+			batchIdx++
+		}
+	}
+	// Queue remaining hosts.
+	if len(batch) > 0 {
+		delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
+		if err := queueBulkSetAndroidAppsAvailableForHostsJob(ctx, ds, logger, batch, enterpriseName, delay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func queueBulkSetAndroidAppsAvailableForHostsJob(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	uuidsToIDs map[string]uint,
+	enterpriseName string,
+	delay time.Duration,
 ) error {
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostsTask,
@@ -582,11 +662,30 @@ func QueueBulkSetAndroidAppsAvailableForHosts(
 		EnterpriseName: enterpriseName,
 	}
 
-	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	job, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task, "delay", delay, "hosts", len(uuidsToIDs))
 	return nil
+}
+
+func splitHostMap(hosts map[string]string, batchSize int) []map[string]string {
+	if batchSize <= 0 || len(hosts) <= batchSize {
+		return []map[string]string{hosts}
+	}
+	var batches []map[string]string
+	batch := make(map[string]string, batchSize)
+	for k, v := range hosts {
+		batch[k] = v
+		if len(batch) >= batchSize {
+			batches = append(batches, batch)
+			batch = make(map[string]string, batchSize)
+		}
+	}
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+	}
+	return batches
 }
