@@ -1,0 +1,10 @@
+{
+  "name": "MenubarX",
+  "unique_identifier": "com.app.menubarx",
+  "token": "menubarx",
+  "installer_format": "dmg",
+  "slug": "menubarx/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

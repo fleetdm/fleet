@@ -427,12 +427,46 @@ import LogiTune from "./LogiTune";
 import Loom from "./Loom";
 import LuLu from "./LuLu";
 import Maccy from "./Maccy";
+import Macdown from "./Macdown";
+import Mace from "./Mace";
+import Macjournal from "./Macjournal";
+import MacMouseFix from "./MacMouseFix";
 import MacOS from "./MacOS";
+import Macpacker from "./Macpacker";
+import Macpass from "./Macpass";
+import Macpilot from "./Macpilot";
+import MacsFanControl from "./MacsFanControl";
+import Macsyzones from "./Macsyzones";
+import Mactracker from "./Mactracker";
+import MacvimApp from "./MacvimApp";
+import Macwhisper from "./Macwhisper";
+import Maestral from "./Maestral";
+import Magicquit from "./Magicquit";
+import Mailspring from "./Mailspring";
+import Malwarebytes from "./Malwarebytes";
+import MarkedApp from "./MarkedApp";
+import Markedit from "./Markedit";
+import MarkText from "./MarkText";
+import Marsedit from "./Marsedit";
+import Marta from "./Marta";
 import Marvel from "./Marvel";
+import Masscode from "./Masscode";
 import Mattermost from "./Mattermost";
 import Max from "./Max";
+import Meetingbar from "./Meetingbar";
+import Megasync from "./Megasync";
+import Mellel from "./Mellel";
+import Melodics from "./Melodics";
+import Memory from "./Memory";
+import Memoryanalyzer from "./Memoryanalyzer";
+import MemoryCleaner from "./MemoryCleaner";
+import MendeleyReferenceManager from "./MendeleyReferenceManager";
+import MenubarStats from "./MenubarStats";
+import Menubarx from "./Menubarx";
+import MerlinProject from "./MerlinProject";
 import Microsoft365Copilot from "./Microsoft365Copilot";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
+import MicrosoftAzureStorageExplorer from "./MicrosoftAzureStorageExplorer";
 import MicrosoftDotnetRuntime from "./MicrosoftDotnetRuntime";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOffice from "./MicrosoftOffice";
@@ -440,9 +474,37 @@ import MicrosoftOneNote from "./MicrosoftOneNote";
 import MicrosoftOutlook from "./MicrosoftOutlook";
 import MicrosoftPowerPoint from "./MicrosoftPowerPoint";
 import MicrosoftRemoteHelp from "./MicrosoftRemoteHelp";
+import Middle from "./Middle";
+import Middleclick from "./Middleclick";
+import Milanote from "./Milanote";
+import Mimecast from "./Mimecast";
+import Mimestream from "./Mimestream";
+import Mindmac from "./Mindmac";
 import MindManager from "./MindManager";
+import Minisim from "./Minisim";
+import Minstaller from "./Minstaller";
 import Miro from "./Miro";
+import Missive from "./Missive";
+import Mist from "./Mist";
+import Mixxx from "./Mixxx";
+import Mobirise from "./Mobirise";
+import Mockoon from "./Mockoon";
+import ModernCsv from "./ModernCsv";
 import MongoDbCompass from "./MongoDbCompass";
+import Monitorcontrol from "./Monitorcontrol";
+import Moom from "./Moom";
+import Moonlight from "./Moonlight";
+import Morgen from "./Morgen";
+import Mos from "./Mos";
+import MountainDuck from "./MountainDuck";
+import Mqttx from "./Mqttx";
+import MullvadBrowser from "./MullvadBrowser";
+import MullvadVpn from "./MullvadVpn";
+import Multitouch from "./Multitouch";
+import Mural from "./Mural";
+import Museeks from "./Museeks";
+import Musescore from "./Musescore";
+import MxPowerGadget from "./MxPowerGadget";
 import MySqlWorkbench from "./MySqlWorkbench";
 import NessusAgent from "./NessusAgent";
 import Nextcloud from "./Nextcloud";
@@ -1070,6 +1132,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   easydict: Easydict,
   easyfind: Easyfind,
   eclipse: Eclipse,
+  "eclipse memory analyzer": Memoryanalyzer,
   edge: MicrosoftEdge,
   edrawmax: WondershareEdrawmax,
   egnyte: Egnyte,
@@ -1261,14 +1324,47 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "logi tune": LogiTune,
   loom: Loom,
   lulu: LuLu,
+  "mac mouse fix": MacMouseFix,
   maccy: Maccy,
+  macdown: Macdown,
+  mace: Mace,
+  macjournal: Macjournal,
+  macpacker: Macpacker,
+  macpass: Macpass,
+  macpilot: Macpilot,
+  "macs fan control": MacsFanControl,
+  macsyzones: Macsyzones,
+  mactracker: Mactracker,
+  macvim: MacvimApp,
+  macwhisper: Macwhisper,
+  maestral: Maestral,
+  magicquit: Magicquit,
+  mailspring: Mailspring,
+  "malwarebytes for mac": Malwarebytes,
+  marked: MarkedApp,
+  markedit: Markedit,
+  marktext: MarkText,
+  marsedit: Marsedit,
+  "marta file manager": Marta,
   marvel: Marvel,
+  masscode: Masscode,
   mattermost: Mattermost,
   max: Max,
+  meetingbar: Meetingbar,
+  megasync: Megasync,
+  mellel: Mellel,
+  melodics: Melodics,
+  "memory cleaner": MemoryCleaner,
+  "memory tracker by timely": Memory,
+  "mendeley reference manager": MendeleyReferenceManager,
+  "menubar stats": MenubarStats,
+  menubarx: Menubarx,
+  "merlin project": MerlinProject,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
+  "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft office": MicrosoftOffice,
@@ -1281,10 +1377,38 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "microsoft.companyportal": IntuneCompanyPortal,
+  middle: Middle,
+  middleclick: Middleclick,
+  milanote: Milanote,
+  "mimecast for mac": Mimecast,
+  mimestream: Mimestream,
+  mindmac: Mindmac,
   mindmanager: MindManager,
+  minisim: Minisim,
+  minstaller: Minstaller,
   miro: Miro,
+  missive: Missive,
+  mist: Mist,
+  mixxx: Mixxx,
+  mobirise: Mobirise,
+  mockoon: Mockoon,
+  "modern csv": ModernCsv,
   "mongodb compass": MongoDbCompass,
+  monitorcontrol: Monitorcontrol,
+  moom: Moom,
+  moonlight: Moonlight,
+  morgen: Morgen,
+  mos: Mos,
+  "mountain duck": MountainDuck,
   "mozilla firefox": Firefox,
+  mqttx: Mqttx,
+  "mullvad browser": MullvadBrowser,
+  "mullvad vpn": MullvadVpn,
+  multitouch: Multitouch,
+  mural: Mural,
+  museeks: Museeks,
+  musescore: Musescore,
+  "mx power gadget": MxPowerGadget,
   "mysql workbench": MySqlWorkbench,
   "nessus agent": NessusAgent,
   nextcloud: Nextcloud,
