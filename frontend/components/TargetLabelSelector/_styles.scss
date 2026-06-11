@@ -121,6 +121,8 @@
     gap: $pad-small;
     justify-content: center;
     text-align: center;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
 
     span {
       color: $ui-fleet-black-75;

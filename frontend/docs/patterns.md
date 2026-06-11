@@ -486,6 +486,26 @@ const PageOrComponent = (props) => {
 
 > NOTE: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).
 
+### Custom hooks
+
+Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different fleet is selected.
+
+Custom hook names should be camel-cased and use the `use` prefix, and should live in the `frontend/hooks` directory.
+
+Current custom hooks include:
+
+- [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
+- [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
+- [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
+- [`useGitOpsMode`](../hooks/useGitOpsMode.ts) — Reports whether GitOps mode is enabled (optionally per-entity, honoring exceptions) and returns the repo URL.
+- [`useIsMobileWidth`](../hooks/useIsMobileWidth.tsx) — Tracks whether the viewport is below the 768px mobile breakpoint via `matchMedia`.
+- [`usePlatformCompatibility`](../hooks/usePlatformCompatibility.tsx) — Debounced check of a SQL string for queryable-platform compatibility, with getter and renderer.
+- [`usePlatformSelector`](../hooks/usePlatformSelector.tsx) — Manages platform-checkbox state (darwin/windows/linux/chrome) and renders the platform selector UI.
+- [`useQueryTargets`](../hooks/useQueryTargets.ts) — `react-query` wrapper that fetches and groups target hosts/labels/teams for a query.
+- [`useSoftwareInstallerMeta`](../hooks/useSoftwareInstallerMeta.ts) — Derives normalized metadata (installer type, FMA/VPP/Android flags, permissions, GitOps state) from a software title.
+- [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `fleet_id` URL param, resolving the current fleet and handling param strip/replace rules on fleet change.
+- [`useToggleSidePanel`](../hooks/useToggleSidePanel.ts) — Simple open/closed state with toggle and explicit setter for a side panel.
+
 ## React context
 
 [React context](https://reactjs.org/docs/context.html) is a way to share values across the
@@ -878,8 +898,8 @@ The icon should now be available to use with the `Icon` component from the given
 
 ### File size
 
-The recommend line limit per page/component is 500 lines. This is only a recommendation.
-Larger files are to be split into multiple files if possible.
+The recommended line limit per page/component is 500 lines. This is only a recommendation.
+Larger files are to be split into multiple files if possible, especially components which could be split into subcomponents.
 
 ## Testing
 
@@ -891,8 +911,86 @@ At a bare minimum, critical bugs released involving the UI will have automated t
 
 ## Security considerations
 
-We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When absolutely necessary to
-use this prop, we make sure to sanitize any user-defined input to it with `DOMPurify.sanitize`
+### Sanitization for `dangerouslySetInnerHTML`
+
+We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When the
+prop is necessary, sanitize any user-defined input with one of the approved
+helpers below.
+
+- `DOMPurify.sanitize(html, options)` — for rendering arbitrary HTML. Configure
+  allowed tags and attributes explicitly at the call site, for example
+  `{ ADD_ATTR: ["target"] }`.
+- [`syntaxHighlight(value)`](../utilities/helpers.tsx) — for rendering JSON or
+  code previews. The function HTML-escapes `&`, `<`, and `>` in the
+  JSON-stringified output before wrapping tokens in `<span class="…">`, so the
+  only markup it emits is a span with a fixed set of class names: `key`,
+  `string`, `number`, `boolean`, `null`. Pass a value to JSON-serialize (object,
+  array, or primitive), not a pre-built string of user content. The function
+  calls `JSON.stringify` on its input before highlighting, so a pre-built
+  string defeats the purpose of using it. See `ExampleWebhookUrlPayloadModal`
+  or `HostStatusWebhookPreviewModal` for representative call sites.
+- [`ClickableUrls`](../components/ClickableUrls/ClickableUrls.tsx) — for
+  rendering user-provided text that may contain URLs as clickable links. It
+  replaces URL-looking substrings with anchors (`target="_blank"` and
+  `rel="noreferrer"`), then sanitizes the resulting HTML with
+  `DOMPurify.sanitize` (assumes the input is text, not pre-built HTML) before
+  rendering. Use it instead of constructing anchor HTML by hand when the source
+  is user-provided text.
+
+### Other frontend security considerations
+
+Beyond the sanitization rules above, the following considerations apply across
+the frontend.
+
+Today:
+
+- URL handling: treat any user-controlled value used in `href`, `window.open`,
+  or `router.push`/`router.replace` as untrusted. Route to a known internal path
+  and pass user data as URL params rather than building a full URL from a user
+  value.
+- Logging: `no-console` is disabled to support local debugging, but clean up
+  `console.log` statements before merging. Do not log access tokens, session
+  identifiers, or full response bodies that may contain user PII.
+- Dependency review: when a pull request adds an entry to `package.json`,
+  confirm the package is well-maintained, that the name is not a typosquat of a
+  more popular package, and that the version pinned is consistent with the
+  surrounding ecosystem.
+
+Candidates for future work:
+
+- Add an ESLint rule or `CODEOWNERS` gate on new uses of
+  `dangerouslySetInnerHTML` so a reviewer must consciously opt into each new
+  occurrence.
+- Inventory existing uses of `dangerouslySetInnerHTML` and migrate any that can
+  render through React directly.
+- Reduce direct `localStorage` writes for values with a security implication.
+  Prefer in-memory state for short-lived sensitive values.
+
+### Frontend pitfalls in AI-assisted code
+
+Fleet engineers are expected to use AI coding tools as part of their daily
+workflow (see [AI tooling](https://fleetdm.com/handbook/engineering#ai-tooling)
+and [AI usage guidelines](https://fleetdm.com/handbook/company/communications#ai-usage-guidelines)).
+You own the code you submit, AI-assisted or otherwise. The handbook covers the
+general principle; this section lists frontend pitfalls that AI tools produce
+often enough to warrant a deliberate check on every diff:
+
+- `dangerouslySetInnerHTML` introduced for user-controlled content without an in-diff
+  sanitizer. If the prop is added and the same change does not also pass the
+  input through `DOMPurify.sanitize`, `syntaxHighlight`, or `ClickableUrls`,
+  request a sanitizer before approving.
+- Dynamic code execution: `eval`, `new Function`, and `setTimeout` or
+  `setInterval` invoked with string arguments have no legitimate place in
+  product code.
+- New runtime dependencies. Flag any added entry in `package.json` for the
+  dependency-review pass above, even when the surrounding change appears
+  unrelated.
+- Permissive URL construction in anchors, `window.open` calls, or router pushes
+  that interpolate user-controlled values without going through the approved
+  helpers above.
+
+See [`.claude/rules/fleet-frontend.md`](../../.claude/rules/fleet-frontend.md)
+for the LLM-targeted summary of these rules.
 
 ## Other
 
