@@ -6,7 +6,7 @@ import { ICommandPaletteContext } from "../helpers";
  * to each builder so the derivation logic lives in exactly one place.
  */
 export interface IDerivedContext {
-  /** Apple Business Manager configured at the org level. */
+  /** Apple Business configured at the org level. */
   isAbmConfigured: boolean;
   /** GitOps mode active — disables Create-fleet etc. */
   isGitOpsMode: boolean;

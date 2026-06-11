@@ -251,7 +251,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("turn-on-apple-mdm");
     });
 
-    it("shows 'Add ABM' when Apple MDM on but ABM not configured", () => {
+    it("shows 'Add AB' when Apple MDM on but AB not configured", () => {
       const configNoAbm = createMockConfig();
       configNoAbm.mdm = {
         ...configNoAbm.mdm,
@@ -268,7 +268,7 @@ describe("CommandPalette helpers", () => {
       expect(abm?.label).toContain("Add");
     });
 
-    it("shows 'Edit ABM' when ABM is configured", () => {
+    it("shows 'Edit AB' when AB is configured", () => {
       const items = buildPaletteItems(BASE_CONTEXT);
 
       const abm = items.find((i) => i.id === "edit-abm");
@@ -638,7 +638,7 @@ describe("CommandPalette helpers", () => {
       expect(subIds).toContain("controls-custom-settings");
     });
 
-    it("hides MDM ABM and VPP commands", () => {
+    it("hides MDM AB and VPP commands", () => {
       const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
       expect(ids).not.toContain("add-abm");
       expect(ids).not.toContain("edit-abm");
