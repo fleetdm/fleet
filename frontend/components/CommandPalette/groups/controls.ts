@@ -32,7 +32,7 @@ const buildControlsItems = (
         "patch",
       ],
     },
-    // OS settings sub-pages
+    // OS settings sub-routes
     {
       id: "controls-os-settings",
       label: "OS settings",
@@ -101,7 +101,7 @@ const buildControlsItems = (
           : []),
       ],
     },
-    // Setup experience sub-pages — Premium-only.
+    // Setup experience sub-routes — Premium-only.
     ...(isPremiumTier
       ? [
           {

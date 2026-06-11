@@ -1,0 +1,10 @@
+{
+  "name": "OpenCloud Desktop",
+  "unique_identifier": "eu.opencloud.desktopclient",
+  "token": "opencloud",
+  "installer_format": "pkg",
+  "slug": "opencloud/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

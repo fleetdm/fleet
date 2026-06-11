@@ -1,0 +1,10 @@
+{
+  "name": "Usage",
+  "unique_identifier": "com.mediaatelier.Usage",
+  "token": "usage-app",
+  "installer_format": "dmg",
+  "slug": "usage-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
