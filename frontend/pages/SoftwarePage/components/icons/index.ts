@@ -176,7 +176,6 @@ import Deckset from "./Deckset";
 import Deezer from "./Deezer";
 import DefaultFolderX from "./DefaultFolderX";
 import DellCommandUpdate from "./DellCommandUpdate";
-import DellDisplayManager from "./DellDisplayManager";
 import Descript from "./Descript";
 import Deskpad from "./Deskpad";
 import Desktime from "./Desktime";
@@ -684,9 +683,6 @@ import Box from "./Box";
 import Brave from "./Brave";
 import Bruno from "./Bruno";
 import Calibre from "./Calibre";
-import CleanMyMac from "./CleanMyMac";
-import CleanShotX from "./CleanShotX";
-import CLion from "./CLion";
 import Camtasia from "./Camtasia";
 import Canva from "./Canva";
 import ChatGpt from "./ChatGpt";
@@ -696,10 +692,12 @@ import ChromeOS from "./ChromeOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
+import CleanMyMac from "./CleanMyMac";
+import CleanShotX from "./CleanShotX";
 import ClickUp from "./ClickUp";
+import CLion from "./CLion";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
-
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -746,13 +744,13 @@ import Granola from "./Granola";
 import Hyper from "./Hyper";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import Inkscape from "./Inkscape";
-import ITerm from "./ITerm";
 import Insomnia from "./Insomnia";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import ITerm from "./ITerm";
 import JabraDirect from "./JabraDirect";
 import JetBrainsToolbox from "./JetBrainsToolbox";
 import KeePassXc from "./KeePassXc";
@@ -798,6 +796,7 @@ import PgAdmin4 from "./PgAdmin4";
 import PhpStorm from "./PhpStorm";
 import PodmanDesktop from "./PodmanDesktop";
 import Postman from "./Postman";
+import PppcUtility from "./PppcUtility";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
 import ProtonMail from "./ProtonMail";
@@ -874,6 +873,7 @@ import SqlproForMysql from "./SqlproForMysql";
 import SqlproForPostgres from "./SqlproForPostgres";
 import SqlproForSqlite from "./SqlproForSqlite";
 import SqlproStudio from "./SqlproStudio";
+import SqlServerManagementStudio from "./SqlServerManagementStudio";
 import Squash from "./Squash";
 import SshConfigEditor from "./SshConfigEditor";
 import StandardNotes from "./StandardNotes";
@@ -1067,6 +1067,7 @@ import Yacreader from "./Yacreader";
 import Yattee from "./Yattee";
 import Yed from "./Yed";
 import Yippy from "./Yippy";
+import YtMusic from "./YtMusic";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zappy from "./Zappy";
@@ -1087,6 +1088,7 @@ import Zwift from "./Zwift";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
+  "1password": OnePassword,
   "3d slicer": Slicer,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
@@ -1096,7 +1098,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "7 zip": SevenZip,
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
-  "1password": OnePassword,
   "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
   abstract: Abstract,
@@ -1371,8 +1372,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   asana: Asana,
   audacity: Audacity,
   avast: AvastSecureBrowser,
-  "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  "aws vpn client": AwsVpnClient,
   "azul zulu 25 jdk": AzulZulu25Jdk,
   "azul zulu 25 jre": AzulZulu25Jre,
   backblaze: Backblaze,
@@ -1393,20 +1394,20 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   canva: Canva,
   cavalry: Cavalry,
   charles: Charles,
-  "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
+  "chatgpt atlas": ChatGptAtlas,
   "chrome remote desktop": ChromeRemoteDesktop,
   "cinc workstation": Cinc,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
-  cleanmymac_5: CleanMyMac,
   cleanmymac: CleanMyMac,
+  cleanmymac_5: CleanMyMac,
   "cleanshot x": CleanShotX,
   clickshare: ClickShare,
-  clion: CLion,
   clickup: ClickUp,
+  clion: CLion,
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
@@ -1416,7 +1417,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crashplan: CrashPlan,
   cryptomator: Cryptomator,
   "dell command update": DellCommandUpdate,
-  "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
@@ -1567,13 +1567,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dash: Dash,
   datagrip: DataGrip,
   "db browser for sqlite": DbBrowserForSqLite,
-  "dbeaver community": DBeaver,
   dbeaver: DBeaver,
+  "dbeaver community": DBeaver,
   "dbeaver enterprise edition": DBeaverEe,
-  dbeaveree: DBeaverEe,
   "dbeaver lite edition": DBeaverLite,
-  dbeaverlite: DBeaverLite,
   "dbeaver ultimate edition": DBeaverUltimate,
+  dbeaveree: DBeaverEe,
+  dbeaverlite: DBeaverLite,
   dbeaverultimate: DBeaverUltimate,
   deepl: DeepL,
   dialpad: Dialpad,
@@ -1598,11 +1598,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   front: Front,
   ghostty: Ghostty,
   gimp: Gimp,
+  "github desktop": GitHubDesktop,
+  gitkraken: GitKraken,
+  goland: GoLand,
+  "google antigravity": Antigravity,
+  "google chrome": ChromeApp,
+  "google drive": GoogleDrive,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
+  grammarly: GrammarlyDesktop,
+  granola: Granola,
   hyper: Hyper,
+  imazing: IMazingProfileEditor,
+  "imazing profile editor": IMazingProfileEditor,
   inkscape: Inkscape,
+  insomnia: Insomnia,
+  "intellij idea": IntelliJIdea,
+  "intellij idea ce": IntelliJIdeaCe,
+  iterm2: ITerm,
   "jabra direct": JabraDirect,
+  "jetbrains toolbox": JetBrainsToolbox,
   keepassxc: KeePassXc,
   "keeper password manager": KeeperPasswordManager,
   keka: Keka,
@@ -1635,21 +1650,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mos: Mos,
   "mountain duck": MountainDuck,
   "mozilla firefox": Firefox,
-  "github desktop": GitHubDesktop,
-  gitkraken: GitKraken,
-  goland: GoLand,
-  "google antigravity": Antigravity,
-  "google chrome": ChromeApp,
-  "google drive": GoogleDrive,
-  grammarly: GrammarlyDesktop,
-  granola: Granola,
-  imazing: IMazingProfileEditor,
-  "imazing profile editor": IMazingProfileEditor,
-  insomnia: Insomnia,
-  "intellij idea ce": IntelliJIdeaCe,
-  "intellij idea": IntelliJIdea,
-  iterm2: ITerm,
-  "jetbrains toolbox": JetBrainsToolbox,
   linear: Linear,
   "little snitch": LittleSnitch,
   "logi options+": Logioptionsplus,
@@ -1750,13 +1750,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   oversight: Oversight,
   owncloud: Owncloud,
   pacifist: Pacifist,
+  p4v: P4V,
   package: Package,
   packages: Packages,
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels client": ParallelsClient,
   "parallels desktop": ParallelsDesktop,
-  p4v: P4V,
   parsec: Parsec,
   pastebot: Pastebot,
   "path finder": PathFinder,
@@ -1819,6 +1819,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   processspy: Processspy,
   pronotes: Pronotes,
   "proton drive": ProtonDrive,
+  "pppc utility": PppcUtility,
   "proton mail": ProtonMail,
   "proton mail bridge": ProtonMailBridge,
   "proton meet": ProtonMeet,
@@ -1831,8 +1832,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pulsar: Pulsar,
   purevpn: Purevpn,
   putty: Putty,
-  "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
+  "pycharm ce": PyCharmCe,
   "python 3.13": Python313,
   "python 3.14": Python314,
   qlab: Qlab,
@@ -1964,6 +1965,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
+  "sql server management studio": SqlServerManagementStudio,
   sqlectron: Sqlectron,
   "sqlpro for mssql": SqlproForMssql,
   "sqlpro for mysql": SqlproForMysql,
@@ -2026,13 +2028,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teacode: Teacode,
   "teamviewer host": TeamviewerHost,
   "teamviewer quicksupport": TeamviewerQuicksupport,
+  teamviewer: TeamViewer,
   telegram: Telegram,
+  teleport: TeleportConnect,
   "teleport connect": TeleportConnect,
   "teleport suite": TeleportConnect,
-  teleport: TeleportConnect,
   "teradici pcoip software client for macos": Pcoipclient,
   terminal: Terminal,
-  teamviewer: TeamViewer,
   termius: Termius,
   "tex live utility": TexLiveUtility,
   texshop: Texshop,
@@ -2165,6 +2167,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   "yworks yed": Yed,
+  "youtube music": YtMusic,
   zappy: Zappy,
   zed: Zed,
   zen: Zen,
@@ -2196,7 +2199,6 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
 // icon.
 export const SOFTWARE_SOURCE_TO_ICON_MAP = {
-  package: Package,
   apt_sources: Package,
   deb_packages: Package,
   rpm_packages: Package,

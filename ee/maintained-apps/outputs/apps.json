@@ -1983,13 +1983,6 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
-      "name": "Dell Display Manager",
-      "slug": "dell-display-manager/windows",
-      "platform": "windows",
-      "unique_identifier": "Dell Display Manager",
-      "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
-    },
-    {
       "name": "Descript",
       "slug": "descript/darwin",
       "platform": "darwin",
@@ -2392,7 +2385,7 @@
       "name": "Elgato Camera Hub",
       "slug": "elgato-camera-hub/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
+      "unique_identifier": "com.elgato.CameraHub",
       "description": "Elgato Camera Hub is an elgato FACECAM configuration tool."
     },
     {
@@ -3856,7 +3849,7 @@
       "slug": "libreoffice/darwin",
       "platform": "darwin",
       "unique_identifier": "org.libreoffice.script",
-      "description": "LibreOffice is a free cross-platform office suite, fresh version."
+      "description": "LibreOffice is a free cross-platform office suite."
     },
     {
       "name": "LibreOffice",
@@ -4577,7 +4570,7 @@
       "slug": "moom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.manytricks.Moom",
-      "description": "Moom is a utility to move and zoom windows—on one display."
+      "description": "Moom is a utility to move and zoom windows\u2014on one display."
     },
     {
       "name": "Moonlight",
@@ -5707,6 +5700,13 @@
       "description": "PowerToys is a set of utilities from Microsoft for power users to tune and streamline their Windows experience for greater productivity."
     },
     {
+      "name": "PPPC Utility",
+      "slug": "pppc-utility/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jamf.opensource.pppcutility",
+      "description": "PPPC Utility is an open-source tool from Jamf for creating configuration profiles that contain Privacy Preferences Policy Control (PPPC) payloads."
+    },
+    {
       "name": "PreForm",
       "slug": "preform/darwin",
       "platform": "darwin",
@@ -6285,7 +6285,7 @@
       "slug": "rodecaster/darwin",
       "platform": "darwin",
       "unique_identifier": "com.rode.rodecastercomp",
-      "description": "RODECaster App is an easily manage your RØDECaster or Streamer X setup."
+      "description": "RODECaster App is an easily manage your R\u00d8DECaster or Streamer X setup."
     },
     {
       "name": "Roon",
@@ -6887,7 +6887,7 @@
       "slug": "splice/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splice.Splice",
-      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
+      "description": "Splice is a tool to browse and preview sounds from Splice\u2019s entire catalog."
     },
     {
       "name": "Spotify",
@@ -8392,7 +8392,7 @@
       "slug": "xmenu/darwin",
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.XMenu",
-      "description": "XMenu is an access folders, files or text snippets from the menu bar."
+      "description": "XMenu is an app that allows access to folders, files or text snippets from the menu bar."
     },
     {
       "name": "XMind",
@@ -8406,7 +8406,7 @@
       "slug": "xmplify/darwin",
       "platform": "darwin",
       "unique_identifier": "au.com.moso.Xmplify",
-      "description": "Xmplify is a XML editor."
+      "description": "Xmplify is an XML editor."
     },
     {
       "name": "Xnapper",

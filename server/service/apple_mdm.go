@@ -379,9 +379,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
 	var teamName string
 	if teamID > 0 {
-		lic, _ := license.FromContext(ctx)
 		if lic == nil || !lic.IsPremium() {
 			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 		}
@@ -390,6 +394,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 		teamName = tm.Name
+	}
+
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for profile label scoping")
+		}
 	}
 
 	// Check for secrets in profile name before expansion
@@ -401,12 +411,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
-	}
-
-	// Get license for validation
-	lic, err := svc.License(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -885,6 +889,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 		teamName = tm.Name
+	}
+	if len(labelsInclude) > 0 || len(labelsExcludeAny) > 0 {
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.NewLicenseErrorWithCause(fleet.ConfigProfileLabelScopingPremiumCauseMsg), "checking license for declaration profile label scoping")
+		}
 	}
 
 	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
@@ -2123,7 +2132,7 @@ type mdmAppleAccountEnrollRequest struct {
 func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := mdmAppleAccountEnrollRequest{}
 
-	rawData, err := io.ReadAll(r.Body)
+	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
 	}
@@ -2138,7 +2147,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 
 	deviceInfo := fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{}
 
-	err = plist.Unmarshal(p7.Content, &deviceInfo)
+	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &deviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",
@@ -2265,6 +2274,11 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, fleet.NewAuthFailedError("enrollment profile not found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile")
+	}
+
+	if machineInfo.MandatorySoftwareUpdateRequired {
+		// Log an info message if the device is requiring a mandatory software update.
+		svc.logger.InfoContext(ctx, "device requires mandatory software update", "host_uuid", machineInfo.UDID, "serial", machineInfo.Serial, "product", machineInfo.Product, "os_version", machineInfo.OSVersion)
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -6717,7 +6731,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 
 	idpUUID := r.URL.Query().Get("idp_uuid") // Can be empty.
 
-	rawData, err := io.ReadAll(r.Body)
+	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
 	}
@@ -6731,7 +6745,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	var request mdmAppleOTARequest
-	err = plist.Unmarshal(p7.Content, &request.DeviceInfo)
+	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &request.DeviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",

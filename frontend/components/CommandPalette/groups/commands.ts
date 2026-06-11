@@ -49,7 +49,7 @@ const buildCommandsItems = (
         ]
       : []),
 
-    // View commands — open sub-pages with searchable lists. Placed at
+    // View commands — open picker pages with searchable lists. Placed at
     // the top of the Commands group so view actions appear before write
     // actions like Add hosts within this group.
     {
@@ -68,7 +68,7 @@ const buildCommandsItems = (
         "search hosts",
       ],
       onAction: onViewHost,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     {
       id: "view-software",
@@ -88,7 +88,7 @@ const buildCommandsItems = (
         "inventory",
       ],
       onAction: onViewSoftware,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     // View software library — Premium-only and hidden on "All fleets" since
     // libraries are per-fleet.
@@ -114,7 +114,7 @@ const buildCommandsItems = (
               "search library",
             ],
             onAction: onViewSoftwareLibrary,
-            opensSubPage: true,
+            opensPickerPage: true,
           },
         ]
       : []),
@@ -134,7 +134,7 @@ const buildCommandsItems = (
         "search reports",
       ],
       onAction: onViewReport,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     {
       id: "view-policy",
@@ -151,7 +151,7 @@ const buildCommandsItems = (
         "search policies",
       ],
       onAction: onViewPolicy,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
 
     // Actions — users who can write
