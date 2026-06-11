@@ -964,7 +964,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	case strings.HasPrefix(ssoRequestData.Initiator, fleet.SSOInitiatorAccountDrivenEnroll):
 		var abmTokenID *uint
 
-		if uniqueToken, ok := strings.CutPrefix(ssoRequestData.Initiator, fleet.SSOInitiatorAccountDrivenEnroll+":"); ok {
+		if uniqueToken, ok := strings.CutPrefix(ssoRequestData.Initiator, fleet.SSOInitiatorAccountDrivenEnroll+":"); ok && uniqueToken != "" {
 			// Extract the unique token to retrieve the ABM token row id.
 			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
 			if err != nil {

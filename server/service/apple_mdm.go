@@ -3723,6 +3723,28 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		m.Model = m.ProductName
 	}
 
+	// For account driven user enrollments, we get the challenge in the Bearer token
+	// which is used to look up the default team for BYOD enrollments.
+	var byodTeamID *uint
+	if r.Type == mdm.UserEnrollmentDevice && strings.HasPrefix(r.Authorization, "Bearer ") {
+		// Split enrollment challenge off the Bearer prefix
+		challenge := strings.TrimPrefix(r.Authorization, "Bearer ")
+
+		enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(r.Context, challenge)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
+		}
+
+		if enrollChallenge.ABMTokenID != nil {
+			abmToken, err := svc.ds.GetABMTokenByID(r.Context, *enrollChallenge.ABMTokenID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting abm token by id")
+			}
+			byodTeamID = abmToken.BYODDefaultTeamID
+		}
+
+	}
+
 	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                mdmlifecycle.HostActionReset,
 		Platform:              platform,
@@ -3731,6 +3753,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HardwareModel:         m.Model,
 		SCEPRenewalInProgress: scepRenewalInProgress,
 		UserEnrollmentID:      m.EnrollmentID,
+		TeamID:                byodTeamID,
 	}); err != nil {
 		svc.logger.WarnContext(r.Context, "could not reset Apple mdm information", "UDID", m.UDID, "EnrollmentID", m.EnrollmentID, "err", err)
 		return err
@@ -3881,44 +3904,32 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		challenge := strings.TrimPrefix(r.Authorization, "Bearer ")
 
 		enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(r.Context, challenge)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
 		}
-
-		var byodTeamID *uint
-		if enrollChallenge.ABMTokenID != nil {
-			abmToken, err := svc.ds.GetABMTokenByID(r.Context, *enrollChallenge.ABMTokenID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "getting abm token by id")
+		if fleet.IsNotFound(err) || enrollChallenge == nil {
+			// This should never happen, but we skip IDP assocation.
+			svc.logger.ErrorContext(r.Context, "no enrollment challenge found for User (Device) enrollment",
+				"host_uuid", r.ID, "challenge", challenge)
+		} else {
+			idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, enrollChallenge.IdPAccountUUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
 			}
-			byodTeamID = abmToken.BYODDefaultTeamID
-
-			if byodTeamID != nil {
-				// Only move if team is non nil (which is unassigned), since that would be a no-op
-				err = svc.ds.AddHostsToTeam(r.Context, fleet.NewAddHostsToTeamParams(byodTeamID, []uint{info.HostID}))
+			if fleet.IsNotFound(err) || idpAccount == nil {
+				// This should never happen but we still want to process the token update
+				svc.logger.ErrorContext(r.Context, "no IDP account found for User (Device) enrollment",
+					"host_uuid", r.ID, "account_uuid", enrollChallenge.IdPAccountUUID)
+			} else {
+				acctUUID = idpAccount.UUID
+				managedAppleID = idpAccount.Email
+				err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
 				if err != nil {
-					svc.logger.ErrorContext(r.Context, "failed to add host to fleet during account-driven enrollment", "host_id", info.HostID, "fleet_id", abmToken.BYODDefaultTeamID, "err", err)
-					// no-op on team transfer failure, but log the error.
+					return ctxerr.Wrap(r.Context, err, "associating host with idp account")
 				}
 			}
 		}
 
-		idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, enrollChallenge.IdPAccountUUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
-		}
-		if fleet.IsNotFound(err) || idpAccount == nil {
-			// This should never happen but we still want to process the token update
-			svc.logger.ErrorContext(r.Context, "no IDP account found for User (Device) enrollment",
-				"host_uuid", r.ID, "account_uuid", enrollChallenge.IdPAccountUUID)
-		} else {
-			acctUUID = idpAccount.UUID
-			managedAppleID = idpAccount.Email
-			err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "associating host with idp account")
-			}
-		}
 	}
 
 	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
@@ -6906,9 +6917,10 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 				logger.InfoContext(ctx, "account driven enrollment profile not found") // proceed to assignment
 			case godep.IsServiceDiscoveryNotSupported(err):
 				logger.InfoContext(ctx, "account driven enrollment org not supported, skipping assignment")
-				return nil // skip assignment
+				continue // skip assignment
 			default:
-				return ctxerr.Wrap(ctx, err, "fetching account driven enrollment profile") // skip assignment
+				logger.ErrorContext(ctx, "fetching account driven enrollment profile", "org_name", orgName, "err", err)
+				continue // skip assignment
 			}
 		}
 

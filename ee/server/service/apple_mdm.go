@@ -36,7 +36,7 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 		return nil, ctxerr.Wrap(ctx, err, "consuming account driven enrollment challenge")
 	}
 	if enrollChallenge == nil {
-		return nil, ctxerr.New(ctx, "invalid enrollment reference")
+		return nil, &fleet.BadRequestError{Message: "account driven enrollment challenge not found"}
 	}
 
 	idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollChallenge.IdPAccountUUID)

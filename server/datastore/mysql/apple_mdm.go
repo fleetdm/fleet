@@ -7569,10 +7569,18 @@ func (ds *Datastore) InsertADUEEnrollmentChallenge(ctx context.Context, abmToken
 }
 
 func (ds *Datastore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
-	return ds.getADUEEnrollmentChallenge(ctx, ds.reader(ctx), challenge)
+	const stmt = `SELECT id, abm_token_id, idp_account_uuid, expires_at, used_at FROM mdm_adue_enrollment_challenges WHERE challenge = ?`
+	var adueChallenge fleet.ADUEEnrollmentChallenge
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &adueChallenge, stmt, challenge); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("ADUEEnrollmentChallenge"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting ADUE enrollment challenge with lock")
+	}
+	return &adueChallenge, nil
 }
 
-func (ds *Datastore) getADUEEnrollmentChallenge(ctx context.Context, tx sqlx.QueryerContext, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+func (ds *Datastore) getADUEEnrollmentChallengeForWrite(ctx context.Context, tx sqlx.QueryerContext, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
 	const stmt = `SELECT id, abm_token_id, idp_account_uuid, expires_at, used_at FROM mdm_adue_enrollment_challenges WHERE challenge = ? FOR UPDATE`
 	var adueChallenge fleet.ADUEEnrollmentChallenge
 	if err := sqlx.GetContext(ctx, tx, &adueChallenge, stmt, challenge); err != nil {
@@ -7587,7 +7595,7 @@ func (ds *Datastore) getADUEEnrollmentChallenge(ctx context.Context, tx sqlx.Que
 func (ds *Datastore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
 	var enrollChallenge *fleet.ADUEEnrollmentChallenge
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		chall, err := ds.getADUEEnrollmentChallenge(ctx, tx, challenge)
+		chall, err := ds.getADUEEnrollmentChallengeForWrite(ctx, tx, challenge)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetching account driven enrollment challenge")
 		}
