@@ -45,7 +45,7 @@ module.exports = {
     let territoryInformation = await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.apex.get(`/territory-lookup?${apexInputs.toString()}`);
     }).intercept((err)=>{
-      throw new Error(`When sending a request to Salesforce to lookup the territory ID for an address (${require('util').inspect({state, city, country})}) an error occured. Full error: ${require('util').inspect(err)}`);
+      throw new Error(`When sending a request to Salesforce to lookup the territory ID for an address (${require('util').inspect({state, city, country})}) an error occurred. Full error: ${require('util').inspect(err)}`);
     });
     if(!territoryInformation.users || !_.isArray(territoryInformation.users)) {
       throw new Error(`When looking up the territory ID for an address (${require('util').inspect({state, city, country})}), the information returned by Salesforce did not include a list of users. Territory information returned by Salesforce: ${require('util').inspect(territoryInformation)}`);
@@ -53,9 +53,9 @@ module.exports = {
       throw new Error(`When looking up the territory ID for an address (${require('util').inspect({state, city, country})}), the user information returned by Salesforce did not include the required information. Territory information returned by Salesforce: ${require('util').inspect(territoryInformation)}`);
     }
 
-    let userIdForThisTeritory = territoryInformation.users[0].userId;
+    let userIdForThisTerritory = territoryInformation.users[0].userId;
     // Send back the result through the success exit.
-    return userIdForThisTeritory;
+    return userIdForThisTerritory;
 
   }
 

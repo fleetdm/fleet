@@ -97,7 +97,7 @@ module.exports = {
 
 
     // Simultaneously run the enrichment helper and send a prompt to an LLM to try to guess the company's headquarters location (city/country/state) from the email domain.
-    // We use the information reutnred by the LLM as a fallback for the territory lookup below when the enrichment helper doesn't return location information.
+    // We use the information returned by the LLM as a fallback for the territory lookup below when the enrichment helper doesn't return location information.
     let locationGuessSystemPrompt = 'You are a precise data-extraction function. Respond with a single raw JSON object and nothing else.';
     let locationGuessPrompt =
 `Where is the company that owns the email domain "${emailDomain}" headquartered?
@@ -114,7 +114,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
         return await sails.helpers.iq.getEnriched.with({
           emailAddress,
         }).tolerate((err)=>{
-          sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
+          sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occurred while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
           return {};
         });
       },
@@ -125,7 +125,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
           expectJson: true,
           systemPrompt: locationGuessSystemPrompt,
         }).tolerate((err)=>{
-          sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while guessing their company's headquarters location from the email domain (${emailDomain}). Error from prompt helper: ${require('util').inspect(err)}`);
+          sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occurred while guessing their company's headquarters location from the email domain (${emailDomain}). Error from prompt helper: ${require('util').inspect(err)}`);
           return {};
         });
       },
@@ -153,12 +153,12 @@ Only include a key when you are confident of its value. Omit any key you are uns
       let employerLocation = enrichmentInformation.employer || {};
       let locationForTerritoryLookup = (employerLocation.country ? employerLocation : locationGuessFromEmailDomain) || {};// Default to an empty object if neither sources returned this information.
 
-      let teritoryUserId = await sails.helpers.salesforce.getTerritoryUserId.with({
+      let territoryUserId = await sails.helpers.salesforce.getTerritoryUserId.with({
         state: locationForTerritoryLookup.state,
         country: locationForTerritoryLookup.country,
         city: locationForTerritoryLookup.city
       }).tolerate((err)=>{
-        sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce teritory information could not be found using the provided information. This user will be sent to the calendly link for the washingtonDc region. Full error: ${require('util').inspect(err)}`);
+        sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce territory information could not be found using the provided information. This user will be sent to the calendly link for the washingtonDc region. Full error: ${require('util').inspect(err)}`);
         return '0054x0000086sOlAAI';
       });
 
@@ -170,15 +170,15 @@ Only include a key when you are confident of its value. Omit any key you are uns
         '005UG000009NnSfYAK': 'https://calendly.com/d/ds88-n2m-ddt/talk-to-us', //stockholm
       };
 
-      let eventUrlForThisUsersTeritory = bookingUrlByUserId[teritoryUserId];
-      if(!eventUrlForThisUsersTeritory) {
+      let eventUrlForThisUsersTerritory = bookingUrlByUserId[territoryUserId];
+      if(!eventUrlForThisUsersTerirtory) {
         // If the user ID returned by the helper is not one of the five expected values above, log a warning to alert us, and send the user to the washingtonDc calednly link.
         sails.log.warn(`When looking up Salesforce territory information to route a user (email: ${emailAddress}) who submitted the "Talk to us" form to the correct meeting link, the user ID returned by the getTerritoryUserId helper (${teritoryUserId}) did not match the hardcoded user IDs in the bookingUrlByUserId dictionary. This user will be sent to the callendly link for the washingtonDc region.`);
-        eventUrlForThisUsersTeritory = 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us';
+        eventUrlForThisUsersTerritory = 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us';
       }
       return {
         icp: true,
-        eventUrl: eventUrlForThisUsersTeritory,
+        eventUrl: eventUrlForThisUsersTerritory +`?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`,
       };
     } else {
       // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <700 hosts, send them to the "Let's get you set up!" Calendly event
