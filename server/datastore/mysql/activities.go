@@ -25,17 +25,17 @@ var deleteIDsBatchSize = 1000
 var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
 
 var policyAutomationErrorActivityTypes = []string{
-	"failed_webhook_policy_automation",
-	"failed_ticket_policy_automation",
-	"failed_calendar_policy_automation",
-	"failed_conditional_access_policy_automation",
+	"failed_automation_webhook",
+	"failed_automation_ticket",
+	"failed_automation_calendar_event",
+	"failed_automation_conditional_access",
 }
 
 var policyAutomationSuccessActivityTypes = []string{
-	"queued_webhook_policy_automation",
-	"queued_ticket_policy_automation",
-	"created_calendar_event_policy_automation",
-	"blocked_single_sign_on_policy_automation",
+	"ran_automation_webhook",
+	"ran_automation_ticket",
+	"ran_automation_calendar_event",
+	"ran_automation_conditional_access",
 }
 
 var policyAutomationActivityTypes = func() []string {

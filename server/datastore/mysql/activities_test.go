@@ -2352,16 +2352,16 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 	// Seed one activity of each type for policy 1 linked to h1,
 	// plus one success activity linked to both hosts (tests multi-host expansion).
 	errorTypes := []string{
-		"failed_webhook_policy_automation",
-		"failed_ticket_policy_automation",
-		"failed_calendar_policy_automation",
-		"failed_conditional_access_policy_automation",
+		"failed_automation_webhook",
+		"failed_automation_ticket",
+		"failed_automation_calendar_event",
+		"failed_automation_conditional_access",
 	}
 	successTypes := []string{
-		"queued_webhook_policy_automation",
-		"queued_ticket_policy_automation",
-		"created_calendar_event_policy_automation",
-		"blocked_single_sign_on_policy_automation",
+		"ran_automation_webhook",
+		"ran_automation_ticket",
+		"ran_automation_calendar_event",
+		"ran_automation_conditional_access",
 	}
 
 	for _, typ := range errorTypes {
@@ -2381,14 +2381,14 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 
 	// One activity linked to both hosts — produces two rows.
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
-		name:    "queued_webhook_policy_automation",
+		name:    "ran_automation_webhook",
 		details: makeDetails(policy.ID),
 		hostIDs: []uint{h1.ID, h2.ID},
 	}))
 
 	// Activity for the other policy — must not appear in results for policy 1.
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
-		name:    "failed_webhook_policy_automation",
+		name:    "failed_automation_webhook",
 		details: makeDetails(otherPolicy.ID),
 		hostIDs: []uint{h1.ID},
 	}))
@@ -2645,10 +2645,10 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 			types[a.Type]++
 		}
 		// Named automation failures still present.
-		require.Equal(t, 4, types["failed_webhook_policy_automation"]+
-			types["failed_ticket_policy_automation"]+
-			types["failed_calendar_policy_automation"]+
-			types["failed_conditional_access_policy_automation"])
+		require.Equal(t, 4, types["failed_automation_webhook"]+
+			types["failed_automation_ticket"]+
+			types["failed_automation_calendar_event"]+
+			types["failed_automation_conditional_access"])
 		// Script/software/VPP failures present.
 		require.Positive(t, types["ran_script"])
 		require.Positive(t, types["installed_software"])
@@ -2663,10 +2663,10 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 			types[a.Type]++
 		}
 		// Named automation successes still present.
-		require.Positive(t, types["queued_webhook_policy_automation"]+
-			types["queued_ticket_policy_automation"]+
-			types["created_calendar_event_policy_automation"]+
-			types["blocked_single_sign_on_policy_automation"])
+		require.Positive(t, types["ran_automation_webhook"]+
+			types["ran_automation_ticket"]+
+			types["ran_automation_calendar_event"]+
+			types["ran_automation_conditional_access"])
 		// Script/software/VPP successes present.
 		require.Positive(t, types["ran_script"])
 		require.Positive(t, types["installed_software"])
