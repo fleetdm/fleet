@@ -733,14 +733,39 @@ describe("CommandPalette helpers", () => {
         ).toBe(paths.MANAGE_HOSTS);
       });
 
-      it("keeps fleet_id=0 on the fallback URL when switching to Unassigned", () => {
+      it("keeps fleet_id=0 on the fallback URL when switching to Unassigned from a page that doesn't support it", () => {
+        // NEW_REPORT uses includeNoTeam: false — Unassigned must bounce.
         expect(
+          buildFleetSwitchUrl({
+            pathname: paths.NEW_REPORT,
+            currentSearch: "?fleet_id=1",
+            fleetId: 0,
+          })
+        ).toBe(`${paths.MANAGE_HOSTS}?fleet_id=0`);
+      });
+
+      it("stays on Controls when switching to Unassigned (Controls supports includeNoTeam)", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.CONTROLS,
+            currentSearch: "?fleet_id=1",
+            fleetId: 0,
+          })
+        );
+        expect(url.pathname).toBe(paths.CONTROLS);
+        expect(url.searchParams.get("fleet_id")).toBe("0");
+      });
+
+      it("stays on Software Library when switching to Unassigned (Library supports includeNoTeam)", () => {
+        const url = parse(
           buildFleetSwitchUrl({
             pathname: paths.SOFTWARE_LIBRARY,
             currentSearch: "?fleet_id=1&self_service=1",
             fleetId: 0,
           })
-        ).toBe(`${paths.MANAGE_HOSTS}?fleet_id=0`);
+        );
+        expect(url.pathname).toBe(paths.SOFTWARE_LIBRARY);
+        expect(url.searchParams.get("fleet_id")).toBe("0");
       });
 
       it("does not trigger the fallback on a non-team-required page", () => {
