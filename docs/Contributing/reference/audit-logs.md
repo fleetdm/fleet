@@ -620,6 +620,7 @@ This activity contains the following fields:
 Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
+- "host_id": ID of the host. `0` when the host record was already deleted at unenroll time.
 - "host_serial": Serial number of the host.
 - "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
@@ -630,6 +631,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
   "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
