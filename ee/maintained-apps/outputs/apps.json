@@ -2298,13 +2298,6 @@
       "description": "i1Profiler is an automation and creative controls for photographers and designers."
     },
     {
-      "name": "IBM Aspera Connect",
-      "slug": "ibm-aspera-connect/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.aspera.connect",
-      "description": "IBM Aspera Connect is a facilitate uploads and downloads with an Aspera transfer server."
-    },
-    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",

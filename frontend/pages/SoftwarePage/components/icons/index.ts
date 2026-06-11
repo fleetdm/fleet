@@ -261,7 +261,6 @@ import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
 import Hyper from "./Hyper";
 import I1Profiler from "./I1Profiler";
-import IbmAsperaConnect from "./IbmAsperaConnect";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
 import Iconjar from "./Iconjar";
@@ -924,7 +923,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hyper: Hyper,
   i1profiler: I1Profiler,
-  "ibm aspera connect": IbmAsperaConnect,
   "ibm notifier": IbmNotifier,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
