@@ -10,12 +10,6 @@ func init() {
 }
 
 func Up_20260611140639(tx *sql.Tx) error {
-	// Like most host-adjacent tables, these are keyed by host UUID with no FK
-	// to hosts (avoided for performance). A device row marks a host as
-	// PSSO-registered and is the cascade anchor for clearing all of a host's
-	// PSSO state; the public keys themselves live in mdm_apple_psso_keys,
-	// possibly several per host since old keys keep working after the device
-	// rotates or re-registers.
 	if _, err := tx.Exec(`
 		CREATE TABLE mdm_apple_psso_devices (
 			host_uuid  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
