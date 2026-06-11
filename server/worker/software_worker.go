@@ -159,14 +159,16 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
-	// Process hosts in batches to avoid overwhelming the AMAPI.
+	// Process hosts in batches to avoid overwhelming the AMAPI. ~10K hosts max
 	batches := splitHostMap(hosts, v.AndroidBatchSize)
 	for i, batch := range batches {
 		if i > 0 {
+			timer := time.NewTimer(androidSoftwareInstallStaggerInterval)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return ctxerr.Wrap(ctx, ctx.Err(), "context done between batches")
-			case <-time.After(androidSoftwareInstallStaggerInterval):
+			case <-timer.C:
 			}
 		}
 
