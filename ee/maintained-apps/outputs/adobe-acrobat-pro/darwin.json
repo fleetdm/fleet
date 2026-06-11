@@ -3,7 +3,8 @@
     {
       "version": "25.001.20937",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro' AND version_compare(bundle_short_version, '25.001.20937') < 0);"
       },
       "installer_url": "https://trials.adobe.com/AdobeProducts/APRO/Acrobat_HelpX/osx10/Acrobat_DC_Web_WWMUI.dmg",
       "install_script_ref": "a5a610c0",

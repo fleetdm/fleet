@@ -3,7 +3,8 @@
     {
       "version": "17.5.0",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.keepersecurity.passwordmanager';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.keepersecurity.passwordmanager';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.keepersecurity.passwordmanager' AND version_compare(bundle_short_version, '17.5.0') < 0);"
       },
       "installer_url": "https://keepersecurity.com/desktop_electron/Darwin/KeeperSetup.dmg",
       "install_script_ref": "451e3989",

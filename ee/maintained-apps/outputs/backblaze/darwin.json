@@ -3,7 +3,8 @@
     {
       "version": "10.0.0.1030",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.backblaze.bzbmenu';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.backblaze.bzbmenu';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.backblaze.bzbmenu' AND version_compare(bundle_short_version, '10.0.0.1030') < 0);"
       },
       "installer_url": "https://secure.backblaze.com/api/install_backblaze?file=bzinstall-mac-10.0.0.1030.dmg",
       "install_script_ref": "17ec084a",
