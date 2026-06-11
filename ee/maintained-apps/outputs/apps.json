@@ -1483,7 +1483,7 @@
       "slug": "darkmodebuddy/darwin",
       "platform": "darwin",
       "unique_identifier": "codes.rambo.DarkModeBuddy",
-      "description": "DarkModeBuddy is an automatically switch between light and dark modes based on ambient light sensor."
+      "description": "DarkModeBuddy is an app that automatically switches between light and dark modes based on the ambient light sensor."
     },
     {
       "name": "darktable",
