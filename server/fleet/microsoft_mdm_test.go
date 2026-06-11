@@ -812,3 +812,21 @@ func TestExtractLocURIsFromProfileBytes(t *testing.T) {
 		require.Equal(t, []string{"./Device/A"}, uris)
 	})
 }
+
+func TestIsFleetInternalCmdID(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"empty string", "", false},
+		{"random UUID", "550e8400-e29b-41d4-a716-446655440000", false},
+		{"unrelated prefix", "foo-internal-bar", false},
+		{"prefix only", FleetInternalCmdIDPrefix, true},
+		{"devdetail link probe", FleetInternalCmdIDPrefix + "devdetail-smbios-serial", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, IsFleetInternalCmdID(tc.in))
+		})
+	}
+}

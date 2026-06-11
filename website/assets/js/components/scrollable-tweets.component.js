@@ -177,9 +177,18 @@ parasails.registerComponent('scrollableTweets', {
     checkQuoteOverflow: function() {
       // Check if a card's quote exceeds the set max-height, and set isQuoteOverflowing values on quote cards.
       let containers = this.$el.querySelectorAll('[purpose="quote-container"]');
+      let minHiddenHeightToTruncate = 40;// « The number of pixels a quote must exceed the height of a parent container by for a quote to be truncated.
       containers.forEach((el, i) => {
-        if (this.quotesToDisplay[i] && !this.quotesToDisplay[i].isQuoteExpanded) {
-          this.quotesToDisplay[i].isQuoteOverflowing = el.scrollHeight > el.clientHeight + 1;
+        let quote = this.quotesToDisplay[i];
+        if (quote && !quote.isQuoteExpanded) {
+          let hiddenHeight = el.scrollHeight - el.clientHeight;
+          if (hiddenHeight > minHiddenHeightToTruncate) {
+            quote.isQuoteOverflowing = true;
+          } else if (hiddenHeight > 1) {
+            // Overflows the cap, but only barely — show the whole quote (no button).
+            quote.isQuoteOverflowing = false;
+            quote.isQuoteExpanded = true;
+          }
         }
       });
     },

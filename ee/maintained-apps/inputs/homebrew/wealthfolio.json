@@ -1,0 +1,10 @@
+{
+  "name": "Wealthfolio",
+  "unique_identifier": "com.teymz.wealthfolio",
+  "token": "wealthfolio",
+  "installer_format": "dmg",
+  "slug": "wealthfolio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

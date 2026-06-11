@@ -1,0 +1,1 @@
+* Fixed a bug where the carve cleanup cron job called the MySQL implementation instead of the S3-aware implementation on S3-configured deployments, meaning expired carves were never marked as expired in S3. Also fixed a panic in S3 carve cleanup that occurred when there were no non-expired carves.

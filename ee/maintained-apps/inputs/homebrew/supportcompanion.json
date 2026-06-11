@@ -1,0 +1,10 @@
+{
+  "name": "Support Companion",
+  "unique_identifier": "com.github.macadmins.SupportCompanion",
+  "token": "supportcompanion",
+  "installer_format": "pkg",
+  "slug": "supportcompanion/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -12,10 +12,12 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
+- [Tier modes](#tier-modes)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
 - [Page routing](#page-routing)
+- [Command palette](#command-palette)
 - [Styles](#styles)
 - [Icons and images](#icons-and-images)
 - [Testing](#testing)
@@ -145,6 +147,37 @@ export default {
   replaceNewLines
 }
 ```
+
+### Display names for software titles
+
+Software titles have two fields that look like a name:
+
+- `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
+- `display_name` — an optional custom name set per fleet by an admin
+
+**Never render `name` directly in the UI.** Always route software names through
+`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
+It prefers `display_name`, normalizes known awkward titles (e.g.
+`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
+default. This applies everywhere a software title is shown: table rows, dropdown
+options, modal text, activity feed entries, automation summaries, etc.
+
+```tsx
+// good
+label: getDisplayedSoftwareName(title.name, title.display_name),
+
+// bad — misses display_name and the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.name,
+
+// also bad — misses the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.display_name || title.name,
+```
+
+The same rule applies to any object shape that carries both fields
+(`ISoftwareTitle`, `ISoftwarePackage`, `IAppStoreApp`, `IHostSoftware`,
+`IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
+expectation: "All software names displayed by UI is ran through
+getDisplayedSoftwareName."
 
 ## Components
 
@@ -304,6 +337,125 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
   // continue with submit logic if no errors
 
 ```
+
+## Tier modes
+
+The UI changes shape in two licensing-related modes. Both can be active at the same time on a Premium Primo tenant, so most gates need to consider them independently:
+
+- **Fleet Free** — the free tier. Many features are hidden, paywalled with `<PremiumFeatureMessage />`, or restricted. Flag: `!isPremiumTier` (the context value is `true` for Premium / Enterprise, `false` for Free, so the Free check is the negation).
+- **Primo mode** — a single-fleet Premium installation for partner deployments. The fleet switcher is hidden, fleet creation is disabled, and empty-state copy collapses. Flag: `isPrimoMode` (derived from `config.partnerships.enable_primo`).
+
+Both flags can be true simultaneously (a Premium Primo tenant), and `isPrimoMode` is computed locally per-component, not in `AppContext` — see Gotchas. `frontend/components/CommandPalette/` is the canonical reference for handling both flags in tandem.
+
+### Fleet Free
+
+#### How to check
+
+```tsx
+const { isPremiumTier } = useContext(AppContext);
+if (!isPremiumTier) {
+  // Fleet Free behavior
+}
+```
+
+`isPremiumTier` is derived from `config.license.tier === "premium"` in `utilities/permissions/permissions.ts` and set once during `AppContext` initialization — `true` for Premium / Enterprise, `false` for Free. **The Free check is the negation, `!isPremiumTier`.** Tests inject the value via the `app` context override.
+
+#### Patterns
+
+**Early-return paywall** — for full-page premium features. Use `<PremiumFeatureMessage />` (`components/PremiumFeatureMessage/`); don't roll your own:
+
+```tsx
+if (!isPremiumTier) {
+  return <PremiumFeatureMessage />;
+}
+// render the feature
+```
+
+**Conditional list inclusion** via array spread — for items in palettes, menus, tables, etc.:
+
+```tsx
+...(isPremiumTier
+  ? [{ id: "add-fleet-maintained-app", label: "Add Fleet-maintained app", ... }]
+  : [])
+```
+
+For other patterns (conditional props on sub-components, React Query `enabled` to defer premium-only fetches, hidden table columns), see `frontend/components/CommandPalette/` and `pages/hosts/details/cards/Software/` as the canonical catalogs.
+
+### Primo mode
+
+Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies empty states. It can be active at the same time as Fleet Free *or* Premium, and at the same time as GitOps mode — these all affect different things.
+
+#### How to check
+
+```tsx
+const { config } = useContext(AppContext);
+const isPrimoMode = config?.partnerships?.enable_primo || false;
+```
+
+There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disabled tooltips.
+
+#### What it affects
+
+- **"Create fleet" button**: disabled on ManageFleetsPage
+- **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
+- **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
+- **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
+- **User form**: fleets dropdown disabled
+- **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
+
+#### Pattern: disable with tooltip
+
+The shared `Button` component doesn't accept a tooltip prop — use one of these patterns instead.
+
+**`TableContainer` action buttons** accept `disabledTooltipContent` directly on the
+`actionButton` config (see `ManageFleetsPage.tsx`):
+
+```tsx
+const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
+
+<TableContainer
+  // ...
+  actionButton={{
+    name: "create fleet",
+    buttonText: "Create fleet",
+    onClick: toggleCreateFleetModal,
+    disabledTooltipContent: disabledTooltip,
+  }}
+/>;
+```
+
+**Standalone controls** (a `Button`, `Radio`, etc.) should be wrapped in
+`TooltipWrapper` and disabled explicitly:
+
+```tsx
+<TooltipWrapper tipContent={PRIMO_TOOLTIP} disableTooltip={!isPrimoMode} showArrow>
+  <Button disabled={isPrimoMode} onClick={onCreate}>
+    Create fleet
+  </Button>
+</TooltipWrapper>
+```
+
+`RevealButton` is the exception — it accepts `disabledTooltipContent` directly.
+
+### Testing both modes
+
+Mock the flag in the test context (`isPremiumTier: false` for Free; `config: createMockConfig({ partnerships: { enable_primo: true } })` for Primo) and assert presence / absence. The established structure (from `CommandPalette/helpers.tests.ts`) is a top-level `describe` block per mode. Add at least one assertion per gate the feature touches.
+
+### Gotchas
+
+1. **`isPrimoMode` is not in AppContext.** Every component derives it from `config?.partnerships?.enable_primo`. If your refactor moves code out of a component that already had `config` in scope, you'll lose the Primo gate silently.
+2. **Both flags can be true.** A Premium Primo tenant. Gates that test only one (e.g., `if (!isPremiumTier) hide` or `if (isPrimoMode) hide`) are usually incomplete.
+3. **Dual-gated UI is common.** Table columns, picker columns, and entity selectors often gate on `isPremiumTier && !isPrimoMode` — premium-only AND multi-fleet-only. If your feature falls in either bucket, the dual gate is probably the right shape.
+4. **`useTeamIdParam` defaults change in Primo.** "Unassigned" instead of "All fleets" for the global default. If your code reads `currentTeamId === -1` to mean "all fleets selected," that path won't fire in Primo.
+
+### How tier modes differ from GitOps mode
+
+| | Fleet Free | Primo mode | GitOps mode |
+|---|---|---|---|
+| Purpose | Free vs Premium feature gating | Single-fleet UI for partners | Repository-driven config management |
+| Config | `license.tier !== "premium"` (i.e., `!isPremiumTier`) | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
+| Main effect | Paywall (`<PremiumFeatureMessage />`) | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
+| Component | Conditional checks + paywall | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
 
 ## React hooks
 
@@ -508,9 +660,194 @@ const PageOrComponent = ({
 };
 ```
 
+## Command palette
+
+The command palette is the keyboard surface for navigation and global actions. Power users discover features through it, so a missing entry is easy for them to overlook — but only the right kinds of features belong here.
+
+Source: `frontend/components/CommandPalette/`. Items are defined per group under `groups/`.
+
+### What belongs (and what doesn't)
+
+**Belongs in the palette:**
+
+- Navigation to any destination in the app — either its own top-level palette entry or nested under a parent entry via `subItems`
+- Global create actions where no entity is pre-selected ("Add report" opens a blank form)
+- Singleton config actions where the entity is implicit ("Edit Apple MDM" — there's only one Apple MDM config)
+- Picker actions that open an in-palette search for the user to choose an entity (e.g., "View host")
+
+**Doesn't belong:**
+
+- Per-entity edit / delete operations (editing a specific label, deleting a specific host) — those live on the entity's row or detail page where the entity is already in scope
+- Bulk-select operations that depend on an existing selection on a page
+- One-off UI affordances (toggles, expanders) tied to a specific view
+
+The dividing line: if the action requires the user to first pick a specific row, it stays on that row. If the action is global, a singleton, or starts a picker, it goes in the palette.
+
+### When to add a palette entry
+
+| Adding... | Goes in |
+|---|---|
+| A new top-level page (routed under a top nav item) | `groups/pages.ts` |
+| A new global create action (modal / form / blank create page) | `groups/commands.ts` |
+| A new picker action (like "View host") | `groups/commands.ts` with `opensPickerPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
+| A new MDM platform or connector (turn-on / singleton-edit) | `groups/mdm.ts` |
+| A new automation hook | `groups/automations.ts` |
+| A new settings page or admin route | `groups/settings.ts` |
+| A new control / policy / script feature | `groups/controls.ts` |
+| A new software action or view | `groups/software.ts` |
+
+Nested destinations under an existing palette entry live in that entry's `subItems` array, not as top-level entries. The user reaches the sub-item by expanding the parent (chevron) or when their search promotes the sub-item into Best match.
+
+These three "sub-" terms each mean exactly one thing in this codebase — keep them distinct:
+
+- **Sub-item** — an `ICommandSubItem` in a parent palette entry's `subItems` array
+- **Picker page** — the secondary screen opened when an entry has `opensPickerPage: true` (View host, View report, Switch fleet)
+- **Sub-route** — an app route nested under another (e.g., `/settings/integrations` under `/settings`)
+
+### Required and optional fields
+
+```ts
+interface ICommandItem {
+  id: string;                // unique kebab-case
+  label: string;             // sentence case, verb first ("Add report")
+  group: typeof GROUPS[number]; // one of `GROUPS` in helpers.ts
+  path?: string;             // navigation target (use withTeamId() if team-scoped)
+  onAction?: () => void;     // alternative to path for custom side effects
+  keywords?: string[];       // synonyms + aliases — see below
+  teamName?: string;         // chip shown when the action switches the user's fleet context
+  subItems?: ICommandSubItem[];
+  opensPickerPage?: boolean;    // shows the chevron-right; required for picker actions
+}
+```
+
+### Label conventions
+
+- Sentence case: "Add report", not "Add Report".
+- Verb first for actions: "Add", "Edit", "Delete", "Run", "View", "Manage", "Turn on" / "Turn off".
+- No trailing punctuation.
+- Match the destination page's own primary-button text where possible.
+- Use **fleet** / **report** (current product terminology), not **team** / **query**. Existing items haven't been mass-renamed; this applies to *new* items only.
+
+### Keyword authoring
+
+Best match scoring is **label-first by tier.** `scoreMatch()` in `helpers.ts` ranks a single text (label or keyword) against the query and returns one of these tier values:
+
+| Tier | Label score | Keyword score |
+|---|---|---|
+| exact | 100 | 50 |
+| prefix | 90 | 40 |
+| word-prefix | 80 | 30 |
+| substring | 70 | — (label-only) |
+
+Any label hit outranks any keyword hit — even the weakest label tier (substring, 70) beats the strongest keyword tier (exact, 50). That's what shapes how keywords should be written: they only matter when the query doesn't hit the label at all. Duplicating label words in keywords just adds a redundant, lower-scoring path.
+
+A few additional behaviors worth knowing — see `computeBestMatch()` and `scoreItemForBestMatch()` in `helpers.ts` for the full mechanics:
+
+- **Noise floor.** 2-character queries only consider label-exact + label-prefix (no word-prefix, no substring, no keywords). 3+ characters unlocks the full ladder. See `BEST_MATCH_MIN_QUERY` / `BEST_MATCH_FULL_LADDER_MIN`.
+- **Multi-token search.** A query like "settings org" is also scored as two tokens; each must find a positive match (against label or keywords), and the item takes the *minimum per-token score*. This lets order-independent searches like "settings org" → "Organization settings" promote without a phrase match.
+- **Word splits.** Word boundaries split on whitespace AND hyphens, so "API-only user" yields `["api", "only", "user"]` — a query for `only` word-prefix-matches.
+- **Substring is label-only.** Keyword substrings don't score (too noisy with short tokens); keywords cap at word-prefix.
+
+**Do:**
+
+- Add single distinct words a user might type that aren't already in the label
+- Add the standard verb synonyms for every action label:
+  - `add` → `create`, `new`
+  - `edit` → `update`, `change`, `modify`
+  - `delete` → `remove`
+  - `view` → `open`, `show`
+  - `run` → `execute`
+  - `turn on` → `activate`, `set up`, `configure`
+- Add acronyms and alternate names users actually type: `idp`, `ca`, `cve`, `fma`, `abm`, `vpp`, `mdm`, `dep`, `ade`
+- Add platform aliases where relevant:
+  - Apple → `iphone`, `ipad`, `macbook`
+  - Windows → `pc`, `win10`, `win11`
+  - Android → `phone`, `tablet`
+- Include legacy product terms during rename windows (e.g., `queries`, `query` on Reports until the term fully drains)
+
+**Don't:**
+
+- Repeat words from the label. `Add user` already scores "add" or "user" via the label tiers (exact / prefix / word-prefix / substring, 70–100). Adding them as keywords would only score lower (30–50), never changing the ranking.
+- Use multi-word keyword phrases when a single word works. A keyword like `create` matches as keyword-exact / -prefix / -word-prefix at the token level. A multi-word keyword like `create user` only matches when the whole phrase appears as one token in the query — multi-token splitting won't reach into it.
+- Pile in low-signal substrings ("the", "some", generic verbs).
+
+### Permission gating
+
+Mirror the destination page's gate exactly. If the page rejects technicians, gate the palette item on `!isTechnician`. If the destination renders `<PremiumFeatureMessage />` on free tier, gate the palette item on `isPremiumTier`. The palette must not route users to a screen they can't use.
+
+Reuse existing flags from `ICommandPaletteContext` (`frontend/components/CommandPalette/helpers.ts`) — that interface is the source of truth for the full list. The flags fall into a few buckets:
+
+- **Role-based write gates:** `canWrite`, `canAccessSettings`, `canAccessControls`, `canRunLiveReport`, `canAddSoftware`, `canEditCustomVariable`, `canManagePolicyAutomations`, `canManageSoftwareAutomations`, `canManageReportAutomations`, `isTechnician`
+- **Tier / mode:** `isPremiumTier`, `isPrimoMode`, `isDarkMode`
+- **Feature configured:** `isMacMdmEnabledAndConfigured`, `isWindowsMdmEnabledAndConfigured`, `isAndroidMdmEnabledAndConfigured`, `isVppEnabled`
+- **Context shape:** `hasTeamSelected`, `currentTeam`, `availableTeams`, `config`, `search`
+
+Add a new flag to `ICommandPaletteContext` + `CommandPalette.tsx` only when no existing one models the destination's check. When you add one, mirror the destination page's predicate exactly — several existing flags (`canManageReportAutomations`, `canEditCustomVariable`, `canAddSoftware`) document the narrower role checks they encode; follow that pattern.
+
+### Team context (`teamName`)
+
+Set `teamName` when invoking the action will switch the user's current fleet context. The palette renders it as a chip on the right so the user sees the upcoming switch before they click.
+
+Each group builder receives an `IDerivedContext` (computed once by `deriveContext()` in `groups/derivations.ts`) as its second argument. Destructure the chip helper you need from it rather than hardcoding fleet names:
+
+```ts
+const buildExampleItems = (ctx, derived) => {
+  const { switchesFromUnassigned, switchesFromAllFleets } = derived;
+  // ...
+};
+```
+
+The three chip helpers:
+
+- `switchesFromUnassigned` — destination requires a specific fleet, action invokable from Unassigned
+- `switchesFromAllFleets` — destination requires a specific fleet, action invokable from All fleets
+- `defaultDestination` — destination always lands on the default (e.g., "All fleets")
+
+Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
+
+### Search-only items
+
+Some entries are gated on the search string itself (e.g., the "Packs" page only appears when searching for `packs`). Use the `search` field from `ICommandPaletteContext` and a regex test:
+
+```ts
+.../packs|create new pack/.test(search.toLowerCase())
+  ? [/* the item */]
+  : []
+```
+
+Use this pattern sparingly — it bypasses the normal Best match ranking and should be reserved for legacy / deprecated features users only reach by name.
+
+### Tests
+
+Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meaningful item:
+
+- New page / command: assert it appears for the right roles, hides for the wrong ones
+- Premium-only: assert it's absent in the `Fleet Free (isPremiumTier: false)` describe block
+- Primo mode hidden: add to the `Primo Mode (isPrimoMode: true)` block
+- New `teamName` chip: assert it renders / doesn't render against the relevant fleet contexts
+
+The scoring helpers (`scoreMatch`, `scoreItemForBestMatch`, `computeBestMatch`, `highlightMatches`) and tier constants (`SCORE_LABEL_*`, `SCORE_KEYWORD_*`) have their own describe blocks in `helpers.tests.ts` — you don't need to re-test the framework when adding an item. If your new item exposes a specific ranking case worth pinning (e.g., a multi-token query that should promote it over a similarly-named item), add a small `computeBestMatch` test alongside.
+
 ## Styles
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
+
+### Spacing
+
+Prefer `gap` over `margin` for spacing between sibling elements when they share a flex or grid parent (otherwise `gap` has no effect). We have layout mixins in
+`frontend/styles/var/mixins.scss` for common flex column patterns:
+
+| Mixin | Gap | Use for |
+|---|---|---|
+| `vertical-page-layout` | 24px | Top-level page content |
+| `vertical-card-layout` | 24px | Settings cards, OS settings panels |
+| `vertical-form-layout` | 24px | Form field groups |
+| `vertical-modal-layout` | 24px | Modal body content |
+| `vertical-page-tab-panel-layout` | 24px | Tab panel content |
+| `vertical-data-set-layout` | 16px | Definition lists, key-value field sets |
+
+All use `flex-direction: column`; the 24px value is `$gap-page-component`. For arbitrary
+spacing without a semantic name, use `flex-column-16px-gap` or `flex-column-32px-gap`.
 
 ### Modals
 

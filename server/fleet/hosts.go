@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"time"
@@ -55,6 +56,57 @@ func (s HostStatus) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// placeholderHardwareSerials is the set of well-known junk SMBIOS serial numbers that OEM/BIOS firmware and VM
+// templates emit in place of a real, unique serial. Keys are already trimmed and lower-cased; compare against a
+// normalized serial. The list is best-effort and will never be exhaustive, so IsPlaceholderHardwareSerial also applies
+// a repeated-character heuristic and callers fall back to a unique identifier when a serial is a placeholder.
+var placeholderHardwareSerials = map[string]struct{}{
+	"to be filled by o.e.m.":   {},
+	"default string":           {},
+	"system serial number":     {},
+	"not specified":            {},
+	"not applicable":           {},
+	"none":                     {},
+	"oem":                      {},
+	"o.e.m.":                   {},
+	"default":                  {},
+	"unknown":                  {},
+	"chassis serial number":    {},
+	"base board serial number": {},
+	"baseboard serial number":  {},
+	"123456789":                {},
+	"0123456789":               {},
+	"1234567890":               {},
+	"1234567":                  {},
+	"n/a":                      {},
+	"na":                       {},
+	"invalid":                  {},
+}
+
+// IsPlaceholderHardwareSerial reports whether serial is empty or a well-known placeholder/junk value that does not
+// uniquely identify a device (common on whitebox/consumer hardware and un-sysprepped VM templates). Callers must not
+// use such a serial to match or link a host, since multiple unrelated devices report the same value; they should fall
+// back to an unambiguous identifier instead.
+//
+// Matching is case-insensitive and trimmed. In addition to the known-value set, a serial made up of a single repeated
+// character (e.g. "0", "00000000", "xxxxxxx", "-------") is treated as a placeholder, since those cannot be enumerated.
+func IsPlaceholderHardwareSerial(serial string) bool {
+	s := strings.TrimSpace(serial)
+	if s == "" {
+		return true
+	}
+	if _, ok := placeholderHardwareSerials[strings.ToLower(s)]; ok {
+		return true
+	}
+	// A serial that is the same character repeated (all zeros, all dots, all dashes, etc.) is never a real identity.
+	for i := 1; i < len(s); i++ {
+		if s[i] != s[0] {
+			return false
+		}
+	}
+	return true
 }
 
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
@@ -445,8 +497,16 @@ type HostVital struct {
 
 var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 	"idp": {
-		Name:  "Identity Provider",
-		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+		Name: "Identity Provider",
+		// NOTE: This must be an INNER JOIN (not RIGHT JOIN) on host_scim_user. A
+		// RIGHT JOIN keeps all host_scim_user rows even when the host side has been
+		// filtered out -- e.g. for fleet/team-scoped labels, where the hosts table
+		// is pre-filtered to the label's team. An out-of-team scim user that
+		// matches the criteria would then survive the join with hosts.id = NULL,
+		// which both leaks cross-team membership and breaks the INSERT into
+		// label_membership (NULL host_id, which is NOT NULL), rolling back the whole
+		// update so the fleet label gets zero hosts. See #46869.
+		Query: `JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
 	},
 }
 
@@ -1343,19 +1403,50 @@ func MDMNameFromServerURL(serverURL string) string {
 	return UnknownMDMName
 }
 
+// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
+const (
+	MDMEnrollmentStatusPersonal  = "On (personal)"
+	MDMEnrollmentStatusManual    = "On (manual)"
+	MDMEnrollmentStatusAutomatic = "On (automatic)"
+	MDMEnrollmentStatusPending   = "Pending"
+	MDMEnrollmentStatusOff       = "Off"
+)
+
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
-		return "On (personal)"
+		return MDMEnrollmentStatusPersonal
 	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
-		return "On (manual)"
+		return MDMEnrollmentStatusManual
 	case h.Enrolled && h.InstalledFromDep:
-		return "On (automatic)"
+		return MDMEnrollmentStatusAutomatic
 	case !h.Enrolled && h.InstalledFromDep:
-		return "Pending"
+		return MDMEnrollmentStatusPending
 	default:
-		return "Off"
+		return MDMEnrollmentStatusOff
 	}
+}
+
+// ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
+// implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
+// UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
+// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
+// returns the underlying datastore error. Callers wrap the result with ctxerr.
+func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
+	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == MDMEnrollmentStatusPersonal {
+		return &BadRequestError{
+			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
+		}
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		return NewInvalidArgumentError("host_id", AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+	}
+	return nil
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {

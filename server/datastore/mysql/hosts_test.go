@@ -109,6 +109,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByIdentifier", testHostIDsByIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
@@ -3847,6 +3848,42 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
+}
+
+func testHostsByUUID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 5; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			OsqueryHostID:   new(fmt.Sprintf("osquery_host_id_%d", i)),
+			NodeKey:         new(fmt.Sprintf("node_key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	h, err := ds.HostByUUID(context.Background(), "uuid_3")
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), h.ID)
+	assert.Equal(t, "uuid_3", h.UUID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	for _, ident := range []string{
+		"hostname_1",
+		"serial_2",
+		"osquery_host_id_3",
+		"node_key_4",
+		"does-not-exist",
+	} {
+		h, err := ds.HostByUUID(context.Background(), ident)
+		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
+		assert.Nil(t, h, "%q should not return a host", ident)
+	}
 }
 
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
@@ -10132,6 +10169,61 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
+
+	// Test sorting by "agent". The agent order key is
+	// COALESCE(NULLIF(hoi.version, ''), h.osquery_version): orbit-enrolled hosts
+	// sort by their orbit version, while hosts with no orbit row OR an empty
+	// orbit version fall back to their osquery version (host_orbit_info.version
+	// is NOT NULL, so absent orbit info is stored as '' for some hosts).
+	//   hostIDs[0] ("0001"): osquery 9.0.0, no orbit row  -> effective 9.0.0
+	//   hostIDs[1] ("0004"): osquery 9.9.9, orbit 1.0.0    -> effective 1.0.0 (orbit wins)
+	//   hostIDs[2] ("0003"): osquery 5.0.0, orbit ''       -> effective 5.0.0 (NULLIF fallback)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.0.0' WHERE id = ?`, hostIDs[0])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.9.9' WHERE id = ?`, hostIDs[1])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '5.0.0' WHERE id = ?`, hostIDs[2])
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[1], "1.0.0", sql.NullString{String: "1.0.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+	// Empty orbit version must still fall back to osquery_version (guards NULLIF);
+	// plain COALESCE would sort this host as '' and place it first.
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[2], "", sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHosts(
+		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "agent",
+				OrderDirection: fleet.OrderAscending,
+			},
+		},
+	)
+	require.NoError(t, err)
+	chk(hosts, "0004", "0003", "0001")
+
+	// ListHosts must also populate the orbit/desktop version fields the Agent
+	// column tooltip relies on (these were previously only loaded by ds.Host).
+	var orbitHost, vanillaHost *fleet.Host
+	for _, h := range hosts {
+		switch h.DisplayName() {
+		case "0004":
+			orbitHost = h
+		case "0001":
+			vanillaHost = h
+		}
+	}
+	require.NotNil(t, orbitHost)
+	require.NotNil(t, vanillaHost)
+	assert.Equal(t, new("1.0.0"), orbitHost.OrbitVersion)
+	assert.Equal(t, new("1.0.0"), orbitHost.DesktopVersion)
+	// Vanilla osquery host: no orbit info loaded.
+	assert.Nil(t, vanillaHost.OrbitVersion)
+	assert.Nil(t, vanillaHost.DesktopVersion)
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {

@@ -1,0 +1,10 @@
+{
+  "name": "Stillcolor",
+  "unique_identifier": "com.makkuk.Stillcolor",
+  "token": "stillcolor",
+  "installer_format": "zip",
+  "slug": "stillcolor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

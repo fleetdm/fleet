@@ -27,6 +27,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={jest.fn()}
       />
     );
@@ -42,6 +43,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={jest.fn()}
       />
     );
@@ -59,6 +61,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={onSelect}
       />
     );
@@ -68,7 +71,7 @@ describe("FleetPicker", () => {
   });
 
   it("renders empty (no items) when availableTeams is undefined", () => {
-    renderPicker(<FleetPicker onSelect={jest.fn()} />);
+    renderPicker(<FleetPicker search="" onSelect={jest.fn()} />);
     expect(screen.queryByText("Engineering")).not.toBeInTheDocument();
   });
 });

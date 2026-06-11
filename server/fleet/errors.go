@@ -24,7 +24,7 @@ var (
 	WindowsMDMNotConfiguredMessage               = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
 	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
-	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
@@ -37,6 +37,7 @@ var (
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
+	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -233,9 +234,22 @@ func (e *OTAForbiddenError) IsClientError() bool {
 // licenseError is returned when the application is not properly licensed.
 type licenseError struct {
 	ErrorWithUUID
+	cause *string
+}
+
+func NewLicenseErrorWithCause(cause string) *licenseError {
+	return &licenseError{cause: &cause}
+}
+
+func (e *licenseError) Is(target error) bool {
+	_, ok := target.(*licenseError)
+	return ok
 }
 
 func (e *licenseError) Error() string {
+	if e.cause != nil {
+		return fmt.Sprintf("%s requires Fleet Premium license", *e.cause)
+	}
 	return "Requires Fleet Premium license"
 }
 

@@ -1,0 +1,8 @@
+{
+  "name": "Burp Suite Community Edition",
+  "slug": "burp-suite/darwin",
+  "unique_identifier": "com.install4j.9806-1938-4586-6531.70",
+  "token": "burp-suite",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

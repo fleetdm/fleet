@@ -1,0 +1,10 @@
+{
+  "name": "Keyboard Cowboy",
+  "unique_identifier": "com.zenangst.Keyboard-Cowboy",
+  "token": "keyboard-cowboy",
+  "installer_format": "dmg",
+  "slug": "keyboard-cowboy/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

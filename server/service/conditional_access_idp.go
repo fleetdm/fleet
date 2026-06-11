@@ -392,7 +392,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		CACertBase64:     caCertBase64,
 		SCEPURL:          scepURL,
 		Challenge:        challenge,
-		CertificateCN:    "Fleet conditional access for Okta",
+		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
 		MTLSURL:          mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,

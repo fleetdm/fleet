@@ -8,7 +8,7 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
-> If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
+> For macOS, Fleet only installs setup experience software and run scripts on newly enrolling, or re-enrolling, Macs (not during migration).
 
 Below is the end user experience for macOS. Check out the separate videos for [iOS](https://www.youtube.com/watch?v=bPtr3Qgp1JY), [iPadOS](https://www.youtube.com/watch?v=sK3ZR2iItJY), and [Android](https://www.youtube.com/watch?v=-zB1zgtGAMs).
 
@@ -63,6 +63,18 @@ Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option t
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
+
+## Managed local account
+Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
+
+Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
+
+### Password rotation
+Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
+
+> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
+
+A manual rotation cancels any active auto-rotation timer for that host.
 
 ## Bootstrap package
 
