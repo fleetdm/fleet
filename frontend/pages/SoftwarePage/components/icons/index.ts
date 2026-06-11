@@ -46,6 +46,26 @@ import Git from "./Git";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import GrooveOmniDialer from "./GrooveOmniDialer";
+import Hammerspoon from "./Hammerspoon";
+import HandbrakeApp from "./HandbrakeApp";
+import Hazel from "./Hazel";
+import Hazeover from "./Hazeover";
+import Helium from "./Helium";
+import HexFiend from "./HexFiend";
+import HeyDesktop from "./HeyDesktop";
+import Hiddenbar from "./Hiddenbar";
+import Hides from "./Hides";
+import Hidock from "./Hidock";
+import HighlightAi from "./HighlightAi";
+import HiveApp from "./HiveApp";
+import HomeAssistant from "./HomeAssistant";
+import Homerow from "./Homerow";
+import Hot from "./Hot";
+import Houdahspot from "./Houdahspot";
+import HpEasyAdmin from "./HpEasyAdmin";
+import Hubstaff from "./Hubstaff";
+import Huly from "./Huly";
+import Hyperkey from "./Hyperkey";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
 import Iina from "./Iina";
@@ -328,27 +348,6 @@ import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
-
-import Hammerspoon from "./Hammerspoon";
-import HandbrakeApp from "./HandbrakeApp";
-import Hazel from "./Hazel";
-import Hazeover from "./Hazeover";
-import Helium from "./Helium";
-import HexFiend from "./HexFiend";
-import HeyDesktop from "./HeyDesktop";
-import Hiddenbar from "./Hiddenbar";
-import Hides from "./Hides";
-import Hidock from "./Hidock";
-import HighlightAi from "./HighlightAi";
-import HiveApp from "./HiveApp";
-import HomeAssistant from "./HomeAssistant";
-import Homerow from "./Homerow";
-import Hot from "./Hot";
-import Houdahspot from "./Houdahspot";
-import HpEasyAdmin from "./HpEasyAdmin";
-import Hubstaff from "./Hubstaff";
-import Huly from "./Huly";
-import Hyperkey from "./Hyperkey";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -449,6 +448,26 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   gotomeeting: GoToMeeting,
   "groove omnidialer": GrooveOmniDialer,
+  hammerspoon: Hammerspoon,
+  handbrake: HandbrakeApp,
+  hazel: Hazel,
+  hazeover: Hazeover,
+  helium: Helium,
+  "hex fiend": HexFiend,
+  hey: HeyDesktop,
+  "hidden bar": Hiddenbar,
+  hides: Hides,
+  hidock: Hidock,
+  highlight: HighlightAi,
+  hive: HiveApp,
+  "home assistant": HomeAssistant,
+  homerow: Homerow,
+  hot: Hot,
+  houdahspot: Houdahspot,
+  "hp easy admin": HpEasyAdmin,
+  hubstaff: Hubstaff,
+  huly: Huly,
+  hyperkey: Hyperkey,
   "ibm notifier": IbmNotifier,
   "icon composer": IconComposer,
   iina: Iina,
@@ -689,26 +708,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
-  hammerspoon: Hammerspoon,
-  handbrake: HandbrakeApp,
-  hazel: Hazel,
-  hazeover: Hazeover,
-  helium: Helium,
-  "hex fiend": HexFiend,
-  hey: HeyDesktop,
-  "hidden bar": Hiddenbar,
-  hides: Hides,
-  hidock: Hidock,
-  highlight: HighlightAi,
-  hive: HiveApp,
-  "home assistant": HomeAssistant,
-  homerow: Homerow,
-  hot: Hot,
-  houdahspot: Houdahspot,
-  "hp easy admin": HpEasyAdmin,
-  hubstaff: Hubstaff,
-  huly: Huly,
-  hyperkey: Hyperkey,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
