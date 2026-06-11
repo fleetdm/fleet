@@ -161,6 +161,7 @@ const QueryEditor = ({
         labels_include_any: formData.labels_include_any,
         labels_include_all: formData.labels_include_all,
         labels_exclude_any: formData.labels_exclude_any,
+        labels_exclude_all: formData.labels_exclude_all,
       };
       if (isPremiumTier) {
         payload.critical = formData.critical;

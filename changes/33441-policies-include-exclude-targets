@@ -1,0 +1,1 @@
+* Added the ability to target a policy to hosts using a combination of "include" and "exclude" labels.

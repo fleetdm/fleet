@@ -1,0 +1,10 @@
+{
+  "name": "Bitrix24",
+  "unique_identifier": "com.bitrixsoft.bitrix24desktop",
+  "token": "bitrix24",
+  "installer_format": "dmg",
+  "slug": "bitrix24/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

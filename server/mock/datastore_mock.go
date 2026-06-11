@@ -1420,6 +1420,8 @@ type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMWindowsReconcileCursorFunc func(ctx context.Context, cursor string) error
 
+type GetWindowsProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error)
+
 type GetAppleMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error)
 
 type ListAppleProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error)
@@ -4190,6 +4192,9 @@ type DataStore struct {
 
 	SetMDMWindowsReconcileCursorFunc        SetMDMWindowsReconcileCursorFunc
 	SetMDMWindowsReconcileCursorFuncInvoked bool
+
+	GetWindowsProfileReconcileSnapshotFunc        GetWindowsProfileReconcileSnapshotFunc
+	GetWindowsProfileReconcileSnapshotFuncInvoked bool
 
 	GetAppleMDMHostForReconcileFunc        GetAppleMDMHostForReconcileFunc
 	GetAppleMDMHostForReconcileFuncInvoked bool
@@ -10092,6 +10097,13 @@ func (s *DataStore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor str
 	s.SetMDMWindowsReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error) {
+	s.mu.Lock()
+	s.GetWindowsProfileReconcileSnapshotFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsProfileReconcileSnapshotFunc(ctx, afterHostUUID, batchSize)
 }
 
 func (s *DataStore) GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error) {
