@@ -7587,15 +7587,17 @@ func (ds *Datastore) getADUEEnrollmentChallenge(ctx context.Context, tx sqlx.Que
 func (ds *Datastore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
 	var enrollChallenge *fleet.ADUEEnrollmentChallenge
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		enrollChallenge, err := ds.getADUEEnrollmentChallenge(ctx, tx, challenge)
+		chall, err := ds.getADUEEnrollmentChallenge(ctx, tx, challenge)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fetching account driven enrollment challenge")
 		}
 
-		if enrollChallenge == nil {
+		if chall == nil {
 			// It should not be nil, as that would have produced an error, but better safe than sorry.
 			return ctxerr.New(ctx, "account driven enrollment challenge not found")
 		}
+
+		enrollChallenge = chall
 
 		if enrollChallenge.UsedAt != nil {
 			return &fleet.BadRequestError{
