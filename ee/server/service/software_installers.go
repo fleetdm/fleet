@@ -3905,11 +3905,8 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 		return allCategories, nil
 	}
 
-	for _, name := range categoriesToInsert {
-		_, err := svc.ds.NewSoftwareCategory(ctx, ptr.ValOrZero(teamID), name)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating self-service category")
-		}
+	if err := svc.ds.BatchNewSoftwareCategories(ctx, ptr.ValOrZero(teamID), categoriesToInsert); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating self-service categories")
 	}
 	return allCategories, nil
 }

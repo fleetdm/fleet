@@ -7496,10 +7496,10 @@ func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 		listedTeamIDs = append(listedTeamIDs, teamID)
 		return slices.Clone(existing), nil
 	}
-	ds.NewSoftwareCategoryFunc = func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
-		added = append(added, name)
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		added = append(added, names...)
 		actions = append(actions, "add")
-		return &fleet.SoftwareCategory{ID: uint(1000 + len(added)), Name: name, TeamID: teamID}, nil
+		return nil
 	}
 	ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
 		for _, c := range existing {
@@ -7515,9 +7515,6 @@ func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 		return nil
 	}
 
-	// Categories are derived from each software item, so the test feeds them
-	// via a self-service script package. A script package applies from inline
-	// content (no download), keeping the focus on category reconciliation.
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte(`echo "hello"`), 0o600))
 
@@ -7590,10 +7587,10 @@ software:
 	assert.Empty(t, added)
 	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
 
-	// software omitted entirely still prunes categories (software is managed,
-	// it just references none). The software exception case is covered
-	// separately in TestGitOpsSelfServiceCategoriesSoftwareException because the
-	// exception must be set consistently (the server caches AppConfig).
+	// With the `software:` key absent, software is still declaratively managed
+	// (and cleared), so the fleet's categories are pruned too. This is distinct
+	// from omitting an individual item's `categories:` field. The software
+	// exception is covered in TestGitOpsSelfServiceCategoriesSoftwareException.
 	reset(teamExisting, fleet.GitOpsExceptions{})
 	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
@@ -7645,9 +7642,6 @@ software:
 	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
 }
 
-// TestGitOpsSelfServiceCategoriesSoftwareException verifies that when software
-// is excepted from GitOps, categories are left untouched. The exception is set
-// consistently here (not per-case) because the server caches AppConfig.
 func TestGitOpsSelfServiceCategoriesSoftwareException(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 

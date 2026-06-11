@@ -4470,9 +4470,6 @@ name: TestTeam
 	})
 }
 
-// TestGitOpsFMACategoriesPresence verifies that the fleet_maintained_apps
-// categories key parses into an optjson.Slice that distinguishes omitted (use
-// the manifest default) from present-but-null/empty (zero categories) from a real list.
 func TestGitOpsFMACategoriesPresence(t *testing.T) {
 	t.Parallel()
 

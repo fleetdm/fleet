@@ -526,8 +526,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
 		return nil, nil
 	}
-	ds.NewSoftwareCategoryFunc = func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
-		return &fleet.SoftwareCategory{Name: name, TeamID: teamID}, nil
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		return nil
 	}
 	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
 		return nil

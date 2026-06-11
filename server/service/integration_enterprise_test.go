@@ -22277,6 +22277,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 2)
 
+	// an over-length category name is rejected up front
+	softwareToInstall[0].Categories = optjson.SetSlice([]string{strings.Repeat("x", 256)})
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(res.Body), "name must be at most 255 characters")
+
 	testCases := []struct {
 		desc                 string
 		categories           optjson.Slice[string]
