@@ -30,6 +30,7 @@ import SoftwarePicker from "./components/SoftwarePicker";
 import ReportPicker from "./components/ReportPicker";
 import PolicyPicker from "./components/PolicyPicker";
 import HighlightedLabel from "./components/HighlightedLabel";
+import UprightEmoji from "./components/UprightEmoji";
 import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
@@ -546,7 +547,9 @@ const CommandPalette = (): JSX.Element | null => {
             )}
           </div>
           {item.teamName && (
-            <span className={`${baseClass}__item-fleet`}>{item.teamName}</span>
+            <span className={`${baseClass}__item-fleet`}>
+              <UprightEmoji text={item.teamName} />
+            </span>
           )}
         </Command.Item>
         {/* Render sub-items when expanded (browsing) or always when searching */}
@@ -634,7 +637,7 @@ const CommandPalette = (): JSX.Element | null => {
                       fleets shows "All fleets"). */}
                   {!sub && item.teamName && (
                     <span className={`${baseClass}__item-fleet`}>
-                      {item.teamName}
+                      <UprightEmoji text={item.teamName} />
                     </span>
                   )}
                   {/* Parent label as a context chip on promoted sub-items
