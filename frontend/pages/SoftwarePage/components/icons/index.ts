@@ -451,16 +451,46 @@ import QspacePro from "./QspacePro";
 import Quip from "./Quip";
 import Qview from "./Qview";
 import R from "./R";
+import RadioSilence from "./RadioSilence";
+import Raindropio from "./Raindropio";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
+import Rapidweaver from "./Rapidweaver";
 import Raycast from "./Raycast";
+import Readest from "./Readest";
 import RealVncServer from "./RealVncServer";
 import Reaper from "./Reaper";
+import Recents from "./Recents";
 import Rectangle from "./Rectangle";
+import RectanglePro from "./RectanglePro";
+import Recut from "./Recut";
+import RedcineXPro from "./RedcineXPro";
+import RedisPro from "./RedisPro";
+import Reflector from "./Reflector";
+import RemindersMenubar from "./RemindersMenubar";
+import RemoteBuddy from "./RemoteBuddy";
+import RemoteDesktopManager from "./RemoteDesktopManager";
+import Reqable from "./Reqable";
+import Requestly from "./Requestly";
+import Retcon from "./Retcon";
+import Retroarch from "./Retroarch";
+import Retrobatch from "./Retrobatch";
+import Rewritebar from "./Rewritebar";
 import Rider from "./Rider";
+import Rightfont from "./Rightfont";
+import Rive from "./Rive";
+import Rize from "./Rize";
+import Robofont from "./Robofont";
+import Roboform from "./Roboform";
+import Rocket from "./Rocket";
+import RocketChat from "./RocketChat";
+import RocketmanChoicesPackager from "./RocketmanChoicesPackager";
+import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
+import Rsyncui from "./Rsyncui";
 import RubyMine from "./RubyMine";
+import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
 import RustRover from "./RustRover";
 import Sabnzbd from "./Sabnzbd";
@@ -1145,16 +1175,46 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   quip: Quip,
   qview: Qview,
   "r for windows": R,
+  "radio silence": RadioSilence,
+  "raindrop.io": Raindropio,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
+  rapidweaver: Rapidweaver,
   raycast: Raycast,
+  readest: Readest,
   "realvnc server": RealVncServer,
   reaper: Reaper,
+  recents: Recents,
   rectangle: Rectangle,
+  "rectangle pro": RectanglePro,
+  recut: Recut,
+  "redcine-x pro": RedcineXPro,
+  "redis-pro": RedisPro,
+  reflector: Reflector,
+  "reminders menubar": RemindersMenubar,
+  "remote buddy": RemoteBuddy,
+  "remote desktop manager": RemoteDesktopManager,
+  reqable: Reqable,
+  requestly: Requestly,
+  retcon: Retcon,
+  retroarch: Retroarch,
+  retrobatch: Retrobatch,
+  rewritebar: Rewritebar,
   rider: Rider,
+  rightfont: Rightfont,
+  rive: Rive,
+  rize: Rize,
+  robofont: Robofont,
+  roboform: Roboform,
+  rocket: Rocket,
+  "rocket typist": RocketTypist,
+  "rocket.chat": RocketChat,
+  "rocketman choices packager": RocketmanChoicesPackager,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
+  rsyncui: Rsyncui,
   rubymine: RubyMine,
+  runjs: Runjs,
   rustdesk: RustDesk,
   rustrover: RustRover,
   sabnzbd: Sabnzbd,
