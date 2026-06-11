@@ -175,14 +175,14 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 
 func TestFailedPolicyAutomationActivities(t *testing.T) {
 	t.Run("conditional access", func(t *testing.T) {
-		act := ActivityTypeFailedConditionalAccessPolicyAutomation{
+		act := ActivityTypeFailedAutomationConditionalAccess{
 			PolicyID:      15,
 			HostIDList:    []uint{43},
 			StatusCode:    500,
 			ErrorResponse: "500: upstream error",
 		}
 
-		assert.Equal(t, "failed_conditional_access_policy_automation", act.ActivityName())
+		assert.Equal(t, "failed_automation_conditional_access", act.ActivityName())
 		assert.Equal(t, []uint{43}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -209,12 +209,12 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 	}
 
 	t.Run("single sign-on blocked", func(t *testing.T) {
-		act := ActivityTypeBlockedSingleSignOnPolicyAutomation{
+		act := ActivityTypeRanAutomationConditionalAccess{
 			PolicyID:   15,
 			HostIDList: []uint{43},
 		}
 
-		assert.Equal(t, "blocked_single_sign_on_policy_automation", act.ActivityName())
+		assert.Equal(t, "ran_automation_conditional_access", act.ActivityName())
 		assert.Equal(t, []uint{43}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 

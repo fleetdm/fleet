@@ -2673,7 +2673,7 @@ func (svc *Service) setHostConditionalAccess(
 				// succeeded (we have a MessageID), so the push was accepted by
 				// the remote provider; we just could not confirm completion
 				// within the expected window. Recording a
-				// failed_conditional_access_policy_automation here would
+				// failed_automation_conditional_access here would
 				// misrepresent an in-flight async operation as a rejection.
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
@@ -2717,7 +2717,7 @@ func (svc *Service) setHostConditionalAccess(
 }
 
 // recordConditionalAccessFailureActivity records a
-// failed_conditional_access_policy_automation activity for the given host when
+// failed_automation_conditional_access activity for the given host when
 // a compliance push to the remote provider fails. One activity is recorded per
 // failing conditional-access policy (policies the host is currently failing,
 // not all CA policies configured for the team), capturing the remote status
@@ -2756,7 +2756,7 @@ func recordConditionalAccessFailureActivity(
 		errResponse = err.Error()
 	}
 	for _, policyID := range policyIDs {
-		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedConditionalAccessPolicyAutomation{
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationConditionalAccess{
 			PolicyID:      policyID,
 			HostIDList:    []uint{hostID},
 			StatusCode:    statusCode,
@@ -2769,7 +2769,7 @@ func recordConditionalAccessFailureActivity(
 }
 
 // recordSingleSignOnBlockedActivity records a
-// blocked_single_sign_on_policy_automation activity for the given host once its
+// ran_automation_conditional_access activity for the given host once its
 // non-compliant status has been successfully pushed to the remote provider,
 // blocking single sign-on. One activity is recorded per conditional-access
 // policy the host is failing. Failures to record are logged and swallowed so
@@ -2785,7 +2785,7 @@ func recordSingleSignOnBlockedActivity(
 		return
 	}
 	for _, policyID := range policyIDs {
-		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeBlockedSingleSignOnPolicyAutomation{
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationConditionalAccess{
 			PolicyID:   policyID,
 			HostIDList: []uint{hostID},
 		}); actErr != nil {
