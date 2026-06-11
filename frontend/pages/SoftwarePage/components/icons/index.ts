@@ -479,7 +479,6 @@ import Rewritebar from "./Rewritebar";
 import Rider from "./Rider";
 import Rightfont from "./Rightfont";
 import Rive from "./Rive";
-import RiversideStudio from "./RiversideStudio";
 import Rize from "./Rize";
 import Robofont from "./Robofont";
 import Roboform from "./Roboform";
@@ -1204,7 +1203,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rider: Rider,
   rightfont: Rightfont,
   rive: Rive,
-  "riverside studio": RiversideStudio,
   rize: Rize,
   robofont: Robofont,
   roboform: Roboform,

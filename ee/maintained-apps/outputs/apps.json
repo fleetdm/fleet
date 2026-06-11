@@ -4146,13 +4146,6 @@
       "description": "Rive is a design tool for creating interactive graphics."
     },
     {
-      "name": "Riverside Studio",
-      "slug": "riverside-studio/darwin",
-      "platform": "darwin",
-      "unique_identifier": "RVS-Riverside.fm-Mac",
-      "description": "Riverside Studio is a podcast and video recorder."
-    },
-    {
       "name": "Rize",
       "slug": "rize/darwin",
       "platform": "darwin",
