@@ -200,3 +200,14 @@ func (svc *Service) teamNameForActivity(ctx context.Context, teamID uint) (*stri
 	}
 	return &tm.Name, nil
 }
+
+func trimAndValidateCategories(ctx context.Context, categories []string) error {
+	for i, name := range categories {
+		categories[i] = strings.TrimSpace(name)
+		err := (fleet.SoftwareCategory{Name: categories[i]}).Validate()
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "category %q", categories[i])
+		}
+	}
+	return nil
+}

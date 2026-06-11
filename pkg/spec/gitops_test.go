@@ -222,7 +222,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
-							assert.Contains(t, pkg.Categories, "Communication")
+							assert.Contains(t, pkg.Categories.Value, "Communication")
 							assert.Empty(t, pkg.LabelsExcludeAny)
 							assert.Empty(t, pkg.LabelsIncludeAll)
 						} else {
@@ -236,14 +236,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					for _, fma := range gitops.Software.FleetMaintainedApps {
 						switch fma.Slug {
 						case "slack/darwin":
-							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.ElementsMatch(t, fma.Categories.Value, []string{"Productivity", "Communication"})
 							require.Equal(t, "4.47.65", fma.Version)
 							require.Empty(t, fma.PreInstallQuery)
 							require.Empty(t, fma.PostInstallScript)
 							require.Empty(t, fma.InstallScript)
 							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
-							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.ElementsMatch(t, fma.Categories.Value, []string{"Productivity", "Developer tools"})
 							require.Empty(t, fma.Version)
 							require.NotEmpty(t, fma.PreInstallQuery)
 							require.NotEmpty(t, fma.PostInstallScript)
@@ -4067,7 +4067,7 @@ software:
 		require.NoError(t, err)
 		require.Len(t, result.Software.Packages, 1)
 		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
-		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories.Value)
 		assert.True(t, result.Software.Packages[0].SelfService)
 		assert.Empty(t, result.Software.Packages[0].URL)
 		assert.Empty(t, result.Software.Packages[0].SHA256)
@@ -4168,7 +4168,7 @@ software:
 		require.NoError(t, err)
 		require.Len(t, result.Software.Packages, 1)
 		pkg := result.Software.Packages[0]
-		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories.Value)
 		assert.True(t, pkg.SelfService)
 		assert.True(t, pkg.InstallDuringSetup.Value)
 		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
@@ -4470,163 +4470,46 @@ name: TestTeam
 	})
 }
 
-func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
+func TestGitOpsFMACategoriesPresence(t *testing.T) {
 	t.Parallel()
 
-	t.Run("key omitted leaves Present false", func(t *testing.T) {
-		t.Parallel()
+	parse := func(t *testing.T, categoriesYAML string) optjson.Slice[string] {
 		config := getTeamConfig(nil)
-		config += "software:\n  packages: []\n"
+		config += "software:\n  fleet_maintained_apps:\n    - slug: 1password/darwin\n" + categoriesYAML
 		path, basePath := createTempFile(t, "", config)
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
-		assert.False(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
+		require.Len(t, gitops.Software.FleetMaintainedApps, 1)
+		return gitops.Software.FleetMaintainedApps[0].Categories
+	}
+
+	t.Run("omitted key is unset", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "")
+		assert.False(t, cats.Set)
 	})
 
-	t.Run("empty list sets Present true", func(t *testing.T) {
+	t.Run("categories: (null) is set but not valid", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += "software:\n  self_service_categories: []\n"
-		path, basePath := createTempFile(t, "", config)
-		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
-		assert.True(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
+		cats := parse(t, "      categories:\n")
+		assert.True(t, cats.Set)
+		assert.False(t, cats.Valid)
+		assert.Empty(t, cats.Value)
 	})
 
-	t.Run("populated list sets Present true and preserves names verbatim", func(t *testing.T) {
+	t.Run("categories: [] is set and valid", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "Productivity"
-    - "💼 Engineering"
-`
-		path, basePath := createTempFile(t, "", config)
-		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
-		assert.True(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Equal(t, []string{"🌎 Browsers", "Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
+		cats := parse(t, "      categories: []\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Empty(t, cats.Value)
 	})
 
-	t.Run("duplicate name in payload fails at parse", func(t *testing.T) {
+	t.Run("categories with a value is set with the value", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "🔐 Security"
-    - "🔐 Security"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate")
-		assert.Contains(t, err.Error(), "🔐 Security")
-	})
-
-	t.Run("package referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  packages:
-    - url: https://example.com/installer.pkg
-      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("app_store_apps referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  app_store_apps:
-    - app_store_id: "12345"
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("fleet_maintained_apps referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  fleet_maintained_apps:
-    - slug: 1password/darwin
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("validation rejects empty, whitespace-only, and over-length names", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += fmt.Sprintf(`software:
-  self_service_categories:
-    - ""
-    - "   "
-    - %q
-`, strings.Repeat("x", 256))
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "name is required")
-		assert.Contains(t, err.Error(), "must be at most 255")
-	})
-
-	t.Run("names are trimmed and case-only duplicates are caught", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "  Productivity  "
-    - "PRODUCTIVITY"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate")
-		// The second entry collides with the trimmed first.
-		assert.Contains(t, err.Error(), "PRODUCTIVITY")
-	})
-
-	t.Run("legacy plain reference matches declared emoji form", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "💻 Productivity"
-  packages:
-    - url: https://example.com/installer.pkg
-      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-      categories:
-        - "Productivity"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
+		cats := parse(t, "      categories:\n        - somevalue\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Equal(t, []string{"somevalue"}, cats.Value)
 	})
 }
