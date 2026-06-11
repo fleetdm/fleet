@@ -5763,12 +5763,17 @@ func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*
 	const stmt = `
 INSERT INTO
 	abm_tokens
-	(organization_name, apple_id, terms_expired, renew_at, token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	(organization_name, apple_id, terms_expired, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id, ipados_default_team_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
+	}
+
+	urlToken, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating random token for ABM enrollment URL")
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -5779,6 +5784,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		tok.TermsExpired,
 		tok.RenewAt,
 		doubleEncTok,
+		urlToken,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
 		tok.IPadOSDefaultTeamID,

@@ -2276,6 +2276,11 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile")
 	}
 
+	if machineInfo.MandatorySoftwareUpdateRequired {
+		// Log an info message if the device is requiring a mandatory software update.
+		svc.logger.InfoContext(ctx, "device requires mandatory software update", "host_uuid", machineInfo.UDID, "serial", machineInfo.Serial, "product", machineInfo.Product, "os_version", machineInfo.OSVersion)
+	}
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)

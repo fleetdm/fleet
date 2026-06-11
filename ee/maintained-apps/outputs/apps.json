@@ -30,6 +30,41 @@
       "description": "1Password is a password manager that keeps all passwords secure behind one password."
     },
     {
+      "name": "4K Slideshow Maker",
+      "slug": "4k-slideshow-maker/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kslideshowmaker",
+      "description": "4K Slideshow Maker is a slideshow maker."
+    },
+    {
+      "name": "4K Stogram",
+      "slug": "4k-stogram/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kstogram",
+      "description": "4K Stogram is a tool to download Instagram photos, accounts, hashtags and locations."
+    },
+    {
+      "name": "4K Video Downloader",
+      "slug": "4k-video-downloader/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.4kdownload.ApplicationDirectories",
+      "description": "4K Video Downloader is a free video downloader."
+    },
+    {
+      "name": "4K Video to MP3",
+      "slug": "4k-video-to-mp3/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kvideotomp3",
+      "description": "4K Video to MP3 is a tool to convert any video to MP3."
+    },
+    {
+      "name": "4K YouTube to MP3",
+      "slug": "4k-youtube-to-mp3/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openmedia.4kyoutubetomp3",
+      "description": "4K YouTube to MP3 is a turn YouTube links into MP3 files."
+    },
+    {
       "name": "7-zip",
       "slug": "7-zip/windows",
       "platform": "windows",
@@ -1542,13 +1577,6 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
-      "name": "Dell Display Manager",
-      "slug": "dell-display-manager/windows",
-      "platform": "windows",
-      "unique_identifier": "Dell Display Manager",
-      "description": "Dell Display Manager is an application for managing Dell monitors, adjusting display settings, and arranging windows for multitasking."
-    },
-    {
       "name": "Devin Desktop",
       "slug": "devin-desktop/darwin",
       "platform": "darwin",
@@ -1668,6 +1696,27 @@
       "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
     },
     {
+      "name": "EagleFiler",
+      "slug": "eaglefiler/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.c-command.EagleFiler",
+      "description": "EagleFiler is a tool to organise files, archive e-mails, save Web pages and notes, search everything."
+    },
+    {
+      "name": "Easydict",
+      "slug": "easydict/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.izual.Easydict",
+      "description": "Easydict is a dictionary and translator app."
+    },
+    {
+      "name": "EasyFind",
+      "slug": "easyfind/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.grunenberg.EasyFind",
+      "description": "EasyFind is a tool to find files, folders, or contents in any file."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
@@ -1689,6 +1738,48 @@
       "description": "Egnyte is a client for the Egnyte cloud storage service."
     },
     {
+      "name": "ElectronMail",
+      "slug": "electronmail/darwin",
+      "platform": "darwin",
+      "unique_identifier": "github.comvladimiryElectronMail",
+      "description": "ElectronMail is an unofficial ProtonMail Desktop App."
+    },
+    {
+      "name": "Electrum",
+      "slug": "electrum/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.org.pythonmac.unspecified.Electrum",
+      "description": "Electrum is a bitcoin thin client."
+    },
+    {
+      "name": "Element",
+      "slug": "element/darwin",
+      "platform": "darwin",
+      "unique_identifier": "im.riot.app",
+      "description": "Element is a matrix collaboration client."
+    },
+    {
+      "name": "Elephas",
+      "slug": "elephas/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kamban.elephas",
+      "description": "Elephas is a personal AI Writing Assistant."
+    },
+    {
+      "name": "Elgato Camera Hub",
+      "slug": "elgato-camera-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.CameraHub",
+      "description": "Elgato Camera Hub is an elgato FACECAM configuration tool."
+    },
+    {
+      "name": "Elgato Capture Device Utility",
+      "slug": "elgato-capture-device-utility/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.CaptureDeviceUtility",
+      "description": "Elgato Capture Device Utility is an update and configure Elgato Capture devices."
+    },
+    {
       "name": "Elgato Control Center",
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
@@ -1701,6 +1792,13 @@
       "platform": "windows",
       "unique_identifier": "Elgato Control Center",
       "description": "Elgato Control Center is an app to control your Elgato key lights."
+    },
+    {
+      "name": "Elgato Game Capture HD",
+      "slug": "elgato-game-capture-hd/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.GameCaptureHD",
+      "description": "Elgato Game Capture HD is an elgato video capture and streaming app."
     },
     {
       "name": "Elgato Stream Deck",
@@ -1717,6 +1815,62 @@
       "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
+      "name": "Elgato Wave Link",
+      "slug": "elgato-wave-link/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.elgato.WaveLink",
+      "description": "Elgato Wave Link is a software custom-built for content creation."
+    },
+    {
+      "name": "Elmedia Player",
+      "slug": "elmedia-player/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Eltima.ElmediaPlayer.LSSharedFileList",
+      "description": "Elmedia Player is a video and audio player."
+    },
+    {
+      "name": "eM Client",
+      "slug": "emclient/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.emclient.mail.client",
+      "description": "eM Client is an email client."
+    },
+    {
+      "name": "Enpass",
+      "slug": "enpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "in.sinew.Enpass-Desktop",
+      "description": "Enpass is a password and credentials manager."
+    },
+    {
+      "name": "Ente Auth",
+      "slug": "ente-auth/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.ente.auth.mac",
+      "description": "Ente Auth is a desktop client for Ente Auth."
+    },
+    {
+      "name": "Epic Games Launcher",
+      "slug": "epic-games/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.epicgames.EpicGamesLauncher",
+      "description": "Epic Games Launcher is a launcher for *Epic Games* games."
+    },
+    {
+      "name": "Equinox",
+      "slug": "equinox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rlxone.equinox",
+      "description": "Equinox is a tool to create dynamic wallpapers."
+    },
+    {
+      "name": "EtreCheck",
+      "slug": "etrecheckpro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.etresoft.EtreCheck4",
+      "description": "EtreCheck is a utility to finds and fix problems on computer systems."
+    },
+    {
       "name": "Evernote",
       "slug": "evernote/darwin",
       "platform": "darwin",
@@ -1724,11 +1878,32 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
+      "name": "ExifCleaner",
+      "slug": "exifcleaner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.exifcleaner",
+      "description": "ExifCleaner is a metadata cleaner."
+    },
+    {
+      "name": "ExifRenamer",
+      "slug": "exifrenamer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.qdev.ExifRenamer",
+      "description": "ExifRenamer is a tool to rename digital photos, movie- and audio-clips."
+    },
+    {
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.expressvpn.ExpressVPN",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "ExtraDock",
+      "slug": "extradock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dignicy.extraDock",
+      "description": "ExtraDock is a tool to add fully customizable extra docks."
     },
     {
       "name": "Figma",
@@ -2137,11 +2312,158 @@
       "description": "Nota Gyazo GIF is a screenshot and screen recording tool."
     },
     {
+      "name": "Hammerspoon",
+      "slug": "hammerspoon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.hammerspoon.Hammerspoon",
+      "description": "Hammerspoon is a desktop automation application."
+    },
+    {
+      "name": "HandBrake",
+      "slug": "handbrake-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "fr.handbrake.HandBrake",
+      "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Hazel",
+      "slug": "hazel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.noodlesoft.Hazel",
+      "description": "Hazel is an automated organisation."
+    },
+    {
+      "name": "HazeOver",
+      "slug": "hazeover/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pointum.hazeover",
+      "description": "HazeOver is a windows manager and desktop organiser."
+    },
+    {
+      "name": "Helium",
+      "slug": "helium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.koushikdutta.Helium",
+      "description": "Helium is a macOS application."
+    },
+    {
+      "name": "Hex Fiend",
+      "slug": "hex-fiend/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ridiculousfish.HexFiend",
+      "description": "Hex Fiend is a hex editor focussing on speed."
+    },
+    {
+      "name": "HEY",
+      "slug": "hey-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hey.app.desktop",
+      "description": "HEY is an access the HEY email service."
+    },
+    {
+      "name": "Hidden Bar",
+      "slug": "hiddenbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.dwarvesv.minimalbar",
+      "description": "Hidden Bar is a utility to hide menu bar items."
+    },
+    {
+      "name": "Hides",
+      "slug": "hides/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sweetpproductions.Hides",
+      "description": "Hides is an app to hide all open apps except the current one."
+    },
+    {
+      "name": "HiDock",
+      "slug": "hidock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "design.rafa.HiDock",
+      "description": "HiDock is a set custom Dock settings for when on different displays."
+    },
+    {
+      "name": "Highlight",
+      "slug": "highlight-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.medal.highlight",
+      "description": "Highlight is a context-aware AI assistant."
+    },
+    {
+      "name": "Hive",
+      "slug": "hive-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hive.app",
+      "description": "Hive is an AI agent orchestrator for parallel coding across projects."
+    },
+    {
+      "name": "Home Assistant",
+      "slug": "home-assistant/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.robbie.HomeAssistant",
+      "description": "Home Assistant is a companion app for Home Assistant home automation software."
+    },
+    {
+      "name": "Homerow",
+      "slug": "homerow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superultra.Homerow",
+      "description": "Homerow is a keyboard shortcuts for every button on your screen."
+    },
+    {
+      "name": "Hot",
+      "slug": "hot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xs-labs.Hot",
+      "description": "Hot is a menu bar application that displays the CPU speed limit due to thermal issues."
+    },
+    {
+      "name": "HoudahSpot",
+      "slug": "houdahspot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.houdah.HoudahSpot6",
+      "description": "HoudahSpot is a file searching application."
+    },
+    {
+      "name": "HP Easy Admin",
+      "slug": "hp-easy-admin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hp.hp-easy-admin",
+      "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
+    },
+    {
+      "name": "Hubstaff",
+      "slug": "hubstaff/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.netsoft.Hubstaff",
+      "description": "Hubstaff is a work time tracker."
+    },
+    {
+      "name": "Huly",
+      "slug": "huly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "hc.hcengineering.Huly",
+      "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
       "unique_identifier": "co.zeit.hyper",
       "description": "Hyper is a terminal built on web technologies."
+    },
+    {
+      "name": "Hyperkey",
+      "slug": "hyperkey/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Hyperkey",
+      "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
+    },
+    {
+      "name": "i1Profiler",
+      "slug": "i1profiler/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.x-rite.i1Profiler",
+      "description": "i1Profiler is an automation and creative controls for photographers and designers."
     },
     {
       "name": "IBM Notifier",
@@ -2158,11 +2480,39 @@
       "description": "Icon Composer is an Apple tool to create multi-platform icons."
     },
     {
+      "name": "IconJar",
+      "slug": "iconjar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.iconjar.iconjar",
+      "description": "IconJar is an icon organiser."
+    },
+    {
+      "name": "IDAGIO",
+      "slug": "idagio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.idagio.desktop",
+      "description": "IDAGIO is a classical music streaming app."
+    },
+    {
+      "name": "iExplorer",
+      "slug": "iexplorer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macroplant.iExplorer",
+      "description": "iExplorer is an iOS device backup software and file manager."
+    },
+    {
       "name": "IINA",
       "slug": "iina/darwin",
       "platform": "darwin",
       "unique_identifier": "com.colliderli.iina",
       "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
+      "name": "iMazing Converter",
+      "slug": "imazing-converter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazingHEICConverterMac",
+      "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
     },
     {
       "name": "iMazing Profile Editor",
@@ -2193,6 +2543,13 @@
       "description": "iMazing is an iPhone management application."
     },
     {
+      "name": "ImHex",
+      "slug": "imhex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.WerWolv.ImHex",
+      "description": "ImHex is a hex editor for reverse engineers."
+    },
+    {
       "name": "Inkscape",
       "slug": "inkscape/darwin",
       "platform": "darwin",
@@ -2207,6 +2564,13 @@
       "description": "Inkscape is a vector graphics editor."
     },
     {
+      "name": "Input Source Pro",
+      "slug": "input-source-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.runjuu.Input-Source-Pro",
+      "description": "Input Source Pro is a tool for multi-language users."
+    },
+    {
       "name": "Insomnia",
       "slug": "insomnia/darwin",
       "platform": "darwin",
@@ -2219,6 +2583,13 @@
       "platform": "windows",
       "unique_identifier": "Insomnia",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
+      "name": "IntelliDock",
+      "slug": "intellidock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.mightymac.IntelliDock",
+      "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
       "name": "IntelliJ IDEA CE",
@@ -2256,11 +2627,32 @@
       "description": "Microsoft Intune Company Portal is the app for accessing company resources and managing devices in a secure environment."
     },
     {
+      "name": "InVesalius",
+      "slug": "invesalius/darwin",
+      "platform": "darwin",
+      "unique_identifier": "br.gov.cti.invesalius",
+      "description": "InVesalius is a 3D medical imaging reconstruction software."
+    },
+    {
+      "name": "IsThereNet",
+      "slug": "istherenet/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lowtechguys.IsThereNet",
+      "description": "IsThereNet is a your internet connection status at a glance."
+    },
+    {
       "name": "iTerm2",
       "slug": "iterm2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.googlecode.iterm2",
       "description": "iTerm2 is a terminal emulator alternative to Apple's Terminal app."
+    },
+    {
+      "name": "Itsycal",
+      "slug": "itsycal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.mowglii.ItsycalApp",
+      "description": "Itsycal is a menu bar calendar."
     },
     {
       "name": "Jabra Direct",
@@ -3586,6 +3978,13 @@
       "description": "PowerToys is a set of utilities from Microsoft for power users to tune and streamline their Windows experience for greater productivity."
     },
     {
+      "name": "PPPC Utility",
+      "slug": "pppc-utility/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jamf.opensource.pppcutility",
+      "description": "PPPC Utility is an open-source tool from Jamf for creating configuration profiles that contain Privacy Preferences Policy Control (PPPC) payloads."
+    },
+    {
       "name": "PreForm",
       "slug": "preform/darwin",
       "platform": "darwin",
@@ -3845,6 +4244,20 @@
       "description": "R is a free software environment for statistical computing and graphics."
     },
     {
+      "name": "Radio Silence",
+      "slug": "radio-silence/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.radiosilenceapp.client",
+      "description": "Radio Silence is a network monitor and firewall."
+    },
+    {
+      "name": "Raindrop.io",
+      "slug": "raindropio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.raindrop.macapp",
+      "description": "Raindrop.io is an all-in-one bookmark manager."
+    },
+    {
       "name": "Rancher Desktop",
       "slug": "rancher/darwin",
       "platform": "darwin",
@@ -3866,11 +4279,25 @@
       "description": "RapidAPI is an HTTP client that helps testing and describing APIs."
     },
     {
+      "name": "RapidWeaver",
+      "slug": "rapidweaver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realmacsoftware.rapidweaver8",
+      "description": "RapidWeaver is a web design software."
+    },
+    {
       "name": "Raycast",
       "slug": "raycast/darwin",
       "platform": "darwin",
       "unique_identifier": "com.raycast.macos",
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
+    },
+    {
+      "name": "Readest",
+      "slug": "readest/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.bilingify.readest",
+      "description": "Readest is an ebook reader."
     },
     {
       "name": "REAPER",
@@ -3887,11 +4314,116 @@
       "description": "REAPER is a digital audio production application."
     },
     {
+      "name": "Recents",
+      "slug": "recents/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lapier.Recents",
+      "description": "Recents is a file launcher."
+    },
+    {
+      "name": "Rectangle Pro",
+      "slug": "rectangle-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.knollsoft.Hookshot",
+      "description": "Rectangle Pro is a window snapping tool."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Rectangle",
       "description": "Rectangle is an app to move and resize windows using keyboard shortcuts or snap areas."
+    },
+    {
+      "name": "Recut",
+      "slug": "recut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinywins.recut",
+      "description": "Recut is a tool to remove silence from videos and automatically generate a cut list."
+    },
+    {
+      "name": "REDCINE-X PRO",
+      "slug": "redcine-x-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.red.RED-Tether",
+      "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
+    },
+    {
+      "name": "redis-pro",
+      "slug": "redis-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cmushroom.redis-pro",
+      "description": "redis-pro is a Redis desktop client."
+    },
+    {
+      "name": "Reflector",
+      "slug": "reflector/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.squirrels.Reflector-4",
+      "description": "Reflector is a wireless screen-mirroring application."
+    },
+    {
+      "name": "Reminders MenuBar",
+      "slug": "reminders-menubar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "br.com.damascenorafael.reminders-menubar",
+      "description": "Reminders MenuBar is a simple menu bar app to view and interact with reminders."
+    },
+    {
+      "name": "Remote Buddy",
+      "slug": "remote-buddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.iospirit.RemoteBuddy",
+      "description": "Remote Buddy is a tool to control apps and web videos from your phone."
+    },
+    {
+      "name": "Remote Desktop Manager",
+      "slug": "remote-desktop-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devolutions.remotedesktopmanager",
+      "description": "Remote Desktop Manager is an app that centralises all remote connections on a single platform."
+    },
+    {
+      "name": "Reqable",
+      "slug": "reqable/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.reqable.macosx",
+      "description": "Reqable is an advanced API Debugging Proxy."
+    },
+    {
+      "name": "Requestly",
+      "slug": "requestly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.requestly.beta",
+      "description": "Requestly is an app for intercepting and modifying HTTP requests."
+    },
+    {
+      "name": "Retcon",
+      "slug": "retcon/darwin",
+      "platform": "darwin",
+      "unique_identifier": "garden.lemon.Retcon",
+      "description": "Retcon is a drag-and-drop Git history editor."
+    },
+    {
+      "name": "RetroArch",
+      "slug": "retroarch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.libretro.RetroArch",
+      "description": "RetroArch is a frontend for emulators, game engines and media players (OpenGL graphics API)."
+    },
+    {
+      "name": "Retrobatch",
+      "slug": "retrobatch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.flyingmeat.Retrobatch",
+      "description": "Retrobatch is a batch image processor."
+    },
+    {
+      "name": "RewriteBar",
+      "slug": "rewritebar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.m91michel.rewritebar",
+      "description": "RewriteBar is an AI-powered writing assistant."
     },
     {
       "name": "Rider",
@@ -3908,6 +4440,69 @@
       "description": "Rider is a .NET IDE by JetBrains."
     },
     {
+      "name": "RightFont",
+      "slug": "rightfont/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rightfontapp.RightFont5",
+      "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
+    },
+    {
+      "name": "Rive",
+      "slug": "rive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.rive.editor",
+      "description": "Rive is a design tool for creating interactive graphics."
+    },
+    {
+      "name": "Rize",
+      "slug": "rize/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.rize",
+      "description": "Rize is an AI time tracker."
+    },
+    {
+      "name": "RoboFont",
+      "slug": "robofont/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.typemytype.robofont4",
+      "description": "RoboFont is a font editor."
+    },
+    {
+      "name": "RoboForm",
+      "slug": "roboform/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.SiberSystems.RoboForm",
+      "description": "RoboForm is a password manager and form filler application."
+    },
+    {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/darwin",
+      "platform": "darwin",
+      "unique_identifier": "chat.rocket",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
+      "name": "Rocket Typist",
+      "slug": "rocket-typist/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.witt-software.Rocket-Typist-3",
+      "description": "Rocket Typist is a text expander for common phrases."
+    },
+    {
+      "name": "Rocket",
+      "slug": "rocket/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.matthewpalmer.Rocket",
+      "description": "Rocket is an emoji picker for macOS."
+    },
+    {
+      "name": "Rocketman Choices Packager",
+      "slug": "rocketman-choices-packager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tech.rocketman.ChoicesPackager",
+      "description": "Rocketman Choices Packager is a utility for customising installer package choices."
+    },
+    {
       "name": "Royal TSX",
       "slug": "royal-tsx/darwin",
       "platform": "darwin",
@@ -3922,6 +4517,13 @@
       "description": "RStudio is an integrated development environment (IDE) for the R programming language."
     },
     {
+      "name": "RsyncUI",
+      "slug": "rsyncui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "no.blogspot.RsyncUI",
+      "description": "RsyncUI is a GUI for rsync."
+    },
+    {
       "name": "RubyMine",
       "slug": "rubymine/darwin",
       "platform": "darwin",
@@ -3934,6 +4536,13 @@
       "platform": "windows",
       "unique_identifier": "RubyMine",
       "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
+      "name": "RunJS",
+      "slug": "runjs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.lukehaas.runjs",
+      "description": "RunJS is a JavaScript playground that auto-evaluates as code is typed."
     },
     {
       "name": "RustDesk",

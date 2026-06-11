@@ -174,7 +174,6 @@ import DBeaverLite from "./DBeaverLite";
 import DBeaverUltimate from "./DBeaverUltimate";
 import DeepL from "./DeepL";
 import DellCommandUpdate from "./DellCommandUpdate";
-import DellDisplayManager from "./DellDisplayManager";
 import DevinDesktop from "./DevinDesktop";
 import DfuBlasterPro from "./DfuBlasterPro";
 import Dialpad from "./Dialpad";
@@ -185,22 +184,48 @@ import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
+import Eaglefiler from "./Eaglefiler";
+import Easydict from "./Easydict";
+import Easyfind from "./Easyfind";
 import Eclipse from "./Eclipse";
 import Edge from "./Edge";
 import Egnyte from "./Egnyte";
 import EightXEightWork from "./8X8Work";
+import Electronmail from "./Electronmail";
+import Electrum from "./Electrum";
+import Element from "./Element";
+import Elephas from "./Elephas";
+import ElgatoCameraHub from "./ElgatoCameraHub";
+import ElgatoCaptureDeviceUtility from "./ElgatoCaptureDeviceUtility";
 import ElgatoControlCenter from "./ElgatoControlCenter";
+import ElgatoGameCaptureHd from "./ElgatoGameCaptureHd";
 import ElgatoStreamDeck from "./ElgatoStreamDeck";
+import ElgatoWaveLink from "./ElgatoWaveLink";
+import ElmediaPlayer from "./ElmediaPlayer";
+import Emclient from "./Emclient";
+import Enpass from "./Enpass";
+import EnteAuth from "./EnteAuth";
+import EpicGames from "./EpicGames";
+import Equinox from "./Equinox";
+import Etrecheckpro from "./Etrecheckpro";
 import Evernote from "./Evernote";
 import Excel from "./Excel";
+import Exifcleaner from "./Exifcleaner";
+import Exifrenamer from "./Exifrenamer";
 import ExpressVpn from "./ExpressVpn";
 import Extension from "./Extension";
+import Extradock from "./Extradock";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
 import FileMakerPro from "./FileMakerPro";
 import Firefox from "./Firefox";
 import FleetDesktop from "./FleetDesktop";
 import Fork from "./Fork";
+import FourKSlideshowMaker from "./FourKSlideshowMaker";
+import FourKStogram from "./FourKStogram";
+import FourKVideoDownloader from "./FourKVideoDownloader";
+import FourKVideoToMp3 from "./FourKVideoToMp3";
+import FourKYoutubeToMp3 from "./FourKYoutubeToMp3";
 import Front from "./Front";
 import GarminExpress from "./GarminExpress";
 import Gather from "./Gather";
@@ -238,19 +263,50 @@ import Granola from "./Granola";
 import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
+import Hammerspoon from "./Hammerspoon";
+import HandbrakeApp from "./HandbrakeApp";
+import Hazel from "./Hazel";
+import Hazeover from "./Hazeover";
+import Helium from "./Helium";
+import HexFiend from "./HexFiend";
+import HeyDesktop from "./HeyDesktop";
+import Hiddenbar from "./Hiddenbar";
+import Hides from "./Hides";
+import Hidock from "./Hidock";
+import HighlightAi from "./HighlightAi";
+import HiveApp from "./HiveApp";
+import HomeAssistant from "./HomeAssistant";
+import Homerow from "./Homerow";
+import Hot from "./Hot";
+import Houdahspot from "./Houdahspot";
+import HpEasyAdmin from "./HpEasyAdmin";
+import Hubstaff from "./Hubstaff";
+import Huly from "./Huly";
 import Hyper from "./Hyper";
+import Hyperkey from "./Hyperkey";
+import I1Profiler from "./I1Profiler";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
+import Iconjar from "./Iconjar";
+import Idagio from "./Idagio";
+import Iexplorer from "./Iexplorer";
 import Iina from "./Iina";
+import ImazingConverter from "./ImazingConverter";
 import IMazingProfileEditor from "./IMazingProfileEditor";
+import Imhex from "./Imhex";
 import Inkscape from "./Inkscape";
+import InputSourcePro from "./InputSourcePro";
 import Insomnia from "./Insomnia";
+import Intellidock from "./Intellidock";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import Invesalius from "./Invesalius";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
+import Itsycal from "./Itsycal";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -406,6 +462,7 @@ import PowerMonitor from "./PowerMonitor";
 import Powerphotos from "./Powerphotos";
 import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
+import PppcUtility from "./PppcUtility";
 import Preform from "./Preform";
 import Principle from "./Principle";
 import Prism from "./Prism";
@@ -438,16 +495,46 @@ import QspacePro from "./QspacePro";
 import Quip from "./Quip";
 import Qview from "./Qview";
 import R from "./R";
+import RadioSilence from "./RadioSilence";
+import Raindropio from "./Raindropio";
 import RancherDesktop from "./RancherDesktop";
 import RapidApi from "./RapidApi";
+import Rapidweaver from "./Rapidweaver";
 import Raycast from "./Raycast";
+import Readest from "./Readest";
 import RealVncServer from "./RealVncServer";
 import Reaper from "./Reaper";
+import Recents from "./Recents";
 import Rectangle from "./Rectangle";
+import RectanglePro from "./RectanglePro";
+import Recut from "./Recut";
+import RedcineXPro from "./RedcineXPro";
+import RedisPro from "./RedisPro";
+import Reflector from "./Reflector";
+import RemindersMenubar from "./RemindersMenubar";
+import RemoteBuddy from "./RemoteBuddy";
+import RemoteDesktopManager from "./RemoteDesktopManager";
+import Reqable from "./Reqable";
+import Requestly from "./Requestly";
+import Retcon from "./Retcon";
+import Retroarch from "./Retroarch";
+import Retrobatch from "./Retrobatch";
+import Rewritebar from "./Rewritebar";
 import Rider from "./Rider";
+import Rightfont from "./Rightfont";
+import Rive from "./Rive";
+import Rize from "./Rize";
+import Robofont from "./Robofont";
+import Roboform from "./Roboform";
+import Rocket from "./Rocket";
+import RocketChat from "./RocketChat";
+import RocketmanChoicesPackager from "./RocketmanChoicesPackager";
+import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
+import Rsyncui from "./Rsyncui";
 import RubyMine from "./RubyMine";
+import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
 import RustRover from "./RustRover";
 import Sabnzbd from "./Sabnzbd";
@@ -671,6 +758,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "4k slideshow maker": FourKSlideshowMaker,
+  "4k stogram": FourKStogram,
+  "4k video downloader": FourKVideoDownloader,
+  "4k video to mp3": FourKVideoToMp3,
+  "4k youtube to mp3": FourKYoutubeToMp3,
   "7 zip": SevenZip,
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
@@ -846,7 +938,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   deepl: DeepL,
   "dell command update": DellCommandUpdate,
-  "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
   "dfu blaster pro": DfuBlasterPro,
   dialpad: Dialpad,
@@ -857,15 +948,36 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "draw.io": Drawio,
   dropbox: Dropbox,
   "duo desktop": DuoDesktop,
+  eaglefiler: Eaglefiler,
+  easydict: Easydict,
+  easyfind: Easyfind,
   eclipse: Eclipse,
   edge: MicrosoftEdge,
   edrawmax: WondershareEdrawmax,
   egnyte: Egnyte,
+  electronmail: Electronmail,
+  electrum: Electrum,
+  element: Element,
+  elephas: Elephas,
+  "elgato camera hub": ElgatoCameraHub,
+  "elgato capture device utility": ElgatoCaptureDeviceUtility,
   "elgato control center": ElgatoControlCenter,
+  "elgato game capture hd": ElgatoGameCaptureHd,
   "elgato stream deck": ElgatoStreamDeck,
+  "elgato wave link": ElgatoWaveLink,
+  "elmedia player": ElmediaPlayer,
   "eltima cloudmounter": Cloudmounter,
+  "em client": Emclient,
+  enpass: Enpass,
+  "ente auth": EnteAuth,
+  "epic games launcher": EpicGames,
+  equinox: Equinox,
+  etrecheck: Etrecheckpro,
   evernote: Evernote,
+  exifcleaner: Exifcleaner,
+  exifrenamer: Exifrenamer,
   expressvpn: ExpressVpn,
+  extradock: Extradock,
   falcon: Falcon,
   figma: Figma,
   "filemaker pro": FileMakerPro,
@@ -913,19 +1025,50 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "graphpad prism": Prism,
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
+  hammerspoon: Hammerspoon,
+  handbrake: HandbrakeApp,
+  hazel: Hazel,
+  hazeover: Hazeover,
+  helium: Helium,
+  "hex fiend": HexFiend,
+  hey: HeyDesktop,
+  "hidden bar": Hiddenbar,
+  hides: Hides,
+  hidock: Hidock,
+  highlight: HighlightAi,
+  hive: HiveApp,
+  "home assistant": HomeAssistant,
+  homerow: Homerow,
+  hot: Hot,
+  houdahspot: Houdahspot,
+  "hp easy admin": HpEasyAdmin,
+  hubstaff: Hubstaff,
+  huly: Huly,
   hyper: Hyper,
+  hyperkey: Hyperkey,
+  i1profiler: I1Profiler,
   "ibm notifier": IbmNotifier,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
+  iconjar: Iconjar,
+  idagio: Idagio,
+  iexplorer: Iexplorer,
   iina: Iina,
   imazing: IMazingProfileEditor,
+  "imazing converter": ImazingConverter,
   "imazing profile editor": IMazingProfileEditor,
+  imhex: Imhex,
   inkscape: Inkscape,
+  "input source pro": InputSourcePro,
   insomnia: Insomnia,
   insyncclient: DruvaInSync,
+  intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
+  invesalius: Invesalius,
+  istherenet: Istherenet,
   iterm2: ITerm,
+  itsycal: Itsycal,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
@@ -1087,6 +1230,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   powerphotos: Powerphotos,
   powershell: Powershell,
   powertoys: Powertoys,
+  "pppc utility": PppcUtility,
   preform: Preform,
   principle: Principle,
   prisma: Prisma,
@@ -1118,16 +1262,46 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   quip: Quip,
   qview: Qview,
   "r for windows": R,
+  "radio silence": RadioSilence,
+  "raindrop.io": Raindropio,
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
+  rapidweaver: Rapidweaver,
   raycast: Raycast,
+  readest: Readest,
   "realvnc server": RealVncServer,
   reaper: Reaper,
+  recents: Recents,
   rectangle: Rectangle,
+  "rectangle pro": RectanglePro,
+  recut: Recut,
+  "redcine-x pro": RedcineXPro,
+  "redis-pro": RedisPro,
+  reflector: Reflector,
+  "reminders menubar": RemindersMenubar,
+  "remote buddy": RemoteBuddy,
+  "remote desktop manager": RemoteDesktopManager,
+  reqable: Reqable,
+  requestly: Requestly,
+  retcon: Retcon,
+  retroarch: Retroarch,
+  retrobatch: Retrobatch,
+  rewritebar: Rewritebar,
   rider: Rider,
+  rightfont: Rightfont,
+  rive: Rive,
+  rize: Rize,
+  robofont: Robofont,
+  roboform: Roboform,
+  rocket: Rocket,
+  "rocket typist": RocketTypist,
+  "rocket.chat": RocketChat,
+  "rocketman choices packager": RocketmanChoicesPackager,
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
+  rsyncui: Rsyncui,
   rubymine: RubyMine,
+  runjs: Runjs,
   rustdesk: RustDesk,
   rustrover: RustRover,
   sabnzbd: Sabnzbd,

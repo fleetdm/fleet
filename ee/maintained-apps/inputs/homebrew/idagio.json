@@ -1,0 +1,10 @@
+{
+  "name": "IDAGIO",
+  "unique_identifier": "com.idagio.desktop",
+  "token": "idagio",
+  "installer_format": "dmg",
+  "slug": "idagio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
