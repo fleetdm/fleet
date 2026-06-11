@@ -6,18 +6,11 @@ package service
 //
 // Cryptographic choices for the POC:
 //   - Inbound JWTs from the Mac extension are ES256 (P-256). The kid in the
-//     header points to a PEM stored in mdm_apple_psso_key_ids.
-//   - "Asymmetric" JWE responses (key_request) use ECDH-ES with A256GCM,
-//     wrapped to the device's encryption pubkey.
-//   - "Symmetric" JWE responses (key_exchange, password_request) use
-//     A256GCM with the content-encryption key derived from KeyExchangeKey
-//     via HKDF-SHA256.
-//
-// TODO(apple-psso-spec): The exact claim names and the precise HKDF salt /
-// info bindings in Apple's published spec should be confirmed before this
-// POC ships to a real Mac. The names below ("key_exchange_key", "claims",
-// etc.) are clean-room placeholders; if Apple's framework rejects them, this
-// is the first place to look.
+//     header points to a PEM stored in mdm_apple_psso_keys.
+//   - JWE responses use ECDH-ES with A256GCM, wrapped to the device's
+//     registered encryption pubkey (resolved from the request's apv).
+//   - key_context blobs are sealed with A256GCM under a key derived from
+//     Fleet's PSSO signing key via HKDF-SHA256 — no per-device server state.
 
 import (
 	"context"
@@ -36,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -51,15 +45,13 @@ type pssoRequestType string
 const (
 	pssoRequestKey      pssoRequestType = "key_request"
 	pssoRequestExchange pssoRequestType = "key_exchange"
-	pssoRequestPassword pssoRequestType = "password_request"
 )
 
 // pssoTokenClaims models the union of claims an inbound token JWT can
-// carry. The real PSSO v2 Password login request identifies itself with
+// carry. The PSSO v2 Password login request identifies itself with
 // GrantType=="password" and carries a plaintext Password plus a JWECrypto
-// recipe describing how the response must be encrypted. The RequestType /
-// Encrypted* fields belong to an earlier handshake model and are retained
-// only so the legacy dispatch path still compiles.
+// recipe describing how the response must be encrypted; key requests and
+// key exchanges identify themselves via RequestType instead.
 type pssoTokenClaims struct {
 	jwt.RegisteredClaims
 
@@ -76,11 +68,29 @@ type pssoTokenClaims struct {
 	RequestType    pssoRequestType `json:"request_type,omitempty"`
 	OtherPublicKey string          `json:"other_publickey,omitempty"` // device DH public key (key_exchange)
 	KeyContext     string          `json:"key_context,omitempty"`     // server-sealed provisioned key, echoed back
+}
 
-	// Legacy symmetric password_request handshake (unused by the Password
-	// grant flow).
-	EncryptedPwd   string `json:"encrypted_password,omitempty"`
-	EncryptedNonce string `json:"encrypted_nonce,omitempty"`
+// pssoJWTLeeway is the clock-skew tolerance applied to inbound JWT time
+// claims. The default RegisteredClaims validation allows zero skew, so a Mac
+// whose clock runs even a second ahead of the server gets "token used before
+// issued" on every login.
+const pssoJWTLeeway = time.Minute
+
+// Valid overrides the embedded RegisteredClaims validation to apply
+// pssoJWTLeeway to exp, iat, and nbf. jwt/v4 has no parser-level leeway
+// option (that arrived in v5), so the claims type does it.
+func (c *pssoTokenClaims) Valid() error {
+	now := time.Now()
+	if !c.VerifyExpiresAt(now.Add(-pssoJWTLeeway), false) {
+		return jwt.ErrTokenExpired
+	}
+	if !c.VerifyIssuedAt(now.Add(pssoJWTLeeway), false) {
+		return jwt.ErrTokenUsedBeforeIssued
+	}
+	if !c.VerifyNotBefore(now.Add(pssoJWTLeeway), false) {
+		return jwt.ErrTokenNotValidYet
+	}
+	return nil
 }
 
 // pssoJWECrypto is the jwe_crypto claim the extension sends to tell Fleet how
@@ -96,8 +106,8 @@ type pssoJWECrypto struct {
 
 // parsePSSOInboundJWT verifies the inbound compact JWS using the device's
 // signing pubkey (resolved by kid) and returns the parsed claims plus the
-// associated device record.
-func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*pssoTokenClaims, *fleet.PSSODevice, error) {
+// signing key row that matched (its HostUUID identifies the device).
+func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*pssoTokenClaims, *fleet.PSSOKey, error) {
 	// First parse without verification to extract kid.
 	unverified, _, err := jwt.NewParser(jwt.WithoutClaimsValidation()).ParseUnverified(string(jwtBytes), &pssoTokenClaims{})
 	if err != nil {
@@ -109,15 +119,15 @@ func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*
 	}
 	kid = canonicalizeKID(kid)
 
-	device, keyID, err := svc.ds.GetPSSODeviceByKeyID(ctx, kid)
+	signKey, err := svc.ds.GetPSSOKey(ctx, kid)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "look up psso device by kid")
+		return nil, nil, ctxerr.Wrap(ctx, err, "look up psso key by kid")
 	}
-	if keyID.KeyType != fleet.PSSOKeyTypeSigning {
+	if signKey.KeyType != fleet.PSSOKeyTypeSigning {
 		return nil, nil, &fleet.BadRequestError{Message: "psso jwt kid does not reference a signing key"}
 	}
 
-	pub, err := parseECPublicKeyPEM([]byte(keyID.PEM))
+	pub, err := parseECPublicKeyPEM([]byte(signKey.PEM))
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "parse device signing pubkey")
 	}
@@ -132,7 +142,67 @@ func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*
 	if !ok || !tok.Valid {
 		return nil, nil, &fleet.BadRequestError{Message: "psso jwt claims invalid"}
 	}
-	return claims, device, nil
+	return claims, signKey, nil
+}
+
+// resolvePSSOEncryptionKey returns the registered encryption public key the
+// response JWE must be wrapped to. The device names its encryption key inside
+// the request's apv party-info blob ("Apple" || deviceEncKey || nonce), and
+// the extension registered that key under kid = base64url(SHA-256(raw key
+// bytes)) — so the kid is recomputed from apv and looked up. As a fallback
+// against any re-encoding of the key by Apple's framework, the raw point is
+// compared against each of the host's registered encryption keys. A key that
+// resolves but belongs to a different host, or doesn't resolve at all, is
+// rejected: responses are only ever encrypted to keys the host registered.
+func (svc *Service) resolvePSSOEncryptionKey(ctx context.Context, hostUUID, apvB64 string) (*ecdsa.PublicKey, error) {
+	apvRaw, err := decodeJOSEB64(apvB64)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decode apv")
+	}
+	fields, err := parseApplePartyInfo(apvRaw)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse apv party-info")
+	}
+	if len(fields) < 2 || string(fields[0]) != apvPartyLabel {
+		return nil, &fleet.BadRequestError{Message: "psso: apv is not an Apple party-info blob"}
+	}
+	encKeyRaw := fields[1]
+
+	sum := sha256.Sum256(encKeyRaw)
+	kid := canonicalizeKID(base64.RawURLEncoding.EncodeToString(sum[:]))
+	key, err := svc.ds.GetPSSOKey(ctx, kid)
+	switch {
+	case err == nil:
+		if key.KeyType != fleet.PSSOKeyTypeEncryption || key.HostUUID != hostUUID {
+			return nil, &fleet.BadRequestError{Message: "psso: apv key is not a registered encryption key for this device"}
+		}
+		return parseECPublicKeyPEM([]byte(key.PEM))
+	case !fleet.IsNotFound(err):
+		return nil, ctxerr.Wrap(ctx, err, "look up encryption key by apv kid")
+	}
+
+	apvPub, err := parseRawECPoint(encKeyRaw)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse apv encryption key")
+	}
+	hostKeys, err := svc.ds.ListPSSOKeys(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list psso keys for apv fallback")
+	}
+	for _, k := range hostKeys {
+		if k.KeyType != fleet.PSSOKeyTypeEncryption {
+			continue
+		}
+		pub, err := parseECPublicKeyPEM([]byte(k.PEM))
+		if err != nil {
+			svc.logger.WarnContext(ctx, "psso: skipping unparseable registered encryption key", "kid", k.KID, "err", err)
+			continue
+		}
+		if pub.Equal(apvPub) {
+			return pub, nil
+		}
+	}
+	return nil, &fleet.BadRequestError{Message: "psso: apv key is not a registered encryption key for this device"}
 }
 
 // canonicalizeKID normalizes a key ID to a stable comparison form. Apple's
@@ -198,8 +268,8 @@ func parseRawECPoint(raw []byte) (*ecdsa.PublicKey, error) {
 }
 
 // buildAsymmetricJWE encrypts payload to deviceEncPub using JWE
-// ECDH-ES + A256GCM. Used for the key_request response that delivers the
-// initial KeyExchangeKey to the device.
+// ECDH-ES + A256GCM via go-jose's stock encrypter (empty apu/apv — see
+// buildPSSOResponseJWE for the Apple-party-info variant the handlers use).
 func buildAsymmetricJWE(payload []byte, deviceEncPub *ecdsa.PublicKey, kid string) ([]byte, error) {
 	enc, err := jose.NewEncrypter(
 		jose.A256GCM,
@@ -422,16 +492,15 @@ func decodeBase64Flexible(s string) ([]byte, error) {
 	return nil, errors.New("psso: value is not valid base64")
 }
 
-// pssoSessionInfo is the HKDF info string distinguishing PSSO session keys
-// from any other purpose KeyExchangeKey could be used for.
+// pssoSessionInfo is the HKDF info string distinguishing PSSO-derived keys
+// from any other derivation the same input keying material could feed.
 var pssoSessionInfo = []byte("fleetdm-psso-session-key-v1")
 
-// deriveSessionKey returns a 32-byte AES-256 key derived from the device's
-// KeyExchangeKey via HKDF-SHA256. The salt parameter binds the derivation
-// to a specific request (typically the request_nonce) so each sign-in uses
-// a distinct content-encryption key.
-func deriveSessionKey(kek []byte, salt []byte) ([]byte, error) {
-	r := hkdf.New(sha256.New, kek, salt, pssoSessionInfo)
+// deriveSessionKey returns a 32-byte AES-256 key derived from ikm via
+// HKDF-SHA256. The salt parameter binds the derivation to a purpose (e.g.
+// the key_context info string in deriveKeyContextKey).
+func deriveSessionKey(ikm []byte, salt []byte) ([]byte, error) {
+	r := hkdf.New(sha256.New, ikm, salt, pssoSessionInfo)
 	out := make([]byte, 32)
 	if _, err := r.Read(out); err != nil {
 		return nil, fmt.Errorf("hkdf read: %w", err)
@@ -440,8 +509,8 @@ func deriveSessionKey(kek []byte, salt []byte) ([]byte, error) {
 }
 
 // buildSymmetricJWE returns an A256GCM JWE of payload, keyed by sessionKey.
-// Used for key_exchange and password_request responses where the device
-// has already established a shared secret via the KeyExchangeKey handshake.
+// Used to seal key_context blobs so the provisioned private key can
+// round-trip statelessly between key_request and key_exchange.
 func buildSymmetricJWE(payload []byte, sessionKey []byte) ([]byte, error) {
 	if len(sessionKey) != 32 {
 		return nil, fmt.Errorf("psso: session key must be 32 bytes, got %d", len(sessionKey))
@@ -476,9 +545,8 @@ func buildSymmetricJWE(payload []byte, sessionKey []byte) ([]byte, error) {
 	return json.Marshal(envelope)
 }
 
-// decryptSymmetricBlob is the inverse of buildSymmetricJWE — used in
-// password_request to decrypt the password the device sent under the
-// previously-established session key.
+// decryptSymmetricBlob is the inverse of buildSymmetricJWE — used to open
+// the key_context blob a device echoes back in a key-exchange request.
 func decryptSymmetricBlob(blob []byte, sessionKey []byte) ([]byte, error) {
 	if len(sessionKey) != 32 {
 		return nil, fmt.Errorf("psso: session key must be 32 bytes, got %d", len(sessionKey))
@@ -517,7 +585,7 @@ func (svc *Service) signServerJWT(ctx context.Context, claims jwt.Claims) ([]byt
 	tok.Header["kid"] = kid
 	signed, err := tok.SignedString(key)
 	if err != nil {
-		return nil, fmt.Errorf("sign server jwt: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "sign server jwt")
 	}
 	return []byte(signed), nil
 }

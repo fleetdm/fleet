@@ -27,7 +27,7 @@ type Service struct {
 	// PSSO POC. Required for PSSO nonce/register/token flows.
 	pssoNonceStore fleet.PSSONonceStore
 
-	// pssoIdPClient validates passwords for the PSSO password_request flow.
+	// pssoIdPClient validates passwords for the PSSO password login flow.
 	// Wired via SetPSSOIdPClient.
 	pssoIdPClient fleet.PSSOIdPClient
 
