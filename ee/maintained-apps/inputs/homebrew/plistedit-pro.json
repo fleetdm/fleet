@@ -1,0 +1,10 @@
+{
+  "name": "PlistEdit Pro",
+  "unique_identifier": "com.fatcatsoftware.pledpro",
+  "token": "plistedit-pro",
+  "installer_format": "zip",
+  "slug": "plistedit-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

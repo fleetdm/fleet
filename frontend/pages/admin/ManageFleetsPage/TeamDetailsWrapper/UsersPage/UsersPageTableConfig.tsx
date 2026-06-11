@@ -1,6 +1,7 @@
 import React from "react";
 
 import stringUtils from "utilities/strings";
+import permissions from "utilities/permissions";
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -82,7 +83,8 @@ export const renderApiUserIndicator = () => {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateColumnConfigs = (
-  actionSelectHandler: (value: string, user: IUser) => void
+  actionSelectHandler: (value: string, user: IUser) => void,
+  currentUser: IUser | null
 ): IDataColumn[] => {
   return [
     {
@@ -162,16 +164,47 @@ const generateColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IActionsDropdownProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
-          variant="small-button"
-        />
-      ),
+      Cell: (cellProps: IActionsDropdownProps) => {
+        const rowUser = cellProps.row.original;
+        // A team admin can only manage users that are members of fleets they
+        // administer. If the user also belongs to other fleets the current user
+        // is not an admin of, the actions are disabled (mirrors the backend
+        // authorization rule).
+        const canManageUser = permissions.isAdminForAllUserTeams(
+          currentUser,
+          rowUser
+        );
+
+        const dropdown = (
+          <ActionsDropdown
+            options={cellProps.cell.value}
+            onChange={(value: string) => actionSelectHandler(value, rowUser)}
+            placeholder="Actions"
+            variant="small-button"
+            disabled={!canManageUser}
+          />
+        );
+
+        if (canManageUser) {
+          return dropdown;
+        }
+
+        return (
+          <TooltipWrapper
+            position="top"
+            showArrow
+            underline={false}
+            tipContent={
+              <>
+                This user can&apos;t be managed because they&apos;re a member of
+                other fleets you&apos;re not an admin of.
+              </>
+            }
+          >
+            {dropdown}
+          </TooltipWrapper>
+        );
+      },
     },
   ];
 };

@@ -1,0 +1,10 @@
+{
+  "name": "Dot",
+  "unique_identifier": "com.dot.app",
+  "token": "dot",
+  "installer_format": "dmg",
+  "slug": "dot/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}
