@@ -998,12 +998,12 @@ func TestRecordCalendarFailureActivity(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	type recorded struct {
-		acts []fleet.ActivityTypeFailedCalendarPolicyAutomation
+		acts []fleet.ActivityTypeFailedAutomationCalendarEvent
 	}
 	newRecorder := func(r *recorded) activity_api.NewActivityService {
 		return &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
 			require.Nil(t, user)
-			act, ok := activity.(fleet.ActivityTypeFailedCalendarPolicyAutomation)
+			act, ok := activity.(fleet.ActivityTypeFailedAutomationCalendarEvent)
 			require.True(t, ok)
 			r.acts = append(r.acts, act)
 			return nil
@@ -1057,17 +1057,17 @@ func TestRecordCalendarFailureActivity(t *testing.T) {
 	})
 }
 
-func TestRecordCalendarCreatedActivity(t *testing.T) {
+func TestRecordCalendarRanActivity(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	type recorded struct {
-		acts []fleet.ActivityTypeCreatedCalendarEventPolicyAutomation
+		acts []fleet.ActivityTypeRanAutomationCalendarEvent
 	}
 	newRecorder := func(r *recorded) activity_api.NewActivityService {
 		return &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
 			require.Nil(t, user)
-			act, ok := activity.(fleet.ActivityTypeCreatedCalendarEventPolicyAutomation)
+			act, ok := activity.(fleet.ActivityTypeRanAutomationCalendarEvent)
 			require.True(t, ok)
 			r.acts = append(r.acts, act)
 			return nil

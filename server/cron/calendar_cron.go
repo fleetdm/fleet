@@ -26,7 +26,7 @@ const (
 	reloadFrequency   = 30 * time.Minute
 )
 
-// recordCalendarFailureActivity records a failed_calendar_policy_automation
+// recordCalendarFailureActivity records a failed_automation_calendar_event
 // activity for the given host when err is a failure returned by the remote
 // calendar provider (internal errors are ignored).
 func recordCalendarFailureActivity(
@@ -55,7 +55,7 @@ func recordCalendarFailureActivity(
 			continue
 		}
 		policyID := uint(id)
-		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedCalendarPolicyAutomation{
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationCalendarEvent{
 			PolicyID:      policyID,
 			HostIDList:    []uint{host.HostID},
 			StatusCode:    statusCode,
@@ -67,7 +67,7 @@ func recordCalendarFailureActivity(
 	}
 }
 
-// recordCalendarCreatedActivity records a created_calendar_event_policy_automation
+// recordCalendarCreatedActivity records a ran_automation_calendar_event
 // activity for the given host after a maintenance-window calendar event is
 // successfully created, one per failing calendar policy the host belongs to.
 func recordCalendarCreatedActivity(
@@ -91,7 +91,7 @@ func recordCalendarCreatedActivity(
 			continue
 		}
 		policyID := uint(id)
-		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeCreatedCalendarEventPolicyAutomation{
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationCalendarEvent{
 			PolicyID:   policyID,
 			HostIDList: []uint{host.HostID},
 		}); actErr != nil {

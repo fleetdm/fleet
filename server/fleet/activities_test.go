@@ -121,14 +121,14 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 
 func TestFailedPolicyAutomationActivities(t *testing.T) {
 	t.Run("calendar", func(t *testing.T) {
-		act := ActivityTypeFailedCalendarPolicyAutomation{
+		act := ActivityTypeFailedAutomationCalendarEvent{
 			PolicyID:      14,
 			HostIDList:    []uint{42},
 			StatusCode:    403,
 			ErrorResponse: "Rate Limit Exceeded",
 		}
 
-		assert.Equal(t, "failed_calendar_policy_automation", act.ActivityName())
+		assert.Equal(t, "failed_automation_calendar_event", act.ActivityName())
 		assert.Equal(t, []uint{42}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
@@ -154,13 +154,13 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		assert.False(t, hasPolicyName)
 	}
 
-	t.Run("calendar event created", func(t *testing.T) {
-		act := ActivityTypeCreatedCalendarEventPolicyAutomation{
+	t.Run("calendar event ran", func(t *testing.T) {
+		act := ActivityTypeRanAutomationCalendarEvent{
 			PolicyID:   14,
 			HostIDList: []uint{42},
 		}
 
-		assert.Equal(t, "created_calendar_event_policy_automation", act.ActivityName())
+		assert.Equal(t, "ran_automation_calendar_event", act.ActivityName())
 		assert.Equal(t, []uint{42}, act.HostIDs())
 		assert.True(t, act.WasFromAutomation())
 
