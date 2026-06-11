@@ -260,18 +260,30 @@ import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
 import Hyper from "./Hyper";
+import I1Profiler from "./I1Profiler";
+import IbmAsperaConnect from "./IbmAsperaConnect";
 import IbmNotifier from "./IbmNotifier";
 import IconComposer from "./IconComposer";
+import Iconjar from "./Iconjar";
+import Idagio from "./Idagio";
+import Iexplorer from "./Iexplorer";
 import Iina from "./Iina";
+import ImazingConverter from "./ImazingConverter";
 import IMazingProfileEditor from "./IMazingProfileEditor";
+import Imhex from "./Imhex";
 import Inkscape from "./Inkscape";
+import InputSourcePro from "./InputSourcePro";
 import Insomnia from "./Insomnia";
+import Intellidock from "./Intellidock";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
+import Invesalius from "./Invesalius";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
+import Itsycal from "./Itsycal";
 import JabraDirect from "./JabraDirect";
 import Jami from "./Jami";
 import Jamovi from "./Jamovi";
@@ -641,19 +653,6 @@ import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 import Zulip from "./Zulip";
 import Zwift from "./Zwift";
-
-import I1Profiler from "./I1Profiler";
-import IbmAsperaConnect from "./IbmAsperaConnect";
-import Iconjar from "./Iconjar";
-import Idagio from "./Idagio";
-import Iexplorer from "./Iexplorer";
-import ImazingConverter from "./ImazingConverter";
-import Imhex from "./Imhex";
-import InputSourcePro from "./InputSourcePro";
-import Intellidock from "./Intellidock";
-import Invesalius from "./Invesalius";
-import Istherenet from "./Istherenet";
-import Itsycal from "./Itsycal";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -924,18 +923,30 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
   hyper: Hyper,
+  i1profiler: I1Profiler,
+  "ibm aspera connect": IbmAsperaConnect,
   "ibm notifier": IbmNotifier,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
+  iconjar: Iconjar,
+  idagio: Idagio,
+  iexplorer: Iexplorer,
   iina: Iina,
   imazing: IMazingProfileEditor,
+  "imazing converter": ImazingConverter,
   "imazing profile editor": IMazingProfileEditor,
+  imhex: Imhex,
   inkscape: Inkscape,
+  "input source pro": InputSourcePro,
   insomnia: Insomnia,
   insyncclient: DruvaInSync,
+  intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
+  invesalius: Invesalius,
+  istherenet: Istherenet,
   iterm2: ITerm,
+  itsycal: Itsycal,
   "jabra direct": JabraDirect,
   jami: Jami,
   jamovi: Jamovi,
@@ -1308,18 +1319,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,
-  i1profiler: I1Profiler,
-  "ibm aspera connect": IbmAsperaConnect,
-  iconjar: Iconjar,
-  idagio: Idagio,
-  iexplorer: Iexplorer,
-  "imazing converter": ImazingConverter,
-  imhex: Imhex,
-  "input source pro": InputSourcePro,
-  intellidock: Intellidock,
-  invesalius: Invesalius,
-  istherenet: Istherenet,
-  itsycal: Itsycal,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
