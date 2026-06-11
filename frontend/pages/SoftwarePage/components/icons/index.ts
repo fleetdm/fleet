@@ -865,6 +865,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   deepl: DeepL,
   "dell command update": DellCommandUpdate,
+  "dell display and peripheral manager": DellDisplayManager,
   "dell display manager": DellDisplayManager,
   "devin desktop": DevinDesktop,
   "dfu blaster pro": DfuBlasterPro,
