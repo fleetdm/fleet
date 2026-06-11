@@ -667,9 +667,23 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("view-software-library");
     });
 
-    it("surfaces the Controls page link (Free has access to Controls)", () => {
+    it("hides the Controls page link (lands on OS updates premium wall on Free)", () => {
+      // /controls redirects to the first permitted tab, which is OS
+      // updates — a premium-walled page on Free. Free users still reach
+      // the tier-free Controls sub-pages via their own palette entries
+      // (OS settings, Scripts, Variables).
       const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
-      expect(ids).toContain("controls-page");
+      expect(ids).not.toContain("controls-page");
+    });
+
+    it("hides OS updates, SSO end-users, and Identity provider (each renders <PremiumFeatureMessage /> on Free)", () => {
+      const items = buildPaletteItems(FREE_CONTEXT);
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("controls-os-updates");
+      const integrations = items.find((i) => i.id === "settings-integrations");
+      const subIds = integrations?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("settings-int-sso-end-users");
+      expect(subIds).not.toContain("settings-int-identity-provider");
     });
 
     it("surfaces Free-available Controls items: OS settings, Scripts, Variables", () => {
