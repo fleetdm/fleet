@@ -334,7 +334,7 @@ const PageOrComponent = (props) => {
 
 > NOTE: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).
 
-## Custom hooks
+### Custom hooks
 
 Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different fleet is selected.
 
@@ -351,7 +351,7 @@ Current custom hooks include:
 - [`usePlatformSelector`](../hooks/usePlatformSelector.tsx) — Manages platform-checkbox state (darwin/windows/linux/chrome) and renders the platform selector UI.
 - [`useQueryTargets`](../hooks/useQueryTargets.ts) — `react-query` wrapper that fetches and groups target hosts/labels/teams for a query.
 - [`useSoftwareInstallerMeta`](../hooks/useSoftwareInstallerMeta.ts) — Derives normalized metadata (installer type, FMA/VPP/Android flags, permissions, GitOps state) from a software title.
-- [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `team_id` URL param, resolving the current team and handling param strip/replace rules on team change.
+- [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `fleet_id` URL param, resolving the current fleet and handling param strip/replace rules on fleet change.
 - [`useToggleSidePanel`](../hooks/useToggleSidePanel.ts) — Simple open/closed state with toggle and explicit setter for a side panel.
 
 ## React context
