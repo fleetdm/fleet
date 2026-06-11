@@ -43,8 +43,7 @@ if ($exePath -match '(?i)msiexec') {
     if ($existingArgs -notmatch '(?i)/qn') { $existingArgs = ("$existingArgs /qn").Trim() }
     if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
 } else {
-    if ($existingArgs -notmatch '(?i)(^|\s)/S(\s|$)') { $existingArgs = ("$existingArgs /S").Trim() }
-    if ($existingArgs -notmatch '(?i)/v') { $existingArgs = ("$existingArgs /v/qn").Trim() }
+    if ($existingArgs -notmatch '(?i)/Silent') { $existingArgs = ("$existingArgs /Silent").Trim() }
 }
 
 Write-Host "Uninstall command: $exePath"
