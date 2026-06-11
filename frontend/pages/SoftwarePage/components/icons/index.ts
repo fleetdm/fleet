@@ -280,7 +280,6 @@ import Firefox from "./Firefox";
 import Fission from "./Fission";
 import FleetDesktop from "./FleetDesktop";
 import Flexoptix from "./Flexoptix";
-import Flowvision from "./Flowvision";
 import Fluid from "./Fluid";
 import FluxApp from "./FluxApp";
 import FocusriteControl2 from "./FocusriteControl2";
@@ -1120,7 +1119,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fission: Fission,
   "fleet desktop": FleetDesktop,
   "flexoptix app": Flexoptix,
-  flowvision: Flowvision,
   fluid: Fluid,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,

@@ -2382,13 +2382,6 @@
       "description": "FLEXOPTIX App is a connect to your FLEXBOX without cables and configure transceivers."
     },
     {
-      "name": "FlowVision",
-      "slug": "flowvision/darwin",
-      "platform": "darwin",
-      "unique_identifier": "netdcy.FlowVision",
-      "description": "FlowVision is a waterfall-style image viewer."
-    },
-    {
       "name": "Fluid",
       "slug": "fluid/darwin",
       "platform": "darwin",
