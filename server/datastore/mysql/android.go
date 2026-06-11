@@ -259,7 +259,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
-			team_id = :team_id,
 			detail_updated_at = :detail_updated_at,
 			label_updated_at = :label_updated_at,
 			hostname = :hostname,
@@ -277,7 +276,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
 			"id":                host.Host.ID,
-			"team_id":           host.TeamID,
 			"detail_updated_at": host.DetailUpdatedAt,
 			"label_updated_at":  host.LabelUpdatedAt,
 			"hostname":          host.Hostname,

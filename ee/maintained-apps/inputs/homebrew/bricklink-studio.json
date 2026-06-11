@@ -1,0 +1,10 @@
+{
+  "name": "BrickLink Studio",
+  "unique_identifier": "com.BrickLink.Studio",
+  "token": "bricklink-studio",
+  "installer_format": "pkg",
+  "slug": "bricklink-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

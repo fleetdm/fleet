@@ -1,0 +1,10 @@
+{
+  "name": "Soulver",
+  "unique_identifier": "app.soulver.mac",
+  "token": "soulver",
+  "installer_format": "zip",
+  "slug": "soulver/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

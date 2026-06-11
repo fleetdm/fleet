@@ -185,7 +185,11 @@ describe("SelfService", () => {
 
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
-    const dropdown = document.getElementById("react-select-9-listbox");
+    // react-select generates instance-numbered listbox IDs; read aria-controls
+    // off the combobox so this stays stable as more react-select instances are
+    // added/removed elsewhere on the page.
+    const listboxId = moreDropdown.getAttribute("aria-controls");
+    const dropdown = listboxId ? document.getElementById(listboxId) : null;
     if (!dropdown) {
       throw new Error("Could not find the dropdown actions");
     }

@@ -770,6 +770,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
+	if fromEnroll {
+		if err := svc.fleetDS.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(host.TeamID, []uint{host.Host.ID})); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting team for re-enrolled Android host")
+		}
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, []string{host.Host.UUID}, host.TeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "syncing android_devices team_id for re-enrolled Android host")
+		}
+	}
+
 	// Populate the operating_systems table so the host can be filtered via
 	// `GET /api/v1/fleet/hosts?os_name=Android&os_version=<version>` and show
 	// up in the /os_versions aggregation alongside other platforms.

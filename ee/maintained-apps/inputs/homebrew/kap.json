@@ -1,0 +1,10 @@
+{
+  "name": "Kap",
+  "unique_identifier": "com.wulkano.kap",
+  "token": "kap",
+  "installer_format": "dmg",
+  "slug": "kap/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -34,7 +34,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 
 import PolicyAutomationsFields, {
@@ -397,7 +397,7 @@ const SaveNewPolicyModal = ({
         />
         {platformSelector.render()}
         {isPremiumTier && (
-          <TargetLabelSelector
+          <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
             selectedCustomTarget={selectedCustomTarget}
             customTargetOptions={customTargetOptions}

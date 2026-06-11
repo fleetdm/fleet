@@ -340,6 +340,9 @@ type Datastore interface {
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostByUUID returns one host whose uuid column matches exactly. Unlike
+	// HostByIdentifier, it does not fall back to other identifier columns.
+	HostByUUID(ctx context.Context, uuid string) (*Host, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields using an
 	// "identifier" string. The identifier string will be matched against the
 	// hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
@@ -823,16 +826,29 @@ type Datastore interface {
 	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
 	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
+	// Software categories — per-fleet, user-managed categories used to group
+	// software (e.g. for the self-service UI).
+	ListSoftwareCategories(ctx context.Context, teamID uint) ([]SoftwareCategory, error)
+	SoftwareCategory(ctx context.Context, id uint) (*SoftwareCategory, error)
 	// NewSoftwareCategory creates a new category for software.
-	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
-	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
-	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
-	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+	NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*SoftwareCategory, error)
+	// BatchNewSoftwareCategories inserts multiple categories for a fleet.
+	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
+	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
+	DeleteSoftwareCategory(ctx context.Context, id uint) error
+	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.
+	GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error)
+	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 	// Only categories that exist in the database are included in the map.
-	GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error)
+	GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
 	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
+
+	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
+	// to queue for the host's "install all" action, in alphabetical order, optionally
+	// scoped to a category.
+	GetSoftwareTitlesForInstallAll(ctx context.Context, host *Host, categoryID *uint) ([]*HostSoftwareWithInstaller, *string, error)
 
 	// AssociateMDMInstallToVerificationUUID updates the verification command UUID associated with the
 	// given install attempt (InstallApplication command).
@@ -941,6 +957,22 @@ type Datastore interface {
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
+
+	// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs. It is used to un-skip only the
+	// setup-experience-gating policies for a host in setup experience, rather than the host's entire team policy set.
+	PolicyQueriesForHostFiltered(ctx context.Context, host *Host, policyIDs []uint) (map[string]string, error)
+
+	// GetSetupExperiencePolicyResult returns the host's fresh (recorded at or after `since`) pass/fail result for the given
+	// gating policy, or nil if there is no fresh definitive result yet. Used by setup experience to gate an install.
+	GetSetupExperiencePolicyResult(ctx context.Context, hostID, policyID uint, since time.Time) (*bool, error)
+
+	// ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies, so the next report
+	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
+	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
+
+	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
+	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
+	ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error
 
 	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
@@ -2893,6 +2925,16 @@ type Datastore interface {
 
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*SetupExperienceStatusResult, error)
+
+	// GetSetupExperiencePolicyIDsForHost returns the distinct policy IDs gating the host's non-terminal setup-experience
+	// software items, i.e. the only policies setup experience should run during setup. An item is gated by every policy whose
+	// install-software automation points at its installer, so this returns all of them, not just one per item.
+	GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error)
+
+	// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the
+	// given software installer (scoped to the installer's team). The setup-experience gate skips the install only if every
+	// in-scope policy passes, and installs if any fails.
+	GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error)
 
 	// UpdateSetupExperienceStatusResult updates the given setup experience status result.
 	UpdateSetupExperienceStatusResult(ctx context.Context, status *SetupExperienceStatusResult) error
