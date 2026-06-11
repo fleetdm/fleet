@@ -169,18 +169,12 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		return ctxerr.Wrap(ctx, err, "deleting old policy labels")
 	}
 
-	// A policy may combine at most one include scope (any/all) with at most one
-	// exclude scope (any/all); that's enforced by PolicyPayload.Verify. Each
-	// scope maps to a (exclude, require_all) pair in policy_labels:
-	//
-	//	include_any -> exclude=0, require_all=0
-	//	include_all -> exclude=0, require_all=1
-	//	exclude_any -> exclude=1, require_all=0
-	//	exclude_all -> exclude=1, require_all=1
+	// Each scope maps to a (exclude, require_all) pair in policy_labels:
+	// include_any -> exclude=0, require_all=0
+	// include_all -> exclude=0, require_all=1
+	// exclude_any -> exclude=1, require_all=0
+	// exclude_all -> exclude=1, require_all=1
 	insertScope := func(labels []fleet.LabelIdent, exclude, requireAll bool) error {
-		if len(labels) == 0 {
-			return nil
-		}
 		names := make([]string, 0, len(labels))
 		for _, label := range labels {
 			names = append(names, label.LabelName)
@@ -207,17 +201,28 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		return nil
 	}
 
-	if err := insertScope(policy.LabelsIncludeAny, false, false); err != nil {
-		return err
+	// Only insert the scopes that actually have labels. PolicyPayload.Verify in the service layer
+	// enforces at most one include scope (any/all) and one exclude scope (any/all), so in practice
+	// at most two of these inserts run.
+	if len(policy.LabelsIncludeAny) > 0 {
+		if err := insertScope(policy.LabelsIncludeAny, false, false); err != nil {
+			return err
+		}
 	}
-	if err := insertScope(policy.LabelsIncludeAll, false, true); err != nil {
-		return err
+	if len(policy.LabelsIncludeAll) > 0 {
+		if err := insertScope(policy.LabelsIncludeAll, false, true); err != nil {
+			return err
+		}
 	}
-	if err := insertScope(policy.LabelsExcludeAny, true, false); err != nil {
-		return err
+	if len(policy.LabelsExcludeAny) > 0 {
+		if err := insertScope(policy.LabelsExcludeAny, true, false); err != nil {
+			return err
+		}
 	}
-	if err := insertScope(policy.LabelsExcludeAll, true, true); err != nil {
-		return err
+	if len(policy.LabelsExcludeAll) > 0 {
+		if err := insertScope(policy.LabelsExcludeAll, true, true); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -6534,9 +6534,6 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	// | label 1          | X         | X         | X         | X            |              |                  | X             | X                |               |
 	// | label 2          | X         |           |           | X            |              |                  |               | X                | X             |
 	// | label both       | X         | X         |           | X            |              | X                | X             |                  |               |
-	//
-	// exclude_all both: host excluded only if a member of ALL of {label1,label2}.
-	// exclude_all 1:    host excluded if a member of ALL of {label1} (i.e. label1).
 
 	tcs := []struct {
 		Host     *fleet.Host

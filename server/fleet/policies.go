@@ -221,8 +221,6 @@ func verifyPolicyLabelScopes(includeAny, includeAll, excludeAny, excludeAll []st
 		return ErrPolicyConflictingExcludeLabels
 	}
 
-	// A label can't be both included and excluded. Reuse the same overlap check
-	// used for MDM profiles (see LabelOverlap).
 	include := slices.Concat(includeAny, includeAll)
 	exclude := slices.Concat(excludeAny, excludeAll)
 	if overlap := LabelOverlap(include, exclude); overlap != "" {
