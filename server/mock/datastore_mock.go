@@ -2090,6 +2090,10 @@ type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, 
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
 
+type SetOrUpdatePSSODeviceFunc func(ctx context.Context, device fleet.PSSODevice, signKeyID fleet.PSSOKeyID, encKeyID fleet.PSSOKeyID) error
+
+type GetPSSODeviceByKeyIDFunc func(ctx context.Context, kid string) (*fleet.PSSODevice, *fleet.PSSOKeyID, error)
+
 type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
@@ -5197,6 +5201,12 @@ type DataStore struct {
 
 	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
 	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
+
+	SetOrUpdatePSSODeviceFunc        SetOrUpdatePSSODeviceFunc
+	SetOrUpdatePSSODeviceFuncInvoked bool
+
+	GetPSSODeviceByKeyIDFunc        GetPSSODeviceByKeyIDFunc
+	GetPSSODeviceByKeyIDFuncInvoked bool
 
 	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
 	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
@@ -12442,6 +12452,20 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	s.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
+}
+
+func (s *DataStore) SetOrUpdatePSSODevice(ctx context.Context, device fleet.PSSODevice, signKeyID fleet.PSSOKeyID, encKeyID fleet.PSSOKeyID) error {
+	s.mu.Lock()
+	s.SetOrUpdatePSSODeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdatePSSODeviceFunc(ctx, device, signKeyID, encKeyID)
+}
+
+func (s *DataStore) GetPSSODeviceByKeyID(ctx context.Context, kid string) (*fleet.PSSODevice, *fleet.PSSOKeyID, error) {
+	s.mu.Lock()
+	s.GetPSSODeviceByKeyIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPSSODeviceByKeyIDFunc(ctx, kid)
 }
 
 func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
