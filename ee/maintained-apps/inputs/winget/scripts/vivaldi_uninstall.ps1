@@ -1,4 +1,6 @@
-# Uninstall Vivaldi (user-scoped Chromium-based browser)
+# Uninstall Vivaldi (machine-wide Chromium-based browser).
+# Looks up the uninstall entry under HKLM (machine install) with an HKCU
+# fallback, then runs the Chromium uninstaller with --force-uninstall.
 
 $displayName = "Vivaldi"
 
