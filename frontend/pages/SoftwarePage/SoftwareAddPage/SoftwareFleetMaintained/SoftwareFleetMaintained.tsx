@@ -45,7 +45,7 @@ const DEFAULT_SORT_HEADER = "name";
  * handle clientside pagination when we know API will be revamped and would need
  * to convert back to serverside after API fix.
  */
-const DEFAULT_PAGE_SIZE = 999;
+const DEFAULT_PAGE_SIZE = 5000;
 const DEFAULT_PAGE = 0;
 
 const SoftwareFleetMaintained = ({
