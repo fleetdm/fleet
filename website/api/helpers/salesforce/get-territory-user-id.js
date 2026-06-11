@@ -37,7 +37,10 @@ module.exports = {
     if(state && state.toLowerCase() !== 'california') {
       city = undefined;
     }
-    let apexInputs = new URLSearchParams({state, country, city});
+    let apexInputs = new URLSearchParams();
+    if(state) { apexInputs.append('state', state); }
+    if(country) { apexInputs.append('country', country); }
+    if(city) { apexInputs.append('city', city); }
 
     let territoryInformation = await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.apex.get(`/territory-lookup?${apexInputs.toString()}`);
