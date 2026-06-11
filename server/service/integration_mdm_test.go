@@ -21005,6 +21005,8 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 			},
 		}, http.StatusOK, &batchAssociateResponse,
 	)
+	// the batch response returns the categories it uses and added
+	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, batchAssociateResponse.Categories)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
