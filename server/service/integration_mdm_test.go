@@ -16143,14 +16143,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		iPhoneAccessToken,
 	)
 	require.NoError(t, iPhoneMdmDevice.Enroll())
-	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
+	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
-	assert.Equal(t, linkedIDPAccount.Email, "sso_user@example.com")
+	assert.Equal(t, "sso_user@example.com", linkedIDPAccount.Email)
 
 	iPadHwModel := "iPad14,5"
 	iPadMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
@@ -16178,7 +16178,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		iPadAccessToken,
 	)
 	require.NoError(t, iPadMdmDevice.Enroll())
-	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
+	assert.Equal(t, "sso_user2@example.com", iPadMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
@@ -16193,14 +16193,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		oldUrlIphoneAccessToken,
 	)
 	require.NoError(t, oldUrlIphoneMdmDevice.Enroll())
-	assert.Equal(t, oldUrlIphoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
+	assert.Equal(t, "sso_user2@example.com", oldUrlIphoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.Model, oldUrlIphoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
-	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
+	assert.Equal(t, "sso_user2@example.com", linkedIDPAccount.Email)
 
 	// Account driven enrollment is not yet supported for macOS devices so we expect an error in
 	// either case
@@ -16232,7 +16232,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 3)
 	for _, host := range listHostsRes.Hosts {
-		if host.UUID == iPhoneMdmDevice.EnrollmentID() {
+		switch host.UUID {
+		case iPhoneMdmDevice.EnrollmentID():
 			assert.Equal(t, iPhoneHwModel, host.HardwareModel)
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.UUID)
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.HardwareSerial)
@@ -16242,7 +16243,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Nil(t, host.TeamID)
 			id := host.ID
 			iPhoneHostID = &id
-		} else if host.UUID == iPadMdmDevice.EnrollmentID() {
+		case iPadMdmDevice.EnrollmentID():
 			assert.Equal(t, "ipados", host.Platform)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.UUID)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.HardwareSerial)
@@ -16253,7 +16254,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, team.ID, *host.TeamID)
 			id := host.ID
 			iPadHostID = &id
-		} else if host.UUID == oldUrlIphoneMdmDevice.EnrollmentID() {
+		case oldUrlIphoneMdmDevice.EnrollmentID():
 			// Primarily assert it was enrolled correctly and fallback to unassigned
 			assert.Equal(t, "ios", host.Platform)
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
@@ -21108,12 +21109,12 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 
 	res := serviceDiscoveryResponse{}
 	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
-	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
+	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath) // nolint:staticcheck // kept for backwards compatible testing
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 
 	// Verify /{token} path works and passes it through
 	s.DoJSON("GET", "/mdm/apple/service_discovery/fake-token", nil, http.StatusOK, &res)
-	require.Contains(t, res.Servers[0].BaseURL, fmt.Sprintf("%s/%s", apple_mdm.AccountDrivenEnrollPath, "fake-token"))
+	require.Contains(t, res.Servers[0].BaseURL, strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "fake-token", 1))
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }
 

@@ -35,6 +35,9 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "consuming account driven enrollment challenge")
 	}
+	if enrollChallenge == nil {
+		return nil, ctxerr.New(ctx, "invalid enrollment reference")
+	}
 
 	idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollChallenge.IdPAccountUUID)
 	if err != nil {
