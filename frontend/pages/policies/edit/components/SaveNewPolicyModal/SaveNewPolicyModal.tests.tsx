@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
@@ -57,7 +58,6 @@ describe("SaveNewPolicyModal", () => {
     isFetchingAutofillResolution: false,
     onClickAutofillDescription: jest.fn(),
     onClickAutofillResolution: jest.fn(),
-    labels: mockLabels,
     isGlobalPolicy: true,
     policyTeamId: undefined,
     automationsConfig: createMockConfig(),
@@ -99,6 +99,7 @@ describe("SaveNewPolicyModal", () => {
           isOnGlobalTeam: true,
           isPremiumTier: true,
           isSandboxMode: false,
+          currentTeam: createMockTeamSummary(),
           config: createMockConfig(),
         },
       },

@@ -16,14 +16,12 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IConfig } from "interfaces/config";
-import { ILabelSummary } from "interfaces/label";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
 
 import configAPI from "services/entities/config";
-import { listNamesFromSelectedLabels } from "services/entities/labels";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
 
@@ -32,17 +30,14 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import {
-  TargetLabelSelector,
-  ILabelTabConfig,
-  LabelTargetMode,
-  TargetType,
-} from "components/TargetLabelSelector";
+import { TargetLabelSelector } from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "pages/policies/components/PolicyAutomationsFields";
+import { usePolicyLabelTargets } from "pages/policies/hooks";
+import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -60,7 +55,6 @@ export interface ISaveNewPolicyModalProps {
   isFetchingAutofillResolution: boolean;
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
-  labels: ILabelSummary[];
   /** True when the new policy targets "All fleets" (global); only the
    *  webhook/ticket row is shown in the automations table. */
   isGlobalPolicy: boolean;
@@ -101,7 +95,6 @@ const SaveNewPolicyModal = ({
   isFetchingAutofillResolution,
   onClickAutofillDescription,
   onClickAutofillResolution,
-  labels,
   isGlobalPolicy,
   policyTeamId,
   automationsConfig,
@@ -128,23 +121,12 @@ const SaveNewPolicyModal = ({
     backendValidators
   );
 
-  const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
-    "All hosts"
-  );
-  const [
-    selectedIncludeMode,
-    setSelectedIncludeMode,
-  ] = useState<LabelTargetMode>("any");
-  const [
-    selectedExcludeMode,
-    setSelectedExcludeMode,
-  ] = useState<LabelTargetMode>("any");
-  const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
-    Record<string, boolean>
-  >({});
-  const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
-    Record<string, boolean>
-  >({});
+  const {
+    selectorProps,
+    selectedTargetType,
+    hasCustomLabels,
+    getLabelsPayload,
+  } = usePolicyLabelTargets();
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
@@ -160,64 +142,6 @@ const SaveNewPolicyModal = ({
       } as IPolicy),
     [policyTeamId]
   );
-
-  const includeTab: ILabelTabConfig = {
-    selectedLabels: selectedIncludeLabels,
-    onSelectLabel: ({ name, value }) =>
-      setSelectedIncludeLabels((prev) => ({ ...prev, [name]: value })),
-    showModeToggle: true,
-    mode: selectedIncludeMode,
-    onSelectMode: setSelectedIncludeMode,
-    anyTooltip: (
-      <>
-        Will only target hosts that have{" "}
-        <em>
-          <b>any</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-    allTooltip: (
-      <>
-        Will only target hosts that have{" "}
-        <em>
-          <b>all</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-  };
-
-  const excludeTab: ILabelTabConfig = {
-    selectedLabels: selectedExcludeLabels,
-    onSelectLabel: ({ name, value }) =>
-      setSelectedExcludeLabels((prev) => ({ ...prev, [name]: value })),
-    showModeToggle: true,
-    mode: selectedExcludeMode,
-    onSelectMode: setSelectedExcludeMode,
-    anyTooltip: (
-      <>
-        Will not target hosts that have{" "}
-        <em>
-          <b>any</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-    allTooltip: (
-      <>
-        Will not target hosts that have{" "}
-        <em>
-          <b>all</b>
-        </em>{" "}
-        of these labels.
-      </>
-    ),
-  };
-
-  const hasCustomLabels =
-    listNamesFromSelectedLabels(selectedIncludeLabels).length > 0 ||
-    listNamesFromSelectedLabels(selectedExcludeLabels).length > 0;
 
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
@@ -272,22 +196,7 @@ const SaveNewPolicyModal = ({
       critical: lastEditedQueryCritical,
     };
     if (isPremiumTier) {
-      const includeNames =
-        selectedTargetType === "Custom"
-          ? listNamesFromSelectedLabels(selectedIncludeLabels)
-          : [];
-      const excludeNames =
-        selectedTargetType === "Custom"
-          ? listNamesFromSelectedLabels(selectedExcludeLabels)
-          : [];
-      payload.labels_include_any =
-        selectedIncludeMode === "any" ? includeNames : [];
-      payload.labels_include_all =
-        selectedIncludeMode === "all" ? includeNames : [];
-      payload.labels_exclude_any =
-        selectedExcludeMode === "any" ? excludeNames : [];
-      payload.labels_exclude_all =
-        selectedExcludeMode === "all" ? excludeNames : [];
+      Object.assign(payload, getLabelsPayload());
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -457,13 +366,9 @@ const SaveNewPolicyModal = ({
         {platformSelector.render()}
         {isPremiumTier && (
           <TargetLabelSelector
+            {...selectorProps}
             className={`${baseClass}__target`}
-            selectedTargetType={selectedTargetType}
-            onSelectTargetType={setSelectedTargetType}
-            labels={labels || []}
-            include={includeTab}
-            exclude={excludeTab}
-            emptyStateDescription="Add a label to target a group of hosts."
+            emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
             onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
             disableOptions={disableForm}
           />
