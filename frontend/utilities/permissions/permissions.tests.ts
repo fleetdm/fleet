@@ -73,9 +73,9 @@ describe("permissions - isAdminForAllUserTeams", () => {
         { id: 2, name: "Team 2", role: "admin" },
       ],
     });
-    expect(
-      permissions.isAdminForAllUserTeams(teamAdminTeam1And2, target)
-    ).toBe(true);
+    expect(permissions.isAdminForAllUserTeams(teamAdminTeam1And2, target)).toBe(
+      true
+    );
   });
 
   it("prevents a team admin of one fleet but only observer of another from managing a user that belongs to both", () => {
