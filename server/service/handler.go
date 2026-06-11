@@ -1313,14 +1313,14 @@ func registerMDMServiceDiscovery(
 	fleetConfig config.FleetConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
-	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var mdmEnrollmentURL string
 		token := r.PathValue("token")
 		if token != "" {
-			mdmEnrollmentURL = fmt.Sprintf("%s/%s", fullMDMEnrollmentURL, url.PathEscape(token))
+			tokenPath := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", url.PathEscape(token), 1)
+			mdmEnrollmentURL = serverURLPrefix + tokenPath
 		} else {
-			mdmEnrollmentURL = fullMDMEnrollmentURL
+			mdmEnrollmentURL = serverURLPrefix + apple_mdm.AccountDrivenEnrollPath // nolint:staticcheck // deprecated path, kept for backwards compatibility
 		}
 
 		ctx := r.Context()

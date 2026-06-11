@@ -1414,8 +1414,31 @@ func insertMDMAppleHostDB(
 	fromPersonalEnrollment bool,
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
-	insertStmt := `
+
+	var args []any
+	extraColumns := ""
+	if mdmHost.TeamID != nil {
+		extraColumns += "team_id,"
+		args = append(args, *mdmHost.TeamID)
+	}
+
+	args = append(args, mdmHost.HardwareSerial,
+		mdmHost.UUID,
+		mdmHost.HardwareModel,
+		mdmHost.Platform,
+		lastEnrolledAt,
+		server.NeverTimestamp,
+		mdmHost.UUID,
+		refetchRequested)
+
+	var placeholders []string
+	for range args {
+		placeholders = append(placeholders, "?")
+	}
+
+	insertStmt := fmt.Sprintf(`
 		INSERT INTO hosts (
+			%s
 			hardware_serial,
 			uuid,
 			hardware_model,
@@ -1424,19 +1447,12 @@ func insertMDMAppleHostDB(
 			detail_updated_at,
 			osquery_host_id,
 			refetch_requested
-		) VALUES (?,?,?,?,?,?,?,?)`
+		) VALUES (%s)`, extraColumns, strings.Join(placeholders, ","))
 
 	res, err := tx.ExecContext(
 		ctx,
 		insertStmt,
-		mdmHost.HardwareSerial,
-		mdmHost.UUID,
-		mdmHost.HardwareModel,
-		mdmHost.Platform,
-		lastEnrolledAt,
-		server.NeverTimestamp,
-		mdmHost.UUID,
-		refetchRequested,
+		args...,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
