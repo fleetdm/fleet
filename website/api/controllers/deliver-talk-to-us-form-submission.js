@@ -113,6 +113,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
       enrichmentInformation: async()=>{
         return await sails.helpers.iq.getEnriched.with({
           emailAddress,
+          includeEmployerHeadquartersInformation: true,
         }).tolerate((err)=>{
           sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occurred while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
           return {};
