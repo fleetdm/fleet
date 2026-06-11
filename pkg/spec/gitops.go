@@ -1218,8 +1218,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 // validateOSUpdatesProfileConflict rejects a config that both configures managed
 // OS updates and includes a custom configuration profile that enforces OS
-// updates. The server checks it for non dry-runs. We replicate it here against the incoming
-// payload so dry-runs fail too.
+// updates. The server checks it for non-dry runs; we replicate it here against
+// the incoming payload so dry-runs fail too.
 func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 	macOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.MacOSUpdates)
 	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
