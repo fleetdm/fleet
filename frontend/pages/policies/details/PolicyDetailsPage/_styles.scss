@@ -71,4 +71,24 @@
     margin: 0;
     padding: 0;
   }
+
+  &__resolve dd {
+    white-space: normal;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    padding: $pad-xlarge;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+  }
+
+  &__properties {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }
