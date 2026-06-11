@@ -311,7 +311,7 @@ module.exports = {
             return location.is_primary === 1;
           });
           let locationInfo = {};
-          if(primaryLocation) {
+          if(primaryLocation && primaryLocation.location_address) {
             let systemPromptForAddressInformation = 'You are a precise data-extraction function. Respond with a single raw JSON object and nothing else.';
             let locationPrompt =
   `Extract the location from the following company headquarters address.
