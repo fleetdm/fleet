@@ -40,9 +40,9 @@ module.exports = {
     let apexInputs = new URLSearchParams({state, country, city});
 
     let territoryInformation = await sails.helpers.flow.build(async ()=>{
-      return await salesforceConnection.apex.get(`/territory-lookup?${apexInputs.toString()}`)
+      return await salesforceConnection.apex.get(`/territory-lookup?${apexInputs.toString()}`);
     }).intercept((err)=>{
-      throw new Error(`When sending a request to Salesforce to lookup the territory ID for an address (${require('util').inspect({state, city, country})}) an error occured. Full error: ${require('util').inspect(err)}`)
+      throw new Error(`When sending a request to Salesforce to lookup the territory ID for an address (${require('util').inspect({state, city, country})}) an error occured. Full error: ${require('util').inspect(err)}`);
     });
     if(!territoryInformation.users || !_.isArray(territoryInformation.users)) {
       throw new Error(`When looking up the territory ID for an address (${require('util').inspect({state, city, country})}), the information returned by Salesforce did not include a list of users. Territory information returned by Salesforce: ${require('util').inspect(territoryInformation)}`);
