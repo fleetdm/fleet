@@ -155,13 +155,31 @@ as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
 
-We tend to use explicit assignment of prop values, instead of object spread syntax:
+We strongly prefer explicit assignment of prop values over object spread syntax. In almost all cases, list every prop by name:
 
 ```tsx
 <ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
 
-There are a handful of legitimate exceptions — third-party library wrappers (react-select, react-table, react-markdown), typed SVG icon components, and locally-built factory/builder bags. These are catalogued, along with the security reasoning for each, in [spread-props-exceptions.md](./spread-props-exceptions.md). New spread usage should fit one of those categories or use explicit assignment.
+Spreading is hard to review (the reader can't see what's being passed), brittle under refactors (adding a key to the source bag silently changes the target), and on native DOM elements it's a real security footgun — anything in the bag (including `dangerouslySetInnerHTML`, `href`, `src`, event handlers) gets applied.
+
+#### Accepted exceptions
+
+Spread is acceptable in these cases:
+
+- **react-select 5 custom subcomponents** — the library contract requires forwarding the full internal props bag (`innerRef`, `innerProps`, `selectProps`, …) to `components.X`. The bag is library-generated, not user input.
+- **react-table v7 prop getters** (`getCellProps()`, `getRowProps()`, `getHeaderProps()`, `getToggleAllRowsSelectedProps()`) — the prop-getter pattern *is* the library's API. Cell data is rendered through `cell.render("Cell")`, never as attributes.
+- **react-markdown renderer overrides** (e.g. `code: ({...props}) => <code {...props}>`) — the bag is library-controlled HAST metadata, not raw markdown. **Special case**: if `rehype-raw` is enabled or the override sets `dangerouslySetInnerHTML`, the spread becomes an XSS sink. In that case, drop the spread, pull out specific attributes, and sanitize the HTML with `DOMPurify.sanitize` before injecting.
+- **Typed SVG icon components** (`SVGProps<SVGSVGElement>` flowing into `<svg>`, as in `pages/SoftwarePage/components/icons/*`) — the `SVGProps` type constrains callers to valid SVG attributes. Do *not* widen the prop type to `any` or `Record<string, unknown>`; that removes the guard that makes this safe.
+- **Test helpers, factories, and Storybook stories** — non-production code. The bag is built locally in the same file by code that owns its shape.
+
+#### Not safe — never spread
+
+Never spread props (especially anything derived from API responses, URLs, markdown source, MDM payloads, host facts, software metadata, or other external data) onto:
+
+`<a>`, `<img>`, `<iframe>`, `<object>`, `<embed>`, `<source>`, `<link>`, `<script>`, `<form>`, `<video>`, `<audio>`.
+
+For those elements, pick out `href` / `src` / etc. explicitly and validate the value (scheme allowlist, no `javascript:` URIs, etc.) before passing it.
 
 ### Naming handlers
 
