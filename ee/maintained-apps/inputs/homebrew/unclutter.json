@@ -1,0 +1,10 @@
+{
+  "name": "Unclutter",
+  "unique_identifier": "com.softwareambience.Unclutter",
+  "token": "unclutter",
+  "installer_format": "zip",
+  "slug": "unclutter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

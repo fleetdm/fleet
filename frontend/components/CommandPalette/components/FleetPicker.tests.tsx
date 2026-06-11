@@ -14,6 +14,20 @@ const renderPicker = (
 ): ReturnType<typeof renderInCommand> =>
   renderInCommand(<Command>{component}</Command>);
 
+// cmdk drives filtering off its own internal search state (mutated via
+// Command.Input). Rendering a Command.Input here lets a test type into
+// cmdk and exercise Command.Empty / row visibility the way the real
+// palette does.
+const renderPickerWithInput = (
+  component: React.ReactElement
+): ReturnType<typeof renderInCommand> =>
+  renderInCommand(
+    <Command>
+      <Command.Input aria-label="search" />
+      {component}
+    </Command>
+  );
+
 describe("FleetPicker", () => {
   const availableTeams = [
     { id: -1, name: "All fleets" },
@@ -27,6 +41,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={jest.fn()}
       />
     );
@@ -42,6 +57,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={jest.fn()}
       />
     );
@@ -59,6 +75,7 @@ describe("FleetPicker", () => {
       <FleetPicker
         availableTeams={availableTeams}
         currentTeam={availableTeams[2]}
+        search=""
         onSelect={onSelect}
       />
     );
@@ -68,7 +85,33 @@ describe("FleetPicker", () => {
   });
 
   it("renders empty (no items) when availableTeams is undefined", () => {
-    renderPicker(<FleetPicker onSelect={jest.fn()} />);
+    renderPicker(<FleetPicker search="" onSelect={jest.fn()} />);
     expect(screen.queryByText("Engineering")).not.toBeInTheDocument();
+  });
+
+  it("shows the contextual empty state when search matches no fleet", async () => {
+    const { user } = renderPickerWithInput(
+      <FleetPicker
+        availableTeams={availableTeams}
+        currentTeam={availableTeams[2]}
+        search="zzz-nope"
+        onSelect={jest.fn()}
+      />
+    );
+
+    // cmdk filters off its own input value. Typing here mirrors what the
+    // real palette does when the user types into Command.Input.
+    await user.type(screen.getByLabelText("search"), "zzz-nope");
+
+    expect(screen.getByText('No fleets match "zzz-nope".')).toBeInTheDocument();
+    expect(screen.queryByText("Engineering")).not.toBeInTheDocument();
+  });
+
+  it("shows the no-search empty copy when availableTeams is empty", () => {
+    renderPicker(
+      <FleetPicker availableTeams={[]} search="" onSelect={jest.fn()} />
+    );
+
+    expect(screen.getByText("No fleets found.")).toBeInTheDocument();
   });
 });

@@ -66,8 +66,8 @@ We test each browser on Windows whenever possible, because our engineering team 
 - Mobile Chrome on Android
 
 ### Note
-> - Mobile web is not yet supported in the Fleet product.
-> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
+> - Not every feature in the Fleet admin UI is easy to use from mobile browsers, though you can now access many features of Fleet via mobile browser.
+> - The Fleet admin user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
 
 ## What host operating systems does Fleet support?
 
@@ -136,7 +136,7 @@ It's common for security products to be falsely flagged as malicious because the
 
 Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
 
-If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/obit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
+If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/orbit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
 
 ### SLSA provenance attestation 🌶️
 

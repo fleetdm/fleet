@@ -1,4 +1,4 @@
-# Managing Google Chrome with Fleet
+# Managing Google Chrome on Windows with Fleet
 
 Use configuration profiles to enforce consistent Chrome browser settings across your Windows devices. Before configuring Chrome policies, you must first deploy the Google Chrome ADMX file to your devices — skipping this step will cause errors during verification or prevent policies from applying.
 
@@ -7,6 +7,11 @@ Use configuration profiles to enforce consistent Chrome browser settings across 
 - Administrative access to Fleet.
 - Windows devices enrolled in Fleet.
 - Basic familiarity with XML syntax and Group Policy concepts.
+
+
+**Resources:**
+- An example Google Chrome ADMX configuration profile is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/admx%20Google%20Chrome.xml) (May not be the latest version available)
+- An example configuration profile for enrolling your browsers into Chrome Enterprise Core for a Cloud-managed Chrome browser is available in our [GitHub solutions folder](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/enroll%20Google%20Chrome%20to%20enterprise%20console.xml)
 
 ---
 
@@ -19,12 +24,11 @@ Use configuration profiles to enforce consistent Chrome browser settings across 
 
 ## Step 2: Deploy the ADMX file to the device
 
-To apply Chrome policies, Windows needs the ADMX file to understand what settings are being configured. Do this by creating a configuration profile that deploys the file to your devices. For more information, see [Creating Windows CSPs: Ingesting custom ADMX templates](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
+To apply Chrome policies, Windows needs the ADMX file to understand what settings are being configured. Do this by creating a configuration profile that deploys the ADMX content to your devices. For more information, see [Creating Windows CSPs: Ingesting custom ADMX templates](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
 
 ### Create a configuration profile for ADMX ingestion
 
-1. In Fleet, navigate to **Configuration profiles** and create a new profile.
-2. Use the following XML to upload the `chrome.admx` file to the device's policy store:
+1. Create a new file in your editor of choice, and use the following template:
 
 ```xml
 <Add>
@@ -45,18 +49,37 @@ To apply Chrome policies, Windows needs the ADMX file to understand what setting
 
 **Note:**
 
-- Replace `<![CDATA[ ... ]]>` with the entire contents of the `chrome.admx` file.
+- Add the entire contents of the `chrome.admx` file into `<![CDATA[ ... ]]>`
 - This ensures the ADMX file is available for policy configuration on target devices.
+
+2. In Fleet, navigate to **Controls > OS settings > Configuration profiles** and add a profile.
+3. Select the .xml file you have just created.
 
 ---
 
-## Step 3: Configure Chrome policies
+## Step 3: Configure Chrome policies or enroll into Chrome Enterprise cloud management 
 
-Once the ADMX file is deployed, configure Chrome policies using the `<Replace>` block in a new or existing configuration profile.
+Once the ADMX file is deployed, you can configure Chrome policies using the `<Replace>` block in a new or existing configuration profile.
+
+### Example: enrolling devices in to Chrome Enterprise cloud management
+
+If you would like to enroll your Chrome browsers to control the settings from the [Google cloud management portal](https://chromeenterprise.google/products/chrome-enterprise-core/), you can deploy a profile with the relevant enrollment key. Replace the the x's with your key.
+
+```xml
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/CloudManagementEnrollmentToken</LocURI>
+    </Target>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Data>&lt;enabled/&gt;&lt;data id=&quot;CloudManagementEnrollmentToken&quot; value=&quot;xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&quot;/&gt;</Data>
+  </Item>
+</Replace>
+```
 
 ### Example: configuring `RelaunchNotification` and `RelaunchNotificationPeriod`
 
-Use the following XML to enforce Chrome policies. Note the use of `int` for REG_DWORD values (e.g., `RelaunchNotificationPeriod`):
+However, if you would like to manage your Chrome configuration by code, you can use profiles to configure any settings available from the ADMX file.
 
 ```xml
 <Replace>
@@ -88,8 +111,8 @@ Use the following XML to enforce Chrome policies. Note the use of `int` for REG_
 
 ## Step 4: Deploy and verify
 
-1. Assign the profile to the desired devices or groups in Fleet.
-2. **Refetch** the devices to apply the configuration.
+1. In Fleet, navigate to **Controls > OS settings > Configuration profiles** and add your new configuration profile.
+2. You can **Refetch** the devices to apply the configuration sooner.
 3. Verify the policies:
   - Open `regedit` on a target device and navigate to: `Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome`
   - Confirm that the policies (e.g., `RelaunchNotification`, `RelaunchNotificationPeriod`) appear with the correct values.
@@ -122,7 +145,7 @@ Use the following XML to enforce Chrome policies. Note the use of `int` for REG_
 - Explore additional Chrome policies in the [Chrome Enterprise Policy List](https://chromeenterprise.google/policies/).
 - Test policies in a staging environment before fleet-wide deployment.
 
-<meta name="articleTitle" value="Managing Google Chrome with Fleet">
+<meta name="articleTitle" value="Managing Google Chrome on Windows with Fleet">
 <meta name="authorFullName" value="Gray Williams">
 <meta name="authorGitHubUsername" value="GrayW">
 <meta name="category" value="guides">

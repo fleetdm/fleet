@@ -444,8 +444,8 @@ $max-width: 2560px;
   // TODO: find a way to calculate these sticky positions this and use variables.
   //  will be tedious to update otherwise.
   top: 217px;
-  width: 260px;
-  padding: 0 64px 0 0;
+  width: clamp(200px, 25vw, 260px);
+  padding: 0 clamp(48px, 6.25vw, 64px) 0 0;
   list-style: none;
   font-size: $x-small;
   display: flex;

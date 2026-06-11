@@ -1,0 +1,10 @@
+{
+  "name": "SC Menu",
+  "unique_identifier": "com.ttinc.sc-menu",
+  "token": "sc-menu",
+  "installer_format": "dmg",
+  "slug": "sc-menu/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

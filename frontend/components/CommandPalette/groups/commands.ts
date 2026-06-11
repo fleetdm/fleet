@@ -49,7 +49,7 @@ const buildCommandsItems = (
         ]
       : []),
 
-    // View commands — open sub-pages with searchable lists. Placed at
+    // View commands — open picker pages with searchable lists. Placed at
     // the top of the Commands group so view actions appear before write
     // actions like Add hosts within this group.
     {
@@ -68,7 +68,7 @@ const buildCommandsItems = (
         "search hosts",
       ],
       onAction: onViewHost,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     {
       id: "view-software",
@@ -88,7 +88,7 @@ const buildCommandsItems = (
         "inventory",
       ],
       onAction: onViewSoftware,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     // View software library — Premium-only and hidden on "All fleets" since
     // libraries are per-fleet.
@@ -107,11 +107,14 @@ const buildCommandsItems = (
               "vpp",
               "fma",
               "fleet-maintained",
+              "fleet maintained",
+              "app store",
+              "google play",
               "search software library",
               "search library",
             ],
             onAction: onViewSoftwareLibrary,
-            opensSubPage: true,
+            opensPickerPage: true,
           },
         ]
       : []),
@@ -131,7 +134,7 @@ const buildCommandsItems = (
         "search reports",
       ],
       onAction: onViewReport,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
     {
       id: "view-policy",
@@ -148,7 +151,7 @@ const buildCommandsItems = (
         "search policies",
       ],
       onAction: onViewPolicy,
-      opensSubPage: true,
+      opensPickerPage: true,
     },
 
     // Actions — users who can write
@@ -159,7 +162,17 @@ const buildCommandsItems = (
             label: "Add hosts",
             group: "Commands" as const,
             path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
-            keywords: ["enroll", "install", "fleetd", "device"],
+            keywords: [
+              "enroll",
+              "install",
+              "fleetd",
+              "device",
+              "create hosts",
+              "new hosts",
+              "register hosts",
+              "onboard",
+              "provision",
+            ],
           },
           {
             id: "add-report",
@@ -201,6 +214,16 @@ const buildCommandsItems = (
                     "software",
                     "managed app",
                     "fma",
+                    "create fleet-maintained app",
+                    "new fleet-maintained app",
+                    "add fleet maintained app",
+                    "create fleet maintained app",
+                    "new fleet maintained app",
+                    "create fma app",
+                    "new fma app",
+                    "add fma app",
+                    "create app",
+                    "new app",
                     "add app",
                   ],
                 },
@@ -218,6 +241,10 @@ const buildCommandsItems = (
                     "ios",
                     "ipados",
                     "macos",
+                    "create vpp app",
+                    "new vpp app",
+                    "create app",
+                    "new app",
                     "add app",
                   ],
                 },
@@ -228,7 +255,17 @@ const buildCommandsItems = (
                   path: withTeamId(
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
                   ),
-                  keywords: ["google play", "android", "play store", "add app"],
+                  keywords: [
+                    "google play",
+                    "android",
+                    "play store",
+                    "create android app",
+                    "new android app",
+                    "add android app",
+                    "create app",
+                    "new app",
+                    "add app",
+                  ],
                 },
                 {
                   id: "add-custom-package",
@@ -240,6 +277,10 @@ const buildCommandsItems = (
                     "upload",
                     "software",
                     "add package",
+                    "create package",
+                    "new package",
+                    "create custom package",
+                    "new custom package",
                     "pkg",
                     "ipa",
                     "msi",
@@ -250,6 +291,26 @@ const buildCommandsItems = (
                     "tar.gz",
                     "tarballs",
                     "sh",
+                  ],
+                },
+                {
+                  id: "add-self-service-category",
+                  label: "Add self-service category",
+                  group: "Commands" as const,
+                  // SelfServiceCategoriesPage opens its Add modal on
+                  // `?add_category=1`, mirroring the Variables/Scripts pattern.
+                  path: withTeamId(
+                    `${paths.SOFTWARE_LIBRARY_CATEGORIES}?add_category=1`
+                  ),
+                  keywords: [
+                    "add category",
+                    "create category",
+                    "new category",
+                    "self service",
+                    "self-service",
+                    "create self-service category",
+                    "new self-service category",
+                    "categories",
                   ],
                 },
               ]
@@ -274,6 +335,10 @@ const buildCommandsItems = (
                     "sh",
                     "ps1",
                     "create script",
+                    "new script",
+                    "bash",
+                    "powershell",
+                    "automation",
                   ],
                 },
                 // Custom Variables: page-side `canEdit` is global admin
@@ -296,6 +361,9 @@ const buildCommandsItems = (
                           "profiles",
                           "add variable",
                           "create variable",
+                          "new variable",
+                          "new custom variable",
+                          "create custom variable",
                         ],
                       },
                     ]
@@ -328,6 +396,8 @@ const buildCommandsItems = (
               "ad hoc",
               "query",
               "run report",
+              "execute report",
+              "execute live report",
             ],
             teamName: switchesFromUnassigned,
           },
@@ -342,7 +412,15 @@ const buildCommandsItems = (
             label: "Run live policy",
             group: "Commands" as const,
             path: withTeamId(paths.NEW_POLICY),
-            keywords: ["check", "compliance", "live", "ad hoc", "run policy"],
+            keywords: [
+              "check",
+              "compliance",
+              "live",
+              "ad hoc",
+              "run policy",
+              "execute policy",
+              "execute live policy",
+            ],
           },
           {
             id: "add-label",
@@ -356,6 +434,8 @@ const buildCommandsItems = (
               "filter",
               "dynamic",
               "manual",
+              "tag",
+              "group",
             ],
           },
           ...(canAccessSettings
@@ -434,7 +514,7 @@ const buildCommandsItems = (
       label: "Sign out",
       path: paths.LOGOUT,
       group: "Commands" as const,
-      keywords: ["logout", "log out", "sign out"],
+      keywords: ["logout", "log out", "exit", "quit"],
     },
   ];
 };

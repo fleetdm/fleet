@@ -1,0 +1,10 @@
+{
+  "name": "fig",
+  "unique_identifier": "com.mschrage.fig",
+  "token": "fig",
+  "installer_format": "dmg",
+  "slug": "fig/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -64,14 +64,16 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 ### Test plan
 <!-- Add detailed manual testing steps for all affected user roles. -->
 > Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/ui/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
-> 
-<!-- The following sections can be removed if they are inapplicable for this User Story -->
 
 #### Core flow
 <!-- Product TO DO -->
 - TODO
+
+#### Edge cases
+<!-- QA TO DO: replace the TODO with story-specific edge cases (invalid input, boundary conditions, missing config, deleted/modified related objects). -->
 - TODO
-- TODO
+
+<!-- 💡 Suggested checks below — un-comment any section that applies to this story, then fill it in.
 
 #### UI
 - [ ] Verify that all UI changes specified in the Figma wireframes are correctly implemented
@@ -90,25 +92,22 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Enable GitOps mode and verify the feature behaves correctly
 
 #### Permissions
-<!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all fleet-level access roles?  If not, write the steps used to test each variation.
--->
-- [ ] Verify role restrictions are applied correctly for **global roles**
+- [ ] Verify role restrictions are applied correctly for **global roles** (admin, maintainer, observer, observer+, GitOps)
 - [ ] Verify role restrictions are applied correctly for **fleet-level roles**
 
-#### Edge cases
+#### Premium gating (if this is a premium-only feature)
+- [ ] Verify the feature is blocked on Fleet Free in the **frontend** (UI hidden/disabled with appropriate messaging)
+- [ ] Verify the feature is blocked on Fleet Free in the **backend** (API returns the expected error, not just hidden in the UI)
 
-<!-- QA TO DO: Replace the TO DO below with relevant edge cases or remove this section if not applicable -->
+#### Upgrade / data migration
+- [ ] Verify behavior on a server upgraded from a prior version (not just a fresh install)
+- [ ] Verify existing data is migrated/handled correctly
 
-<!-- Edge case examples:
-1. Invalid or unexpected input values
-2. Boundary conditions
-3. Behavior when required configuration is missing
-4. Behavior when related objects are deleted or modified
+#### Feature in isolation (MDM / platform independence)
+- [ ] Verify the feature works on a fully configured server (all MDM platforms enabled)
+- [ ] Verify the feature works in isolation — e.g. Apple MDM **off**, Windows-only, Linux-only, or Android-only deployments as applicable
+
 -->
-
-- TODO
-- TODO
-- TODO
 
 #### Supplemental testing
 
@@ -124,5 +123,5 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.
 3. [ ] QA: Determined whether this story needs Playwright automation.
    - Needs automation: Yes / No
-   - If yes, filed a follow-up issue in the :help-qa project with status "Needs automation": TODO <!-- link -->
+   - If yes, filed a follow-up issue in the :help-qa project with status "Needs automation": <!-- link -->
 

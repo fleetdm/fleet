@@ -1,6 +1,7 @@
 import { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import sessionsAPI from "services/entities/sessions";
@@ -22,7 +23,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
         setTimeout(() => {
           window.location.href = isSandboxMode
             ? "https://www.fleetdm.com/logout"
-            : "/";
+            : PATHS.ROOT;
         }, 500);
       } catch (response) {
         console.error(response);

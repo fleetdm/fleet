@@ -27,6 +27,10 @@ export interface IInputFieldWithIconProps {
   disabled?: boolean;
   inputOptions?: React.InputHTMLAttributes<HTMLInputElement>;
   tooltip?: string;
+  /**
+   * Whether 1Password should skip this field.
+   * Defaults to `true` because most Fleet inputs are not credential fields.
+   */
   ignore1Password?: boolean;
   value?: string;
 }
@@ -48,7 +52,7 @@ const InputFieldWithIcon = ({
   disabled,
   inputOptions,
   tooltip,
-  ignore1Password,
+  ignore1Password = true,
   value,
 }: IInputFieldWithIconProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -144,7 +148,10 @@ const InputFieldWithIcon = ({
           value={value}
           disabled={disabled}
           {...inputOptions}
-          data-1p-ignore={ignore1Password}
+          // 1Password only checks for the presence (not the value) of `data-1p-ignore`,
+          // so we omit the attribute entirely when the field is not meant to be ignored.
+          // See https://developer.1password.com/docs/web/compatible-website-design/
+          data-1p-ignore={ignore1Password || undefined}
         />
         {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {clearButton && !!value && (

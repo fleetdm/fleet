@@ -1,0 +1,10 @@
+{
+  "name": "Arduino IDE",
+  "slug": "arduino-ide/windows",
+  "package_identifier": "ArduinoSA.IDE.stable",
+  "unique_identifier": "Arduino IDE",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

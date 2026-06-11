@@ -1,0 +1,10 @@
+{
+  "name": "Rocket Typist",
+  "unique_identifier": "com.witt-software.Rocket-Typist-3",
+  "token": "rocket-typist",
+  "installer_format": "dmg",
+  "slug": "rocket-typist/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

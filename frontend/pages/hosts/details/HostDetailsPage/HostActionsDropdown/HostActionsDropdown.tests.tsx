@@ -1620,6 +1620,40 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
 
+    it("shows Wipe for a COBO Android host on Fleet Free (Android Wipe is not Premium-gated)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      // Android (COBO) Wipe is available on Fleet Free.
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      // Lock and Clear passcode remain Premium-only, so they should not appear on Free tier.
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
     it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1714,14 +1748,6 @@ describe("Host Actions Dropdown", () => {
         enrollment: "On (automatic)" as const,
         deviceStatus: "clearing_passcode" as const,
         expectHidden: ["Lock", "Wipe", "Clear passcode"],
-      },
-      {
-        // BYO Android Unenroll fires AMAPI WIPE under the hood, so the pending-unenroll state
-        // surfaces as hostMdmDeviceStatus="wiping" with enrollment "On (personal)".
-        case: "BYO + wiping (= pending unenroll)",
-        enrollment: "On (personal)" as const,
-        deviceStatus: "wiping" as const,
-        expectHidden: ["Lock", "Clear passcode", "Unenroll"],
       },
     ])(
       "hides pending-gated actions for Android when $case (#41683)",

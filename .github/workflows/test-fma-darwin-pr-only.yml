@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -45,6 +45,7 @@ jobs:
           fetch-depth: 0 # Need full history to compare with base branch
           ref: ${{ github.ref }}
           path: fleet
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -88,6 +89,7 @@ jobs:
           if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
             echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            echo "has_icon_composer=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -98,6 +100,7 @@ jobs:
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
             echo "has_google_chrome=false" >> $GITHUB_OUTPUT
             echo "has_fleet_desktop=false" >> $GITHUB_OUTPUT
+            echo "has_icon_composer=false" >> $GITHUB_OUTPUT
             echo "No darwin apps changed, skipping Darwin workflow"
           else
             echo "has_darwin_apps=true" >> $GITHUB_OUTPUT
@@ -121,6 +124,14 @@ jobs:
             else
               echo "has_fleet_desktop=false" >> $GITHUB_OUTPUT
             fi
+
+            # Check if icon-composer/darwin is in the changed apps
+            if echo "$DARWIN_SLUGS" | grep -q "^icon-composer/darwin$"; then
+              echo "has_icon_composer=true" >> $GITHUB_OUTPUT
+              echo "Icon Composer detected in changed apps"
+            else
+              echo "has_icon_composer=false" >> $GITHUB_OUTPUT
+            fi
           fi
         shell: bash
 
@@ -140,6 +151,21 @@ jobs:
         run: |
           ls /Applications | grep -i "Chrome"
           find /Applications -name "*Chrome*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+
+      # Icon Composer ships bundled inside Xcode, and GitHub macOS runners
+      # come with Xcode pre-installed. Remove it so the Icon Composer FMA
+      # install script is validated against a clean install rather than an
+      # already-present copy. Only runs when icon-composer/darwin is being
+      # validated in this PR.
+      - name: Remove pre-installed Xcode mac
+        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true' && steps.check-darwin-apps.outputs.has_icon_composer == 'true'
+        run: |
+          ls /Applications | grep -i "Xcode" || true
+          find /Applications -maxdepth 1 -iname "Xcode*.app" -type d | while read app;
           do
             echo "Removing $app..."
             sudo rm -rf "$app"

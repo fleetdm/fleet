@@ -105,9 +105,12 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(fieldName + " not found in " + t.Name())
 	}
 
-	// Prefer the renameto tag (new canonical name) if it exists.
+	// Prefer the renameto tag (new canonical name) if it exists, stripping any
+	// options like ",inline".
 	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
-		return renameTo
+		if name, _, _ := strings.Cut(renameTo, ","); name != "" {
+			return name
+		}
 	}
 
 	tag := field.Tag.Get("json")
@@ -1395,6 +1398,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
 			}
+			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraClientIDs.Value) > 0 {
+				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
+			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
@@ -1607,6 +1613,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		if policy.PatchSoftware != nil {
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+			if cachedSWTitle.MaintainedAppID == 0 {
+				return nil, fmt.Errorf("The patch policy %q references a software installer that is no longer a Fleet-maintained app. Please delete the policy manually.", policy.Name)
+			}
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
 			if err != nil {

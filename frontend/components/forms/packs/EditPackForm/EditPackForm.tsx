@@ -111,7 +111,6 @@ const EditPackForm = ({
         name="name"
         error={errors.name}
         inputWrapperClass={`${baseClass}__pack-title`}
-        ignore1password
       />
       <InputField
         onChange={onChangePackDescription}

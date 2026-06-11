@@ -1547,6 +1547,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  installedAllSelfServiceSoftware: (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    if (categoryName) {
+      return (
+        <>
+          {" "}
+          <b>End user</b> selected the <b>Install all</b> option in the
+          self-service <b>{categoryName}</b> category.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        <b>End user</b> installed all the software in self-service.
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -1734,7 +1752,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         canceled <b>{title}</b> install on <b>{hostName}</b>
         {fromSetupExperience
-          ? " during setup experience. End user was asked to restart."
+          ? " during setup experience. End user was asked to restart"
           : ""}
         .
       </>
@@ -2088,11 +2106,27 @@ const TAGGED_TEMPLATES = {
     return <>edited enroll secret{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
-    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <> added Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
+    );
   },
   deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
     return (
-      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
+      <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
+    );
+  },
+  addedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
+    return (
+      <> added Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
+    );
+  },
+  deletedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
+    return (
+      <> deleted Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
     );
   },
   clearedPasscode: (activity: IActivity) => {
@@ -2437,6 +2471,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity);
     }
+    case ActivityType.InstalledAllSelfServiceSoftware: {
+      return TAGGED_TEMPLATES.installedAllSelfServiceSoftware(activity);
+    }
     case ActivityType.UninstalledSoftware: {
       return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
@@ -2567,6 +2604,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
     }
+    case ActivityType.AddedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
+    }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);
     }
@@ -2617,6 +2660,9 @@ const GlobalActivityItem = ({
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
         return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+      case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function

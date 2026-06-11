@@ -7,7 +7,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
-import certificatesAPI, { ICertificate } from "services/entities/certificates";
+import certificatesAPI from "services/entities/certificates";
 import { getErrorReason } from "interfaces/errors";
 
 import InputField from "components/forms/fields/InputField";
@@ -35,14 +35,12 @@ export interface IAddCertFormData {
 }
 
 interface IAddCertModalProps {
-  existingCerts: ICertificate[];
   onExit: () => void;
   onSuccess: () => void;
   currentTeamId?: number;
 }
 
 const AddCertModal = ({
-  existingCerts: existingCTs,
   onExit,
   onSuccess,
   currentTeamId,
@@ -58,16 +56,13 @@ const AddCertModal = ({
     subjectAlternativeName: "",
   });
   // Server-side validation errors keyed by form field; cleared when the user
-  // edits the corresponding input. Today only SAN can come back with a
-  // field-targeted 422; other fields fall through to the generic flash.
+  // edits the corresponding input.
   const [serverErrors, setServerErrors] = useState<{
+    name?: string;
     subjectAlternativeName?: string;
   }>({});
 
-  const validations = useMemo(
-    () => generateFormValidations(existingCTs || []),
-    [existingCTs]
-  );
+  const validations = useMemo(() => generateFormValidations(), []);
 
   // formValidation is derived from formData + attemptedSubmit; computing it during render via
   // useMemo keeps it in lockstep with its inputs without scattering setFormValidation calls
@@ -102,6 +97,9 @@ const AddCertModal = ({
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
     setFormData(updatedFormData);
+    if (update.name === "name" && serverErrors.name) {
+      setServerErrors((prev) => ({ ...prev, name: undefined }));
+    }
     if (
       update.name === "subjectAlternativeName" &&
       serverErrors.subjectAlternativeName
@@ -145,8 +143,15 @@ const AddCertModal = ({
       const sanReason = getErrorReason(e, {
         nameEquals: "subject_alternative_name",
       });
+      const nameConflict = getErrorReason(e, {
+        reasonIncludes: "already exists",
+      });
       if (sanReason) {
         setServerErrors({ subjectAlternativeName: sanReason });
+      } else if (nameConflict) {
+        setServerErrors({
+          name: "Name is already used by another certificate.",
+        });
       } else {
         renderFlash("error", "Couldn't add certificate. Please try again.");
       }
@@ -170,12 +175,11 @@ const AddCertModal = ({
           label="Name"
           value={formData.name}
           onChange={onInputChange}
-          error={formValidation.name?.message}
+          error={serverErrors.name ?? formValidation.name?.message}
           helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
           parseTarget
           placeholder="VPN certificate"
           autofocus
-          ignore1password
         />
         <DropdownWrapper
           label="Certificate authority (CA)"

@@ -1,4 +1,3 @@
-import { ICertificate } from "services/entities/certificates";
 import { IAddCertFormData } from "./AddCertificateModal";
 
 export interface IAddCertFormValidation {
@@ -11,7 +10,6 @@ export interface IAddCertFormValidation {
 
 export const INVALID_NAME_MSG =
   "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.";
-export const USED_NAME_MSG = "Name is already used by another certificate.";
 export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
 export const NAME_REQUIRED_MSG = "Name must be completed.";
 export const CA_REQUIRED_MSG = "Certificate authority must be completed.";
@@ -35,9 +33,7 @@ type IFormValidations = Record<
   { validations: IValidation[] }
 >;
 
-export const generateFormValidations = (
-  existingCerts: ICertificate[]
-): IFormValidations => {
+export const generateFormValidations = (): IFormValidations => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
       validations: [
@@ -55,18 +51,6 @@ export const generateFormValidations = (
             return /^[a-zA-Z0-9 \-_]+$/.test(formData.name);
           },
           message: INVALID_NAME_MSG,
-        },
-        {
-          name: "unique",
-          isValid: (formData: IAddCertFormData) => {
-            return (
-              existingCerts.find(
-                (cert) =>
-                  cert.name.toLowerCase() === formData.name.toLowerCase()
-              ) === undefined
-            );
-          },
-          message: USED_NAME_MSG,
         },
         {
           name: "maxLength",

@@ -32,13 +32,18 @@ const buildControlsItems = (
         "patch",
       ],
     },
-    // OS settings sub-pages
+    // OS settings sub-routes
     {
       id: "controls-os-settings",
       label: "OS settings",
       group: "Controls" as const,
       path: withTeamId(paths.CONTROLS_OS_SETTINGS),
-      keywords: ["enforce", "remotely", "profiles"],
+      keywords: [
+        "enforce",
+        "remotely",
+        "profiles",
+        "operating system settings",
+      ],
       subItems: [
         // Disk encryption is Premium-only.
         ...(isPremiumTier
@@ -47,7 +52,12 @@ const buildControlsItems = (
                 id: "controls-disk-encryption",
                 label: "Disk encryption",
                 path: withTeamId(paths.CONTROLS_DISK_ENCRYPTION),
-                keywords: ["filevault", "bitlocker", "recovery key"],
+                keywords: [
+                  "filevault",
+                  "filevault2",
+                  "bitlocker",
+                  "recovery key",
+                ],
               },
             ]
           : []),
@@ -85,13 +95,13 @@ const buildControlsItems = (
                 id: "controls-passwords",
                 label: "Passwords",
                 path: withTeamId(paths.CONTROLS_PASSWORDS),
-                keywords: ["rotation", "recovery", "macos"],
+                keywords: ["rotation", "recovery", "macos", "laps"],
               },
             ]
           : []),
       ],
     },
-    // Setup experience sub-pages — Premium-only.
+    // Setup experience sub-routes — Premium-only.
     ...(isPremiumTier
       ? [
           {
@@ -99,7 +109,13 @@ const buildControlsItems = (
             label: "Setup experience",
             group: "Controls" as const,
             path: withTeamId(paths.CONTROLS_SETUP_EXPERIENCE),
-            keywords: ["customize", "end user", "enrollment"],
+            keywords: [
+              "customize",
+              "end user",
+              "enrollment",
+              "onboarding",
+              "first run",
+            ],
             subItems: [
               {
                 id: "controls-users",
@@ -141,7 +157,15 @@ const buildControlsItems = (
       label: "Scripts",
       group: "Controls" as const,
       path: withTeamId(paths.CONTROLS_SCRIPTS),
-      keywords: ["remediate", "macos", "windows", "linux"],
+      keywords: [
+        "remediate",
+        "macos",
+        "windows",
+        "linux",
+        "bash",
+        "powershell",
+        "automation",
+      ],
       subItems: [
         {
           id: "controls-scripts-library",

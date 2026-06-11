@@ -481,6 +481,7 @@ type S3Config struct {
 	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth       bool   `yaml:"carves_gcs_iam_auth"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -492,6 +493,7 @@ type S3Config struct {
 	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
 	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
 	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersGCSIAMAuth                      bool          `yaml:"software_installers_gcs_iam_auth"`
 	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
@@ -553,6 +555,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		StsExternalID:    s.SoftwareInstallersStsExternalID,
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -609,6 +612,7 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
+	internal.GCSIAMAuth = s.CarvesGCSIAMAuth
 
 	return internal
 }
@@ -625,6 +629,7 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
 }
 
@@ -913,12 +918,18 @@ type MDMConfig struct {
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
 
-	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
-	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
+	SSORateLimitPerMinute    int `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit int `yaml:"certificate_profiles_limit"`
+	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+func (m MDMConfig) IsCustomFileVaultEnabled() bool {
+	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -1323,7 +1334,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.host_cache_enabled", true,
 		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
 			"and serve every check-in from MySQL.")
-	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+	man.addConfigDuration("redis.host_cache_ttl", 180*time.Second,
 		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
 			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
 			"redis.host_cache_enabled=false to disable the cache.")
@@ -1573,6 +1584,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -1585,6 +1597,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.software_installers_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
@@ -1735,7 +1748,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
-	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2067,6 +2081,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
@@ -2109,6 +2124,7 @@ func (man Manager) loadS3Config() S3Config {
 		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
 		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
 		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:       man.getConfigBool("s3.carves_gcs_iam_auth"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),
@@ -2131,6 +2147,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
 		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
 		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersGCSIAMAuth:                      man.getConfigBool("s3.software_installers_gcs_iam_auth"),
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),

@@ -1,0 +1,10 @@
+{
+  "name": "Bezel",
+  "unique_identifier": "com.nonstrict.Bezel-direct",
+  "token": "bezel",
+  "installer_format": "zip",
+  "slug": "bezel/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
