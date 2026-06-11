@@ -1147,23 +1147,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithCustomMiddleware(orgLogoLimiter).
 		GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
 
-	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
-	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
-	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
-
-	// the websocket distributed query results endpoint is a bit different - the
-	// provided path is a prefix, not an exact match, and it is not a go-kit
-	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
-	// authentication is done when the websocket session is established, inside
-	// the handler.
-	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
-		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
-
-	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
+	// Rate limiters shared across the login/SSO endpoints. These are defined
+	// here (ahead of the password-login registrations below) so the
+	// unauthenticated SSO callback can reuse the same login bucket.
 	limiter := ratelimit.NewMiddleware(limitStore)
-	ne.
-		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
-		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
 	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
 	// own rate limit bucket.
@@ -1176,6 +1163,27 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	if extra.mdmSsoRateLimit != nil {
 		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
 	}
+
+	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	// The SSO callback is unauthenticated and internet-reachable. Rate-limit it
+	// (shares the login bucket) and cap the body to keep pre-auth attacks surface small.
+	ne.WithCustomMiddleware(loginLimiter).
+		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
+		POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
+
+	// the websocket distributed query results endpoint is a bit different - the
+	// provided path is a prefix, not an exact match, and it is not a go-kit
+	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
+	// authentication is done when the websocket session is established, inside
+	// the handler.
+	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
+		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
+
+	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
+	ne.
+		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
+		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
 	ne.WithCustomMiddleware(loginLimiter).
 		POST("/api/_version_/fleet/login", loginEndpoint, fleet.LoginRequest{})
@@ -1191,7 +1199,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	neAppleMDM.WithCustomMiddleware(mdmSsoLimiter).
 		POST("/api/_version_/fleet/mdm/sso", initiateMDMSSOEndpoint, initiateMDMSSORequest{})
+	// Same posture as the regular SSO callback: rate-limited (already) plus a
+	// tight body cap to keep pre-auth attacks surface small.
 	ne.WithCustomMiddleware(mdmSsoLimiter).
+		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
 
 	// Register all deprecated URL path aliases from the declarative table.
