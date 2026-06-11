@@ -2952,6 +2952,96 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 	})
 }
 
+func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
+	t.Parallel()
+
+	const appleDecl = `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"x","Payload":{}}`
+	const windowsProfile = `<Replace><Item><Target><LocURI>./Vendor/MSFT/Policy/Config/Update/x</LocURI></Target></Item></Replace>`
+
+	t.Run("macos updates configured with software update declaration fails", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.json"), []byte(appleDecl), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  apple_settings:
+    configuration_profiles:
+      - path: su.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+	})
+
+	t.Run("windows updates configured with software update profile fails", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.xml"), []byte(windowsProfile), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_updates:
+    deadline_days: 5
+    grace_period_days: 1
+  windows_settings:
+    configuration_profiles:
+      - path: su.xml
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+	})
+
+	t.Run("software update declaration without configured os updates is allowed", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.json"), []byte(appleDecl), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - path: su.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  apple_settings:
+    configuration_profiles:
+      - path: plain.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+}
+
 func TestUnknownKeyDetection(t *testing.T) {
 	t.Parallel()
 
