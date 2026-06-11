@@ -415,32 +415,76 @@ import OptimusPlayer from "./OptimusPlayer";
 import OrbStack from "./OrbStack";
 import OrigamiStudio from "./OrigamiStudio";
 import P4V from "./P4V";
+import Pacifist from "./Pacifist";
 import Package from "./Package";
+import PaleMoon from "./PaleMoon";
+import Paletro from "./Paletro";
 import ParallelsDesktop from "./ParallelsDesktop";
+import Pastebot from "./Pastebot";
+import Pcoipclient from "./Pcoipclient";
 import Pd from "./Pd";
+import PdfExpert from "./PdfExpert";
+import PdfPals from "./PdfPals";
+import PdfsamBasic from "./PdfsamBasic";
+import Pearcleaner from "./Pearcleaner";
 import PgAdmin4 from "./PgAdmin4";
+import PhoenixSlides from "./PhoenixSlides";
+import Photosrevive from "./Photosrevive";
+import Photostickies from "./Photostickies";
 import PhpStorm from "./PhpStorm";
+import Pibar from "./Pibar";
+import Picview from "./Picview";
+import Piezo from "./Piezo";
+import Pika from "./Pika";
+import Piphero from "./Piphero";
+import Pixelsnap from "./Pixelsnap";
 import PlantronicsHub from "./PlantronicsHub";
+import Platypus from "./Platypus";
+import Plex from "./Plex";
+import PlexHtpc from "./PlexHtpc";
+import PlexMediaServer from "./PlexMediaServer";
+import PlisteditPro from "./PlisteditPro";
 import Plugdata from "./Plugdata";
 import PodmanDesktop from "./PodmanDesktop";
+import Popchar from "./Popchar";
+import Popclip from "./Popclip";
+import Popsql from "./Popsql";
+import Portfolioperformance from "./Portfolioperformance";
+import PostgresApp from "./PostgresApp";
 import Postgresql15 from "./Postgresql15";
 import Postgresql16 from "./Postgresql16";
 import Postgresql17 from "./Postgresql17";
 import Postgresql18 from "./Postgresql18";
+import Postico from "./Postico";
 import Postman from "./Postman";
 import PowerAutomate from "./PowerAutomate";
 import PowerBi from "./PowerBi";
 import PowerMonitor from "./PowerMonitor";
+import Powerphotos from "./Powerphotos";
 import Powershell from "./Powershell";
 import Powertoys from "./Powertoys";
 import PppcUtility from "./PppcUtility";
+import Preform from "./Preform";
+import Principle from "./Principle";
+import Prism from "./Prism";
 import Prisma from "./Prisma";
 import Pritunl from "./Pritunl";
 import Privileges from "./Privileges";
+import Prizmo from "./Prizmo";
+import Processing from "./Processing";
+import Processspy from "./Processspy";
+import Pronotes from "./Pronotes";
+import ProtonDrive from "./ProtonDrive";
 import ProtonMail from "./ProtonMail";
+import ProtonMailBridge from "./ProtonMailBridge";
+import ProtonMeet from "./ProtonMeet";
+import ProtonPass from "./ProtonPass";
 import ProtonVpn from "./ProtonVpn";
+import Protopie from "./Protopie";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
+import Pulsar from "./Pulsar";
+import Purevpn from "./Purevpn";
 import Putty from "./Putty";
 import PyCharm from "./PyCharm";
 import PyCharmCe from "./PyCharmCe";
@@ -979,6 +1023,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grammarly: GrammarlyDesktop,
   grandperspective: Grandperspective,
   granola: Granola,
+  "graphpad prism": Prism,
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
@@ -1139,34 +1184,76 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
   p4v: P4V,
+  pacifist: Pacifist,
   package: Package,
+  "pale moon": PaleMoon,
+  paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
+  pastebot: Pastebot,
   pd: Pd,
+  "pdf expert": PdfExpert,
+  "pdf pals": PdfPals,
+  "pdfsam basic": PdfsamBasic,
+  pearcleaner: Pearcleaner,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
+  "phoenix slides": PhoenixSlides,
+  photosrevive: Photosrevive,
+  photostickies: Photostickies,
   phpstorm: PhpStorm,
+  pibar: Pibar,
+  picview: Picview,
+  piezo: Piezo,
+  pika: Pika,
+  piphero: Piphero,
+  pixelsnap: Pixelsnap,
   "plantronics hub": PlantronicsHub,
+  platypus: Platypus,
+  plex: Plex,
+  "plex htpc": PlexHtpc,
+  "plex media server": PlexMediaServer,
+  "plistedit pro": PlisteditPro,
   plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
+  "popchar x": Popchar,
+  popclip: Popclip,
+  popsql: Popsql,
+  "portfolio performance": Portfolioperformance,
+  postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,
   "postgresql 17": Postgresql17,
   "postgresql 18": Postgresql18,
+  postico: Postico,
   postman: Postman,
   "power automate": PowerAutomate,
   "power bi": PowerBi,
   "power monitor": PowerMonitor,
+  powerphotos: Powerphotos,
   powershell: Powershell,
   powertoys: Powertoys,
   "pppc utility": PppcUtility,
+  preform: Preform,
+  principle: Principle,
   prisma: Prisma,
   pritunl: Pritunl,
   privileges: Privileges,
+  prizmo: Prizmo,
+  processing: Processing,
+  processspy: Processspy,
+  pronotes: Pronotes,
+  "proton drive": ProtonDrive,
   "proton mail": ProtonMail,
+  "proton mail bridge": ProtonMailBridge,
+  "proton meet": ProtonMeet,
+  "proton pass": ProtonPass,
   protonvpn: ProtonVpn,
+  protopie: Protopie,
   proxifier: Proxifier,
   proxyman: Proxyman,
   "ps remote play": SonyPsRemotePlay,
+  pulsar: Pulsar,
+  purevpn: Purevpn,
   putty: Putty,
   pycharm: PyCharm,
   "pycharm ce": PyCharmCe,
@@ -1327,6 +1414,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teleport: TeleportConnect,
   "teleport connect": TeleportConnect,
   "teleport suite": TeleportConnect,
+  "teradici pcoip software client for macos": Pcoipclient,
   terminal: Terminal,
   textexpander: TextExpander,
   "the unarchiver": TheUnarchiver,

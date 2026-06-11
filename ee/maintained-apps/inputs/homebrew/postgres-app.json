@@ -1,0 +1,10 @@
+{
+  "name": "Postgres",
+  "unique_identifier": "com.postgresapp.Postgres2",
+  "token": "postgres-app",
+  "installer_format": "dmg",
+  "slug": "postgres-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
