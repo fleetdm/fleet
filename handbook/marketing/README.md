@@ -142,7 +142,7 @@ Events are settled in advance to provide ample time for strategy and planning. T
 > 
 > The Head of Strategic Growth is the DRI for planning GitOps workshops.
 > The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for event execution.
-> The [Head of GTM Architecture](https://fleetdm.com/handbook/marketing#team) serves as the DRI for managing the event approval process.
+> The [Head of People](https://fleetdm.com/handbook/marketing#team) serves as the DRI for managing the event process.
 
 <!--
 The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
