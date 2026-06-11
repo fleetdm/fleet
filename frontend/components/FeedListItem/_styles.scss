@@ -4,7 +4,6 @@
   grid-template-rows: max-content;
 
   &__avatar-wrapper {
-    box-sizing: border-box;
     display: grid;
     grid-template-columns: 16px 16px;
     grid-template-rows: 8px 32px 1fr;

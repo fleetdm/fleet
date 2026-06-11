@@ -21,7 +21,6 @@
   padding: $pad-small $pad-medium;
   z-index: 999;
   border: 1px solid;
-  box-sizing: border-box;
   border-radius: 8px;
   max-width: calc(100% - 64px); // Same horizontal margin as .main-content
   pointer-events: auto;

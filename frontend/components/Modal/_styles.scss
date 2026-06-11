@@ -65,7 +65,6 @@
 
   &__modal_container {
     @include position(absolute, 22px null null null);
-    box-sizing: border-box;
     background-color: $core-fleet-white;
     padding: $pad-xxlarge;
     border-radius: 8px;

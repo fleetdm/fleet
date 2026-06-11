@@ -61,10 +61,6 @@
     }
   }
 
-  &__file-uploader {
-    box-sizing: border-box;
-  }
-
   &__form-fields {
     &--gitops-disabled {
       @include disabled;

@@ -18,7 +18,6 @@
 
     &--error {
       border: 1px solid $core-vibrant-red;
-      box-sizing: border-box;
       border-radius: $border-radius;
     }
   }
@@ -40,7 +39,6 @@
     text-indent: 1px;
     position: relative;
     width: 100%;
-    box-sizing: border-box;
     color: $core-fleet-black;
     font-weight: $regular;
     transition: border-color 100ms;
@@ -69,7 +67,6 @@
     &--error {
       color: $core-vibrant-red;
       border: 1px solid $core-vibrant-red;
-      box-sizing: border-box;
       border-radius: $border-radius;
     }
   }

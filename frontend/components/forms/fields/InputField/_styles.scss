@@ -7,7 +7,6 @@
   padding: $pad-small $pad-medium;
   color: $core-fleet-black;
   font-family: "Inter", sans-serif;
-  box-sizing: border-box;
   height: 36px;
   transition: border-color 100ms;
   width: 100%;
@@ -35,7 +34,6 @@
   &--error {
     color: $core-vibrant-red;
     border: 1px solid $core-vibrant-red;
-    box-sizing: border-box;
     border-radius: $border-radius;
 
     &:focus {
