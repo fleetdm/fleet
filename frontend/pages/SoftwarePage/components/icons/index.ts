@@ -165,25 +165,68 @@ import Cursorsense from "./Cursorsense";
 import Cursr from "./Cursr";
 import Customshortcuts from "./Customshortcuts";
 import Cyberduck from "./Cyberduck";
+import Daisydisk from "./Daisydisk";
+import Dangerzone from "./Dangerzone";
+import Darkmodebuddy from "./Darkmodebuddy";
+import Darktable from "./Darktable";
 import Dash from "./Dash";
+import Dataflare from "./Dataflare";
 import DataGrip from "./DataGrip";
+import Dataspell from "./Dataspell";
+import Dayflow from "./Dayflow";
 import DbBrowserForSqLite from "./DbBrowserForSqLite";
 import DBeaver from "./DBeaver";
 import DBeaverEe from "./DBeaverEe";
 import DBeaverLite from "./DBeaverLite";
 import DBeaverUltimate from "./DBeaverUltimate";
+import Dbgate from "./Dbgate";
+import Dbvisualizer from "./Dbvisualizer";
+import Debookee from "./Debookee";
+import Deckset from "./Deckset";
 import DeepL from "./DeepL";
+import Deezer from "./Deezer";
+import DefaultFolderX from "./DefaultFolderX";
 import DellCommandUpdate from "./DellCommandUpdate";
+import Descript from "./Descript";
+import Deskpad from "./Deskpad";
+import Desktime from "./Desktime";
 import DevinDesktop from "./DevinDesktop";
+import Devknife from "./Devknife";
+import DevonsphereExpress from "./DevonsphereExpress";
+import Devonthink from "./Devonthink";
+import Devtoys from "./Devtoys";
+import Devutils from "./Devutils";
 import DfuBlasterPro from "./DfuBlasterPro";
 import Dialpad from "./Dialpad";
+import Dictionaries from "./Dictionaries";
+import Diffusionbee from "./Diffusionbee";
+import Digikam from "./Digikam";
 import Discord from "./Discord";
+import DiskDrill from "./DiskDrill";
 import DisplayLinkManager from "./DisplayLinkManager";
+import Dockdoor from "./Dockdoor";
 import Docker from "./Docker";
+import Dockfix from "./Dockfix";
+import Dockside from "./Dockside";
+import Dockview from "./Dockview";
+import Dot from "./Dot";
+import Doughnut from "./Doughnut";
+import Downie from "./Downie";
+import DrataAgent from "./DrataAgent";
+import Drawbot from "./Drawbot";
 import Drawio from "./DrawIo";
 import Dropbox from "./Dropbox";
+import Dropdmg from "./Dropdmg";
+import Droplr from "./Droplr";
+import Dropshare from "./Dropshare";
+import Dropzone from "./Dropzone";
 import DruvaInSync from "./DruvaInSync";
+import Duckduckgo from "./Duckduckgo";
+import Duet from "./Duet";
 import DuoDesktop from "./DuoDesktop";
+import Dupeguru from "./Dupeguru";
+import DymoConnect from "./DymoConnect";
+import Dynalist from "./Dynalist";
 import Eaglefiler from "./Eaglefiler";
 import Easydict from "./Easydict";
 import Easyfind from "./Easyfind";
@@ -926,8 +969,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cursr: Cursr,
   customshortcuts: Customshortcuts,
   cyberduck: Cyberduck,
+  daisydisk: Daisydisk,
+  dangerzone: Dangerzone,
+  darkmodebuddy: Darkmodebuddy,
+  darktable: Darktable,
   dash: Dash,
+  dataflare: Dataflare,
   datagrip: DataGrip,
+  dataspell: Dataspell,
+  dayflow: Dayflow,
   "db browser for sqlite": DbBrowserForSqLite,
   dbeaver: DBeaver,
   "dbeaver community": DBeaver,
@@ -937,18 +987,54 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaveree: DBeaverEe,
   dbeaverlite: DBeaverLite,
   dbeaverultimate: DBeaverUltimate,
+  dbgate: Dbgate,
+  dbvisualizer: Dbvisualizer,
+  debookee: Debookee,
+  deckset: Deckset,
   deepl: DeepL,
+  deezer: Deezer,
+  "default folder x": DefaultFolderX,
   "dell command update": DellCommandUpdate,
+  descript: Descript,
+  deskpad: Deskpad,
+  desktime: Desktime,
   "devin desktop": DevinDesktop,
+  devknife: Devknife,
+  "devonsphere express": DevonsphereExpress,
+  devonthink: Devonthink,
+  devtoys: Devtoys,
+  devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
   dialpad: Dialpad,
+  dictionaries: Dictionaries,
+  "diffusion bee": Diffusionbee,
+  digikam: Digikam,
   discord: Discord,
+  "disk drill": DiskDrill,
   "DisplayLink USB Graphics Software": DisplayLinkManager,
   "dng converter": AdobeDngConverter,
+  dockdoor: Dockdoor,
   docker: Docker,
+  dockfix: Dockfix,
+  dockside: Dockside,
+  dockview: Dockview,
+  dot: Dot,
+  doughnut: Doughnut,
+  downie: Downie,
+  "drata agent": DrataAgent,
   "draw.io": Drawio,
+  drawbot: Drawbot,
   dropbox: Dropbox,
+  dropdmg: Dropdmg,
+  droplr: Droplr,
+  dropshare: Dropshare,
+  dropzone: Dropzone,
+  duckduckgo: Duckduckgo,
+  duet: Duet,
   "duo desktop": DuoDesktop,
+  dupeguru: Dupeguru,
+  "dymo connect": DymoConnect,
+  dynalist: Dynalist,
   eaglefiler: Eaglefiler,
   easydict: Easydict,
   easyfind: Easyfind,
