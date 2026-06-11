@@ -21124,7 +21124,7 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 
 	// Verify /{token} path works and passes it through
 	s.DoJSON("GET", "/mdm/apple/service_discovery/fake-token", nil, http.StatusOK, &res)
-	require.Contains(t, res.Servers[0].BaseURL, fmt.Sprintf("%s/%s", apple_mdm.AccountDrivenEnrollPath, "fake-token"))
+	require.Contains(t, res.Servers[0].BaseURL, strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "fake-token", 1))
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }
 
