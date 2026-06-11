@@ -2122,47 +2122,47 @@ func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
 	return true
 }
 
-// ActivityTypeFailedWebhookPolicyAutomation is recorded when a failing-policy
+// ActivityTypeFailedAutomationWebhook is recorded when a failing-policy
 // webhook automation send is rejected by the remote server. One activity is
 // recorded per failed batch POST and is associated with every host in that
 // batch.
-type ActivityTypeFailedWebhookPolicyAutomation struct {
+type ActivityTypeFailedAutomationWebhook struct {
 	PolicyID      uint   `json:"policy_id"`
 	HostIDList    []uint `json:"-"`
 	StatusCode    int    `json:"status_code,omitempty"`
 	ErrorResponse string `json:"error_response"`
 }
 
-func (a ActivityTypeFailedWebhookPolicyAutomation) ActivityName() string {
-	return "failed_webhook_policy_automation"
+func (a ActivityTypeFailedAutomationWebhook) ActivityName() string {
+	return "failed_automation_webhook"
 }
 
-func (a ActivityTypeFailedWebhookPolicyAutomation) HostIDs() []uint {
+func (a ActivityTypeFailedAutomationWebhook) HostIDs() []uint {
 	return a.HostIDList
 }
 
-func (a ActivityTypeFailedWebhookPolicyAutomation) WasFromAutomation() bool {
+func (a ActivityTypeFailedAutomationWebhook) WasFromAutomation() bool {
 	return true
 }
 
-// ActivityTypeQueuedWebhookPolicyAutomation is recorded when a failing-policy
+// ActivityTypeRanAutomationWebhook is recorded when a failing-policy
 // webhook automation batch POST is accepted by the remote server. One activity
 // is recorded per successful batch POST and is associated with every host in
-// that batch. The activity name is "queued_webhook_policy_automation".
-type ActivityTypeQueuedWebhookPolicyAutomation struct {
+// that batch. The activity name is "ran_automation_webhook".
+type ActivityTypeRanAutomationWebhook struct {
 	PolicyID   uint   `json:"policy_id"`
 	HostIDList []uint `json:"-"`
 	StatusCode int    `json:"status_code,omitempty"`
 }
 
-func (a ActivityTypeQueuedWebhookPolicyAutomation) ActivityName() string {
-	return "queued_webhook_policy_automation"
+func (a ActivityTypeRanAutomationWebhook) ActivityName() string {
+	return "ran_automation_webhook"
 }
 
-func (a ActivityTypeQueuedWebhookPolicyAutomation) HostIDs() []uint {
+func (a ActivityTypeRanAutomationWebhook) HostIDs() []uint {
 	return a.HostIDList
 }
 
-func (a ActivityTypeQueuedWebhookPolicyAutomation) WasFromAutomation() bool {
+func (a ActivityTypeRanAutomationWebhook) WasFromAutomation() bool {
 	return true
 }
