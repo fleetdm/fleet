@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.14.5",
+      "version": "3.14.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.5150.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.6150.0') < 0);"
       },
-      "installer_url": "https://www.python.org/ftp/python/3.14.5/python-3.14.5-amd64.exe",
+      "installer_url": "https://www.python.org/ftp/python/3.14.6/python-3.14.6-amd64.exe",
       "install_script_ref": "8272e48d",
       "uninstall_script_ref": "476a79be",
-      "sha256": "f9c09f5ed6f796fd1a8bc5ddfa41715a494b453c4781f0e35d5077cf9fa58f6d",
+      "sha256": "14b3e9a710a3fcf0bd9b55ab6b60412bd91227563f813fc49040cabc0209e0bd",
       "default_categories": [
         "Developer tools"
       ]

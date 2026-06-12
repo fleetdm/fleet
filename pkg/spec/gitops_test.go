@@ -222,7 +222,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
-							assert.Contains(t, pkg.Categories, "Communication")
+							assert.Contains(t, pkg.Categories.Value, "Communication")
 							assert.Empty(t, pkg.LabelsExcludeAny)
 							assert.Empty(t, pkg.LabelsIncludeAll)
 						} else {
@@ -236,14 +236,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					for _, fma := range gitops.Software.FleetMaintainedApps {
 						switch fma.Slug {
 						case "slack/darwin":
-							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.ElementsMatch(t, fma.Categories.Value, []string{"Productivity", "Communication"})
 							require.Equal(t, "4.47.65", fma.Version)
 							require.Empty(t, fma.PreInstallQuery)
 							require.Empty(t, fma.PostInstallScript)
 							require.Empty(t, fma.InstallScript)
 							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
-							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.ElementsMatch(t, fma.Categories.Value, []string{"Productivity", "Developer tools"})
 							require.Empty(t, fma.Version)
 							require.NotEmpty(t, fma.PreInstallQuery)
 							require.NotEmpty(t, fma.PostInstallScript)
@@ -1435,6 +1435,104 @@ org_settings:
 		config := getGlobalConfig(nil)
 		_, err := gitOpsFromString(t, config)
 		require.NoError(t, err)
+	})
+}
+
+func TestGitOpsSSOValidation(t *testing.T) {
+	t.Parallel()
+
+	withSSO := func(body string) string {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  sso_settings:
+` + body
+		return config
+	}
+
+	t.Run("sso_settings absent is accepted", func(t *testing.T) {
+		config := getGlobalConfig(nil)
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso true with both metadata fields empty is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: \"\"\n    metadata_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
+	})
+
+	t.Run("enable_sso true with both metadata fields absent is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
+	})
+
+	t.Run("enable_sso true with metadata only is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: \"<xml/>\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso true with metadata_url only is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso false with empty metadata is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: false\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso true with empty idp_name is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: \"\"\n    entity_id: https://example.com\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, idp_name must be set")
+	})
+
+	t.Run("enable_sso true with empty entity_id is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: \"\"\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, entity_id must be set")
+	})
+
+	t.Run("enable_sso true missing idp_name and entity_id reports both", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "idp_name must be set")
+		require.ErrorContains(t, err, "entity_id must be set")
+	})
+
+	// Note: MDM end-user authentication validation lives at the gitops
+	// CLI group level (cmd/fleetctl/fleetctl/gitops.go), not here in the
+	// per-file parser, because the enable flag and the IdP settings can
+	// live in different files (controls in team files, org_settings in
+	// the global file only). See TestValidateGitOpsGroupEUA.
+
+	// Regression guard: the YAML that `fleetctl generate-gitops` produces
+	// renders the metadata fields as `metadata: # TODO: ...` (a YAML key with
+	// a trailing comment, which parses to nil/empty). This is exactly the
+	// state that nearly locked out the reporter in issue #43371 — and is
+	// what the validation here is designed to catch. If this test ever
+	// stops failing, the safety net is gone.
+	t.Run("generate-gitops rendered TODO comment form is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: # TODO: Add your SSO metadata here\n    metadata_url: # TODO: Add your SSO metadata URL here\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
 	})
 }
 
@@ -2854,6 +2952,96 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 	})
 }
 
+func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
+	t.Parallel()
+
+	const appleDecl = `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"x","Payload":{}}`
+	const windowsProfile = `<Replace><Item><Target><LocURI>./Vendor/MSFT/Policy/Config/Update/x</LocURI></Target></Item></Replace>`
+
+	t.Run("macos updates configured with software update declaration fails", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.json"), []byte(appleDecl), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  apple_settings:
+    configuration_profiles:
+      - path: su.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+	})
+
+	t.Run("windows updates configured with software update profile fails", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.xml"), []byte(windowsProfile), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_updates:
+    deadline_days: 5
+    grace_period_days: 1
+  windows_settings:
+    configuration_profiles:
+      - path: su.xml
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+	})
+
+	t.Run("software update declaration without configured os updates is allowed", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "su.json"), []byte(appleDecl), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - path: su.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  macos_updates:
+    minimum_version: "14.0"
+    deadline: "2024-01-01"
+  apple_settings:
+    configuration_profiles:
+      - path: plain.mobileconfig
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+	})
+}
+
 func TestUnknownKeyDetection(t *testing.T) {
 	t.Parallel()
 
@@ -3969,7 +4157,7 @@ software:
 		require.NoError(t, err)
 		require.Len(t, result.Software.Packages, 1)
 		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "install-app.sh"))
-		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories)
+		assert.Equal(t, []string{"Utilities"}, result.Software.Packages[0].Categories.Value)
 		assert.True(t, result.Software.Packages[0].SelfService)
 		assert.Empty(t, result.Software.Packages[0].URL)
 		assert.Empty(t, result.Software.Packages[0].SHA256)
@@ -4070,7 +4258,7 @@ software:
 		require.NoError(t, err)
 		require.Len(t, result.Software.Packages, 1)
 		pkg := result.Software.Packages[0]
-		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories)
+		assert.Equal(t, []string{"Browsers", "Productivity"}, pkg.Categories.Value)
 		assert.True(t, pkg.SelfService)
 		assert.True(t, pkg.InstallDuringSetup.Value)
 		assert.Equal(t, []string{"include_label"}, pkg.LabelsIncludeAny)
@@ -4372,163 +4560,46 @@ name: TestTeam
 	})
 }
 
-func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
+func TestGitOpsFMACategoriesPresence(t *testing.T) {
 	t.Parallel()
 
-	t.Run("key omitted leaves Present false", func(t *testing.T) {
-		t.Parallel()
+	parse := func(t *testing.T, categoriesYAML string) optjson.Slice[string] {
 		config := getTeamConfig(nil)
-		config += "software:\n  packages: []\n"
+		config += "software:\n  fleet_maintained_apps:\n    - slug: 1password/darwin\n" + categoriesYAML
 		path, basePath := createTempFile(t, "", config)
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
-		assert.False(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
+		require.Len(t, gitops.Software.FleetMaintainedApps, 1)
+		return gitops.Software.FleetMaintainedApps[0].Categories
+	}
+
+	t.Run("omitted key is unset", func(t *testing.T) {
+		t.Parallel()
+		cats := parse(t, "")
+		assert.False(t, cats.Set)
 	})
 
-	t.Run("empty list sets Present true", func(t *testing.T) {
+	t.Run("categories: (null) is set but not valid", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += "software:\n  self_service_categories: []\n"
-		path, basePath := createTempFile(t, "", config)
-		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
-		assert.True(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
+		cats := parse(t, "      categories:\n")
+		assert.True(t, cats.Set)
+		assert.False(t, cats.Valid)
+		assert.Empty(t, cats.Value)
 	})
 
-	t.Run("populated list sets Present true and preserves names verbatim", func(t *testing.T) {
+	t.Run("categories: [] is set and valid", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "Productivity"
-    - "💼 Engineering"
-`
-		path, basePath := createTempFile(t, "", config)
-		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
-		assert.True(t, gitops.Software.SelfServiceCategories.Set)
-		assert.Equal(t, []string{"🌎 Browsers", "Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
+		cats := parse(t, "      categories: []\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Empty(t, cats.Value)
 	})
 
-	t.Run("duplicate name in payload fails at parse", func(t *testing.T) {
+	t.Run("categories with a value is set with the value", func(t *testing.T) {
 		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "🔐 Security"
-    - "🔐 Security"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate")
-		assert.Contains(t, err.Error(), "🔐 Security")
-	})
-
-	t.Run("package referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  packages:
-    - url: https://example.com/installer.pkg
-      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("app_store_apps referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  app_store_apps:
-    - app_store_id: "12345"
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("fleet_maintained_apps referencing undeclared category fails at parse", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "Allowed"
-  fleet_maintained_apps:
-    - slug: 1password/darwin
-      categories:
-        - "Forbidden"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `"Forbidden"`)
-		assert.Contains(t, err.Error(), "self_service_categories")
-	})
-
-	t.Run("validation rejects empty, whitespace-only, and over-length names", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += fmt.Sprintf(`software:
-  self_service_categories:
-    - ""
-    - "   "
-    - %q
-`, strings.Repeat("x", 256))
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "name is required")
-		assert.Contains(t, err.Error(), "must be at most 255")
-	})
-
-	t.Run("names are trimmed and case-only duplicates are caught", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "  Productivity  "
-    - "PRODUCTIVITY"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate")
-		// The second entry collides with the trimmed first.
-		assert.Contains(t, err.Error(), "PRODUCTIVITY")
-	})
-
-	t.Run("legacy plain reference matches declared emoji form", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig(nil)
-		config += `software:
-  self_service_categories:
-    - "💻 Productivity"
-  packages:
-    - url: https://example.com/installer.pkg
-      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-      categories:
-        - "Productivity"
-`
-		path, basePath := createTempFile(t, "", config)
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.NoError(t, err)
+		cats := parse(t, "      categories:\n        - somevalue\n")
+		assert.True(t, cats.Set)
+		assert.True(t, cats.Valid)
+		assert.Equal(t, []string{"somevalue"}, cats.Value)
 	})
 }

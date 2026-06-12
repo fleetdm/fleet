@@ -52,6 +52,10 @@ The following terms were recently renamed. Use the new terms in conversation and
 - When checking for duplicates, exclude the current entity to avoid false conflicts on upserts.
 - Run `go test ./server/service/` after adding new datastore interface methods — uninitialized mocks crash other tests.
 
+## Opening a pull request
+
+- The PR description MUST start from `.github/pull_request_template.md`. When creating a PR (e.g. `gh pr create`), use that file as the body and fill it in — do not open a PR with an empty or freeform description. A CI check (`check-pr-template`) fails PRs whose description is missing the template.
+
 ## Development commands
 
 Check the `Makefile` for the full list of available targets. Key ones below.

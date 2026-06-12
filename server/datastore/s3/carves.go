@@ -32,8 +32,6 @@ const (
 type CarveStore struct {
 	*s3store
 	metadatadb fleet.CarveStore
-
-	gcs bool
 }
 
 // NewCarveStore creates a new store with the given config
@@ -46,8 +44,6 @@ func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveS
 	return &CarveStore{
 		s3store:    s3store,
 		metadatadb: metadatadb,
-
-		gcs: isGCS(config.EndpointURL),
 	}, nil
 }
 

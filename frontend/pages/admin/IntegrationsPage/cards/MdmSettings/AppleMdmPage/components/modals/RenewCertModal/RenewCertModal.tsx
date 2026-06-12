@@ -49,11 +49,7 @@ const RenewCertModal = ({
     } catch (e) {
       console.error(e);
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("valid certificate")) {
-        renderFlash("error", msg);
-      } else {
-        renderFlash("error", "Couldn’t renew. Please try again.");
-      }
+      renderFlash("error", msg || "Couldn’t renew. Please try again.");
       setIsUploading(false);
       onCancel();
     }
@@ -64,6 +60,19 @@ const RenewCertModal = ({
       const msg = getErrorReason(e);
       if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
+      } else if (msg.toLowerCase().includes("required private key")) {
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t download. Please configure a private key.{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+              text="Learn how"
+              newTab
+              variant="flash-message-link"
+            />
+          </>
+        );
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
       }

@@ -1,0 +1,10 @@
+{
+  "name": "OpenMTP",
+  "unique_identifier": "io.ganeshrvel.openmtp",
+  "token": "openmtp",
+  "installer_format": "zip",
+  "slug": "openmtp/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
