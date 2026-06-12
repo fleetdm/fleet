@@ -1025,6 +1025,7 @@ func newWorkerIntegrationsSchedule(
 	androidModule android.Service,
 	chartSvc chart_api.Service,
 	androidBatchSize int,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1046,14 +1047,16 @@ func newWorkerIntegrationsSchedule(
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newJiraClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newJiraClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newZendeskClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newZendeskClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	var (
 		depSvc *apple_mdm.DEPService
