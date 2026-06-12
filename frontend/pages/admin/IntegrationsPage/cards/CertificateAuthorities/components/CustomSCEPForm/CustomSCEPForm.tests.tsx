@@ -3,6 +3,8 @@ import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+
 import CustomSCEPForm, { ICustomSCEPFormData } from "./CustomSCEPForm";
 
 const createTestFormData = (overrides?: Partial<ICustomSCEPFormData>) => ({
@@ -115,7 +117,9 @@ describe("CustomSCEPForm", () => {
   it("does not block an unchanged (masked) challenge when editing", () => {
     render(
       <CustomSCEPForm
-        formData={createTestFormData({ challenge: "********" })}
+        formData={createTestFormData({
+          challenge: UNCHANGED_PASSWORD_API_RESPONSE,
+        })}
         isSubmitting={false}
         submitBtnText="Submit"
         isEditing
