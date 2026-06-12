@@ -1,0 +1,10 @@
+{
+  "name": "DropDMG",
+  "unique_identifier": "com.c-command.DropDMG",
+  "token": "dropdmg",
+  "installer_format": "dmg",
+  "slug": "dropdmg/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

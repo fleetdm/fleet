@@ -1,0 +1,10 @@
+{
+  "name": "EagleFiler",
+  "unique_identifier": "com.c-command.EagleFiler",
+  "token": "eaglefiler",
+  "installer_format": "dmg",
+  "slug": "eaglefiler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Pale Moon",
+  "unique_identifier": "org.mozilla.pale moon",
+  "token": "pale-moon",
+  "installer_format": "dmg",
+  "slug": "pale-moon/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

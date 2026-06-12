@@ -282,6 +282,18 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				}
 			}
 
+			// Logi Tune: the installer URL always serves the latest release, while the Homebrew
+			// cask version lags behind (its livecheck scrapes a Logitech support article that is
+			// updated less often than the download). The installed version is therefore newer
+			// than the manifest version. If version doesn't match but app is installed, fall
+			// back to existence-only validation.
+			if uniqueAppIdentifier == "com.logitech.logitune" {
+				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
+					logger.InfoContext(ctx, "Logi Tune detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
+			}
+
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				return true, nil

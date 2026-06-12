@@ -1,0 +1,10 @@
+{
+  "name": "Hyperkey",
+  "unique_identifier": "com.knollsoft.Hyperkey",
+  "token": "hyperkey",
+  "installer_format": "dmg",
+  "slug": "hyperkey/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

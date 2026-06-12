@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/smallstep/scep"
 )
@@ -116,6 +117,14 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &BadRequestError{Message: "missing data for PKIOperation"}
 	}
+
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		svc.debugLogger.ErrorContext(ctx, "invalid request body", "err", err)
+		return nil, &BadRequestError{
+			Message: "invalid request body",
+		}
+	}
+
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err

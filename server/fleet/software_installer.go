@@ -888,10 +888,10 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string   `json:"referenced_yaml_path"`
-	SHA256             string   `json:"hash_sha256"`
-	Categories         []string `json:"categories"`
-	DisplayName        string   `json:"display_name,omitempty"`
+	ReferencedYamlPath string                `json:"referenced_yaml_path"`
+	SHA256             string                `json:"hash_sha256"`
+	Categories         optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName        string                `json:"display_name,omitempty"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	// When false (the default), Fleet sends If-None-Match with the stored ETag
 	// on subsequent downloads. If the server returns 304 Not Modified, the
@@ -912,7 +912,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
 	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
+		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -934,7 +934,7 @@ type MaintainedAppSpec struct {
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
-	Categories         []string              `json:"categories"`
+	Categories         optjson.Slice[string] `json:"categories,omitzero"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 }

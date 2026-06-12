@@ -3,6 +3,8 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -1397,7 +1399,7 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 		}
 		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
-		if overlap := ProfileLabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
 			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
 		}
@@ -1408,18 +1410,14 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 	}
 }
 
-// ProfileLabelOverlap returns the first label name that appears in both
-// the include list and the exclude list, or an empty string if there is none.
-// include should be the union of labels_include_all and labels_include_any.
-func ProfileLabelOverlap(include, exclude []string) string {
-	seen := make(map[string]struct{}, len(include))
-	for _, n := range include {
-		seen[n] = struct{}{}
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
 	}
-	for _, n := range exclude {
-		if _, overlapExists := seen[n]; overlapExists {
-			return n
-		}
-	}
-	return ""
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
 }
