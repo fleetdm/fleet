@@ -1663,7 +1663,12 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false
     },
-    "client_url": "https://instance.fleet.com"
+    "client_url": "https://instance.fleet.com",
+    "apple_account_provisioning": {
+      "idp_token_url": "https://fleet-example.okta.com/oauth2/v1/token",
+      "idp_client_id": "Ooa12345abcdeFGHI678",
+      "oauth_idp_client_secret": "********"
+    }
   },
   "agent_options": {
     "spec": {
