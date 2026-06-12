@@ -86,6 +86,13 @@
       "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
+      "name": "A Better Finder Rename",
+      "slug": "a-better-finder-rename/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.publicspace.abfr12",
+      "description": "A Better Finder Rename is a batch renaming tool for files, music, and photos."
+    },
+    {
       "name": "Ableton Live Suite",
       "slug": "ableton-live-suite/darwin",
       "platform": "darwin",
@@ -98,6 +105,48 @@
       "platform": "darwin",
       "unique_identifier": "com.elasticprojects.abstract-desktop",
       "description": "Abstract is a collaborative design tool with support for Sketch files."
+    },
+    {
+      "name": "Acorn",
+      "slug": "acorn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.flyingmeat.Acorn8",
+      "description": "Acorn is an image editor focused on simplicity."
+    },
+    {
+      "name": "ActiveDock",
+      "slug": "activedock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sergey-gerasimenko.ActiveDock-2",
+      "description": "ActiveDock is a customizable dock and application launcher that replaces the macOS Dock."
+    },
+    {
+      "name": "ActivityWatch",
+      "slug": "activitywatch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.activitywatch.ActivityWatch",
+      "description": "ActivityWatch is a time tracker."
+    },
+    {
+      "name": "Actual",
+      "slug": "actual/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.actualbudget.actual",
+      "description": "Actual is a privacy-focused app for managing your finances."
+    },
+    {
+      "name": "AdGuard",
+      "slug": "adguard/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adguard.mac.adguard",
+      "description": "AdGuard is a standalone ad blocker."
+    },
+    {
+      "name": "AdLock",
+      "slug": "adlock/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hankuper.adlock.desktop",
+      "description": "AdLock is a proxy-based ad blocking tool."
     },
     {
       "name": "Adobe Acrobat Pro",
@@ -156,6 +205,55 @@
       "description": "Adobe DNG Conver is a DNG file converter."
     },
     {
+      "name": "Advanced Renamer",
+      "slug": "advanced-renamer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.HulubuluSoftware.AdvancedRenamer",
+      "description": "Advanced Renamer is a batch file renaming utility."
+    },
+    {
+      "name": "Affinity Designer 2",
+      "slug": "affinity-designer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinitydesigner2",
+      "description": "Affinity Designer 2 is a graphic design application."
+    },
+    {
+      "name": "Affinity Designer",
+      "slug": "affinity-designer@1/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinitydesigner",
+      "description": "Affinity Designer is a graphic design application."
+    },
+    {
+      "name": "Affinity Photo 2",
+      "slug": "affinity-photo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinityphoto2",
+      "description": "Affinity Photo 2 is a photo editing application."
+    },
+    {
+      "name": "Affinity Photo",
+      "slug": "affinity-photo@1/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinityphoto",
+      "description": "Affinity Photo is a photo editing application."
+    },
+    {
+      "name": "Affinity Publisher 2",
+      "slug": "affinity-publisher/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinitypublisher2",
+      "description": "Affinity Publisher 2 is a desktop publishing application."
+    },
+    {
+      "name": "Affinity Publisher",
+      "slug": "affinity-publisher@1/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.seriflabs.affinitypublisher",
+      "description": "Affinity Publisher is a desktop publishing application."
+    },
+    {
       "name": "Affinity",
       "slug": "affinity/darwin",
       "platform": "darwin",
@@ -168,6 +266,13 @@
       "platform": "windows",
       "unique_identifier": "Affinity",
       "description": "Affinity is an image editing and design software."
+    },
+    {
+      "name": "AirBuddy",
+      "slug": "airbuddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "codes.rambo.AirBuddy",
+      "description": "AirBuddy is an AirPods companion app."
     },
     {
       "name": "Aircall",
@@ -184,6 +289,34 @@
       "description": "Aircall is cloud-based call center and phone system software."
     },
     {
+      "name": "AirDroid",
+      "slug": "airdroid/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sandstudio.airdroid",
+      "description": "AirDroid is a mobile device management suite."
+    },
+    {
+      "name": "AirParrot",
+      "slug": "airparrot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.squirrels.AirParrot-3",
+      "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
+    },
+    {
+      "name": "AirServer",
+      "slug": "airserver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pratikkumar.airserver-mac",
+      "description": "AirServer is a screen mirroring receiver."
+    },
+    {
+      "name": "Airtable",
+      "slug": "airtable/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.FormaGrid.Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
@@ -196,6 +329,69 @@
       "platform": "windows",
       "unique_identifier": "Airtame 4.15.0",
       "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
+    },
+    {
+      "name": "Airy",
+      "slug": "airy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.eltima.Airy",
+      "description": "Airy is a YouTube video and MP3 downloader."
+    },
+    {
+      "name": "Akiflow",
+      "slug": "akiflow/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.akiflow.akiflow",
+      "description": "Akiflow is a time blocking and productivity platform."
+    },
+    {
+      "name": "Alcove",
+      "slug": "alcove/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.henrikruscon.Alcove",
+      "description": "Alcove is a utility that adds Dynamic Island-like features to the notch area."
+    },
+    {
+      "name": "AlDente",
+      "slug": "aldente/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apphousekitchen.aldente-pro",
+      "description": "AlDente is a menu bar tool to limit the maximum charging percentage."
+    },
+    {
+      "name": "Alloy",
+      "slug": "alloy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.alloytools.alloy",
+      "description": "Alloy is a programming language for software modelling."
+    },
+    {
+      "name": "AltTab",
+      "slug": "alt-tab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lwouis.alt-tab-macos",
+      "description": "AltTab is a tool that brings Windows-like alt-tab window switching to macOS."
+    },
+    {
+      "name": "Altair GraphQL Client",
+      "slug": "altair-graphql-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xkoji.altair",
+      "description": "Altair GraphQL Client is a GraphQL client."
+    },
+    {
+      "name": "Amadeus Pro",
+      "slug": "amadeus-pro/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.HairerSoft.AmadeusPro",
+      "description": "Amadeus Pro is a multi-purpose audio recorder, editor, and converter."
+    },
+    {
+      "name": "Amadine",
+      "slug": "amadine/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.belightsoft.Amadine",
+      "description": "Amadine is a vector graphics and illustration application."
     },
     {
       "name": "Amazon Chime",
@@ -268,6 +464,20 @@
       "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
     },
     {
+      "name": "Amethyst",
+      "slug": "amethyst/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amethyst.Amethyst",
+      "description": "Amethyst is an automatic tiling window manager similar to xmonad."
+    },
+    {
+      "name": "Amie",
+      "slug": "amie/darwin",
+      "platform": "darwin",
+      "unique_identifier": "so.amie.electron-app",
+      "description": "Amie is a calendar and task manager."
+    },
+    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
@@ -280,6 +490,13 @@
       "platform": "windows",
       "unique_identifier": "Android Studio",
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
+      "name": "Angry IP Scanner",
+      "slug": "angry-ip-scanner/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.azib.ipscan",
+      "description": "Angry IP Scanner is a network scanner."
     },
     {
       "name": "Anka",
@@ -324,11 +541,46 @@
       "description": "Google Antigravity is an agent orchestration platform."
     },
     {
+      "name": "Antinote",
+      "slug": "antinote/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.chabomakers.Antinote",
+      "description": "Antinote is a temporary notes app with calculations and extensible features."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",
       "unique_identifier": "com.philandro.anydesk",
       "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
+      "name": "Any.do",
+      "slug": "anydo/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anydo.mac",
+      "description": "Any.do is a reminder, planner, and calendar app."
+    },
+    {
+      "name": "Anytype",
+      "slug": "anytype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anytype.anytype",
+      "description": "Anytype is a local-first and end-to-end encrypted notes app."
+    },
+    {
+      "name": "Apidog",
+      "slug": "apidog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apidog.app",
+      "description": "Apidog is an API development platform."
+    },
+    {
+      "name": "App Fair",
+      "slug": "app-fair/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.App-Fair",
+      "description": "App Fair is a catalogue of free and commercial native desktop applications."
     },
     {
       "name": "Apparency",
@@ -343,6 +595,20 @@
       "platform": "darwin",
       "unique_identifier": "net.freemacsoft.AppCleaner",
       "description": "AppCleaner is an application uninstaller."
+    },
+    {
+      "name": "Appium Inspector GUI",
+      "slug": "appium-inspector/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.appium.inspector",
+      "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
+    },
+    {
+      "name": "Applite",
+      "slug": "applite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.aerolite.Applite",
+      "description": "Applite is a user-friendly GUI for Homebrew."
     },
     {
       "name": "Arc",
@@ -394,6 +660,20 @@
       "description": "Asana is an app to manage team projects and tasks."
     },
     {
+      "name": "Asset Catalog Tinkerer",
+      "slug": "asset-catalog-tinkerer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "br.com.guilhermerambo.Asset-Catalog-Tinkerer",
+      "description": "Asset Catalog Tinkerer is an app to browse and extract images from .car files."
+    },
+    {
+      "name": "aText",
+      "slug": "atext/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.trankynam.aText",
+      "description": "aText is a tool that replaces abbreviations while typing."
+    },
+    {
       "name": "Audacity",
       "slug": "audacity/darwin",
       "platform": "darwin",
@@ -408,11 +688,25 @@
       "description": "Audacity is a multi-track audio editor and recorder."
     },
     {
+      "name": "Audio Hijack",
+      "slug": "audio-hijack/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.rogueamoeba.audiohijack",
+      "description": "Audio Hijack is an app that records audio from any application."
+    },
+    {
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "com.avast.AvastSecureBrowser",
       "description": "Avast Secure Browser is a web browser focusing on privacy."
+    },
+    {
+      "name": "Aviatrix VPN Client",
+      "slug": "aviatrix-vpn-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.pythonmac.unspecified.AviatrixVPNClient",
+      "description": "Aviatrix VPN Client is a VPN client that provides SAML authentication."
     },
     {
       "name": "AWS Command Line Interface v2",
@@ -434,6 +728,13 @@
       "platform": "windows",
       "unique_identifier": "AWS VPN Client",
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
+      "name": "Axure RP",
+      "slug": "axure-rp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.axure.AxureRP11",
+      "description": "Axure RP is a planning and prototyping tool for developers."
     },
     {
       "name": "Azul Zulu JDK 25",
