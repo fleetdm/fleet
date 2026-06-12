@@ -287,7 +287,9 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			// intent; exclude labels (if any) are preserved.
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.AppleProfileIncludeNone
-			ds.logger.WarnContext(ctx, "apple profile has mixed include label modes; ignoring include labels", "profile_uuid", uuid, "team_id", p.TeamID)
+			errMsg := "apple profile has mixed include label modes; ignoring include labels"
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id", p.TeamID)
+			ctxerr.Handle(ctx, errors.New(errMsg))
 			continue
 		}
 		p.IncludeMode = ia.mode
