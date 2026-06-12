@@ -126,6 +126,8 @@ func TestRanAutomationTicketActivities(t *testing.T) {
 // CommandUUID is empty. In that case the next upcoming activity must NOT
 // be activated, because the current activity was never truly started —
 // activating the next one would break the intended sequential ordering.
+//
+// See commit 159194acc9d92843bb2de933309f159c84a501aa for the fix.
 func TestVPPInstallFailureEmptyCommandUUIDDoesNotActivateNext(t *testing.T) {
 	t.Parallel()
 
