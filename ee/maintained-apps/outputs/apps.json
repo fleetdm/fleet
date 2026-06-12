@@ -1216,7 +1216,7 @@
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
-      "unique_identifier": "Cloudflare WARP",
+      "unique_identifier": "Cloudflare One Client",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
