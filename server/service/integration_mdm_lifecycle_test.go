@@ -287,6 +287,12 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 	testCases := []struct {
 		Name   string
 		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
+		// DrainEnrollBacklog consumes the one-time profile delivery that the per-host reconciler queues at MDM
+		// enrollment, before recording the pre-action state. Needed for actions that do NOT re-enroll the host:
+		// without it, the pre-action recording session consumes the enroll-time backlog itself and the pre/post
+		// command sets diverge. Actions that re-enroll (e.g. delete + re-enroll) must NOT drain, because their
+		// post-action session legitimately re-delivers the same backlog and the symmetry is the assertion.
+		DrainEnrollBacklog bool
 	}{
 		{
 			"wiped host turns on MDM",
@@ -342,6 +348,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				// re-enroll
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 		{
 			"locked host turns on MDM",
@@ -383,6 +390,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 		{
 			"host turns on MDM features out of the blue",
@@ -394,6 +402,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					require.Error(t, device.Enroll())
 				}
 			},
+			true, // action does not re-enroll, so consume the enroll-time backlog before recording
 		},
 		{
 			"host is deleted then osquery enrolls then turns on MDM",
@@ -422,6 +431,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 
 				require.NoError(t, device.Enroll())
 			},
+			false,
 		},
 	}
 
@@ -451,6 +461,9 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				host, device := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
+				if tt.DrainEnrollBacklog {
+					s.recordWindowsHostStatus(host, device)
+				}
 				assertAction(t, host, device, tt.Action)
 			})
 
@@ -478,6 +491,9 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 				require.NoError(t, err)
 
+				if tt.DrainEnrollBacklog {
+					s.recordWindowsHostStatus(host, device)
+				}
 				assertAction(t, host, device, tt.Action)
 			})
 		})
