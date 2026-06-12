@@ -2326,8 +2326,14 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 }
 
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
-// a terminal state, then either releases the device or, when require_all_software_windows is true and any item failed
-// (or the 3-hour timeout was hit), blocks the device on the ESP failure screen.
+// a terminal state, then finalizes the device down one of three paths:
+//
+//   - hard block: require_all_software_windows is true and any item failed, or the 3-hour timeout was hit. The ESP
+//     failure screen is shown with only the "Reset device" recovery option and remaining items are cancelled.
+//   - soft block: an item failed but require_all_software_windows is false. The ESP failure screen is shown listing
+//     the failed software by name, with a "Continue anyway" option so the user can proceed to the desktop and install
+//     the missing software via self-service. Nothing is cancelled (all items already reached a terminal state).
+//   - release: no failures (or pure timeout with require_all_software_windows false); the device proceeds to login.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
@@ -2341,6 +2347,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 	// hasSoftwareFailure tracks setup-experience software failures only.
 	var hasSoftwareFailure bool
+
+	// failedSoftwareNames collects the names of the failed setup-experience items for the soft-block message. Only
+	// populated when Stage 3 runs; the timeout path skips Stage 3, so it stays empty there (the timeout text is used
+	// instead).
+	var failedSoftwareNames []string
 
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
@@ -2500,6 +2511,9 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			switch r.Status {
 			case fleet.SetupExperienceStatusFailure:
 				hasSoftwareFailure = true
+				if r.Name != "" {
+					failedSoftwareNames = append(failedSoftwareNames, r.Name)
+				}
 			case fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusCancelled:
 				// terminal, nothing to record
 			default:
@@ -2539,11 +2553,18 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 	failed := timedOut || hasSoftwareFailure
 	shouldBlock := failed && requireAll
+	// shouldWarn drives the soft block: software failed but "Cancel setup if software fails" is off. We still surface
+	// the ESP failure UI so the user learns which software failed, but with a "Continue anyway" option so they can
+	// proceed to the desktop and install the missing software via self-service (issue #45948). Pure timeout with
+	// require_all=false keeps releasing silently: the timeout path skips Stage 3, so there is no failed-software list
+	// to show.
+	shouldWarn := hasSoftwareFailure && !timedOut && !requireAll
 
 	// Build commands for the response.
 	provID := syncml.DocProvisioningAppProviderID
 	var cmds []*mdm_types.SyncMLCmd
-	if shouldBlock {
+	switch {
+	case shouldBlock:
 		// Pick the user-facing error text to surface on the failure UI. Software failure takes precedence over timeout
 		// because it's more actionable; pure timeout (no software failed) uses the timeout text so the user sees an
 		// accurate reason.
@@ -2551,8 +2572,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if hasSoftwareFailure {
 			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
 		}
-		cmds = buildESPBlockCommands(provID, errorText)
-	} else {
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsReset)
+	case shouldWarn:
+		cmds = buildESPBlockCommands(provID,
+			microsoft_mdm.ESPSoftwareFailureContinuableErrorText(failedSoftwareNames), espBlockButtonsResetAndContinue)
+	default:
 		// Release path: device proceeds to login. We do not send CustomErrorText here because the failure UI never renders
 		// on a release (no BlockInStatusPage, no forced timeout), so any error text would be dead state on the DMClient
 		// node.
@@ -2690,25 +2714,37 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"timed_out", timedOut,
 		"has_software_failure", hasSoftwareFailure,
 		"require_all", requireAll,
-		"blocking", shouldBlock)
+		"blocking", shouldBlock,
+		"soft_blocking", shouldWarn)
 
 	return cmds, nil
 }
 
-// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state with a "Reset device"
-// button and "Collect logs" button.
-func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
+// BlockInStatusPage values per Microsoft DMClient CSP docs (bit flags): 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+const (
+	// espBlockButtonsReset shows only the "Reset PC" button: used for the hard block (software failure with
+	// require_all_software_windows=true, or ESP timeout), where reset (Autopilot wipe + re-enrollment) is the only
+	// in-product recovery path.
+	espBlockButtonsReset = "1"
+	// espBlockButtonsResetAndContinue shows "Reset PC" and "Continue anyway" (1|4): used for the soft block when
+	// software failed but require_all_software_windows is false, so the user may proceed to the desktop and install
+	// the missing software via self-service.
+	espBlockButtonsResetAndContinue = "5"
+)
+
+// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state showing errorText, a
+// "Collect logs" button, and the recovery buttons selected by blockButtons (one of the espBlockButtons* constants).
+func buildESPBlockCommands(provID, errorText, blockButtons string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		// CustomErrorText: shown in the ESP failure UI as the failure reason.
 		newSyncMLCmdText(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
 			errorText),
-		// BlockInStatusPage=1: show the "Reset PC" button (per Microsoft DMClient CSP docs). Reset triggers an Autopilot
-		// wipe and re-enrollment, which is the only reliable in-product recovery path for a failed ESP. Documented values:
-		// 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+		// BlockInStatusPage: which recovery buttons the failure UI offers. Reset triggers an Autopilot wipe and
+		// re-enrollment; Continue anyway (soft block only) lets the user proceed to the desktop.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
-			"1"),
+			blockButtons),
 		// AllowCollectLogsButton: show the "Collect logs" button so IT can gather diagnostics from the failure screen.
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
