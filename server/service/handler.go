@@ -67,6 +67,7 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
+	ssoRateLimit    *throttled.Rate
 	httpSigVerifier mux.MiddlewareFunc
 }
 
@@ -84,6 +85,15 @@ func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
 func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.mdmSsoRateLimit = &r
+	}
+}
+
+// WithSsoRateLimit configures the rate of the SSO callback's dedicated rate
+// limit bucket (the rate defaults to the login rate limit otherwise; the bucket
+// is always separate from the login bucket).
+func WithSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.ssoRateLimit = &r
 	}
 }
 
@@ -1163,11 +1173,20 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	if extra.mdmSsoRateLimit != nil {
 		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
 	}
+	// The SSO callback gets its own dedicated bucket (separate from the login
+	// bucket) so a flood on the unauthenticated callback can't exhaust the
+	// rate-limit budget that legitimate password logins depend on. The rate
+	// defaults to the login rate unless explicitly overridden.
+	ssoRateLimit := loginRateLimit
+	if extra.ssoRateLimit != nil {
+		ssoRateLimit = *extra.ssoRateLimit
+	}
+	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
 
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	// The SSO callback is unauthenticated and internet-reachable. Rate-limit it
-	// (shares the login bucket) and cap the body to keep pre-auth attacks surface small.
-	ne.WithCustomMiddleware(loginLimiter).
+	// (dedicated bucket) and cap the body to keep pre-auth attacks surface small.
+	ne.WithCustomMiddleware(ssoLimiter).
 		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
