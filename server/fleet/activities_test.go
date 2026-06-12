@@ -140,6 +140,27 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 		assert.EqualValues(t, 403, got["status_code"])
 		assert.Equal(t, "Rate Limit Exceeded", got["error_response"])
 	})
+
+	t.Run("conditional access", func(t *testing.T) {
+		act := ActivityTypeFailedAutomationConditionalAccess{
+			PolicyID:      15,
+			HostIDList:    []uint{43},
+			StatusCode:    500,
+			ErrorResponse: "500: upstream error",
+		}
+
+		assert.Equal(t, "failed_automation_conditional_access", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "500: upstream error", got["error_response"])
+	})
 }
 
 func TestSuccessPolicyAutomationActivities(t *testing.T) {
@@ -169,6 +190,24 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		var got map[string]any
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 14, got["policy_id"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
+
+	t.Run("single sign-on blocked", func(t *testing.T) {
+		act := ActivityTypeRanAutomationConditionalAccess{
+			PolicyID:   15,
+			HostIDList: []uint{43},
+		}
+
+		assert.Equal(t, "ran_automation_conditional_access", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
 		assertNoHostIDsOrPolicyName(t, got)
 	})
 }
