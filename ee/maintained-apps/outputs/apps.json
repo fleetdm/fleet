@@ -1269,6 +1269,13 @@
       "description": "CodeRunner is a multi-language programming editor."
     },
     {
+      "name": "Codex",
+      "slug": "codex-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.openai.codex",
+      "description": "Codex is OpenAI's desktop app for managing coding agents."
+    },
+    {
       "name": "CodexBar",
       "slug": "codexbar/darwin",
       "platform": "darwin",

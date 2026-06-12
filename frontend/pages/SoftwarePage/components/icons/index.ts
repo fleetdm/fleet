@@ -142,6 +142,7 @@ import Cmux from "./Cmux";
 import Coconutbattery from "./Coconutbattery";
 import Codeedit from "./Codeedit";
 import Coderunner from "./Coderunner";
+import CodexApp from "./CodexApp";
 import Codexbar from "./Codexbar";
 import CogApp from "./CogApp";
 import Colorsnapper from "./Colorsnapper";
@@ -1040,6 +1041,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   code: VisualStudioCode,
   codeedit: Codeedit,
   coderunner: Coderunner,
+  codex: CodexApp,
   codexbar: Codexbar,
   cog: CogApp,
   "colorsnapper 2": Colorsnapper,
