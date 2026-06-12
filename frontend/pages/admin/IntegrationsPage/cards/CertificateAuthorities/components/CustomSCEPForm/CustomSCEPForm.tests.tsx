@@ -94,4 +94,38 @@ describe("CustomSCEPForm", () => {
 
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
   });
+
+  it("rejects a challenge with non-printable characters", () => {
+    render(
+      <CustomSCEPForm
+        formData={createTestFormData({ challenge: "bad_challenge" })}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        isDirty
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByText(/Invalid characters/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  it("does not block an unchanged (masked) challenge when editing", () => {
+    render(
+      <CustomSCEPForm
+        formData={createTestFormData({ challenge: "********" })}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        isEditing
+        isDirty
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+  });
 });

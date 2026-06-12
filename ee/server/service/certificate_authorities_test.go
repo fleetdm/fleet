@@ -396,6 +396,38 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		verifyNilFieldsForType(t, createdCA)
 	})
 
+	t.Run("Create Custom SCEP CA - challenge with non-printable character is rejected", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createRequest := fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &fleet.CustomSCEPProxyCA{
+				Name:      "CustomSCEPWIFI",
+				URL:       "https://customscep.example.com",
+				Challenge: "bad_challenge", // underscore is not a valid ASN.1 PrintableString character
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.ErrorContains(t, err, "printable characters")
+		require.Empty(t, createdCAs)
+	})
+
+	t.Run("Create Custom SCEP CA - challenge with allowed punctuation succeeds", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createRequest := fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &fleet.CustomSCEPProxyCA{
+				Name:      "CustomSCEPWIFI",
+				URL:       "https://customscep.example.com",
+				Challenge: "Fleet-SCEP.2026", // hyphen and period are valid PrintableString characters
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+	})
+
 	t.Run("Create NDES SCEP CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
@@ -1565,6 +1597,35 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "mock error to avoid NewActivity panic")
 		})
 
+		t.Run("Challenge with non-printable character is rejected", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					Challenge: new("bad_challenge"), // underscore is not a valid ASN.1 PrintableString character
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.ErrorContains(t, err, "printable characters")
+		})
+
+		t.Run("Masked (unchanged) challenge skips character validation", func(t *testing.T) {
+			// Backward compatibility: an unchanged challenge is submitted as the masked placeholder, so it must
+			// not be re-validated. Otherwise editing a CA whose challenge predates this validation would break.
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					URL:       new("https://customscep.example.com"),
+					Challenge: new(fleet.MaskedPassword),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
 		t.Run("Bad name", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 
@@ -1966,4 +2027,29 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "certificate authority was not found")
 	})
+}
+
+func TestChallengeHasOnlyPrintableStringChars(t *testing.T) {
+	tests := []struct {
+		name      string
+		challenge string
+		want      bool
+	}{
+		{"alphanumeric", "FleetSCEPtest2026", true},
+		{"empty", "", true},
+		{"allowed punctuation", "Fleet-SCEP.2026 (test) +,/:=?'", true},
+		{"hyphen only", "abc-def-123", true},
+		{"underscore rejected", "Fleet_SCEP", false},
+		{"at sign rejected", "fleet@scep", false},
+		{"asterisk rejected", "fleet*scep", false},
+		{"base64url with underscore rejected", "JURAzXStYElNpVi63B_ps6D0WxF7b3Gv", false},
+		{"base64url with hyphen only allowed", "i-8MPPQ85Ux3uqNptijN53Ru3KYIIgEI", true},
+		{"hash rejected", "fleet#scep", false},
+		{"tilde rejected", "fleet~scep", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, challengeHasOnlyPrintableStringChars(tt.challenge))
+		})
+	}
 }
