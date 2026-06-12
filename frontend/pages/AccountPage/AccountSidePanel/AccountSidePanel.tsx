@@ -14,7 +14,14 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import { generateRole, generateTeam, readableDate } from "utilities/helpers";
+import {
+  generateRole,
+  generateTeam,
+  readableDate,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
+import stringUtils from "utilities/strings";
+import TooltipWrapper from "components/TooltipWrapper";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -65,6 +72,33 @@ const AccountSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
+  const teamNames = (() => {
+    const names = teams.map((t) => t.name);
+    return globalRole !== null && teams.length > 0
+      ? ["Global", ...names]
+      : names;
+  })();
+
+  const roleGroups = (() => {
+    const groups: { role: string; names: string[] }[] = [];
+    if (globalRole !== null && teams.length > 0) {
+      groups.push({
+        role: stringUtils.capitalizeRole(globalRole),
+        names: ["Global"],
+      });
+    }
+    teams.forEach((team) => {
+      const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+      const existing = groups.find((g) => g.role === role);
+      if (existing) {
+        existing.names.push(team.name);
+      } else {
+        groups.push({ role, names: [team.name] });
+      }
+    });
+    return groups;
+  })();
+
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />
   );
@@ -110,8 +144,51 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
-      <DataSet title="Role" value={roleText} />
+      {isPremiumTier && (
+        <DataSet
+          title="Fleets"
+          value={
+            teamNames.length > 1 ? (
+              <TooltipWrapper
+                tipContent={tooltipTextWithLineBreaks(teamNames)}
+                underline={false}
+                showArrow
+                position="top"
+                tipOffset={10}
+                fixedPositionStrategy
+              >
+                {teamsText}
+              </TooltipWrapper>
+            ) : (
+              teamsText
+            )
+          }
+        />
+      )}
+      <DataSet
+        title="Role"
+        value={
+          roleText === "Various" ? (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              {roleText}
+            </TooltipWrapper>
+          ) : (
+            roleText
+          )
+        }
+      />
       {isPremiumTier && config && (
         <DataSet
           title="License expiration date"

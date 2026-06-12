@@ -7,9 +7,16 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import PillBadge from "components/PillBadge";
 import { IInvite } from "interfaces/invite";
+import { ITeam } from "interfaces/team";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { generateRole, generateTeam, greyCell } from "utilities/helpers";
+import {
+  generateRole,
+  generateTeam,
+  greyCell,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
+import stringUtils from "utilities/strings";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
@@ -58,6 +65,8 @@ export interface IUserTableData {
   status: string;
   email: string;
   teams: string;
+  teamNames: string[];
+  roleGroups: { role: string; names: string[] }[];
   role: UserRole;
   actions: IDropdownOption[];
   /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
@@ -132,6 +141,26 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        if (cellProps.cell.value === "Various") {
+          const { roleGroups } = cellProps.row.original;
+          return (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              <TextCell value="Various" grey italic />
+            </TooltipWrapper>
+          );
+        }
         return (
           <TextCell
             value={cellProps.cell.value}
@@ -200,9 +229,31 @@ const generateTableHeaders = (
       Header: "Fleets",
       accessor: "teams",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const { teamNames } = cellProps.row.original;
+        if (teamNames.length > 1) {
+          return (
+            <TooltipWrapper
+              tipContent={tooltipTextWithLineBreaks(teamNames)}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              <TextCell value={cellProps.cell.value} grey italic />
+            </TooltipWrapper>
+          );
+        }
+        const isGrey = greyCell(cellProps.cell.value);
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            grey={isGrey}
+            italic={isGrey && cellProps.cell.value !== "Global"}
+          />
+        );
+      },
     });
   }
 
@@ -276,6 +327,40 @@ const generateActionDropdownOptions = (
   return dropdownOptions;
 };
 
+const generateTeamNames = (
+  teams: ITeam[],
+  globalRole: UserRole | null
+): string[] => {
+  const names = teams.map((t) => t.name);
+  if (globalRole !== null && teams.length > 0) {
+    return ["Global", ...names];
+  }
+  return names;
+};
+
+const generateRoleGroups = (
+  teams: ITeam[],
+  globalRole: UserRole | null
+): { role: string; names: string[] }[] => {
+  const groups: { role: string; names: string[] }[] = [];
+  if (globalRole !== null && teams.length > 0) {
+    groups.push({
+      role: stringUtils.capitalizeRole(globalRole),
+      names: ["Global"],
+    });
+  }
+  teams.forEach((team) => {
+    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+    const existing = groups.find((g) => g.role === role);
+    if (existing) {
+      existing.names.push(team.name);
+    } else {
+      groups.push({ role, names: [team.name] });
+    }
+  });
+  return groups;
+};
+
 const enhanceUserData = (
   users: IUser[],
   currentUserId: number
@@ -286,6 +371,8 @@ const enhanceUserData = (
       status: generateStatus("user", user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
+      teamNames: generateTeamNames(user.teams, user.global_role),
+      roleGroups: generateRoleGroups(user.teams, user.global_role),
       role: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
@@ -308,6 +395,8 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       status: generateStatus("invite", invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
+      teamNames: generateTeamNames(invite.teams, invite.global_role),
+      roleGroups: generateRoleGroups(invite.teams, invite.global_role),
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(
         false,
