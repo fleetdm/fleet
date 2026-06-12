@@ -30,10 +30,6 @@ func recordWebhookFailedActivity(
 	postErr error,
 	logger *slog.Logger,
 ) {
-	if newActivitySvc == nil {
-		return
-	}
-
 	var statusCode int
 	if sc, ok := errors.AsType[interface {
 		error
@@ -80,9 +76,6 @@ func recordWebhookRanActivity(
 	batch []fleet.PolicySetHost,
 	logger *slog.Logger,
 ) {
-	if newActivitySvc == nil {
-		return
-	}
 	hostIDs := make([]uint, len(batch))
 	for i, host := range batch {
 		hostIDs[i] = host.ID

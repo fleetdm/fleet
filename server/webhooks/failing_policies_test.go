@@ -510,7 +510,7 @@ func TestSendFailingPoliciesWebhookRecordsQueuedActivity(t *testing.T) {
 		assert.Empty(t, setHosts)
 	})
 
-	t.Run("nil activity service is a no-op", func(t *testing.T) {
+	t.Run("records one sent activity for single batch", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -523,11 +523,22 @@ func TestSendFailingPoliciesWebhookRecordsQueuedActivity(t *testing.T) {
 			require.NoError(t, failingPolicySet.AddHost(p.ID, host))
 		}
 
+		var recorded []fleet.ActivityTypeRanAutomationWebhook
+		newActivitySvc := &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity fleet.ActivityDetails) error {
+			act, ok := activity.(fleet.ActivityTypeRanAutomationWebhook)
+			require.True(t, ok)
+			recorded = append(recorded, act)
+			return nil
+		}}
+
 		err = SendFailingPoliciesBatchedPOSTs(
 			t.Context(), p, failingPolicySet, 0, serverURL, webhookURL, now,
-			slog.New(slog.DiscardHandler), nil,
+			slog.New(slog.DiscardHandler), newActivitySvc,
 		)
 		require.NoError(t, err)
+		require.Len(t, recorded, 1)
+		assert.Equal(t, p.ID, recorded[0].PolicyID)
+		assert.Equal(t, []uint{1}, recorded[0].HostIDList)
 	})
 }
 
