@@ -2807,6 +2807,31 @@ This activity contains the following fields:
 }
 ```
 
+## edited_configuration_profile_labels
+
+Generated when a configuration profile is edited.
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "profile_identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
