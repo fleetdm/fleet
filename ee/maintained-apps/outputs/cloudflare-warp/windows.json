@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "26.4.1390.0",
+      "version": "2026.4.1390.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '26.4.1390.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.' AND version_compare(version, '2026.4.1390.0') < 0);"
       },
       "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2026.4.1390.0",
       "install_script_ref": "8959087b",
