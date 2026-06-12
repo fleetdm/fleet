@@ -174,6 +174,7 @@ type AuthConfig struct {
 	SaltKeySize                 int           `yaml:"salt_key_size"`
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1278,6 +1279,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
+		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1763,6 +1766,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
