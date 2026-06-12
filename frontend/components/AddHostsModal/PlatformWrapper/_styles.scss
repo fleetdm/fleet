@@ -20,6 +20,7 @@
       line-height: $line-height;
       line-break: anywhere;
       padding: 12px $pad-xlarge 12px $pad-medium;
+      resize: none;
     }
   }
 
@@ -68,15 +69,6 @@
         height: 190px;
       }
     }
-  }
-
-  &__command-line-tool.custom-link {
-    color: inherit;
-    font-weight: $bold;
-  }
-
-  &__advanced--osqueryd .custom-link {
-    font-weight: $bold;
   }
 
   .download-certificate--tooltip {
