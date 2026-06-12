@@ -450,13 +450,6 @@
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
-      "name": "Backblaze",
-      "slug": "backblaze/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.backblaze.bzbmenu",
-      "description": "Backblaze is a data backup and storage service."
-    },
-    {
       "name": "Background Music",
       "slug": "background-music/darwin",
       "platform": "darwin",
