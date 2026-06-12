@@ -5,14 +5,42 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import ABetterFinderRename from "./ABetterFinderRename";
 import AbletonLive12Suite from "./AbletonLive12Suite";
 import Abstract from "./Abstract";
+import Acorn from "./Acorn";
 import AcrobatReader from "./AcrobatReader";
+import Activedock from "./Activedock";
+import Activitywatch from "./Activitywatch";
+import Actual from "./Actual";
+import Adguard from "./Adguard";
+import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
+import AffinityDesigner from "./AffinityDesigner";
+import AffinityDesigner1 from "./AffinityDesigner1";
+import AffinityPhoto from "./AffinityPhoto";
+import AffinityPhoto1 from "./AffinityPhoto1";
+import AffinityPublisher from "./AffinityPublisher";
+import AffinityPublisher1 from "./AffinityPublisher1";
+import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
+import Airdroid from "./Airdroid";
+import Airparrot from "./Airparrot";
+import Airserver from "./Airserver";
+import Airtable from "./Airtable";
 import Airtame from "./Airtame";
+import Airy from "./Airy";
+import Akiflow from "./Akiflow";
+import Alcove from "./Alcove";
+import Aldente from "./Aldente";
+import Alloy from "./Alloy";
+import AltairGraphqlClient from "./AltairGraphqlClient";
+import AltTab from "./AltTab";
+import AmadeusPro from "./AmadeusPro";
+import Amadine from "./Amadine";
 import AmazonChime from "./AmazonChime";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
@@ -20,26 +48,41 @@ import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonDCV from "./AmazonDCV";
 import AmazonWorkspaces from "./AmazonWorkspaces";
+import Amethyst from "./Amethyst";
+import Amie from "./Amie";
 import AndroidApp from "./AndroidApp";
 import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
+import AngryIpScanner from "./AngryIpScanner";
 import Anka from "./Anka";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
 import AntigravityIde from "./AntigravityIde";
+import Antinote from "./Antinote";
 import AnyDesk from "./AnyDesk";
+import Anydo from "./Anydo";
+import Anytype from "./Anytype";
+import Apidog from "./Apidog";
 import Apparency from "./Apparency";
 import AppCleaner from "./AppCleaner";
+import AppFair from "./AppFair";
+import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import Applite from "./Applite";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
 import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
+import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
+import Atext from "./Atext";
 import Audacity from "./Audacity";
+import AudioHijack from "./AudioHijack";
 import AvastSecureBrowser from "./AvastSecureBrowser";
+import AviatrixVpnClient from "./AviatrixVpnClient";
 import AwsVpnClient from "./AwsVpnClient";
+import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -961,16 +1004,44 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "7 zip": SevenZip,
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
+  "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
   abstract: Abstract,
+  acorn: Acorn,
+  activedock: Activedock,
+  activitywatch: Activitywatch,
+  actual: Actual,
+  adguard: Adguard,
+  adlock: Adlock,
   "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  "advanced renamer": AdvancedRenamer,
   affinity: Affinity,
+  "affinity designer": AffinityDesigner1,
+  "affinity designer 2": AffinityDesigner,
+  "affinity photo": AffinityPhoto1,
+  "affinity photo 2": AffinityPhoto,
+  "affinity publisher": AffinityPublisher1,
+  "affinity publisher 2": AffinityPublisher,
+  airbuddy: Airbuddy,
   aircall: Aircall,
+  airdroid: Airdroid,
+  airparrot: Airparrot,
+  airserver: Airserver,
+  airtable: Airtable,
   airtame: Airtame,
+  airy: Airy,
+  akiflow: Akiflow,
+  alcove: Alcove,
+  aldente: Aldente,
+  alloy: Alloy,
+  "altair graphql client": AltairGraphqlClient,
+  alttab: AltTab,
+  "amadeus pro": AmadeusPro,
+  amadine: Amadine,
   "amazon chime": AmazonChime,
   "amazon corretto 21": AmazonCorretto21,
   "amazon corretto 24": AmazonCorretto24,
@@ -978,24 +1049,39 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon corretto 26": AmazonCorretto26,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
+  amethyst: Amethyst,
+  amie: Amie,
   "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
+  "angry ip scanner": AngryIpScanner,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
   "antigravity ide": AntigravityIde,
+  antinote: Antinote,
+  "any.do": Anydo,
   anydesk: AnyDesk,
+  anytype: Anytype,
+  apidog: Apidog,
+  "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
+  "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
+  applite: Applite,
   arc: Arc,
   archaeology: Archaeology,
   "arduino ide": ArduinoIde,
   asana: Asana,
+  "asset catalog tinkerer": AssetCatalogTinkerer,
+  atext: Atext,
   audacity: Audacity,
+  "audio hijack": AudioHijack,
   avast: AvastSecureBrowser,
+  "aviatrix vpn client": AviatrixVpnClient,
   "aws client vpn": AwsVpnClient,
   "aws vpn client": AwsVpnClient,
+  "axure rp": AxureRp,
   "azul zulu 25 jdk": AzulZulu25Jdk,
   "azul zulu 25 jre": AzulZulu25Jre,
   backblaze: Backblaze,
