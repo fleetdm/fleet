@@ -2,6 +2,8 @@
 
 Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux.
 
+> See [our FAQ](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support) for more details about Linux OS and desktop manager support.
+
 Fleet Desktop unlocks two key benefits:
 
 * Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene. Available in Fleet Premium.
