@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { browserHistory } from "react-router";
 import { Toaster, toast, ExternalToast } from "sonner";
 
 import ToastCard, { ToastVariant } from "./ToastCard";
@@ -22,6 +23,17 @@ const ToastNotification = ({
   const classes = className
     ? `${baseClass} ${baseClass}__wrapper ${className}`
     : `${baseClass} ${baseClass}__wrapper`;
+
+  // Dismiss visible toasts on route change, matching 4.86 flash behavior.
+  // The listener fires synchronously during router.push; because `notify`
+  // defers creation by a tick (see below), a toast triggered alongside a
+  // navigation is created afterward and lands on the destination page.
+  useEffect(() => {
+    const unlisten = browserHistory.listen(() => {
+      toast.dismiss();
+    });
+    return unlisten;
+  }, []);
 
   return (
     <Toaster
@@ -210,26 +222,46 @@ const resolveDetailProps = (
   };
 };
 
+// Monotonic id source so we can return a toast id synchronously while
+// deferring the actual creation (below). Session-unique is sufficient.
+let toastSeq = 0;
+const nextToastId = (): ToastId => `fleet-toast-${(toastSeq += 1)}`;
+
 export const notify: INotify = {
-  success: (message, options) =>
-    toast.custom(
-      (id) => <ToastCard variant="success" message={message} toastId={id} />,
-      toSonnerOptions(SUCCESS_DURATION, options)
-    ),
+  success: (message, options) => {
+    const id = options?.id ?? nextToastId();
+    // Defer one tick:
+    // Toast fired in the same handler as a router.push is then created AFTER the
+    // route change — and after the route-change dismiss — so it lands on the
+    // destination page whether the caller notifies before or after navigating.
+    setTimeout(() => {
+      toast.custom(
+        (sonnerId) => (
+          <ToastCard variant="success" message={message} toastId={sonnerId} />
+        ),
+        toSonnerOptions(SUCCESS_DURATION, { ...options, id })
+      );
+    });
+    return id;
+  },
   error: (message, options) => {
+    const id = options?.id ?? nextToastId();
     const { detail, detailLabel } = resolveDetailProps(options);
-    return toast.custom(
-      (id) => (
-        <ToastCard
-          variant="error"
-          message={message}
-          detail={detail}
-          detailLabel={detailLabel}
-          toastId={id}
-        />
-      ),
-      toSonnerOptions(ERROR_DURATION, options)
-    );
+    setTimeout(() => {
+      toast.custom(
+        (sonnerId) => (
+          <ToastCard
+            variant="error"
+            message={message}
+            detail={detail}
+            detailLabel={detailLabel}
+            toastId={sonnerId}
+          />
+        ),
+        toSonnerOptions(ERROR_DURATION, { ...options, id })
+      );
+    });
+    return id;
   },
   batch: (items) =>
     items.map((item) =>
