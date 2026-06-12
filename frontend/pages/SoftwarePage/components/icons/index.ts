@@ -416,17 +416,40 @@ import Knime from "./Knime";
 import Knockknock from "./Knockknock";
 import Krisp from "./Krisp";
 import Krita from "./Krita";
+import Lapce from "./Lapce";
+import LassoApp from "./LassoApp";
 import LastPass from "./LastPass";
+import LastWindowQuits from "./LastWindowQuits";
+import Latest from "./Latest";
+import Launchbar from "./Launchbar";
 import LenovoDockManager from "./LenovoDockManager";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
+import Lightburn from "./Lightburn";
 import Linear from "./Linear";
+import Linearmouse from "./Linearmouse";
+import LingonX from "./LingonX";
 import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
+import Local from "./Local";
+import Localsend from "./Localsend";
+import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import Logseq from "./Logseq";
+import Lookaway from "./Lookaway";
 import Loom from "./Loom";
+import Loop from "./Loop";
+import Loopback from "./Loopback";
+import LoRain from "./LoRain";
+import Losslesscut from "./Losslesscut";
+import LowProfile from "./LowProfile";
 import LuLu from "./LuLu";
+import Lunacy from "./Lunacy";
+import Lunar from "./Lunar";
+import Lunasea from "./Lunasea";
+import Lunatask from "./Lunatask";
+import Lycheeslicer from "./Lycheeslicer";
 import Maccy from "./Maccy";
 import Macdown from "./Macdown";
 import Mace from "./Mace";
@@ -1350,16 +1373,39 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   knockknock: Knockknock,
   krisp: Krisp,
   krita: Krita,
+  lapce: Lapce,
+  lasso: LassoApp,
+  "last window quits": LastWindowQuits,
   lastpass: LastPass,
+  latest: Latest,
+  launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
   lens: Lens,
   libreoffice: LibreOffice,
+  lightburn: Lightburn,
   linear: Linear,
+  linearmouse: Linearmouse,
+  "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lo-rain": LoRain,
+  local: Local,
+  localsend: Localsend,
+  locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  logseq: Logseq,
+  lookaway: Lookaway,
   loom: Loom,
+  loop: Loop,
+  loopback: Loopback,
+  losslesscut: Losslesscut,
+  "low profile": LowProfile,
   lulu: LuLu,
+  lunacy: Lunacy,
+  lunar: Lunar,
+  lunasea: Lunasea,
+  lunatask: Lunatask,
+  "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
   macdown: Macdown,
