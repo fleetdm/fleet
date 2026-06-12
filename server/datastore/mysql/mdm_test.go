@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -4942,10 +4943,28 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	}
 }
 
+// enableWindowsMDMForReconcileTest enables Windows MDM in app config so ReconcileWindowsProfiles does work in tests, restoring the
+// previous value afterward (it is a global flag that would otherwise leak into sibling subtests sharing the datastore).
+func enableWindowsMDMForReconcileTest(ctx context.Context, t *testing.T, ds *Datastore) {
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	prev := appCfg.MDM.WindowsEnabledAndConfigured
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+	t.Cleanup(func() {
+		bgCtx := context.Background()
+		cfg, err := ds.AppConfig(bgCtx)
+		require.NoError(t, err)
+		cfg.MDM.WindowsEnabledAndConfigured = prev
+		require.NoError(t, ds.SaveAppConfig(bgCtx, cfg))
+	})
+}
+
 func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	SetTestABMAssets(t, ds, "fleet")
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
 
 	// create some Apple and Windows profiles and declaration
 	appleProfs := []*fleet.MDMAppleConfigProfile{
@@ -5044,6 +5063,10 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
 	require.NoError(t, err)
+
+	// Windows profile removal is async now (#46993): the delete retains the profile content, and the profile-manager cron flips the
+	// surviving host rows to remove+pending and enqueues the <Delete>.
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 	assertHostProfileOpStatus(t, ds, host3.UUID,
 		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
@@ -5206,6 +5229,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 // rather than silently orphaned.
 func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
 
 	// Create a team with Windows profiles.
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "delete-team-test"})
@@ -5261,7 +5285,8 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall},
 		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
 
-	// Delete the team — this should generate <Delete> commands.
+	// Delete the team. Removal is async now (#46993): this retains the profiles' content and moves the hosts to No team; the
+	// profile-manager cron then flips their rows and enqueues the <Delete> commands.
 	err = ds.DeleteTeam(ctx, team.ID)
 	require.NoError(t, err)
 
@@ -5269,6 +5294,8 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	teamProfs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamProfs, 0)
+
+	require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 
 	// Host-profile rows should be remove+pending (not remove+NULL, not deleted).
 	assertHostProfileOpStatus(t, ds, host1.UUID,
@@ -5725,6 +5752,49 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, "darwin", got.Platform)
 		require.False(t, got.HasACMEPayload)
+	})
+
+	t.Run("flag persists after the config profile is deleted", func(t *testing.T) {
+		// The RemoveProfile flow: the config profile is gone but the persisted
+		// flag must still report ACME.
+		profUUID := mkProfile(t, "acme-deleted", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, profUUID)
+			return err
+		})
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, "darwin", got.Platform)
+		require.True(t, got.HasACMEPayload, "flag must survive config profile deletion")
+	})
+
+	t.Run("remove-op upsert preserves the install-time flag", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-removeop", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		// Remove-op upsert after the config profile is gone: the subquery
+		// yields 0, but the ON DUPLICATE KEY UPDATE guard must preserve the flag.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?`, profUUID)
+			return err
+		})
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profUUID,
+			HostUUID:      host.UUID,
+			Checksum:      []byte("0123456789abcdef"),
+			Scope:         fleet.PayloadScopeSystem,
+			OperationType: fleet.MDMOperationTypeRemove,
+			CommandUUID:   cmdUUID,
+		}}))
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, got.HasACMEPayload, "remove-op upsert must not reset the flag")
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {

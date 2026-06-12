@@ -1701,7 +1701,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
-	if overlap := fleet.ProfileLabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
 	}
 
@@ -1881,7 +1881,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
-	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
+	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
 	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
@@ -2840,7 +2840,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		}
 
 		includeLabels := append(profile.LabelsIncludeAll, append(profile.Labels, profile.LabelsIncludeAny...)...) //nolint:gocritic
-		if overlap := fleet.ProfileLabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
+		if overlap := fleet.LabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(`Couldn't edit configuration_profiles. Label %q cannot appear in both include and exclude lists.`, overlap))
 		}
 

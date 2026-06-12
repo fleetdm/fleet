@@ -3548,6 +3548,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 
 		toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+		// Per-host desired (applicable) live profiles, used by the execute step to protect LocURIs a remove target shares with a
+		// profile still desired on the same host (label-aware, so a label-scoped profile only protects the hosts it applies to).
+		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
 
 		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous prefix of
 		// the work-hosts and the cursor can resume at the last delivered host.
@@ -3573,7 +3576,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 
 		if len(toInstall) > 0 || len(toRemove) > 0 {
-			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove); eerr != nil {
+			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost); eerr != nil {
 				err = eerr
 				return err
 			}
@@ -3645,6 +3648,7 @@ func executeWindowsProfileReconcileBatch(
 	logger *slog.Logger,
 	appConfig *fleet.AppConfig,
 	toInstall, toRemove []*fleet.MDMWindowsProfilePayload,
+	desiredByHost map[string][]string,
 ) error {
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
@@ -3721,6 +3725,20 @@ func executeWindowsProfileReconcileBatch(
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 		removePayloadData[p.ProfileUUID] = append(removePayloadData[p.ProfileUUID], p)
+	}
+
+	// Also fetch the contents of profiles still desired on the hosts we are removing from: their LocURIs protect shared settings, so a
+	// <Delete> for a removed profile does not revert a setting another profile still applicable to that host enforces. Walk each
+	// removed-from host's desired list once, not once per removed profile on that host.
+	seenRemoveHost := make(map[string]struct{}, len(toRemove))
+	for _, p := range toRemove {
+		if _, ok := seenRemoveHost[p.HostUUID]; ok {
+			continue
+		}
+		seenRemoveHost[p.HostUUID] = struct{}{}
+		for _, q := range desiredByHost[p.HostUUID] {
+			toGetContents[q] = true
+		}
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -3907,59 +3925,115 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
-	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts. Protection is per host: a removed profile's
+	// LocURI is deleted on a host only when no still-desired profile on that host enforces it. Hosts sharing the same protected
+	// subset of the removed profile's LocURIs are grouped into one command; a label-scoped protector that applies to only some hosts
+	// naturally splits them into separate groups. desiredByHost contains only kept (applicable) profiles, never removed ones, so it
+	// needs no further exclusion.
+	resolvedLocURIs := make(map[string][]string) // profileUUID -> SCEP-resolved LocURIs (cached across hosts/targets)
+	locURIsFor := func(profUUID string) []string {
+		if v, ok := resolvedLocURIs[profUUID]; ok {
+			return v
+		}
+		var uris []string
+		if c, ok := profileContents[profUUID]; ok {
+			// Resolve the SCEP cert-ID variable to the profile's own UUID so LocURIs compare on resolved paths (a SCEP path is
+			// per-profile and therefore never shared), consistent with how the delete command itself is built.
+			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(c.SyncML, []byte(profUUID))
+			uris = fleet.ExtractLocURIsFromProfileBytes(resolved)
+		}
+		resolvedLocURIs[profUUID] = uris
+		return uris
+	}
+
 	for profUUID, target := range removeTargets {
-		p, ok := profileContents[profUUID]
-		if !ok {
-			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)
+		if _, ok := profileContents[profUUID]; !ok {
+			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
+			// replica-lag miss (the pending-delete row written on the writer hasn't replicated to the reader yet) that resolves on a
+			// later tick; warn and skip for now. The host's remove rows remain, so it is retried, and no state is lost.
+			logger.WarnContext(ctx, "windows profile reconcile: missing content for removed profile, skipping this tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
 			continue
 		}
-		// Collect LocURIs from all OTHER profiles still being installed to
-		// avoid deleting settings enforced by a remaining profile.
-		activeLocURIs := make(map[string]bool)
-		for otherUUID, otherContent := range profileContents {
-			if otherUUID == profUUID {
-				continue // skip the profile being deleted
+		removedURIs := locURIsFor(profUUID)
+
+		type removeGroup struct {
+			activeLocURIs map[string]struct{}
+			hostUUIDs     []string
+		}
+		groups := make(map[string]*removeGroup)
+		for _, hostUUID := range target.hostUUIDs {
+			active := make(map[string]struct{})
+			for _, desiredUUID := range desiredByHost[hostUUID] {
+				if desiredUUID == profUUID {
+					continue
+				}
+				for _, uri := range locURIsFor(desiredUUID) {
+					active[uri] = struct{}{}
+				}
 			}
-			if _, isBeingRemoved := removeTargets[otherUUID]; isBeingRemoved {
-				continue // also being removed, don't protect its URIs
+			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
+			// single command; the common (no label) case collapses to one group.
+			var keyURIs []string
+			for _, uri := range removedURIs {
+				if _, ok := active[uri]; ok {
+					keyURIs = append(keyURIs, uri)
+				}
 			}
-			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(otherContent.SyncML) {
-				activeLocURIs[uri] = true
+			slices.Sort(keyURIs)
+			key := strings.Join(keyURIs, "\n")
+			g := groups[key]
+			if g == nil {
+				g = &removeGroup{activeLocURIs: active}
+				groups[key] = g
 			}
+			g.hostUUIDs = append(g.hostUUIDs, hostUUID)
 		}
 
-		command, err := fleet.BuildDeleteCommandFromProfileBytes(p.SyncML, target.cmdUUID, profUUID, activeLocURIs)
-		if err != nil {
-			logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
-			continue
-		}
-		if command == nil {
-			// All LocURIs are protected by other active profiles; skip.
-			continue
-		}
-
-		removePayloadsForCommand := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
+		// Index this profile's remove payloads by host once so each group builds its command payloads with O(1) lookups instead of
+		// rescanning the full per-profile payload list per group (which is O(groups x hosts) when label scoping forms many groups).
+		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
 		for _, rp := range removePayloadData[profUUID] {
-			// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
-			checksum := rp.Checksum
-			if len(checksum) == 0 {
-				checksum = make([]byte, 16)
-			}
-			hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
-				ProfileUUID:   rp.ProfileUUID,
-				HostUUID:      rp.HostUUID,
-				ProfileName:   rp.ProfileName,
-				CommandUUID:   target.cmdUUID,
-				OperationType: fleet.MDMOperationTypeRemove,
-				Status:        &fleet.MDMDeliveryPending,
-				Checksum:      checksum,
-			}
-			removePayloadsForCommand = append(removePayloadsForCommand, hp)
-			logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
+			payloadByHost[rp.HostUUID] = rp
 		}
-		if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, target.hostUUIDs, command, removePayloadsForCommand); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+
+		for _, g := range groups {
+			cmdUUID := uuid.New().String()
+			command, err := fleet.BuildDeleteCommandFromProfileBytes(profileContents[profUUID].SyncML, cmdUUID, profUUID, g.activeLocURIs)
+			if err != nil {
+				logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+				continue
+			}
+			if command == nil {
+				// Every LocURI of the removed profile is still enforced by another profile on these hosts; nothing to send.
+				continue
+			}
+
+			removePayloadsForCommand := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(g.hostUUIDs))
+			for _, hostUUID := range g.hostUUIDs {
+				rp := payloadByHost[hostUUID]
+				if rp == nil {
+					continue
+				}
+				// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
+				checksum := rp.Checksum
+				if len(checksum) == 0 {
+					checksum = make([]byte, 16)
+				}
+				removePayloadsForCommand = append(removePayloadsForCommand, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+					ProfileUUID:   rp.ProfileUUID,
+					HostUUID:      rp.HostUUID,
+					ProfileName:   rp.ProfileName,
+					CommandUUID:   cmdUUID,
+					OperationType: fleet.MDMOperationTypeRemove,
+					Status:        &fleet.MDMDeliveryPending,
+					Checksum:      checksum,
+				})
+				logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
+			}
+			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+			}
 		}
 	}
 
