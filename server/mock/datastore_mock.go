@@ -1406,7 +1406,11 @@ type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type ListMDMWindowsProfilesToInstallForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error)
+type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
+
+type ListWindowsProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error)
+
+type BulkGetHostMDMWindowsProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error)
 
 type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -4164,8 +4168,14 @@ type DataStore struct {
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
-	ListMDMWindowsProfilesToInstallForHostFunc        ListMDMWindowsProfilesToInstallForHostFunc
-	ListMDMWindowsProfilesToInstallForHostFuncInvoked bool
+	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
+	GetWindowsMDMHostForReconcileFuncInvoked bool
+
+	ListWindowsProfilesForReconcileByTeamFunc        ListWindowsProfilesForReconcileByTeamFunc
+	ListWindowsProfilesForReconcileByTeamFuncInvoked bool
+
+	BulkGetHostMDMWindowsProfilesByUUIDsFunc        BulkGetHostMDMWindowsProfilesByUUIDsFunc
+	BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked bool
 
 	GetMDMWindowsReconcileCursorFunc        GetMDMWindowsReconcileCursorFunc
 	GetMDMWindowsReconcileCursorFuncInvoked bool
@@ -10030,11 +10040,25 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallForHostFuncInvoked = true
+	s.GetWindowsMDMHostForReconcileFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallForHostFunc(ctx, hostUUID)
+	return s.GetWindowsMDMHostForReconcileFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+	s.mu.Lock()
+	s.ListWindowsProfilesForReconcileByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWindowsProfilesForReconcileByTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetHostMDMWindowsProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {

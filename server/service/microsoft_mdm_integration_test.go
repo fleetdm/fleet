@@ -99,3 +99,60 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	assert.Equal(t, profileUUID, rowsAfter[0].ProfileUUID)
 	assert.Equal(t, fleet.MDMOperationTypeInstall, rowsAfter[0].OperationType)
 }
+
+// TestReconcileWindowsProfilesForEnrollingHost is the real-DB seam test for the per-host path: a freshly enrolled
+// host gets its team's profile queued by ReconcileWindowsProfilesForEnrollingHost directly, without waiting for the
+// cron's walk.
+func TestReconcileWindowsProfilesForEnrollingHost(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	ctx := t.Context()
+	logger := testutils.TestLogger(t)
+
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "per-host-recon-enroll"})
+	require.NoError(t, err)
+	profileUUID := mysqltest.InsertWindowsProfileForTest(t, ds, team.ID)
+
+	host := test.NewHost(t, ds, "per-host-recon-host", "1.1.1.2", "per-host-recon-key", "per-host-recon-host-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(team.ID))
+
+	// Before the host satisfies the enrollment predicates, the per-host reconcile is a no-op.
+	require.NoError(t, ReconcileWindowsProfilesForEnrollingHost(ctx, ds, logger, host.UUID))
+	rows, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, rows, "ineligible host must not get profiles queued")
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "TestDeviceName",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host.UUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+
+	// Now the per-host reconcile queues the team's profile immediately.
+	require.NoError(t, ReconcileWindowsProfilesForEnrollingHost(ctx, ds, logger, host.UUID))
+	rows, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "per-host reconcile must queue the team's Windows profile at enrollment")
+	assert.Equal(t, profileUUID, rows[0].ProfileUUID)
+	assert.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+
+	// Idempotent: a second run queues nothing new.
+	require.NoError(t, ReconcileWindowsProfilesForEnrollingHost(ctx, ds, logger, host.UUID))
+	rowsAgain, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, rowsAgain, 1, "second per-host reconcile run must be a no-op")
+}

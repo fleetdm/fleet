@@ -2288,9 +2288,24 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
-	// be installed for a specific host.
-	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
+	// GetWindowsMDMHostForReconcile returns reconcile info for a single
+	// Windows host by UUID, applying the same enrollment predicates as the
+	// batched reconciler's host listing. Returns (nil, nil) when the host
+	// doesn't exist or doesn't satisfy those predicates. Used by the
+	// per-host enrollment reconcile path.
+	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
+
+	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the
+	// reconcile snapshot's profile loader: it loads only profiles for the
+	// host's team (team_id=0 is its own "no team" scope). Used by the
+	// per-host enrollment reconcile path so it doesn't scan every profile
+	// in the system.
+	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
+
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current
+	// host_mdm_windows_profiles rows for the given host UUIDs, grouped by
+	// host UUID. Used by the per-host enrollment reconcile path.
+	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.

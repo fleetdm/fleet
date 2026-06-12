@@ -50,12 +50,63 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	return hosts, nil
 }
 
-// listWindowsProfilesForReconcileTransaction loads every Windows configuration profile in the system, paired with its label
-// assignments. Mirrors the Apple listAppleProfilesForReconcileTransaction so the in-memory handlers apply the same "broken-label"
+// GetWindowsMDMHostForReconcile returns reconcile info for a single Windows host by UUID, applying the same enrollment
+// predicates as the batched reconciler's host listing (platform 'windows', an mdm_windows_enrollments row, host_mdm.enrolled = 1).
+// Returns (nil, nil) when the host doesn't exist or doesn't satisfy those predicates. Used by the per-host enrollment
+// reconcile path; see ReconcileWindowsProfilesForEnrollingHost.
+func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+	const stmt = `
+		SELECT
+			h.id               AS id,
+			h.uuid             AS uuid,
+			h.team_id          AS team_id,
+			h.label_updated_at AS label_updated_at
+		FROM hosts h
+		WHERE
+			h.platform = 'windows'
+			AND h.uuid = ?
+			AND EXISTS (
+				SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid
+			)
+			AND EXISTS (
+				SELECT 1 FROM host_mdm hmdm WHERE hmdm.host_id = h.id AND hmdm.enrolled = 1
+			)
+		LIMIT 1
+	`
+
+	var host fleet.WindowsHostReconcileInfo
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm host for reconcile")
+	}
+	return &host, nil
+}
+
+// ListWindowsProfilesForReconcileByTeam is the per-host variant of the snapshot's profile loader: it loads only profiles for the
+// host's team. team_id=0 is its own team (the "no team" scope); a host with a real team does NOT inherit team_id=0 profiles.
+// Used by ReconcileWindowsProfilesForEnrollingHost so the per-host path doesn't scan every profile in the system.
+func (ds *Datastore) ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+	return ds.listWindowsProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID)
+}
+
+// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
+// host UUID. Used by the per-host enrollment reconcile path; the batched reconciler loads the same data inside its snapshot
+// transaction.
+func (ds *Datastore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+	return ds.bulkGetHostMDMWindowsProfilesByUUIDsTransaction(ctx, ds.reader(ctx), hostUUIDs)
+}
+
+// listWindowsProfilesForReconcileTransaction loads Windows configuration profiles in the system, paired with their label
+// assignments. When teamID is nil every profile is returned (used by the batched reconciler snapshot); when teamID is set only
+// profiles for that team are returned (used by the per-host enrollment path).
+// Mirrors the Apple listAppleProfilesForReconcileTransaction so the in-memory handlers apply the same "broken-label"
 // semantics and broken profiles are exempted from removal.
 func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
+	teamID *uint,
 ) ([]*fleet.WindowsProfileForReconcile, error) {
 	type profileRow struct {
 		ProfileUUID      string       `db:"profile_uuid"`
@@ -65,13 +116,21 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		SecretsUpdatedAt sql.NullTime `db:"secrets_updated_at"`
 	}
 
-	const profStmt = `
+	profStmt := `
 		SELECT profile_uuid, name, team_id, checksum, secrets_updated_at
 		FROM mdm_windows_configuration_profiles
 	`
+	var profArgs []any
+	if teamID != nil {
+		// team_id=0 is the "no team" / global team — its own scope. A host with a real team only matches profiles for that
+		// team; it does NOT also inherit team_id=0 profiles. EffectiveTeamID() on the host already maps nil → 0, so equality
+		// is correct.
+		profStmt += ` WHERE team_id = ?`
+		profArgs = append(profArgs, *teamID)
+	}
 
 	var rows []profileRow
-	if err := sqlx.SelectContext(ctx, tx, &rows, profStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &rows, profStmt, profArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list windows profiles for reconcile")
 	}
 	if len(rows) == 0 {
@@ -282,7 +341,7 @@ func (ds *Datastore) GetWindowsProfileReconcileSnapshot(ctx context.Context, aft
 			return nil
 		}
 
-		allProfiles, inner = ds.listWindowsProfilesForReconcileTransaction(ctx, tx)
+		allProfiles, inner = ds.listWindowsProfilesForReconcileTransaction(ctx, tx, nil)
 		if inner != nil {
 			return inner
 		}

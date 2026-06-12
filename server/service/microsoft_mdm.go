@@ -2414,23 +2414,21 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	if !timedOut {
-		// Profile delivery has two stages, each covered by a different query:
+		// Profile delivery has two stages:
 		//
-		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler
-		//    (ListMDMWindowsProfilesToInstallForHost).
+		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler. Rather than just
+		//    listing them and blocking the release, run the per-host reconciler now: it queues any missing desired
+		//    profiles so stage 2 sees them as in-flight rows in the same checkin. This closes the race where a
+		//    freshly-enrolled host would otherwise wait for the cron's next pass.
 		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet delivered to a terminal state
 		//    (GetHostMDMWindowsProfiles).
 		//
-		// We check both so we never release while profiles are pending at either stage. Each management checkin
-		// re-evaluates both queries.
+		// We never release while profiles are pending at either stage. Each management checkin re-evaluates both.
 
-		// Stage 1: profiles the reconciler hasn't picked up yet.
-		toInstall, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP release check")
-		}
-		if len(toInstall) > 0 {
-			return nil, nil
+		// Stage 1: queue any desired profiles the reconciler hasn't picked up yet. An error blocks the release (we
+		// can't know whether desired work is still unqueued); the next checkin retries.
+		if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, device.HostUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile profiles for ESP release check")
 		}
 
 		// Stage 2: profiles queued but still in-flight (pending/verifying).
@@ -3072,6 +3070,14 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 					}
 				}
 			}
+
+			// Queue this host's profiles right away instead of waiting for the cron's next pass (mirrors Apple's
+			// post-enrollment ReconcileProfilesForEnrollingHost). Best-effort: on failure the enrollment still
+			// succeeds and the cron's walk-all pass delivers the profiles.
+			if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, hostUUID); err != nil {
+				svc.logger.WarnContext(ctx, "reconciling profiles after Windows MDM enrollment", "err", err)
+				ctxerr.Handle(ctx, err)
+			}
 		}
 
 	}
@@ -3492,6 +3498,82 @@ var reconcileWindowsProfilesScanBudget = 24 * time.Second
 // Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
 // == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
 // and idempotent since delivered work is now pending, so it no longer computes as work.
+// ReconcileWindowsProfilesForEnrollingHost is the per-host reconciler, the Windows mirror of Apple's
+// ReconcileProfilesForEnrollingHost. It is invoked right after a host turns on Windows MDM (so profiles are queued without
+// waiting for the cron's next pass) and from the ESP release check (so a host awaiting setup-experience release has its
+// desired profiles queued before the release decision evaluates in-flight rows). It reuses the shared snapshot loaders,
+// ComputeWindowsReconcileDeltas, and the execute step, so it can't drift from the batched cron reconciler on "what should be
+// installed."
+//
+// Returns nil (no-op) when Windows MDM is disabled or the host doesn't satisfy the reconciler's enrollment predicates. Errors
+// are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
+func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return nil
+	}
+
+	host, err := ds.GetWindowsMDMHostForReconcile(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows mdm host for reconcile")
+	}
+	if host == nil {
+		return nil
+	}
+
+	// Load only profiles for this host's team so the per-host call doesn't scan every profile in the system.
+	teamProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing windows profiles for reconcile by team")
+	}
+
+	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile, 1)
+	profilesWithBrokenLabel := make(map[string]struct{})
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range teamProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host mdm windows profiles")
+	}
+
+	hosts := []*fleet.WindowsHostReconcileInfo{host}
+	toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+	if len(toInstall) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
+}
+
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {

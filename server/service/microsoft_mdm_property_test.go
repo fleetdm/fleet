@@ -79,10 +79,8 @@ func newPBTESPSvc(
 		return ac, nil
 	}
 
-	// Skip Stages 1 and 2: profiles are out of PBT scope.
-	ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
+	// Skip Stages 1 and 2: profiles are out of PBT scope. Stage 1's per-host reconcile no-ops at the
+	// WindowsEnabledAndConfigured gate (the AppConfig stub above leaves MDM disabled).
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}

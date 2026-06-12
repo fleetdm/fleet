@@ -73,6 +73,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsPollScheduleRelaxed", testMDMWindowsPollScheduleRelaxed},
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
+		{"TestWindowsPerHostReconcileLoaders", testWindowsPerHostReconcileLoaders},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
@@ -6795,4 +6796,56 @@ func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
 			`SELECT profile_uuid FROM mdm_windows_configuration_profiles_pending_delete ORDER BY profile_uuid`)
 	})
 	require.Empty(t, remaining)
+}
+
+// testWindowsPerHostReconcileLoaders covers the three loaders the per-host enrollment reconcile uses:
+// GetWindowsMDMHostForReconcile (same enrollment predicates as the batch host listing),
+// ListWindowsProfilesForReconcileByTeam (team_id is its own scope; no global inheritance), and
+// BulkGetHostMDMWindowsProfilesByUUIDs (current rows grouped by host).
+func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host without an MDM enrollment must not be eligible.
+	host := test.NewHost(t, ds, "per-host-loader", "10.0.0.99", "phl-key", "phl-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	got, err := ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, got, "host without Windows MDM enrollment must not be eligible")
+
+	windowsEnroll(t, ds, host)
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, host.ID, got.HostID)
+	require.Equal(t, host.UUID, got.UUID)
+	require.Equal(t, uint(0), got.EffectiveTeamID())
+
+	// Unknown UUID returns nil, not an error.
+	missing, err := ds.GetWindowsMDMHostForReconcile(ctx, "no-such-uuid")
+	require.NoError(t, err)
+	require.Nil(t, missing)
+
+	// Team scoping: team_id=0 and a real team are disjoint scopes.
+	globalProfile := InsertWindowsProfileForTest(t, ds, 0)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "per-host-loader-team"})
+	require.NoError(t, err)
+	teamProfile := InsertWindowsProfileForTest(t, ds, team.ID)
+
+	globalProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, globalProfiles, 1)
+	require.Equal(t, globalProfile, globalProfiles[0].ProfileUUID)
+
+	teamProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, teamProfiles, 1)
+	require.Equal(t, teamProfile, teamProfiles[0].ProfileUUID)
+
+	// Current rows grouped by host UUID.
+	installWindowsProfilesAsVerified(t, ds, []string{host.UUID}, []string{globalProfile})
+	current, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID})
+	require.NoError(t, err)
+	require.Len(t, current[host.UUID], 1)
+	require.Equal(t, globalProfile, current[host.UUID][0].ProfileUUID)
 }
