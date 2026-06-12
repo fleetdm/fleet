@@ -36,9 +36,6 @@ func recordCalendarFailureActivity(
 	err error,
 	logger *slog.Logger,
 ) {
-	if newActivitySvc == nil {
-		return
-	}
 	isRemote, statusCode, body := calendar.ClassifyRemoteError(err)
 	if !isRemote {
 		return
@@ -76,9 +73,6 @@ func recordCalendarCreatedActivity(
 	host fleet.HostPolicyMembershipData,
 	logger *slog.Logger,
 ) {
-	if newActivitySvc == nil {
-		return
-	}
 	for policyIDStr := range strings.SplitSeq(host.FailingPolicyIDs, ",") {
 		policyIDStr = strings.TrimSpace(policyIDStr)
 		if policyIDStr == "" {
