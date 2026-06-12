@@ -2028,3 +2028,96 @@ type ActivityTypeDeletedSelfServiceCategory struct {
 func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
 	return "deleted_self_service_category"
 }
+
+// ActivityTypeRanAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) successfully creates the ticket. It is
+// associated with every host the failing-policy job targeted. The Type field is
+// "jira" or "zendesk". For Jira, TicketKey holds the issue key (e.g. "ENG-24");
+// for Zendesk, TicketID holds the numeric ticket ID.
+type ActivityTypeRanAutomationTicket struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+	Type       string `json:"type"`
+	TicketKey  string `json:"ticket_key,omitempty"`
+	TicketID   int64  `json:"ticket_id,omitempty"`
+}
+
+func (a ActivityTypeRanAutomationTicket) ActivityName() string {
+	return "ran_automation_ticket"
+}
+
+func (a ActivityTypeRanAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationTicket) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) can no longer create the ticket after the
+// worker exhausts its retries. It is associated with every host the
+// failing-policy job targeted. The Type field is "jira" or "zendesk".
+type ActivityTypeFailedAutomationTicket struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	Type          string `json:"type"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationTicket) ActivityName() string {
+	return "failed_automation_ticket"
+}
+
+func (a ActivityTypeFailedAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedCalendarPolicyAutomation is recorded when a failing-policy
+// calendar (maintenance window) automation is rejected by the remote calendar
+// provider while the events cron processes a host. One activity is recorded per
+// failing calendar policy the host belongs to, associated with that host.
+type ActivityTypeFailedAutomationCalendarEvent struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) ActivityName() string {
+	return "failed_automation_calendar_event"
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRanAutomationCalendarEvent is recorded when a failing-policy
+// calendar (maintenance window) automation successfully creates a calendar
+// event on the host's calendar while the events cron processes a host. One
+// activity is recorded per failing calendar policy the host belongs to,
+// associated with that host.
+type ActivityTypeRanAutomationCalendarEvent struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) ActivityName() string {
+	return "ran_automation_calendar_event"
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
