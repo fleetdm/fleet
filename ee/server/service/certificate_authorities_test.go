@@ -2013,7 +2013,7 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 	})
 }
 
-func TestChallengeHasOnlyPrintableStringChars(t *testing.T) {
+func TestChallengeHasAllowedChars(t *testing.T) {
 	tests := []struct {
 		name      string
 		challenge string
@@ -2036,7 +2036,62 @@ func TestChallengeHasOnlyPrintableStringChars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, challengeHasOnlyPrintableStringChars(tt.challenge))
+			require.Equal(t, tt.want, challengeHasAllowedChars(tt.challenge))
+		})
+	}
+}
+
+// TestProcessCustomSCEPProxyCAsChallengeValidation covers the GitOps/batch path, which (unlike the UI
+// update path) provides the challenge unmasked and detects "unchanged" by comparing the incoming
+// challenge to the existing one. A pre-existing challenge with otherwise-disallowed characters must keep
+// working when it is re-applied unchanged.
+func TestProcessCustomSCEPProxyCAsChallengeValidation(t *testing.T) {
+	svc := &Service{
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		scepConfigService: &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+		},
+	}
+	const url = "https://customscep.example.com"
+
+	tests := []struct {
+		name     string
+		existing []fleet.CustomSCEPProxyCA
+		incoming []fleet.CustomSCEPProxyCA
+		wantErr  bool
+	}{
+		{
+			name:     "new CA with disallowed challenge is rejected",
+			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "bad_challenge"}},
+			wantErr:  true,
+		},
+		{
+			name:     "unchanged disallowed challenge is skipped (backward compatible)",
+			existing: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "legacy_challenge"}},
+			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "legacy_challenge"}},
+			wantErr:  false,
+		},
+		{
+			name:     "challenge changed to a disallowed value is rejected",
+			existing: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "goodchallenge"}},
+			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "new_bad"}},
+			wantErr:  true,
+		},
+		{
+			name:     "challenge changed to an allowed value succeeds",
+			existing: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "goodchallenge"}},
+			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "new-good.value"}},
+			wantErr:  false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, tt.incoming, tt.existing)
+			if tt.wantErr {
+				require.ErrorContains(t, err, scepChallengePrintableErrMsg)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
