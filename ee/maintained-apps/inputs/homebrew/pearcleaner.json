@@ -1,0 +1,10 @@
+{
+  "name": "Pearcleaner",
+  "unique_identifier": "com.alienator88.Pearcleaner",
+  "token": "pearcleaner",
+  "installer_format": "zip",
+  "slug": "pearcleaner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

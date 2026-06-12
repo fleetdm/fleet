@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.3.4566.62",
+      "version": "1.3.4655.98",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Pritunl %' AND publisher = 'Pritunl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Pritunl %' AND publisher = 'Pritunl' AND version_compare(version, '1.3.4566.62') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Pritunl %' AND publisher = 'Pritunl' AND version_compare(version, '1.3.4655.98') < 0);"
       },
-      "installer_url": "https://github.com/pritunl/pritunl-client/releases/download/1.3.4566.62/Pritunl.exe",
+      "installer_url": "https://github.com/pritunl/pritunl-client/releases/download/1.3.4655.98/Pritunl.exe",
       "install_script_ref": "83fd35ff",
       "uninstall_script_ref": "c81cc77c",
-      "sha256": "55f5bdd909ea9a55641aab0c7b51a55f7f99f1df11cdad16b951b737cf56422f",
+      "sha256": "86555e22045e5ddd2cbefca58a91ed5d2d6035e23b34e819c84f6e99985d77a7",
       "default_categories": [
         "Productivity"
       ]

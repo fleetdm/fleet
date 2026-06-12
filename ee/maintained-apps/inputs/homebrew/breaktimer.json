@@ -1,0 +1,10 @@
+{
+  "name": "BreakTimer",
+  "unique_identifier": "com.tomjwatson.breaktimer",
+  "token": "breaktimer",
+  "installer_format": "dmg",
+  "slug": "breaktimer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

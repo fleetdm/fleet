@@ -1,0 +1,10 @@
+{
+  "name": "Super Productivity",
+  "unique_identifier": "com.super-productivity.app",
+  "token": "super-productivity",
+  "installer_format": "dmg",
+  "slug": "super-productivity/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

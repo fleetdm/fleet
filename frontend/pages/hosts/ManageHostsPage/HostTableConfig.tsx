@@ -460,13 +460,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={
-            <>
-              Settings can be updated remotely on hosts with MDM turned
-              <br />
-              on. To filter by MDM status, head to the Dashboard page.
-            </>
-          }
+          tipContent={<>To filter by MDM status, head to the Dashboard page.</>}
         >
           MDM status
         </TooltipWrapper>

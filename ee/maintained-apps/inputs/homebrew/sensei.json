@@ -1,0 +1,10 @@
+{
+  "name": "Sensei",
+  "unique_identifier": "org.cindori.Sensei",
+  "token": "sensei",
+  "installer_format": "dmg",
+  "slug": "sensei/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
