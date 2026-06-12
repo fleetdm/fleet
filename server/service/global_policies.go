@@ -38,6 +38,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		LabelsExcludeAll: req.LabelsExcludeAll,
 		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
@@ -61,11 +62,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), vc.User); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -471,8 +472,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
-		// LabelsIncludeAll is premium-only.
-		if len(policy.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		// LabelsIncludeAll and LabelsExcludeAll are premium-only.
+		if (len(policy.LabelsIncludeAll) > 0 || len(policy.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 
@@ -482,7 +483,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		}
 
 		// Make sure any applied labels exist.
-		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny, policy.LabelsExcludeAll)
 		if len(labels) > 0 {
 			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
 			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine

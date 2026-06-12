@@ -1399,7 +1399,7 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 		}
 		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
-		if overlap := ProfileLabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
 			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
 				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
 		}
@@ -1408,22 +1408,6 @@ func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, custo
 			customSettings[i].Labels = nil
 		}
 	}
-}
-
-// ProfileLabelOverlap returns the first label name that appears in both
-// the include list and the exclude list, or an empty string if there is none.
-// include should be the union of labels_include_all and labels_include_any.
-func ProfileLabelOverlap(include, exclude []string) string {
-	seen := make(map[string]struct{}, len(include))
-	for _, n := range include {
-		seen[n] = struct{}{}
-	}
-	for _, n := range exclude {
-		if _, overlapExists := seen[n]; overlapExists {
-			return n
-		}
-	}
-	return ""
 }
 
 // GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token

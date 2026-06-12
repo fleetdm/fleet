@@ -974,7 +974,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 				if len(setting.LabelsIncludeAll) > 0 {
 					labels = setting.LabelsIncludeAll
 				}
-				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+				if overlap := fleet.LabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
 					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
 				labels = append(labels, setting.LabelsExcludeAny...)
