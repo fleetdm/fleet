@@ -3763,6 +3763,7 @@ software:
 	workstations := team("💻 Workstations")
 	iosTeam := team("📱🏢 Company-owned iPhones")
 	ipadTeam := team("🔳🏢 Company-owned iPads")
+	byodTeam := team("📱🔐 Personal mobile devices")
 
 	cases := []struct {
 		name             string
@@ -3818,12 +3819,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3843,6 +3846,7 @@ software:
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 						},
 					},
 				)
@@ -3855,12 +3859,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
                                       ios_fleet: "📱🏢 Company-owned iPhones"
                                       ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
@@ -3877,6 +3883,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3892,16 +3899,19 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Foo Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3918,12 +3928,14 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
 						},
 						{
 							OrganizationName: "Foo Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3940,12 +3952,14 @@ software:
                                   apple_bm_default_team: "💻 Workstations"
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
@@ -3962,6 +3976,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
@@ -3980,6 +3995,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "No team"
                                       macos_team: "No team"
                                       ios_team: "No team"
                                       ipados_team: "No team"`),
@@ -3999,6 +4015,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "No team",
 							MacOSTeam:        "No team",
 							IOSTeam:          "No team",
 							IpadOSTeam:       "No team",
@@ -4035,6 +4052,7 @@ software:
 							MacOSTeam:        "No team",
 							IOSTeam:          "",
 							IpadOSTeam:       "",
+							BYODTeam:         "",
 						},
 					},
 				)
