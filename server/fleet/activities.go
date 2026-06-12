@@ -150,6 +150,17 @@ func (a ActivityTypeDeletedPolicy) ActivityName() string {
 	return "deleted_policy"
 }
 
+type ActivityTypeResetPolicy struct {
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeResetPolicy) ActivityName() string {
+	return "reset_policy"
+}
+
 type ActivityTypeAppliedSpecPolicy struct {
 	Policies []*PolicySpec `json:"policies"`
 }
