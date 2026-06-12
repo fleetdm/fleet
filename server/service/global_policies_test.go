@@ -567,3 +567,168 @@ func TestApplyPolicySpecsDefaultType(t *testing.T) {
 	require.Len(t, capturedSpecs, 1)
 	require.Equal(t, fleet.PolicyTypeDynamic, capturedSpecs[0].Type)
 }
+
+func TestResetPolicyAuth(t *testing.T) {
+	const policyID = uint(42)
+	teamID := uint(1)
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		policyTeamID    *uint
+		shouldFailWrite bool
+	}{
+		{
+			name:            "global admin can reset global policy",
+			user:            &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			policyTeamID:    nil,
+			shouldFailWrite: false,
+		},
+		{
+			name:            "global maintainer can reset global policy",
+			user:            &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
+			policyTeamID:    nil,
+			shouldFailWrite: false,
+		},
+		{
+			name:            "global observer cannot reset policy",
+			user:            &fleet.User{GlobalRole: new(fleet.RoleObserver)},
+			policyTeamID:    nil,
+			shouldFailWrite: true,
+		},
+		{
+			name:            "global gitops can reset global policy",
+			user:            &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+			policyTeamID:    nil,
+			shouldFailWrite: false,
+		},
+		{
+			name:            "team admin can reset own team policy",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleAdmin}}},
+			policyTeamID:    &teamID,
+			shouldFailWrite: false,
+		},
+		{
+			name:            "team maintainer can reset own team policy",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}}},
+			policyTeamID:    &teamID,
+			shouldFailWrite: false,
+		},
+		{
+			name:            "team observer cannot reset policy",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleObserver}}},
+			policyTeamID:    &teamID,
+			shouldFailWrite: true,
+		},
+		{
+			name:            "team admin of different team cannot reset policy",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			policyTeamID:    &teamID,
+			shouldFailWrite: true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.PolicyFunc = func(_ context.Context, id uint) (*fleet.Policy, error) {
+				return &fleet.Policy{PolicyData: fleet.PolicyData{ID: id, TeamID: tt.policyTeamID}}, nil
+			}
+			ds.ResetPolicyFunc = func(_ context.Context, _ uint) error { return nil }
+
+			opts := &TestServerOpts{}
+			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+				return nil
+			}
+			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user})
+
+			err := svc.ResetPolicy(ctx, policyID)
+			checkAuthErr(t, tt.shouldFailWrite, err)
+			if !tt.shouldFailWrite {
+				require.True(t, ds.ResetPolicyFuncInvoked)
+			}
+		})
+	}
+}
+
+func TestResetPolicyNotFound(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.PolicyFunc = func(_ context.Context, _ uint) (*fleet.Policy, error) {
+		return nil, &notFoundError{}
+	}
+
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	err := svc.ResetPolicy(ctx, 999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func TestResetPolicyEmitsActivity(t *testing.T) {
+	const policyID = uint(7)
+	const policyName = "My Policy"
+
+	newSvc := func(teamID *uint) (*mock.Store, fleet.Service, context.Context, *TestServerOpts) {
+		ds := new(mock.Store)
+		ds.PolicyFunc = func(_ context.Context, id uint) (*fleet.Policy, error) {
+			return &fleet.Policy{PolicyData: fleet.PolicyData{ID: id, Name: policyName, TeamID: teamID}}, nil
+		}
+		ds.ResetPolicyFunc = func(_ context.Context, _ uint) error { return nil }
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		ctx := viewer.NewContext(baseCtx, viewer.Viewer{
+			User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+		})
+		return ds, svc, ctx, opts
+	}
+
+	t.Run("global policy emits team_id -1", func(t *testing.T) {
+		ds, svc, ctx, opts := newSvc(nil)
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			capturedActivity = a
+			return nil
+		}
+
+		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.True(t, ds.ResetPolicyFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+		act, ok := capturedActivity.(fleet.ActivityTypeResetPolicy)
+		require.True(t, ok)
+		require.Equal(t, policyID, act.ID)
+		require.Equal(t, policyName, act.Name)
+		require.NotNil(t, act.TeamID)
+		require.Equal(t, int64(-1), *act.TeamID)
+		require.Nil(t, act.TeamName)
+	})
+
+	t.Run("no-team policy emits team_id 0", func(t *testing.T) {
+		noTeamID := uint(0)
+		ds, svc, ctx, opts := newSvc(&noTeamID)
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			capturedActivity = a
+			return nil
+		}
+
+		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.True(t, ds.ResetPolicyFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+		act, ok := capturedActivity.(fleet.ActivityTypeResetPolicy)
+		require.True(t, ok)
+		require.Equal(t, policyID, act.ID)
+		require.Equal(t, policyName, act.Name)
+		require.NotNil(t, act.TeamID)
+		require.Equal(t, int64(0), *act.TeamID)
+		require.Nil(t, act.TeamName)
+	})
+}
