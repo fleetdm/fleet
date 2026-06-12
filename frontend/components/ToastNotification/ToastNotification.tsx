@@ -225,7 +225,10 @@ const resolveDetailProps = (
 // Monotonic id source so we can return a toast id synchronously while
 // deferring the actual creation (below). Session-unique is sufficient.
 let toastSeq = 0;
-const nextToastId = (): ToastId => `fleet-toast-${(toastSeq += 1)}`;
+const nextToastId = (): ToastId => {
+  toastSeq += 1;
+  return `fleet-toast-${toastSeq}`;
+};
 
 export const notify: INotify = {
   success: (message, options) => {
