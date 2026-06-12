@@ -7175,9 +7175,52 @@ policies:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
-	require.ErrorContains(t, err, "multiple include label keys")
-	require.ErrorContains(t, err, "labels_include_any")
-	require.ErrorContains(t, err, "labels_include_all")
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
+}
+
+func TestGitOpsPolicyLabelsExcludeAllRequiresPremium(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: premium-policy
+    description: uses premium scope
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_exclude_all:
+      - lbl-a
+`)
+	require.NoError(t, err)
+
+	// labels_exclude_all is a Premium-only scope for policies; a free-tier apply
+	// is rejected with a friendly pre-flight error before any policy is created.
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "premium-policy")
+	require.ErrorContains(t, err, "labels_exclude_all")
+	require.ErrorContains(t, err, "Fleet Premium")
 }
 
 func TestGitOpsScriptsLogging(t *testing.T) {
@@ -7951,17 +7994,17 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 		{
 			name:            "two include scopes rejected",
 			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsIncludeAll: []string{"b"}},
-			wantErrContains: "multiple include label keys",
+			wantErrContains: "at most one of labels_include_any or labels_include_all",
 		},
 		{
 			name:            "two exclude scopes rejected",
 			policy:          fleet.PolicySpec{Name: "p", LabelsExcludeAny: []string{"a"}, LabelsExcludeAll: []string{"b"}},
-			wantErrContains: "multiple exclude label keys",
+			wantErrContains: "at most one of labels_exclude_any or labels_exclude_all",
 		},
 		{
 			name:            "overlap between include and exclude rejected",
 			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAll: []string{"a"}},
-			wantErrContains: `label "a" in both an include and an exclude list`,
+			wantErrContains: `label "a" cannot appear in both an include and an exclude list`,
 		},
 	}
 

@@ -5139,7 +5139,7 @@ policies:
 	conflictFile := filepath.Join(tempDir, "conflict.yml")
 	require.NoError(t, os.WriteFile(conflictFile, []byte(conflictConfig), 0o644)) //nolint:gosec
 	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", conflictFile, "--dry-run"})
-	require.ErrorContains(t, err, "has multiple include label keys")
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
 }
 
 // TestOmittedTopLevelKeysFleet verifies that omitting top-level keys from a fleet
