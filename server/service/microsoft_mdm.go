@@ -2431,8 +2431,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return nil, ctxerr.Wrap(ctx, err, "reconcile profiles for ESP release check")
 		}
 
-		// Stage 2: profiles queued but still in-flight (pending/verifying). Read from the primary so this sees the
-		// rows stage 1 just wrote; a lagging replica would miss them and release early.
+		// Stage 2: profiles queued but still in-flight (pending/verifying). Read from the primary: it must see the
+		// rows stage 1 just wrote, and even when stage 1 queued nothing, "nothing to queue" means every desired
+		// profile already has a row on the PRIMARY (possibly written by the previous checkin under a second ago). A
+		// lagging replica could be missing those rows entirely, and a row this read can't see is indistinguishable
+		// from no work, which would release the device early.
 		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
@@ -3499,11 +3502,6 @@ var reconcileWindowsProfilesScanBudget = 24 * time.Second
 // Returns nil (no-op) when Windows MDM is disabled or the host isn't an eligible MDM-enrolled Windows host. Errors
 // are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
 func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
-	// Force primary reads: this runs right after enrollment writes host_mdm.enrolled (so the eligibility read must see
-	// it) and right before the ESP release check reads the rows it queues. Replica lag on either read would turn the
-	// reconcile into a silent no-op. Single-host reads are cheap, so the primary hop costs little.
-	ctx = ctxdb.RequirePrimary(ctx, true)
-
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading app config")
@@ -3512,7 +3510,13 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 		return nil
 	}
 
-	host, err := ds.GetWindowsMDMHostForReconcile(ctx, hostUUID)
+	// Two reads below need the primary (read-your-writes): eligibility, because host_mdm.enrolled was written moments
+	// ago in the enrollment request and a lagging replica would turn the reconcile into a silent no-op; and current
+	// rows, because deltas computed against replica-stale rows would re-enqueue duplicate commands for work queued by
+	// a previous checkin.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+
+	host, err := ds.GetWindowsMDMHostForReconcile(primaryCtx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows mdm host for reconcile")
 	}
@@ -3555,7 +3559,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
 	}
 
-	currentByHost, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID})
+	currentByHost, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(primaryCtx, []string{host.UUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get host mdm windows profiles")
 	}
