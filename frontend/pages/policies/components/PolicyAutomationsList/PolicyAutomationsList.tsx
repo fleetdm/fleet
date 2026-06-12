@@ -34,22 +34,19 @@ interface IPolicyAutomationsListProps {
   otherAutomationType?: OtherAutomationType;
 }
 
-/** Read-only summary of the automations currently configured on a policy:
- *  the "Automations" header, a row per active automation (or an empty state),
- *  and the footer text explaining when they run. */
-const PolicyAutomationsList = ({
-  storedPolicy,
-  currentAutomatedPolicies,
-  otherAutomationType,
-}: IPolicyAutomationsListProps): JSX.Element => {
-  const automationRows: IAutomationDisplayRow[] = [];
+export const mapAutomationRows = (
+  storedPolicy: IPolicy,
+  currentAutomatedPolicies: number[],
+  otherAutomationType?: OtherAutomationType
+): IAutomationDisplayRow[] => {
+  const rows: IAutomationDisplayRow[] = [];
 
   if (storedPolicy.install_software) {
     const displayedName = getDisplayedSoftwareName(
       storedPolicy.install_software.name,
       storedPolicy.install_software.display_name
     );
-    automationRows.push({
+    rows.push({
       name: displayedName,
       type: "Software",
       isSoftware: true,
@@ -66,7 +63,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.run_script) {
-    automationRows.push({
+    rows.push({
       name: storedPolicy.run_script.name,
       type: "Script",
       graphicName: storedPolicy.run_script.name.endsWith(".sh")
@@ -78,7 +75,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.calendar_events_enabled) {
-    automationRows.push({
+    rows.push({
       name: "Maintenance window",
       type: "Calendar",
       graphicName: "calendar",
@@ -88,7 +85,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.conditional_access_enabled) {
-    automationRows.push({
+    rows.push({
       name: "Block single sign-on",
       type: "Conditional access",
       graphicName: "lock",
@@ -101,7 +98,7 @@ const PolicyAutomationsList = ({
     const otherName = otherAutomationType
       ? OTHER_AUTOMATION_NAMES[otherAutomationType]
       : "Webhook or ticket";
-    automationRows.push({
+    rows.push({
       name: otherName,
       type: "Other",
       graphicName: "settings",
@@ -110,10 +107,27 @@ const PolicyAutomationsList = ({
     });
   }
 
-  automationRows.sort((a, b) => {
+  rows.sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.sortName.localeCompare(b.sortName);
   });
+
+  return rows;
+};
+
+/** Read-only summary of the automations currently configured on a policy:
+ *  the "Automations" header, a row per active automation (or an empty state),
+ *  and the footer text explaining when they run. */
+const PolicyAutomationsList = ({
+  storedPolicy,
+  currentAutomatedPolicies,
+  otherAutomationType,
+}: IPolicyAutomationsListProps): JSX.Element => {
+  const automationRows = mapAutomationRows(
+    storedPolicy,
+    currentAutomatedPolicies,
+    otherAutomationType
+  );
 
   return (
     <div className={baseClass}>
