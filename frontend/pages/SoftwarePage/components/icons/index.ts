@@ -779,7 +779,6 @@ import SyntaxHighlight from "./SyntaxHighlight";
 import Tabby from "./Tabby";
 import TableauDesktop from "./TableauDesktop";
 import TableauPrep from "./TableauPrep";
-import TableauPublic from "./TableauPublic";
 import TablePlus from "./TablePlus";
 import Tabtab from "./Tabtab";
 import Tailscale from "./Tailscale";
@@ -1719,7 +1718,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
-  "tableau public": TableauPublic,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,

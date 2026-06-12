@@ -6302,13 +6302,6 @@
       "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
     },
     {
-      "name": "Tableau Public",
-      "slug": "tableau-public/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.tableausoftware.tableaupublic",
-      "description": "Tableau Public is an explore, create and publicly share data visualisations online."
-    },
-    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
