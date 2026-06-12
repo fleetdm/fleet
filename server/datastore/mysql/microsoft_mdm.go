@@ -2412,20 +2412,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 		count_host_updated_after_labels = 0
 `
 
-func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-	var result []*fleet.MDMWindowsProfilePayload
-	// TODO(mna): why is this in a transaction/reading from the primary, but not
-	// Apple's implementation? I see that the called private method is sometimes
-	// called inside a transaction, but when called from here it could (should?)
-	// be without and use the reader replica?
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = ds.listAllMDMWindowsProfilesToInstallDB(ctx, tx)
-		return err
-	})
-	return result, err
-}
-
 // The query below is a set difference between:
 //
 //   - Set A (ds), the "desired state", can be obtained from a JOIN between
@@ -2469,16 +2455,6 @@ const windowsProfilesToInstallQuery = `
 		-- to be re-installed, excluding in-flight or completed removals
 		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND COALESCE(hmwp.status, '') NOT IN ('verifying', 'verified') )
 `
-
-func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
-	var profiles []*fleet.MDMWindowsProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install")
-	}
-
-	return profiles, nil
-}
 
 func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
@@ -2546,80 +2522,6 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context,
 	return ds.listMDMWindowsProfilesToInstallDB(ctx, ds.reader(ctx), []string{hostUUID}, nil)
 }
 
-func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-	var result []*fleet.MDMWindowsProfilePayload
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = ds.listAllMDMWindowsProfilesToRemoveDB(ctx, tx)
-		return err
-	})
-
-	return result, err
-}
-
-// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
-// ListMDMWindowsProfilesToInstall: it returns only rows for the given host
-// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
-// work; see ReconcileWindowsProfiles.
-func (ds *Datastore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	if len(hostUUIDs) == 0 {
-		return nil, nil
-	}
-	return ds.listMDMWindowsProfilesToInstallDB(ctx, ds.reader(ctx), hostUUIDs, nil)
-}
-
-// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
-// ListMDMWindowsProfilesToRemove: it returns only rows for the given host
-// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
-// work; see ReconcileWindowsProfiles.
-func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	if len(hostUUIDs) == 0 {
-		return nil, nil
-	}
-	return ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.reader(ctx), hostUUIDs, nil)
-}
-
-// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
-// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
-// the host has any pending Windows MDM profile reconciliation work
-// (install or remove). If afterHostUUID is empty, scanning starts from
-// the beginning. The cron uses this to slice its per-tick work into a
-// bounded host window; see ReconcileWindowsProfiles.
-func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-	// Push the cursor predicate (host_uuid > ?) into each branch of the
-	// UNION so the optimizer applies it before deduplication. Both the
-	// install and remove queries push the cursor into all 4 desired-state
-	// UNION arms so the optimizer filters early. The remove query also
-	// gets the cursor in its 5th slot (outer WHERE on hmwp.host_uuid)
-	// for a clean PK range scan on host_mdm_windows_profiles.
-	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
-	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
-
-	stmt := fmt.Sprintf(`
-		SELECT host_uuid FROM (
-			SELECT host_uuid FROM (%s) AS install_set
-			UNION
-			SELECT host_uuid FROM (%s) AS remove_set
-		) AS combined
-		ORDER BY host_uuid
-		LIMIT %d
-	`, toInstall, toRemove, batchSize)
-
-	// Placeholder order in stmt:
-	//   install branches: 6 cursor (h.uuid > ?), 2 op-type (install, remove)
-	//   remove branches:  6 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
-	var hostUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
-		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
-		afterHostUUID,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
-	}
-	return hostUUIDs, nil
-}
-
 // GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 // used by the Windows MDM reconciliation cron to bound per-tick work.
 // Returns "" if no cursor is set or if the underlying datastore does not
@@ -2637,147 +2539,6 @@ func (ds *Datastore) GetMDMWindowsReconcileCursor(_ context.Context) (string, er
 // GetMDMWindowsReconcileCursor.
 func (ds *Datastore) SetMDMWindowsReconcileCursor(_ context.Context, _ string) error {
 	return nil
-}
-
-// The query below is a set difference between:
-//
-// - Set A (ds), the desired state, can be obtained from a JOIN between
-// mdm_windows_configuration_profiles and hosts.
-// - Set B, the current state given by host_mdm_windows_profiles.
-//
-// # B - A gives us the profiles that need to be removed
-//
-// Any other case are profiles that are in both B and A, and as such are
-// processed by the ListMDMWindowsProfilesToInstall method (since they are
-// in both, their desired state is necessarily to be installed).
-//
-// Note that for label-based profiles, only those that are fully-satisfied
-// by the host are considered for install (are part of the desired state used
-// to compute the ones to remove). However, as a special case, a broken
-// label-based profile will NOT be removed from a host where it was
-// previously installed. However, if a host used to satisfy a label-based
-// profile but no longer does (and that label-based profile is not "broken"),
-// the profile will be removed from the host.
-const windowsProfilesToRemoveQuery = `
-	SELECT
-		hmwp.profile_uuid,
-		hmwp.host_uuid,
-		hmwp.profile_name,
-		hmwp.operation_type,
-		COALESCE(hmwp.detail, '') as detail,
-		hmwp.status,
-		hmwp.command_uuid
-	FROM ( ` + windowsMDMProfilesDesiredStateQuery + ` ) as ds
-		RIGHT JOIN host_mdm_windows_profiles hmwp
-			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
-	WHERE
-		-- profiles that are in B but not in A
-		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- skip hosts not confirmed enrolled in Fleet's Windows MDM
-		EXISTS (
-			SELECT 1 FROM mdm_windows_enrollments mwe
-				JOIN hosts h ON h.uuid = mwe.host_uuid
-				JOIN host_mdm hmdm ON hmdm.host_id = h.id AND hmdm.enrolled = 1
-			WHERE mwe.host_uuid = hmwp.host_uuid
-		) AND
-		-- exclude remove operations with non-NULL status (already processed;
-		-- matches the pattern used by Fleet's Apple MDM profile removal)
-		(hmwp.operation_type != 'remove' OR hmwp.status IS NULL) AND
-
-		-- except "would be removed" profiles if they are a broken label-based profile
-		-- (regardless of if it is an include-all or exclude-any label)
-		NOT EXISTS (
-			SELECT 1
-			FROM mdm_configuration_profile_labels mcpl
-			WHERE
-				mcpl.windows_profile_uuid = hmwp.profile_uuid AND
-				mcpl.label_id IS NULL
-		) AND
-		(%s)
-`
-
-func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx sqlx.ExtContext) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
-	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove")
-	}
-
-	return profiles, nil
-}
-
-func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
-	ctx context.Context,
-	tx sqlx.QueryerContext,
-	hostUUIDs []string,
-	onlyProfileUUIDs []string,
-) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
-	if len(hostUUIDs) == 0 {
-		return profiles, nil
-	}
-
-	desiredStateFilter := "h.uuid IN (?)"
-	outerFilter := "hmwp.host_uuid IN (?)"
-	if len(onlyProfileUUIDs) > 0 {
-		desiredStateFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
-		outerFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
-	}
-
-	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery,
-		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
-		outerFilter,
-	)
-
-	// use a 10k host batch size to match what we do on the macOS side.
-	selectProfilesBatchSize := 10_000
-	if ds.testSelectMDMProfilesBatchSize > 0 {
-		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
-	}
-	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
-
-	for i := range selectProfilesTotalBatches {
-		start := i * selectProfilesBatchSize
-		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
-
-		batchUUIDs := hostUUIDs[start:end]
-
-		var err error
-		var args []any
-		var stmt string
-		if len(onlyProfileUUIDs) > 0 {
-			stmt, args, err = sqlx.In(toRemoveQuery,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-				onlyProfileUUIDs, batchUUIDs,
-			)
-		} else {
-			stmt, args, err = sqlx.In(toRemoveQuery,
-				batchUUIDs,
-				batchUUIDs,
-				batchUUIDs,
-				batchUUIDs,
-				batchUUIDs,
-				batchUUIDs,
-				batchUUIDs,
-			)
-		}
-		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
-		}
-
-		var partialResult []*fleet.MDMWindowsProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
-		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
-		}
-
-		profiles = append(profiles, partialResult...)
-	}
-
-	return profiles, nil
 }
 
 func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {

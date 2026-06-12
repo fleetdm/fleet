@@ -67,10 +67,19 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, rowsBefore, "host_mdm_windows_profiles must be untouched until the cron runs")
 
-	// Sanity: the listing must surface the host+profile pair, otherwise the
-	// cron has nothing to dispatch.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	// Sanity: the snapshot+compute path must surface the host+profile pair,
+	// otherwise the cron has nothing to dispatch.
+	hosts, allProfiles, hostLabels, currentByHost, err := ds.GetWindowsProfileReconcileSnapshot(ctx, "", 10_000)
 	require.NoError(t, err)
+	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile)
+	profilesWithBrokenLabels := make(map[string]struct{})
+	for _, p := range allProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabels[p.ProfileUUID] = struct{}{}
+		}
+	}
+	toInstall, _ := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabels)
 	var matched bool
 	for _, p := range toInstall {
 		if p.HostUUID == host.UUID && p.ProfileUUID == profileUUID {

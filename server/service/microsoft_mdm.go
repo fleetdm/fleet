@@ -3772,7 +3772,7 @@ func executeWindowsProfileReconcileBatch(
 	}
 
 	// Guard against a race where an admin deletes a profile between the
-	// initial ListMDMWindowsProfilesToInstall/GetMDMWindowsProfilesContents
+	// initial snapshot/GetMDMWindowsProfilesContents
 	// calls above and the per-profile upsert below. If we missed the
 	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
 	// command) for a profile that no longer exists in

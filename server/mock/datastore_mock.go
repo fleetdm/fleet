@@ -1406,17 +1406,7 @@ type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type ListMDMWindowsProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
-
 type ListMDMWindowsProfilesToInstallForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListMDMWindowsProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListMDMWindowsProfilesToInstallForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListMDMWindowsProfilesToRemoveForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListNextPendingMDMWindowsHostUUIDsFunc func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
 
 type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -4174,23 +4164,8 @@ type DataStore struct {
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
-	ListMDMWindowsProfilesToInstallFunc        ListMDMWindowsProfilesToInstallFunc
-	ListMDMWindowsProfilesToInstallFuncInvoked bool
-
 	ListMDMWindowsProfilesToInstallForHostFunc        ListMDMWindowsProfilesToInstallForHostFunc
 	ListMDMWindowsProfilesToInstallForHostFuncInvoked bool
-
-	ListMDMWindowsProfilesToRemoveFunc        ListMDMWindowsProfilesToRemoveFunc
-	ListMDMWindowsProfilesToRemoveFuncInvoked bool
-
-	ListMDMWindowsProfilesToInstallForHostsFunc        ListMDMWindowsProfilesToInstallForHostsFunc
-	ListMDMWindowsProfilesToInstallForHostsFuncInvoked bool
-
-	ListMDMWindowsProfilesToRemoveForHostsFunc        ListMDMWindowsProfilesToRemoveForHostsFunc
-	ListMDMWindowsProfilesToRemoveForHostsFuncInvoked bool
-
-	ListNextPendingMDMWindowsHostUUIDsFunc        ListNextPendingMDMWindowsHostUUIDsFunc
-	ListNextPendingMDMWindowsHostUUIDsFuncInvoked bool
 
 	GetMDMWindowsReconcileCursorFunc        GetMDMWindowsReconcileCursorFunc
 	GetMDMWindowsReconcileCursorFuncInvoked bool
@@ -10055,46 +10030,11 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallFunc(ctx)
-}
-
 func (s *DataStore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
 	s.mu.Lock()
 	s.ListMDMWindowsProfilesToInstallForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMWindowsProfilesToInstallForHostFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToRemoveFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToRemoveFunc(ctx)
-}
-
-func (s *DataStore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallForHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallForHostsFunc(ctx, hostUUIDs)
-}
-
-func (s *DataStore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToRemoveForHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToRemoveForHostsFunc(ctx, hostUUIDs)
-}
-
-func (s *DataStore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-	s.mu.Lock()
-	s.ListNextPendingMDMWindowsHostUUIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListNextPendingMDMWindowsHostUUIDsFunc(ctx, afterHostUUID, batchSize)
 }
 
 func (s *DataStore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {

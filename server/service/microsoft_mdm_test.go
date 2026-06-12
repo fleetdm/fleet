@@ -699,35 +699,6 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
 
-	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
-		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
-		for hostUUID, profile := range hostToProfile {
-			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:   profile.ProfileUUID,
-				ProfileName:   profile.Name,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-		}
-		return profilesToInstall, nil
-	}
-	// Mock both the legacy global listing (kept for tests still using it
-	// directly) and the new scoped listing the cron now calls.
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-
-	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 		profileContentsMap := make(map[string]fleet.MDMWindowsProfileContents)
 		for _, profile := range hostToProfile {
@@ -1027,7 +998,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	}
 	setupReconcilerTest(ds, hostToProfile)
 
-	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// Simulate the race: the reconcile snapshot and
 	// GetMDMWindowsProfilesContents already ran (both set up by
 	// setupReconcilerTest to include the profile). Between those and the
 	// upsert, the admin deleted the profile, so

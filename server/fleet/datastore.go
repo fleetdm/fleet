@@ -2288,37 +2288,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// ListMDMWindowsProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
-
 	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
 	// be installed for a specific host.
 	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
-	// (sorted ascending) where host_uuid > afterHostUUID and the host has
-	// any pending Windows MDM profile reconciliation work. Used by the
-	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
-	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.
