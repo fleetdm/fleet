@@ -331,6 +331,13 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "AnyDesk",
+      "slug": "anydesk/windows",
+      "platform": "windows",
+      "unique_identifier": "AnyDesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Apparency",
       "slug": "apparency/darwin",
       "platform": "darwin",
