@@ -105,7 +105,7 @@ export const generateFormValidations = (
             );
           },
           message:
-            "Invalid characters. Windows certificate enrollment only supports letters, numbers, and ' ( ) + , - . / : = ?",
+            "Invalid characters. Certificate enrollment only supports letters, numbers, and ' ( ) + , - . / : = ?",
         },
       ],
     },

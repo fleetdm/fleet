@@ -401,7 +401,7 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 var printableStringChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9'()+,./:=?-]*$`)
 
 // scepChallengePrintableErrMsg is returned when a custom SCEP proxy challenge contains characters that Windows cannot use.
-const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain letters, numbers, and the characters ' ( ) + , - . / : = ?. Windows certificate enrollment rejects other characters, such as "_".`
+const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain letters, numbers, and the characters ' ( ) + , - . / : = ?. Certificate enrollment rejects other characters, such as "_".`
 
 // challengeHasAllowedChars reports whether the challenge contains only the characters Fleet allows in a SCEP challenge: the ASN.1
 // PrintableString set minus the space (see printableStringChallengeRegexp).
