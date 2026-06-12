@@ -116,6 +116,6 @@ describe("PolicyLabelModal", () => {
 
     await user.click(screen.getByRole("button", { name: "Done" }));
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

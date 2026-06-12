@@ -38,9 +38,16 @@ import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { mapAutomationRows } from "pages/policies/components/PolicyAutomationsList/PolicyAutomationsList";
-import PolicyLabelModal from "../components/PolicyLabelModal";
+import { mapAutomationRows } from "pages/policies/components";
+import PolicyLabelModal, {
+  IPolicyLabelModalProps,
+} from "../components/PolicyLabelModal";
 import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
+
+type ILabelModalData = Pick<
+  IPolicyLabelModalProps,
+  "includeLabels" | "includeScopeLabel" | "excludeLabels" | "excludeScopeLabel"
+>;
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -64,14 +71,7 @@ const getPolicyFleetName = (
   return teamData?.team?.name ?? null;
 };
 
-export const getLabelModalData = (
-  policy: IPolicy
-): {
-  includeLabels?: ILabelPolicy[];
-  includeScopeLabel?: string;
-  excludeLabels?: ILabelPolicy[];
-  excludeScopeLabel?: string;
-} => {
+export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
   let includeLabels: ILabelPolicy[] | undefined;
   let includeScopeLabel: string | undefined;
   if (policy.labels_include_any?.length) {
@@ -212,6 +212,8 @@ const PolicyDetailsPage = ({
 
   const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
+  const labelModalData = storedPolicy ? getLabelModalData(storedPolicy) : null;
+
   const {
     state: ticketOrWebhookState,
     policyIds: currentAutomatedPolicies,
@@ -311,9 +313,9 @@ const PolicyDetailsPage = ({
   const openLabelModal = () => setShowLabelModal(true);
 
   const renderLabels = (): JSX.Element | null => {
-    if (!storedPolicy) return null;
+    if (!labelModalData) return null;
 
-    const { includeLabels, excludeLabels } = getLabelModalData(storedPolicy);
+    const { includeLabels, excludeLabels } = labelModalData;
     const allLabels = [...(includeLabels ?? []), ...(excludeLabels ?? [])];
     if (!allLabels.length) return null;
 
@@ -324,7 +326,7 @@ const PolicyDetailsPage = ({
         className={`${baseClass}__labels`}
         title="Labels"
         value={
-          <Button variant="link" onClick={() => openLabelModal()}>
+          <Button variant="link" onClick={openLabelModal}>
             {firstLabel.name}
             {moreLabels > 0 && ` + ${moreLabels} more`}
           </Button>
@@ -383,7 +385,7 @@ const PolicyDetailsPage = ({
         className={`${baseClass}__automations`}
         title="Automations"
         value={
-          <Button variant="link" onClick={() => openAutomationsModal()}>
+          <Button variant="link" onClick={openAutomationsModal}>
             {firstAutomation.isSoftware && (
               <SoftwareIcon
                 name={firstAutomation.name}
@@ -501,9 +503,12 @@ const PolicyDetailsPage = ({
           onCancel={() => setShowQueryModal(false)}
         />
       )}
-      {showLabelModal && storedPolicy && (
+      {showLabelModal && labelModalData && (
         <PolicyLabelModal
-          {...getLabelModalData(storedPolicy)}
+          includeLabels={labelModalData.includeLabels}
+          includeScopeLabel={labelModalData.includeScopeLabel}
+          excludeLabels={labelModalData.excludeLabels}
+          excludeScopeLabel={labelModalData.excludeScopeLabel}
           onLabelClick={
             canEditLabels
               ? (labelId) => router.push(PATHS.LABEL_EDIT(labelId))

@@ -1,10 +1,23 @@
 .policy-label-modal {
+  // Note: this class is applied to both the modal container and the inner
+  // content wrapper, so layout styles live on `&__body` to avoid adding spacing
+  // between the modal header and content.
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
   &__label-list {
     list-style: none;
     padding: 0;
-
-    margin-top: $pad-small;
-    margin-bottom: $pad-large;
+    margin: 0;
 
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;

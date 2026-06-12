@@ -44,6 +44,26 @@ describe("PolicyAutomationsModal", () => {
     expect(screen.getByText("Maintenance window")).toBeInTheDocument();
   });
 
+  it("renders the continuous-automations footer when continuous_automations_enabled is true", () => {
+    render(
+      <PolicyAutomationsModal
+        storedPolicy={createMockPolicy({
+          continuous_automations_enabled: true,
+        })}
+        currentAutomatedPolicies={[]}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText(/Software and script automations run/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("every time")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Automations run on a host's first failure/)
+    ).not.toBeInTheDocument();
+  });
+
   it("forwards otherAutomationType to the automations list", () => {
     render(
       <PolicyAutomationsModal
@@ -83,6 +103,6 @@ describe("PolicyAutomationsModal", () => {
 
     await user.click(screen.getByRole("button", { name: "Done" }));
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
