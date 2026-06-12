@@ -187,27 +187,41 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
-	// AnyKeyslot lets cryptsetup find whichever slot the user's passphrase
-	// actually lives in when unlocking to add the escrow key — it is not
-	// necessarily slot 0. Only the new escrow key is pinned to a slot.
-	userKey := encryption.NewKey(encryption.AnyKeyslot, passphrase)
-	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
-
-	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
-	}
-
-	log.Debug().Msg("Validating newly inserted key")
-	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, int(keySlot)) // #nosec G115
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
-	}
-
-	if !valid {
-		return nil, nil, errors.New("Failed to validate escrow passphrase")
+	if err := lr.addEscrowKey(ctx, device, devicePath, passphrase, escrowPassphrase, keySlot); err != nil {
+		return nil, nil, err
 	}
 
 	return escrowPassphrase, &keySlot, nil
+}
+
+// addEscrowKey adds escrowPassphrase to keySlot using the user's existing
+// passphrase to unlock the volume, then verifies the new key is usable.
+//
+// The existing key is created with encryption.AnyKeyslot so cryptsetup finds
+// whichever slot the user's passphrase actually lives in — it is not
+// necessarily slot 0 (issue #46227). This is safe because go-blockdevice's
+// LUKS.AddKey only passes the *new* key's slot to cryptsetup (via
+// keyslotArgs(newKey)); the existing key's Slot field is never referenced, it
+// is only written to the key-file buffer to unlock the device.
+func (lr *LuksRunner) addEscrowKey(ctx context.Context, device luksDevice, devicePath string, passphrase, escrowPassphrase []byte, keySlot uint) error {
+	userKey := encryption.NewKey(encryption.AnyKeyslot, passphrase)
+	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115 -- keySlot is bounded 0..maxKeySlots
+
+	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
+		return fmt.Errorf("Failed to add key: %w", err)
+	}
+
+	log.Debug().Msg("Validating newly inserted key")
+	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, int(keySlot)) // #nosec G115 -- keySlot is bounded 0..maxKeySlots
+	if err != nil {
+		return fmt.Errorf("Error while validating escrow passphrase: %w", err)
+	}
+
+	if !valid {
+		return errors.New("Failed to validate escrow passphrase")
+	}
+
+	return nil
 }
 
 // dialogCopyForEncryptionType returns the (title, prompt, retry) strings shown
