@@ -140,41 +140,7 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 		assert.EqualValues(t, 403, got["status_code"])
 		assert.Equal(t, "Rate Limit Exceeded", got["error_response"])
 	})
-}
 
-func TestSuccessPolicyAutomationActivities(t *testing.T) {
-	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
-	// host ID list or a policy name (both are intentionally omitted; hosts
-	// live one-per-row in activity_host_past).
-	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
-		t.Helper()
-		_, hasHostIDs := got["host_ids"]
-		assert.False(t, hasHostIDs)
-		_, hasPolicyName := got["policy_name"]
-		assert.False(t, hasPolicyName)
-	}
-
-	t.Run("calendar event ran", func(t *testing.T) {
-		act := ActivityTypeRanAutomationCalendarEvent{
-			PolicyID:   14,
-			HostIDList: []uint{42},
-		}
-
-		assert.Equal(t, "ran_automation_calendar_event", act.ActivityName())
-		assert.Equal(t, []uint{42}, act.HostIDs())
-		assert.True(t, act.WasFromAutomation())
-
-		b, err := json.Marshal(act)
-		require.NoError(t, err)
-		var got map[string]any
-		require.NoError(t, json.Unmarshal(b, &got))
-		assert.EqualValues(t, 14, got["policy_id"])
-		assertNoHostIDsOrPolicyName(t, got)
-	})
-}
-
-
-func TestFailedPolicyAutomationActivities(t *testing.T) {
 	t.Run("webhook", func(t *testing.T) {
 		act := ActivityTypeFailedAutomationWebhook{
 			PolicyID:      7,
@@ -208,6 +174,24 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		_, hasPolicyName := got["policy_name"]
 		assert.False(t, hasPolicyName)
 	}
+
+	t.Run("calendar event ran", func(t *testing.T) {
+		act := ActivityTypeRanAutomationCalendarEvent{
+			PolicyID:   14,
+			HostIDList: []uint{42},
+		}
+
+		assert.Equal(t, "ran_automation_calendar_event", act.ActivityName())
+		assert.Equal(t, []uint{42}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 14, got["policy_id"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
 
 	t.Run("webhook sent", func(t *testing.T) {
 		act := ActivityTypeRanAutomationWebhook{
