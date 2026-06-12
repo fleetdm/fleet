@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.16.1.20250109",
+      "version": "1.17.0.20260601",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer' AND version_compare(bundle_short_version, '1.16.1.20250109') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.eclipse.mat.ui.rcp.MemoryAnalyzer' AND version_compare(bundle_short_version, '1.17.0.20260601') < 0);"
       },
-      "installer_url": "https://download.eclipse.org/mat/1.16.1/rcp/MemoryAnalyzer-1.16.1.20250109-macosx.cocoa.aarch64.dmg",
+      "installer_url": "https://download.eclipse.org/mat/1.17.0/rcp/MemoryAnalyzer-1.17.0.20260601-macosx.cocoa.aarch64.dmg",
       "install_script_ref": "8dc2352c",
       "uninstall_script_ref": "a554797e",
-      "sha256": "01ac5effe6479f013c32c2f8d75ed08e7ec0f848f5ce301b5fa47de7f34c2654",
+      "sha256": "c89471ecc07b6d30d665151d5358bc7aa3a3a7d490702a812c742581197243e0",
       "default_categories": [
         "Productivity"
       ]
