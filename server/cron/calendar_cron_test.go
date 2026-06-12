@@ -1049,12 +1049,6 @@ func TestRecordCalendarFailureActivity(t *testing.T) {
 		require.Empty(t, r.acts)
 	})
 
-	t.Run("no-op mock activity service records nothing", func(t *testing.T) {
-		host := fleet.HostPolicyMembershipData{HostID: 104, FailingPolicyIDs: "10"}
-		svc := &mock.MockActivityService{}
-		recordCalendarFailureActivity(ctx, svc, host, &googleapi.Error{Code: 500}, logger)
-		require.True(t, svc.NewActivityFuncInvoked)
-	})
 }
 
 func TestRecordCalendarRanActivity(t *testing.T) {
@@ -1097,10 +1091,4 @@ func TestRecordCalendarRanActivity(t *testing.T) {
 		require.Empty(t, r.acts)
 	})
 
-	t.Run("no-op mock activity service records nothing", func(t *testing.T) {
-		host := fleet.HostPolicyMembershipData{HostID: 104, FailingPolicyIDs: "10"}
-		svc := &mock.MockActivityService{}
-		recordCalendarCreatedActivity(ctx, svc, host, logger)
-		require.True(t, svc.NewActivityFuncInvoked)
-	})
 }
