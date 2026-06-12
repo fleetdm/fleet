@@ -139,6 +139,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 
 	byUUID := make(map[string]*fleet.WindowsProfileForReconcile, len(rows))
 	out := make([]*fleet.WindowsProfileForReconcile, 0, len(rows))
+	profileUUIDs := make([]string, 0, len(rows))
 	for _, r := range rows {
 		p := &fleet.WindowsProfileForReconcile{
 			ProfileUUID: r.ProfileUUID,
@@ -152,6 +153,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		}
 		byUUID[r.ProfileUUID] = p
 		out = append(out, p)
+		profileUUIDs = append(profileUUIDs, r.ProfileUUID)
 	}
 
 	// Load label assignments, joining labels to get membership type and label creation time (needed by the exclude-any handler).
@@ -159,7 +161,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	// disqualify/exempt the profile.
 	//
 	// Leave created_at un-COALESCE'd. NULL here means a broken (deleted) label and is intentional.
-	const labelStmt = `
+	labelStmt := `
 		SELECT
 			mcpl.windows_profile_uuid AS profile_uuid,
 			mcpl.label_id             AS label_id,
@@ -171,6 +173,18 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
 		WHERE mcpl.windows_profile_uuid IS NOT NULL
 	`
+	var labelStmtArgs []any
+	if teamID != nil {
+		// Per-host path: restrict label rows to the team-scoped profiles loaded above instead of scanning every
+		// Windows profile's labels in the system.
+		labelStmt += ` AND mcpl.windows_profile_uuid IN (?)`
+		q, args, err := sqlx.In(labelStmt, profileUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build windows profile labels query")
+		}
+		labelStmt = q
+		labelStmtArgs = args
+	}
 
 	type labelRow struct {
 		ProfileUUID         string        `db:"profile_uuid"`
@@ -182,7 +196,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	}
 
 	var labelRows []labelRow
-	if err := sqlx.SelectContext(ctx, tx, &labelRows, labelStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &labelRows, labelStmt, labelStmtArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list windows profile labels for reconcile")
 	}
 

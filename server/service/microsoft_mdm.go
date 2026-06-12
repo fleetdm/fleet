@@ -3488,16 +3488,6 @@ var reconcileWindowsProfilesDeliveryCap = 2000
 // var rather than const so tests can override it.
 var reconcileWindowsProfilesScanBudget = 24 * time.Second
 
-// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
-//
-// It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
-// bounded snapshot per window, computing install/remove deltas in memory (no set-difference SQL), and executing them. Within one
-// tick it drains successive windows until either the delivery cap or the scan budget is hit, or the host space is exhausted
-// (which resets the cursor for the next pass).
-//
-// Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
-// == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
-// and idempotent since delivered work is now pending, so it no longer computes as work.
 // ReconcileWindowsProfilesForEnrollingHost is the per-host reconciler, the Windows mirror of Apple's
 // ReconcileProfilesForEnrollingHost. It is invoked right after a host turns on Windows MDM (so profiles are queued without
 // waiting for the cron's next pass) and from the ESP release check (so a host awaiting setup-experience release has its
@@ -3574,6 +3564,16 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
 }
 
+// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
+//
+// It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
+// bounded snapshot per window, computing install/remove deltas in memory (no set-difference SQL), and executing them. Within one
+// tick it drains successive windows until either the delivery cap or the scan budget is hit, or the host space is exhausted
+// (which resets the cursor for the next pass).
+//
+// Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
+// == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
+// and idempotent since delivered work is now pending, so it no longer computes as work.
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
