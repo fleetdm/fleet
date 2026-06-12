@@ -1021,6 +1021,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if config.MDM.SSORateLimitPerMinute > 0 {
 			extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
 		}
+		if config.Auth.SSORateLimitPerMinute > 0 {
+			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
+		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
