@@ -9,6 +9,7 @@ import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import {
   DEFAULT_INSTALLED_VERSION,
   DEFAULT_HOST_HOSTNAME,
+  createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
@@ -278,6 +279,55 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     const moreDropdown = getMoreDropdown();
     expect(moreDropdown).toBeDisabled();
+  });
+
+  it("shows empty cell for installed version and package version for available version when installed_versions is null", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            installed_versions: null,
+            software_package: createMockHostSoftwarePackage({
+              version: "1.1.0",
+            }),
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("mock software 1.app");
+
+    expect(screen.getAllByText("---")).toHaveLength(2);
+    // TooltipTruncatedTextCell renders the value twice (visible + tooltip div)
+    expect(screen.getAllByText("1.1.0")).toHaveLength(2);
+  });
+
+  it("shows installed version and available version when both are present", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            installed_versions: [DEFAULT_INSTALLED_VERSION], // "1.0.0"
+            software_package: createMockHostSoftwarePackage({
+              version: "1.1.0",
+            }),
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("mock software 1.app");
+
+    // TooltipTruncatedTextCell renders each value twice (visible + tooltip div);
+    // available version also appears in the update card above the table
+    expect(screen.getAllByText("1.0.0")).toHaveLength(2);
+    expect(screen.getAllByText("1.1.0")).toHaveLength(3);
   });
 
   it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
