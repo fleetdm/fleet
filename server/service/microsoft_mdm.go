@@ -2431,8 +2431,9 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return nil, ctxerr.Wrap(ctx, err, "reconcile profiles for ESP release check")
 		}
 
-		// Stage 2: profiles queued but still in-flight (pending/verifying).
-		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctx, device.HostUUID)
+		// Stage 2: profiles queued but still in-flight (pending/verifying). Read from the primary so this sees the
+		// rows stage 1 just wrote; a lagging replica would miss them and release early.
+		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
 		}
@@ -3498,6 +3499,11 @@ var reconcileWindowsProfilesScanBudget = 24 * time.Second
 // Returns nil (no-op) when Windows MDM is disabled or the host doesn't satisfy the reconciler's enrollment predicates. Errors
 // are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
 func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
+	// Force primary reads: this runs right after enrollment writes host_mdm.enrolled (so the eligibility read must see
+	// it) and right before the ESP release check reads the rows it queues. Replica lag on either read would turn the
+	// reconcile into a silent no-op. Single-host reads are cheap, so the primary hop costs little.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading app config")
