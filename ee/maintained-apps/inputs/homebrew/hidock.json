@@ -1,0 +1,10 @@
+{
+  "name": "HiDock",
+  "unique_identifier": "design.rafa.HiDock",
+  "token": "hidock",
+  "installer_format": "zip",
+  "slug": "hidock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

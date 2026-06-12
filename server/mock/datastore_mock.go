@@ -344,6 +344,8 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
+type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context) error
+
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
@@ -689,6 +691,14 @@ type CountMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQue
 type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
+
+type PolicyQueriesForHostFilteredFunc func(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error)
+
+type GetSetupExperiencePolicyResultFunc func(ctx context.Context, hostID uint, policyID uint, since time.Time) (*bool, error)
+
+type ClearHostPolicyMembershipForPoliciesFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
+
+type ClearHostPolicyUpdatedAtFunc func(ctx context.Context, hostID uint) error
 
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
@@ -1412,6 +1422,8 @@ type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMWindowsReconcileCursorFunc func(ctx context.Context, cursor string) error
 
+type GetWindowsProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error)
+
 type GetAppleMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error)
 
 type ListAppleProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error)
@@ -1705,6 +1717,10 @@ type GetInstallerByTeamAndURLFunc func(ctx context.Context, teamID *uint, url st
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error)
+
+type GetSetupExperiencePolicyIDsForHostFunc func(ctx context.Context, hostUUID string) ([]uint, error)
+
+type GetSetupExperiencePolicyIDsForInstallerFunc func(ctx context.Context, softwareInstallerID uint) ([]uint, error)
 
 type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
 
@@ -2565,6 +2581,9 @@ type DataStore struct {
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
 
+	CleanupWindowsMDMPendingDeleteProfilesFunc        CleanupWindowsMDMPendingDeleteProfilesFunc
+	CleanupWindowsMDMPendingDeleteProfilesFuncInvoked bool
+
 	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
 	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
 
@@ -3083,6 +3102,18 @@ type DataStore struct {
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
+
+	PolicyQueriesForHostFilteredFunc        PolicyQueriesForHostFilteredFunc
+	PolicyQueriesForHostFilteredFuncInvoked bool
+
+	GetSetupExperiencePolicyResultFunc        GetSetupExperiencePolicyResultFunc
+	GetSetupExperiencePolicyResultFuncInvoked bool
+
+	ClearHostPolicyMembershipForPoliciesFunc        ClearHostPolicyMembershipForPoliciesFunc
+	ClearHostPolicyMembershipForPoliciesFuncInvoked bool
+
+	ClearHostPolicyUpdatedAtFunc        ClearHostPolicyUpdatedAtFunc
+	ClearHostPolicyUpdatedAtFuncInvoked bool
 
 	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
 	GetTeamHostsPolicyMembershipsFuncInvoked bool
@@ -4167,6 +4198,9 @@ type DataStore struct {
 	SetMDMWindowsReconcileCursorFunc        SetMDMWindowsReconcileCursorFunc
 	SetMDMWindowsReconcileCursorFuncInvoked bool
 
+	GetWindowsProfileReconcileSnapshotFunc        GetWindowsProfileReconcileSnapshotFunc
+	GetWindowsProfileReconcileSnapshotFuncInvoked bool
+
 	GetAppleMDMHostForReconcileFunc        GetAppleMDMHostForReconcileFunc
 	GetAppleMDMHostForReconcileFuncInvoked bool
 
@@ -4607,6 +4641,12 @@ type DataStore struct {
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
+
+	GetSetupExperiencePolicyIDsForHostFunc        GetSetupExperiencePolicyIDsForHostFunc
+	GetSetupExperiencePolicyIDsForHostFuncInvoked bool
+
+	GetSetupExperiencePolicyIDsForInstallerFunc        GetSetupExperiencePolicyIDsForInstallerFunc
+	GetSetupExperiencePolicyIDsForInstallerFuncInvoked bool
 
 	UpdateSetupExperienceStatusResultFunc        UpdateSetupExperienceStatusResultFunc
 	UpdateSetupExperienceStatusResultFuncInvoked bool
@@ -6298,6 +6338,13 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
 }
 
+func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupWindowsMDMPendingDeleteProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx)
+}
+
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	s.mu.Lock()
 	s.CleanupAllHostMDMProfilesForPlatformFuncInvoked = true
@@ -7507,6 +7554,34 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	s.PolicyQueriesForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.PolicyQueriesForHostFunc(ctx, host)
+}
+
+func (s *DataStore) PolicyQueriesForHostFiltered(ctx context.Context, host *fleet.Host, policyIDs []uint) (map[string]string, error) {
+	s.mu.Lock()
+	s.PolicyQueriesForHostFilteredFuncInvoked = true
+	s.mu.Unlock()
+	return s.PolicyQueriesForHostFilteredFunc(ctx, host, policyIDs)
+}
+
+func (s *DataStore) GetSetupExperiencePolicyResult(ctx context.Context, hostID uint, policyID uint, since time.Time) (*bool, error) {
+	s.mu.Lock()
+	s.GetSetupExperiencePolicyResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperiencePolicyResultFunc(ctx, hostID, policyID, since)
+}
+
+func (s *DataStore) ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.ClearHostPolicyMembershipForPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostPolicyMembershipForPoliciesFunc(ctx, hostID, policyIDs)
+}
+
+func (s *DataStore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ClearHostPolicyUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostPolicyUpdatedAtFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error) {
@@ -10036,6 +10111,13 @@ func (s *DataStore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor str
 	return s.SetMDMWindowsReconcileCursorFunc(ctx, cursor)
 }
 
+func (s *DataStore) GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error) {
+	s.mu.Lock()
+	s.GetWindowsProfileReconcileSnapshotFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsProfileReconcileSnapshotFunc(ctx, afterHostUUID, batchSize)
+}
+
 func (s *DataStore) GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error) {
 	s.mu.Lock()
 	s.GetAppleMDMHostForReconcileFuncInvoked = true
@@ -11063,6 +11145,20 @@ func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, ho
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID, teamID)
+}
+
+func (s *DataStore) GetSetupExperiencePolicyIDsForHost(ctx context.Context, hostUUID string) ([]uint, error) {
+	s.mu.Lock()
+	s.GetSetupExperiencePolicyIDsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperiencePolicyIDsForHostFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.GetSetupExperiencePolicyIDsForInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSetupExperiencePolicyIDsForInstallerFunc(ctx, softwareInstallerID)
 }
 
 func (s *DataStore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {

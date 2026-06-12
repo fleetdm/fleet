@@ -2132,7 +2132,7 @@ type mdmAppleAccountEnrollRequest struct {
 func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := mdmAppleAccountEnrollRequest{}
 
-	rawData, err := io.ReadAll(r.Body)
+	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
 	}
@@ -2147,7 +2147,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 
 	deviceInfo := fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{}
 
-	err = plist.Unmarshal(p7.Content, &deviceInfo)
+	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &deviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",
@@ -2274,6 +2274,11 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, fleet.NewAuthFailedError("enrollment profile not found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile")
+	}
+
+	if machineInfo.MandatorySoftwareUpdateRequired {
+		// Log an info message if the device is requiring a mandatory software update.
+		svc.logger.InfoContext(ctx, "device requires mandatory software update", "host_uuid", machineInfo.UDID, "serial", machineInfo.Serial, "product", machineInfo.Product, "os_version", machineInfo.OSVersion)
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -4210,6 +4215,15 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			status = &fleet.MDMDeliveryVerifying
 			detail = ""
 		}
+		// Refetch certs when an ACME profile is removed so the stale row clears.
+		// Must run before UpdateOrDeleteHostMDMAppleProfile deletes the row the
+		// probe reads. Best-effort.
+		if status != nil && *status == fleet.MDMDeliveryVerifying {
+			if err := svc.maybeQueueCertificateListForACMEProfile(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
+				svc.logger.WarnContext(r.Context, "queue CertificateList after ACME profile removal",
+					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
+		}
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   cmdResult.CommandUUID,
 			HostUUID:      cmdResult.Identifier(),
@@ -5203,10 +5217,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 }
 
 // maybeQueueCertificateListForACMEProfile fires a CertificateList MDM command
-// after a successful InstallProfile ack on a macOS host whose profile contains
-// a com.apple.security.acme payload. This populates host_certificates with
-// hardware-bound ACME certs that osquery cannot see. iOS/iPadOS do not need
-// this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
+// after a macOS InstallProfile or RemoveProfile ack on a profile containing a
+// com.apple.security.acme payload. Install captures the new hardware-bound cert
+// (invisible to osquery) into host_certificates; remove lets the refetch
+// observe its absence so the stale row clears. iOS/iPadOS do not need this hook
+// because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
 // Gating happens server-side in a single indexed query
 // (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
@@ -6726,7 +6741,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 
 	idpUUID := r.URL.Query().Get("idp_uuid") // Can be empty.
 
-	rawData, err := io.ReadAll(r.Body)
+	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
 	}
@@ -6740,7 +6755,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	var request mdmAppleOTARequest
-	err = plist.Unmarshal(p7.Content, &request.DeviceInfo)
+	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &request.DeviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",

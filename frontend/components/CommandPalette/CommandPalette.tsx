@@ -11,7 +11,10 @@ import { Command } from "cmdk";
 import { browserHistory } from "react-router";
 
 import { AppContext } from "context/app";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_NO_TEAM_ID,
+} from "interfaces/team";
 import Icon from "components/Icon";
 import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
@@ -23,6 +26,8 @@ import {
   buildPaletteItems,
   buildFleetSwitchUrl,
   computeBestMatch,
+  pathSupportsAllFleets,
+  pathSupportsUnassigned,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
@@ -840,7 +845,28 @@ const CommandPalette = (): JSX.Element | null => {
         {page === "root" && renderRootPage()}
         {page === "switch-fleet" && (
           <FleetPicker
-            availableTeams={availableTeams}
+            // Drop "All fleets" and "Unassigned" on pages whose useTeamIdParam
+            // config rejects them (e.g. Dashboard hides Unassigned; the Fleet
+            // → Users/Options/Settings admin pages hide All). Otherwise the
+            // option appears valid but selecting it triggers a redirect-to-
+            // default and silently reverts. Read pathname at render — the
+            // palette can't be navigated away from without closing, so the
+            // value is stable per session.
+            availableTeams={availableTeams?.filter((t) => {
+              if (
+                t.id === APP_CONTEXT_NO_TEAM_ID &&
+                !pathSupportsUnassigned(window.location.pathname)
+              ) {
+                return false;
+              }
+              if (
+                t.id === APP_CONTEXT_ALL_TEAMS_ID &&
+                !pathSupportsAllFleets(window.location.pathname)
+              ) {
+                return false;
+              }
+              return true;
+            })}
             currentTeam={currentTeam}
             search={search}
             onSelect={handleSwitchFleet}

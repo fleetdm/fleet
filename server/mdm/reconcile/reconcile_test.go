@@ -21,7 +21,14 @@ func (e *testEntity) GetIncludeMode() fleet.MDMProfileIncludeMode  { return e.in
 func (e *testEntity) GetIncludeLabels() []fleet.MDMProfileLabelRef { return e.includeLabels }
 func (e *testEntity) GetExcludeLabels() []fleet.MDMProfileLabelRef { return e.excludeLabels }
 func (e *testEntity) HasBrokenLabel() bool {
-	for _, l := range append(e.includeLabels, e.excludeLabels...) {
+	// Iterate the two slices separately: append(e.includeLabels, e.excludeLabels...) can write into e.includeLabels' backing array
+	// when it has spare capacity, leaking state across assertions.
+	for _, l := range e.includeLabels {
+		if l.LabelID == nil {
+			return true
+		}
+	}
+	for _, l := range e.excludeLabels {
 		if l.LabelID == nil {
 			return true
 		}

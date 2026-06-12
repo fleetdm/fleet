@@ -917,10 +917,12 @@ var LegacySoftwareCategoryNames = map[string]string{
 func TranslateLegacySoftwareCategoryNames(names []string) []string {
 	out := make([]string, len(names))
 	for i, n := range names {
-		if newName, ok := LegacySoftwareCategoryNames[n]; ok {
-			out[i] = newName
-		} else {
-			out[i] = n
+		out[i] = n
+		for legacy, newName := range LegacySoftwareCategoryNames {
+			if strings.EqualFold(n, legacy) {
+				out[i] = newName
+				break
+			}
 		}
 	}
 	return out
