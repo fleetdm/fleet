@@ -3131,7 +3131,18 @@ type Datastore interface {
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
 	// the list of profiles to apply and the list of profiles to remove.
-	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+	// When cursor is non-empty, only hosts with host_uuid > cursor are
+	// considered. When batchSize > 0, at most batchSize distinct hosts are
+	// returned.
+	ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+
+	// GetMDMAndroidReconcileCursor returns the persisted host_uuid cursor
+	// used by the Android MDM reconciliation cron to bound per-tick work.
+	GetMDMAndroidReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAndroidReconcileCursor persists the host_uuid cursor used by
+	// the Android MDM reconciliation cron. See GetMDMAndroidReconcileCursor.
+	SetMDMAndroidReconcileCursor(ctx context.Context, cursor string) error
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.

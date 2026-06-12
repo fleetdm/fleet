@@ -443,6 +443,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
+	config.MDM.ValidateAndroidBatchSize(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -829,6 +830,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			config.MDM.AndroidAgent,
+			config.MDM.AndroidBatchSize,
 		)
 	}); err != nil {
 		initFatal(err, "failed to register mdm_android_profile_manager schedule")
