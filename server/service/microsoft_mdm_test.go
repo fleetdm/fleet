@@ -699,35 +699,6 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
 
-	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
-		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
-		for hostUUID, profile := range hostToProfile {
-			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:   profile.ProfileUUID,
-				ProfileName:   profile.Name,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
-		}
-		return profilesToInstall, nil
-	}
-	// Mock both the legacy global listing (kept for tests still using it
-	// directly) and the new scoped listing the cron now calls.
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-
-	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 		profileContentsMap := make(map[string]fleet.MDMWindowsProfileContents)
 		for _, profile := range hostToProfile {
@@ -1027,7 +998,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	}
 	setupReconcilerTest(ds, hostToProfile)
 
-	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// Simulate the race: the reconcile snapshot and
 	// GetMDMWindowsProfilesContents already ran (both set up by
 	// setupReconcilerTest to include the profile). Between those and the
 	// upsert, the admin deleted the profile, so
@@ -1628,7 +1599,7 @@ func TestGetESPCommands(t *testing.T) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 		}
 		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly.
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 			return nil, nil
 		}
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -1753,18 +1724,59 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, cmds, "should wait while profiles are verifying")
 	})
 
-	t.Run("active waits when profiles not yet queued by reconciler", func(t *testing.T) {
+	t.Run("active queues unqueued profiles via per-host reconcile and waits", func(t *testing.T) {
 		ds, svc := newSvc(t)
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
-			return []*fleet.MDMWindowsProfilePayload{
-				{ProfileUUID: "prof-1", ProfileName: "WiFi"},
+		// setupReconcilerTest wires the execute-step mocks (contents, command insert, host-profile upserts) and an
+		// AppConfig with Windows MDM enabled, so the ESP stage-1 per-host reconcile can actually queue the profile.
+		profile := &fleet.MDMWindowsConfigProfile{ProfileUUID: "prof-1", Name: "WiFi", SyncML: syncMLForTest("./Device/WiFi")}
+		setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{hostUUID: profile})
+		// Non-variable installs dispatch through MDMWindowsEnqueueCommandAndUpsertHostProfiles; capture its payloads.
+		var queued []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+		ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+			queued = append(queued, payload...)
+			return nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: hUUID, TeamID: nil}, nil
+		}
+		ds.ListWindowsProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+			return []*fleet.WindowsProfileForReconcile{
+				{ProfileUUID: profile.ProfileUUID, ProfileName: profile.Name, TeamID: teamID, Checksum: []byte("c")},
+			}, nil
+		}
+		ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+			return nil, nil
+		}
+		ds.BulkGetHostMDMWindowsProfilesByUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+			return map[string][]*fleet.MDMWindowsProfilePayload{}, nil
+		}
+		// Stage 2 sees the freshly queued (pending) row and blocks the release.
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: profile.ProfileUUID, Name: profile.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
 		require.NoError(t, err)
-		assert.Nil(t, cmds, "should wait when profiles are configured but not yet queued")
-		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
+		assert.Nil(t, cmds, "should wait while the freshly queued profile is pending")
+		require.NotEmpty(t, queued, "per-host reconcile must queue the unqueued profile")
+		assert.Equal(t, profile.ProfileUUID, queued[0].ProfileUUID)
+		assert.Equal(t, hostUUID, queued[0].HostUUID)
+	})
+
+	t.Run("active with failing per-host reconcile returns error and does not release", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return nil, errors.New("boom")
+		}
+
+		_, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "a reconcile failure must block the release; the next checkin retries")
+		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
 
 	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
@@ -1937,8 +1949,9 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			t.Fatal("AppConfig must not be called when host has a team_id")
-			return nil, nil
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = false
+			return ac, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
