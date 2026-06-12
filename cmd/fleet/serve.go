@@ -935,7 +935,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				} else {
 					config.Calendar.Periodicity = 5 * time.Minute
 				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
+				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger, activitySvc)
 			},
 		); err != nil {
 			initFatal(err, "failed to register calendar schedule")

@@ -2076,3 +2076,48 @@ func (a ActivityTypeFailedAutomationTicket) HostIDs() []uint {
 func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
 	return true
 }
+
+// ActivityTypeFailedCalendarPolicyAutomation is recorded when a failing-policy
+// calendar (maintenance window) automation is rejected by the remote calendar
+// provider while the events cron processes a host. One activity is recorded per
+// failing calendar policy the host belongs to, associated with that host.
+type ActivityTypeFailedAutomationCalendarEvent struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	StatusCode    int    `json:"status_code,omitempty"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) ActivityName() string {
+	return "failed_automation_calendar_event"
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRanAutomationCalendarEvent is recorded when a failing-policy
+// calendar (maintenance window) automation successfully creates a calendar
+// event on the host's calendar while the events cron processes a host. One
+// activity is recorded per failing calendar policy the host belongs to,
+// associated with that host.
+type ActivityTypeRanAutomationCalendarEvent struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) ActivityName() string {
+	return "ran_automation_calendar_event"
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
+	return true
+}
