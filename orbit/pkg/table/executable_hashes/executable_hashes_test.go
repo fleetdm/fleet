@@ -89,7 +89,8 @@ func TestGenerateWithExactPathMissingExecutable(t *testing.T) {
 
 	bundlePath := filepath.Join(dir, "XProtect.bundle")
 	contentsDir := filepath.Join(bundlePath, "Contents")
-	require.NoError(t, os.MkdirAll(contentsDir, 0o755))
+	macosDir := filepath.Join(contentsDir, "MacOS")
+	require.NoError(t, os.MkdirAll(macosDir, 0o755))
 
 	// Valid Info.plist that names an executable, but we intentionally do NOT
 	// create Contents/MacOS/XProtect.
