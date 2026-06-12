@@ -39,7 +39,8 @@ body {
 
   // Hide the gradient image during theme switch so background-color
   // can transition smoothly without the gradient snapping.
-  body.theme-transition .core-wrapper {
+  body.theme-transition .core-wrapper,
+  body.theme-transition .data-table__wrapper {
     background-image: none !important;
   }
 }
@@ -283,6 +284,26 @@ body.dark-mode thead {
 body.dark-mode .data-table-block tbody tr,
 body.dark-mode tbody tr {
   background-color: $dark-mode-table-row;
+}
+
+// Data table rows stay transparent in dark mode so the wrapper's scroll
+// shadow can show through when the table is horizontally scrollable —
+// matches the light-mode pattern where `tr` has no background and the
+// wrapper shows through.
+body.dark-mode .data-table-block tbody tr {
+  background-color: transparent;
+}
+
+// $ui-off-white-opaque is a near-transparent rgba tuned for light mode;
+// against the dark wrapper it's perceptually invisible. A translucent
+// black overlay darkens the row beneath the wrapper color cleanly — the
+// interpolation from `transparent` (rgba(0,0,0,0)) to rgba(0,0,0,0.2)
+// stays in monotonically darkening tints, so no flicker. Selector
+// includes `.data-table` to beat the component rule's `.single-row:hover`
+// specificity (0,4,2).
+body.dark-mode .data-table-block .data-table tbody tr:hover,
+body.dark-mode .data-table-block .data-table tbody .single-row:hover {
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
