@@ -2122,7 +2122,6 @@ func (a ActivityTypeRanAutomationCalendarEvent) WasFromAutomation() bool {
 	return true
 }
 
-
 // ActivityTypeFailedAutomationConditionalAccess is recorded when a
 // failing-policy conditional access automation fails to push the host's
 // compliance status to the remote provider. One activity is recorded per
@@ -2168,4 +2167,3 @@ func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
 func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
 }
-
