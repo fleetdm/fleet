@@ -2137,6 +2137,13 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
 	}
 
+	if err := cryptoutil.ValidateBERDepth(rawData, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
 	p7, err := pkcs7.Parse(rawData)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -6729,6 +6736,13 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	rawData, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
+	}
+
+	if err := cryptoutil.ValidateBERDepth(rawData, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
 	}
 
 	p7, err := pkcs7.Parse(rawData)
