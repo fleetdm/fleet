@@ -12,6 +12,8 @@ import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
+import FormField from "components/forms/FormField";
+import RenewDateCell from "../../../components/RenewDateCell";
 
 const baseClass = "edit-teams-abm-modal";
 
@@ -41,6 +43,7 @@ interface SelectedTeamNames {
   ios_team: IMdmAbToken["ios_fleet"]["name"];
   ipados_team: IMdmAbToken["ipados_fleet"]["name"];
   macos_team: IMdmAbToken["macos_fleet"]["name"];
+  byod_team: IMdmAbToken["byod_fleet"]["name"];
 }
 
 /**
@@ -85,6 +88,7 @@ const EditTeamsAbmModal = ({
       ios_team: token.ios_fleet.name,
       ipados_team: token.ipados_fleet.name,
       macos_team: token.macos_fleet.name,
+      byod_team: token.byod_fleet.name,
     }
   );
 
@@ -127,15 +131,21 @@ const EditTeamsAbmModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit fleets"
+      title={token.org_name}
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
-      <p>
-        Edit fleets for <b>{token.org_name}</b>.
-      </p>
       <form onSubmit={onSave} className={baseClass} autoComplete="off">
+        <FormField name="apple_id" label="Apple ID">
+          <p>{token.apple_id}</p>
+        </FormField>
+        <FormField name="renew_date" label="Renew date">
+          <RenewDateCell
+            value={token.renew_date}
+            className="abm-renew-date-cell"
+          />
+        </FormField>
         <Dropdown
           searchable={false}
           options={options}
@@ -145,14 +155,6 @@ const EditTeamsAbmModal = ({
           value={selectedTeamNames.macos_team}
           label="macOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--macos`}
-          tooltip={
-            <>
-              macOS hosts are automatically added to this fleet on initial sync
-              from ABM. If a host is manually assigned to a different fleet
-              before enrollment, it will enroll to the newly assigned fleet and
-              not the default.
-            </>
-          }
         />
         <Dropdown
           searchable={false}
@@ -163,14 +165,6 @@ const EditTeamsAbmModal = ({
           value={selectedTeamNames.ios_team}
           label="iOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--ios`}
-          tooltip={
-            <>
-              iOS hosts are automatically added to this fleet on initial sync
-              from ABM. If a host is manually assigned to a different fleet
-              before enrollment, it will enroll to the newly assigned fleet and
-              not the default.
-            </>
-          }
         />
         <Dropdown
           searchable={false}
@@ -181,14 +175,16 @@ const EditTeamsAbmModal = ({
           value={selectedTeamNames.ipados_team}
           label="iPadOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--ipados`}
-          tooltip={
-            <>
-              iPadOS hosts are automatically added to this fleet on initial sync
-              from ABM. If a host is manually assigned to a different fleet
-              before enrollment, it will enroll to the newly assigned fleet and
-              not the default.
-            </>
+        />
+        <Dropdown
+          searchable={false}
+          options={options}
+          onChange={(value: string) =>
+            setSelectedTeamNames((prev) => ({ ...prev, byod_team: value }))
           }
+          value={selectedTeamNames.byod_team}
+          label="BYOD fleet"
+          wrapperClassName={`${baseClass}__form-field form-field--byod`}
         />
         <div className="modal-cta-wrap">
           <Button
