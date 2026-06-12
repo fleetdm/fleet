@@ -1056,21 +1056,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 
 	// Get policy label usage.
 	for _, policy := range config.Policies {
-		nonEmptyScopes := 0
-		if len(policy.LabelsIncludeAny) > 0 {
-			nonEmptyScopes++
+		// A policy may combine one include scope (any/all) with one exclude scope
+		// (any/all); reject more than one of either, or a label in both lists.
+		if len(policy.LabelsIncludeAny) > 0 && len(policy.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Policy '%s' has multiple include label keys; please choose one of `labels_include_any` or `labels_include_all`.", policy.Name)
 		}
-		if len(policy.LabelsIncludeAll) > 0 {
-			nonEmptyScopes++
+		if len(policy.LabelsExcludeAny) > 0 && len(policy.LabelsExcludeAll) > 0 {
+			return nil, fmt.Errorf("Policy '%s' has multiple exclude label keys; please choose one of `labels_exclude_any` or `labels_exclude_all`.", policy.Name)
 		}
-		if len(policy.LabelsExcludeAny) > 0 {
-			nonEmptyScopes++
+		include := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll)
+		exclude := slices.Concat(policy.LabelsExcludeAny, policy.LabelsExcludeAll)
+		if overlap := fleet.LabelOverlap(include, exclude); overlap != "" {
+			return nil, fmt.Errorf("Policy '%s' has label %q in both an include and an exclude list.", policy.Name, overlap)
 		}
-		if nonEmptyScopes > 1 {
-			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
-		}
-		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
-		updateLabelUsage(labels, policy.Name, "Policy", result)
+		updateLabelUsage(slices.Concat(include, exclude), policy.Name, "Policy", result)
 	}
 
 	return result, nil

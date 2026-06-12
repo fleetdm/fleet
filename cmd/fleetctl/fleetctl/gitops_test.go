@@ -7927,3 +7927,56 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestGetLabelUsagePolicyScopes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		policy          fleet.PolicySpec
+		wantErrContains string
+		wantLabels      []string // labels that must be tracked when no error is expected
+	}{
+		{
+			name:       "include_any + exclude_any combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAny: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:       "include_all + exclude_all combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAll: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:            "two include scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsIncludeAll: []string{"b"}},
+			wantErrContains: "multiple include label keys",
+		},
+		{
+			name:            "two exclude scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsExcludeAny: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantErrContains: "multiple exclude label keys",
+		},
+		{
+			name:            "overlap between include and exclude rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAll: []string{"a"}},
+			wantErrContains: `label "a" in both an include and an exclude list`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			usage, err := getLabelUsage(&spec.GitOps{
+				Policies: []*spec.GitOpsPolicySpec{{PolicySpec: tc.policy}},
+			})
+			if tc.wantErrContains != "" {
+				require.ErrorContains(t, err, tc.wantErrContains)
+				return
+			}
+			require.NoError(t, err)
+			// Both include and exclude labels must be tracked as in-use so a
+			// referenced label can't be silently deleted.
+			for _, l := range tc.wantLabels {
+				require.Contains(t, usage, l)
+			}
+		})
+	}
+}
