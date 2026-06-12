@@ -7,7 +7,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/smallstep/scep"
@@ -120,9 +119,9 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "invalid request body",
-			InternalErr: err,
+		svc.debugLogger.ErrorContext(ctx, "invalid request body", "err", err)
+		return nil, &BadRequestError{
+			Message: "invalid request body",
 		}
 	}
 
