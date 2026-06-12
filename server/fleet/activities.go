@@ -2028,3 +2028,51 @@ type ActivityTypeDeletedSelfServiceCategory struct {
 func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
 	return "deleted_self_service_category"
 }
+
+// ActivityTypeRanAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) successfully creates the ticket. It is
+// associated with every host the failing-policy job targeted. The Type field is
+// "jira" or "zendesk". For Jira, TicketKey holds the issue key (e.g. "ENG-24");
+// for Zendesk, TicketID holds the numeric ticket ID.
+type ActivityTypeRanAutomationTicket struct {
+	PolicyID   uint   `json:"policy_id"`
+	HostIDList []uint `json:"-"`
+	Type       string `json:"type"`
+	TicketKey  string `json:"ticket_key,omitempty"`
+	TicketID   int64  `json:"ticket_id,omitempty"`
+}
+
+func (a ActivityTypeRanAutomationTicket) ActivityName() string {
+	return "ran_automation_ticket"
+}
+
+func (a ActivityTypeRanAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeRanAutomationTicket) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeFailedAutomationTicket is recorded when a failing-policy
+// ticket automation (Jira or Zendesk) can no longer create the ticket after the
+// worker exhausts its retries. It is associated with every host the
+// failing-policy job targeted. The Type field is "jira" or "zendesk".
+type ActivityTypeFailedAutomationTicket struct {
+	PolicyID      uint   `json:"policy_id"`
+	HostIDList    []uint `json:"-"`
+	Type          string `json:"type"`
+	ErrorResponse string `json:"error_response"`
+}
+
+func (a ActivityTypeFailedAutomationTicket) ActivityName() string {
+	return "failed_automation_ticket"
+}
+
+func (a ActivityTypeFailedAutomationTicket) HostIDs() []uint {
+	return a.HostIDList
+}
+
+func (a ActivityTypeFailedAutomationTicket) WasFromAutomation() bool {
+	return true
+}
