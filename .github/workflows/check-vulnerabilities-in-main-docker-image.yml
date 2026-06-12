@@ -11,9 +11,11 @@ on:
   schedule:
     - cron: "0 7 * * *"
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# A newly queued run on the same ref interrupts an in-flight one. github.ref is
+# always defined (refs/heads/<default_branch> on schedule, the dispatched ref on
+# workflow_dispatch), so scheduled and dispatched runs share a deterministic group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -38,7 +40,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build fleet docker image from main
+      - name: Build fleet docker image
         run: |
           # OS-package CVE coverage doesn't need a real fleet binary; placeholder
           # keeps the Dockerfile's COPY step happy without paying for a full Go build.
@@ -65,7 +67,7 @@ jobs:
         run: |
           mkdir trivy-download
           cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
+          curl -fsSL --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
           tar -xf trivy_0.69.2_Linux-64bit.tar.gz
           mv trivy ..
           cd ..
