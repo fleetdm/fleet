@@ -2489,15 +2489,13 @@ func rawWindowsDeleteCommandForHostProfile(t *testing.T, ds *Datastore, hostUUID
 }
 
 // windowsReconcileDeltasForTest computes the fleet-wide install/remove sets the way the cron does: one
-// GetWindowsProfileReconcileSnapshot covering all enrolled Windows hosts, fed through
-// ComputeWindowsReconcileDeltas. Tests use it to observe desired-state diffs against a real database,
-// replacing the deleted fleet-wide ListMDMWindowsProfilesToInstall / ListMDMWindowsProfilesToRemove queries.
+// GetWindowsProfileReconcileSnapshot covering all enrolled Windows hosts, fed through ComputeWindowsReconcileDeltas. Tests use it
+// to observe desired-state diffs against a real database.
 func windowsReconcileDeltasForTest(t *testing.T, ds *Datastore) (toInstall, toRemove []*fleet.MDMWindowsProfilePayload) {
 	t.Helper()
 	hosts, allProfiles, hostLabels, currentByHost, err := ds.GetWindowsProfileReconcileSnapshot(t.Context(), "", 10_000)
 	require.NoError(t, err)
-	// This oracle reads a single snapshot page. Fail loudly if a test ever grows past it rather than silently
-	// undercounting deltas.
+	// This oracle reads a single snapshot page. Fail loudly if a test ever grows past it rather than silently undercounting deltas.
 	require.Less(t, len(hosts), 10_000, "windowsReconcileDeltasForTest assumes the whole fleet fits in one snapshot page")
 
 	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile)
@@ -5810,9 +5808,8 @@ func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 	require.True(t, foundAfter, "reconciler must resume for host after osquery confirms it is enrolled again")
 }
 
-// testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that the reconcile snapshot+compute
-// path does not produce removals for hosts whose mdm_windows_enrollments row has been deleted
-// (issue #44369).
+// testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that the reconcile snapshot+compute path does not produce removals
+// for hosts whose mdm_windows_enrollments row has been deleted (issue #44369).
 func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -5947,10 +5944,8 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 	})
 	require.Equal(t, 1, queueCount)
 
-	// Both hosts get profile rows upserted — d2's profile row is
-	// intentionally kept. It's harmless dead data: the reconcile snapshot only
-	// walks hosts with an active enrollment, so the row is never selected for
-	// removal on later cron cycles.
+	// Both hosts get profile rows upserted — d2's profile row is intentionally kept. It's harmless dead data: the reconcile snapshot
+	// only walks hosts with an active enrollment, so the row is never selected for removal on later cron cycles.
 	var profileCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &profileCount,
@@ -6802,9 +6797,8 @@ func TestWindowsMDMPendingDeleteRetentionAndGC(t *testing.T) {
 }
 
 // testWindowsPerHostReconcileLoaders covers the three loaders the per-host enrollment reconcile uses:
-// GetWindowsMDMHostForReconcile (same enrollment predicates as the batch host listing),
-// ListWindowsProfilesForReconcileByTeam (team_id is its own scope; no global inheritance), and
-// BulkGetHostMDMWindowsProfilesByUUIDs (current rows grouped by host).
+// GetWindowsMDMHostForReconcile (same enrollment predicates as the batch host listing), ListWindowsProfilesForReconcileByTeam
+// (team_id is its own scope; no global inheritance), and BulkGetHostMDMWindowsProfilesByUUIDs (current rows grouped by host).
 func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -6823,6 +6817,20 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.Equal(t, host.ID, got.HostID)
 	require.Equal(t, host.UUID, got.UUID)
 	require.Equal(t, uint(0), got.EffectiveTeamID())
+	// LabelUpdatedAt feeds the exclude-any freshness gate in the compute; a broken column mapping here would silently change label
+	// semantics.
+	require.False(t, got.LabelUpdatedAt.IsZero(), "LabelUpdatedAt must be loaded")
+
+	// host_mdm.enrolled = 0 must make the host ineligible even with the MDM enrollment row present (the
+	// global-disable / device-unenrolled cycle), and flipping it back restores eligibility.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, got, "host with host_mdm.enrolled=0 must not be eligible")
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+	got, err = ds.GetWindowsMDMHostForReconcile(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, got, "host must be eligible again after re-enrolling")
 
 	// Unknown UUID returns nil, not an error.
 	missing, err := ds.GetWindowsMDMHostForReconcile(ctx, "no-such-uuid")
@@ -6874,10 +6882,18 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.Len(t, globalProfiles, 1)
 	require.Empty(t, globalProfiles[0].IncludeLabels, "global scope must not pick up the team profile's labels")
 
-	// Current rows grouped by host UUID.
+	// Current rows grouped by host UUID. Assert the fields ComputeWindowsReconcileDeltas consumes (Status,
+	// OperationType, Checksum); a broken column mapping here would silently re-install or skip profiles. The
+	// unknown UUID in the same call pins the grouping: no empty entry is created for hosts without rows.
 	installWindowsProfilesAsVerified(t, ds, []string{host.UUID}, []string{globalProfile})
-	current, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID})
+	current, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(ctx, []string{host.UUID, "no-such-uuid"})
 	require.NoError(t, err)
+	require.Len(t, current, 1)
 	require.Len(t, current[host.UUID], 1)
-	require.Equal(t, globalProfile, current[host.UUID][0].ProfileUUID)
+	row := current[host.UUID][0]
+	require.Equal(t, globalProfile, row.ProfileUUID)
+	require.Equal(t, fleet.MDMOperationTypeInstall, row.OperationType)
+	require.NotNil(t, row.Status)
+	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
+	require.NotEmpty(t, row.Checksum)
 }
