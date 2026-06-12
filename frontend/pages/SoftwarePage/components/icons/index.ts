@@ -818,7 +818,6 @@ import Tradingview from "./Tradingview";
 import Transfer from "./Transfer";
 import Transmission from "./Transmission";
 import Transmit from "./Transmit";
-import Tresorit from "./Tresorit";
 import Trex from "./Trex";
 import TrezorSuite from "./TrezorSuite";
 import Tripmode from "./Tripmode";
@@ -1760,7 +1759,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   transfer: Transfer,
   transmission: Transmission,
   transmit: Transmit,
-  tresorit: Tresorit,
   trex: Trex,
   "trezor suite": TrezorSuite,
   tripmode: Tripmode,

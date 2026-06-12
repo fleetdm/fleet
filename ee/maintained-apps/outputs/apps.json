@@ -6638,13 +6638,6 @@
       "description": "Transmit is a file transfer application."
     },
     {
-      "name": "Tresorit",
-      "slug": "tresorit/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.tresorit.mac",
-      "description": "Tresorit is a client for the Tresorit cloud storage service."
-    },
-    {
       "name": "TRex",
       "slug": "trex/darwin",
       "platform": "darwin",
