@@ -3464,14 +3464,14 @@
       "slug": "lasso-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.heavylightapps.lasso",
-      "description": "Lasso is a move and resize windows with mouse."
+      "description": "Lasso lets you move and resize windows with your mouse."
     },
     {
       "name": "Last Window Quits",
       "slug": "last-window-quits/darwin",
       "platform": "darwin",
       "unique_identifier": "io.lawand.last-window-quits",
-      "description": "Last Window Quits is an automatically quit apps when their last window is closed."
+      "description": "Last Window Quits automatically quits apps when their last window is closed."
     },
     {
       "name": "LastPass",
@@ -3674,7 +3674,7 @@
       "slug": "losslesscut/darwin",
       "platform": "darwin",
       "unique_identifier": "no.mifi.losslesscut-mac",
-      "description": "LosslessCut is a trims video and audio files losslessly."
+      "description": "LosslessCut trims video and audio files losslessly."
     },
     {
       "name": "Low Profile",
@@ -3702,7 +3702,7 @@
       "slug": "lunar/darwin",
       "platform": "darwin",
       "unique_identifier": "fyi.lunar.Lunar",
-      "description": "Lunar is an adaptive brightness for external displays."
+      "description": "Lunar provides adaptive brightness for external displays."
     },
     {
       "name": "LunaSea",
