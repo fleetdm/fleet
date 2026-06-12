@@ -5011,7 +5011,7 @@ org_settings:
 // labels_exclude_all scope — and that conflicting include/exclude scopes are rejected.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPolicyLabelScopes() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
