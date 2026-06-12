@@ -78,12 +78,6 @@ func TestRecordConditionalAccessFailureActivity(t *testing.T) {
 
 		require.Empty(t, r.acts)
 	})
-
-	t.Run("nil activity function is a no-op", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			recordConditionalAccessFailureActivity(ctx, nil, 104, []uint{30}, &proxyStatusErr{code: 500}, logger)
-		})
-	})
 }
 
 // TestRecordSingleSignOnBlockedActivity verifies that a successful non-compliant

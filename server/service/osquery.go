@@ -2788,7 +2788,7 @@ func recordConditionalAccessFailureActivity(
 	err error,
 	logger *slog.Logger,
 ) {
-	if newActivitySvc == nil || len(policyIDs) == 0 {
+	if len(policyIDs) == 0 {
 		return
 	}
 
