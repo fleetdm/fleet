@@ -140,6 +140,27 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 		assert.EqualValues(t, 403, got["status_code"])
 		assert.Equal(t, "Rate Limit Exceeded", got["error_response"])
 	})
+
+	t.Run("webhook", func(t *testing.T) {
+		act := ActivityTypeFailedAutomationWebhook{
+			PolicyID:      7,
+			HostIDList:    []uint{10, 20, 30},
+			StatusCode:    500,
+			ErrorResponse: "internal server error",
+		}
+
+		assert.Equal(t, "failed_automation_webhook", act.ActivityName())
+		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 7, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "internal server error", got["error_response"])
+	})
 }
 
 func TestSuccessPolicyAutomationActivities(t *testing.T) {
@@ -170,6 +191,35 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		require.NoError(t, json.Unmarshal(b, &got))
 		assert.EqualValues(t, 14, got["policy_id"])
 		assertNoHostIDsOrPolicyName(t, got)
+	})
+
+	t.Run("webhook sent", func(t *testing.T) {
+		act := ActivityTypeRanAutomationWebhook{
+			PolicyID:   7,
+			HostIDList: []uint{10, 20, 30},
+			StatusCode: 200,
+		}
+
+		assert.Equal(t, "ran_automation_webhook", act.ActivityName())
+		assert.Equal(t, []uint{10, 20, 30}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 7, got["policy_id"])
+		assert.EqualValues(t, 200, got["status_code"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
+
+	t.Run("webhook sent omits zero status code", func(t *testing.T) {
+		b, err := json.Marshal(ActivityTypeRanAutomationWebhook{PolicyID: 7, HostIDList: []uint{10}})
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		_, hasStatus := got["status_code"]
+		assert.False(t, hasStatus)
 	})
 }
 
