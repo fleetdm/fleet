@@ -8534,9 +8534,6 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 				}},
 				http.StatusNoContent)
 
-			// Enroll AFTER the batch-set replaces the global profile set: the per-host reconciler queues the
-			// host's profiles at enrollment, so enrolling first would queue the PREVIOUS subtest's profile and
-			// the session below would see two SCEP exchanges instead of one.
 			host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 			s.awaitTriggerProfileSchedule(t)
@@ -9151,8 +9148,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 
 		// Create another host and enroll in MDM
 		host2, mdmDevice2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-		// Consume host2's own enroll-time profile delivery (the per-host reconciler queues the global profile at
-		// enrollment) so the malformed-CmdRef exchange below observes only the Status echo.
+		// Consume host2's own enroll-time profile delivery
 		s.recordWindowsHostStatus(host2, mdmDevice2)
 
 		// Start connection, and then reply with a missing CmdRef

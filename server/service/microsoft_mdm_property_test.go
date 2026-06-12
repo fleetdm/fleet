@@ -75,12 +75,24 @@ func newPBTESPSvc(
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		ac := &fleet.AppConfig{}
+		ac.MDM.WindowsEnabledAndConfigured = true
 		ac.MDM.MacOSSetup.RequireAllSoftwareWindows = requireAll
 		return ac, nil
 	}
 
-	// Skip Stages 1 and 2: profiles are out of PBT scope. Stage 1's per-host reconcile no-ops at the
-	// WindowsEnabledAndConfigured gate (the AppConfig stub above leaves MDM disabled).
+	// Profiles are out of PBT scope.
+	ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+		return &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: hUUID}, nil
+	}
+	ds.ListWindowsProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+		return nil, nil
+	}
+	ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+		return nil, nil
+	}
+	ds.BulkGetHostMDMWindowsProfilesByUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}

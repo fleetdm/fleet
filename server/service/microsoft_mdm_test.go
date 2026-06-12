@@ -1598,9 +1598,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 		}
-		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly. Stage 1's
-		// per-host reconcile finds no eligible host (nil) and no-ops; the host stub matters only when a subtest's
-		// AppConfig override enables Windows MDM, since the default zero-value AppConfig gates the reconcile off.
+		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly.
 		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 			return nil, nil
 		}
@@ -1767,7 +1765,7 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Equal(t, hostUUID, queued[0].HostUUID)
 	})
 
-	t.Run("active blocks release when per-host reconcile fails", func(t *testing.T) {
+	t.Run("active with failing per-host reconcile returns error and does not release", func(t *testing.T) {
 		ds, svc := newSvc(t)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
@@ -1950,9 +1948,6 @@ func TestGetESPCommands(t *testing.T) {
 				},
 			}, nil
 		}
-		// AppConfig IS read by stage 1's per-host reconcile gate (WindowsEnabledAndConfigured), so it can't be a
-		// t.Fatal stub. Instead return require_all=false: if the require_all chain wrongly consulted AppConfig on
-		// the team path, the block assertion below would fail.
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			ac := &fleet.AppConfig{}
 			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = false

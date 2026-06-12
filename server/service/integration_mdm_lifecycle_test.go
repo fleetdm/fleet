@@ -287,11 +287,19 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 	testCases := []struct {
 		Name   string
 		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
-		// DrainEnrollBacklog consumes the one-time profile delivery that the per-host reconciler queues at MDM
-		// enrollment, before recording the pre-action state. Needed for actions that do NOT re-enroll the host:
-		// without it, the pre-action recording session consumes the enroll-time backlog itself and the pre/post
-		// command sets diverge. Actions that re-enroll (e.g. delete + re-enroll) must NOT drain, because their
-		// post-action session legitimately re-delivers the same backlog and the symmetry is the assertion.
+		// Background: assertAction records one management session before the action (fCmds) and one after (sCmds)
+		// and requires them equal. Each session CONSUMES the commands it receives. Enrolling a host queues its
+		// profile installs immediately (per-host reconciler), so test setup leaves a one-time batch of installs in
+		// the queue, and whichever session runs first eats it.
+		//
+		// DrainEnrollBacklog=true runs one extra throwaway session before recording. Set it for actions that do NOT
+		// (re-)enroll: there, the pre-action session would consume the enroll-time installs (fCmds=statuses+installs),
+		// the action queues nothing, and the post-action session comes up short (sCmds=statuses only). Draining first
+		// makes both sessions observe the steady state.
+		//
+		// Leave it false for actions that DO re-enroll (e.g. delete + re-enroll): re-enrollment queues the same
+		// installs again, so fCmds (enroll delivery) equaling sCmds (re-enroll delivery) is exactly the lifecycle
+		// invariant the test exists to prove. Draining would turn that into statuses-vs-installs and fail spuriously.
 		DrainEnrollBacklog bool
 	}{
 		{
