@@ -1,0 +1,10 @@
+{
+  "name": "RsyncUI",
+  "unique_identifier": "no.blogspot.RsyncUI",
+  "token": "rsyncui",
+  "installer_format": "dmg",
+  "slug": "rsyncui/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

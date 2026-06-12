@@ -4,7 +4,7 @@
       "version": "2026.1.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.24374.190') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.1.2.exe",
       "install_script_ref": "d65fe1de",

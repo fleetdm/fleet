@@ -1,0 +1,10 @@
+{
+  "name": "Sqlectron",
+  "unique_identifier": "org.sqlectron.gui",
+  "token": "sqlectron",
+  "installer_format": "dmg",
+  "slug": "sqlectron/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "CodexBar",
+  "unique_identifier": "com.steipete.codexbar",
+  "token": "codexbar",
+  "installer_format": "zip",
+  "slug": "codexbar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

@@ -377,7 +377,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 					LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
 					LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
 					LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
-					Categories:         pkg.Categories,
+					Categories:         optjson.SetSlice(pkg.Categories),
 					InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 				})
 				continue
@@ -389,7 +389,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
 				LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
 				LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
-				Categories:         pkg.Categories,
+				Categories:         optjson.SetSlice(pkg.Categories),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			})
 		case detail.AppStoreApp != nil:

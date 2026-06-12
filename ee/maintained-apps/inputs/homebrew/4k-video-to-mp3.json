@@ -1,0 +1,10 @@
+{
+  "name": "4K Video to MP3",
+  "unique_identifier": "com.openmedia.4kvideotomp3",
+  "token": "4k-video-to-mp3",
+  "installer_format": "dmg",
+  "slug": "4k-video-to-mp3/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

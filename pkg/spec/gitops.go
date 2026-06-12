@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -310,10 +313,9 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 }
 
 type Software struct {
-	Packages              []SoftwarePackage           `json:"packages"`
-	AppStoreApps          []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
-	FleetMaintainedApps   []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
-	SelfServiceCategories optjson.Slice[string]       `json:"self_service_categories"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
@@ -378,10 +380,9 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages              []*fleet.SoftwarePackageSpec
-	AppStoreApps          []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps   []*fleet.MaintainedAppSpec
-	SelfServiceCategories optjson.Slice[string]
+	Packages            []*fleet.SoftwarePackageSpec
+	AppStoreApps        []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps []*fleet.MaintainedAppSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -656,6 +657,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -684,6 +686,40 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Verify that if SSO is enabled, the IdP is completely configured: idp_name,
+// entity_id, and at least one of metadata/metadata_url must all be set. This
+// mirrors the server-side complete-IdP predicate enforced by
+// validateSSOProviderSettings in overwrite (gitops) mode, so the user gets the
+// same rejection early at parse time. One error is emitted per missing piece.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		if !enabled {
+			return multiError
+		}
+		idpName, _ := sso["idp_name"].(string)
+		entityID, _ := sso["entity_id"].(string)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if idpName == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, idp_name must be set",
+			))
+		}
+		if entityID == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, entity_id must be set",
+			))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
 	return multiError
 }
 
@@ -1171,7 +1207,84 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		result.Controls.AndroidSettings = androidSettings
 	}
 
+	if err := validateOSUpdatesProfileConflict(result.Controls); err != nil {
+		multiError = multierror.Append(multiError, err)
+	}
+
 	return multiError
+}
+
+// validateOSUpdatesProfileConflict rejects a config that both configures managed
+// OS updates and includes a custom configuration profile that enforces OS
+// updates. The server checks it for non-dry runs; we replicate it here against
+// the incoming payload so dry-runs fail too.
+func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
+	macOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.MacOSUpdates)
+	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
+	iPadOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IPadOSUpdates)
+	if macOSConfigured || iOSConfigured || iPadOSConfigured {
+		macOSSettings, _ := controls.MacOSSettings.(fleet.MacOSSettings)
+		for _, profile := range macOSSettings.CustomSettings {
+			contains, err := profileFileContains(profile.Path, apple_mdm.DeclarationTypeSoftwareUpdate)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.apple_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	windowsConfigured := osUpdatesConfigured[fleet.WindowsUpdates](controls.WindowsUpdates)
+	if windowsConfigured {
+		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
+		for _, profile := range windowsSettings.CustomSettings.Value {
+			contains, err := profileFileContains(profile.Path, syncml.FleetOSUpdateTargetLocURI)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.windows_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	return nil
+}
+
+// osUpdatesSettings is implemented by the OS update settings types that report
+// whether managed OS updates are configured.
+type osUpdatesSettings interface {
+	Configured() bool
+}
+
+// osUpdatesConfigured unmarshals the raw controls value (e.g. controls.macos_updates)
+// into T and reports whether it configures managed OS updates.
+func osUpdatesConfigured[T osUpdatesSettings](v any) bool {
+	if v == nil {
+		return false
+	}
+	data, err := json.Marshal(v)
+	if err != nil {
+		return false
+	}
+	var settings T
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return false
+	}
+	return settings.Configured()
+}
+
+// profileFileContains reports whether the profile file at path contains needle.
+func profileFileContains(path, needle string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return bytes.Contains(fileBytes, []byte(needle)), nil
 }
 
 func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {
@@ -1907,47 +2020,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
 
-	// validate self service categories
-	if software.SelfServiceCategories.Set {
-		declared := software.SelfServiceCategories.Value
-		var seen []string
-
-		for i, name := range declared {
-			declared[i] = strings.TrimSpace(name)
-
-			if err := (fleet.SoftwareCategory{Name: declared[i]}).Validate(); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
-				continue
-			}
-
-			// Doesn't catch utf8mb4_unicode_ci collation collisions (e.g. "🔐 Security" vs "🛡 Security") in dry runs.
-			if slices.ContainsFunc(seen, func(s string) bool { return strings.EqualFold(s, declared[i]) }) {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("self_service_categories: duplicate category %q", declared[i]))
-				continue
-			}
-
-			seen = append(seen, declared[i])
-		}
-
-		result.Software.SelfServiceCategories = optjson.SetSlice(declared)
-	}
-
-	validateCategoryReferences := func(categories []string) {
-		if !result.Software.SelfServiceCategories.Set {
-			return
-		}
-
-		for _, name := range categories {
-			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool {
-				return fleet.SoftwareCategoryReferenceMatches(name, d)
-			}) {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("category %q is not in software.self_service_categories", name))
-			}
-		}
-	}
-
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
@@ -1973,7 +2045,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		item = item.ResolvePaths(baseDir)
 
-		validateCategoryReferences(item.Categories)
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
@@ -2015,7 +2086,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 
-		validateCategoryReferences(maintainedAppSpec.Categories)
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
 	for _, teamLevelPackage := range software.Packages {
@@ -2187,7 +2257,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			validateCategoryReferences(softwarePackageSpec.Categories)
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
 		}
 	}
