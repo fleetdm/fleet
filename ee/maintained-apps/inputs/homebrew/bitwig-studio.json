@@ -1,0 +1,10 @@
+{
+  "name": "Bitwig Studio",
+  "unique_identifier": "com.bitwig.studio",
+  "token": "bitwig-studio",
+  "installer_format": "dmg",
+  "slug": "bitwig-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

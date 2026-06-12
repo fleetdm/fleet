@@ -1,0 +1,10 @@
+{
+  "name": "MarkEdit",
+  "unique_identifier": "app.cyan.markedit",
+  "token": "markedit",
+  "installer_format": "dmg",
+  "slug": "markedit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

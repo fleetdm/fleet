@@ -924,8 +924,30 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
 	if hostRunningSetupExperience {
-		svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience", "host_id", host.ID)
-		return nil, false, nil
+		// During setup experience, run ONLY the policies that gate this host's pending setup-experience software, instead of the
+		// host's whole (possibly large) team policy set. All other policies stay skipped so unrelated automations do not fire
+		// mid-setup. The install itself is performed by setup experience, not by the policy automation (which is suppressed for
+		// in-setup hosts in processSoftwareForNewlyFailingPolicies).
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get host uuid for setup experience policy queries")
+		}
+		policyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(policyIDs) == 0 {
+			svc.logger.DebugContext(ctx, "skipping policy queries for host in setup experience (no policy-gated items)", "host_id", host.ID)
+			return nil, false, nil
+		}
+		policyQueries, err = svc.ds.PolicyQueriesForHostFiltered(ctx, host, policyIDs)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "retrieve filtered setup experience policy queries")
+		}
+		// If a gated policy's platform/label scope excludes the host, it won't be returned here and won't run; setup experience
+		// detects that and falls back to installing the item, so we don't flag the host as "no policies" (which would bump the
+		// policy timestamp).
+		return policyQueries, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
@@ -1233,9 +1255,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 
-		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
-		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
+		// setupExperienceHostUUID keys setup-experience rows (OsqueryHostID on Windows/Linux); on error it is empty, which
+		// disables setup-experience automation suppression (matches no host).
+		setupExperienceHostUUID, seuErr := fleet.HostUUIDForSetupExperience(host)
+		if seuErr != nil {
+			svc.logger.ErrorContext(ctx, "could not derive setup experience host UUID; setup-experience suppression disabled for this host",
+				"err", seuErr, "host_id", host.ID, "platform", host.Platform)
+			ctxerr.Handle(ctx, seuErr)
+		}
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, setupExperienceHostUUID, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -2002,6 +2030,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	hostOrbitNodeKey *string,
+	setupExperienceHostUUID string,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
@@ -2049,6 +2078,34 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 	if len(failingPoliciesWithInstaller) == 0 {
 		return nil
+	}
+
+	// Suppress the automation for any policy that gates one of this host's setup-experience items: while the host is in setup
+	// experience, setup experience performs that install itself. Installing here too would double-install.
+	if setupExperienceHostUUID != "" {
+		gatedPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, setupExperienceHostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get setup experience policy ids for host")
+		}
+		if len(gatedPolicyIDs) > 0 {
+			gatedSet := make(map[uint]struct{}, len(gatedPolicyIDs))
+			for _, id := range gatedPolicyIDs {
+				gatedSet[id] = struct{}{}
+			}
+			kept := failingPoliciesWithInstaller[:0]
+			for _, p := range failingPoliciesWithInstaller {
+				if _, gated := gatedSet[p.ID]; gated {
+					svc.logger.DebugContext(ctx, "skipping policy automation install for host in setup experience; setup experience will install it",
+						"host_id", hostID, "policy_id", p.ID)
+					continue
+				}
+				kept = append(kept, p)
+			}
+			failingPoliciesWithInstaller = kept
+			if len(failingPoliciesWithInstaller) == 0 {
+				return nil
+			}
+		}
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {

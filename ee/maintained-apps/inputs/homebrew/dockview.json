@@ -1,0 +1,10 @@
+{
+  "name": "DockView",
+  "unique_identifier": "com.sergey-gerasimenko.DockView",
+  "token": "dockview",
+  "installer_format": "zip",
+  "slug": "dockview/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

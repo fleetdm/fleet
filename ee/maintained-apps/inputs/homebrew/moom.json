@@ -1,0 +1,10 @@
+{
+  "name": "Moom",
+  "unique_identifier": "com.manytricks.Moom",
+  "token": "moom",
+  "installer_format": "dmg",
+  "slug": "moom/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

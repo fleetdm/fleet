@@ -1,0 +1,10 @@
+{
+  "name": "BusyContacts",
+  "unique_identifier": "com.busymac.busycontacts",
+  "token": "busycontacts",
+  "installer_format": "zip",
+  "slug": "busycontacts/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

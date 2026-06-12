@@ -4,7 +4,7 @@
       "version": "2024.3.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2024.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '243.26053.29') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2024.3.5.exe",
       "install_script_ref": "60d9c96b",

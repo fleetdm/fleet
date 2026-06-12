@@ -1,0 +1,10 @@
+{
+  "name": "TripMode",
+  "unique_identifier": "ch.tripmode.TripMode",
+  "token": "tripmode",
+  "installer_format": "zip",
+  "slug": "tripmode/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

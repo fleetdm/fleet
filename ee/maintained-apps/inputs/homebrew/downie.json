@@ -1,0 +1,10 @@
+{
+  "name": "Downie",
+  "unique_identifier": "com.charliemonroe.Downie-4",
+  "token": "downie",
+  "installer_format": "dmg",
+  "slug": "downie/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

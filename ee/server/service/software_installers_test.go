@@ -1701,7 +1701,7 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, gotDeleted)
 
 	// The result endpoint returns the deleted packages on the dry-run completed branch.
-	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
 	require.Empty(t, message)
@@ -1733,7 +1733,7 @@ func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
-	status, message, packages, deletedPackages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
 	require.Empty(t, message)
