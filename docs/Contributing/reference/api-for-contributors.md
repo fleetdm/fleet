@@ -6126,3 +6126,180 @@ MIICijCCAXKgAwIBAgIRAOaJt2Mi0tzs06t0YwVUI7owDQYJKoZIhvcNAQELBQAw
 LhF5zOH2B/pJftzHZRIUPTg5doECxNFV6WB+4jr2
 -----END CERTIFICATE-----
 ```
+
+## Apple Platform SSO
+The following endpoints describe Fleet's Platform SSO implementation used for initial user provisioning and password sync. These endpoints are only used by Fleet's Platform SSO extension, included within the Fleet Desktop app, not when using third party Platform SSO extensions such as Company Portal or Okta Verify.
+
+### Platform SSO Device Registration
+
+`POST /api/mdm/apple/psso/registration`
+
+This endpoint is used by the Device Registration phase of Platform SSO to establish per-device communication keys and authenticate the device based on the Registration Token in the Platform SSO payload. Only registration using a Registration Token is supported.
+
+The registration token is a per-host secret Fleet substitutes into the `RegistrationToken` key of the `com.apple.extensiblesso` profile (via the `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` profile variable) at profile-send time. Fleet validates the presented token, derives the owning `host_id` from it, and persists the device's public keys against that host. The request is sent directly by the extension (`URLSession`, no web view) as a urlencoded form.
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                                                       |
+| --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------- |
+| registration_token    | string | body | **Required.** The per-host token Fleet placed in the profile's `RegistrationToken` key. Validated and used to identify the host. |
+| device_signing_key     | string | body | **Required.** PEM-encoded public half of the device's Secure Enclave signing keypair.            |
+| device_encryption_key  | string | body | **Required.** PEM-encoded public half of the device's Secure Enclave encryption keypair.         |
+| signing_key_id          | string | body | **Required.** The `kid` (base64 SHA-256) of the signing key, used to resolve the device on later token requests. |
+| encryption_key_id       | string | body | **Required.** The `kid` (base64 SHA-256) of the encryption key.                                  |
+
+#### Example
+
+`POST /api/mdm/apple/psso/registration`
+
+##### Request body
+
+```
+Content-Type: application/x-www-form-urlencoded
+
+registration_token=<per-host token>&device_signing_key=<PEM>&device_encryption_key=<PEM>&signing_key_id=<kid>&encryption_key_id=<kid>
+```
+
+##### Default response
+
+`Status: 204`
+
+No response body. A `2xx` tells the extension the keys were persisted; the framework only then proceeds to the nonce and token endpoints. An invalid or missing registration token returns `400`.
+
+### Platform SSO Nonce endpoint
+
+`POST /api/mdm/apple/psso/nonce`
+
+This endpoint is used prior to every call to the Token endpoint to obtain a new nonce which is immediately consumed on the call to the token endpoint where it is sent as the `request_nonce` claim of the JWT. Nonces have a five minute expiry. The returned nonce is a random 32-byte value, base64url-encoded.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`POST /api/mdm/apple/psso/nonce`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "Nonce": "P0GgTgrobM_PuYT3RpatJBrDHzCtP_Iky54pTFYEkZg="
+}
+```
+
+### Platform SSO Token endpoint
+
+`POST /api/mdm/apple/psso/token`
+
+This endpoint is used for User Registration, Key Request and Key Exchange requests of Platform SSO to authenticate users of previously-registered devices and support operations such as Key Exchange which allows a user who has changed their IDP password and logged in with it to unlock their keychain without the prior password.
+
+The request body is an OAuth `jwt-bearer`-style urlencoded form whose `assertion` field carries a compact JWS signed by the device's registered signing key. Fleet resolves the device from the JWS header's `kid`, verifies the signature against the registered signing key, then dispatches on a claim in the JWS payload. The signed payload must always include a valid, unexpired `request_nonce` from the nonce endpoint and a `jwe_crypto` recipe (`ECDH-ES` / `A256GCM` against the device encryption key) describing how Fleet must encrypt the response.
+
+The response is a compact JWE encrypted to the device's registered encryption key; the JWE's protected-header `typ` distinguishes the operation (`platformsso-login-response+jwt` for password login, `platformsso-key-response+jwt` for key request/exchange). 
+
+The dispatched operation is selected by the JWS payload:
+
+| Operation     | Selecting claim         | Purpose                                                                                          |
+| ------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Password login | `grant_type: password` | Carries the user's plaintext password. Fleet validates it against the upstream IdP and returns a login response JWE containing a Fleet-signed `id_token`, `refresh_token`, and token lifetimes. |
+| Key request   | `request_type: key_request`  | Fleet provisions an EC key pair, certifies its public half, and returns a key response JWE containing the certificate and an opaque, server-sealed `key_context`. |
+| Key exchange  | `request_type: key_exchange` | The device presents its DH public key and the `key_context` from the key request. Fleet recovers the provisioned key, computes the ECDH unlock key, and returns it in a key response JWE. |
+
+#### Parameters
+
+| Name      | Type   | In   | Description                                                                                          |
+| --------- | ------ | ---- | ---------------------------------------------------------------------------------------------------- |
+| assertion | string | body | **Required.** A compact JWS, signed by the device's registered signing key, whose payload carries the `grant_type`/`request_type`, `request_nonce`, `jwe_crypto` recipe, and operation-specific claims. |
+
+#### Example
+
+`POST /api/mdm/apple/psso/token`
+
+##### Request body
+
+```
+Content-Type: application/x-www-form-urlencoded
+
+assertion=<compact JWS signed by the device signing key>
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+Content-Type: application/platformsso-login-response+jwt
+X-Content-Type-Options: nosniff
+
+<compact JWE encrypted to the device encryption key>
+```
+
+### Platform SSO JWKS
+
+`GET /api/mdm/apple/psso/jwks`
+
+This endpoint is used by the Platform SSO extension to fetch the server's JSON Web Key Set. The device uses it to verify the `id_token` Fleet signs in the login response. Fleet's PSSO signing key is a P-256 / ES256 key; it is minted and persisted on first use.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/mdm/apple/psso/jwks`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "MKBNYXBCNdfHLRMtZUXhN4uSfbKnNQRvMTTdTmJZhirnDcY",
+      "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",
+      "kid": "E5AVRldE3gjJZElDI7LxVHQ54LrHEj8dv8N8dbGa9PM=",
+      "alg": "ES256",
+      "use": "sig"
+    }
+  ]
+}
+```
+
+The response is served with `Content-Type: application/jwk-set+json`.
+
+### Platform SSO Associated Domains Configuration
+
+`GET /.well-known/apple-app-site-association`
+
+This endpoint is used by Apple's Associated Domains functionality to ensure that a given Platform SSO(or other security-related extension) and a given hostname both agree that they can communicate with each other. This server URL provides a list of which applications may communicate with this server and for which purposes, and the app must contain, or be deployed alongside an MDM profile containing an Asociated Domains payload listing the server URL. See https://developer.apple.com/documentation/xcode/supporting-associated-domains. If fleet's Platform SSO-enabled Password Sync feature has not been configured, this will return a 404 error.
+
+Note: Hosts do not communicate with this endpoint directly, but instead with an Apple CDN, which itself only occasionally requests the data from this endpoint. Hosts cache this information within a local cache for several hours between CDN requests. As such it may take 6-24 hours to see changes reflected on a host if this endpoint ever returns different data and this should be accounted for in future modifications to this endpoint. Finally, Apple's framework requires this endpoint to be served over a publicly-trusted TLS certificate; self-signed certificates are silently rejected.
+
+The `apps` arrays list the `<team_id>.<bundle_id>` identifiers permitted to bind to this hostname as an authentication server (`authsrv:`).
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /.well-known/apple-app-site-association`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "authsrv": {
+    "apps": ["8VBZ3948LU.com.fleetdm.fleet-desktop", "8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension"]
+  }
+}
+```
+
