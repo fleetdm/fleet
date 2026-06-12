@@ -258,6 +258,24 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		assert.False(t, hasPolicyName)
 	}
 
+	t.Run("calendar event ran", func(t *testing.T) {
+		act := ActivityTypeRanAutomationCalendarEvent{
+			PolicyID:   14,
+			HostIDList: []uint{42},
+		}
+
+		assert.Equal(t, "ran_automation_calendar_event", act.ActivityName())
+		assert.Equal(t, []uint{42}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 14, got["policy_id"])
+		assertNoHostIDsOrPolicyName(t, got)
+	})
+
 	t.Run("single sign-on blocked", func(t *testing.T) {
 		act := ActivityTypeRanAutomationConditionalAccess{
 			PolicyID:   15,
