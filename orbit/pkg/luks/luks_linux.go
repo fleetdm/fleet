@@ -45,10 +45,18 @@ const (
 	infoSuccessText = "Disk encryption key created! Now, return to your browser window and follow the instructions to verify."
 	timeoutMessage  = "Please visit Fleet Desktop > My device and click Create key"
 	maxKeySlots     = 8
-	userKeySlot     = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
+
+// luksDevice abstracts the subset of the go-blockdevice LUKS operations that
+// the escrow flow needs. *luksdevice.LUKS satisfies it; tests substitute a
+// fake so the prompt/validate logic can be exercised without cryptsetup or a
+// real LUKS volume.
+type luksDevice interface {
+	CheckKey(ctx context.Context, devname string, key *encryption.Key) (bool, error)
+	AddKey(ctx context.Context, devname string, key, newKey *encryption.Key) error
+}
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -155,39 +163,15 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 	title, prompt, retry := dialogCopyForEncryptionType(encType)
 
-	// Prompt user for existing LUKS passphrase / recovery key
-	passphrase, err := lr.entryPrompt(title, prompt)
+	// Prompt the user for their existing LUKS passphrase / recovery key and
+	// validate it. A nil passphrase with no error means the dialog was
+	// canceled or timed out.
+	passphrase, err := lr.promptAndValidatePassphrase(ctx, device, devicePath, title, prompt, retry)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+		return nil, nil, err
 	}
-
 	if len(passphrase) == 0 {
-		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil, nil
-	}
-
-	// Validate the passphrase
-	for {
-		log.Debug().Msg("Validating disk passphrase")
-		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
-		}
-
-		if valid {
-			break
-		}
-
-		passphrase, err = lr.entryPrompt(title, retry)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
-		}
-
-		if len(passphrase) == 0 {
-			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
-			return nil, nil, nil
-		}
-
 	}
 
 	log.Debug().Msg("Generating random disk encryption passphrase")
@@ -203,7 +187,10 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
-	userKey := encryption.NewKey(userKeySlot, passphrase)
+	// AnyKeyslot lets cryptsetup find whichever slot the user's passphrase
+	// actually lives in when unlocking to add the escrow key — it is not
+	// necessarily slot 0. Only the new escrow key is pinned to a slot.
+	userKey := encryption.NewKey(encryption.AnyKeyslot, passphrase)
 	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
 	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
@@ -211,7 +198,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 
 	log.Debug().Msg("Validating newly inserted key")
-	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
+	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, int(keySlot)) // #nosec G115
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
 	}
@@ -235,12 +222,55 @@ func dialogCopyForEncryptionType(encType string) (title, prompt, retry string) {
 	return entryDialogTitle, entryDialogText, retryEntryDialogText
 }
 
-func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.LUKS, devicePath string, passphrase []byte, keyslot uint) (bool, error) {
+// promptAndValidatePassphrase asks the end user for their existing LUKS
+// passphrase / recovery key and validates it, re-prompting with retry copy
+// until a valid secret is entered. It returns a nil passphrase with no error
+// when the user cancels or the dialog times out (empty entry).
+//
+// Validation is performed against any key slot (encryption.AnyKeyslot) rather
+// than assuming slot 0 — a user's passphrase can legitimately live in a
+// higher slot, and pinning the check to slot 0 made correct passphrases look
+// invalid (issue #46227).
+func (lr *LuksRunner) promptAndValidatePassphrase(ctx context.Context, device luksDevice, devicePath, title, prompt, retry string) ([]byte, error) {
+	passphrase, err := lr.entryPrompt(title, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+	}
+
+	if len(passphrase) == 0 {
+		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+		return nil, nil
+	}
+
+	for {
+		log.Debug().Msg("Validating disk passphrase")
+		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, encryption.AnyKeyslot)
+		if err != nil {
+			return nil, fmt.Errorf("Failed validating passphrase: %w", err)
+		}
+
+		if valid {
+			return passphrase, nil
+		}
+
+		passphrase, err = lr.entryPrompt(title, retry)
+		if err != nil {
+			return nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
+		}
+
+		if len(passphrase) == 0 {
+			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+			return nil, nil
+		}
+	}
+}
+
+func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device luksDevice, devicePath string, passphrase []byte, keyslot int) (bool, error) {
 	if len(passphrase) == 0 {
 		return false, nil
 	}
 
-	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(int(keyslot), passphrase)) // #nosec G115
+	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(keyslot, passphrase))
 	if err != nil {
 		return false, fmt.Errorf("Error validating passphrase: %w", err)
 	}

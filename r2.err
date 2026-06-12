@@ -1,0 +1,1 @@
+Error: --resume requires a valid session ID or session title when used with --print. Usage: claude -p --resume <session-id|title>. Provided value "51bdc327-" is not a UUID and does not match any session title.
