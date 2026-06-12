@@ -268,10 +268,6 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 // the worker has exhausted all retries for a failing-policy job. Vulnerability
 // jobs are ignored as they are not host- or policy-scoped.
 func (j *Jira) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
-	if j.NewActivitySvc == nil {
-		return nil
-	}
-
 	var args jiraArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
@@ -352,16 +348,14 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 	}
 	j.Log.DebugContext(ctx, "created jira issue for failing policy", attrs...)
 
-	if j.NewActivitySvc != nil {
-		if err := j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
-			PolicyID:   args.FailingPolicy.PolicyID,
-			HostIDList: args.FailingPolicy.hostIDs(),
-			Type:       "jira",
-			TicketKey:  createdIssue.Key,
-		}); err != nil {
-			j.Log.WarnContext(ctx, "failed to record jira policy automation queued activity",
-				"policy_id", args.FailingPolicy.PolicyID, "err", err)
-		}
+	if err := j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
+		PolicyID:   args.FailingPolicy.PolicyID,
+		HostIDList: args.FailingPolicy.hostIDs(),
+		Type:       "jira",
+		TicketKey:  createdIssue.Key,
+	}); err != nil {
+		j.Log.WarnContext(ctx, "failed to record jira policy automation queued activity",
+			"policy_id", args.FailingPolicy.PolicyID, "err", err)
 	}
 	return nil
 }

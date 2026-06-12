@@ -30,7 +30,6 @@ func (t testJob) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	return t.run(ctx, argsJSON)
 }
 
-// testJobNotifier is a testJob that also implements FinalFailureNotifier.
 type testJobNotifier struct {
 	testJob
 	onFinalFailure func(ctx context.Context, argsJSON json.RawMessage, jobErr string) error

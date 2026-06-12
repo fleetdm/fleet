@@ -271,10 +271,6 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 // the worker has exhausted all retries for a failing-policy job. Vulnerability
 // jobs are ignored as they are not host- or policy-scoped.
 func (z *Zendesk) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
-	if z.NewActivitySvc == nil {
-		return nil
-	}
-
 	var args zendeskArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
@@ -354,16 +350,14 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 	}
 	z.Log.DebugContext(ctx, "created zendesk ticket for failing policy", attrs...)
 
-	if z.NewActivitySvc != nil {
-		if err := z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
-			PolicyID:   args.FailingPolicy.PolicyID,
-			HostIDList: args.FailingPolicy.hostIDs(),
-			Type:       "zendesk",
-			TicketID:   createdTicket.ID,
-		}); err != nil {
-			z.Log.WarnContext(ctx, "failed to record zendesk policy automation queued activity",
-				"policy_id", args.FailingPolicy.PolicyID, "err", err)
-		}
+	if err := z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
+		PolicyID:   args.FailingPolicy.PolicyID,
+		HostIDList: args.FailingPolicy.hostIDs(),
+		Type:       "zendesk",
+		TicketID:   createdTicket.ID,
+	}); err != nil {
+		z.Log.WarnContext(ctx, "failed to record zendesk policy automation queued activity",
+			"policy_id", args.FailingPolicy.PolicyID, "err", err)
 	}
 	return nil
 }

@@ -208,6 +208,9 @@ func TestJiraRun(t *testing.T) {
 				NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 					return client, nil
 				},
+				NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+					return nil
+				}},
 			}
 
 			expectedSummary = c.expectedSummary
@@ -378,19 +381,6 @@ func TestJiraRunRecordsCreatedActivity(t *testing.T) {
 		require.Equal(t, "ED-24", act.TicketKey)
 	})
 
-	t.Run("nil activity service is a no-op", func(t *testing.T) {
-		j := &Jira{
-			FleetURL:  "https://fleetdm.com",
-			Datastore: ds,
-			Log:       slog.New(slog.DiscardHandler),
-			NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
-				return client, nil
-			},
-		}
-
-		args := json.RawMessage(`{"failing_policy":{"policy_id":5,"policy_name":"p5","hosts":[]}}`)
-		require.NoError(t, j.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), args))
-	})
 }
 
 func TestJiraQueueFailingPolicyJob(t *testing.T) {
@@ -527,6 +517,9 @@ func TestJiraRunClientUpdate(t *testing.T) {
 			clients = append(clients, client)
 			return client, nil
 		},
+		NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+			return nil
+		}},
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})

@@ -116,19 +116,6 @@ func TestZendeskRunRecordsCreatedActivity(t *testing.T) {
 		require.Equal(t, int64(4567), act.TicketID)
 	})
 
-	t.Run("nil activity service is a no-op", func(t *testing.T) {
-		z := &Zendesk{
-			FleetURL:  "https://fleetdm.com",
-			Datastore: ds,
-			Log:       slog.New(slog.DiscardHandler),
-			NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
-				return client, nil
-			},
-		}
-
-		args := json.RawMessage(`{"failing_policy":{"policy_id":6,"policy_name":"p6","hosts":[]}}`)
-		require.NoError(t, z.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), args))
-	})
 }
 
 func TestZendeskRun(t *testing.T) {
@@ -298,6 +285,9 @@ func TestZendeskRun(t *testing.T) {
 				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 					return client, nil
 				},
+				NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+					return nil
+				}},
 			}
 
 			expectedSubject = c.expectedSubject
@@ -506,6 +496,9 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 			clients = append(clients, c)
 			return c, nil
 		},
+		NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+			return nil
+		}},
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
