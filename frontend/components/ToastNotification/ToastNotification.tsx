@@ -10,7 +10,7 @@ const SUCCESS_DURATION = 5000;
 const ERROR_DURATION = Infinity;
 
 // Max number of visible toasts at the same time.
-const VISIBLE_TOASTS = 5;
+const VISIBLE_TOASTS = 10;
 
 export interface IToastNotificationProps {
   className?: string;
@@ -43,7 +43,25 @@ export interface INotifyResponse {
   data?: unknown;
 }
 
-export interface INotifyOptions extends ExternalToast {
+/**
+ * Options accepted by `notify.*`. This is Fleet's own curated surface — NOT
+ * Sonner's. We expose only the keys we explicitly support and forward; callers
+ * should program against this interface rather than reaching for Sonner
+ * options. To allow a new Sonner passthrough, add the field here AND copy it
+ * through in `toSonnerOptions` below.
+ */
+export interface INotifyOptions {
+  /**
+   * Auto-dismiss after N ms. Defaults: 5000 (success), Infinity (error).
+   * Forwarded to Sonner.
+   */
+  duration?: number;
+  /**
+   * Reuse an id to replace/update an existing toast in place instead of
+   * stacking a new one (e.g. a "Saving…" toast that becomes "Saved").
+   * Forwarded to Sonner.
+   */
+  id?: ToastId;
   /**
    * Pass the API response object (or the value a rejected promise
    * yielded from Fleet's `sendRequest` — typically the axios response,
@@ -100,19 +118,19 @@ export interface INotify {
 }
 
 /**
- * Strip Fleet-specific fields from the options object before forwarding to
- * Sonner. Sonner rejects unknown keys silently, but dropping them keeps the
- * payload clean and debuggable.
+ * Build the Sonner options object from Fleet's curated `INotifyOptions`,
+ * copying through ONLY the keys we choose to forward (the rest of
+ * `INotifyOptions` — `response`, `detailLabel` — is consumed by us and never
+ * reaches Sonner). The caller's `duration` wins over the per-variant default.
+ * To forward a new Sonner option, add it to `INotifyOptions` and copy it here.
  */
-const stripFleetOptions = (
+const toSonnerOptions = (
+  variantDuration: number,
   options?: INotifyOptions
-): ExternalToast | undefined => {
-  if (!options) return undefined;
-  const rest = { ...options };
-  delete (rest as { response?: unknown }).response;
-  delete (rest as { detailLabel?: string }).detailLabel;
-  return rest;
-};
+): ExternalToast => ({
+  duration: options?.duration ?? variantDuration,
+  ...(options?.id !== undefined && { id: options.id }),
+});
 
 /**
  * Friendly names for HTTP status codes most commonly returned by Fleet's
@@ -160,7 +178,11 @@ const resolveDetailProps = (
   // `.response.data`. Unwrap that case so the panel reads the real body
   // instead of the AxiosError's (empty) top-level `.data`.
   let resp: unknown = options.response;
-  if (isObject(resp) && "response" in resp && looksLikeResponse(resp.response)) {
+  if (
+    isObject(resp) &&
+    "response" in resp &&
+    looksLikeResponse(resp.response)
+  ) {
     resp = resp.response;
   }
 
@@ -188,23 +210,11 @@ const resolveDetailProps = (
   };
 };
 
-/**
- * Merge a per-variant default duration with the caller's options. If the
- * caller sets `duration` explicitly (including `Infinity`), that wins.
- */
-const withDefaultDuration = (
-  variantDuration: number,
-  sonnerOptions: ExternalToast | undefined
-): ExternalToast => ({
-  duration: variantDuration,
-  ...(sonnerOptions ?? {}),
-});
-
 export const notify: INotify = {
   success: (message, options) =>
     toast.custom(
       (id) => <ToastCard variant="success" message={message} toastId={id} />,
-      withDefaultDuration(SUCCESS_DURATION, stripFleetOptions(options))
+      toSonnerOptions(SUCCESS_DURATION, options)
     ),
   error: (message, options) => {
     const { detail, detailLabel } = resolveDetailProps(options);
@@ -218,7 +228,7 @@ export const notify: INotify = {
           toastId={id}
         />
       ),
-      withDefaultDuration(ERROR_DURATION, stripFleetOptions(options))
+      toSonnerOptions(ERROR_DURATION, options)
     );
   },
   batch: (items) =>
