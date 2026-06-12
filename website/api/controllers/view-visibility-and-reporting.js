@@ -34,15 +34,15 @@ module.exports = {
 
       // Specify an order for the testimonials on this page using the last names of quote authors
       let testimonialOrderForThisPage = [
+        'Scott MacVicar',
         'Luis Madrigal',
         'Nick Fohs',
-        'Charles Zaffery',
         'Kenny Botelho',
-        'Scott MacVicar',
-        'Matt Carr',
-        'Erik Gomez',
+        'Charles Zaffery',
         'Arsenio Figueroa',
+        'Matt Carr',
         'Andre Shields',
+        'Erik Gomez',
       ];
       // Filter the testimonials by product category and the filtered list we built above.
       testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
