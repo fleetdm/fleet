@@ -81,7 +81,19 @@ module.exports = {
     "jsx-a11y/heading-has-content": "off",
     "jsx-a11y/anchor-has-content": "off",
   },
-  overrides: [],
+  overrides: [
+    {
+      // Allow referencing React components before they are declared.
+      // This supports the "main component on top, helper sub-components below" pattern documented in frontend/docs/patterns.md.
+      files: ["*.tsx", "*.jsx"],
+      rules: {
+        "@typescript-eslint/no-use-before-define": [
+          "error",
+          { functions: false, variables: false },
+        ],
+      },
+    },
+  ],
   settings: {
     "import/resolver": {
       webpack: {
