@@ -4,7 +4,7 @@ hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 revisionHistoryLimit: 10 # Number of old ReplicaSets for Fleet deployment to retain for rollback (set to 0 for unlimited)
 imageRepository: fleetdm/fleet
-imageTag: v4.86.1 # Version of Fleet to deploy
+imageTag: v4.86.2 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -45,8 +45,7 @@ affinity:
 ingress:
   enabled: false
   className: ""
-  annotations:
-    {}
+  annotations: {}
     # kubernetes.io/tls-acme: "true"
     # nginx.ingress.kubernetes.io/proxy-body-size: 10m
     # kubernetes.io/ingress.class: nginx
@@ -132,7 +131,7 @@ fleet:
     runAsUser: 3333
     runAsGroup: 3333
   # Add additional CA's to the Fleet container truststore
-  # To add CA's, set enabled: true 
+  # To add CA's, set enabled: true
   # Supports adding CA's from Config maps and Secrets
   # configMaps:
   #   - name: fleet-ca-config
