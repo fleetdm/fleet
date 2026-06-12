@@ -133,58 +133,35 @@ const PolicyAutomationsList = ({
     otherAutomationType
   );
 
+  if (automationRows.length === 0) {
+    return <div className={`${baseClass}__empty-state`}>No automations</div>;
+  }
+
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__header`}>Automations</div>
-      {automationRows.length > 0 ? (
-        <div className={`${baseClass}__list`}>
-          {automationRows.map((row) => (
-            <div
-              key={`${row.type}-${row.name}`}
-              className={`${baseClass}__row`}
-            >
-              <div className={`${baseClass}__row-name`}>
-                {row.isSoftware ? (
-                  <SoftwareIcon
-                    name={row.iconName ?? row.name}
-                    url={row.iconUrl}
-                    size="small"
-                  />
-                ) : (
-                  row.graphicName && (
-                    <Graphic
-                      name={row.graphicName}
-                      key={`${row.graphicName}-graphic`}
-                      className={`${baseClass}__row-graphic ${
-                        row.graphicName === "file-sh" ||
-                        row.graphicName === "file-ps1"
-                          ? "scale-40-24"
-                          : ""
-                      }`}
-                    />
-                  )
-                )}
-                {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
-              </div>
-            </div>
-          ))}
+    <div className={`${baseClass}__list`}>
+      {automationRows.map((row) => (
+        <div key={`${row.type}-${row.name}`} className={`${baseClass}__row`}>
+          <div className={`${baseClass}__row-name`}>
+            {row.isSoftware ? (
+              <SoftwareIcon name={row.iconName ?? row.name} url={row.iconUrl} size="small" />
+            ) : (
+              row.graphicName && (
+                <Graphic
+                  name={row.graphicName}
+                  key={`${row.graphicName}-graphic`}
+                  className={`${baseClass}__row-graphic ${
+                    row.graphicName === "file-sh" ||
+                    row.graphicName === "file-ps1"
+                      ? "scale-40-24"
+                      : ""
+                  }`}
+                />
+              )
+            )}
+            {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
+          </div>
         </div>
-      ) : (
-        <div className={`${baseClass}__empty-state`}>No automations</div>
-      )}
-      <p className={`${baseClass}__footer-text`}>
-        {storedPolicy.continuous_automations_enabled ? (
-          <>
-            Software and script automations run <b>every time</b> Fleet receives
-            a failing response.
-            <br />
-            All other automations run on a host&apos;s first failure, or when a
-            host&apos;s response changes from pass to fail.
-          </>
-        ) : (
-          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
-        )}
-      </p>
+      ))}
     </div>
   );
 };

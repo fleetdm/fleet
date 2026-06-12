@@ -189,4 +189,17 @@ func TestListPolicyAutomationActivities(t *testing.T) {
 		require.Equal(t, user, capturedFilter.User)
 		require.True(t, capturedFilter.IncludeObserver)
 	})
+
+	t.Run("endpoint surfaces total count from meta", func(t *testing.T) {
+		ds.ListPolicyAutomationActivitiesFunc = func(_ context.Context, _ uint, _ fleet.TeamFilter, _ fleet.ListOptions, _ string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+			return returnedActivities, &fleet.PaginationMetadata{TotalResults: 123, HasNextResults: true}, nil
+		}
+		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new("admin")}})
+		resp, err := listPolicyAutomationActivitiesEndpoint(userCtx, &fleet.ListPolicyAutomationActivitiesRequest{PolicyID: 1}, svc)
+		require.NoError(t, err)
+		listResp, ok := resp.(fleet.ListPolicyAutomationActivitiesResponse)
+		require.True(t, ok)
+		require.NoError(t, listResp.Err)
+		require.Equal(t, uint(123), listResp.Count)
+	})
 }
