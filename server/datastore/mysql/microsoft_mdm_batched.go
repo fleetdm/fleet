@@ -50,10 +50,9 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	return hosts, nil
 }
 
-// GetWindowsMDMHostForReconcile returns reconcile info for a single Windows host by UUID, applying the same enrollment
-// predicates as the batched reconciler's host listing (platform 'windows', an mdm_windows_enrollments row, host_mdm.enrolled = 1).
-// Returns (nil, nil) when the host doesn't exist or doesn't satisfy those predicates. Used by the per-host enrollment
-// reconcile path; see ReconcileWindowsProfilesForEnrollingHost.
+// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
+// rules as the batched reconciler's host listing (platform 'windows', an mdm_windows_enrollments row, host_mdm.enrolled = 1).
+// Returns (nil, nil) when the host doesn't exist or isn't eligible.
 func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 	const stmt = `
 		SELECT
@@ -86,23 +85,21 @@ func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID
 
 // ListWindowsProfilesForReconcileByTeam is the per-host variant of the snapshot's profile loader: it loads only profiles for the
 // host's team. team_id=0 is its own team (the "no team" scope); a host with a real team does NOT inherit team_id=0 profiles.
-// Used by ReconcileWindowsProfilesForEnrollingHost so the per-host path doesn't scan every profile in the system.
 func (ds *Datastore) ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
 	return ds.listWindowsProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID)
 }
 
 // BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
-// host UUID. Used by the per-host enrollment reconcile path; the batched reconciler loads the same data inside its snapshot
-// transaction.
+// host UUID.
 func (ds *Datastore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
 	return ds.bulkGetHostMDMWindowsProfilesByUUIDsTransaction(ctx, ds.reader(ctx), hostUUIDs)
 }
 
 // listWindowsProfilesForReconcileTransaction loads Windows configuration profiles in the system, paired with their label
 // assignments. When teamID is nil every profile is returned (used by the batched reconciler snapshot); when teamID is set only
-// profiles for that team are returned (used by the per-host enrollment path).
-// Mirrors the Apple listAppleProfilesForReconcileTransaction so the in-memory handlers apply the same "broken-label"
-// semantics and broken profiles are exempted from removal.
+// profiles for that team are returned (used by the per-host enrollment path). Mirrors the Apple
+// listAppleProfilesForReconcileTransaction so the in-memory handlers apply the same "broken-label" semantics and broken profiles
+// are exempted from removal.
 func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
@@ -122,9 +119,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	`
 	var profArgs []any
 	if teamID != nil {
-		// team_id=0 is the "no team" / global team — its own scope. A host with a real team only matches profiles for that
-		// team; it does NOT also inherit team_id=0 profiles. EffectiveTeamID() on the host already maps nil → 0, so equality
-		// is correct.
+		// team_id=0 is the "no team" / global team
 		profStmt += ` WHERE team_id = ?`
 		profArgs = append(profArgs, *teamID)
 	}
@@ -175,8 +170,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 	`
 	var labelStmtArgs []any
 	if teamID != nil {
-		// Per-host path: restrict label rows to the team-scoped profiles loaded above instead of scanning every
-		// Windows profile's labels in the system.
+		// Per-host path: restrict label rows to the team-scoped profiles loaded above
 		labelStmt += ` AND mcpl.windows_profile_uuid IN (?)`
 		q, args, err := sqlx.In(labelStmt, profileUUIDs)
 		if err != nil {

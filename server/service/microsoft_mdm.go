@@ -3496,7 +3496,7 @@ var reconcileWindowsProfilesScanBudget = 24 * time.Second
 // ComputeWindowsReconcileDeltas, and the execute step, so it can't drift from the batched cron reconciler on "what should be
 // installed."
 //
-// Returns nil (no-op) when Windows MDM is disabled or the host doesn't satisfy the reconciler's enrollment predicates. Errors
+// Returns nil (no-op) when Windows MDM is disabled or the host isn't an eligible MDM-enrolled Windows host. Errors
 // are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
 func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
 	// Force primary reads: this runs right after enrollment writes host_mdm.enrolled (so the eligibility read must see
