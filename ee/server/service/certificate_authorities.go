@@ -393,28 +393,24 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	return nil
 }
 
-// printableStringExtraChars are the non-alphanumeric characters allowed in an ASN.1 PrintableString.
-const printableStringExtraChars = " '()+,-./:=?"
+// printableStringChallengeRegexp matches challenges containing only characters that are valid in an
+// ASN.1 PrintableString, minus the space. Windows encodes the SCEP challenge password as a
+// PrintableString, so a challenge containing any other character (most commonly "_") makes Windows
+// certificate enrollment fail with "The string contains a non-printable character." The space is a
+// valid PrintableString character but is disallowed here because the challenge is an exact-match shared
+// secret and leading/trailing spaces are an invisible footgun. See
+// https://github.com/fleetdm/fleet/issues/47492. Keep in sync with PRINTABLE_STRING_REGEX in the
+// CustomSCEPForm frontend helpers.
+var printableStringChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9'()+,./:=?-]*$`)
 
 // scepChallengePrintableErrMsg is returned when a custom SCEP proxy challenge contains characters that
-// Windows cannot use. Windows encodes the SCEP challenge password as an ASN.1 PrintableString, so a
-// challenge containing any other character (most commonly "_") makes Windows certificate enrollment fail
-// with "The string contains a non-printable character." See https://github.com/fleetdm/fleet/issues/47492.
-const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain printable characters (letters, numbers, spaces, and ' ( ) + , - . / : = ?). Windows certificate enrollment rejects other characters, such as "_".`
+// Windows cannot use.
+const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain letters, numbers, and the characters ' ( ) + , - . / : = ?. Windows certificate enrollment rejects other characters, such as "_".`
 
 // challengeHasOnlyPrintableStringChars reports whether the challenge contains only characters that are
 // valid in an ASN.1 PrintableString.
 func challengeHasOnlyPrintableStringChars(challenge string) bool {
-	for _, r := range challenge {
-		switch {
-		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			continue
-		}
-		if !strings.ContainsRune(printableStringExtraChars, r) {
-			return false
-		}
-	}
-	return true
+	return printableStringChallengeRegexp.MatchString(challenge)
 }
 
 // validateCustomSCEPProxy validates a custom SCEP proxy CA payload. validateChallengeChars controls whether

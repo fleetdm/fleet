@@ -8,8 +8,11 @@ import { ICustomSCEPFormData } from "./CustomSCEPForm";
 // Windows encodes the SCEP challenge password as an ASN.1 PrintableString, so a challenge with any
 // character outside that set (most commonly "_") fails Windows certificate enrollment with "The string
 // contains a non-printable character." See https://github.com/fleetdm/fleet/issues/47492.
-// PrintableString allows letters, numbers, spaces, and ' ( ) + , - . / : = ?
-const PRINTABLE_STRING_REGEX = /^[A-Za-z0-9 '()+,./:=?-]*$/;
+// Allowed: letters, numbers, and ' ( ) + , - . / : = ?. The space is a valid PrintableString character
+// but is disallowed because the challenge is an exact-match shared secret and leading/trailing spaces
+// are an invisible footgun.
+// Keep in sync with printableStringChallengeRegexp in ee/server/service/certificate_authorities.go.
+const PRINTABLE_STRING_REGEX = /^[A-Za-z0-9'()+,./:=?-]*$/;
 
 // TODO: create a validator abstraction for this and the other form validation files
 
@@ -108,7 +111,7 @@ export const generateFormValidations = (
             );
           },
           message:
-            "Invalid characters. Windows certificate enrollment only supports letters, numbers, spaces, and ' ( ) + , - . / : = ?",
+            "Invalid characters. Windows certificate enrollment only supports letters, numbers, and ' ( ) + , - . / : = ?",
         },
       ],
     },

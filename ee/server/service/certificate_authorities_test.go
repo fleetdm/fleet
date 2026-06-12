@@ -408,7 +408,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		_, err := svc.NewCertificateAuthority(ctx, createRequest)
-		require.ErrorContains(t, err, "printable characters")
+		require.ErrorContains(t, err, scepChallengePrintableErrMsg)
 		require.Empty(t, createdCAs)
 	})
 
@@ -1591,7 +1591,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
-			require.ErrorContains(t, err, "printable characters")
+			require.ErrorContains(t, err, scepChallengePrintableErrMsg)
 		})
 
 		t.Run("Masked (unchanged) challenge skips character validation", func(t *testing.T) {
@@ -2021,7 +2021,7 @@ func TestChallengeHasOnlyPrintableStringChars(t *testing.T) {
 	}{
 		{"alphanumeric", "FleetSCEPtest2026", true},
 		{"empty", "", true},
-		{"allowed punctuation", "Fleet-SCEP.2026 (test) +,/:=?'", true},
+		{"allowed punctuation", "Fleet-SCEP.2026(test)+,/:=?'", true},
 		{"hyphen only", "abc-def-123", true},
 		{"underscore rejected", "Fleet_SCEP", false},
 		{"at sign rejected", "fleet@scep", false},
@@ -2030,6 +2030,9 @@ func TestChallengeHasOnlyPrintableStringChars(t *testing.T) {
 		{"base64url with hyphen only allowed", "i-8MPPQ85Ux3uqNptijN53Ru3KYIIgEI", true},
 		{"hash rejected", "fleet#scep", false},
 		{"tilde rejected", "fleet~scep", false},
+		{"internal space rejected", "fleet scep", false},
+		{"leading space rejected", " fleetscep", false},
+		{"trailing space rejected", "fleetscep ", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
