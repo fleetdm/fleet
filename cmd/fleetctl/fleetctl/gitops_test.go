@@ -7163,18 +7163,21 @@ policies:
     query: SELECT 1
     resolution: ""
     platform: linux
-    labels_include_all:
+    labels_include_any:
       - lbl-a
-    labels_exclude_any:
+    labels_include_all:
       - lbl-b
 `)
 	require.NoError(t, err)
 
+	// A policy may combine one include scope with one exclude scope, but not two
+	// include scopes; this should be rejected before any API call is made.
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
+	require.ErrorContains(t, err, "multiple include label keys")
+	require.ErrorContains(t, err, "labels_include_any")
 	require.ErrorContains(t, err, "labels_include_all")
-	require.ErrorContains(t, err, "labels_exclude_any")
 }
 
 func TestGitOpsScriptsLogging(t *testing.T) {
