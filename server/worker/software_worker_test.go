@@ -26,7 +26,6 @@ func TestSoftwareWorker(t *testing.T) {
 	mysqltest.TruncateTables(t, ds)
 
 	mysqltest.SetTestABMAssets(t, ds, "fleet")
-
 }
 
 // mockAndroidModule is a mock implementation of the android.Service interface for testing.
@@ -234,7 +233,7 @@ func TestMakeAndroidAppAvailableBatching(t *testing.T) {
 		androidModule := &mockAndroidModule{
 			addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 				callCount.Add(1)
-				totalHosts.Add(int32(len(hostUUIDs)))
+				totalHosts.Add(int32(len(hostUUIDs))) //nolint:gosec // test with small host counts
 				return make(map[string]*android.MDMAndroidPolicyRequest), nil
 			},
 		}
