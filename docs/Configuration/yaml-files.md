@@ -729,8 +729,18 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
+- `vulnerability_exposure_historical_reporting` lets you define filters for the **Vulnerability exposure** dashboard chart (risk registry). These filters control which software and vulnerabilities are included when calculating vulnerability exposure. `historical_data.vulnerabilities` must be enabled.
+  - `software_categories` is a list of software categories to include in the vulnerability chart. Valid values are `os` (Operating system), `browser` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `microsoft_office` (Word, Excel, Powerpoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). If omitted, all categories are included.
+  - `has_known_exploit` when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild (default: `false`).
+  - `severity` filters vulnerabilities by CVSS v3 severity score (range 0.0 to 10.0 in 0.1 increments):
+    - `min` is the minimum CVSS v3 score to include (default: `0`).
+    - `max` is the maximum CVSS v3 score to include (default: `10`).
+  - `probability_of_exploit` filters vulnerabilities by probability of exploit score (range 0 to 100):
+    - `min` is the minimum probability of exploit score to include (default: `0`).
+    - `max` is the maximum probability of exploit score to include (default: `100`).
+  - `exclude_cves` is a list of specific CVE identifiers to exclude from the vulnerability chart.
 
-  A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -747,6 +757,22 @@ org_settings:
     historical_data:
       uptime: true
       vulnerabilities: false
+    vulnerability_exposure_historical_reporting:
+      software_filters:
+        - operating_system
+        - browsers
+        - microsoft_office
+        - adobe
+      has_known_exploit: true
+      epss_score:
+        min: 0
+        max: 100
+      cvss_score:
+        min: 9
+        max: 10
+      exclude_vulnerabilities:
+        - CVE-2025-50897
+        - CVE-2025-76306
 ```
 
 ### fleet_desktop
