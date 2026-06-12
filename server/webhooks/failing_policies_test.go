@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/policies"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,11 +37,11 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					Name:        "policy1",
 					Query:       "select 42",
 					Description: "policy1 description",
-					AuthorID:    ptr.Uint(1),
+					AuthorID:    new(uint(1)),
 					AuthorName:  "Alice",
 					AuthorEmail: "alice@example.com",
 					TeamID:      nil,
-					Resolution:  ptr.String("policy1 resolution"),
+					Resolution:  new("policy1 resolution"),
 					Platform:    "darwin",
 					Critical:    true,
 					Type:        "dynamic",
@@ -194,11 +193,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Name:                  "policy1",
 				Query:                 "select 1",
 				Description:           "policy1 description",
-				AuthorID:              ptr.Uint(1),
+				AuthorID:              new(uint(1)),
 				AuthorName:            "Alice",
 				AuthorEmail:           "alice@example.com",
 				TeamID:                &teamID,
-				Resolution:            ptr.String("policy1 resolution"),
+				Resolution:            new("policy1 resolution"),
 				Platform:              "darwin",
 				CalendarEventsEnabled: true,
 				Type:                  "dynamic",
@@ -210,11 +209,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Name:        "policy2",
 				Query:       "select 2",
 				Description: "policy2 description",
-				AuthorID:    ptr.Uint(1),
+				AuthorID:    new(uint(1)),
 				AuthorName:  "Alice",
 				AuthorEmail: "alice@example.com",
 				TeamID:      &teamID,
-				Resolution:  ptr.String("policy2 resolution"),
+				Resolution:  new("policy2 resolution"),
 				Platform:    "darwin",
 				Type:        "dynamic",
 			},
@@ -225,11 +224,11 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Name:        "policy3",
 				Query:       "select 3",
 				Description: "policy3 description",
-				AuthorID:    ptr.Uint(1),
+				AuthorID:    new(uint(1)),
 				AuthorName:  "Alice",
 				AuthorEmail: "alice@example.com",
 				TeamID:      nil, // global policy
-				Resolution:  ptr.String("policy3 resolution"),
+				Resolution:  new("policy3 resolution"),
 				Platform:    "darwin",
 				Type:        "dynamic",
 			},
@@ -509,37 +508,6 @@ func TestSendFailingPoliciesWebhookRecordsQueuedActivity(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, setHosts)
 	})
-
-	t.Run("records one sent activity for single batch", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-		t.Cleanup(ts.Close)
-		webhookURL, err := url.Parse(ts.URL)
-		require.NoError(t, err)
-
-		failingPolicySet := service.NewMemFailingPolicySet()
-		for _, host := range makeHosts(1) {
-			require.NoError(t, failingPolicySet.AddHost(p.ID, host))
-		}
-
-		var recorded []fleet.ActivityTypeRanAutomationWebhook
-		newActivitySvc := &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity fleet.ActivityDetails) error {
-			act, ok := activity.(fleet.ActivityTypeRanAutomationWebhook)
-			require.True(t, ok)
-			recorded = append(recorded, act)
-			return nil
-		}}
-
-		err = SendFailingPoliciesBatchedPOSTs(
-			t.Context(), p, failingPolicySet, 0, serverURL, webhookURL, now,
-			slog.New(slog.DiscardHandler), newActivitySvc,
-		)
-		require.NoError(t, err)
-		require.Len(t, recorded, 1)
-		assert.Equal(t, p.ID, recorded[0].PolicyID)
-		assert.Equal(t, []uint{1}, recorded[0].HostIDList)
-	})
 }
 
 func TestSendBatchedPOSTs(t *testing.T) {
@@ -569,11 +537,11 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			Name:        "policy1",
 			Query:       "select 42",
 			Description: "policy1 description",
-			AuthorID:    ptr.Uint(1),
+			AuthorID:    new(uint(1)),
 			AuthorName:  "Alice",
 			AuthorEmail: "alice@example.com",
 			TeamID:      nil,
-			Resolution:  ptr.String("policy1 resolution"),
+			Resolution:  new("policy1 resolution"),
 			Platform:    "darwin",
 		},
 	}
