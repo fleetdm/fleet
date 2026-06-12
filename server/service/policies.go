@@ -167,4 +167,3 @@ func (svc Service) ListPolicyAutomationActivities(ctx context.Context, policyID 
 	}
 	return activities, meta, nil
 }
-
