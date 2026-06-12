@@ -111,7 +111,8 @@ org_settings:
       url: https://some-zendesk-url.com
   mdm:
     apple_business:
-    - ios_fleet: "📱🏢 Company-owned mobile devices"
+    - byod_fleet: "📱🔐 Personal mobile devices"
+      ios_fleet: "📱🏢 Company-owned mobile devices"
       ipados_fleet: "📱🏢 Company-owned mobile devices"
       macos_fleet: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
