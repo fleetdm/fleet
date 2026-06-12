@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "8.0.4033.46",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.' AND version_compare(version, '8.0.4033.46') < 0);"
+      },
+      "installer_url": "https://downloads.vivaldi.com/stable/Vivaldi.8.0.4033.46.x64.exe",
+      "install_script_ref": "d5d49757",
+      "uninstall_script_ref": "741609fc",
+      "sha256": "35ab32e990973e1896df8587f68b480fb4d89512030e9228d0ec39b3cda1b958",
+      "default_categories": [
+        "Browsers"
+      ]
+    }
+  ],
+  "refs": {
+    "741609fc": "# Uninstall Vivaldi (machine-wide Chromium-based browser).\n# Looks up the uninstall entry under HKLM (machine install) with an HKCU\n# fallback, then runs the Chromium uninstaller with --force-uninstall.\n\n$displayName = \"Vivaldi\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and $_.DisplayName -eq $displayName\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found for '$displayName'\"\n  Exit 1\n}\n\n# Kill any running Vivaldi processes before uninstalling\nStop-Process -Name \"vivaldi\" -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n  $uninstall.QuietUninstallString\n} else {\n  $uninstall.UninstallString\n}\n\n# Parse quoted executable from any trailing args in the registry string\n$splitArgs = $uninstallCommand.Split('\"')\n$exe = $splitArgs[1]\n$existingArgs = if ($splitArgs.Length -eq 3) { $splitArgs[2].Trim() } else { \"\" }\n\n# Chromium-based uninstaller flags\n$uninstallArgs = \"$existingArgs --uninstall --force-uninstall\".Trim()\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n  $process = Start-Process -FilePath $exe -ArgumentList $uninstallArgs -NoNewWindow -PassThru -Wait\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  # Chromium uninstallers return 19 on success\n  if ($exitCode -eq 0 -or $exitCode -eq 19) {\n    Exit 0\n  }\n  Exit $exitCode\n} catch {\n  Write-Host \"Error running uninstaller: $_\"\n  Exit 1\n}\n",
+    "d5d49757": "# Install Vivaldi silently, machine-wide (Chromium-based browser).\n# Fleet runs installs as SYSTEM, so --system-level is required to install for\n# all users under %ProgramFiles% (and register under HKLM). Without it the\n# installer lands in the SYSTEM profile and is invisible to the real user.\n$process = Start-Process -FilePath $env:INSTALLER_PATH `\n  -ArgumentList \"--vivaldi-silent --do-not-launch-chrome --system-level\" `\n  -NoNewWindow -PassThru -Wait\nExit $process.ExitCode\n"
+  }
+}

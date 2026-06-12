@@ -916,6 +916,7 @@ import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
@@ -1921,6 +1922,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,
