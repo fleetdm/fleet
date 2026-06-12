@@ -43,7 +43,7 @@ You'll learn how Jamf and Fleet terminology line up, where configuration profile
 <meta name="description" value="Everything you know about Jamf, mapped to how Fleet does it. A guide for Mac admins evaluating or migrating from Jamf Pro to Fleet.">
 
 <meta name="articleImageUrl" value="../website/assets/images/articles/mac-admins-guide-to-switching-from-jamf-to-fleet-cover-image-504x336@2x.png">
-<meta name="whitepaperFilename" value="Mac-admins-guide-to-switching-from-Jamf-to-Fleet.pdf">
+<meta name="whitepaperFilename" value="fleet-jamf-migration-guide.pdf">
 <meta name="formHeadline" value="Learn how to switch from Jamf to Fleet">
 
 <meta name="introductionTextBlockOne" value="If you've spent years mastering Jamf Pro, your knowledge transfers. Smart Groups, Extension Attributes, policies, and configuration profiles all have a Fleet equivalent.">
