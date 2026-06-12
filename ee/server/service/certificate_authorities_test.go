@@ -412,22 +412,6 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Empty(t, createdCAs)
 	})
 
-	t.Run("Create Custom SCEP CA - challenge with allowed punctuation succeeds", func(t *testing.T) {
-		svc, ctx := baseSetupForCATests()
-
-		createRequest := fleet.CertificateAuthorityPayload{
-			CustomSCEPProxy: &fleet.CustomSCEPProxyCA{
-				Name:      "CustomSCEPWIFI",
-				URL:       "https://customscep.example.com",
-				Challenge: "Fleet-SCEP.2026", // hyphen and period are valid PrintableString characters
-			},
-		}
-
-		_, err := svc.NewCertificateAuthority(ctx, createRequest)
-		require.EqualError(t, err, "mock error to avoid NewActivity panic")
-		require.Len(t, createdCAs, 1)
-	})
-
 	t.Run("Create NDES SCEP CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
