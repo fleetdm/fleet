@@ -1,3 +1,2 @@
 - Added per-host activity log entries when policy automations fail to reach their remote provider (webhook, Google Calendar, and Microsoft conditional access) or when a Jira or Zendesk ticket cannot be created after all retries are exhausted.
 - Added per-host activity log entries when policy automations succeed: webhook queued, Jira or Zendesk ticket created, calendar event created, and single sign-on blocked (Microsoft conditional access).
-- Added per-host activity log entries when policy automations succeed: webhook queued, Jira or Zendesk ticket created, calendar event created, and single sign-on blocked (Microsoft conditional access).
