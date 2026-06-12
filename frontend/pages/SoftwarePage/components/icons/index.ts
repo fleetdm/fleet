@@ -776,24 +776,58 @@ import Syncmate from "./Syncmate";
 import Syncovery from "./Syncovery";
 import SyncthingApp from "./SyncthingApp";
 import SyntaxHighlight from "./SyntaxHighlight";
+import Tabby from "./Tabby";
 import TableauDesktop from "./TableauDesktop";
+import TableauPrep from "./TableauPrep";
 import TablePlus from "./TablePlus";
+import Tabtab from "./Tabtab";
 import Tailscale from "./Tailscale";
+import Taskade from "./Taskade";
+import Taskbar from "./Taskbar";
+import Teacode from "./Teacode";
 import Teams from "./Teams";
 import TeamViewer from "./TeamViewer";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import Termius from "./Termius";
+import TexLiveUtility from "./TexLiveUtility";
+import Texshop from "./Texshop";
 import TextExpander from "./TextExpander";
+import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
+import Thorium from "./Thorium";
+import Threema from "./Threema";
+import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
+import Ticktick from "./Ticktick";
+import Tidal from "./Tidal";
+import Tiles from "./Tiles";
+import Timescribe from "./Timescribe";
+import Timing from "./Timing";
 import Todoist from "./Todoist";
+import TopazGigapixelAi from "./TopazGigapixelAi";
+import TopazPhotoAi from "./TopazPhotoAi";
+import TopazVideoAi from "./TopazVideoAi";
+import Topnotch from "./Topnotch";
 import TorBrowser from "./TorBrowser";
 import Tortoisegit from "./Tortoisegit";
 import Tower from "./Tower";
+import Tradingview from "./Tradingview";
+import Transfer from "./Transfer";
+import Transmission from "./Transmission";
 import Transmit from "./Transmit";
+import Trex from "./Trex";
+import TrezorSuite from "./TrezorSuite";
+import Tripmode from "./Tripmode";
 import Tunnelblick from "./Tunnelblick";
+import Tuple from "./Tuple";
+import TwineApp from "./TwineApp";
 import Twingate from "./Twingate";
+import Twobird from "./Twobird";
+import Typeface from "./Typeface";
+import Typinator from "./Typinator";
+import Typora from "./Typora";
 import UaConnect from "./UaConnect";
 import Ukelele from "./Ukelele";
 import UltimakerCura from "./UltimakerCura";
@@ -1597,6 +1631,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   secretive: Secretive,
   securesafe: Securesafe,
   selfcontrol: Selfcontrol,
+  "sempliva tiles": Tiles,
   sensei: Sensei,
   "sequel ace": SequelAce,
   session: Session,
@@ -1680,9 +1715,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  tabby: Tabby,
   tableau: TableauDesktop,
+  "tableau prep": TableauPrep,
   tableplus: TablePlus,
+  tabtab: Tabtab,
   tailscale: Tailscale,
+  taskade: Taskade,
+  taskbar: Taskbar,
+  teacode: Teacode,
   teamviewer: TeamViewer,
   telegram: Telegram,
   teleport: TeleportConnect,
@@ -1690,16 +1731,43 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "teleport suite": TeleportConnect,
   "teradici pcoip software client for macos": Pcoipclient,
   terminal: Terminal,
+  termius: Termius,
+  "tex live utility": TexLiveUtility,
+  texshop: Texshop,
   textexpander: TextExpander,
+  thaw: Thaw,
   "the unarchiver": TheUnarchiver,
+  "thorium reader": Thorium,
+  threema: Threema,
+  thumbsup: Thumbsup,
   thunderbird: Thunderbird,
+  ticktick: Ticktick,
+  tidal: Tidal,
+  timescribe: Timescribe,
+  timing: Timing,
   todoist: Todoist,
+  "topaz gigapixel ai": TopazGigapixelAi,
+  "topaz photo ai": TopazPhotoAi,
+  "topaz video ai": TopazVideoAi,
+  topnotch: Topnotch,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
   tower: Tower,
+  "tradingview desktop": Tradingview,
+  transfer: Transfer,
+  transmission: Transmission,
   transmit: Transmit,
+  trex: Trex,
+  "trezor suite": TrezorSuite,
+  tripmode: Tripmode,
   tunnelblick: Tunnelblick,
+  tuple: Tuple,
+  twine: TwineApp,
   twingate: Twingate,
+  twobird: Twobird,
+  typeface: Typeface,
+  typinator: Typinator,
+  typora: Typora,
   "ua connect": UaConnect,
   ukelele: Ukelele,
   "ultimaker cura": UltimakerCura,

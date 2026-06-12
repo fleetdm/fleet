@@ -1,0 +1,10 @@
+{
+  "name": "Thaw",
+  "unique_identifier": "com.stonerl.Thaw",
+  "token": "thaw",
+  "installer_format": "zip",
+  "slug": "thaw/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

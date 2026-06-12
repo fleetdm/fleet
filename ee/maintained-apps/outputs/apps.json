@@ -6281,11 +6281,25 @@
       "description": "Syntax Highlight is a quicklook extension for source files."
     },
     {
+      "name": "Tabby",
+      "slug": "tabby/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.tabby",
+      "description": "Tabby is a terminal emulator, SSH and serial client."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau-desktop/windows",
       "platform": "windows",
       "unique_identifier": "Tableau Desktop",
       "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
+      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
     },
     {
       "name": "Tableau Desktop",
@@ -6309,6 +6323,13 @@
       "description": "TablePlus is a native GUI tool for relational databases."
     },
     {
+      "name": "TabTab",
+      "slug": "tabtab/darwin",
+      "platform": "darwin",
+      "unique_identifier": "riccqi.TabTab",
+      "description": "TabTab is a window and tab manager."
+    },
+    {
       "name": "Tailscale",
       "slug": "tailscale-app/darwin",
       "platform": "darwin",
@@ -6321,6 +6342,27 @@
       "platform": "windows",
       "unique_identifier": "Tailscale",
       "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
+      "name": "Taskade",
+      "slug": "taskade/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.taskade",
+      "description": "Taskade is a task manager for teams."
+    },
+    {
+      "name": "Taskbar",
+      "slug": "taskbar/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fpfxtknjju.wbgcdolfev",
+      "description": "Taskbar is a windows-style taskbar as a Dock replacement."
+    },
+    {
+      "name": "TeaCode",
+      "slug": "teacode/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apptorium.TeaCode-dm",
+      "description": "TeaCode is a text expanding app for developers."
     },
     {
       "name": "TeamViewer",
@@ -6372,6 +6414,27 @@
       "description": "Teleport Suite is a modern SSH server for teams managing distributed infrastructure."
     },
     {
+      "name": "Termius",
+      "slug": "termius/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.termius-dmg.mac",
+      "description": "Termius is a SSH client."
+    },
+    {
+      "name": "TeX Live Utility",
+      "slug": "tex-live-utility/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.mactlmgr.tlu",
+      "description": "TeX Live Utility is a graphical user interface for TeX Live Manager."
+    },
+    {
+      "name": "TeXShop",
+      "slug": "texshop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "TeXShop",
+      "description": "TeXShop is a LaTeX and TeX editor and previewer."
+    },
+    {
       "name": "TextExpander",
       "slug": "textexpander/darwin",
       "platform": "darwin",
@@ -6386,11 +6449,39 @@
       "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "Thaw",
+      "slug": "thaw/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.stonerl.Thaw",
+      "description": "Thaw is a menu bar manager."
+    },
+    {
       "name": "The Unarchiver",
       "slug": "the-unarchiver/darwin",
       "platform": "darwin",
       "unique_identifier": "cx.c3.theunarchiver",
       "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
+    },
+    {
+      "name": "Thorium Reader",
+      "slug": "thorium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.github.edrlab.thorium",
+      "description": "Thorium Reader is an epub reader."
+    },
+    {
+      "name": "Threema",
+      "slug": "threema/darwin",
+      "platform": "darwin",
+      "unique_identifier": "threema-consumer-web",
+      "description": "Threema is an end-to-end encrypted instant messaging application."
+    },
+    {
+      "name": "ThumbsUp",
+      "slug": "thumbsup/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.devon-technologies.ThumbsUp",
+      "description": "ThumbsUp is a batch image thumbnail generation utility."
     },
     {
       "name": "Thunderbird",
@@ -6407,6 +6498,41 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "TickTick",
+      "slug": "ticktick/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.TickTick.task.mac",
+      "description": "TickTick is a to-do & task list manager."
+    },
+    {
+      "name": "TIDAL",
+      "slug": "tidal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tidal.desktop",
+      "description": "TIDAL is a music streaming service with high fidelity sound and hi-def video quality."
+    },
+    {
+      "name": "Sempliva Tiles",
+      "slug": "tiles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sempliva.Tiles",
+      "description": "Sempliva Tiles is a window manager."
+    },
+    {
+      "name": "TimeScribe",
+      "slug": "timescribe/darwin",
+      "platform": "darwin",
+      "unique_identifier": "de.amplussoftware.timescribe",
+      "description": "TimeScribe is an app for working time tracker."
+    },
+    {
+      "name": "Timing",
+      "slug": "timing/darwin",
+      "platform": "darwin",
+      "unique_identifier": "info.eurocomp.Timing2",
+      "description": "Timing is an automatic time and productivity tracking app."
+    },
+    {
       "name": "Todoist",
       "slug": "todoist-app/darwin",
       "platform": "darwin",
@@ -6419,6 +6545,34 @@
       "platform": "windows",
       "unique_identifier": "Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Topaz Gigapixel AI",
+      "slug": "topaz-gigapixel-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.topazlabs.TopazGigapixelAI",
+      "description": "Topaz Gigapixel AI is an AI image upscaler."
+    },
+    {
+      "name": "Topaz Photo AI",
+      "slug": "topaz-photo-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.topazlabs.TopazPhotoAI",
+      "description": "Topaz Photo AI is an AI image enhancer."
+    },
+    {
+      "name": "Topaz Video AI",
+      "slug": "topaz-video-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.topazlabs.Topaz-Video-AI",
+      "description": "Topaz Video AI is a video upscaler and quality enhancer."
+    },
+    {
+      "name": "TopNotch",
+      "slug": "topnotch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pl.maketheweb.TopNotch",
+      "description": "TopNotch is a utility to hide the notch."
     },
     {
       "name": "Tor Browser",
@@ -6449,6 +6603,27 @@
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
+      "name": "TradingView Desktop",
+      "slug": "tradingview/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tradingview.tradingviewapp.desktop",
+      "description": "TradingView Desktop is an app for charting and social-networking for investment traders."
+    },
+    {
+      "name": "Transfer",
+      "slug": "transfer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adriangranados.Transfer",
+      "description": "Transfer is a standalone TFTP, FTP, and SFTP server."
+    },
+    {
+      "name": "Transmission",
+      "slug": "transmission/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "description": "Transmission is an open-source BitTorrent client."
+    },
+    {
       "name": "Transmit",
       "slug": "transmit/darwin",
       "platform": "darwin",
@@ -6456,11 +6631,46 @@
       "description": "Transmit is a file transfer application."
     },
     {
+      "name": "TRex",
+      "slug": "trex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.ameba.TRex",
+      "description": "TRex is an easy to use text extraction tool."
+    },
+    {
+      "name": "TREZOR Suite",
+      "slug": "trezor-suite/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.trezor.TrezorSuite",
+      "description": "TREZOR Suite is a companion app for the Trezor hardware wallet."
+    },
+    {
+      "name": "TripMode",
+      "slug": "tripmode/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ch.tripmode.TripMode",
+      "description": "TripMode is a tool to control your data usage on slow or expensive networks."
+    },
+    {
       "name": "Tunnelblick",
       "slug": "tunnelblick/darwin",
       "platform": "darwin",
       "unique_identifier": "net.tunnelblick.tunnelblick",
       "description": "Tunnelblick is a free and open-source OpenVPN client."
+    },
+    {
+      "name": "Tuple",
+      "slug": "tuple/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.tuple.app",
+      "description": "Tuple is a remote pair programming app."
+    },
+    {
+      "name": "Twine",
+      "slug": "twine-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.twine",
+      "description": "Twine is a tool for telling interactive, nonlinear stories."
     },
     {
       "name": "Twingate",
@@ -6475,6 +6685,34 @@
       "platform": "windows",
       "unique_identifier": "Twingate",
       "description": "Twingate is a zero trust network access platform."
+    },
+    {
+      "name": "Twobird",
+      "slug": "twobird/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.gingerlabs.bagel",
+      "description": "Twobird is an email client with collaborative notes."
+    },
+    {
+      "name": "Typeface",
+      "slug": "typeface/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.criminalbird.typeface.standalone",
+      "description": "Typeface is a font manager application."
+    },
+    {
+      "name": "Typinator",
+      "slug": "typinator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.macility.typinator2",
+      "description": "Typinator is a tool to automate the insertion of frequently used text and graphics."
+    },
+    {
+      "name": "Typora",
+      "slug": "typora/darwin",
+      "platform": "darwin",
+      "unique_identifier": "abnerworks.Typora",
+      "description": "Typora is a configurable document editor that supports Markdown."
     },
     {
       "name": "UA Connect",
