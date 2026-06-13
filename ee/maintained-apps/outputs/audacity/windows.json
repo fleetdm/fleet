@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.7.7",
+      "version": "3.7.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team' AND version_compare(version, '3.7.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team' AND version_compare(version, '3.7.8') < 0);"
       },
-      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.7/audacity-win-3.7.7-64bit.exe",
+      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.8/audacity-win-3.7.8-64bit.exe",
       "install_script_ref": "33137473",
       "uninstall_script_ref": "3cfe5900",
-      "sha256": "a96f41f21efcdfec1d2f7f332544f8a8fb00a6c411e3bee2aa0031b691dd91a7",
+      "sha256": "4a6d77f023c0209a396fcf2f3c7c04e240b6ba9897b3231a6ed18e14c10caa16",
       "default_categories": [
         "Productivity"
       ]
