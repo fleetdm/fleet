@@ -5,7 +5,7 @@ import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 
 import { getPathWithQueryParams } from "utilities/url";
-import { ISoftwareResponse } from "interfaces/software";
+import { ISoftware, ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabNav from "components/TabNav";
@@ -33,9 +33,7 @@ interface ISoftwareCardProps {
 }
 
 interface IRowProps extends Row {
-  original: {
-    id?: number;
-  };
+  original: ISoftware;
 }
 
 const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -58,11 +56,33 @@ const Software = ({
 }: ISoftwareCardProps): JSX.Element => {
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
+  const isVulnerableTab = !!navTabIndex;
+
   const handleRowSelect = (row: IRowProps) => {
-    const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-      software_id: row.original.id,
-      fleet_id: teamId,
-    });
+    let path: string;
+
+    if (isVulnerableTab) {
+      // Vulnerable tab: navigate to software version page
+      path = getPathWithQueryParams(
+        PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString()),
+        { fleet_id: teamId },
+      );
+    } else {
+      // All tab: navigate to software title page
+      const titleId = row.original.title_id;
+      if (titleId) {
+        path = getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(titleId.toString()),
+          { fleet_id: teamId },
+        );
+      } else {
+        // Fallback to version page if title_id is not available
+        path = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString()),
+          { fleet_id: teamId },
+        );
+      }
+    }
 
     router.push(path);
   };

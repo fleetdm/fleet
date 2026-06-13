@@ -1,9 +1,13 @@
 import React from "react";
-import { ISoftware } from "interfaces/software";
+import PATHS from "router/paths";
+import { browserHistory } from "react-router";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import { ISoftware } from "interfaces/software";
+import { getPathWithQueryParams } from "utilities/url";
+
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import Button from "components/buttons/Button";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -64,7 +68,26 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: "Hosts",
     disableSortBy: true,
     accessor: "hosts_count",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => {
+      const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+          software_id: cellProps.row.original.id,
+          fleet_id: teamId,
+        });
+        browserHistory.push(path);
+      };
+
+      return (
+        <Button
+          onClick={handleClick}
+          variant="link"
+          className="hosts-count-link"
+        >
+          {cellProps.cell.value}
+        </Button>
+      );
+    },
   },
   {
     title: "Actions",
@@ -74,7 +97,7 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     Cell: (cellProps: ICellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ software_id: cellProps.cell.value, fleet_id: teamId }} // TODO: Should redirect with the current team id?
+          queryParams={{ software_id: cellProps.cell.value, fleet_id: teamId }}
           className="software-link"
           condensed
         />
