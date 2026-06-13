@@ -1,4 +1,5 @@
 .fleet-markdown {
+  @include flex-column-16px-gap;
   font-size: $x-small;
 
   ul {

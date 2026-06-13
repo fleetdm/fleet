@@ -167,22 +167,7 @@
 }
 
 .api-key-display {
-  display: flex;
-  flex-direction: column;
-
-  &__api-key-label {
-    color: $core-fleet-black;
-    font-size: $small;
-    margin-bottom: $pad-large;
-  }
-
-  .input-field-hidden-content {
-    margin-bottom: $pad-medium;
-  }
-
-  .info-banner {
-    margin-bottom: $pad-medium;
-  }
+  @include flex-column-16px-gap;
 }
 
 .api-access-section {
