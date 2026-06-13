@@ -4374,7 +4374,7 @@
       "slug": "ndi-tools/darwin",
       "platform": "darwin",
       "unique_identifier": "com.newtek.Application-Mac-NDI-ScanConverter",
-      "description": "NDI Tools is a tools & plugins for NDI."
+      "description": "NDI Tools is a set of tools and plugins for NDI."
     },
     {
       "name": "NeoFinder",
