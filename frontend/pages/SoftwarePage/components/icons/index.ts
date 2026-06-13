@@ -533,7 +533,6 @@ import MySqlWorkbench from "./MySqlWorkbench";
 import Nagstamon from "./Nagstamon";
 import NameMangler from "./NameMangler";
 import Naps2 from "./Naps2";
-import NativeAccess from "./NativeAccess";
 import NdiTools from "./NdiTools";
 import Neofinder from "./Neofinder";
 import NessusAgent from "./NessusAgent";
@@ -1520,7 +1519,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nagstamon: Nagstamon,
   "name mangler": NameMangler,
   naps2: Naps2,
-  "native access": NativeAccess,
   "ndi tools": NdiTools,
   neofinder: Neofinder,
   "nessus agent": NessusAgent,

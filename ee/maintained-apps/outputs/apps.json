@@ -4370,13 +4370,6 @@
       "description": "NAPS2 is a document scanning application."
     },
     {
-      "name": "Native Access",
-      "slug": "native-access/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.native-instruments.nativeaccess2",
-      "description": "Native Access is an administration tool for Native Instruments products."
-    },
-    {
       "name": "NDI Tools",
       "slug": "ndi-tools/darwin",
       "platform": "darwin",
