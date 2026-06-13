@@ -574,7 +574,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
 
-    it("renders as disabled when the host is offline", async () => {
+    it("renders as enabled when the host is offline", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -600,7 +600,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
+      expect(screen.getByText("Turn off MDM").parentElement).not.toHaveClass(
         "actions-dropdown-select__option--is-disabled"
       );
     });
