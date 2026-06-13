@@ -303,6 +303,13 @@
       "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
     },
     {
+      "name": "AirParrot",
+      "slug": "airparrot/windows",
+      "platform": "windows",
+      "unique_identifier": "AirParrot 3",
+      "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
+    },
+    {
       "name": "AirServer",
       "slug": "airserver/darwin",
       "platform": "darwin",
@@ -954,6 +961,13 @@
       "description": "Bitwig Studio is a digital audio workstation."
     },
     {
+      "name": "Bitwig Studio",
+      "slug": "bitwig-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bitwig Studio",
+      "description": "Bitwig Studio is a digital audio workstation."
+    },
+    {
       "name": "Blender",
       "slug": "blender/darwin",
       "platform": "darwin",
@@ -1500,6 +1514,13 @@
       "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
     },
     {
+      "name": "Clockify Desktop",
+      "slug": "clockify/windows",
+      "platform": "windows",
+      "unique_identifier": "Clockify",
+      "description": "Clockify Desktop is a time tracking tool for agencies and freelancers."
+    },
+    {
       "name": "Clop",
       "slug": "clop/darwin",
       "platform": "darwin",
@@ -1532,6 +1553,13 @@
       "slug": "cmake-app/darwin",
       "platform": "darwin",
       "unique_identifier": "org.cmake.cmake",
+      "description": "CMake is a family of tools to build, test and package software."
+    },
+    {
+      "name": "CMake",
+      "slug": "cmake-app/windows",
+      "platform": "windows",
+      "unique_identifier": "CMake",
       "description": "CMake is a family of tools to build, test and package software."
     },
     {
@@ -2438,6 +2466,13 @@
       "description": "eM Client is an email client."
     },
     {
+      "name": "eM Client",
+      "slug": "emclient/windows",
+      "platform": "windows",
+      "unique_identifier": "eM Client",
+      "description": "eM Client is an email client."
+    },
+    {
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
@@ -2456,6 +2491,13 @@
       "slug": "epic-games/darwin",
       "platform": "darwin",
       "unique_identifier": "com.epicgames.EpicGamesLauncher",
+      "description": "Epic Games Launcher is a launcher for *Epic Games* games."
+    },
+    {
+      "name": "Epic Games Launcher",
+      "slug": "epic-games/windows",
+      "platform": "windows",
+      "unique_identifier": "Epic Games Launcher",
       "description": "Epic Games Launcher is a launcher for *Epic Games* games."
     },
     {
@@ -4503,6 +4545,13 @@
       "description": "Mixxx is an open-source DJ software."
     },
     {
+      "name": "Mixxx",
+      "slug": "mixxx/windows",
+      "platform": "windows",
+      "unique_identifier": "Mixxx",
+      "description": "Mixxx is an open-source DJ software."
+    },
+    {
       "name": "Mobirise",
       "slug": "mobirise/darwin",
       "platform": "darwin",
@@ -4668,6 +4717,13 @@
       "slug": "naps2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.naps2.desktop",
+      "description": "NAPS2 is a document scanning application."
+    },
+    {
+      "name": "NAPS2",
+      "slug": "naps2/windows",
+      "platform": "windows",
+      "unique_identifier": "NAPS2",
       "description": "NAPS2 is a document scanning application."
     },
     {
@@ -5285,6 +5341,13 @@
       "platform": "darwin",
       "unique_identifier": "org.pdfsam.modules",
       "description": "PDFsam Basic is an extracts pages, splits, merges, mixes and rotates PDF files."
+    },
+    {
+      "name": "PDFsam Basic",
+      "slug": "pdfsam-basic/windows",
+      "platform": "windows",
+      "unique_identifier": "PDFsam Basic",
+      "description": "PDFsam Basic extracts pages, splits, merges, mixes and rotates PDF files."
     },
     {
       "name": "Pearcleaner",
@@ -7177,10 +7240,24 @@
       "description": "Topaz Gigapixel AI is an AI image upscaler."
     },
     {
+      "name": "Topaz Gigapixel AI",
+      "slug": "topaz-gigapixel-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Topaz Gigapixel AI",
+      "description": "Topaz Gigapixel AI is an AI image upscaler."
+    },
+    {
       "name": "Topaz Photo AI",
       "slug": "topaz-photo-ai/darwin",
       "platform": "darwin",
       "unique_identifier": "com.topazlabs.TopazPhotoAI",
+      "description": "Topaz Photo AI is an AI image enhancer."
+    },
+    {
+      "name": "Topaz Photo AI",
+      "slug": "topaz-photo-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Topaz Photo AI",
       "description": "Topaz Photo AI is an AI image enhancer."
     },
     {
@@ -7244,6 +7321,13 @@
       "slug": "transmission/darwin",
       "platform": "darwin",
       "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "description": "Transmission is an open-source BitTorrent client."
+    },
+    {
+      "name": "Transmission",
+      "slug": "transmission/windows",
+      "platform": "windows",
+      "unique_identifier": "Transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
@@ -8105,6 +8189,13 @@
       "slug": "zulip/darwin",
       "platform": "darwin",
       "unique_identifier": "org.zulip.zulip-electron",
+      "description": "Zulip is a desktop client for the Zulip team chat platform."
+    },
+    {
+      "name": "Zulip",
+      "slug": "zulip/windows",
+      "platform": "windows",
+      "unique_identifier": "Zulip",
       "description": "Zulip is a desktop client for the Zulip team chat platform."
     },
     {
