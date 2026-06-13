@@ -12,6 +12,7 @@ import usersAPI from "services/entities/users";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import { notify } from "components/ToastNotification";
 import ApiUserForm from "../components/ApiUserForm";
 import { IApiUserFormData } from "../components/ApiUserForm/ApiUserForm";
 import ApiKeyDisplay from "../components/ApiKeyDisplay";
@@ -65,7 +66,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
         }
       })
       .catch(() => {
-        renderFlash("error", "Could not create user. Please try again.");
+        notify.error("Could not create user. Please try again.");
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -73,7 +74,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
   };
 
   const handleDone = () => {
-    renderFlash("success", `${createdUserName} has been created!`);
+    notify.success(`${createdUserName} has been created!`);
     router.push(PATHS.ADMIN_USERS);
   };
 

@@ -34,6 +34,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 
 interface IAppProps {
   children: JSX.Element;
@@ -293,6 +294,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       <QueryProvider>
         <PolicyProvider>
           <NotificationProvider>
+            {/* Sonner toaster — single global mount; renders toasts
+            dispatched from `notify.*` anywhere in the app. Outside the
+            ErrorBoundary so toasts survive page-level error overlays. */}
+            <ToastNotification />
             <ErrorBoundary
               fallbackRender={renderErrorOverlay}
               resetKeys={[location?.pathname]}

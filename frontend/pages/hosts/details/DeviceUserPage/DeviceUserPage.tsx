@@ -42,6 +42,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import FlashMessage from "components/FlashMessage";
+import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
@@ -136,9 +137,7 @@ const DeviceUserPage = ({
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
 
-  const { renderFlash, notification, hideFlash } = useContext(
-    NotificationContext
-  );
+  const { notification, hideFlash } = useContext(NotificationContext);
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -313,8 +312,7 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              renderFlash(
-                "error",
+              notify.error(
                 `This host is offline. Please try refetching host vitals later.`
               );
             }
@@ -335,8 +333,7 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                renderFlash(
-                  "error",
+                notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
               }
@@ -347,8 +344,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                renderFlash(
-                  "error",
+                notify.error(
                   "We're having trouble fetching fresh vitals for this host. Please try again later."
                 );
               }
@@ -521,16 +517,12 @@ const DeviceUserPage = ({
         refetchExtensions();
       }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
     } catch (error) {
-      renderFlash("error", getErrorMessage(error, host.display_name));
+      notify.error(getErrorMessage(error, host.display_name), {
+        response: error,
+      });
       resetHostRefetchStates();
     }
-  }, [
-    host,
-    deviceAuthToken,
-    refetchDupDetails,
-    refetchExtensions,
-    renderFlash,
-  ]);
+  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
@@ -576,7 +568,7 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      renderFlash("error", "Failed to trigger key creation.");
+      notify.error("Failed to trigger key creation.", { response: e });
       setShowCreateLinuxKeyModal(false);
     } finally {
       setIsTriggeringCreateLinuxKey(false);
@@ -1008,14 +1000,12 @@ const DeviceUserPage = ({
             setIsLoadingBypass(true);
             try {
               await bypassConditionalAccess(deviceAuthToken);
-              renderFlash(
-                "success",
+              notify.success(
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
               refetchDupDetails();
             } catch {
-              renderFlash(
-                "error",
+              notify.error(
                 `Couldn't restore access. Please click "Refetch" and try again.`
               );
             } finally {

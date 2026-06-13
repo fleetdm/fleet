@@ -4,7 +4,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { PolicyContext } from "context/policy";
 import {
   IPolicy,
@@ -123,8 +123,6 @@ const PolicyDetailsPage = ({
     },
   });
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
 
@@ -233,9 +231,11 @@ const PolicyDetailsPage = ({
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyId]);
-      renderFlash("success", "Automation added.");
-    } catch {
-      renderFlash("error", "Couldn't set automation. Please try again.");
+      notify.success("Automation added.");
+    } catch (e) {
+      notify.error("Couldn't set automation. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsAddingAutomation(false);
     }
