@@ -1,0 +1,96 @@
+<Replace>
+  <!-- CIS 18.10.93.2.1 Configure Automatic Updates = Enabled (value 4 = auto download and schedule install) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI>
+    </Target>
+    <Data>4</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.2.2 Scheduled install day = Every day (value 0) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ScheduledInstallDay</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.2.3 Enable features introduced via servicing = Disabled (value 0) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowTemporaryEnterpriseFeatureControl</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.2.4 Remove access to Pause updates = Enabled (value 1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/SetDisablePauseUXAccess</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.4.1 Manage preview builds = Disabled (value 1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ManagePreviewBuilds</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.4.2 Defer Feature Updates = 180 days -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/DeferFeatureUpdatesPeriodInDays</LocURI>
+    </Target>
+    <Data>180</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.4.3 Defer Quality Updates = 0 days -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/DeferQualityUpdatesPeriodInDays</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.93.4.4 Enable optional updates = Disabled (value 0) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
