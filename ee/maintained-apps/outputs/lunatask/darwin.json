@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.1.28",
+      "version": "2.1.29",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mikekreeki.tasks';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mikekreeki.tasks' AND version_compare(bundle_short_version, '2.1.28') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mikekreeki.tasks' AND version_compare(bundle_short_version, '2.1.29') < 0);"
       },
-      "installer_url": "https://github.com/lunatask/lunatask/releases/download/v2.1.28/Lunatask-2.1.28-universal.dmg",
+      "installer_url": "https://github.com/lunatask/lunatask/releases/download/v2.1.29/Lunatask-2.1.29-universal.dmg",
       "install_script_ref": "062d43b9",
       "uninstall_script_ref": "ce395b6c",
-      "sha256": "907439536974ffd7a414d0855db163766fb3697cf7841c2b1bb37f7755f44b4e",
+      "sha256": "93dedebb249e12250c798738d50599b60a14d1adcc60a2cf0714ef2d6c1ec2e9",
       "default_categories": [
         "Security"
       ]
