@@ -1,0 +1,1 @@
+* Fixed a bug where embedded macOS helper apps (e.g., login helpers, framework helpers) sharing a parent app's `bundle_identifier` could steal the software title name (e.g., "AmphetamineLoginHelper" instead of "Amphetamine"). Embedded bundles inside `.app/Contents/` are now filtered out during ingestion.
