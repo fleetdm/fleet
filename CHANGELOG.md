@@ -1,8 +1,16 @@
-## Fleet 4.86.1 (Jun 03, 2026)
+## Fleet 4.86.2 (Jun 12, 2026)
 
 ### Bug fixes
 
-- Updated conditional access policy query to use parameter binding for platform filter.
+- Fixed Fleet failing to start on a read-only root filesystem by storing custom org logos in the database when no S3 software installers bucket is configured, instead of writing to local disk.
+- Fixed a bug where host vitals labels (e.g. IdP group/department labels) scoped to a fleet/team never got any hosts. The membership cron only looked at global labels, and team-scoped IdP labels also failed to populate due to an incorrect SQL join.
+- Fixed a server out-of-memory crash that could occur when Apple's VPP (App and Book Management) API repeatedly returned transient errors (HTTP 500 with Retry-After, or error 9646) during VPP API operations (e.g., app installs, user registration, license seat releases).
+
+## Fleet 4.86.1 (Jun 01, 2026)
+
+### Bug fixes
+
+* Updated conditional access policy query to use parameter binding for platform filter.
 
 ## Fleet 4.86.0 (May 29, 2026)
 
@@ -150,12 +158,6 @@
 - Fixed GitOps dry runs failing when a VPP app references a label that was added in the same run.
 - Fixed a bug where enrolling an Android device on a Fleet instance with Apple MDM disabled produced a duplicate host record.
 - Fixed Fleet-scoped users getting a 403 when viewing past activities on a host that has user-initiated activities (e.g. lock/wipe/run script/install software), and fixed missing permissions on host activity items for fleet-scoped users.
-
-## Fleet 4.85.2 (Jun 02, 2026)
-
-### Bug fixes
-
-- Fixed a server out-of-memory crash that could occur when Apple's VPP (App and Book Management) API repeatedly returned transient errors (HTTP 500 with Retry-After, or error 9646) during VPP API operations (e.g., app installs, user registration, license seat releases).
 
 ## Fleet 4.85.1 (May 22, 2026)
 
