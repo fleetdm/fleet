@@ -175,6 +175,16 @@ The Executive Assistant (EA) will use the following steps to book an analyst bri
 3. The EA will prep the agenda with a link to the analyst's LinkedIn.
 
 
+### Booking group meetings
+
+When the CEO asks the EA to book a group meeting, every attendee is added as required on the calendar event.  If any attendee has a conflict, the meeting still happens as scheduled — the show must go on, quickly.  Attendees who can't make it receive:
+
+1. A heads-up that a recording will be available for them to find and review.
+2. A link to the agenda so they can review it async.
+
+If an absent attendee hasn't watched the recording by the end of that business day, the meeting organizer follows up with them via Slack DM.  (Since the CEO's EA handles scheduling, this DM is delivered by the EA on the CEO's behalf.)
+
+
 ### Confirm CEO shadow dates
 
 Every Monday, the Executive Assistant will use the following steps to confirm CEO shadow dates:
