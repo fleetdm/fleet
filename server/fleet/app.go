@@ -404,11 +404,50 @@ func (m AppleOSUpdateSettings) Validate() error {
 		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
 	}
 
-	if _, err := time.Parse("2006-01-02", m.Deadline.Value); err != nil {
+	if _, err := m.DeadlineDateTime(); err != nil {
 		return errors.New(AppleOSVersionDeadlineInvalidMessage)
 	}
 
 	return nil
+}
+
+// HasDeadlineTime returns true if the deadline includes an explicit time component.
+func (m AppleOSUpdateSettings) HasDeadlineTime() bool {
+	if _, err := time.Parse("2006-01-02T15:04:05", m.Deadline.Value); err == nil {
+		return true
+	}
+	_, err := time.Parse("2006-01-02T15:04", m.Deadline.Value)
+	return err == nil
+}
+
+// deadlineDateTimeLayouts is the list of time layouts accepted for the deadline field.
+var deadlineDateTimeLayouts = []string{
+	"2006-01-02T15:04:05",
+	"2006-01-02T15:04",
+	"2006-01-02",
+}
+
+// DeadlineDateTime parses the deadline value and returns the corresponding time.Time.
+// The deadline may be date-only ("2006-01-02") or include a time component
+// ("2006-01-02T15:04:05" or "2006-01-02T15:04").
+func (m AppleOSUpdateSettings) DeadlineDateTime() (time.Time, error) {
+	for _, layout := range deadlineDateTimeLayouts {
+		t, err := time.Parse(layout, m.Deadline.Value)
+		if err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errors.New(AppleOSVersionDeadlineInvalidMessage)
+}
+
+// DeadlineDatePart returns just the YYYY-MM-DD portion of the deadline.
+// Returns empty string if the deadline is too short.
+func (m AppleOSUpdateSettings) DeadlineDatePart() string {
+	deadline := m.Deadline.Value
+	if len(deadline) >= 10 {
+		return deadline[:10]
+	}
+	return ""
 }
 
 // WindowsUpdates is part of AppConfig and defines the Windows update settings.

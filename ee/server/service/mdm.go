@@ -1453,14 +1453,23 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 
 	// OS updates enabled, create or update the profile with the current settings.
 
+	// Use the user-specified time if provided; otherwise default to noon local
+	// time (12:00:00), for backward compatibility.
+	deadlineValue := updates.DeadlineDatePart()
+	if updates.HasDeadlineTime() {
+		deadlineValue = updates.Deadline.Value
+	} else {
+		deadlineValue += "T12:00:00"
+	}
+
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime": "%sT12:00:00"
+		"TargetLocalDateTime": %q
 	}
-}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, deadlineValue))
 
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, apple_mdm.DeclarationTypeSoftwareUpdate, softwareUpdateIdentifier)
 
