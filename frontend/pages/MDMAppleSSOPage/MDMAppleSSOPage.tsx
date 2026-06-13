@@ -11,19 +11,28 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { IMdmSSOResponse } from "interfaces/mdm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import { Params } from "react-router/lib/Router";
 
 const baseClass = "mdm-apple-sso-page";
 
 const DEPSSOLoginPage = ({
   location: { pathname, query },
-}: WithRouterProps<object, IMDMSSOParams>) => {
+  params,
+}: WithRouterProps<Params, IMDMSSOParams>) => {
   const [clickedLogin, setClickedLogin] = useState(false);
   localStorage.setItem("deviceinfo", query.deviceinfo || "");
   if (!query.initiator) {
-    query.initiator =
-      pathname === "/mdm/apple/account_driven_enroll/sso"
-        ? "account_driven_enroll"
-        : "mdm_sso";
+    if (pathname.startsWith("/mdm/apple/account_driven_enroll/sso")) {
+      // While I acknowledge startsWith for route matching is a bit brittle
+      // I couldn't find a better way, since the pathname is the actual resolved value and not the placeholder route.
+      if (params.token) {
+        query.initiator = `account_driven_enroll:${params.token}`;
+      } else {
+        query.initiator = "account_driven_enroll";
+      }
+    } else {
+      query.initiator = "mdm_sso";
+    }
   }
   const { error } = useQuery<IMdmSSOResponse, AxiosError>(
     ["dep_sso"],

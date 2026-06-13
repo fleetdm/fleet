@@ -545,9 +545,13 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	return resp
 }
 
-func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password, token string) *http.Response {
+	initiator := fleet.SSOInitiatorAccountDrivenEnroll
+	if token != "" {
+		initiator = fmt.Sprintf("%s:%s", initiator, token)
+	}
 	requestParams := initiateMDMSSORequest{
-		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
+		Initiator:      initiator,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)
@@ -596,9 +600,9 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
-	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+	/* if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
-	}
+	} */
 
 	cookieSecure = false
 	jar, err := cookiejar.New(nil)
