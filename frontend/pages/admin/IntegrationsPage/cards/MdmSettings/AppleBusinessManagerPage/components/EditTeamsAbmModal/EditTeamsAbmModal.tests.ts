@@ -30,6 +30,7 @@ describe("EditTeamsAbmModal", () => {
         ios_team: "Team 1",
         ipados_team: "Team 2",
         macos_team: "Unassigned",
+        byod_team: "BYOD Fleet",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
         ios_fleet_id: 1,
