@@ -139,11 +139,23 @@ Review Device Management logs:
 Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin -MaxEvents 50
 ```
 
-## Plan and automate renewal
+## Automatic renewal
 
-### Monitor expiration
+Include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName OU of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but renew manually.
 
-Use a Fleet policy to identify devices with certificates expiring within 30 days:
+The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted for back-compat. Both substitute to the same value.
+
+**Example SubjectName containing the marker:**
+
+```
+CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID
+```
+
+**CA-side requirement**: your SCEP CA must preserve the Subject OU in issued certificates. Verify by decoding an issued cert (`openssl x509 -text`) and confirming the OU contains `fleet-<profile_uuid>` after deployment.
+
+### Monitor expiration (optional safeguard)
+
+If you'd like a manual safeguard alongside auto-renewal, use a Fleet policy to flag devices with certificates expiring soon:
 
 ```sql
 SELECT 1 
@@ -153,15 +165,11 @@ WHERE
     AND julianday(not_valid_after) - julianday('now') < 30;
 ```
 
-This policy will:
-- **Fail**: When a certificate exists and expires within 30 days (needs renewal)
+The policy will:
+- **Fail**: When a certificate exists and expires within 30 days
 - **Pass**: When no certificate exists yet, or certificate is valid for more than 30 days
 
-### Renewal workflow
-
-To renew certificates, you can:
-
-**Manual redeployment**: Redeploy the same configuration profile to trigger renewal
+If you haven't opted into auto-renewal, redeploy the same configuration profile to trigger renewal manually.
 
 ## Important notes
 
