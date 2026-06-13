@@ -849,6 +849,13 @@
       "description": "Bdash is a simple SQL client for lightweight data analysis."
     },
     {
+      "name": "Bdash",
+      "slug": "bdash/windows",
+      "platform": "windows",
+      "unique_identifier": "Bdash",
+      "description": "Bdash is a simple SQL client for lightweight data analysis."
+    },
+    {
       "name": "Beaver Notes",
       "slug": "beaver-notes/darwin",
       "platform": "darwin",
@@ -940,10 +947,24 @@
       "description": "Binance is a cryptocurrency exchange app."
     },
     {
+      "name": "Binance",
+      "slug": "binance/windows",
+      "platform": "windows",
+      "unique_identifier": "Binance",
+      "description": "Binance is a cryptocurrency exchange app."
+    },
+    {
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
       "unique_identifier": "com.eatbiscuit.biscuit",
+      "description": "Biscuit is a browser to organise apps."
+    },
+    {
+      "name": "Biscuit",
+      "slug": "biscuit/windows",
+      "platform": "windows",
+      "unique_identifier": "Biscuit",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -1112,6 +1133,13 @@
       "slug": "breaktimer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tomjwatson.breaktimer",
+      "description": "BreakTimer is a tool to manage periodic breaks."
+    },
+    {
+      "name": "BreakTimer",
+      "slug": "breaktimer/windows",
+      "platform": "windows",
+      "unique_identifier": "BreakTimer",
       "description": "BreakTimer is a tool to manage periodic breaks."
     },
     {
