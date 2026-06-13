@@ -39,7 +39,6 @@
         .Select-control {
           color: $core-vibrant-red;
           border: 1px solid $core-vibrant-red;
-          box-sizing: border-box;
           border-radius: $border-radius;
         }
 
@@ -280,7 +279,6 @@
     color: $ui-fleet-black-50;
     font-size: $x-small;
     line-height: 34px;
-    box-sizing: border-box;
   }
 
   .Select-clear-zone {
@@ -294,7 +292,6 @@
   .Select-input {
     color: $core-fleet-black;
     font-size: $x-small;
-    box-sizing: border-box;
     height: 34px;
 
     &:focus {

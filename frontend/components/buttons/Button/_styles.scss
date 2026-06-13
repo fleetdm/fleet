@@ -174,7 +174,6 @@ $base-class: "button";
     );
     color: $core-fleet-green;
     border: 1px solid $core-fleet-green;
-    box-sizing: border-box;
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
     height: 24px;
@@ -200,7 +199,6 @@ $base-class: "button";
     color: $ui-fleet-black-75;
     border: 1px solid $ui-fleet-black-25;
     border-radius: 4px;
-    box-sizing: border-box;
     font-size: $xx-small;
     font-weight: $bold;
     padding: 0 $pad-small;
@@ -432,7 +430,6 @@ $base-class: "button";
     );
     background-color: transparent;
     color: $ui-fleet-black-75;
-    box-sizing: border-box;
 
     .children-wrapper {
       gap: $pad-small; // For icons next to text like Pagination buttons
@@ -447,7 +444,6 @@ $base-class: "button";
       $inverse: true
     );
     color: $core-vibrant-red;
-    box-sizing: border-box;
   }
 
   &--disabled {
