@@ -323,6 +323,34 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			Version: "11.2510.14.0",
 			Source:  "programs",
 		},
+		// Google Chrome vulnerable version (Windows) should match CVE-2026-5870
+		{
+			ID:      10,
+			Name:    "Google Chrome",
+			Version: "146.0.7680.165",
+			Source:  "programs",
+		},
+		// Google Chrome vulnerable version (macOS) should match CVE-2026-5870
+		{
+			ID:      11,
+			Name:    "Google Chrome.app",
+			Version: "146.0.7680.165",
+			Source:  "apps",
+		},
+		// Google Chrome patched version should not match CVE-2026-5870
+		{
+			ID:      12,
+			Name:    "Google Chrome",
+			Version: "147.0.7727.55",
+			Source:  "programs",
+		},
+		// Google Chrome Helper should be excluded from CVE-2026-5870
+		{
+			ID:      13,
+			Name:    "Google Chrome Helper.app",
+			Version: "146.0.7680.165",
+			Source:  "apps",
+		},
 	}
 
 	t.Run("New Vulns return all inserted", func(t *testing.T) {
@@ -336,6 +364,9 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
 				return []fleet.Software{sw[7], sw[8]}, nil
 			}
+			if filter.Name == "Google Chrome" && filter.Source == "" {
+				return []fleet.Software{sw[9], sw[10], sw[11], sw[12]}, nil
+			}
 			return nil, nil
 		}
 
@@ -343,6 +374,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {
 				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
+				require.NotEqual(t, uint(13), v.SoftwareID, "Google Chrome Helper should be excluded from CVE matching")
 			}
 			return vulns, nil // all inserted vulns are "new"
 		}
@@ -355,7 +387,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ctx := context.Background()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, slog.New(slog.DiscardHandler), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
-		require.Len(t, vulns, 35)
+		require.Len(t, vulns, 37)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
 		expected := []fleet.SoftwareVulnerability{
@@ -534,6 +566,16 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 				CVE:               "CVE-2026-20841",
 				ResolvedInVersion: ptr.String("11.2510"),
 			},
+			{
+				SoftwareID:        10,
+				CVE:               "CVE-2026-5870",
+				ResolvedInVersion: ptr.String("147.0.7727.55"),
+			},
+			{
+				SoftwareID:        11,
+				CVE:               "CVE-2026-5870",
+				ResolvedInVersion: ptr.String("147.0.7727.55"),
+			},
 		}
 
 		cmpSoftwareVulnerability := func(v []fleet.SoftwareVulnerability) func(i, j int) bool {
@@ -565,6 +607,9 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
 				return []fleet.Software{sw[7], sw[8]}, nil
 			}
+			if filter.Name == "Google Chrome" && filter.Source == "" {
+				return []fleet.Software{sw[9], sw[10], sw[11], sw[12]}, nil
+			}
 			return nil, nil
 		}
 
@@ -573,6 +618,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {
 				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
+				require.NotEqual(t, uint(13), v.SoftwareID, "Google Chrome Helper should be excluded from CVE matching")
 			}
 			return nil, nil
 		}
