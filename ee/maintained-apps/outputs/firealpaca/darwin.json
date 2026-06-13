@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.16.0",
+      "version": "2.15.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.firealpaca';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.firealpaca' AND version_compare(bundle_short_version, '2.16.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.firealpaca' AND version_compare(bundle_short_version, '2.15.2') < 0);"
       },
       "installer_url": "https://firealpaca.com/download/mac",
       "install_script_ref": "f2cad371",
