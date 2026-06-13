@@ -403,3 +403,36 @@ func TestGetHostsForCVE_PaginatesTitles(t *testing.T) {
 		t.Errorf("expected 2 titles pages (100 + 30 short page), got %d", got)
 	}
 }
+
+func TestGetPolicies_IncludesQueryField(t *testing.T) {
+	const wantSQL = "SELECT 1;"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/global/policies":
+			_, _ = w.Write([]byte(`{"policies":[
+				{"id":1,"name":"with sql","query":"` + wantSQL + `"},
+				{"id":2,"name":"empty sql","query":""}
+			]}`))
+		case "/api/v1/fleet/teams":
+			_, _ = w.Write([]byte(`{"teams":[]}`))
+		default:
+			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	policies, err := fc.GetPolicies(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(policies) != 2 {
+		t.Fatalf("expected 2 policies, got %d", len(policies))
+	}
+	if policies[0].Query != wantSQL {
+		t.Errorf("policy 1 Query = %q, want %q", policies[0].Query, wantSQL)
+	}
+	if policies[1].Query != "" {
+		t.Errorf("policy 2 Query = %q, want empty string", policies[1].Query)
+	}
+}
