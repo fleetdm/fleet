@@ -31,6 +31,45 @@ To maintain an accurate picture of our performance and make sure our weekly fore
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Sales territory assignments
+
+The following table outlines Account Executive (AE) territory assignments and their associated Solutions Specialists for 2026.
+
+#### United States
+
+| Region | AE | Solutions Specialist |
+|:-------|:---|:---------------------|
+| WA, OR, CA, AK, HI | Manny Mendoza | Maribell M. |
+| MT, ID, NV, WY, UT, CO, AZ, NM, ND, SD, NE, KS, OK, TX | Anthony Snyder | Maribell M. |
+| MN, WI, MI, IA, IL, IN, OH, MO, KY, WV, VA, PA, NY, VT, NH, ME, MA, CT, RI, NJ, DE, MD, DC | Patricia Ambrus | Thomas S. |
+| LA, MS, AL, GA, FL, SC, NC, TN, AR | Nick Blee | Thomas S. |
+
+#### Canada
+
+| Region | AE | Solutions Specialist |
+|:-------|:---|:---------------------|
+| BC, AB, SK, YT, NT, NU (Western Canada) | Anthony Snyder | Maribell M. |
+| MB, ON, QC, NB, NS, PE, NL (Eastern Canada) | Nick Blee | Thomas S. |
+
+#### Europe, India & The Middle East
+
+| Region | AE | Solutions Specialist |
+|:-------|:---|:---------------------|
+| All | Damon Sabrkesh | Thomas S. |
+
+#### Asia & Australia
+
+| Region | AE | Solutions Specialist |
+|:-------|:---|:---------------------|
+| All | Manny Mendoza | Maribell M. |
+
+#### Mexico, South America & The Caribbean
+
+| Region | AE | Solutions Specialist |
+|:-------|:---|:---------------------|
+| All | Patricia Ambrus | Thomas S. |
+
+
 ### Add an account to your patch
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
