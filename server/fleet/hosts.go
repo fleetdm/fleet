@@ -528,6 +528,15 @@ var hostVitals = map[string]HostVital{
 		ForeignVitalGroup: ptr.String("idp"),
 		Path:              "scim_users.department",
 	},
+	// Domestic vitals are columns stored directly on the hosts table, so they
+	// require no foreign-table JOIN. public_ip is a server-derived value (the
+	// host's egress IP as seen by Fleet) that osquery cannot observe locally.
+	"public_ip": {
+		Name:      "Public IP address",
+		VitalType: HostVitalTypeDomestic,
+		DataType:  "string",
+		Path:      "hosts.public_ip",
+	},
 }
 
 type AndroidHost struct {

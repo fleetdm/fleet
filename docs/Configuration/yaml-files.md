@@ -19,7 +19,7 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
-- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
+- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. Supported `vital`s are `end_user_idp_group`, `end_user_idp_department`, and `public_ip`. An optional `operator` controls matching: `=` (exact, default) or `LIKE` (SQL `LIKE` pattern, supports `%` and `_` wildcards). See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
@@ -54,6 +54,12 @@ labels:
     criteria:
       vital: end_user_idp_department
       value: Engineering
+  - name: NYC office
+    description: Hosts connecting from the New York City office egress IP
+    label_membership_type: host_vitals
+    criteria:
+      vital: public_ip
+      value: 203.0.113.10
 ```
 
 #### Separate file
@@ -69,14 +75,20 @@ labels:
   description: Hosts belonging to the C-Suite
   label_membership_type: manual
   hosts:
-      - "IR7M6ZGQJM"
-      - "JMFWY8VZ09"
-  - name: Engineering department
-    description: Hosts used by engineers
-    label_membership_type: host_vitals
-    criteria:
-      vital: end_user_idp_department
-      value: Engineering
+    - "IR7M6ZGQJM"
+    - "JMFWY8VZ09"
+- name: Engineering department
+  description: Hosts used by engineers
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_department
+    value: Engineering
+- name: NYC office
+  description: Hosts connecting from the New York City office egress IP
+  label_membership_type: host_vitals
+  criteria:
+    vital: public_ip
+    value: 203.0.113.10
 ```
 
 `default.yml`
