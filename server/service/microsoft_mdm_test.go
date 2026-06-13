@@ -1898,6 +1898,91 @@ func TestGetESPCommands(t *testing.T) {
 			"software failure error text takes precedence over profile/timeout text")
 	})
 
+	t.Run("software failure with require_all=false soft blocks with continue anyway", func(t *testing.T) {
+		// When software fails but "Cancel setup if software fails" is off, the device still surfaces the ESP failure
+		// UI listing the failed software by name, with a "Continue anyway" option so the user can proceed to the
+		// desktop and install the missing software via self-service. Nothing is cancelled and no
+		// canceled_setup_experience activity is emitted: setup was not cancelled, the user is merely warned.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Zoom", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(2))},
+				{Name: "Notepad++", Status: fleet.SetupExperienceStatusSuccess, SoftwareInstallerID: new(uint(3))},
+				{Name: "Docker", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(4))},
+			}, nil
+		}
+		activitySvc := &mock.MockActivityService{}
+		svc.SetActivityService(activitySvc)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "soft block must surface the ESP failure UI")
+		require.NotNil(t, blockCmd.Items[0].Data)
+		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
+			"soft block must offer Reset PC and Continue Anyway (1|4) per DMClient CSP bit flags")
+
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t,
+			"Slack, Zoom, and Docker failed to install. "+
+				"You can reset your device to start over or proceed and install missing software via self-service.",
+			errCmd.Items[0].Data.Content,
+			"soft block must list only the failed software by name, in result order")
+
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"soft block must NOT signal ESP success")
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"soft block must not cancel setup experience steps")
+		assert.False(t, ds.CancelHostUpcomingActivityFuncInvoked,
+			"soft block must not cancel upcoming activities")
+		assert.False(t, activitySvc.NewActivityFuncInvoked,
+			"soft block must not emit canceled_setup_experience: setup was not cancelled")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"soft block finalizes: awaiting_configuration must transition out of Active")
+	})
+
+	t.Run("software failure with require_all=false waits for in-flight items", func(t *testing.T) {
+		// A failure observed while other items are still installing must not finalize early: the soft block is
+		// surfaced once everything reaches a terminal state, so it aggregates ALL failures in one message.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Zoom", Status: fleet.SetupExperienceStatusRunning, SoftwareInstallerID: new(uint(2))},
+			}, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "must wait for remaining installs before surfacing the soft block")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must not finalize while items are in flight")
+	})
+
+	t.Run("timeout with require_all=false releases without error text", func(t *testing.T) {
+		// The soft block applies to observed software failures only. A pure timeout with require_all=false keeps the
+		// existing silent-release behavior (the timeout path skips Stage 3, so there is no failed-software list).
+		_, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		device := newActiveDevice()
+		device.AwaitingConfigurationAt = &past
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"pure timeout with require_all=false must release the device")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"pure timeout with require_all=false must not surface the failure UI")
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"release path must not carry error text")
+	})
+
 	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
 		// CancelHostUpcomingActivity returns notFound when the row is already absent (e.g., a previous finalize
 		// attempt cancelled the queue row and crashed before the status table update; the retry sees status
