@@ -2492,3 +2492,28 @@ func newManagedLocalAccountRotationSchedule(
 
 	return s, nil
 }
+
+func newCleanupExpiredADUEChallengesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupExpiredADUEChallenges)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
