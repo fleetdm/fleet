@@ -338,13 +338,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, user email, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP = (
   <>
     Search hosts by name, user email, hostname,
     <br />
-    UUID, serial number, or private IP address.
+    UUID, serial number, or IP address.
   </>
 );
 
