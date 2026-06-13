@@ -198,4 +198,28 @@ describe("ChartCard", () => {
       screen.queryByText(/Data collection is disabled/i)
     ).not.toBeInTheDocument();
   });
+
+  it("excludes mobile platforms by default and shows the Filtered badge", async () => {
+    let requestedPlatforms: string | null = null;
+    mockServer.use(
+      http.get(baseUrl("/charts/:metric"), ({ params, request }) => {
+        requestedPlatforms = new URL(request.url).searchParams.get("platforms");
+        return HttpResponse.json(
+          generateMockChartResponse(params.metric as string, 30)
+        );
+      })
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<ChartCard />);
+
+    // The default platform filter is the four non-mobile platforms, which both
+    // excludes iOS/iPadOS/Android and surfaces the "Filtered" badge on load.
+    await waitFor(() => {
+      expect(screen.getByText("Filtered")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(requestedPlatforms).toBe("darwin,windows,linux,chrome");
+    });
+    expect(requestedPlatforms).not.toMatch(/ios|ipados|android/);
+  });
 });
