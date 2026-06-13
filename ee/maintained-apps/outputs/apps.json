@@ -128,6 +128,13 @@
       "description": "ActivityWatch is a time tracker."
     },
     {
+      "name": "ActivityWatch",
+      "slug": "activitywatch/windows",
+      "platform": "windows",
+      "unique_identifier": "ActivityWatch",
+      "description": "ActivityWatch is a time tracker."
+    },
+    {
       "name": "Actual",
       "slug": "actual/darwin",
       "platform": "darwin",
@@ -293,6 +300,13 @@
       "slug": "airdroid/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sandstudio.airdroid",
+      "description": "AirDroid is a mobile device management suite."
+    },
+    {
+      "name": "AirDroid",
+      "slug": "airdroid/windows",
+      "platform": "windows",
+      "unique_identifier": "AirDroid",
       "description": "AirDroid is a mobile device management suite."
     },
     {
@@ -608,6 +622,13 @@
       "slug": "appium-inspector/darwin",
       "platform": "darwin",
       "unique_identifier": "io.appium.inspector",
+      "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
+    },
+    {
+      "name": "Appium Inspector GUI",
+      "slug": "appium-inspector/windows",
+      "platform": "windows",
+      "unique_identifier": "Appium Inspector",
       "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
     },
     {

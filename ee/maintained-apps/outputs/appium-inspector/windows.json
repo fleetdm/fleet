@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2026.5.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Appium Inspector %' AND publisher = 'Appium Developers';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Appium Inspector %' AND publisher = 'Appium Developers' AND version_compare(version, '2026.5.1') < 0);"
+      },
+      "installer_url": "https://github.com/appium/appium-inspector/releases/download/v2026.5.1/Appium-Inspector-2026.5.1-win-x64.exe",
+      "install_script_ref": "e29eb3e4",
+      "uninstall_script_ref": "26b1bbf7",
+      "sha256": "8f65e01bd305c10ad54652e1f2d7825790351c733406361b4d30f01421b4e74c",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "26b1bbf7": "# Attempts to locate Appium Inspector's NSIS uninstaller from the registry and run it silently.\n# The registry DisplayName includes the version (e.g. \"Appium Inspector 2026.5.1\"), so match a prefix.\n\n$displayNameLike = \"Appium Inspector*\"\n$publisher = \"Appium Developers\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/S\"\n\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    if ($splitArgs.Length -eq 3) {\n        $existingArgs = $splitArgs[2].Trim()\n        if ($existingArgs -ne '' -and $existingArgs -notmatch '\\b/S\\b') {\n            $uninstallArgs = \"$existingArgs /S\".Trim()\n        } elseif ($existingArgs -ne '') {\n            $uninstallArgs = $existingArgs\n        }\n    } elseif ($splitArgs.Length -gt 3) {\n        Write-Host \"Error: Uninstall command contains multiple quoted strings\"\n        Exit 1\n    }\n    $uninstallCommand = $splitArgs[1]\n} else {\n    if ($uninstallCommand -notmatch '\\b/S\\b') { $uninstallArgs = \"/S\" } else { $uninstallArgs = \"\" }\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "e29eb3e4": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Appium Inspector ships as an NSIS (electron-builder) installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    # NSIS installers require /S flag for silent installation\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

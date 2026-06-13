@@ -1,0 +1,14 @@
+{
+  "name": "AirDroid",
+  "slug": "airdroid/windows",
+  "package_identifier": "AirDroid.AirDroid",
+  "unique_identifier": "AirDroid",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "fuzzy_match_name": true,
+  "program_publisher": "AirDroid",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/airdroid_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/airdroid_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
