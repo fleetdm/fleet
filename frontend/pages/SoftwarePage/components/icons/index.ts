@@ -573,16 +573,40 @@ import Museeks from "./Museeks";
 import Musescore from "./Musescore";
 import MxPowerGadget from "./MxPowerGadget";
 import MySqlWorkbench from "./MySqlWorkbench";
+import Nagstamon from "./Nagstamon";
+import NameMangler from "./NameMangler";
+import Naps2 from "./Naps2";
+import NdiTools from "./NdiTools";
+import Neofinder from "./Neofinder";
 import NessusAgent from "./NessusAgent";
+import Netiquette from "./Netiquette";
+import Netnewswire from "./Netnewswire";
+import Netron from "./Netron";
+import Netspot from "./Netspot";
 import Nextcloud from "./Nextcloud";
+import NextcloudTalk from "./NextcloudTalk";
+import Nightfall from "./Nightfall";
+import NitroPdfPro from "./NitroPdfPro";
+import Nocturnal from "./Nocturnal";
 import Nodejs from "./Nodejs";
+import Nordlayer from "./Nordlayer";
 import Nordpass from "./Nordpass";
 import NordVpn from "./NordVpn";
+import NosqlWorkbench from "./NosqlWorkbench";
+import Notchnook from "./Notchnook";
 import Notepad from "./Notepad++";
+import Notepadexe from "./Notepadexe";
+import Notesnook from "./Notesnook";
+import Notesollama from "./Notesollama";
 import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
+import NounProject from "./NounProject";
 import Nova from "./Nova";
+import Novabench from "./Novabench";
+import Nucleo from "./Nucleo";
 import Nudge from "./Nudge";
+import Numi from "./Numi";
+import NvidiaGeforceNow from "./NvidiaGeforceNow";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
 import Ocenaudio from "./Ocenaudio";
@@ -1578,18 +1602,42 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   musescore: Musescore,
   "mx power gadget": MxPowerGadget,
   "mysql workbench": MySqlWorkbench,
+  nagstamon: Nagstamon,
+  "name mangler": NameMangler,
+  naps2: Naps2,
+  "ndi tools": NdiTools,
+  neofinder: Neofinder,
   "nessus agent": NessusAgent,
+  netiquette: Netiquette,
+  netnewswire: Netnewswire,
+  netron: Netron,
+  netspot: Netspot,
   nextcloud: Nextcloud,
+  "nextcloud talk desktop": NextcloudTalk,
+  nightfall: Nightfall,
+  "nitro pdf pro": NitroPdfPro,
+  nocturnal: Nocturnal,
   "node.js": Nodejs,
   "nord vpn": NordVpn,
+  nordlayer: Nordlayer,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
+  notchnook: Notchnook,
   "notepad++": Notepad,
+  "notepad.exe": Notepadexe,
+  notesnook: Notesnook,
+  notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  "noun project": NounProject,
   nova: Nova,
+  novabench: Novabench,
+  nucleo: Nucleo,
   nudge: Nudge,
+  numi: Numi,
+  "nvidia geforce now": NvidiaGeforceNow,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
