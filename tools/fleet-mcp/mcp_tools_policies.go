@@ -44,7 +44,7 @@ func registerGetPolicyCompliance(s *server.MCPServer, fleetClient *FleetClient) 
 	tool := mcp.NewTool("get_policy_compliance",
 		mcp.WithDescription("Get pass/fail counts for a specific policy. By default returns global counts. Pass `fleet` to scope counts to a single fleet (e.g. compliance numbers shown on the fleet's Policies tab in the Fleet UI). For host-level breakdowns, use get_policy_hosts."),
 		mcp.WithString("policy_id", mcp.Required(), mcp.Description("The numeric ID of the policy to check (e.g. '1', '42')")),
-		mcp.WithString("fleet", mcp.Description("Optional fleet name to scope compliance counts to one fleet (e.g. '💻 Workstations'). Omit for global aggregate.")),
+		mcp.WithString("fleet", mcp.Description("Optional fleet name to scope compliance counts to one fleet (e.g. 'Workstations'). Omit for global aggregate.")),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithDestructiveHintAnnotation(false),
 		mcp.WithIdempotentHintAnnotation(true),
@@ -89,7 +89,7 @@ func registerGetVulnerabilityImpact(s *server.MCPServer, fleetClient *FleetClien
 		logrus.Info("Tool invoked: get_vulnerability_impact")
 		cveID, err := request.RequireString("cve_id")
 		if err != nil || cveID == "" {
-			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2026-31431)"), nil
+			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)"), nil
 		}
 		if verr := validateCVEID(cveID); verr != nil {
 			return mcp.NewToolResultError(verr.Error()), nil
@@ -108,7 +108,7 @@ func registerGetPolicyHosts(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithDescription("List the hosts that pass or fail a given policy, optionally narrowed by fleet / platform / label / status / substring. Use this to answer 'which Linux hosts are failing policy 42' or 'which hosts in the engineering fleet are non-compliant with policy 17'. Use get_policies first to discover the numeric policy_id. All filter dimensions compose server-side."),
 		mcp.WithString("policy_id", mcp.Required(), mcp.Description("The numeric ID of the policy (from get_policies)")),
 		mcp.WithString("response", mcp.Description("Optional 'passing' or 'failing'. Defaults to both — pass it to narrow to one side.")),
-		mcp.WithString("fleet", mcp.Description("Optional fleet name (e.g. '💻 Workstations')")),
+		mcp.WithString("fleet", mcp.Description("Optional fleet name (e.g. 'Workstations')")),
 		mcp.WithString("platform", mcp.Description("Optional platform (e.g. 'macos', 'windows', 'linux')")),
 		mcp.WithString("label", mcp.Description("Optional label name. Resolved server-side.")),
 		mcp.WithString("status", mcp.Description("Optional host status ('online', 'offline', 'new', 'mia')")),
@@ -164,7 +164,7 @@ func registerGetVulnerabilityHosts(s *server.MCPServer, fleetClient *FleetClient
 	tool := mcp.NewTool("get_vulnerability_hosts",
 		mcp.WithDescription("List the specific hosts impacted by a CVE, optionally narrowed by fleet / platform / label / status / substring. Use this — NOT get_vulnerability_impact — when the question is 'which of my hosts are affected by CVE-X' or 'are any prod servers vulnerable to CVE-Y'. get_vulnerability_impact returns only an aggregate count; this tool returns the actual host list. Composes server-side via Fleet's affected-software lookup."),
 		mcp.WithString("cve_id", mcp.Required(), mcp.Description("The CVE ID (e.g. 'CVE-2022-40898')")),
-		mcp.WithString("fleet", mcp.Description("Optional fleet name (e.g. '💻 Workstations')")),
+		mcp.WithString("fleet", mcp.Description("Optional fleet name (e.g. 'Workstations')")),
 		mcp.WithString("platform", mcp.Description("Optional platform (e.g. 'macos', 'windows', 'linux')")),
 		mcp.WithString("label", mcp.Description("Optional label name. Resolved server-side.")),
 		mcp.WithString("status", mcp.Description("Optional host status ('online', 'offline', 'new', 'mia')")),
@@ -178,7 +178,7 @@ func registerGetVulnerabilityHosts(s *server.MCPServer, fleetClient *FleetClient
 		logrus.Info("Tool invoked: get_vulnerability_hosts")
 		cveID, err := request.RequireString("cve_id")
 		if err != nil || cveID == "" {
-			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2026-31431)"), nil
+			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)"), nil
 		}
 		if verr := validateCVEID(cveID); verr != nil {
 			return mcp.NewToolResultError(verr.Error()), nil

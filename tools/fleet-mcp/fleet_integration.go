@@ -186,6 +186,7 @@ type Policy struct {
 	ID               uint   `json:"id"`
 	Name             string `json:"name"`
 	Description      string `json:"description"`
+	Query            string `json:"query"`
 	Platform         string `json:"platform"`
 	PassingHostCount int    `json:"passing_host_count"`
 	FailingHostCount int    `json:"failing_host_count"`
@@ -745,6 +746,10 @@ func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
 }
 
 // GetHostCount retrieves the total host count without fetching all host data.
+// Always returns the unfiltered, fleet-wide count. Use GetHostCountWithFilters
+// when the caller has supplied any filter dimension — the bare /hosts/count
+// endpoint is global and would mislead the caller into thinking a filtered
+// list represents the global inventory.
 func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/hosts/count", nil)
 	if err != nil {
@@ -763,6 +768,83 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to decode host count response: %w", err)
 	}
 	return result.Count, nil
+}
+
+// GetHostCountWithFilters returns the count of hosts that match the given
+// filter intersection — the same dimensions accepted by
+// GetEndpointsWithFilters. This is the count companion that lets MCP callers
+// receive a "total matching the filter" alongside a paginated listing, so the
+// `Total` field on get_endpoints stops reporting the global inventory size
+// (which historically caused the "fleet=Workstations returns total=133"
+// confusion: 133 was the global count, not the team count).
+//
+// Routing parallels GetEndpointsWithFilters:
+//
+//   - No label/platform: GET /api/v1/fleet/hosts/count?team_id=…&status=…
+//     &query=…&policy_id=…&policy_response=…  — Fleet's count endpoint
+//     respects the same filter set as /hosts in this code path.
+//   - With label/platform: /api/v1/fleet/hosts/count?label_id=… ignores
+//     team_id upstream (same datastore bug as /labels/:id/hosts), so we
+//     reuse the listing path's fan-out to get an accurate team-intersected
+//     count. We fetch via GetEndpointsWithFilters with perPage=0 (no cap),
+//     which performs the client-side team intersection internally, and
+//     return its length. More expensive than a single COUNT(*) but the
+//     only correct option until the upstream bug is fixed.
+func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
+	if policyResponse != "" && policyID == "" {
+		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
+	}
+
+	// Decide whether the label-path workaround is needed.
+	_, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
+	if err != nil {
+		return 0, err
+	}
+
+	if !viaLabel {
+		// Pure /hosts/count path — Fleet's count endpoint honors the same
+		// filter set as /hosts when label_id is absent, so reuse the same
+		// buildHostListParams() helper the listing path uses. Drift between
+		// the two URLs would mean `Total` and `Endpoints` describe different
+		// scopes — the very confusion this fix exists to prevent.
+		var teamIDStr string
+		if teamName != "" {
+			teamIDs, terr := fc.resolveTeamNames(ctx, []string{teamName})
+			if terr != nil {
+				return 0, fmt.Errorf("failed to resolve fleet: %w", terr)
+			}
+			teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+		}
+		params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
+		path := "/api/v1/fleet/hosts/count"
+		if encoded := params.Encode(); encoded != "" {
+			path += "?" + encoded
+		}
+		resp, rerr := fc.makeFleetRequest(ctx, "GET", path, nil)
+		if rerr != nil {
+			return 0, fmt.Errorf("failed to get filtered host count: %w", rerr)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return 0, fmt.Errorf("failed to get filtered host count: status %d", resp.StatusCode)
+		}
+		var result struct {
+			Count int `json:"count"`
+		}
+		if derr := json.NewDecoder(resp.Body).Decode(&result); derr != nil {
+			return 0, fmt.Errorf("failed to decode filtered host count: %w", derr)
+		}
+		return result.Count, nil
+	}
+
+	// Label/platform path — reuse the listing helper (perPage=0 → no cap)
+	// because the upstream count endpoint can't honor team_id when label_id
+	// is set. The listing path does the client-side team intersection.
+	hosts, lerr := fc.GetEndpointsWithFilters(ctx, teamName, platform, status, query, labelName, policyID, policyResponse, 0)
+	if lerr != nil {
+		return 0, lerr
+	}
+	return len(hosts), nil
 }
 
 // resolveLabelName resolves a label name to its numeric ID using exact
@@ -947,10 +1029,14 @@ func (fc *FleetClient) resolvePlatformOrLabelToLabelID(ctx context.Context, labe
 //     params (any value returns the unfiltered host list). To filter by
 //     label or platform we must call /api/v1/fleet/labels/:label_id/hosts
 //     instead — that endpoint actually scopes results.
-//   - /api/v1/fleet/labels/:id/hosts in turn IGNORES ?policy_id= and
-//     ?software_version_id= filters but DOES respect ?team_id= / ?status= /
-//     ?query=. So when label/platform AND policy_id/policy_response are
-//     combined, we fetch both sets and intersect by host ID.
+//   - /api/v1/fleet/labels/:id/hosts IGNORES ?policy_id=,
+//     ?software_version_id=, AND ?team_id= (the upstream `applyHostLabelFilters`
+//     in datastore/mysql/labels.go reads filter.TeamID from the RBAC filter,
+//     never opt.TeamFilter from the query param — so passing ?team_id=N on
+//     the labels endpoint is silently dropped). It DOES respect ?status= and
+//     ?query=. So when team scoping is combined with a label/platform filter
+//     we must intersect client-side by host.TeamID; the same is true for
+//     policy_id/policy_response — fetch both sides and intersect.
 //   - /api/v1/fleet/hosts respects ?team_id, ?status, ?query, ?policy_id,
 //     ?policy_response, ?software_version_id — used for the no-label path
 //     and as the policy side of the intersection.
@@ -990,25 +1076,10 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 
 	// Path 1: no label/platform — single /hosts call with all filters server-side.
 	if !viaLabel {
-		params := url.Values{}
+		params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
 		params.Set("populate_labels", "true")
 		if perPage > 0 {
 			params.Set("per_page", fmt.Sprintf("%d", perPage))
-		}
-		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
-		}
-		if status != "" {
-			params.Set("status", status)
-		}
-		if q := strings.TrimSpace(query); q != "" {
-			params.Set("query", q)
-		}
-		if policyID != "" {
-			params.Set("policy_id", policyID)
-		}
-		if policyResponse != "" {
-			params.Set("policy_response", policyResponse)
 		}
 		hosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
 		if err != nil {
@@ -1025,6 +1096,9 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	// downstream client-side intersection (if any) has the full label set.
 	labelParams := url.Values{}
 	labelParams.Set("populate_labels", "true")
+	// NOTE: we still send team_id even though the upstream label endpoint
+	// silently ignores it — keeps the request shape correct for the day
+	// Fleet fixes the bug. Real scoping happens client-side below.
 	if teamIDStr != "" {
 		labelParams.Set("team_id", teamIDStr)
 	}
@@ -1040,6 +1114,18 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	labelHosts, _, err := fc.fetchHostsFromPath(ctx, fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?%s", labelID, labelParams.Encode()))
 	if err != nil {
 		return nil, err
+	}
+
+	// Fleet upstream /labels/:id/hosts silently ignores ?team_id= — intersect
+	// client-side by host.TeamID so callers actually see team-scoped results
+	// (the root cause of the "fleet=Workstations + platform=windows returns
+	// hosts from every team" regression). If teamIDStr fails to parse we
+	// fall through unfiltered — that's strictly safer than returning empty.
+	if teamIDStr != "" {
+		if tid64, perr := strconv.ParseUint(teamIDStr, 10, 32); perr == nil {
+			tid := uint(tid64)
+			labelHosts = filterEndpointsByTeamID(labelHosts, tid)
+		}
 	}
 
 	// No policy filter → cap, enrich, return.
@@ -1709,6 +1795,48 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 	default:
 		return explicitSet, nil
 	}
+}
+
+// buildHostListParams produces the shared filter query-param set used by
+// both /api/v1/fleet/hosts (listing) and /api/v1/fleet/hosts/count (count)
+// when no label/platform routing is in play. Keeping the two endpoints in
+// lockstep is important: any drift means `Total` and `Endpoints` in
+// get_endpoints stop describing the same scope. teamIDStr is the
+// already-resolved numeric team id (callers run resolveTeamNames first);
+// empty values for any arg are skipped so the resulting URL stays minimal.
+func buildHostListParams(teamIDStr, status, query, policyID, policyResponse string) url.Values {
+	params := url.Values{}
+	if teamIDStr != "" {
+		params.Set("team_id", teamIDStr)
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		params.Set("query", q)
+	}
+	if policyID != "" {
+		params.Set("policy_id", policyID)
+	}
+	if policyResponse != "" {
+		params.Set("policy_response", policyResponse)
+	}
+	return params
+}
+
+// filterEndpointsByTeamID keeps only hosts whose TeamID matches the given
+// team. Used to compensate for Fleet's /labels/:id/hosts ignoring ?team_id=
+// — see the operational learning in GetEndpointsWithFilters. Hosts with a
+// nil TeamID are treated as "no team / global" and never match a numeric
+// team filter.
+func filterEndpointsByTeamID(hosts []Endpoint, teamID uint) []Endpoint {
+	out := make([]Endpoint, 0, len(hosts))
+	for _, h := range hosts {
+		if h.TeamID != nil && *h.TeamID == teamID {
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 // intersectHostsByID returns hosts present in both lists, preserving the

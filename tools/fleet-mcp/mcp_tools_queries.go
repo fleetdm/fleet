@@ -61,7 +61,7 @@ func registerCreateSavedQuery(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithString("sql", mcp.Required(), mcp.Description("The OSQuery SQL statement")),
 		mcp.WithString("description", mcp.Description("Description of what the query does")),
 		mcp.WithString("platform", mcp.Description("Target platform (e.g., 'darwin,windows,linux'). Leave empty for all.")),
-		mcp.WithString("fleet", mcp.Description("Fleet (team) name to scope the query to, e.g. '💻 Workstations'. When set, the query is created under that team — visible only in that team's query list and inheriting its RBAC. Leave empty for Global scope.")),
+		mcp.WithString("fleet", mcp.Description("Fleet (team) name to scope the query to, e.g. 'Workstations'. When set, the query is created under that team — visible only in that team's query list and inheriting its RBAC. Leave empty for Global scope.")),
 		// Writes new state to Fleet (a saved query that can later be scheduled / run
 		// across every device). Treat as destructive so MCP clients (Claude Desktop)
 		// surface explicit user approval rather than auto-approving as "safe."
@@ -147,15 +147,15 @@ func registerGetVettedQueries(s *server.MCPServer) {
 
 func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("prepare_live_query",
-		mcp.WithDescription("Step 1 of 2 for running a live query. RESOLVES THE EXACT TARGET HOST SET using the same intersection semantics as get_endpoints — every dimension you set is AND-ed: fleet AND platform/label AND status AND query AND policy AND cve. Returns (a) the resolved target list (id, hostname, display_name, platform, team) so you can verify scope before firing, and (b) the OSQuery schema for the targeted platform. Explicit hostnames / host_ids combine with filter dimensions as an intersection — 'these named hosts that ALSO match the filters'.\n\nUse this — NOT a wide live-query — to pinpoint exactly what's in scope. Example: fleet='💻 Workstations' + platform='linux' resolves to ONLY the Linux Workstations hosts (e.g. 2 hosts), not all 100 Workstations hosts. Example: cve_id='CVE-2026-31431' + fleet='💻 Workstations' resolves to the host(s) actually impacted by that CVE in the team."),
-		mcp.WithString("fleet", mcp.Description("Fleet (team) name, e.g. '💻 Workstations'")),
+		mcp.WithDescription("Step 1 of 2 for running a live query. RESOLVES THE EXACT TARGET HOST SET using the same intersection semantics as get_endpoints — every dimension you set is AND-ed: fleet AND platform/label AND status AND query AND policy AND cve. Returns (a) the resolved target list (id, hostname, display_name, platform, team) so you can verify scope before firing, and (b) the OSQuery schema for the targeted platform. Explicit hostnames / host_ids combine with filter dimensions as an intersection — 'these named hosts that ALSO match the filters'.\n\nUse this — NOT a wide live-query — to pinpoint exactly what's in scope. Example: fleet='Workstations' + platform='linux' resolves to ONLY the Linux Workstations hosts (e.g. 2 hosts), not all 100 Workstations hosts. Example: cve_id='CVE-2025-12345' + fleet='Workstations' resolves to the host(s) actually impacted by that CVE in the team."),
+		mcp.WithString("fleet", mcp.Description("Fleet (team) name, e.g. 'Workstations'")),
 		mcp.WithString("platform", mcp.Description("Platform: 'macos' / 'windows' / 'linux' / 'chromeos'. Resolved server-side via the matching built-in label.")),
 		mcp.WithString("label", mcp.Description("Custom Fleet label name. Takes precedence over platform when both set.")),
 		mcp.WithString("status", mcp.Description("Host status filter: 'online' / 'offline' / 'new' / 'mia'.")),
 		mcp.WithString("query", mcp.Description("Substring matched against hostname / serial / IP / model / user inventory.")),
 		mcp.WithString("policy_id", mcp.Description("Numeric policy ID. Combine with policy_response to scope to hosts that pass/fail it.")),
 		mcp.WithString("policy_response", mcp.Description("'passing' or 'failing'. Requires policy_id.")),
-		mcp.WithString("cve_id", mcp.Description("CVE ID, e.g. 'CVE-2026-31431'. Resolves to hosts running affected software versions.")),
+		mcp.WithString("cve_id", mcp.Description("CVE ID, e.g. 'CVE-2025-12345'. Resolves to hosts running affected software versions.")),
 		mcp.WithString("host_ids", mcp.Description("Optional comma-separated numeric host IDs to target explicitly (unambiguous; use this to disambiguate hostname collisions).")),
 		mcp.WithString("hostnames", mcp.Description("Optional comma-separated hostnames. Falls back to display name / computer name match. Multiple matches return an error — use host_ids to disambiguate.")),
 		mcp.WithString("labels", mcp.Description("LEGACY — comma-separated label names (only first item used; prefer 'label').")),

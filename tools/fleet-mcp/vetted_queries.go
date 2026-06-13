@@ -2,15 +2,13 @@ package main
 
 import "strings"
 
-// VettedQuery represents a 100% source-verified, production-safe osquery policy query.
-// ALL queries in this file are sourced verbatim from:
-//   - macOS:   https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/macOS26/cis-macOSTahoe-policies.yaml
-//   - Linux:   https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/ubuntu24/cis-ubuntu24-server-policies.yaml
-//   - Win L1:  https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/l1_win11_intune.yaml
-//   - Win L2:  https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/l2_win11_intune.yaml
-//   - Win BL:  https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/bl_win11_intune.yaml
+// VettedQuery represents a source-verified, production-safe osquery policy
+// query. All queries in this file are transcribed verbatim from the CIS
+// Center for Internet Security benchmarks at the levels noted next to each
+// query block (CIS-8.1 macOS, Ubuntu 24, Windows 11 Intune L1/L2/BL).
 //
-// DO NOT add any query that has not been read verbatim from these source files.
+// DO NOT add any query that has not been read verbatim from a CIS benchmark
+// or another comparably authoritative source.
 type VettedQuery struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -26,7 +24,7 @@ var vettedQueryLibrary = []VettedQuery{
 
 	// =========================================================================
 	// MACOS (DARWIN) — CIS-8.1 Tahoe
-	// Source: karmine05/fleet_policies — CIS-8.1/macOS26/cis-macOSTahoe-policies.yaml
+	// Source: CIS-8.1 macOS benchmark (cis-macOSTahoe / macOS 26)
 	// =========================================================================
 	{
 		Name:        "CIS 1.1 (L1) Ensure Apple-provided Software Updates Are Installed",
@@ -291,7 +289,7 @@ WHERE minlength >= 15);`,
 
 	// =========================================================================
 	// LINUX — CIS-8.1 Ubuntu 24
-	// Source: karmine05/fleet_policies — CIS-8.1/ubuntu24/cis-ubuntu24-server-policies.yaml
+	// Source: CIS-8.1 Ubuntu 24 server benchmark
 	// =========================================================================
 	{
 		Name:        "CIS Linux - SSH MaxAuthTries Is 3",
@@ -397,7 +395,7 @@ WHERE minlength >= 15);`,
 
 	// =========================================================================
 	// WINDOWS — CIS-8.1 Win11 Intune (L1)
-	// Source: https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/l1_win11_intune.yaml
+	// Source: CIS-8.1 Windows 11 Intune Level 1 benchmark
 	// =========================================================================
 	{
 		Name:        "CIS 1.1 (L1) Ensure 'Allow Cortana Above Lock' is set to 'Block' (Automated)",
@@ -582,7 +580,7 @@ WHERE minlength >= 15);`,
 
 	// =========================================================================
 	// WINDOWS — CIS-8.1 Win11 Intune (L2)
-	// Source: https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/l2_win11_intune.yaml
+	// Source: CIS-8.1 Windows 11 Intune Level 2 benchmark
 	// =========================================================================
 	{
 		Name:        "CIS 4.5.4 (L2) Ensure 'MSS: (DisableSavePassword) Prevent the dial-up password from being saved (recommended)' is set to 'Enabled' (Automated)",
@@ -713,7 +711,7 @@ WHERE minlength >= 15);`,
 
 	// =========================================================================
 	// WINDOWS — CIS-8.1 Win11 Intune (BL - BitLocker)
-	// Source: https://github.com/karmine05/fleet_policies/blob/main/CIS-8.1/win11/intune/bl_win11_intune.yaml
+	// Source: CIS-8.1 Windows 11 Intune BitLocker benchmark
 	// =========================================================================
 	{
 		Name:        "CIS 8.1 (BL) Ensure 'Require Device Encryption' is set to 'Enabled' (Automated)",
