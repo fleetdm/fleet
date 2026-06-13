@@ -1,0 +1,51 @@
+---
+# Policies for the Workstations fleet (managed corporate macOS)
+#
+# Usage:
+#   fleetctl apply -f tools/seed/fleet-workstations-policies.yml --policies-fleet "Workstations"
+#
+# These are unique to this fleet — not duplicates of global policies.
+apiVersion: v1
+kind: policy
+spec:
+  name: Workstations - Remote login (SSH) disabled
+  query: SELECT 1 FROM sharing_preferences WHERE remote_login_disabled = 1;
+  description: "Checks that remote login (SSH) is disabled on managed macOS workstations."
+  resolution: "Go to System Settings > General > Sharing and turn off Remote Login."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Workstations - AirDrop disabled
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND value='0' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to disable AirDrop."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables AirDrop."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Workstations - Bluetooth sharing disabled
+  query: SELECT 1 FROM sharing_preferences WHERE bluetooth_sharing = 0;
+  description: "Checks that Bluetooth sharing is disabled on managed macOS workstations."
+  resolution: "Go to System Settings > General > Sharing and turn off Bluetooth Sharing."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Workstations - Login window shows username and password fields
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='SHOWFULLNAME' AND value='1' LIMIT 1;
+  description: "Checks that the login window is configured to show username and password fields instead of a list of users."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that configures the login window."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Workstations - Time Machine encrypted
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM time_machine_destinations WHERE encryption_status != 'Encrypted' AND encryption_status != '');
+  description: "Checks that all Time Machine backup destinations are encrypted. Passes if no Time Machine destinations are configured."
+  resolution: "Enable encryption for your Time Machine backup destination."
+  platform: darwin

@@ -1,0 +1,957 @@
+---
+# Standard reports for local development
+#
+# Usage:
+#   fleetctl apply -f tools/seed/standard-reports.yml
+#
+# These reports are extracted from docs/queries.yml for use in dev environments.
+# They are not used in production. To update, re-extract from docs/queries.yml.
+apiVersion: v1
+kind: report
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get OpenSSL versions
+  platform: linux
+  description: Retrieves the OpenSSL version.
+  query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
+  purpose: Informational
+  tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get authorized SSH keys
+  platform: darwin, linux
+  description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
+  query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
+  purpose: Informational
+  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+  tags: built-in, ssh
+  contributors: mike-j-thomas
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get authorized keys for Domain Joined Accounts
+  platform: darwin, linux
+  description: List authorized_keys for each user on the system.
+  query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
+  purpose: Informational
+  tags: active directory, ssh
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get crashes
+  platform: darwin
+  description: Retrieve application, system, and mobile app crash logs.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  purpose: Informational
+  tags: troubleshooting
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed Chrome Extensions
+  platform: darwin, linux, windows
+  description: List installed Chrome Extensions for all users.
+  query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed Linux software
+  platform: linux
+  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed macOS software
+  platform: darwin
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed Safari extensions
+  platform: darwin
+  description: Retrieves the list of installed Safari Extensions for all users in the target system.
+  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed Windows software
+  platform: windows
+  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get laptops with failing batteries
+  platform: darwin
+  description: Lists all laptops with under-performing or failing batteries.
+  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  purpose: Informational
+  tags: troubleshooting, hardware, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get current users with active shell/console on the system
+  platform: darwin, linux, windows
+  description: Get current users with active shell/console on the system and associated process
+  query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get unencrypted SSH keys for local accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
+  purpose: Informational
+  tags: inventory, compliance, ssh, built-in
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get unencrypted SSH keys for domain-joined accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  purpose: Informational
+  tags: inventory, compliance, ssh, active directory
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
+  platform: linux
+  description: Detect any processes that run with LD_PRELOAD environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
+  platform: darwin
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get etc hosts entries
+  platform: darwin, linux
+  description: Line-parsed /etc/hosts
+  query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get network interfaces
+  platform: darwin, linux, windows
+  description: Network interfaces MAC address
+  query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get local user accounts
+  platform: darwin, linux, windows
+  description: Local user accounts (including domain accounts that have logged on locally (Windows)).
+  query: SELECT uid, gid, username, description, directory, shell FROM users;
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get active user accounts on servers
+  platform: linux
+  description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
+  query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
+  purpose: informational
+  tags: hunting, inventory, Active Directory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get Nmap scanner
+  platform: darwin, linux, windows
+  description: Get Nmap scanner process, as well as its user, parent, and process details.
+  query: SELECT p.pid, p.name, p.path, p.cmdline, p.cwd, p.start_time, p.parent, u.username AS user, pp.path AS parent_path, pp.cmdline AS parent_cmdline FROM processes p LEFT JOIN users u ON p.uid = u.uid LEFT JOIN processes pp ON p.parent = pp.pid WHERE p.name = 'nmap'
+  purpose: Informational
+  tags: hunting, ATTACK, t1046
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get Docker contained processes on a system
+  platform: darwin, linux
+  description: Docker containers Processes, can be used on normal systems or a kubenode.
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c JOIN docker_container_processes p ON c.id = p.id;
+  purpose: Informational
+  tags: built-in, containers, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get Windows print spooler remote code execution vulnerability
+  platform: windows
+  description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
+  query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
+  purpose: Informational
+  tags: vulnerability
+  contributors: maravedi
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get local users and their privileges
+  platform: darwin, linux, windows
+  description: Collects the local user accounts and their respective user group.
+  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: informational
+  tags: inventory
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get processes that no longer exist on disk
+  platform: linux, darwin, windows
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  purpose: Incident response
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get user files matching a specific hash
+  platform: darwin, linux
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get local administrator accounts on macOS
+  platform: darwin
+  description: The query allows you to check macOS systems for local administrator accounts.
+  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get all listening ports, by process
+  platform: linux, darwin, windows
+  description: List ports that are listening on all interfaces, along with the process to which they are attached.
+  query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
+  purpose: Informational
+  tags: hunting, network
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get whether TeamViewer is installed/running
+  platform: windows
+  description: Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
+  query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get malicious Python backdoors
+  platform: darwin, linux, windows
+  description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  purpose: Informational
+  tags: hunting, inventory, malware
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Check for artifacts of the Floxif trojan
+  platform: windows
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  purpose: Informational
+  tags: hunting, malware
+  contributors: micheal-o
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get Shimcache table
+  platform: windows
+  description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
+  query: select * from shimcache
+  purpose: Informational
+  tags: hunting
+  contributors: puffyCid
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get running docker containers
+  platform: darwin, linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  tags: containers, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get applications hogging memory
+  platform: darwin, linux, windows
+  description: Returns top 10 applications or processes hogging memory the most.
+  query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  purpose: Informational
+  tags: troubleshooting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get servers with root login in the last 24 hours
+  platform: darwin, linux, windows
+  description: Returns servers with root login in the last 24 hours and the time the users were logged in.
+  query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
+  purpose: Informational
+  tags: hunting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get applications that were opened within the last 24 hours
+  platform: darwin
+  description: Returns applications that were opened within the last 24 hours starting with the last opened application.
+  query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get applications that are not in the Applications directory
+  platform: darwin
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get subscription-based applications that have not been opened for the last 30 days
+  platform: darwin
+  description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
+  query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get operating system information
+  platform: darwin, windows, linux
+  description: Returns the operating system name and version on the device.
+  query: SELECT name, version FROM os_version;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get built-in antivirus status on macOS
+  platform: darwin
+  query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get antivirus status from the Windows Security Center
+  platform: windows
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';
+  description: Selects the antivirus and signatures status from Windows Security Center.
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
+  platform: linux
+  query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
+  description: Selects the clamd and freshclam processes to ensure AV and its updater are running
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Discover TLS certificates
+  platform: linux, windows, darwin
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
+  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  purpose: Informational
+  tags: network, tls
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Discover Python Packages from Running Python Interpreters
+  platform: linux, darwin
+  description: Attempt to discover Python environments (in cwd, path to the python binary, and process command line) from running python interpreters and collect Python packages from those environments.
+  query: SELECT * FROM python_packages WHERE directory IN (SELECT DISTINCT directory FROM (SELECT SUBSTR(path,0,INSTR(path,'/bin/'))||'/lib' AS directory FROM processes WHERE path LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT SUBSTR(cmdline,0,INSTR(cmdline,'/bin/'))||'/lib' AS directory FROM processes WHERE cmdline LIKE '%python%' AND cmdline LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT cwd||'/lib' AS directory FROM processes WHERE path LIKE '%python%'));
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Identify the default mail, http and ftp applications
+  platform: darwin
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: brunerd
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Identify Apple development secrets (macOS)
+  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
+  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
+  tags: compliance, inventory, built-in
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get Crowdstrike Falcon network content filter status
+  platform: darwin
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  purpose: Informational
+  tags: crowdstrike, plist, network, content filter
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get a list of Visual Studio Code extensions
+  platform: darwin, linux, windows
+  description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
+  query: SELECT u.username, vs.* FROM users u JOIN vscode_extensions vs ON u.uid = vs.uid;
+  purpose: Informational
+  tags: inventory
+  contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: List osquery table names
+  platform: darwin, linux, windows
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Mount Discovery
+  platform: linux, darwin, windows
+  description: Check mount on the host - ATT&CK T1025,T1052
+  query: SELECT device, device_alias, flags, path,type from mounts;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Setuid Binary Discovery
+  platform: linux, darwin
+  description: List files that are setuid-enabled
+  query: select * from suid_bin;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Sudoers Configuration
+  platform: linux, darwin
+  description: Sudoers configuration information - ATT&CK T1548.003
+  query: select * from sudoers;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Reverse Shell Detection
+  platform: linux, darwin
+  description: Detect active reverse shell connections via bash TCP redirects - ATT&CK T1059
+  query: SELECT * FROM processes WHERE cmdline LIKE '/bin/bash -i >& /dev/tcp/%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - USB Device Discovery
+  platform: linux, darwin, windows
+  description: Check USB device on the host - ATT&CK T1052
+  query: SELECT * FROM usb_devices;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Firefox Addons
+  platform: linux, darwin, windows
+  description: Lists all Firefox addons - ATT&CK T1176
+  query: SELECT u.username, ce.* FROM users u CROSS JOIN firefox_addons ce USING (uid);
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Cron Job Discovery
+  platform: linux, darwin
+  description: List Local job scheduling with Cron - ATT&CK T1053
+  query: select command, path from crontab;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - User Account Discovery
+  platform: linux, darwin, windows
+  description: Lists all create and deleted account - ATT&CK T1136,T1078,T1184,T1021
+  query: select * from users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Explorer Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Software_Microsoft_Windows_CurrentVersion_Policies_Explorer_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Logon Scripts Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKEY_CURRENT_USER_Environment - ATT&CK T1037
+  query: select * from registry where key='HKEY_CURRENT_USER\Environment';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - HKCU Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Software_Microsoft_Windows_CurrentVersion_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - HKLM Explorer Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_Software_Microsoft_Windows_CurrentVersion_Policies_Explorer_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - LSA Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Control_Lsa - ATT&CK T1131
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\system\CurrentControlSet\Control\Lsa';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Netsh Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SOFTWARE_Microsoft_Netsh - ATT&CK T1128,S0108
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Netsh';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Services Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Service - ATT&CK T1058
+  query: select name, type from registry where key='HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - HKU Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKU_Software_Microsoft_Windows_CurrentVersion_Run
+  query: select name,type,data from registry where key='HKEY_USERS\Software\Microsoft\Windows\CurrentVersion\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Prefetch File Monitoring
+  platform: windows
+  description: Monitor Windows Prefetch directory for execution artifacts - ATT&CK T1107
+  query: select * from file WHERE directory = 'C:\Windows\Prefetch\';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Internet Explorer Extensions Snapshot
+  platform: windows
+  description: Snapshot Lists all internet explorer extensions - ATT&CK T1176
+  query: SELECT * FROM ie_extensions;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Internet Explorer Extensions
+  platform: windows
+  description: Lists all internet explorer extensions - ATT&CK T1176
+  query: select * from ie_extensions;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Sophos Service Status 1
+  platform: windows
+  description: Sophos Endpoint Protection service status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SAVAdminService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Services Snapshot
+  platform: linux, darwin, windows
+  description: Snapshot Services query
+  query: SELECT * FROM services;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Sophos Service Status 2
+  platform: windows
+  description: Sophos Endpoint Protection service status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SavService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Symantec Service Status
+  platform: windows
+  description: Symantec Endpoint Protection service status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SepMasterService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Windows Defender Service Status
+  platform: windows
+  description: Windows Defender service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'WinDefend' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Windows Firewall Service Status
+  platform: windows
+  description: Windows Firewall service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'MpsSvc' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Windows Security Service Status
+  platform: windows
+  description: Windows Security Service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'wscsvc' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Windows Update Service Status
+  platform: windows
+  description: Windows Update Service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'wuauserv' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Certificate Discovery
+  platform: linux, darwin, windows
+  description: Discover local system certificates for code signing and trust chain analysis - ATT&CK T1116,T1130
+  query: select * from certificates;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Logged In Users
+  platform: linux, darwin
+  description: Users with an active shell on the system. - ATT&CK T1075,T1097
+  query: select * from logged_in_users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Installed Programs
+  platform: windows
+  description: Lists installed programs on Windows systems - ATT&CK T1518
+  query: SELECT * FROM programs;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - System Info Snapshot
+  platform: linux, darwin, windows
+  description: System information for identification.
+  query: SELECT * FROM system_info;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - System Uptime
+  platform: linux, darwin, windows
+  description: System uptime
+  query: SELECT * FROM uptime;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Windows Crash Analysis
+  platform: windows
+  description: Extracted information from Windows crash logs (Minidumps).
+  query: SELECT * FROM windows_crashes;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Startup Items
+  platform: linux, darwin, windows
+  description: Startup items configured to launch on the system - ATT&CK T1060
+  query: select * from startup_items;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - PowerShell Script Block Events
+  platform: windows
+  description: Powershell script blocks reconstructed to their full script content, this table requires script block logging to be enabled. - ATT&CK T1086,T1064
+  query: select * from powershell_events;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Fileless Process Detection
+  platform: linux, darwin, windows
+  description: Detect Processes running without a binary on disk
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: report
+spec:
+  name: MITRE - Auto-Start Services
+  platform: windows
+  description: Lists all installed services configured to start automatically at boot - ATT&CK T1050
+  query: SELECT * FROM services WHERE start_type='DEMAND_START' OR start_type='AUTO_START';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: teoseller,tux234
