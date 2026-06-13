@@ -1,0 +1,10 @@
+{
+  "name": "Qobuz",
+  "unique_identifier": "com.qobuz.QobuzDesktop",
+  "token": "qobuz",
+  "installer_format": "dmg",
+  "slug": "qobuz/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

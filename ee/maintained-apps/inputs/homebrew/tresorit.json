@@ -1,0 +1,10 @@
+{
+  "name": "Tresorit",
+  "unique_identifier": "com.tresorit.mac",
+  "token": "tresorit",
+  "installer_format": "dmg",
+  "slug": "tresorit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

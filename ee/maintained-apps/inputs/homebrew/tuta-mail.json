@@ -1,0 +1,10 @@
+{
+  "name": "Tuta Mail",
+  "unique_identifier": "de.tutao.tutanota",
+  "token": "tuta-mail",
+  "installer_format": "dmg",
+  "slug": "tuta-mail/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

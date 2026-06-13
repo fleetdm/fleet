@@ -1,0 +1,10 @@
+{
+  "name": "xattred",
+  "unique_identifier": "co.eclecticlight.xattred",
+  "token": "xattred",
+  "installer_format": "zip",
+  "slug": "xattred/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

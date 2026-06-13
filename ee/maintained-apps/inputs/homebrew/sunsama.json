@@ -1,0 +1,10 @@
+{
+  "name": "Sunsama",
+  "unique_identifier": "com.sunsama.native-app",
+  "token": "sunsama",
+  "installer_format": "zip",
+  "slug": "sunsama/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

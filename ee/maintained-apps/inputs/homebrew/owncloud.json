@@ -1,0 +1,10 @@
+{
+  "name": "ownCloud",
+  "unique_identifier": "com.owncloud.desktopclient",
+  "token": "owncloud",
+  "installer_format": "pkg",
+  "slug": "owncloud/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

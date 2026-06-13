@@ -1,8 +1,10 @@
 {
   "name": "LibreOffice",
   "unique_identifier": "org.libreoffice.script",
-  "token": "libreoffice-still",
+  "token": "libreoffice",
   "installer_format": "dmg",
   "slug": "libreoffice/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ]
 }

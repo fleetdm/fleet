@@ -1,0 +1,10 @@
+{
+  "name": "SubEthaEdit",
+  "unique_identifier": "de.codingmonkeys.SubEthaEdit.MacFULL",
+  "token": "subethaedit",
+  "installer_format": "zip",
+  "slug": "subethaedit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

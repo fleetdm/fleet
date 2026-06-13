@@ -1,0 +1,10 @@
+{
+  "name": "Salesforce CLI",
+  "unique_identifier": "com.salesforce.cli",
+  "token": "salesforce-cli",
+  "installer_format": "pkg",
+  "slug": "salesforce-cli/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

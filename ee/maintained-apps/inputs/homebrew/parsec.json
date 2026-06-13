@@ -1,0 +1,10 @@
+{
+  "name": "Parsec",
+  "unique_identifier": "tv.parsec.www",
+  "token": "parsec",
+  "installer_format": "pkg",
+  "slug": "parsec/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
