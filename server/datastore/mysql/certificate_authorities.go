@@ -2,8 +2,10 @@ package mysql
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,6 +24,10 @@ type certificateAuthorityWithEncryptedSecrets struct {
 	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
 	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
+	// EJBCA — only the encrypted private key needs a wrapper field. The PEM
+	// client cert and trust CA bundle are public material and map directly
+	// to fleet.CertificateAuthority via its own db tags.
+	ClientKeyEncrypted []byte `db:"client_key_encrypted"`
 }
 
 func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
@@ -43,6 +49,13 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		challenge_encrypted,
 		client_id,
 		client_secret_encrypted,
+		client_cert_pem,
+		client_key_encrypted,
+		trust_ca_bundle_pem,
+		ejbca_ca_name,
+		ejbca_certificate_profile,
+		ejbca_end_entity_profile,
+		ejbca_username_template,
 		created_at,
 		updated_at
 		FROM
@@ -97,6 +110,13 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			}
 			ca.ClientSecret = ptr.String(string(decryptedClientSecret))
 		}
+		if ca.ClientKeyEncrypted != nil {
+			decryptedClientKey, err := decrypt(ca.ClientKeyEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting EJBCA client key for certificate authority %d", ca.ID))
+			}
+			ca.ClientKeyPEM = new(string(decryptedClientKey))
+		}
 	} else {
 		if ca.APITokenEncrypted != nil {
 			ca.APIToken = ptr.String(fleet.MaskedPassword)
@@ -110,10 +130,25 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		if ca.ClientSecretEncrypted != nil {
 			ca.ClientSecret = ptr.String(fleet.MaskedPassword)
 		}
+		if ca.ClientKeyEncrypted != nil {
+			ca.ClientKeyPEM = new(fleet.MaskedPassword)
+		}
 	}
 	if ca.CertificateUserPrincipalNamesRaw != nil {
 		if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
 			return ctxerr.Wrap(ctx, err, "unmarshalling certificate user principal names")
+		}
+	}
+	// Parse the EJBCA client cert's NotAfter for the UI's expiry badge
+	// (REQ-CA-EJBCA-12). Non-EJBCA rows have nil ClientCertPEM and skip this
+	// silently; malformed PEM on an EJBCA row is non-fatal — we just omit the
+	// timestamp.
+	if ca.ClientCertPEM != nil && *ca.ClientCertPEM != "" {
+		if block, _ := pem.Decode([]byte(*ca.ClientCertPEM)); block != nil {
+			if cert, err := x509.ParseCertificate(block.Bytes); err == nil {
+				notAfter := cert.NotAfter
+				ca.ClientCertExpiresAt = &notAfter
+			}
 		}
 	}
 	return nil
@@ -138,6 +173,13 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		challenge_encrypted,
 		client_id,
 		client_secret_encrypted,
+		client_cert_pem,
+		client_key_encrypted,
+		trust_ca_bundle_pem,
+		ejbca_ca_name,
+		ejbca_certificate_profile,
+		ejbca_end_entity_profile,
+		ejbca_username_template,
 		created_at,
 		updated_at
 		FROM
@@ -210,7 +252,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 15
+const argsCountInsertCertificateAuthority = 22
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -227,7 +269,14 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	password_encrypted,
 	challenge_encrypted,
 	client_id,
-	client_secret_encrypted
+	client_secret_encrypted,
+	client_cert_pem,
+	client_key_encrypted,
+	trust_ca_bundle_pem,
+	ejbca_ca_name,
+	ejbca_certificate_profile,
+	ejbca_end_entity_profile,
+	ejbca_username_template
 ) VALUES %s`
 
 const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLICATE KEY UPDATE
@@ -245,7 +294,14 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	password_encrypted = VALUES(password_encrypted),
 	challenge_encrypted = VALUES(challenge_encrypted),
 	client_id = VALUES(client_id),
-	client_secret_encrypted = VALUES(client_secret_encrypted)`
+	client_secret_encrypted = VALUES(client_secret_encrypted),
+	client_cert_pem = VALUES(client_cert_pem),
+	client_key_encrypted = VALUES(client_key_encrypted),
+	trust_ca_bundle_pem = VALUES(trust_ca_bundle_pem),
+	ejbca_ca_name = VALUES(ejbca_ca_name),
+	ejbca_certificate_profile = VALUES(ejbca_certificate_profile),
+	ejbca_end_entity_profile = VALUES(ejbca_end_entity_profile),
+	ejbca_username_template = VALUES(ejbca_username_template)`
 
 func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPrivateKey string, ca *fleet.CertificateAuthority) ([]interface{}, string, error) {
 	var upns []byte
@@ -253,6 +309,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	var encryptedChallenge []byte
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
+	var encryptedClientKey []byte
 	var err error
 
 	if ca.CertificateUserPrincipalNames != nil {
@@ -285,6 +342,12 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
 	}
+	if ca.ClientKeyPEM != nil {
+		encryptedClientKey, err = encrypt([]byte(*ca.ClientKeyPEM), serverPrivateKey)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting EJBCA client key for new certificate authority")
+		}
+	}
 
 	args := []interface{}{
 		ca.Type,
@@ -302,8 +365,15 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		encryptedChallenge,
 		ca.ClientID,
 		encryptedClientSecret,
+		ca.ClientCertPEM,
+		encryptedClientKey,
+		ca.TrustCABundlePEM,
+		ca.EJBCACAName,
+		ca.EJBCACertificateProfileName,
+		ca.EJBCAEndEntityProfileName,
+		ca.EJBCAUsernameTemplate,
 	}
-	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	return args, placeholders, nil
 }
@@ -605,6 +675,55 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 			}
 			*args = append(*args, encryptedPassword)
+		}
+	case string(fleet.CATypeEJBCA):
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.ClientCertPEM != nil {
+			updates = append(updates, "client_cert_pem = ?")
+			*args = append(*args, *ca.ClientCertPEM)
+		}
+		if ca.ClientKeyPEM != nil {
+			updates = append(updates, "client_key_encrypted = ?")
+			encryptedClientKey, err := encrypt([]byte(*ca.ClientKeyPEM), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting EJBCA client key for updating certificate authority")
+			}
+			*args = append(*args, encryptedClientKey)
+		}
+		if ca.TrustCABundlePEM != nil {
+			updates = append(updates, "trust_ca_bundle_pem = ?")
+			*args = append(*args, *ca.TrustCABundlePEM)
+		}
+		if ca.EJBCACAName != nil {
+			updates = append(updates, "ejbca_ca_name = ?")
+			*args = append(*args, *ca.EJBCACAName)
+		}
+		if ca.EJBCACertificateProfileName != nil {
+			updates = append(updates, "ejbca_certificate_profile = ?")
+			*args = append(*args, *ca.EJBCACertificateProfileName)
+		}
+		if ca.EJBCAEndEntityProfileName != nil {
+			updates = append(updates, "ejbca_end_entity_profile = ?")
+			*args = append(*args, *ca.EJBCAEndEntityProfileName)
+		}
+		if ca.EJBCAUsernameTemplate != nil {
+			updates = append(updates, "ejbca_username_template = ?")
+			*args = append(*args, *ca.EJBCAUsernameTemplate)
+		}
+		if ca.CertificateUserPrincipalNames != nil {
+			updates = append(updates, "certificate_user_principal_names = ?")
+			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating EJBCA certificate authority")
+			}
+			*args = append(*args, upns)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

@@ -35,6 +35,7 @@ type Service struct {
 	keyValueStore          fleet.KeyValueStore
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
+	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
 }
@@ -57,6 +58,7 @@ func NewService(
 	keyValueStore fleet.KeyValueStore,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
 ) (*Service, error) {
@@ -84,6 +86,7 @@ func NewService(
 		keyValueStore:          keyValueStore,
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
+		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
 	}

@@ -19,6 +19,8 @@ import {
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import EJBCAForm from "../EJBCAForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
@@ -38,7 +40,8 @@ export type ICertFormData =
   | INDESFormData
   | ICustomSCEPFormData
   | ISmallstepFormData
-  | ICustomESTFormData;
+  | ICustomESTFormData
+  | IEJBCAFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -115,6 +118,19 @@ const AddCertAuthorityModal = ({
     username: "",
     password: "",
   });
+  const [ejbcaFormData, setEJBCAFormData] = useState<IEJBCAFormData>({
+    name: "",
+    url: "",
+    clientP12Base64: "",
+    clientP12FileName: "",
+    clientP12Password: "",
+    trustCABundle: "",
+    certificateAuthorityNameEJBCA: "",
+    certificateProfileName: "",
+    endEntityProfileName: "",
+    usernameTemplate: "",
+    userPrincipalName: "",
+  });
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
@@ -122,40 +138,39 @@ const AddCertAuthorityModal = ({
 
   const onChangeForm = (update: { name: string; value: string }) => {
     let setFormData;
-    let formData: ICertFormData;
     switch (certAuthorityType) {
       case "digicert":
         setFormData = setDigicertFormData;
-        formData = digicertFormData;
         break;
       case "hydrant":
         setFormData = setHydrantFormData;
-        formData = hydrantFormData;
         break;
       case "ndes_scep_proxy":
         setFormData = setNDESFormData;
-        formData = ndesFormData;
         break;
       case "custom_scep_proxy":
         setFormData = setCustomSCEPFormData;
-        formData = customSCEPFormData;
         break;
       case "smallstep":
         setFormData = setSmallstepFormData;
-        formData = smallstepFormData;
         break;
       case "custom_est_proxy":
         setFormData = setCustomESTFormData;
-        formData = customESTFormData;
+        break;
+      case "ejbca":
+        setFormData = setEJBCAFormData;
         break;
       default:
         return;
     }
 
-    (setFormData as React.Dispatch<React.SetStateAction<ICertFormData>>)({
-      ...formData,
-      [update.name]: update.value,
-    });
+    // Use the functional updater form so multi-field clears within a single
+    // user action (e.g., the EJBCA form's "trash the uploaded .p12" handler
+    // that resets the base64, filename, and password in three sequential
+    // calls) don't clobber each other via stale closure.
+    (setFormData as React.Dispatch<
+      React.SetStateAction<ICertFormData>
+    >)((prev) => ({ ...prev, [update.name]: update.value }));
   };
 
   const onAddCertAuthority = async () => {
@@ -178,6 +193,9 @@ const AddCertAuthorityModal = ({
         break;
       case "custom_est_proxy":
         formData = customESTFormData;
+        break;
+      case "ejbca":
+        formData = ejbcaFormData;
         break;
       default:
         return;
@@ -268,6 +286,18 @@ const AddCertAuthorityModal = ({
         return (
           <CustomESTForm
             formData={customESTFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "ejbca":
+        return (
+          <EJBCAForm
+            formData={ejbcaFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}

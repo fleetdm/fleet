@@ -65,6 +65,7 @@ type Service struct {
 	wstepCertManager  microsoft_mdm.CertManager
 	scepConfigService fleet.SCEPConfigService
 	digiCertService   fleet.DigiCertService
+	ejbcaService      fleet.EJBCAService
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
@@ -151,6 +152,7 @@ func NewService(
 	wstepCertManager microsoft_mdm.CertManager,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
@@ -190,6 +192,7 @@ func NewService(
 		wstepCertManager:     wstepCertManager,
 		scepConfigService:    scepConfigService,
 		digiCertService:      digiCertService,
+		ejbcaService:         ejbcaService,
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,

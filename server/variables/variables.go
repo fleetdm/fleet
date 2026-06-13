@@ -17,9 +17,23 @@ import (
 // The regex captures the variable name (without the FLEET_VAR_ prefix) in named groups.
 var fleetVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 
-// ProfileDataVariableRegex matches variables present in <data> section of Apple profile, which may cause validation issues.
-// This is specific to DigiCert certificate data variables.
-var ProfileDataVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_DIGICERT_DATA_(?P<name1>\w+))|(\${FLEET_VAR_DIGICERT_DATA_(?P<name2>\w+)})`)
+// ProfileDataVariableRegex matches variables present in <data> section of
+// Apple profile, which may cause validation issues. These variables are
+// substituted (with empty string or a base64 placeholder) before the plist
+// parser runs, so that the parser doesn't choke on a non-base64 placeholder
+// where it expects base64-encoded bytes. Add a new alternation here whenever
+// a new CA type stores PKCS#12-style bytes via a `<data>$FLEET_VAR_..._DATA_X</data>`
+// pattern in MDM profiles.
+//
+// The capture groups are named only for documentation; nothing consumes them
+// by name. Each alternation gets its own name to satisfy Go's regexp
+// requirement that named groups within a single regex are unique.
+var ProfileDataVariableRegex = regexp.MustCompile(
+	`(\$FLEET_VAR_DIGICERT_DATA_(?P<digicert1>\w+))` +
+		`|(\${FLEET_VAR_DIGICERT_DATA_(?P<digicert2>\w+)})` +
+		`|(\$FLEET_VAR_EJBCA_DATA_(?P<ejbca1>\w+))` +
+		`|(\${FLEET_VAR_EJBCA_DATA_(?P<ejbca2>\w+)})`,
+)
 
 // Find finds all Fleet variables in the given content and returns them as a map
 // without the FLEET_VAR_ prefix. Returns nil if no variables are found.

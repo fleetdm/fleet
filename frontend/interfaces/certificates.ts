@@ -97,13 +97,43 @@ export interface ICertificatesCustomEST {
   password: string;
 }
 
+/** EJBCA REST CA. POC accepts PKCS#12 (base64) + password on create/update; the
+ * server decodes once and persists PEM cert + (encrypted) PEM key. On read the
+ * P12 fields are empty, `client_cert` returns PEM, `client_key` is masked, and
+ * `client_cert_expires_at` is populated from the stored cert for the expiry
+ * badge on the CA list. */
+export interface ICertificatesEJBCA {
+  id?: number;
+  type?: "ejbca";
+  name: string;
+  url: string;
+  /** base64-encoded PKCS#12 bytes — write-only */
+  client_p12?: string;
+  /** password for client_p12 — write-only, never returned */
+  client_p12_password?: string;
+  /** PEM cert chain — returned on read */
+  client_cert?: string;
+  /** PEM private key — returned masked unless includeSecrets */
+  client_key?: string;
+  /** PEM trust CA bundle — optional, defaults to system root store */
+  trust_ca_bundle?: string;
+  /** RFC3339 expiry parsed from the stored client cert (read-only) */
+  client_cert_expires_at?: string;
+  certificate_authority_name_ejbca: string;
+  certificate_profile_name: string;
+  end_entity_profile_name: string;
+  username_template: string;
+  certificate_user_principal_names: string[] | null;
+}
+
 export type ICertificateAuthorityType =
   | "ndes_scep_proxy"
   | "digicert"
   | "custom_scep_proxy"
   | "hydrant"
   | "smallstep"
-  | "custom_est_proxy";
+  | "custom_est_proxy"
+  | "ejbca";
 
 /** all the types of certificates */
 export type ICertificateAuthority =
@@ -112,7 +142,8 @@ export type ICertificateAuthority =
   | ICertificatesHydrant
   | ICertificatesCustomSCEP
   | ICertificatesSmallstep
-  | ICertificatesCustomEST;
+  | ICertificatesCustomEST
+  | ICertificatesEJBCA;
 
 export const isNDESCertAuthority = (
   integration: ICertificateAuthority
@@ -176,6 +207,17 @@ export const isCustomESTCertAuthority = (
     !("challenge_url" in integration) &&
     "username" in integration &&
     "password" in integration
+  );
+};
+
+export const isEJBCACertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesEJBCA => {
+  return (
+    "certificate_authority_name_ejbca" in integration &&
+    "certificate_profile_name" in integration &&
+    "end_entity_profile_name" in integration &&
+    "username_template" in integration
   );
 };
 

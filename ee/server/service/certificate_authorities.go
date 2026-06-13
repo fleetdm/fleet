@@ -1,10 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -156,6 +161,35 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
+	if p.EJBCA != nil {
+		p.EJBCA.Preprocess()
+
+		// validateEJBCA decodes the uploaded P12 and populates
+		// p.EJBCA.ClientCertPEM / ClientKeyPEM, then probes the EJBCA REST API
+		// to confirm reachability and mTLS auth.
+		if err := svc.validateEJBCA(ctx, p.EJBCA, errPrefix); err != nil {
+			return nil, err
+		}
+
+		caToCreate.Type = string(fleet.CATypeEJBCA)
+		caToCreate.Name = &p.EJBCA.Name
+		caToCreate.URL = &p.EJBCA.URL
+		caToCreate.ClientCertPEM = &p.EJBCA.ClientCertPEM
+		caToCreate.ClientKeyPEM = &p.EJBCA.ClientKeyPEM
+		if p.EJBCA.TrustCABundlePEM != "" {
+			caToCreate.TrustCABundlePEM = &p.EJBCA.TrustCABundlePEM
+		}
+		caToCreate.EJBCACAName = &p.EJBCA.CertificateAuthorityNameEJBCA
+		caToCreate.EJBCACertificateProfileName = &p.EJBCA.CertificateProfileName
+		caToCreate.EJBCAEndEntityProfileName = &p.EJBCA.EndEntityProfileName
+		caToCreate.EJBCAUsernameTemplate = &p.EJBCA.UsernameTemplate
+		if len(p.EJBCA.CertificateUserPrincipalNames) > 0 {
+			caToCreate.CertificateUserPrincipalNames = &p.EJBCA.CertificateUserPrincipalNames
+		}
+		caDisplayType = "EJBCA"
+		activity = fleet.ActivityAddedEJBCA{Name: p.EJBCA.Name}
+	}
+
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if errors.As(err, &fleet.ConflictError{}) {
@@ -192,6 +226,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.CustomESTProxy != nil {
+		casToCreate++
+	}
+	if p.EJBCA != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -433,6 +470,175 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	return nil
 }
 
+// validateEJBCA verifies the EJBCA CA payload and populates ClientCertPEM /
+// ClientKeyPEM by decoding the supplied PKCS#12 once. The P12 bytes and
+// password are not stored — only the extracted PEM cert and (encrypted) PEM
+// key are persisted. Finally, probes the EJBCA REST API to confirm
+// connectivity and mTLS authentication.
+func (svc *Service) validateEJBCA(ctx context.Context, ejbcaCA *fleet.EJBCACA, errPrefix string) error {
+	if err := validateCAName(ejbcaCA.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(ejbcaCA.URL, "EJBCA", errPrefix); err != nil {
+		return err
+	}
+	if len(ejbcaCA.ClientP12) == 0 {
+		return fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sA PKCS#12 client certificate is required for EJBCA.", errPrefix))
+	}
+	if ejbcaCA.ClientP12Password == "" || ejbcaCA.ClientP12Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("client_p12_password", fmt.Sprintf("%sA password for the PKCS#12 client certificate is required.", errPrefix))
+	}
+
+	certPEM, keyPEM, err := decodeEJBCAClientP12(ejbcaCA.ClientP12, ejbcaCA.ClientP12Password)
+	if err != nil {
+		return fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sCould not decode PKCS#12 client certificate: %s", errPrefix, err.Error()))
+	}
+	ejbcaCA.ClientCertPEM = certPEM
+	ejbcaCA.ClientKeyPEM = keyPEM
+	// Discard the upload-only material so it doesn't accidentally get
+	// persisted by a downstream caller that copies the whole struct.
+	ejbcaCA.ClientP12 = nil
+	ejbcaCA.ClientP12Password = ""
+
+	if ejbcaCA.TrustCABundlePEM != "" {
+		if !x509.NewCertPool().AppendCertsFromPEM([]byte(ejbcaCA.TrustCABundlePEM)) {
+			return fleet.NewInvalidArgumentError("trust_ca_bundle", fmt.Sprintf("%strust_ca_bundle did not contain any usable certificates.", errPrefix))
+		}
+	}
+
+	if strings.TrimSpace(ejbcaCA.CertificateAuthorityNameEJBCA) == "" {
+		return fleet.NewInvalidArgumentError("certificate_authority_name_ejbca", fmt.Sprintf("%sThe EJBCA Certificate Authority name is required.", errPrefix))
+	}
+	if strings.TrimSpace(ejbcaCA.CertificateProfileName) == "" {
+		return fleet.NewInvalidArgumentError("certificate_profile_name", fmt.Sprintf("%sThe EJBCA Certificate Profile name is required.", errPrefix))
+	}
+	if strings.TrimSpace(ejbcaCA.EndEntityProfileName) == "" {
+		return fleet.NewInvalidArgumentError("end_entity_profile_name", fmt.Sprintf("%sThe EJBCA End Entity Profile name is required.", errPrefix))
+	}
+	if strings.TrimSpace(ejbcaCA.UsernameTemplate) == "" {
+		return fleet.NewInvalidArgumentError("username_template", fmt.Sprintf("%sA username template is required for EJBCA.", errPrefix))
+	}
+	if err := validateEJBCAFleetVarUsage(ejbcaCA.UsernameTemplate, "username_template", errPrefix); err != nil {
+		return err
+	}
+	for _, upn := range ejbcaCA.CertificateUserPrincipalNames {
+		if strings.TrimSpace(upn) == "" {
+			return fleet.NewInvalidArgumentError("certificate_user_principal_names", fmt.Sprintf("%sUPN entries cannot be empty.", errPrefix))
+		}
+		if err := validateEJBCAFleetVarUsage(upn, "certificate_user_principal_names", errPrefix); err != nil {
+			return err
+		}
+	}
+
+	if err := svc.ejbcaService.VerifyConnection(ctx, *ejbcaCA); err != nil {
+		svc.logger.ErrorContext(ctx, "Failed to verify EJBCA connection", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify EJBCA connection: %s. Please correct and try again.", errPrefix, err.Error())}
+	}
+	return nil
+}
+
+// decodeEJBCAClientP12 decodes the uploaded PKCS#12 bundle once with the
+// supplied password and returns the PEM-encoded certificate (with any
+// intermediate chain) and private key. The password is used once here and
+// never persisted.
+//
+// POC NOTE — DO NOT SHIP THIS SUBPROCESS APPROACH TO PRODUCTION.
+// Both Go PKCS#12 libraries (software.sslmate.com/src/go-pkcs12 and
+// golang.org/x/crypto/pkcs12) require strict DER and reject BER-encoded
+// input. EJBCA's RA Web (Java/BouncyCastle) emits BER P12s with
+// indefinite-length sequences. To unblock the POC we shell out to the
+// `openssl` binary, which handles BER. This adds a runtime binary
+// dependency the Fleet server doesn't otherwise have and broadens the
+// trust surface (subprocess hardening, PATH lookup, openssl version
+// drift).
+//
+// Production (fleet#30986) should replace this with an in-process
+// BER→DER normalizer in pure Go before parsing with one of the existing
+// Go PKCS#12 libraries. See openspec/changes/add-ejbca-rest-ca-poc/
+// research.md "Open follow-ups" for the design notes.
+//
+// The password is written into the child process over an extra file
+// descriptor (consumed via openssl's `-passin fd:3`) rather than the
+// command line so it doesn't appear in `ps` listings on the Fleet host.
+func decodeEJBCAClientP12(p12Data []byte, password string) (certPEM, keyPEM string, err error) {
+	passR, passW, err := os.Pipe()
+	if err != nil {
+		return "", "", fmt.Errorf("creating password pipe: %v", err)
+	}
+	defer passR.Close()
+
+	// Write the password to the pipe in a goroutine, then close so openssl
+	// sees EOF after the single read.
+	go func() {
+		defer passW.Close()
+		_, _ = passW.Write([]byte(password))
+	}()
+
+	cmd := exec.Command("openssl", "pkcs12", "-passin", "fd:3", "-nodes")
+	cmd.ExtraFiles = []*os.File{passR} // child sees this as fd 3
+	cmd.Stdin = bytes.NewReader(p12Data)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if runErr := cmd.Run(); runErr != nil {
+		// openssl's stderr is user-actionable for common failures
+		// (wrong password, corrupt P12).
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = runErr.Error()
+		}
+		return "", "", fmt.Errorf("openssl failed to decode PKCS#12: %s", msg)
+	}
+
+	var certBuf, keyBuf strings.Builder
+	rest := stdout.Bytes()
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		// Drop openssl's "Bag Attributes" comment headers so the resulting
+		// PEM is directly consumable by tls.X509KeyPair.
+		block.Headers = nil
+		switch block.Type {
+		case "CERTIFICATE":
+			if err := pem.Encode(&certBuf, block); err != nil {
+				return "", "", fmt.Errorf("encoding certificate PEM block: %v", err)
+			}
+		case "PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY":
+			if err := pem.Encode(&keyBuf, block); err != nil {
+				return "", "", fmt.Errorf("encoding private key PEM block: %v", err)
+			}
+		}
+	}
+
+	if certBuf.Len() == 0 {
+		return "", "", errors.New("PKCS#12 bundle did not contain a certificate")
+	}
+	if keyBuf.Len() == 0 {
+		return "", "", errors.New("PKCS#12 bundle did not contain a private key")
+	}
+
+	return certBuf.String(), keyBuf.String(), nil
+}
+
+// validateEJBCAFleetVarUsage enforces the same Fleet-variable allow-list used
+// by DigiCert for templated fields.
+func validateEJBCAFleetVarUsage(value, fieldName, errPrefix string) error {
+	for _, v := range variables.Find(value) {
+		switch v {
+		case string(fleet.FleetVarHostEndUserEmailIDP),
+			string(fleet.FleetVarHostHardwareSerial),
+			string(fleet.FleetVarHostPlatform):
+			// ok
+		default:
+			return fleet.NewInvalidArgumentError(fieldName, fmt.Sprintf("%sFLEET_VAR_%s is not allowed in %s for EJBCA.", errPrefix, v, fieldName))
+		}
+	}
+	return nil
+}
+
 type oauthIntrospectionResponse struct {
 	Username *string `json:"username"`
 	// Only active is required in the body by the spec
@@ -471,6 +677,10 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		}
 	case string(fleet.CATypeCustomESTProxy):
 		activity = fleet.ActivityDeletedCustomESTProxy{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeEJBCA):
+		activity = fleet.ActivityDeletedEJBCA{
 			Name: ca.Name,
 		}
 	}
@@ -1237,6 +1447,43 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedSmallstep{Name: caActivityName}
+	case p.EJBCACAUpdatePayload != nil:
+		if p.EJBCACAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sEJBCA CA update payload is empty", errPrefix)}
+		}
+		if err := p.EJBCACAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
+			return err
+		}
+		p.EJBCACAUpdatePayload.Preprocess()
+		certPEM, keyPEM, err := svc.validateEJBCAUpdate(ctx, p.EJBCACAUpdatePayload, oldCA, errPrefix)
+		if err != nil {
+			return err
+		}
+
+		caToUpdate.Type = string(fleet.CATypeEJBCA)
+		caToUpdate.Name = p.EJBCACAUpdatePayload.Name
+		caToUpdate.URL = p.EJBCACAUpdatePayload.URL
+		// When a P12 was supplied, certPEM/keyPEM hold the decoded material;
+		// otherwise the stored values are retained (pointers stay nil so the
+		// datastore's generateUpdateQueryWithArgs skips those columns).
+		if certPEM != "" {
+			caToUpdate.ClientCertPEM = &certPEM
+		}
+		if keyPEM != "" {
+			caToUpdate.ClientKeyPEM = &keyPEM
+		}
+		caToUpdate.TrustCABundlePEM = p.EJBCACAUpdatePayload.TrustCABundlePEM
+		caToUpdate.EJBCACAName = p.EJBCACAUpdatePayload.CertificateAuthorityNameEJBCA
+		caToUpdate.EJBCACertificateProfileName = p.EJBCACAUpdatePayload.CertificateProfileName
+		caToUpdate.EJBCAEndEntityProfileName = p.EJBCACAUpdatePayload.EndEntityProfileName
+		caToUpdate.EJBCAUsernameTemplate = p.EJBCACAUpdatePayload.UsernameTemplate
+		caToUpdate.CertificateUserPrincipalNames = p.EJBCACAUpdatePayload.CertificateUserPrincipalNames
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedEJBCA{Name: caActivityName}
 	}
 
 	if oldCA.Type != caToUpdate.Type {
@@ -1541,6 +1788,103 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 	}
 
 	return nil
+}
+
+// validateEJBCAUpdate validates an EJBCA update payload and, when a new P12
+// is supplied, decodes it into PEM-encoded cert + key strings returned to the
+// caller. Returns empty strings when no rotation is in progress.
+//
+// After validating, probes the EJBCA REST API end-to-end with the merged
+// (new + existing) configuration to confirm the change is functional before
+// persisting.
+func (svc *Service) validateEJBCAUpdate(ctx context.Context, ejbcaUpdate *fleet.EJBCACAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) (certPEM, keyPEM string, err error) {
+	if ejbcaUpdate.Name != nil {
+		if err := validateCAName(*ejbcaUpdate.Name, errPrefix); err != nil {
+			return "", "", err
+		}
+	}
+	if ejbcaUpdate.URL != nil {
+		if err := validateURL(*ejbcaUpdate.URL, "EJBCA", errPrefix); err != nil {
+			return "", "", err
+		}
+	}
+
+	if ejbcaUpdate.ClientP12 != nil {
+		certPEM, keyPEM, err = decodeEJBCAClientP12(*ejbcaUpdate.ClientP12, *ejbcaUpdate.ClientP12Password)
+		if err != nil {
+			return "", "", fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sCould not decode PKCS#12 client certificate: %s", errPrefix, err.Error()))
+		}
+		// Discard the upload-only material so downstream callers don't
+		// accidentally persist it.
+		ejbcaUpdate.ClientP12 = nil
+		ejbcaUpdate.ClientP12Password = nil
+	}
+
+	if ejbcaUpdate.TrustCABundlePEM != nil && *ejbcaUpdate.TrustCABundlePEM != "" {
+		if !x509.NewCertPool().AppendCertsFromPEM([]byte(*ejbcaUpdate.TrustCABundlePEM)) {
+			return "", "", fleet.NewInvalidArgumentError("trust_ca_bundle", fmt.Sprintf("%strust_ca_bundle did not contain any usable certificates.", errPrefix))
+		}
+	}
+
+	if ejbcaUpdate.UsernameTemplate != nil {
+		if strings.TrimSpace(*ejbcaUpdate.UsernameTemplate) == "" {
+			return "", "", fleet.NewInvalidArgumentError("username_template", fmt.Sprintf("%susername_template cannot be empty.", errPrefix))
+		}
+		if err := validateEJBCAFleetVarUsage(*ejbcaUpdate.UsernameTemplate, "username_template", errPrefix); err != nil {
+			return "", "", err
+		}
+	}
+	if ejbcaUpdate.CertificateUserPrincipalNames != nil {
+		for _, upn := range *ejbcaUpdate.CertificateUserPrincipalNames {
+			if strings.TrimSpace(upn) == "" {
+				return "", "", fleet.NewInvalidArgumentError("certificate_user_principal_names", fmt.Sprintf("%sUPN entries cannot be empty.", errPrefix))
+			}
+			if err := validateEJBCAFleetVarUsage(upn, "certificate_user_principal_names", errPrefix); err != nil {
+				return "", "", err
+			}
+		}
+	}
+
+	// Build the merged config (new field where supplied, old field otherwise)
+	// and probe the EJBCA REST API to confirm reachability + mTLS auth before
+	// we persist.
+	merged := fleet.EJBCACA{
+		Name:                          stringOrDeref(ejbcaUpdate.Name, oldCA.Name),
+		URL:                           stringOrDeref(ejbcaUpdate.URL, oldCA.URL),
+		ClientCertPEM:                 stringOrDeref(strPtrIf(certPEM), oldCA.ClientCertPEM),
+		ClientKeyPEM:                  stringOrDeref(strPtrIf(keyPEM), oldCA.ClientKeyPEM),
+		TrustCABundlePEM:              stringOrDeref(ejbcaUpdate.TrustCABundlePEM, oldCA.TrustCABundlePEM),
+		CertificateAuthorityNameEJBCA: stringOrDeref(ejbcaUpdate.CertificateAuthorityNameEJBCA, oldCA.EJBCACAName),
+		CertificateProfileName:        stringOrDeref(ejbcaUpdate.CertificateProfileName, oldCA.EJBCACertificateProfileName),
+		EndEntityProfileName:          stringOrDeref(ejbcaUpdate.EndEntityProfileName, oldCA.EJBCAEndEntityProfileName),
+		UsernameTemplate:              stringOrDeref(ejbcaUpdate.UsernameTemplate, oldCA.EJBCAUsernameTemplate),
+	}
+	if err := svc.ejbcaService.VerifyConnection(ctx, merged); err != nil {
+		svc.logger.ErrorContext(ctx, "Failed to verify EJBCA connection on update", "err", err)
+		return "", "", &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify EJBCA connection: %s. Please correct and try again.", errPrefix, err.Error())}
+	}
+
+	return certPEM, keyPEM, nil
+}
+
+// stringOrDeref returns *newPtr if non-nil, else *oldPtr, else "".
+func stringOrDeref(newPtr *string, oldPtr *string) string {
+	if newPtr != nil {
+		return *newPtr
+	}
+	if oldPtr != nil {
+		return *oldPtr
+	}
+	return ""
+}
+
+// strPtrIf returns &s if s != "", else nil. Helper for routing newly-decoded
+// PEM through stringOrDeref alongside the existing pointer-based plumbing.
+func strPtrIf(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func fmtDuplicateCANameError(name, caType, displayCAType string) error {

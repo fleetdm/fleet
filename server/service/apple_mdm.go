@@ -525,13 +525,20 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) &&
 			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) &&
-			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCADataPrefix)) &&
+			!strings.HasPrefix(fleetVar, string(fleet.FleetVarEJBCAPasswordPrefix)) {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", fleetVar)}
 		}
 	}
 
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
-		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
+		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation,
+		// POC: no structural validation for EJBCA. DigiCert's
+		// additionalDigiCertValidation enforces that the var only appears
+		// in a com.apple.security.pkcs12 payload; equivalent EJBCA
+		// structural check is a follow-up for #30986.
+		nil)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
 		return nil, err

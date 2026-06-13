@@ -69,6 +69,7 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeEJBCA           CAType = "ejbca"
 )
 
 type CertificateAuthoritySummary struct {
@@ -110,6 +111,17 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
+	// EJBCA. Client cert + trust bundle stored as PEM, client key encrypted at rest.
+	// CertificateUserPrincipalNames is shared with DigiCert above.
+	ClientCertPEM               *string    `json:"client_cert,omitempty" db:"client_cert_pem"`
+	ClientKeyPEM                *string    `json:"client_key,omitempty" db:"-"`
+	TrustCABundlePEM            *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
+	EJBCACAName                 *string    `json:"certificate_authority_name_ejbca,omitempty" db:"ejbca_ca_name"`
+	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile"`
+	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile"`
+	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
+	ClientCertExpiresAt         *time.Time `json:"client_cert_expires_at,omitempty" db:"-"`
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -125,6 +137,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
+	EJBCA           *EJBCACA              `json:"ejbca,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -154,6 +167,73 @@ func (d *DigiCertCA) Preprocess() {
 	d.Name = Preprocess(d.Name)
 	d.URL = Preprocess(d.URL)
 	d.ProfileID = Preprocess(d.ProfileID)
+}
+
+// EJBCACA configures Fleet's mTLS REST integration with an EJBCA instance.
+// On create/update, the client supplies ClientP12 + ClientP12Password — the
+// service decodes the P12 once, populates ClientCertPEM and ClientKeyPEM,
+// and discards the P12 bytes and password (neither is persisted).
+//
+// On read, ClientCertPEM is returned as-is (public material); ClientKeyPEM
+// is returned masked. ClientCertExpiresAt is populated from the stored cert
+// at read time so the UI can render an expiry badge.
+//
+// The EJBCA `password` field required by pkcs10enroll is generated
+// internally per enrollment in the EJBCA client (see ee/server/service/ejbca/)
+// and is not represented on this struct.
+//
+// If you update this struct, make sure to adjust the Equals method below.
+type EJBCACA struct {
+	ID   uint   `json:"-"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
+
+	// Upload-only — provided on create/update, never persisted.
+	ClientP12         []byte `json:"client_p12,omitempty"`
+	ClientP12Password string `json:"client_p12_password,omitempty"`
+
+	// Stored / returned. ClientKeyPEM is encrypted at rest and masked on
+	// read unless secrets are explicitly requested.
+	ClientCertPEM       string     `json:"client_cert,omitempty"`
+	ClientKeyPEM        string     `json:"client_key,omitempty"`
+	TrustCABundlePEM    string     `json:"trust_ca_bundle,omitempty"`
+	ClientCertExpiresAt *time.Time `json:"client_cert_expires_at,omitempty"`
+
+	// EJBCA-side identifiers — free text, must match the customer's EJBCA
+	// configuration exactly. EJBCA exposes no list endpoint, so typos
+	// surface only at first enrollment.
+	CertificateAuthorityNameEJBCA string `json:"certificate_authority_name_ejbca"`
+	CertificateProfileName        string `json:"certificate_profile_name"`
+	EndEntityProfileName          string `json:"end_entity_profile_name"`
+
+	// Per-enrollment. UsernameTemplate may contain Fleet variables and is
+	// used as both the EJBCA username and the CSR CommonName.
+	UsernameTemplate              string   `json:"username_template"`
+	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names,omitempty"`
+}
+
+// Equals checks if two EJBCACA instances are equal. The ClientP12 + password
+// upload pair is intentionally excluded (they're use-once and not persisted).
+// Equality is based on the persistent representation.
+func (e *EJBCACA) Equals(other *EJBCACA) bool {
+	return e.Name == other.Name &&
+		e.URL == other.URL &&
+		e.ClientCertPEM == other.ClientCertPEM &&
+		(e.ClientKeyPEM == "" || e.ClientKeyPEM == MaskedPassword || e.ClientKeyPEM == other.ClientKeyPEM) &&
+		e.TrustCABundlePEM == other.TrustCABundlePEM &&
+		e.CertificateAuthorityNameEJBCA == other.CertificateAuthorityNameEJBCA &&
+		e.CertificateProfileName == other.CertificateProfileName &&
+		e.EndEntityProfileName == other.EndEntityProfileName &&
+		e.UsernameTemplate == other.UsernameTemplate &&
+		slices.Equal(e.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames)
+}
+
+func (e *EJBCACA) Preprocess() {
+	e.Name = Preprocess(e.Name)
+	e.URL = Preprocess(e.URL)
+	e.CertificateAuthorityNameEJBCA = Preprocess(e.CertificateAuthorityNameEJBCA)
+	e.CertificateProfileName = Preprocess(e.CertificateProfileName)
+	e.EndEntityProfileName = Preprocess(e.EndEntityProfileName)
 }
 
 // Enrollment over Secure Transport Certificate Authority
@@ -259,6 +339,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
 	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
+	*EJBCACAUpdatePayload              `json:"ejbca,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -280,6 +361,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.EJBCACAUpdatePayload != nil {
 		caInPayload++
 	}
 	if caInPayload == 0 {
@@ -331,6 +415,64 @@ func (dcp *DigiCertCAUpdatePayload) Preprocess() {
 	}
 	if dcp.ProfileID != nil {
 		*dcp.ProfileID = Preprocess(*dcp.ProfileID)
+	}
+}
+
+type EJBCACAUpdatePayload struct {
+	Name *string `json:"name"`
+	URL  *string `json:"url"`
+
+	// Upload-only — when present, the service decodes the new P12 with
+	// ClientP12Password and replaces the stored cert + key. When nil, the
+	// existing stored material is retained.
+	ClientP12         *[]byte `json:"client_p12"`
+	ClientP12Password *string `json:"client_p12_password"`
+
+	TrustCABundlePEM *string `json:"trust_ca_bundle"`
+
+	CertificateAuthorityNameEJBCA *string   `json:"certificate_authority_name_ejbca"`
+	CertificateProfileName        *string   `json:"certificate_profile_name"`
+	EndEntityProfileName          *string   `json:"end_entity_profile_name"`
+	UsernameTemplate              *string   `json:"username_template"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names"`
+}
+
+func (ep EJBCACAUpdatePayload) IsEmpty() bool {
+	return ep.Name == nil && ep.URL == nil &&
+		ep.ClientP12 == nil && ep.ClientP12Password == nil &&
+		ep.TrustCABundlePEM == nil &&
+		ep.CertificateAuthorityNameEJBCA == nil &&
+		ep.CertificateProfileName == nil &&
+		ep.EndEntityProfileName == nil &&
+		ep.UsernameTemplate == nil &&
+		ep.CertificateUserPrincipalNames == nil
+}
+
+// ValidateRelatedFields verifies fields that are related to each other. The
+// P12 + password are use-once and only meaningful together: if one is
+// supplied, the other must be too.
+func (ep *EJBCACAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	if (ep.ClientP12 != nil) != (ep.ClientP12Password != nil) {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"client_p12" and "client_p12_password" must be set together when rotating credentials for: %s`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (ep *EJBCACAUpdatePayload) Preprocess() {
+	if ep.Name != nil {
+		*ep.Name = Preprocess(*ep.Name)
+	}
+	if ep.URL != nil {
+		*ep.URL = Preprocess(*ep.URL)
+	}
+	if ep.CertificateAuthorityNameEJBCA != nil {
+		*ep.CertificateAuthorityNameEJBCA = Preprocess(*ep.CertificateAuthorityNameEJBCA)
+	}
+	if ep.CertificateProfileName != nil {
+		*ep.CertificateProfileName = Preprocess(*ep.CertificateProfileName)
+	}
+	if ep.EndEntityProfileName != nil {
+		*ep.EndEntityProfileName = Preprocess(*ep.EndEntityProfileName)
 	}
 }
 
@@ -516,6 +658,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCACA              `json:"ejbca"`
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -535,6 +678,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCACA{},
 	}
 
 	for _, ca := range cas {
@@ -595,6 +739,26 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				Username:     *ca.Username,
 				Password:     *ca.Password,
 			})
+		case string(CATypeEJBCA):
+			entry := EJBCACA{
+				ID:                            ca.ID,
+				Name:                          *ca.Name,
+				URL:                           *ca.URL,
+				ClientCertPEM:                 *ca.ClientCertPEM,
+				ClientKeyPEM:                  *ca.ClientKeyPEM,
+				CertificateAuthorityNameEJBCA: *ca.EJBCACAName,
+				CertificateProfileName:        *ca.EJBCACertificateProfileName,
+				EndEntityProfileName:          *ca.EJBCAEndEntityProfileName,
+				UsernameTemplate:              *ca.EJBCAUsernameTemplate,
+				ClientCertExpiresAt:           ca.ClientCertExpiresAt,
+			}
+			if ca.TrustCABundlePEM != nil {
+				entry.TrustCABundlePEM = *ca.TrustCABundlePEM
+			}
+			if ca.CertificateUserPrincipalNames != nil {
+				entry.CertificateUserPrincipalNames = *ca.CertificateUserPrincipalNames
+			}
+			grouped.EJBCA = append(grouped.EJBCA, entry)
 		}
 	}
 

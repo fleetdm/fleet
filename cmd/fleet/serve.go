@@ -30,6 +30,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
@@ -438,6 +439,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+	ejbcaService := ejbca.NewService(ejbca.WithLogger(logger))
 	ctx = ctxerr.NewContext(ctx, eh)
 
 	// Declare svc early so the closure below can capture it.
@@ -488,6 +490,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		wstepCertManager,
 		scepConfigMgr,
 		digiCertService,
+		ejbcaService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
 		androidSvc,
@@ -596,6 +599,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			redis_key_value.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
+			ejbcaService,
 			androidSvc,
 			hydrantService,
 		)

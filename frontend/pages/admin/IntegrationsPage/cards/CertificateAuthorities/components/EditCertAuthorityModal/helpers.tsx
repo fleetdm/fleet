@@ -11,6 +11,7 @@ import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
@@ -68,6 +69,24 @@ export const generateDefaultFormData = (
         url: certAuthority.url,
         username: certAuthority.username,
         password: certAuthority.password,
+      };
+    case "ejbca":
+      return {
+        name: certAuthority.name,
+        url: certAuthority.url,
+        // Edit form leaves the upload fields empty unless the admin uploads
+        // a new .p12 to rotate.
+        clientP12Base64: "",
+        clientP12FileName: "",
+        clientP12Password: "",
+        trustCABundle: certAuthority.trust_ca_bundle ?? "",
+        certificateAuthorityNameEJBCA:
+          certAuthority.certificate_authority_name_ejbca,
+        certificateProfileName: certAuthority.certificate_profile_name,
+        endEntityProfileName: certAuthority.end_entity_profile_name,
+        usernameTemplate: certAuthority.username_template,
+        userPrincipalName:
+          certAuthority.certificate_user_principal_names?.[0] ?? "",
       };
     default:
       throw new Error(
@@ -215,6 +234,44 @@ export const generateEditCertAuthorityData = (
       }
       return diff;
     }
+    case "ejbca": {
+      const {
+        name: ejbcaName,
+        url: ejbcaUrl,
+        clientP12Base64,
+        clientP12Password,
+        trustCABundle,
+        certificateAuthorityNameEJBCA,
+        certificateProfileName,
+        endEntityProfileName,
+        usernameTemplate,
+        userPrincipalName,
+      } = formData as IEJBCAFormData;
+      // Compute the diff against the stored EJBCA fields, then inject the
+      // P12 + password only when the admin actually uploaded a new bundle
+      // (rotation). Both must travel together — the backend rejects one
+      // without the other.
+      const diff = deepDifference(
+        {
+          name: ejbcaName,
+          url: ejbcaUrl,
+          trust_ca_bundle: trustCABundle,
+          certificate_authority_name_ejbca: certificateAuthorityNameEJBCA,
+          certificate_profile_name: certificateProfileName,
+          end_entity_profile_name: endEntityProfileName,
+          username_template: usernameTemplate,
+          certificate_user_principal_names: userPrincipalName
+            ? [userPrincipalName]
+            : null,
+        },
+        certAuthWithoutType
+      ) as Record<string, unknown>;
+      if (clientP12Base64) {
+        diff.client_p12 = clientP12Base64;
+        diff.client_p12_password = clientP12Password;
+      }
+      return { ejbca: diff };
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthority.type}`
@@ -332,6 +389,12 @@ export const updateFormData = (
       }
       break;
     }
+    case "ejbca":
+      // No special "clear other fields" behavior for EJBCA edits. The
+      // rotation case (new P12 + password) is handled by the form
+      // itself — both fields travel together when present, and neither
+      // is auto-cleared by editing a different field.
+      break;
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthority.type}`
