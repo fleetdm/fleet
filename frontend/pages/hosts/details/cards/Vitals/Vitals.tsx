@@ -101,6 +101,7 @@ const getHostDiskEncryptionTooltipMessage = (
   if (
     platform === "rhel" ||
     platform === "ubuntu" ||
+    platform === "zorin" ||
     platform === "arch" ||
     platform === "archarm" ||
     platform === "manjaro" ||

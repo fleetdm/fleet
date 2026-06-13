@@ -10,6 +10,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
   darwin: "macOS",
   windows: "MS Windows",
   ubuntu: "Ubuntu Linux",
+  zorin: "Zorin OS",
   centos: "CentOS Linux",
 };
 
@@ -18,6 +19,7 @@ const platformOptions: CustomOptionType[] = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Ubuntu", value: "ubuntu" },
+  { label: "Zorin OS", value: "zorin" },
   { label: "Centos", value: "centos" },
 ];
 

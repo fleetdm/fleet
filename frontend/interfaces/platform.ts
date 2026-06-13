@@ -96,6 +96,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
 export const HOST_LINUX_PLATFORMS = [
   "linux",
   "ubuntu", // covers Kubuntu
+  "zorin", // Zorin OS (Ubuntu-based)
   "debian",
   "rhel", // covers Fedora
   "centos",
@@ -172,6 +173,7 @@ export const isMobilePlatform = (platform: string | HostPlatform) =>
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
+  "zorin", // Zorin OS (Ubuntu-based)
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
   "arch", // Arch Linux
   "archarm", // Arch Linux ARM
@@ -185,7 +187,7 @@ export const isDiskEncryptionSupportedLinuxPlatform = (
 ) => {
   const isFedora =
     platform === "rhel" && os_version.toLowerCase().includes("fedora");
-  return isFedora || platform === "ubuntu";
+  return isFedora || platform === "ubuntu" || platform === "zorin";
 };
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [

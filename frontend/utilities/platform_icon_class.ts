@@ -24,6 +24,10 @@ export const platformIconClass = (platform = "") => {
       return "icon-ubuntu-dark-20x20@2x.png";
     case "ubuntu linux":
       return "icon-ubuntu-dark-20x20@2x.png";
+    case "zorin":
+      return "icon-ubuntu-dark-20x20@2x.png";
+    case "zorin os":
+      return "icon-ubuntu-dark-20x20@2x.png";
     case "linux":
       return "icon-linux-dark-20x20@2x.png";
     case "windows":
