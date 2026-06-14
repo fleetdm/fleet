@@ -385,6 +385,23 @@ func TestValidSyncMLCmdText(t *testing.T) {
 	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">chr</Format>")
 }
 
+func TestSyncMLCmdTextEscapesXMLMetacharacters(t *testing.T) {
+	// Text data is written into SyncML <Data> as innerxml (raw), so a value with XML metacharacters must be escaped
+	// or it produces malformed SyncML the device rejects. This matters for CustomErrorText, which lists software
+	// titles that can contain "&" (e.g. "AT&T") or other metacharacters.
+	cmdMsg := newSyncMLCmdText(fleet.CmdReplace, "testuri", `AT&T <Reader>`)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	payload := string(outXML)
+
+	// The marshaled XML must be well-formed (parseable) and carry escaped entities, not raw metacharacters. A raw
+	// "&"/"<" here would make xml.Unmarshal fail, which is exactly the device-side rejection we are preventing.
+	require.NoError(t, xml.Unmarshal(outXML, new(fleet.SyncMLCmd)), "escaped command must be well-formed XML")
+	require.Contains(t, payload, "AT&amp;T")
+	require.Contains(t, payload, "&lt;Reader&gt;")
+	require.NotContains(t, payload, "AT&T", "raw ampersand must not appear unescaped")
+}
+
 func TestValidSyncMLCmdXml(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"

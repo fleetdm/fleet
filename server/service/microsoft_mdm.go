@@ -2328,12 +2328,14 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
 // a terminal state, then finalizes the device down one of three paths:
 //
-//   - hard block: require_all_software_windows is true and any item failed, or the 3-hour timeout was hit. The ESP
-//     failure screen is shown with only the "Reset device" recovery option and remaining items are cancelled.
-//   - soft block: an item failed but require_all_software_windows is false. The ESP failure screen is shown listing
-//     the failed software by name, with a "Continue anyway" option so the user can proceed to the desktop and install
-//     the missing software via self-service. Nothing is cancelled (all items already reached a terminal state).
-//   - release: no failures (or pure timeout with require_all_software_windows false); the device proceeds to login.
+//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with only the "Reset device" recovery option, and remaining items are cancelled.
+//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
+//     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
+//     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path; on
+//     the non-timeout path everything has already reached a terminal state, so there is nothing to cancel.
+//   - release (no failure and no timeout): the device proceeds to login.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
@@ -3454,11 +3456,15 @@ func newSyncMLNoFormat(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// newSyncMLCmdText creates a new SyncML command with text data
+// newSyncMLCmdText creates a new SyncML command with text data. The value is XML-escaped (matching
+// newSyncMLCmdXml/newSyncMLCmdBase64) because SyncML <Data> is serialized as innerxml (written raw); without
+// escaping, a value containing &, <, or > -- e.g. a software title like "AT&T" surfaced in CustomErrorText --
+// would produce malformed SyncML that the device rejects.
 func newSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "chr"
-	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	escapedData := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &escapedData)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
