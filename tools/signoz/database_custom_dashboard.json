@@ -258,9 +258,9 @@
                 {
                   "metricName": "db.sql.latency.bucket",
                   "reduceTo": "avg",
-                  "spaceAggregation": "avg",
-                  "temporality": "",
-                  "timeAggregation": "avg"
+                  "spaceAggregation": "p99",
+                  "temporality": "cumulative",
+                  "timeAggregation": ""
                 }
               ],
               "dataSource": "metrics",
@@ -274,50 +274,15 @@
               "having": {
                 "expression": ""
               },
-              "legend": "",
+              "legend": "p99",
               "limit": null,
               "orderBy": [],
               "queryName": "A",
               "source": "",
               "stepInterval": null
-            },
-            {
-              "aggregations": [
-                {
-                  "metricName": "db.sql.latency.bucket",
-                  "reduceTo": "avg",
-                  "spaceAggregation": "avg",
-                  "temporality": "",
-                  "timeAggregation": "avg"
-                }
-              ],
-              "dataSource": "metrics",
-              "disabled": false,
-              "expression": "B",
-              "filter": {
-                "expression": "deployment.environment IN $environment"
-              },
-              "functions": [],
-              "groupBy": [],
-              "having": {
-                "expression": ""
-              },
-              "legend": "",
-              "limit": null,
-              "orderBy": [],
-              "queryName": "B",
-              "source": "",
-              "stepInterval": null
             }
           ],
-          "queryFormulas": [
-            {
-              "disabled": false,
-              "expression": "histogram_quantile(0.99)",
-              "legend": "",
-              "queryName": "F1"
-            }
-          ],
+          "queryFormulas": [],
           "queryTraceOperator": []
         },
         "clickhouse_sql": [
