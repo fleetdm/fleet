@@ -9,7 +9,8 @@ import (
 )
 
 func TestESPSoftwareFailureContinuableErrorText(t *testing.T) {
-	const suffix = "You can reset your device to start over or proceed and install missing software via self-service."
+	const suffix = "Reset your device to try again, or proceed and install missing software via self-service. " +
+		"If unavailable, contact your IT admin."
 
 	tests := []struct {
 		name        string

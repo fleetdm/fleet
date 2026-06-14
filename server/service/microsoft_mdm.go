@@ -2348,10 +2348,24 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// hasSoftwareFailure tracks setup-experience software failures only.
 	var hasSoftwareFailure bool
 
-	// failedSoftwareNames collects the names of the failed setup-experience items for the soft-block message. Only
-	// populated when Stage 3 runs; the timeout path skips Stage 3, so it stays empty there (the timeout text is used
-	// instead).
+	// failedSoftwareNames collects the names of the failed setup-experience items for the soft-block message. It is
+	// populated by Stage 3 on the normal path and by the timeout-failure scan below (require_all=false only), so that
+	// the timeout finalize can list failed software instead of releasing silently.
 	var failedSoftwareNames []string
+
+	// recordSoftwareFailure marks a failed setup-experience item for the block/warn decision and the soft-block
+	// message, preferring the team-scoped custom display name (populated by ListSetupExperienceResultsByHostUUID) over
+	// the raw item name, matching how software titles render elsewhere in the product.
+	recordSoftwareFailure := func(r *fleet.SetupExperienceStatusResult) {
+		hasSoftwareFailure = true
+		name := r.Name
+		if r.DisplayName != "" {
+			name = r.DisplayName
+		}
+		if name != "" {
+			failedSoftwareNames = append(failedSoftwareNames, name)
+		}
+	}
 
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
@@ -2464,13 +2478,22 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results.
 		//
 		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; on Windows that's the
-		// host's OsqueryHostID. We pass teamID=0 because that parameter is only used for icon and display-name enrichment
-		// in the datastore call, not for filtering (the query filters only by host_uuid).
+		// host's OsqueryHostID. The teamID parameter only scopes the icon and display-name enrichment, not filtering
+		// (the query filters only by host_uuid), but the enrichment matters here: the soft-block error text renders
+		// these names to the end user, so they must reflect the host's team's custom display names.
 		seHostUUID, err := setupExperienceHostUUID()
 		if err != nil {
 			return nil, err
 		}
-		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
+		host, err := loadHost()
+		if err != nil {
+			return nil, err
+		}
+		var hostTeamID uint
+		if host.TeamID != nil {
+			hostTeamID = *host.TeamID
+		}
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, hostTeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
 		}
@@ -2482,15 +2505,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// the MDM enrollment independently of when it calls init, so on the first Active checkin after link we can hit
 		// this race. Disambiguate by checking whether items are configured for the host's team.
 		if len(results) == 0 {
-			host, err := loadHost()
-			if err != nil {
-				return nil, err
-			}
-			var teamIDForQuery uint
-			if host.TeamID != nil {
-				teamIDForQuery = *host.TeamID
-			}
-			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamIDForQuery)
+			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, hostTeamID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for team")
 			}
@@ -2510,10 +2525,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		for _, r := range results {
 			switch r.Status {
 			case fleet.SetupExperienceStatusFailure:
-				hasSoftwareFailure = true
-				if r.Name != "" {
-					failedSoftwareNames = append(failedSoftwareNames, r.Name)
-				}
+				recordSoftwareFailure(r)
 			case fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusCancelled:
 				// terminal, nothing to record
 			default:
@@ -2551,14 +2563,42 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, err
 	}
 
-	failed := timedOut || hasSoftwareFailure
-	shouldBlock := failed && requireAll
-	// shouldWarn drives the soft block: software failed but "Cancel setup if software fails" is off. We still surface
-	// the ESP failure UI so the user learns which software failed, but with a "Continue anyway" option so they can
-	// proceed to the desktop and install the missing software via self-service (issue #45948). Pure timeout with
-	// require_all=false keeps releasing silently: the timeout path skips Stage 3, so there is no failed-software list
-	// to show.
-	shouldWarn := hasSoftwareFailure && !timedOut && !requireAll
+	// On a timeout with require_all=false, scan for software failures so the finalize surfaces them instead of
+	// releasing silently: the timeout path skipped Stage 3, so failures observed before the timeout are otherwise
+	// invisible. require_all=true keeps its existing behavior (hard block with timeout text) and is deliberately not
+	// re-scanned here -- a real failure under require_all=true would already have blocked on an earlier checkin via the
+	// Stage 3 in-flight short-circuit, before the 3-hour window elapsed.
+	if timedOut && !requireAll {
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		host, err := loadHost()
+		if err != nil {
+			return nil, err
+		}
+		var hostTeamID uint
+		if host.TeamID != nil {
+			hostTeamID = *host.TeamID
+		}
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, hostTeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for timeout finalize")
+		}
+		for _, r := range results {
+			if r.Status == fleet.SetupExperienceStatusFailure {
+				recordSoftwareFailure(r)
+			}
+		}
+	}
+
+	shouldBlock := (timedOut || hasSoftwareFailure) && requireAll
+	// shouldWarn drives the soft block (the ESP failure UI with a "Continue anyway" option) whenever "Cancel setup if
+	// software fails" is off and we have something to finalize on. It covers two cases: a software failure (list the
+	// failed software), and a timeout (give up after 3 hours). In both the user is shown what happened but allowed to
+	// proceed to the desktop and install missing software via self-service (issue #45948). require_all=true never
+	// warns -- it hard-blocks.
+	shouldWarn := !requireAll && (hasSoftwareFailure || timedOut)
 
 	// Build commands for the response.
 	provID := syncml.DocProvisioningAppProviderID
@@ -2574,8 +2614,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsReset)
 	case shouldWarn:
-		cmds = buildESPBlockCommands(provID,
-			microsoft_mdm.ESPSoftwareFailureContinuableErrorText(failedSoftwareNames), espBlockButtonsResetAndContinue)
+		// List the failed software when we have any; otherwise (require_all=false timeout with nothing failed) show the
+		// timeout text. Both keep the "Continue anyway" option so the user is never stuck.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(failedSoftwareNames)
+		}
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsResetAndContinue)
 	default:
 		// Release path: device proceeds to login. We do not send CustomErrorText here because the failure UI never renders
 		// on a release (no BlockInStatusPage, no forced timeout), so any error text would be dead state on the DMClient
@@ -2647,15 +2692,18 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
 		}
 
-		// Emit the canceled_setup_experience activity for the timeout case. The software-failure-with-require_all=true
-		// case is already covered upstream by maybeCancelPendingSetupExperienceSteps (called from the software-install
-		// result reporter), which references the failed item; do not duplicate it here.
+		// Emit the canceled_setup_experience activity for every timeout finalize, since the timeout cancels whatever
+		// items were still pending. It references the first pending or running software item (the one that was in flight
+		// when the timeout fired); if none was queued (orbit's setup_experience/init never ran, or the timeout fired
+		// before any software was scheduled), the activity is still emitted with empty software fields so the host is
+		// represented in the activity feed.
 		//
-		// For timeout, pick the first pending or running software item (the one that was in flight when the timeout
-		// fired) as the activity reference. If none was queued (orbit's setup_experience/init never ran, or the timeout
-		// fired before any software was scheduled), the activity is still emitted but with empty software fields so the
-		// host is still represented in the activity feed.
-		if timedOut && !hasSoftwareFailure {
+		// This is gated on timedOut alone, not on the absence of a software failure: a require_all=false timeout can now
+		// also have hasSoftwareFailure set (from the timeout scan above), but its cancelled pending items still warrant
+		// the activity, and nothing emitted it upstream (the require_all=false software-install path does not cancel or
+		// emit). The require_all=true software-failure case is emitted upstream by maybeCancelPendingSetupExperienceSteps
+		// and never reaches a timeout finalize (it blocks on an earlier checkin), so there is no duplication.
+		if timedOut {
 			host, err := loadHost()
 			if err != nil {
 				return nil, err

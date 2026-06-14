@@ -9,13 +9,14 @@ import (
 const ESPTimeoutSeconds = 3 * 60 * 60
 
 // ESPSoftwareFailureErrorText is the message shown on the Windows ESP failure screen when a critical software install fails.
-const ESPSoftwareFailureErrorText = "Critical software failed to install. Please try again. If this keeps happening, please contact your IT admin."
+const ESPSoftwareFailureErrorText = "Critical software failed to install. Reset your device to try again. If failures keep happening, please contact your IT admin."
 
 // ESPTimeoutErrorText is the message shown on the Windows ESP failure screen when the 3-hour ESP timeout expires before setup completes.
 const ESPTimeoutErrorText = "Setup is taking longer than expected. Please try again. If this keeps happening, please contact your IT admin."
 
 // espContinuableErrorSuffix follows the failed-software list when the end user is allowed to continue past the failure.
-const espContinuableErrorSuffix = "You can reset your device to start over or proceed and install missing software via self-service."
+const espContinuableErrorSuffix = "Reset your device to try again, or proceed and install missing software via self-service. " +
+	"If unavailable, contact your IT admin."
 
 // espMaxFailedNamesLen caps the rendered failed-software name list. The DMClient CSP does not document a maximum
 // length for CustomErrorText and the ESP renders it in a small area, so overly long lists are truncated to
@@ -25,7 +26,8 @@ const espMaxFailedNamesLen = 400
 // ESPSoftwareFailureContinuableErrorText returns the message shown on the Windows ESP failure screen when one or more
 // software installs failed but "Cancel setup if software fails" (require_all_software_windows) is off, so the end user
 // is allowed to continue to the desktop. The failed software is listed by name, e.g. "Slack, Zoom, and Docker failed
-// to install. You can reset your device to start over or proceed and install missing software via self-service."
+// to install. Reset your device to try again, or proceed and install missing software via self-service. If
+// unavailable, contact your IT admin."
 func ESPSoftwareFailureContinuableErrorText(failedNames []string) string {
 	list := joinFailedNames(failedNames, espMaxFailedNamesLen)
 	if list == "" {

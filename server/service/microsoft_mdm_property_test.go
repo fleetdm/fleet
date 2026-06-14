@@ -163,8 +163,9 @@ const (
 
 // pbtESPSpec computes the expected outcome from the inputs without referencing production code. It returns
 // the decision and the hasSoftwareFailure that production would observe. The latter differs from "results
-// contain Failure" when timedOut is true, because Stage 3 is skipped in that case so the production variable
-// stays at its zero value.
+// contain Failure" only on the require_all=true timeout branch: Stage 3 is skipped and that branch is not
+// re-scanned, so the production variable stays false there. The require_all=false timeout branch IS re-scanned,
+// so it reflects input failures.
 func pbtESPSpec(
 	statuses []fleet.SetupExperienceStatusResultStatus, timedOut, requireAll bool,
 ) (decision pbtESPDecision, observedHasFailure bool) {
@@ -178,12 +179,14 @@ func pbtESPSpec(
 		}
 	}
 	if timedOut {
-		// Wait gates skipped; finalize directly. observedHasFailure stays at its zero value because Stage 3
-		// never ran.
+		// Wait gates skipped; finalize directly. require_all=true is not re-scanned for failures (it would have
+		// hard-blocked earlier), so observedHasFailure stays false and it hard-blocks with the timeout text.
 		if requireAll {
 			return pbtESPBlock, false
 		}
-		return pbtESPRelease, false
+		// require_all=false is scanned: it soft-blocks either way (lists failures if any, else timeout text).
+		// observedHasFailure reflects whether the scan saw a Failure row.
+		return pbtESPWarn, inputHasFailure
 	}
 	// !timedOut: Stage 3 ran. observedHasFailure = inputHasFailure.
 	if inputAnyInFlight {
@@ -298,7 +301,11 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			switch {
 			case expected == pbtESPWarn:
 				expectedButtons = "5"
-				expectedErrorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(expectedFailedNames)
+				// Warn lists failed software when any failed; otherwise (require_all=false timeout, nothing failed) it
+				// shows the timeout text. Both keep Continue Anyway.
+				if observedHasFailure {
+					expectedErrorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(expectedFailedNames)
+				}
 			case observedHasFailure:
 				expectedErrorText = microsoft_mdm.ESPSoftwareFailureErrorText
 			}
