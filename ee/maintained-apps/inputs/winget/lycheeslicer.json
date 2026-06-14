@@ -1,0 +1,13 @@
+{
+  "name": "Lychee Slicer",
+  "slug": "lycheeslicer/windows",
+  "package_identifier": "Mango3D.LycheeSlicer",
+  "unique_identifier": "Lychee Slicer",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "fuzzy_match_name": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/lycheeslicer_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/lycheeslicer_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

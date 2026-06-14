@@ -1,0 +1,15 @@
+{
+  "name": "Jitsi Meet",
+  "slug": "jitsi-meet/windows",
+  "package_identifier": "Jitsi.Meet",
+  "unique_identifier": "Jitsi Meet",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/jitsi-meet_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/jitsi-meet_uninstall.ps1",
+  "default_categories": [
+    "Communication"
+  ]
+}

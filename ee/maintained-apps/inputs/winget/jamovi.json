@@ -1,0 +1,14 @@
+{
+  "name": "jamovi",
+  "slug": "jamovi/windows",
+  "package_identifier": "Jamovi.Desktop.Current",
+  "unique_identifier": "Jamovi Desktop",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/jamovi_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/jamovi_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

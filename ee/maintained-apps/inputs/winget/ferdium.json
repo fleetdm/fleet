@@ -1,0 +1,14 @@
+{
+  "name": "Ferdium",
+  "slug": "ferdium/windows",
+  "package_identifier": "Ferdium.Ferdium",
+  "unique_identifier": "Ferdium",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/ferdium_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/ferdium_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

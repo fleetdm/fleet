@@ -1,0 +1,12 @@
+{
+  "name": "Moonlight",
+  "slug": "moonlight/windows",
+  "package_identifier": "MoonlightGameStreamingProject.Moonlight",
+  "unique_identifier": "Moonlight Game Streaming Client",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/moonlight_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/moonlight_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
