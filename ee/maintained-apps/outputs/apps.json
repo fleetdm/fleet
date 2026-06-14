@@ -2039,13 +2039,6 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
-      "name": "DeepL",
-      "slug": "deepl/windows",
-      "platform": "windows",
-      "unique_identifier": "DeepL",
-      "description": "DeepL is an AI-powered translator."
-    },
-    {
       "name": "Deezer",
       "slug": "deezer/darwin",
       "platform": "darwin",
@@ -2508,13 +2501,6 @@
       "description": "Elgato Camera Hub is an elgato FACECAM configuration tool."
     },
     {
-      "name": "Elgato Camera Hub",
-      "slug": "elgato-camera-hub/windows",
-      "platform": "windows",
-      "unique_identifier": "Elgato Camera Hub",
-      "description": "Elgato Camera Hub is an elgato FACECAM configuration tool."
-    },
-    {
       "name": "Elgato Capture Device Utility",
       "slug": "elgato-capture-device-utility/darwin",
       "platform": "darwin",
@@ -2641,13 +2627,6 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
-      "name": "Evernote",
-      "slug": "evernote/windows",
-      "platform": "windows",
-      "unique_identifier": "Evernote",
-      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
-    },
-    {
       "name": "ExifCleaner",
       "slug": "exifcleaner/darwin",
       "platform": "darwin",
@@ -2739,13 +2718,6 @@
       "description": "Ferdium is a multi-platform multi-messaging app."
     },
     {
-      "name": "Ferdium",
-      "slug": "ferdium/windows",
-      "platform": "windows",
-      "unique_identifier": "Ferdium",
-      "description": "Ferdium is a multi-platform multi-messaging app."
-    },
-    {
       "name": "Fetch",
       "slug": "fetch-app/darwin",
       "platform": "darwin",
@@ -2792,13 +2764,6 @@
       "slug": "filen/darwin",
       "platform": "darwin",
       "unique_identifier": "io.filen.desktop",
-      "description": "Filen is a desktop client for Filen.io."
-    },
-    {
-      "name": "Filen",
-      "slug": "filen/windows",
-      "platform": "windows",
-      "unique_identifier": "Filen",
       "description": "Filen is a desktop client for Filen.io."
     },
     {
@@ -2897,13 +2862,6 @@
       "slug": "focusrite-control-2/darwin",
       "platform": "darwin",
       "unique_identifier": "com.focusrite.control",
-      "description": "Focusrite Control 2 is a focusrite interface controller for devices of the 4th generation and newer."
-    },
-    {
-      "name": "Focusrite Control 2",
-      "slug": "focusrite-control-2/windows",
-      "platform": "windows",
-      "unique_identifier": "Focusrite Control 2",
       "description": "Focusrite Control 2 is a focusrite interface controller for devices of the 4th generation and newer."
     },
     {
@@ -3065,13 +3023,6 @@
       "slug": "geekbench/darwin",
       "platform": "darwin",
       "unique_identifier": "com.primatelabs.Geekbench6",
-      "description": "Geekbench is a tool to measure the computer system's performance."
-    },
-    {
-      "name": "Geekbench",
-      "slug": "geekbench/windows",
-      "platform": "windows",
-      "unique_identifier": "Geekbench 6",
       "description": "Geekbench is a tool to measure the computer system's performance."
     },
     {
@@ -3355,13 +3306,6 @@
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
-      "name": "Grammarly Desktop",
-      "slug": "grammarly-desktop/windows",
-      "platform": "windows",
-      "unique_identifier": "Grammarly",
-      "description": "Grammarly Desktop is an AI writing assistant."
-    },
-    {
       "name": "GrandPerspective",
       "slug": "grandperspective/darwin",
       "platform": "darwin",
@@ -3415,13 +3359,6 @@
       "slug": "handbrake-app/darwin",
       "platform": "darwin",
       "unique_identifier": "fr.handbrake.HandBrake",
-      "description": "HandBrake is an open-source video transcoder."
-    },
-    {
-      "name": "HandBrake",
-      "slug": "handbrake-app/windows",
-      "platform": "windows",
-      "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
     },
     {
@@ -3621,13 +3558,6 @@
       "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
     },
     {
-      "name": "iMazing Converter",
-      "slug": "imazing-converter/windows",
-      "platform": "windows",
-      "unique_identifier": "iMazing HEIC Converter",
-      "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
-    },
-    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
@@ -3810,13 +3740,6 @@
       "description": "jamovi is a statistical software."
     },
     {
-      "name": "jamovi",
-      "slug": "jamovi/windows",
-      "platform": "windows",
-      "unique_identifier": "Jamovi Desktop",
-      "description": "jamovi is a statistical software."
-    },
-    {
       "name": "JASP",
       "slug": "jasp/darwin",
       "platform": "darwin",
@@ -3936,13 +3859,6 @@
       "description": "Kdenlive is a free and Open Source Video Editor."
     },
     {
-      "name": "Kdenlive",
-      "slug": "kdenlive/windows",
-      "platform": "windows",
-      "unique_identifier": "Kdenlive",
-      "description": "Kdenlive is a free and Open Source Video Editor."
-    },
-    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
@@ -3975,13 +3891,6 @@
       "slug": "keeweb/darwin",
       "platform": "darwin",
       "unique_identifier": "net.antelle.keeweb",
-      "description": "KeeWeb is a password manager compatible with KeePass."
-    },
-    {
-      "name": "KeeWeb",
-      "slug": "keeweb/windows",
-      "platform": "windows",
-      "unique_identifier": "KeeWeb",
       "description": "KeeWeb is a password manager compatible with KeePass."
     },
     {
@@ -4209,13 +4118,6 @@
       "description": "LightBurn is a layout, editing, and control software for laser cutters."
     },
     {
-      "name": "LightBurn",
-      "slug": "lightburn/windows",
-      "platform": "windows",
-      "unique_identifier": "LightBurn",
-      "description": "LightBurn is a layout, editing, and control software for laser cutters."
-    },
-    {
       "name": "Linear",
       "slug": "linear/darwin",
       "platform": "darwin",
@@ -4377,13 +4279,6 @@
       "description": "Lunacy is a graphic design software."
     },
     {
-      "name": "Lunacy",
-      "slug": "lunacy/windows",
-      "platform": "windows",
-      "unique_identifier": "Lunacy",
-      "description": "Lunacy is a graphic design software."
-    },
-    {
       "name": "Lunar",
       "slug": "lunar/darwin",
       "platform": "darwin",
@@ -4409,13 +4304,6 @@
       "slug": "lycheeslicer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.mango3d.lychee",
-      "description": "Lychee Slicer is a slicer for Resin 3D printers."
-    },
-    {
-      "name": "Lychee Slicer",
-      "slug": "lycheeslicer/windows",
-      "platform": "windows",
-      "unique_identifier": "Lychee Slicer",
       "description": "Lychee Slicer is a slicer for Resin 3D printers."
     },
     {
