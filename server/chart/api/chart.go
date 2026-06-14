@@ -192,11 +192,11 @@ type Filters struct {
 	IncludeHostIDs []uint   `json:"include_host_ids,omitempty"`
 	ExcludeHostIDs []uint   `json:"exclude_host_ids,omitempty"`
 
-	SoftwareCategories []string  `json:"software_categories,omitempty"`
-	KnownExploit       bool      `json:"known_exploit,omitempty"`
-	EPSSMin            *float64  `json:"epss_min,omitempty"`
-	EPSSMax            *float64  `json:"epss_max,omitempty"`
-	SeverityMin        *float64  `json:"severity_min,omitempty"`
-	SeverityMax        *float64  `json:"severity_max,omitempty"`
-	ExcludeCVEs        []string  `json:"exclude_cves,omitempty"`
+	SoftwareCategories []string `json:"software_categories,omitempty"`
+	KnownExploit       bool     `json:"known_exploit,omitempty"`
+	EPSSMin            *float64 `json:"epss_min,omitempty"`
+	EPSSMax            *float64 `json:"epss_max,omitempty"`
+	SeverityMin        *float64 `json:"severity_min,omitempty"`
+	SeverityMax        *float64 `json:"severity_max,omitempty"`
+	ExcludeCVEs        []string `json:"exclude_cves,omitempty"`
 }
