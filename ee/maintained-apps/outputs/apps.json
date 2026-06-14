@@ -2963,13 +2963,6 @@
       "description": "Garmin Express is an update maps and software, sync with Garmin Connect and register your device."
     },
     {
-      "name": "Garmin Express",
-      "slug": "garmin-express/windows",
-      "platform": "windows",
-      "unique_identifier": "Garmin Express",
-      "description": "Garmin Express is an update maps and software, sync with Garmin Connect and register your device."
-    },
-    {
       "name": "Gather Town",
       "slug": "gather/darwin",
       "platform": "darwin",
@@ -3191,13 +3184,6 @@
       "slug": "goodsync/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sibersystems.goodsyncmac2000",
-      "description": "GoodSync is a file synchronisation and backup software."
-    },
-    {
-      "name": "GoodSync",
-      "slug": "goodsync/windows",
-      "platform": "windows",
-      "unique_identifier": "GoodSync",
       "description": "GoodSync is a file synchronisation and backup software."
     },
     {
@@ -3474,13 +3460,6 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
-      "name": "Hyper",
-      "slug": "hyper/windows",
-      "platform": "windows",
-      "unique_identifier": "Hyper",
-      "description": "Hyper is a terminal built on web technologies."
-    },
-    {
       "name": "Hyperkey",
       "slug": "hyperkey/darwin",
       "platform": "darwin",
@@ -3737,13 +3716,6 @@
       "slug": "jellyfin/darwin",
       "platform": "darwin",
       "unique_identifier": "Jellyfin.Server",
-      "description": "Jellyfin is a media system."
-    },
-    {
-      "name": "Jellyfin",
-      "slug": "jellyfin/windows",
-      "platform": "windows",
-      "unique_identifier": "Jellyfin Server",
       "description": "Jellyfin is a media system."
     },
     {
@@ -4846,13 +4818,6 @@
       "description": "Moonlight is a GameStream client."
     },
     {
-      "name": "Moonlight",
-      "slug": "moonlight/windows",
-      "platform": "windows",
-      "unique_identifier": "Moonlight Game Streaming Client",
-      "description": "Moonlight is a GameStream client."
-    },
-    {
       "name": "Morgen",
       "slug": "morgen/darwin",
       "platform": "darwin",
@@ -4906,13 +4871,6 @@
       "slug": "mullvad-vpn/darwin",
       "platform": "darwin",
       "unique_identifier": "net.mullvad.vpn",
-      "description": "Mullvad VPN is a VPN client."
-    },
-    {
-      "name": "Mullvad VPN",
-      "slug": "mullvad-vpn/windows",
-      "platform": "windows",
-      "unique_identifier": "Mullvad VPN",
       "description": "Mullvad VPN is a VPN client."
     },
     {
