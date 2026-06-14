@@ -3775,13 +3775,6 @@
       "description": "Jitsi Meet is a secure video conferencing app."
     },
     {
-      "name": "Jitsi Meet",
-      "slug": "jitsi-meet/windows",
-      "platform": "windows",
-      "unique_identifier": "Jitsi Meet",
-      "description": "Jitsi Meet is a secure video conferencing app."
-    },
-    {
       "name": "Joplin",
       "slug": "joplin/darwin",
       "platform": "darwin",
@@ -4409,13 +4402,6 @@
       "slug": "malwarebytes/darwin",
       "platform": "darwin",
       "unique_identifier": "com.malwarebytes.mbam.frontend.application",
-      "description": "Malwarebytes for Mac is a tool to scan and remove malware, spyware, and viruses."
-    },
-    {
-      "name": "Malwarebytes",
-      "slug": "malwarebytes/windows",
-      "platform": "windows",
-      "unique_identifier": "Malwarebytes",
       "description": "Malwarebytes for Mac is a tool to scan and remove malware, spyware, and viruses."
     },
     {
