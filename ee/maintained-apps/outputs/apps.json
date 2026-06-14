@@ -2578,13 +2578,6 @@
       "description": "Enpass is a password and credentials manager."
     },
     {
-      "name": "Enpass",
-      "slug": "enpass/windows",
-      "platform": "windows",
-      "unique_identifier": "Enpass",
-      "description": "Enpass is a password and credentials manager."
-    },
-    {
       "name": "Ente Auth",
       "slug": "ente-auth/darwin",
       "platform": "darwin",
