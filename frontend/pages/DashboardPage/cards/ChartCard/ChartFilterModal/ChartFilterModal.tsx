@@ -5,12 +5,14 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 import labelsAPI from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -19,7 +21,17 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
+import SoftwareFilters from "./SoftwareFilters";
+import {
+  EPSS_RANGE_INVALID_MSG,
+  hasEpssErrors,
+  isEpssActive,
+  isEpssRangeInvalid,
+} from "./SoftwareFilters/helpers";
+
 const baseClass = "chart-filter-modal";
+
+export type ChartFilterTab = "hosts" | "software";
 
 const PLATFORM_OPTIONS = [
   { label: "macOS", value: "darwin" },
@@ -35,11 +47,22 @@ export interface IChartFilterState {
   platforms: string[];
   hostFilterMode: HostFilterMode;
   selectedHosts: IHost[];
+  // Software (cve) filters. softwareCategories holds the checked category
+  // values (defaults to all). epssMin/epssMax are raw 0–100 % strings ("" =
+  // unset); the card converts them to the 0.0–1.0 API value.
+  softwareCategories: string[];
+  knownExploit: boolean;
+  epssMin: string;
+  epssMax: string;
+  excludeCVEs: string[];
 }
 
 interface IChartFilterModalProps {
   filters: IChartFilterState;
   currentTeamId?: number;
+  // metric drives whether the Software tab is shown (cve only).
+  metric: string;
+  initialTab?: ChartFilterTab;
   onApply: (filters: IChartFilterState) => void;
   onCancel: () => void;
 }
@@ -50,9 +73,25 @@ const SEARCH_DEBOUNCE_MS = 300;
 const ChartFilterModal = ({
   filters,
   currentTeamId,
+  metric,
+  initialTab = "hosts",
   onApply,
   onCancel,
 }: IChartFilterModalProps): JSX.Element => {
+  const isCVE = metric === "cve";
+  const [activeTab, setActiveTab] = useState(initialTab === "software" ? 1 : 0);
+
+  // Software (cve) filter state.
+  const [softwareCategories, setSoftwareCategories] = useState<string[]>(
+    filters.softwareCategories
+  );
+  const [knownExploit, setKnownExploit] = useState<boolean>(
+    filters.knownExploit
+  );
+  const [epssMin, setEpssMin] = useState<string>(filters.epssMin);
+  const [epssMax, setEpssMax] = useState<string>(filters.epssMax);
+  const [excludeCVEs, setExcludeCVEs] = useState<string[]>(filters.excludeCVEs);
+
   const [selectedLabelIDs, setSelectedLabelIDs] = useState<number[]>(
     filters.labelIDs
   );
@@ -156,6 +195,11 @@ const ChartFilterModal = ({
       platforms: selectedPlatforms,
       hostFilterMode,
       selectedHosts,
+      softwareCategories,
+      knownExploit,
+      epssMin,
+      epssMax,
+      excludeCVEs,
     });
   };
 
@@ -169,6 +213,12 @@ const ChartFilterModal = ({
     setPageCount(1);
     setSearchFieldKey((k) => k + 1);
     debouncedSetSearchQuery.cancel();
+    // Reset software filters to their defaults (all categories selected).
+    setSoftwareCategories([...ALL_CVE_SOFTWARE_CATEGORY_VALUES]);
+    setKnownExploit(false);
+    setEpssMin("");
+    setEpssMax("");
+    setExcludeCVEs([]);
   };
 
   const handleTabChange = (index: number) => {
@@ -188,12 +238,27 @@ const ChartFilterModal = ({
     setSelectedHosts((prev) => prev.filter((h) => h.id !== hostId));
   };
 
+  const softwareFiltersActive =
+    isCVE &&
+    (softwareCategories.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
+      knownExploit ||
+      isEpssActive(epssMin, epssMax) ||
+      excludeCVEs.length > 0);
+
   const hasFilters =
     selectedLabelIDs.length > 0 ||
     selectedPlatforms.length > 0 ||
-    selectedHosts.length > 0;
+    selectedHosts.length > 0 ||
+    softwareFiltersActive;
 
+  // Inner host include/exclude tab.
   const tabIndex = hostFilterMode === "include" ? 1 : 0;
+
+  // Block Apply on invalid EPSS input; surface the reason as a tooltip.
+  const applyDisabled = isCVE && hasEpssErrors(epssMin, epssMax);
+  const applyTooltip = isEpssRangeInvalid(epssMin, epssMax)
+    ? EPSS_RANGE_INVALID_MSG
+    : "Enter EPSS values from 0 to 100.";
 
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>
@@ -251,60 +316,95 @@ const ChartFilterModal = ({
     </div>
   );
 
+  const renderHostFilters = () => (
+    <div className={`${baseClass}__form`}>
+      <Dropdown
+        label="Labels"
+        name="labels"
+        options={labelOptions}
+        value={selectedLabelIDs.join(",")}
+        onChange={(value: string | null) => {
+          if (!value) {
+            setSelectedLabelIDs([]);
+          } else {
+            setSelectedLabelIDs(value.split(",").map(Number));
+          }
+        }}
+        multi
+        placeholder="All labels"
+        searchable
+        clearable
+      />
+      <Dropdown
+        label="Platforms"
+        name="platforms"
+        options={PLATFORM_OPTIONS}
+        value={selectedPlatforms.join(",")}
+        onChange={(value: string | null) => {
+          if (!value) {
+            setSelectedPlatforms([]);
+          } else {
+            setSelectedPlatforms(value.split(","));
+          }
+        }}
+        multi
+        placeholder="All platforms"
+        searchable={false}
+        clearable
+      />
+      <TabNav secondary>
+        <Tabs selectedIndex={tabIndex} onSelect={handleTabChange}>
+          <TabList>
+            <Tab>
+              <TabText>Exclude hosts</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Specific hosts</TabText>
+            </Tab>
+          </TabList>
+          {/* Only render the active tab to avoid two parallel host lists
+              fighting over the shared listRef and duplicating API requests. */}
+          <TabPanel>{tabIndex === 0 && renderHostSearch()}</TabPanel>
+          <TabPanel>{tabIndex === 1 && renderHostSearch()}</TabPanel>
+        </Tabs>
+      </TabNav>
+    </div>
+  );
+
   return (
     <Modal title="Settings" onExit={onCancel} className={baseClass}>
-      <div className={`${baseClass}__form`}>
-        <Dropdown
-          label="Labels"
-          name="labels"
-          options={labelOptions}
-          value={selectedLabelIDs.join(",")}
-          onChange={(value: string | null) => {
-            if (!value) {
-              setSelectedLabelIDs([]);
-            } else {
-              setSelectedLabelIDs(value.split(",").map(Number));
-            }
-          }}
-          multi
-          placeholder="All labels"
-          searchable
-          clearable
-        />
-        <Dropdown
-          label="Platforms"
-          name="platforms"
-          options={PLATFORM_OPTIONS}
-          value={selectedPlatforms.join(",")}
-          onChange={(value: string | null) => {
-            if (!value) {
-              setSelectedPlatforms([]);
-            } else {
-              setSelectedPlatforms(value.split(","));
-            }
-          }}
-          multi
-          placeholder="All platforms"
-          searchable={false}
-          clearable
-        />
-        <TabNav secondary>
-          <Tabs selectedIndex={tabIndex} onSelect={handleTabChange}>
+      {isCVE ? (
+        <TabNav>
+          <Tabs selectedIndex={activeTab} onSelect={setActiveTab}>
             <TabList>
               <Tab>
-                <TabText>Exclude hosts</TabText>
+                <TabText>Hosts</TabText>
               </Tab>
               <Tab>
-                <TabText>Specific hosts</TabText>
+                <TabText>Software</TabText>
               </Tab>
             </TabList>
-            {/* Only render the active tab to avoid two parallel host lists
-                fighting over the shared listRef and duplicating API requests. */}
-            <TabPanel>{tabIndex === 0 && renderHostSearch()}</TabPanel>
-            <TabPanel>{tabIndex === 1 && renderHostSearch()}</TabPanel>
+            <TabPanel>{renderHostFilters()}</TabPanel>
+            <TabPanel>
+              <SoftwareFilters
+                currentTeamId={currentTeamId}
+                categories={softwareCategories}
+                knownExploit={knownExploit}
+                epssMin={epssMin}
+                epssMax={epssMax}
+                excludeCVEs={excludeCVEs}
+                setCategories={setSoftwareCategories}
+                setKnownExploit={setKnownExploit}
+                setEpssMin={setEpssMin}
+                setEpssMax={setEpssMax}
+                setExcludeCVEs={setExcludeCVEs}
+              />
+            </TabPanel>
           </Tabs>
         </TabNav>
-      </div>
+      ) : (
+        renderHostFilters()
+      )}
       <div className={`${baseClass}__btn-wrap`}>
         {hasFilters && (
           <Button variant="inverse" onClick={handleClear}>
@@ -315,9 +415,17 @@ const ChartFilterModal = ({
           <Button variant="inverse" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="default" onClick={handleApply}>
-            Apply
-          </Button>
+          {applyDisabled ? (
+            <TooltipWrapper tipContent={applyTooltip} underline={false}>
+              <Button variant="default" disabled>
+                Apply
+              </Button>
+            </TooltipWrapper>
+          ) : (
+            <Button variant="default" onClick={handleApply}>
+              Apply
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

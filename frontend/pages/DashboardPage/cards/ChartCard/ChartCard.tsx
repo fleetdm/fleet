@@ -25,11 +25,17 @@ import {
   DATASET_CONFIG_KEY,
   DATASET_LABEL,
   HistoricalDataConfigKey,
+  CVE_SOFTWARE_CATEGORIES,
+  ALL_CVE_SOFTWARE_CATEGORY_VALUES,
 } from "interfaces/charts";
 
 import { AppContext } from "context/app";
 
-import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
+import ChartFilterModal, {
+  IChartFilterState,
+  ChartFilterTab,
+} from "./ChartFilterModal";
+import { isEpssActive } from "./ChartFilterModal/SoftwareFilters/helpers";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
 import DataCollectionDisabledState from "./DataCollectionDisabledState";
@@ -40,11 +46,84 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
-const hasActiveFilters = (filters: IChartFilterState): boolean => {
+const DEFAULT_CHART_FILTERS: IChartFilterState = {
+  labelIDs: [],
+  platforms: [],
+  hostFilterMode: "none",
+  selectedHosts: [],
+  softwareCategories: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
+  knownExploit: false,
+  epssMin: "",
+  epssMax: "",
+  excludeCVEs: [],
+};
+
+const hasActiveHostFilters = (filters: IChartFilterState): boolean => {
   const hasHostFilter =
     filters.hostFilterMode !== "none" && filters.selectedHosts.length > 0;
   return (
     filters.labelIDs.length > 0 || filters.platforms.length > 0 || hasHostFilter
+  );
+};
+
+const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
+  filters.softwareCategories.length !==
+    ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
+  filters.knownExploit ||
+  isEpssActive(filters.epssMin, filters.epssMax) ||
+  filters.excludeCVEs.length > 0;
+
+// Human-readable "a, b, and c".
+const formatList = (items: string[]): string => {
+  if (items.length <= 1) return items.join("");
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+};
+
+const softwareFilterTooltip = (filters: IChartFilterState): JSX.Element => {
+  const lines: string[] = [];
+  const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
+    filters.softwareCategories.includes(c.value)
+  ).map((c) => c.tooltipLabel);
+  if (cats.length) lines.push(formatList(cats));
+  if (filters.knownExploit) lines.push("Known exploits only");
+  if (
+    isEpssActive(filters.epssMin, filters.epssMax) ||
+    filters.excludeCVEs.length > 0
+  ) {
+    lines.push("Advanced filters");
+  }
+  return (
+    <>
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
+    </>
+  );
+};
+
+const hostFilterTooltip = (filters: IChartFilterState): JSX.Element => {
+  const lines: string[] = [];
+  if (filters.labelIDs.length > 0) lines.push("Labels");
+  if (filters.platforms.length > 0) lines.push("Platforms");
+  if (
+    filters.hostFilterMode === "include" &&
+    filters.selectedHosts.length > 0
+  ) {
+    lines.push("Specific hosts");
+  }
+  if (
+    filters.hostFilterMode === "exclude" &&
+    filters.selectedHosts.length > 0
+  ) {
+    lines.push("Excluded hosts");
+  }
+  return (
+    <>
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
+    </>
   );
 };
 
@@ -59,12 +138,15 @@ const ChartCard = ({
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [chartFilters, setChartFilters] = useState<IChartFilterState>({
-    labelIDs: [],
-    platforms: [],
-    hostFilterMode: "none",
-    selectedHosts: [],
-  });
+  const [initialTab, setInitialTab] = useState<ChartFilterTab>("hosts");
+  const [chartFilters, setChartFilters] = useState<IChartFilterState>(
+    DEFAULT_CHART_FILTERS
+  );
+
+  const openFilterModal = (tab: ChartFilterTab = "hosts") => {
+    setInitialTab(tab);
+    setShowFilterModal(true);
+  };
 
   const { isPremiumTier } = useContext(AppContext);
 
@@ -98,22 +180,15 @@ const ChartCard = ({
       defaultChartType: "checkerboard",
       description: (
         <>
-          The number of hosts with critical vulnerabilities detected in browsers
-          and{" "}
-          <CustomLink
-            newTab
-            text="other common software "
-            variant="tooltip-link"
-            url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
-          />
+          All critical vulnerabilities.
           <br />
           <br />
-          Want more control? Comprehensive vulnerability filtering is{" "}
+          Want more control? Severity (CVSS) filter is{" "}
           <CustomLink
             newTab
             text="coming soon "
             variant="tooltip-link"
-            url="https://github.com/fleetdm/fleet/issues/44746"
+            url="https://github.com/fleetdm/fleet/issues/47326"
           />
         </>
       ),
@@ -132,12 +207,7 @@ const ChartCard = ({
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.
   useEffect(() => {
-    setChartFilters({
-      labelIDs: [],
-      platforms: [],
-      hostFilterMode: "none",
-      selectedHosts: [],
-    });
+    setChartFilters(DEFAULT_CHART_FILTERS);
   }, [currentTeamId]);
 
   const currentDataset = getDataset(selectedMetric);
@@ -151,6 +221,21 @@ const ChartCard = ({
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
   const queryParams: IChartApiParams = useMemo(() => {
+    const isCVE = selectedMetric === "cve";
+    // Only narrow categories when not all are selected; EPSS only narrows when
+    // min > 0 or max < 100. The Software tab enters EPSS as 0–100 %, but the
+    // API takes 0.0–1.0, so divide before sending.
+    const narrowsCategories =
+      isCVE &&
+      chartFilters.softwareCategories.length !==
+        ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
+    const epssMinActive =
+      isCVE && chartFilters.epssMin !== "" && Number(chartFilters.epssMin) > 0;
+    const epssMaxActive =
+      isCVE &&
+      chartFilters.epssMax !== "" &&
+      Number(chartFilters.epssMax) < 100;
+
     return {
       // Add an extra day to ensure we get the full # of calendar days
       // represented in the chart, regardless of timezone.
@@ -173,8 +258,18 @@ const ChartCard = ({
         chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
+      software_categories: narrowsCategories
+        ? chartFilters.softwareCategories.join(",")
+        : undefined,
+      known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
+      epss_min: epssMinActive ? Number(chartFilters.epssMin) / 100 : undefined,
+      epss_max: epssMaxActive ? Number(chartFilters.epssMax) / 100 : undefined,
+      exclude_cves:
+        isCVE && chartFilters.excludeCVEs.length
+          ? chartFilters.excludeCVEs.join(",")
+          : undefined,
     };
-  }, [chartFilters, currentTeamId]);
+  }, [chartFilters, currentTeamId, selectedMetric]);
 
   const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,
@@ -280,8 +375,40 @@ const ChartCard = ({
               <Icon name="info-outline" />
             </TooltipWrapper>
           )}
-          {hasActiveFilters(chartFilters) && (
-            <span className={`${baseClass}__filtered-badge`}>Filtered</span>
+          {currentDataset.name === "cve" &&
+            hasActiveSoftwareFilters(chartFilters) && (
+              <TooltipWrapper
+                tipContent={softwareFilterTooltip(chartFilters)}
+                position="top"
+                underline={false}
+                showArrow
+                tipOffset={8}
+              >
+                <button
+                  type="button"
+                  className={`${baseClass}__filter-pill`}
+                  onClick={() => openFilterModal("software")}
+                >
+                  Software filtered
+                </button>
+              </TooltipWrapper>
+            )}
+          {hasActiveHostFilters(chartFilters) && (
+            <TooltipWrapper
+              tipContent={hostFilterTooltip(chartFilters)}
+              position="top"
+              underline={false}
+              showArrow
+              tipOffset={8}
+            >
+              <button
+                type="button"
+                className={`${baseClass}__filter-pill`}
+                onClick={() => openFilterModal("hosts")}
+              >
+                Hosts filtered
+              </button>
+            </TooltipWrapper>
           )}
         </div>
         <div className={`${baseClass}__header-right`}>
@@ -290,7 +417,7 @@ const ChartCard = ({
             variant="inverse"
             className={`${baseClass}__settings-btn`}
             ariaLabel="Configure chart filters"
-            onClick={() => setShowFilterModal(true)}
+            onClick={() => openFilterModal()}
           >
             <Icon name="settings" />
           </Button>
@@ -301,6 +428,8 @@ const ChartCard = ({
         <ChartFilterModal
           filters={chartFilters}
           currentTeamId={currentTeamId}
+          metric={selectedMetric}
+          initialTab={initialTab}
           onApply={(newFilters) => {
             setChartFilters(newFilters);
             setShowFilterModal(false);

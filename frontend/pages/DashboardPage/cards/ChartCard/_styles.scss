@@ -108,6 +108,26 @@
     white-space: nowrap;
   }
 
+  // Clickable variant of the filtered badge — opens the Settings modal to the
+  // matching tab. Shares the badge's pill appearance.
+  &__filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    font-size: $xx-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 12px;
+    background: $core-fleet-white;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $ui-fleet-black-25;
+    }
+  }
+
   &__settings-btn {
     // Button variant="inverse" applies a 36px height that would make the
     // chart-card header taller than HostsEnrolledCard's bare h2 next door.
