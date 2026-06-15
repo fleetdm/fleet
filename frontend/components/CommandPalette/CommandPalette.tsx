@@ -8,6 +8,10 @@ import React, {
   useRef,
 } from "react";
 import { Command } from "cmdk";
+import {
+  Title as DialogTitle,
+  Description as DialogDescription,
+} from "@radix-ui/react-dialog";
 import { browserHistory } from "react-router";
 
 import { AppContext } from "context/app";
@@ -768,6 +772,14 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
+      {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
+          a Description for screen reader accessibility — without these, Radix
+          logs a console error/warning on every open. Both are rendered
+          visually hidden so the palette UI stays unchanged. */}
+      <DialogTitle className="sr-only">Command palette</DialogTitle>
+      <DialogDescription className="sr-only">
+        Search for a page, command, or resource across Fleet.
+      </DialogDescription>
       <div className={`${baseClass}__input-wrapper`}>
         {page !== "root" && (
           // tabIndex=-1 so Radix's open-autofocus skips the back button
