@@ -41,9 +41,9 @@ interface ISoftwareFleetMaintainedProps {
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 // The list is paginated server-side by app (an app's macOS and Windows entries
-// are combined into a single row). 500 apps per page keeps the full library
+// are combined into a single row). 100 apps per page keeps the full library
 // reachable without an unbounded response.
-const DEFAULT_PAGE_SIZE = 500;
+const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE = 0;
 
 const SoftwareFleetMaintained = ({
