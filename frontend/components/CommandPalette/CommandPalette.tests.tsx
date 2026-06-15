@@ -431,10 +431,14 @@ describe("CommandPalette", () => {
       expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
 
       // Arrow down until OS settings is highlighted (aria-selected="true").
-      // The exact number of presses depends on item order, so loop with a
-      // safe upper bound rather than hard-coding.
-      for (let i = 0; i < 30; i += 1) {
-        const osSettingsItem = screen
+      // Derive the upper bound from the number of rendered items so this
+      // doesn't silently miss if the list grows or reorders.
+      const itemCount = document.querySelectorAll(`.command-palette__item`)
+        .length;
+      const maxPresses = itemCount + 2;
+      let osSettingsItem: Element | null = null;
+      for (let i = 0; i < maxPresses; i += 1) {
+        osSettingsItem = screen
           .getByText("OS settings")
           .closest(`.command-palette__item`);
         if (osSettingsItem?.getAttribute("aria-selected") === "true") {
@@ -443,6 +447,10 @@ describe("CommandPalette", () => {
         // eslint-disable-next-line no-await-in-loop
         await user.keyboard("{ArrowDown}");
       }
+
+      // Assert OS settings actually got selected so a failure here points
+      // at the navigation step, not at the expansion check below.
+      expect(osSettingsItem?.getAttribute("aria-selected")).toBe("true");
 
       await waitFor(() => {
         expect(screen.getByText("Disk encryption")).toBeInTheDocument();
@@ -460,10 +468,15 @@ describe("CommandPalette", () => {
 
       // Hovering moves cmdk's selected value (selection-follows-pointer)
       // but must not pop sub-items open — that should only happen on
-      // keyboard nav.
+      // keyboard nav. The expand/collapse bridge runs through a
+      // useEffect, so wrap the negative assertion in waitFor to make
+      // sure pending effects have flushed before we conclude that
+      // nothing expanded.
       await user.hover(osSettingsItem!);
 
-      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+      });
     });
 
     it("expands sub-items on chevron click", async () => {

@@ -516,7 +516,19 @@ const CommandPalette = (): JSX.Element | null => {
       if (isSearching) return;
       if (lastInputSourceRef.current !== "keyboard") return;
       const parentId = valueToParentId.get(value.toLowerCase().trim());
-      setExpandedItems(parentId ? new Set([parentId]) : new Set());
+      // Bail out when the target set is equivalent to the current one
+      // (arrowing within the same parent's sub-items, or moving between
+      // two non-parent rows). Without this, every arrow press allocates
+      // a new Set and forces a re-render even when no expansion state
+      // actually changes.
+      setExpandedItems((prev) => {
+        if (parentId) {
+          if (prev.size === 1 && prev.has(parentId)) return prev;
+          return new Set([parentId]);
+        }
+        if (prev.size === 0) return prev;
+        return new Set();
+      });
     },
     [valueToParentId, isSearching]
   );
