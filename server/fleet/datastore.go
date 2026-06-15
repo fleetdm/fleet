@@ -3438,15 +3438,25 @@ type Datastore interface {
 	// Apple Platform SSO (PSSO)
 
 	// SetOrUpdatePSSODevice persists a Mac's PSSO registration: the device row
-	// plus both KeyID rows (signing + encryption) in a single transaction.
-	// Replaces any existing registration for the same host.
-	SetOrUpdatePSSODevice(ctx context.Context, device PSSODevice, signKeyID PSSOKeyID, encKeyID PSSOKeyID) error
+	// plus the given key rows in a single transaction. Keys are upserted by
+	// kid; existing keys for the host are left in place so they keep working
+	// after a re-registration.
+	SetOrUpdatePSSODevice(ctx context.Context, hostUUID string, keys []PSSOKey) error
 
-	// GetPSSODeviceByKeyID looks up the device that owns the given kid and
-	// returns both the device row and the specific KeyID row (so the caller
-	// knows which key — signing or encryption — was referenced).
-	GetPSSODeviceByKeyID(ctx context.Context, kid string) (*PSSODevice, *PSSOKeyID, error)
-	
+	// GetPSSODevice returns the PSSO registration record for the given host
+	// UUID, or a notFound error if the host isn't registered.
+	GetPSSODevice(ctx context.Context, hostUUID string) (*PSSODevice, error)
+
+	// GetPSSOKey looks up a registered device key by its kid.
+	GetPSSOKey(ctx context.Context, kid string) (*PSSOKey, error)
+
+	// ListPSSOKeys returns all keys registered for the given host UUID.
+	ListPSSOKeys(ctx context.Context, hostUUID string) ([]*PSSOKey, error)
+
+	// DeletePSSODevice removes a host's PSSO registration and, via cascade,
+	// all of its registered keys. Deleting an unregistered host is a no-op.
+	DeletePSSODevice(ctx context.Context, hostUUID string) error
+
 	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
 

@@ -141,8 +141,9 @@ func parsePSSOSigningKeyPEM(pemBytes []byte) (*ecdsa.PrivateKey, string, error) 
 }
 
 // computeKID returns base64url-nopad SHA-256 of the SubjectPublicKeyInfo DER
-// encoding of pub. This matches the kid format the extension sends with its
-// JWTs (SHA-256 of the public key bytes, base64'd).
+// encoding of pub. Used only for Fleet's own signing key (JWKS/JWT kid).
+// Device key kids are different: the extension computes them as SHA-256 of
+// the raw X9.63 point bytes and submits them at registration.
 func computeKID(pub *ecdsa.PublicKey) (string, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
@@ -252,8 +253,8 @@ func (svc *Service) PSSORegisterBegin(ctx context.Context) (string, error) {
 }
 
 // PSSORegisterComplete consumes the device-key enrollment POST from the Mac
-// extension: it resolves the enrolled host from the hardware device UUID,
-// mints a KeyExchangeKey, and persists the device record + KeyID rows.
+// extension: it resolves the enrolled host from the hardware device UUID and
+// persists the device record plus its public key rows.
 //
 // Password-mode registration carries no OAuth code/state — the extension
 // simply submits the public halves of its Secure Enclave signing and
@@ -269,9 +270,19 @@ func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegi
 		return &fleet.BadRequestError{Message: "missing required psso register fields"}
 	}
 
-	// Resolve host_id from device UUID. PSSO requires a matching enrolled host
-	// since the device record is keyed by host_id.
-	host, err := svc.ds.HostLiteByIdentifier(ctx, req.DeviceUUID)
+	// Reject unparseable key material up front: a bad PEM stored here would
+	// otherwise only surface as opaque verification failures at every
+	// subsequent login.
+	if _, err := parseECPublicKeyPEM([]byte(req.DeviceSigningKey)); err != nil {
+		return &fleet.BadRequestError{Message: "psso register: signing key is not a valid P-256 public key"}
+	}
+	if _, err := parseECPublicKeyPEM([]byte(req.DeviceEncryptionKey)); err != nil {
+		return &fleet.BadRequestError{Message: "psso register: encryption key is not a valid P-256 public key"}
+	}
+
+	// PSSO requires a matching enrolled host; the registration is keyed by the
+	// host's UUID.
+	host, err := svc.ds.HostByUUID(ctx, req.DeviceUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("psso register: no enrolled host matches device UUID %q", req.DeviceUUID)}
@@ -279,37 +290,22 @@ func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegi
 		return ctxerr.Wrap(ctx, err, "look up host by device uuid")
 	}
 
-	// Mint a 32-byte KeyExchangeKey. This is the v2 secret returned to the
-	// device on its first key_request and reused for symmetric session keys
-	// thereafter.
-	var kek [32]byte
-	if _, err := rand.Read(kek[:]); err != nil {
-		return ctxerr.Wrap(ctx, err, "generate key exchange key")
-	}
-
-	device := fleet.PSSODevice{
-		HostID:           host.ID,
-		DeviceUUID:       req.DeviceUUID,
-		SigningKeyPEM:    req.DeviceSigningKey,
-		EncryptionKeyPEM: req.DeviceEncryptionKey,
-		KeyExchangeKey:   kek[:],
-	}
 	// Store kids in canonical form so the token endpoint's lookup (which
 	// canonicalizes the JWT's kid) matches regardless of base64 padding or
 	// alphabet differences between the extension and Apple's framework.
-	signKID := fleet.PSSOKeyID{
-		KID:     canonicalizeKID(req.SignKeyID),
-		HostID:  host.ID,
-		KeyType: fleet.PSSOKeyTypeSigning,
-		PEM:     req.DeviceSigningKey,
+	keys := []fleet.PSSOKey{
+		{
+			KID:     canonicalizeKID(req.SignKeyID),
+			KeyType: fleet.PSSOKeyTypeSigning,
+			PEM:     req.DeviceSigningKey,
+		},
+		{
+			KID:     canonicalizeKID(req.EncKeyID),
+			KeyType: fleet.PSSOKeyTypeEncryption,
+			PEM:     req.DeviceEncryptionKey,
+		},
 	}
-	encKID := fleet.PSSOKeyID{
-		KID:     canonicalizeKID(req.EncKeyID),
-		HostID:  host.ID,
-		KeyType: fleet.PSSOKeyTypeEncryption,
-		PEM:     req.DeviceEncryptionKey,
-	}
-	if err := svc.ds.SetOrUpdatePSSODevice(ctx, device, signKID, encKID); err != nil {
+	if err := svc.ds.SetOrUpdatePSSODevice(ctx, host.UUID, keys); err != nil {
 		return ctxerr.Wrap(ctx, err, "persist psso device registration")
 	}
 	return nil
@@ -328,7 +324,7 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 		return nil, &fleet.BadRequestError{Message: "psso token: empty request body"}
 	}
 
-	claims, device, err := svc.parsePSSOInboundJWT(ctx, jwtBytes)
+	claims, signKey, err := svc.parsePSSOInboundJWT(ctx, jwtBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -336,18 +332,14 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 	// PSSO v2 Password login: a single grant_type=password round trip carrying
 	// a plaintext password and a jwe_crypto response recipe.
 	if claims.GrantType == pssoGrantTypePassword {
-		return svc.handlePSSOPasswordLogin(ctx, device, claims)
+		return svc.handlePSSOPasswordLogin(ctx, signKey.HostUUID, claims)
 	}
 
-	// Legacy request_type handshake model — retained but not exercised by the
-	// Password flow.
 	switch claims.RequestType {
 	case pssoRequestKey:
-		return svc.handlePSSOKeyRequest(ctx, device, claims)
+		return svc.handlePSSOKeyRequest(ctx, signKey.HostUUID, claims)
 	case pssoRequestExchange:
-		return svc.handlePSSOKeyExchange(ctx, device, claims)
-	case pssoRequestPassword:
-		return svc.handlePSSOPasswordRequest(ctx, device, claims)
+		return svc.handlePSSOKeyExchange(ctx, signKey.HostUUID, claims)
 	default:
 		return nil, &fleet.BadRequestError{Message: "psso token: unsupported grant_type/request_type"}
 	}
@@ -391,7 +383,7 @@ func (svc *Service) pssoIDTokenIssuer(ctx context.Context) (string, error) {
 // Fleet validates the password against the upstream IdP, then returns the
 // resulting OIDC claims as a server-signed JWT wrapped in a JWE encrypted per
 // that recipe.
-func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
 	if svc.pssoIdPClient == nil {
 		return nil, ctxerr.New(ctx, "psso idp client not configured")
 	}
@@ -429,9 +421,9 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, device *fleet.P
 		return nil, ctxerr.Wrap(ctx, err, "psso password validation")
 	}
 
-	recipientPub, err := parseECPublicKeyPEM([]byte(device.EncryptionKeyPEM))
+	recipientPub, err := svc.resolvePSSOEncryptionKey(ctx, hostUUID, claims.JWECrypto.APV)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parse device encryption pubkey")
+		return nil, ctxerr.Wrap(ctx, err, "resolve device encryption pubkey")
 	}
 
 	// Per Apple's JWE login-response doc, the response id_token is verified by
@@ -503,13 +495,13 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, device *fleet.P
 // key_context} in a JWE (typ=platformsso-key-response+jwt) encrypted to the
 // device. key_context carries the provisioned PRIVATE key, sealed under a
 // server key, so the later key exchange can recover it statelessly.
-func (svc *Service) handlePSSOKeyRequest(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso key request: missing jwe_crypto recipe"}
 	}
-	encPub, err := parseECPublicKeyPEM([]byte(device.EncryptionKeyPEM))
+	encPub, err := svc.resolvePSSOEncryptionKey(ctx, hostUUID, claims.JWECrypto.APV)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parse device encryption pubkey")
+		return nil, ctxerr.Wrap(ctx, err, "resolve device encryption pubkey")
 	}
 
 	provisioned, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -605,7 +597,7 @@ func (svc *Service) issuePSSOProvisionedCertificate(ctx context.Context, provisi
 // provisioned private key from key_context, computes the raw ECDH shared
 // secret against other_publickey (this is the unlock key), and returns
 // {iat, exp, key, key_context} in the same JWE envelope.
-func (svc *Service) handlePSSOKeyExchange(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
+func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso key exchange: missing jwe_crypto recipe"}
 	}
@@ -635,9 +627,9 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, device *fleet.PSS
 		return nil, ctxerr.Wrap(ctx, err, "compute key exchange shared secret")
 	}
 
-	encPub, err := parseECPublicKeyPEM([]byte(device.EncryptionKeyPEM))
+	encPub, err := svc.resolvePSSOEncryptionKey(ctx, hostUUID, claims.JWECrypto.APV)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parse device encryption pubkey")
+		return nil, ctxerr.Wrap(ctx, err, "resolve device encryption pubkey")
 	}
 
 	now := time.Now()
@@ -656,46 +648,6 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, device *fleet.PSS
 		return nil, ctxerr.Wrap(ctx, err, "build key_exchange JWE")
 	}
 	return jwe, nil
-}
-
-// handlePSSOPasswordRequest decrypts the password the device sent under
-// the previously-established session key, validates it against the
-// upstream IdP via the wired PSSOIdPClient, and returns the resulting
-// claims as a JWT-inside-JWE.
-func (svc *Service) handlePSSOPasswordRequest(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
-	if svc.pssoIdPClient == nil {
-		return nil, ctxerr.New(ctx, "psso idp client not configured")
-	}
-	if claims.Username == "" || claims.EncryptedPwd == "" {
-		return nil, &fleet.BadRequestError{Message: "psso password_request missing username or encrypted_password"}
-	}
-
-	sessionKey, err := deriveSessionKey(device.KeyExchangeKey, []byte(claims.RequestNonce))
-	if err != nil {
-		return nil, fmt.Errorf("derive session key: %w", err)
-	}
-	pwdPlain, err := decryptSymmetricBlob([]byte(claims.EncryptedPwd), sessionKey)
-	if err != nil {
-		return nil, fmt.Errorf("decrypt password blob: %w", err)
-	}
-
-	idpClaims, err := svc.pssoIdPClient.ValidatePasswordAndGetClaims(ctx, claims.Username, string(pwdPlain))
-	if err != nil {
-		return nil, err
-	}
-
-	// Wrap the OIDC-shaped claims in a server-signed JWT, then JWE-wrap the
-	// JWT under the session key.
-	innerToken, err := svc.signServerJWT(ctx, jwt.MapClaims{
-		"sub":                idpClaims.Subject,
-		"email":              idpClaims.Email,
-		"name":               idpClaims.Name,
-		"preferred_username": idpClaims.PreferredUsername,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return buildSymmetricJWE(innerToken, sessionKey)
 }
 
 // PSSOJWKS returns the JWKS JSON with Fleet's PSSO signing public key.

@@ -1826,29 +1826,24 @@ CREATE TABLE `mdm_apple_installers` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `mdm_apple_psso_devices` (
-  `host_id` int unsigned NOT NULL,
-  `device_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `signing_key_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `encryption_key_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `key_exchange_key` varbinary(64) NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`host_id`),
-  UNIQUE KEY `idx_mdm_apple_psso_devices_device_uuid` (`device_uuid`),
-  CONSTRAINT `fk_mdm_apple_psso_devices_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`host_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `mdm_apple_psso_key_ids` (
+CREATE TABLE `mdm_apple_psso_keys` (
   `kid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `host_id` int unsigned NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `key_type` enum('signing','encryption') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`kid`),
-  UNIQUE KEY `idx_mdm_apple_psso_key_ids_host_type` (`host_id`,`key_type`),
-  CONSTRAINT `fk_mdm_apple_psso_key_ids_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+  KEY `fk_mdm_apple_psso_keys_host_uuid` (`host_uuid`),
+  CONSTRAINT `fk_mdm_apple_psso_keys_host_uuid` FOREIGN KEY (`host_uuid`) REFERENCES `mdm_apple_psso_devices` (`host_uuid`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
