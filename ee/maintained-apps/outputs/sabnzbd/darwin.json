@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.0.3",
+      "version": "5.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.sabnzbd.sabnzbd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sabnzbd.sabnzbd' AND version_compare(bundle_short_version, '5.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sabnzbd.sabnzbd' AND version_compare(bundle_short_version, '5.0.4') < 0);"
       },
-      "installer_url": "https://github.com/sabnzbd/sabnzbd/releases/download/5.0.3/SABnzbd-5.0.3-macos.dmg",
+      "installer_url": "https://github.com/sabnzbd/sabnzbd/releases/download/5.0.4/SABnzbd-5.0.4-macos.dmg",
       "install_script_ref": "967f6062",
       "uninstall_script_ref": "8b107d86",
-      "sha256": "c1a066f598b635d843f33ac9f173223272a1f338a4f9f920a1ec02fd9407fb26",
+      "sha256": "a926acfc8bc4004f705c54f67682e8e12cf09195f6a140d96c10c9ec215ad1f1",
       "default_categories": [
         "Productivity"
       ]

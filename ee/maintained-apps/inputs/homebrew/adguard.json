@@ -1,0 +1,10 @@
+{
+  "name": "AdGuard",
+  "unique_identifier": "com.adguard.mac.adguard",
+  "token": "adguard",
+  "installer_format": "dmg",
+  "slug": "adguard/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

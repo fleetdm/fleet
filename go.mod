@@ -392,4 +392,5 @@ ignore (
 	./handbook
 	./it-and-security
 	./node_modules
+	./apps
 )

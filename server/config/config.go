@@ -232,6 +232,7 @@ type AuthConfig struct {
 	SaltKeySize                 int           `yaml:"salt_key_size"`
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -925,11 +926,20 @@ type MDMConfig struct {
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
-	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
+	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
 func (m MDMConfig) IsCustomFileVaultEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
+}
+
+// ValidateAndroidBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidBatchSize < 0 {
+		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
+			"Android MDM configuration")
+	}
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -1386,6 +1396,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
+		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1755,6 +1767,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
+	man.addConfigInt("mdm.android_batch_size", 1000, "Maximum number of hosts per batch for Android MDM API operations (1000 default; 0 = no limit)")
+	man.hideConfig("mdm.android_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1875,6 +1889,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2087,6 +2102,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
+			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

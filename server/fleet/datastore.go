@@ -451,6 +451,9 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
+	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content once no host_mdm_windows_profiles
+	// row still references the profile (reference-counted).
+	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
@@ -2288,37 +2291,17 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// ListMDMWindowsProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
+	// rules as the batched reconciler's host listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
+	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
 
-	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
-	// be installed for a specific host.
-	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
+	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the reconcile snapshot's profile loader: it loads only
+	// profiles for the host's team (team_id=0 is its own "no team" scope).
+	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
 
-	// ListMDMWindowsProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
-	// (sorted ascending) where host_uuid > afterHostUUID and the host has
-	// any pending Windows MDM profile reconciliation work. Used by the
-	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
-	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
+	// host UUID.
+	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.
@@ -3131,7 +3114,18 @@ type Datastore interface {
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
 	// the list of profiles to apply and the list of profiles to remove.
-	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+	// When cursor is non-empty, only hosts with host_uuid > cursor are
+	// considered. When batchSize > 0, at most batchSize distinct hosts are
+	// returned.
+	ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+
+	// GetMDMAndroidReconcileCursor returns the persisted host_uuid cursor
+	// used by the Android MDM reconciliation cron to bound per-tick work.
+	GetMDMAndroidReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAndroidReconcileCursor persists the host_uuid cursor used by
+	// the Android MDM reconciliation cron. See GetMDMAndroidReconcileCursor.
+	SetMDMAndroidReconcileCursor(ctx context.Context, cursor string) error
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.

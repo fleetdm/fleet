@@ -1,0 +1,10 @@
+{
+  "name": "MarkText",
+  "unique_identifier": "com.github.marktext.marktext",
+  "token": "mark-text",
+  "installer_format": "dmg",
+  "slug": "mark-text/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

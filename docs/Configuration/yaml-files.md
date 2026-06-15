@@ -467,7 +467,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
-### macos_setup
+### setup_experience
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 

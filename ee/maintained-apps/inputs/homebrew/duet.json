@@ -1,0 +1,10 @@
+{
+  "name": "Duet",
+  "unique_identifier": "com.kairos.duetMac",
+  "token": "duet",
+  "installer_format": "dmg",
+  "slug": "duet/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

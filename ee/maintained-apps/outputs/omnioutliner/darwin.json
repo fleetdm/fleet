@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.1",
+      "version": "6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniOutliner6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniOutliner6' AND version_compare(bundle_short_version, '6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniOutliner6' AND version_compare(bundle_short_version, '6.2') < 0);"
       },
-      "installer_url": "https://downloads.omnigroup.com/software/macOS/15/OmniOutliner-6.1.dmg",
+      "installer_url": "https://downloads.omnigroup.com/software/macOS/15/OmniOutliner-6.2.dmg",
       "install_script_ref": "535cbe5c",
       "uninstall_script_ref": "6c8b1ba5",
-      "sha256": "d98557e851d0626d4cda377081af6dd796603aea4b14ba92cbd9ef4c807e95b7",
+      "sha256": "69bd2ffeb7f611cb893c5c3f1787ce7ae5037c93520715cb875dba913799f337",
       "default_categories": [
         "Utilities"
       ]

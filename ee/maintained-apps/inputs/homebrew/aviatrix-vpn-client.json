@@ -1,0 +1,10 @@
+{
+  "name": "Aviatrix VPN Client",
+  "unique_identifier": "org.pythonmac.unspecified.AviatrixVPNClient",
+  "token": "aviatrix-vpn-client",
+  "installer_format": "pkg",
+  "slug": "aviatrix-vpn-client/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -6,11 +6,16 @@ import ENDPOINTS from "utilities/endpoints";
 
 import PolicyAutomationsList from "./PolicyAutomationsList";
 
-// Stub SoftwareIcon to avoid asset resolution in tests; surface the url prop so
-// we can assert the custom icon path is forwarded.
+// Stub SoftwareIcon to avoid asset resolution in tests; surface the url and
+// name props so we can assert the raw software name (used for fallback icon
+// matching) and the custom icon path are forwarded.
 jest.mock("pages/SoftwarePage/components/icons/SoftwareIcon", () => {
-  return ({ url }: { url?: string | null }) => (
-    <span data-testid="software-icon" data-url={url ?? ""} />
+  return ({ name, url }: { name?: string; url?: string | null }) => (
+    <span
+      data-testid="software-icon"
+      data-name={name ?? ""}
+      data-url={url ?? ""}
+    />
   );
 });
 
@@ -133,6 +138,31 @@ describe("PolicyAutomationsList", () => {
         "data-url",
         ""
       );
+    });
+
+    it("passes the raw install_software.name to SoftwareIcon even when a display_name override is set (regression: #47123)", () => {
+      // The display name is what users see, but SoftwareIcon's fallback
+      // matcher needs the raw name to find FMA / well-known icons; otherwise
+      // a custom display name causes it to fall through to the generic icon.
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: {
+              name: "Zoom",
+              display_name: "Custom Renamed App",
+              software_title_id: 42,
+            },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByTestId("software-icon")).toHaveAttribute(
+        "data-name",
+        "Zoom"
+      );
+      // sanity check: label still uses the display name override
+      expect(screen.getByText("Custom Renamed App")).toBeInTheDocument();
     });
 
     it("shows script automation row", () => {
