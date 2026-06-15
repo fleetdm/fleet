@@ -5812,24 +5812,10 @@
       "description": "Proton Mail Bridge is a bridges Proton Mail to email clients supporting IMAP and SMTP protocols."
     },
     {
-      "name": "Proton Mail Bridge",
-      "slug": "proton-mail-bridge/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Mail Bridge",
-      "description": "Proton Mail Bridge is a bridges Proton Mail to email clients supporting IMAP and SMTP protocols."
-    },
-    {
       "name": "Proton Mail",
       "slug": "proton-mail/darwin",
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.desktop",
-      "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
-    },
-    {
-      "name": "Proton Mail",
-      "slug": "proton-mail/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Mail",
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
@@ -5840,24 +5826,10 @@
       "description": "Proton Meet is a desktop client for Proton Meet."
     },
     {
-      "name": "Proton Meet",
-      "slug": "proton-meet/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Meet",
-      "description": "Proton Meet is a desktop client for Proton Meet."
-    },
-    {
       "name": "Proton Pass",
       "slug": "proton-pass/darwin",
       "platform": "darwin",
       "unique_identifier": "me.proton.pass.electron",
-      "description": "Proton Pass is a desktop client for Proton Pass."
-    },
-    {
-      "name": "Proton Pass",
-      "slug": "proton-pass/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Pass",
       "description": "Proton Pass is a desktop client for Proton Pass."
     },
     {
