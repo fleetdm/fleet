@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.0.85.135",
+      "version": "2.0.85.133",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nvidia.gfnpc.mall';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nvidia.gfnpc.mall' AND version_compare(bundle_short_version, '2.0.85.135') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nvidia.gfnpc.mall' AND version_compare(bundle_short_version, '2.0.85.133') < 0);"
       },
       "installer_url": "https://download.nvidia.com/gfnpc/GeForceNOW-release.dmg",
       "install_script_ref": "a9979922",
