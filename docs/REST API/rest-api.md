@@ -8800,7 +8800,7 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
@@ -9030,7 +9030,7 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
