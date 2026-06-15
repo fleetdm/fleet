@@ -146,12 +146,17 @@ export default {
 }
 ```
 
-### Display names for software titles
+### Software titles
 
 Software titles have two fields that look like a name:
 
 - `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
 - `display_name` — an optional custom name set per fleet by an admin
+
+Render the label from the resolved display name, but pass the **raw** `name` to
+`<SoftwareIcon>` — the icon matcher only knows raw, well-known names.
+
+#### Display name
 
 **Never render `name` directly in the UI.** Always route software names through
 `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
@@ -176,6 +181,41 @@ The same rule applies to any object shape that carries both fields
 `IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
 expectation: "All software names displayed by UI is ran through
 getDisplayedSoftwareName."
+
+#### Icons
+
+`<SoftwareIcon name={...}>` uses the `name` prop for **fallback icon matching**
+via `getMatchedSoftwareIcon({ name, source })` when `icon_url` is null. That
+matcher only knows the raw, well-known names (`notion`, `microsoft.companyportal`,
+etc.). If you pass it a resolved display name like `getDisplayedSoftwareName(...)`
+or `display_name || name`, an admin who renames the title to anything not in the
+match table will lose the icon to a generic fallback. Fleet-maintained apps are
+the highest-risk surface because they have no `icon_url` — they depend
+entirely on name matching. See #47123.
+
+When you have both fields, pass the raw `name` to the icon and the resolved
+name to the label:
+
+```tsx
+// good — icon matches against raw name, label shows resolved display name
+const displayName = getDisplayedSoftwareName(title.name, title.display_name);
+<>
+  <SoftwareIcon name={title.name} source={title.source} url={title.icon_url} />
+  {displayName}
+</>
+
+// bad — admin renames break the icon match for FMAs and other matched titles
+<SoftwareIcon name={displayName} ... />
+```
+
+When the data has been flattened into a single `name` field upstream (e.g. for a
+row object or table-cell renderer), carry the raw name alongside it as a
+separate field (`iconName`, `rawName`, etc.) and feed THAT to `<SoftwareIcon>`.
+See `frontend/pages/policies/ManagePoliciesPage/helpers.tsx`'s
+`ISoftwareAutomationData.iconName` for the established pattern.
+
+`SoftwareNameCell` already does this internally — when you can use it, prefer
+it over hand-rolling icon + label rendering.
 
 ## Components
 
