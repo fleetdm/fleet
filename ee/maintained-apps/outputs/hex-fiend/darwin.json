@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ridiculousfish.HexFiend';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ridiculousfish.HexFiend' AND version_compare(bundle_short_version, '2.18.1') < 0);"
       },
-      "installer_url": "https://github.com/ridiculousfish/HexFiend/releases/download/v2.18.1/Hex_Fiend_2.18.1.dmg",
+      "installer_url": "https://github.com/hexfiend/HexFiend/releases/download/v2.18.1/Hex_Fiend_2.18.1.dmg",
       "install_script_ref": "71c5b95d",
       "uninstall_script_ref": "56aea7f8",
       "sha256": "837041623a21eaae59b9b6c0bb7f75533938ab96580861ee7e276bb926e0e076",
