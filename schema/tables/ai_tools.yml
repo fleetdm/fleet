@@ -39,7 +39,7 @@ examples: |-
 notes: The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
 columns:
   - name: kind
-    description: "Row type discriminator: `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`."
+    description: "Options are`mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`."
     type: text
     required: false
   - name: name
