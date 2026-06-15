@@ -574,6 +574,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
 	}
 
+	// Validate and premium-gate the vulnerability-exposure chart filter
+	// defaults. These are display-only defaults (they seed the dashboard
+	// chart's filter controls; they do not affect data collection) and are
+	// premium-only. Validation runs on the incoming payload with sparse/PATCH
+	// semantics: only fields explicitly present are checked.
+	if veFilters := newAppConfig.Features.VulnerabilityExposureHistoricalReporting; veFilters != nil {
+		if !lic.IsPremium() {
+			invalid.Append("org_settings.features.vulnerability_exposure_historical_reporting", ErrMissingLicense.Error())
+		} else {
+			veFilters.Validate("org_settings.features", invalid)
+		}
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	// Reject conflicting deprecated/new logo URL pairs and mirror them so
 	// both forms are persisted with identical values. Done on the incoming
 	// payload before merge so we surface the conflict at the source field.
