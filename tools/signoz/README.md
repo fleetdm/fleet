@@ -91,3 +91,6 @@ JSON exports of Fleet-specific SigNoz dashboards live alongside this README. Imp
 
 - `database_custom_dashboard.json` — MySQL query metrics (RPS, latency, slow queries) derived from `db.sql.*` instrumentation.
 - `host_cache_dashboard.json` — Redis-backed host lookup cache (`LoadHostByNodeKey` / `LoadHostByOrbitNodeKey`). Shows hit rate over time, lookups/sec by result, errors/sec by op, and invalidations/sec by write-path reason. Requires `FLEET_REDIS_HOST_CACHE_ENABLED=true` (default on).
+- `http_errors_dashboard.json` — Fleet HTTP errors (the "Errors" signal of the RED method / Google SRE Golden Signals). Shows 4XX client errors and 5XX server errors from `fleet.http.client_errors` / `fleet.http.server_errors`, broken down by `error.type`.
+
+Each dashboard includes an `environment` selector (a dynamic dashboard variable on the `deployment.environment` resource attribute) so you can scope panels to a single deployment or view all. It defaults to ALL. Fleet always emits `deployment.environment` (default value `default`, overridable via `OTEL_RESOURCE_ATTRIBUTES`), so the selector populates on any instance Fleet reports to.
