@@ -5560,13 +5560,6 @@
       "description": "Open source tool for developers to work with containers and Kubernetes."
     },
     {
-      "name": "Podman Desktop",
-      "slug": "podman-desktop/windows",
-      "platform": "windows",
-      "unique_identifier": "Podman Desktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
-    },
-    {
       "name": "PopChar X",
       "slug": "popchar/darwin",
       "platform": "darwin",
@@ -5987,13 +5980,6 @@
       "description": "qView is an image viewer."
     },
     {
-      "name": "qView",
-      "slug": "qview/windows",
-      "platform": "windows",
-      "unique_identifier": "qView",
-      "description": "qView is an image viewer."
-    },
-    {
       "name": "R for Windows",
       "slug": "r/windows",
       "platform": "windows",
@@ -6012,13 +5998,6 @@
       "slug": "raindropio/darwin",
       "platform": "darwin",
       "unique_identifier": "io.raindrop.macapp",
-      "description": "Raindrop.io is an all-in-one bookmark manager."
-    },
-    {
-      "name": "Raindrop.io",
-      "slug": "raindropio/windows",
-      "platform": "windows",
-      "unique_identifier": "Raindrop.io",
       "description": "Raindrop.io is an all-in-one bookmark manager."
     },
     {
@@ -6288,13 +6267,6 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
-      "name": "Rocket.Chat",
-      "slug": "rocket-chat/windows",
-      "platform": "windows",
-      "unique_identifier": "Rocket.Chat",
-      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
-    },
-    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -6390,13 +6362,6 @@
       "slug": "sabnzbd/darwin",
       "platform": "darwin",
       "unique_identifier": "org.sabnzbd.sabnzbd",
-      "description": "SABnzbd is a binary newsreader."
-    },
-    {
-      "name": "SABnzbd",
-      "slug": "sabnzbd/windows",
-      "platform": "windows",
-      "unique_identifier": "SABnzbd",
       "description": "SABnzbd is a binary newsreader."
     },
     {
@@ -6792,13 +6757,6 @@
       "description": "SonoBus is a high-quality network audio streaming."
     },
     {
-      "name": "SonoBus",
-      "slug": "sonobus/windows",
-      "platform": "windows",
-      "unique_identifier": "SonoBus",
-      "description": "SonoBus is a high-quality network audio streaming."
-    },
-    {
       "name": "PS Remote Play",
       "slug": "sony-ps-remote-play/darwin",
       "platform": "darwin",
@@ -6915,13 +6873,6 @@
       "slug": "spyder/darwin",
       "platform": "darwin",
       "unique_identifier": "org.spyder-ide.Spyder-6",
-      "description": "Spyder is a scientific Python IDE."
-    },
-    {
-      "name": "Spyder",
-      "slug": "spyder/windows",
-      "platform": "windows",
-      "unique_identifier": "Spyder",
       "description": "Spyder is a scientific Python IDE."
     },
     {
@@ -7051,13 +7002,6 @@
       "description": "Stellarium is a tool to render realistic skies in real time on the screen."
     },
     {
-      "name": "Stellarium",
-      "slug": "stellarium/windows",
-      "platform": "windows",
-      "unique_identifier": "Stellarium",
-      "description": "Stellarium is a tool to render realistic skies in real time on the screen."
-    },
-    {
       "name": "Stillcolor",
       "slug": "stillcolor/darwin",
       "platform": "darwin",
@@ -7156,13 +7100,6 @@
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
     },
     {
-      "name": "Surfshark",
-      "slug": "surfshark/windows",
-      "platform": "windows",
-      "unique_identifier": "Surfshark",
-      "description": "Surfshark is a VPN client for secure internet access and private browsing."
-    },
-    {
       "name": "Surge",
       "slug": "surge/darwin",
       "platform": "darwin",
@@ -7258,13 +7195,6 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
-    },
-    {
-      "name": "Tableau Prep",
-      "slug": "tableau-prep/windows",
-      "platform": "windows",
-      "unique_identifier": "Tableau Prep Builder",
       "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
     },
     {
@@ -7653,13 +7583,6 @@
       "description": "TREZOR Suite is a companion app for the Trezor hardware wallet."
     },
     {
-      "name": "Trezor Suite",
-      "slug": "trezor-suite/windows",
-      "platform": "windows",
-      "unique_identifier": "Trezor Suite",
-      "description": "TREZOR Suite is a companion app for the Trezor hardware wallet."
-    },
-    {
       "name": "TripMode",
       "slug": "tripmode/darwin",
       "platform": "darwin",
@@ -7793,13 +7716,6 @@
       "description": "Unity Hub is a management tool for Unity."
     },
     {
-      "name": "Unity Hub",
-      "slug": "unity-hub/windows",
-      "platform": "windows",
-      "unique_identifier": "Unity Hub",
-      "description": "Unity Hub is a management tool for Unity."
-    },
-    {
       "name": "UPDF",
       "slug": "updf/darwin",
       "platform": "darwin",
@@ -7807,24 +7723,10 @@
       "description": "UPDF is a PDF editor."
     },
     {
-      "name": "UPDF",
-      "slug": "updf/windows",
-      "platform": "windows",
-      "unique_identifier": "UPDF",
-      "description": "UPDF is a PDF editor."
-    },
-    {
       "name": "Upscayl",
       "slug": "upscayl/darwin",
       "platform": "darwin",
       "unique_identifier": "org.upscayl.Upscayl",
-      "description": "Upscayl is an AI image upscaler."
-    },
-    {
-      "name": "Upscayl",
-      "slug": "upscayl/windows",
-      "platform": "windows",
-      "unique_identifier": "Upscayl",
       "description": "Upscayl is an AI image upscaler."
     },
     {
@@ -8143,13 +8045,6 @@
       "description": "WebCatalog is a tool to run web apps like desktop apps."
     },
     {
-      "name": "WebCatalog",
-      "slug": "webcatalog/windows",
-      "platform": "windows",
-      "unique_identifier": "WebCatalog",
-      "description": "WebCatalog is a tool to run web apps like desktop apps."
-    },
-    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -8315,13 +8210,6 @@
       "slug": "wondershare-filmora/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wondershare.filmoramac",
-      "description": "Wondershare Filmora is a video editor."
-    },
-    {
-      "name": "Wondershare Filmora",
-      "slug": "wondershare-filmora/windows",
-      "platform": "windows",
-      "unique_identifier": "Wondershare Filmora",
       "description": "Wondershare Filmora is a video editor."
     },
     {
@@ -8644,13 +8532,6 @@
       "slug": "zwift/darwin",
       "platform": "darwin",
       "unique_identifier": "com.zwift.ZwiftLauncher",
-      "description": "Zwift is an indoor cycling game."
-    },
-    {
-      "name": "Zwift",
-      "slug": "zwift/windows",
-      "platform": "windows",
-      "unique_identifier": "Zwift",
       "description": "Zwift is an indoor cycling game."
     }
   ]
