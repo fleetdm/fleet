@@ -423,6 +423,49 @@ describe("CommandPalette", () => {
       ).toBeInTheDocument();
     });
 
+    it("auto-expands sub-items when a parent is highlighted via arrow keys", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Sub-items hidden initially.
+      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+
+      // Arrow down until OS settings is highlighted (aria-selected="true").
+      // The exact number of presses depends on item order, so loop with a
+      // safe upper bound rather than hard-coding.
+      for (let i = 0; i < 30; i += 1) {
+        const osSettingsItem = screen
+          .getByText("OS settings")
+          .closest(`.command-palette__item`);
+        if (osSettingsItem?.getAttribute("aria-selected") === "true") {
+          break;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await user.keyboard("{ArrowDown}");
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      });
+    });
+
+    it("does not auto-expand sub-items when a parent is hovered with the mouse", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      const osSettingsItem = screen
+        .getByText("OS settings")
+        .closest(`.command-palette__item`);
+      expect(osSettingsItem).toBeInTheDocument();
+
+      // Hovering moves cmdk's selected value (selection-follows-pointer)
+      // but must not pop sub-items open — that should only happen on
+      // keyboard nav.
+      await user.hover(osSettingsItem!);
+
+      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+    });
+
     it("expands sub-items on chevron click", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
