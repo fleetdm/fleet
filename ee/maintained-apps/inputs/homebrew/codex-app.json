@@ -1,0 +1,8 @@
+{
+  "name": "Codex",
+  "unique_identifier": "com.openai.codex",
+  "token": "codex-app",
+  "installer_format": "zip",
+  "slug": "codex-app/darwin",
+  "default_categories": ["Developer tools"]
+}

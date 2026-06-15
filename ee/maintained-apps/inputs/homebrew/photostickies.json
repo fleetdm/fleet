@@ -1,0 +1,10 @@
+{
+  "name": "PhotoStickies",
+  "unique_identifier": "org.grunenberg.PhotoStickies",
+  "token": "photostickies",
+  "installer_format": "zip",
+  "slug": "photostickies/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

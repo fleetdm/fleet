@@ -1,0 +1,10 @@
+{
+  "name": "Transfer",
+  "unique_identifier": "com.adriangranados.Transfer",
+  "token": "transfer",
+  "installer_format": "dmg",
+  "slug": "transfer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

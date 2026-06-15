@@ -450,7 +450,10 @@ func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
 
 func (v *windowsSCEPProfileValidator) setLocURIArrays(locURI string) error {
 	switch {
-	case IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs == nil:
+	case IsWindowsSCEPLocURI(locURI) && (v.validExecSCEPProfileLocURIs == nil || len(*v.validExecSCEPProfileLocURIs) == 0):
+		// First SCEP LocURI seen. Earlier non-SCEP LocURIs may have set the empty placeholder arrays; replace them
+		// with the real ones so finalizeValidation rejects the mixed profile cleanly instead of indexing into an
+		// empty array below.
 		if strings.HasPrefix(locURI, "./User") {
 			v.requiredSCEPProfileLocURIs = &requiredUserSCEPProfileLocURIs
 			v.validSCEPProfileLocURIs = &validUserSCEPProfileLocURIs
