@@ -9,6 +9,8 @@ import InputField from "components/forms/fields/InputField";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import validUrl from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 const baseClass = "account-provisioning";
 
@@ -48,6 +50,7 @@ const validate = (formData: IFormData): IFormErrors => {
 };
 
 const AccountProvisioning = () => {
+  const { gitOpsModeEnabled } = useGitOpsMode();
   const [formData, setFormData] = useState<IFormData>({
     tokenUrl: "",
     clientId: "",
@@ -99,40 +102,46 @@ const AccountProvisioning = () => {
         }
       />
       <form onSubmit={onSubmit}>
-        <InputField
-          label="Token URL"
-          name="tokenUrl"
-          value={formData.tokenUrl}
-          onChange={onInputChange}
-          onBlur={onInputBlur("tokenUrl")}
-          parseTarget
-          placeholder="https://yourdomain.okta.com/oauth2/v1/token"
-          error={formErrors.tokenUrl}
-          helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
-        />
-        <InputField
-          label="Client ID"
-          name="clientId"
-          value={formData.clientId}
-          onChange={onInputChange}
-          onBlur={onInputBlur("clientId")}
-          parseTarget
-          error={formErrors.clientId}
-          helpText="In Okta, this will be in the Client Credentials section."
-        />
-        <InputField
-          label="Client secret"
-          name="clientSecret"
-          value={formData.clientSecret}
-          onChange={onInputChange}
-          onBlur={onInputBlur("clientSecret")}
-          parseTarget
-          error={formErrors.clientSecret}
-          helpText="In Okta, this will be in the Client Credentials section."
-        />
-        <div className="button-wrap">
-          <Button type="submit">Save</Button>
+        <div className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""}`}>
+          <InputField
+            label="Token URL"
+            name="tokenUrl"
+            value={formData.tokenUrl}
+            onChange={onInputChange}
+            onBlur={onInputBlur("tokenUrl")}
+            parseTarget
+            placeholder="https://yourdomain.okta.com/oauth2/v1/token"
+            error={formErrors.tokenUrl}
+            helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
+          />
+          <InputField
+            label="Client ID"
+            name="clientId"
+            value={formData.clientId}
+            onChange={onInputChange}
+            onBlur={onInputBlur("clientId")}
+            parseTarget
+            error={formErrors.clientId}
+            helpText="In Okta, this will be in the Client Credentials section."
+          />
+          <InputField
+            label="Client secret"
+            name="clientSecret"
+            value={formData.clientSecret}
+            onChange={onInputChange}
+            onBlur={onInputBlur("clientSecret")}
+            parseTarget
+            error={formErrors.clientSecret}
+            helpText="In Okta, this will be in the Client Credentials section."
+          />
         </div>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button type="submit" disabled={disableChildren}>
+              Save
+            </Button>
+          )}
+        />
       </form>
     </SettingsSection>
   );
