@@ -692,6 +692,10 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// RollbackVersion pins a Fleet-maintained app to a specific cached version (the wire-level field is "version").
+	// Named RollbackVersion for parity with the GitOps SoftwareInstallerPayload. nil means the field was omitted
+	// (leave the active version untouched); a non-nil empty string means "Latest".
+	RollbackVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
 }
@@ -700,7 +704,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
+		u.RollbackVersion == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

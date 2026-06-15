@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -55,6 +56,9 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
+	// Version is the wire-level field for pinning a Fleet-maintained app to a specific cached version. nil means
+	// the field was omitted (leave the active version untouched); a present empty string means "Latest".
+	Version *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
 }
@@ -142,6 +146,13 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	if cfg, ok := r.MultipartForm.Value["configuration"]; ok && len(cfg) > 0 {
 		decoded.Configuration = []byte(cfg[0])
+	}
+
+	// Only set Version when the field is present so we can distinguish "omitted" (leave the active version
+	// untouched) from a present empty string ("Latest"). Trim whitespace; empty after trimming means "Latest".
+	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
+		trimmed := strings.TrimSpace(versionMultipart[0])
+		decoded.Version = &trimmed
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -259,6 +270,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
 		Configuration:     req.Configuration,
+		RollbackVersion:   req.Version,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()

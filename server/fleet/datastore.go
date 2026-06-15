@@ -2672,6 +2672,11 @@ type Datastore interface {
 	// the versions will be sorted by the version string.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
+	// SetFleetMaintainedAppActiveInstaller marks installerID as the active version
+	// of the fleet-maintained app (fmaID) for the given team and sets all other
+	// cached versions inactive, re-pointing the title's policies to the active installer.
+	SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error
+
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)

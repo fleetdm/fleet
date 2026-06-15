@@ -673,6 +673,35 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 	return nil
 }
 
+func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE software_installers
+			SET is_active = (id = ?)
+			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
+		`, installerID, globalOrTeamID, fmaID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting active fleet-maintained app installer")
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE policies SET software_installer_id = ?
+			WHERE software_installer_id IN (
+				SELECT id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+			)
+		`, installerID, globalOrTeamID, titleID, installerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
 		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")
