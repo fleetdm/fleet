@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.4.0",
+      "version": "6.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.copilot.production';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.copilot.production' AND version_compare(bundle_short_version, '6.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.copilot.production' AND version_compare(bundle_short_version, '6.4.1') < 0);"
       },
-      "installer_url": "https://storage.googleapis.com/copilot-mac-releases/images/Copilot-6.4.0-326-ab0a5a95.dmg",
+      "installer_url": "https://storage.googleapis.com/copilot-mac-releases/images/Copilot-6.4.1-328-18f326ff.dmg",
       "install_script_ref": "662c3896",
       "uninstall_script_ref": "0034e8e3",
-      "sha256": "ab0a5a956bd0410c5377509f0779291d487b24a943b25d66caec61f35e97333e",
+      "sha256": "18f326fff27fbade34af20dfb013f490dc32fd4f1dca8c08d9295aed552dcf36",
       "default_categories": [
         "Productivity"
       ]

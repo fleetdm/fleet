@@ -1,0 +1,10 @@
+{
+  "name": "NeoFinder",
+  "unique_identifier": "de.wfs-apps.neofinder",
+  "token": "neofinder",
+  "installer_format": "zip",
+  "slug": "neofinder/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

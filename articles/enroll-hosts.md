@@ -101,7 +101,7 @@ fleetctl debug connection \
 
 ## Enroll Chromebooks
 
-> The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
+> The fleetd Chrome extension is for enrolling and managing ChromeOS hosts. To learn how to enroll other platforms, head to the [top of the guide](#enroll).
 
 ### Overview
 Google Admin uses organizational units (OUs) to organize devices and users.
