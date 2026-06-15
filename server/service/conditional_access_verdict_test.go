@@ -138,13 +138,10 @@ func setupCAVerdictTest(t *testing.T, persistedPasses *bool) (
 	return serv, ds, &proxyCalled, &pushedCompliant, setDone
 }
 
-// TestConditionalAccessOmissionDoesNotSpoofCompliance verifies that omitting
-// CA policy results from a distributed/write submission does NOT flip the
-// host's compliance status to true. The verdict must come from persisted
-// policy_membership, not from the in-flight submission.
-//
-// See: confidential#16386
-func TestConditionalAccessOmissionDoesNotSpoofCompliance(t *testing.T) {
+// TestConditionalAccessVerdictFromPersistedMembership verifies that the
+// compliance verdict is computed from persisted policy_membership, so that
+// missing CA policy results in a submission do not affect the verdict.
+func TestConditionalAccessVerdictFromPersistedMembership(t *testing.T) {
 	t.Parallel()
 
 	const (
@@ -156,7 +153,7 @@ func TestConditionalAccessOmissionDoesNotSpoofCompliance(t *testing.T) {
 	// Persisted membership: CA policy is FAILING.
 	serv, _, proxyCalled, _, _ := setupCAVerdictTest(t, new(false))
 
-	// The attack: omit CA policy, only include a passing non-CA policy.
+	// Simulate a submission that does not include the CA policy result.
 	orbitNodeKey := "orbit-key-1"
 	hostTeamID := teamID
 	incomingResults := map[uint]*bool{
@@ -177,10 +174,10 @@ func TestConditionalAccessOmissionDoesNotSpoofCompliance(t *testing.T) {
 		"proxy should not be called: verdict (non-compliant) matches persisted state")
 }
 
-// TestConditionalAccessNilMembershipDoesNotSpoofCompliance verifies that when
+// TestConditionalAccessNilMembershipTreatedAsNonCompliant verifies that when
 // the persisted membership for a CA policy is nil (indeterminate / failed query),
 // the host is treated as non-compliant.
-func TestConditionalAccessNilMembershipDoesNotSpoofCompliance(t *testing.T) {
+func TestConditionalAccessNilMembershipTreatedAsNonCompliant(t *testing.T) {
 	t.Parallel()
 
 	const (

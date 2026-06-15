@@ -2610,9 +2610,9 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
 
-	// Compute the compliance verdict from persisted policy_membership, not from
-	// the in-flight submission. This prevents a host from spoofing compliance by
-	// omitting CA policy results from its distributed/write payload.
+	// Compute the compliance verdict from persisted policy_membership rather than
+	// the in-flight submission, so that partial or missing results don't affect
+	// the verdict.
 	persistedMembership, err := svc.ds.GetHostPolicyMembershipForPolicies(ctx, hostID, conditionalAccessPolicyIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get host policy membership for conditional access")
