@@ -1674,6 +1674,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		if policy.LabelsExcludeAny != nil {
 			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
 		}
+		if policy.LabelsExcludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_exclude_all"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAll)
+		}
 		result[i] = policySpec
 	}
 	return result, nil

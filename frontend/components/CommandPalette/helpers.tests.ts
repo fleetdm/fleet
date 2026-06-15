@@ -253,7 +253,7 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("turn-on-apple-mdm");
     });
 
-    it("shows 'Add ABM' when Apple MDM on but ABM not configured", () => {
+    it("shows 'Add AB' when Apple MDM on but AB not configured", () => {
       const configNoAbm = createMockConfig();
       configNoAbm.mdm = {
         ...configNoAbm.mdm,
@@ -270,7 +270,7 @@ describe("CommandPalette helpers", () => {
       expect(abm?.label).toContain("Add");
     });
 
-    it("shows 'Edit ABM' when ABM is configured", () => {
+    it("shows 'Edit AB' when AB is configured", () => {
       const items = buildPaletteItems(BASE_CONTEXT);
 
       const abm = items.find((i) => i.id === "edit-abm");
@@ -605,12 +605,14 @@ describe("CommandPalette helpers", () => {
   });
 
   describe("Fleet Free (isPremiumTier: false)", () => {
+    // Mirror production state on Free: AppContext never sets currentTeam
+    // (no team picker exists), so hasTeamSelected stays false. The
+    // derivation treats Free as team-or-unassigned regardless.
     const FREE_CONTEXT = {
       ...BASE_CONTEXT,
       isPremiumTier: false,
-      // Free has a single implicit fleet; mirror what AppContext would set.
-      hasTeamSelected: true as const,
-      currentTeam: { id: 1, name: "Engineering" },
+      hasTeamSelected: false as const,
+      currentTeam: undefined,
     };
 
     it("hides all software-add commands", () => {
@@ -640,7 +642,7 @@ describe("CommandPalette helpers", () => {
       expect(subIds).toContain("controls-custom-settings");
     });
 
-    it("hides MDM ABM and VPP commands", () => {
+    it("hides MDM AB and VPP commands", () => {
       const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
       expect(ids).not.toContain("add-abm");
       expect(ids).not.toContain("edit-abm");
@@ -665,6 +667,52 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("settings-fleets");
       expect(ids).not.toContain("create-fleet");
       expect(ids).not.toContain("view-software-library");
+    });
+
+    it("hides the Controls page link (lands on OS updates premium wall on Free)", () => {
+      // /controls redirects to the first permitted tab, which is OS
+      // updates — a premium-walled page on Free. Free users still reach
+      // the tier-free Controls sub-pages via their own palette entries
+      // (OS settings, Scripts, Variables).
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("controls-page");
+    });
+
+    it("hides OS updates, SSO end-users, and Identity provider (each renders <PremiumFeatureMessage /> on Free)", () => {
+      const items = buildPaletteItems(FREE_CONTEXT);
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("controls-os-updates");
+      const integrations = items.find((i) => i.id === "settings-integrations");
+      const subIds = integrations?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("settings-int-sso-end-users");
+      expect(subIds).not.toContain("settings-int-identity-provider");
+    });
+
+    it("surfaces Free-available Controls items: OS settings, Scripts, Variables", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).toContain("controls-os-settings");
+      expect(ids).toContain("controls-scripts");
+      expect(ids).toContain("controls-variables");
+    });
+
+    it("surfaces Free-available Controls sub-items: Configuration profiles, Script library, Script batch progress", () => {
+      const items = buildPaletteItems(FREE_CONTEXT);
+      const osSettingsSubIds =
+        items
+          .find((i) => i.id === "controls-os-settings")
+          ?.subItems?.map((s) => s.id) ?? [];
+      expect(osSettingsSubIds).toContain("controls-custom-settings");
+      const scriptsSubIds =
+        items
+          .find((i) => i.id === "controls-scripts")
+          ?.subItems?.map((s) => s.id) ?? [];
+      expect(scriptsSubIds).toContain("controls-scripts-library");
+      expect(scriptsSubIds).toContain("controls-scripts-batch-progress");
+    });
+
+    it("surfaces Add script on Free (script library is Free-available)", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).toContain("add-script");
     });
   });
 
