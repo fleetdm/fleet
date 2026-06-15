@@ -48,5 +48,5 @@ For more info:
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-05-15">
-<meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-533x300@2x.jpg">
 <meta name="description" value="How to schedule time for self-remediation when your end users are free using Fleet's maintenance windows.">
