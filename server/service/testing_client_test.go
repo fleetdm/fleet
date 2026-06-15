@@ -476,6 +476,20 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+// LoginMDMSSOUserSetupExperience initiates the MDM SSO flow as Orbit's setup
+// experience would, passing a fixed host UUID. The host UUID becomes the IdP
+// account's primary key (see InsertMDMIdPAccount), so re-running this for the
+// same host with a different IdP user exercises the re-enrollment upsert path.
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 // LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
 // /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
 // SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO

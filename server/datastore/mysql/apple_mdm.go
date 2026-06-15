@@ -3159,6 +3159,7 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       VALUES
         (COALESCE(NULLIF(TRIM(?), ''), UUID()), ?, ?, ?)
       ON DUPLICATE KEY UPDATE
+        email      = VALUES(email),
         username   = VALUES(username),
         fullname   = VALUES(fullname)`
 
