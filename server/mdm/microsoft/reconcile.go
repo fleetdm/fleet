@@ -105,6 +105,33 @@ func ComputeWindowsReconcileDeltas(
 	return toInstall, toRemove
 }
 
+// DesiredWindowsProfileUUIDsByHost returns, for each host UUID, the live profile UUIDs that apply to it (its desired state), using the
+// same team+label applicability rules as ComputeWindowsReconcileDeltas. The reconciler uses this to protect LocURIs that a remove target
+// shares with a profile still desired on the same host: a <Delete> must not revert a setting another applicable profile still enforces.
+// Applicability is evaluated per host, so a label-scoped profile only protects the hosts it actually applies to.
+func DesiredWindowsProfileUUIDsByHost(
+	hosts []*fleet.WindowsHostReconcileInfo,
+	hostLabels map[uint]map[uint]struct{},
+	profilesByTeam map[uint][]*fleet.WindowsProfileForReconcile,
+) map[string][]string {
+	out := make(map[string][]string, len(hosts))
+	for _, host := range hosts {
+		teamProfiles := profilesByTeam[host.EffectiveTeamID()]
+		labelsForHost := hostLabels[host.HostID]
+		var desired []string
+		for _, p := range teamProfiles {
+			if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, labelsForHost) {
+				continue
+			}
+			desired = append(desired, p.ProfileUUID)
+		}
+		if len(desired) > 0 {
+			out[host.UUID] = desired
+		}
+	}
+	return out
+}
+
 // isTerminalRemoveStatus reports whether a remove row's status is one that the install query treats as "leave alone"
 // (verifying/verified). A NULL status, or any other status (e.g. pending, failed), means the remove can be flipped back to
 // install.

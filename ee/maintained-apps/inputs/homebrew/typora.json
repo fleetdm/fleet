@@ -1,0 +1,10 @@
+{
+  "name": "Typora",
+  "unique_identifier": "abnerworks.Typora",
+  "token": "typora",
+  "installer_format": "dmg",
+  "slug": "typora/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

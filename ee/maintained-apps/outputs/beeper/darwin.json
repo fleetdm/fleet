@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.2.892",
+      "version": "4.2.923",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop' AND version_compare(bundle_short_version, '4.2.892') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop' AND version_compare(bundle_short_version, '4.2.923') < 0);"
       },
-      "installer_url": "https://beeper-desktop.download.beeper.com/builds/Beeper-4.2.892-arm64-mac.zip",
+      "installer_url": "https://beeper-desktop.download.beeper.com/builds/Beeper-4.2.923-arm64-mac.zip",
       "install_script_ref": "a73050ea",
       "uninstall_script_ref": "978d30f8",
-      "sha256": "5c6059051c4c767a860ab89f4dc04717ef90004233ec38eff001a9d18c717f2e",
+      "sha256": "657e64a49ca7f81d6e65fa1f0f6de1e31cbc857ca7f70b3932a2cd49334e5ef1",
       "default_categories": [
         "Communication"
       ]

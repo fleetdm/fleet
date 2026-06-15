@@ -373,6 +373,24 @@ func LabelIdentsToNames(idents []LabelIdent) []string {
 	return out
 }
 
+// LabelOverlap returns the first label name that appears in both the include
+// list and the exclude list, or an empty string if there is none.
+// `include` should be the union of all include scopes (e.g. labels_include_all and
+// labels_include_any).
+// `exclude` should be the union of all exclude scopes.
+func LabelOverlap(include, exclude []string) string {
+	seen := make(map[string]struct{}, len(include))
+	for _, n := range include {
+		seen[n] = struct{}{}
+	}
+	for _, n := range exclude {
+		if _, overlapExists := seen[n]; overlapExists {
+			return n
+		}
+	}
+	return ""
+}
+
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
 // profiles and software installers, to subsets of hosts.
 type LabelScope string

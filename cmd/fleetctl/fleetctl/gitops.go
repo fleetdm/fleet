@@ -395,14 +395,23 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				// Targeting queries against labels is a Premium feature only
 				if !appConfig.License.IsPremium() {
+					// Targeting queries against labels is a Premium feature only
 					for _, query := range config.Queries {
 						if len(query.LabelsIncludeAny) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
 						}
 						if len(query.LabelsIncludeAll) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
+						}
+					}
+					// TODO(nulmete): might need to revisit if just this scopes are premium-only or all of them (include_any and exclude_any)
+					for _, policy := range config.Policies {
+						if len(policy.LabelsIncludeAll) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_include_all', which is only available in Fleet Premium", policy.Name)
+						}
+						if len(policy.LabelsExcludeAll) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_exclude_all', which is only available in Fleet Premium", policy.Name)
 						}
 					}
 				}
@@ -974,7 +983,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 				if len(setting.LabelsIncludeAll) > 0 {
 					labels = setting.LabelsIncludeAll
 				}
-				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+				if overlap := fleet.LabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
 					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
 				labels = append(labels, setting.LabelsExcludeAny...)
@@ -1054,22 +1063,14 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		updateLabelUsage(labels, query.Name, "Query", result)
 	}
 
-	// Get policy label usage.
+	// Get policy label usage. A policy may combine one include scope (any/all)
+	// with one exclude scope (any/all); VerifyLabelScopes rejects more than one
+	// of either, or a label appearing in both an include and an exclude list.
 	for _, policy := range config.Policies {
-		nonEmptyScopes := 0
-		if len(policy.LabelsIncludeAny) > 0 {
-			nonEmptyScopes++
+		if err := policy.VerifyLabelScopes(); err != nil {
+			return nil, fmt.Errorf("Policy '%s': %w", policy.Name, err)
 		}
-		if len(policy.LabelsIncludeAll) > 0 {
-			nonEmptyScopes++
-		}
-		if len(policy.LabelsExcludeAny) > 0 {
-			nonEmptyScopes++
-		}
-		if nonEmptyScopes > 1 {
-			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
-		}
-		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny, policy.LabelsExcludeAll)
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 

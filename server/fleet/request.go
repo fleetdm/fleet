@@ -18,6 +18,12 @@ const (
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
+	// MaxSSOCallbackSize bounds the body of the unauthenticated SSO callback
+	// endpoints (regular and MDM). The body carries a base64-encoded
+	// SAMLResponse; legitimate responses are well under 50 KiB even after
+	// base64 inflation, so 256 KiB leaves generous headroom for large
+	// enterprise IdP responses while keeping pre-auth attacks surface small.
+	MaxSSOCallbackSize int64 = 256 * units.KiB
 	// MaxAppleMDMRequestBodySize bounds Apple MDM check-in and command-result
 	// request bodies. Results are stored in a MEDIUMTEXT column (max 16,777,215
 	// bytes), so the limit must not exceed that boundary.
