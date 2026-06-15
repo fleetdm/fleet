@@ -15,7 +15,7 @@ import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Checkbox from "components/forms/fields/Checkbox";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
@@ -84,7 +84,7 @@ const EditAutoUpdateConfigModal = ({
     ),
   });
 
-  // Fetch labels for TargetLabelSelector
+  // Fetch labels for DropdownTargetLabelSelector
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
     () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
@@ -276,7 +276,7 @@ const EditAutoUpdateConfigModal = ({
             </div>
           </Card>
           <Card paddingSize="medium" borderRadiusSize="medium">
-            <TargetLabelSelector
+            <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}
               selectedLabels={formData.labelTargets}

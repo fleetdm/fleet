@@ -62,9 +62,9 @@ module "loadtest" {
   }
   redis_config = {
     name                          = local.customer
-    engine                        = "redis"
-    engine_version                = "7.1"
-    family                        = "redis7"
+    engine                        = var.redis_engine
+    engine_version                = var.redis_engine_version
+    family                        = var.redis_parameter_group_family
     instance_type                 = var.redis_instance_size
     cluster_size                  = var.redis_instance_count
     subnets                       = data.terraform_remote_state.shared.outputs.vpc.private_subnets

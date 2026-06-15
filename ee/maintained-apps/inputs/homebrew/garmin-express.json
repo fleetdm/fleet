@@ -1,0 +1,10 @@
+{
+  "name": "Garmin Express",
+  "unique_identifier": "com.garmin.renu.client",
+  "token": "garmin-express",
+  "installer_format": "dmg",
+  "slug": "garmin-express/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -73,8 +73,11 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 - Use `renderMultiFlash()` for batch operations
 
 ## XSS Prevention
-- ALWAYS sanitize user-generated HTML with `DOMPurify.sanitize(html, options)` before `dangerouslySetInnerHTML`
-- Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+- ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
+  - `DOMPurify.sanitize(html, options)` — arbitrary HTML. Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+  - `syntaxHighlight(value)` from `frontend/utilities/helpers.tsx` — JSON/code previews. Input must be a value to JSON-serialize (object/array/primitive), not a pre-built string of user content
+  - `ClickableUrls` from `frontend/components/ClickableUrls/` — plain text that may contain URLs, rendered as clickable links
+- See `frontend/docs/patterns.md#security-considerations` for full guidance, including frontend pitfalls common in AI-assisted code
 
 ## String Utilities
 Use helpers from `frontend/utilities/strings/stringUtils.ts`:
@@ -83,8 +86,13 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
-## Software titles — display name
+## Software titles
+
+### Display name
 Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
+### Icons
+`<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.
 
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
@@ -104,9 +112,19 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
+## Tier modes (Fleet Free + Primo mode)
+Load the `tier-modes` skill when:
+- **Adding a new top-level page, feature page, or significant UI surface** (modal, side panel, dashboard, settings section, new tab) — for the end-of-task gap check on whether Free / Primo behavior was decided.
+- **Introducing NEW tier gating to code that doesn't have it yet** — to follow the established gating patterns.
+
+Editing inside already-gated code (adding a field to a premium-only form, fixing a bug in a paywalled flow) doesn't need this — the tier decision is already made there.
+
 ## Terminology
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
+
+## Command palette
+If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, add a new global create / automation / settings action, or add a new picker action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. The palette is for navigation and global actions — not per-entity (row-level) operations, bulk-select actions, or per-view UI toggles.
 
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier

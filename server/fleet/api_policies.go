@@ -15,6 +15,7 @@ type GlobalPolicyRequest struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 }
 
 type GlobalPolicyResponse struct {
@@ -164,6 +165,7 @@ type TeamPolicyRequest struct {
 	LabelsIncludeAny             []string `json:"labels_include_any"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny             []string `json:"labels_exclude_any"`
+	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`

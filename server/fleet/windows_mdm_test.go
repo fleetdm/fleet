@@ -575,6 +575,53 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
 		},
 		{
+			// Regression test for #46982: a non-SCEP LocURI before the SCEP LocURIs used to panic with
+			// index out of range instead of returning a validation error.
+			name: "SCEP profile with other LocURIs, non-SCEP LocURI first",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+				    </Target>
+				  </Replace>
+				  <Exec>
+				    <Item>
+				      <Target>
+				        <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+				      </Target>
+				    </Item>
+				  </Exec>
+				`),
+			},
+			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+		},
+		{
+			// Regression test for #46982: same non-SCEP-first ordering without an Exec block (e.g. a root CA
+			// cert install combined with SCEP nodes) also used to panic.
+			name: "SCEP profile with non-SCEP LocURI first and no Exec block",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/CA/ABCDEF/EncodedCertificate</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+		},
+		{
 			name: "SCEP profile without Exec block",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`

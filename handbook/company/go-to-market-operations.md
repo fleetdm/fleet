@@ -150,6 +150,9 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
+> Want to propose an event:  
+> Add a row to the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc) and fill in all necessary information.
+
 
 ### Field event follow-up
 
@@ -225,7 +228,7 @@ ADRs research accounts to ensure there's a practical need Fleet can solve before
 
 ## Warm-up actions
 
-Warm-up actions are that Fleet will take at any point in time to help move the psychological progress of contacts on any account.
+Warm-up actions are actions that will take at any point in time to help move the psychological progress of contacts on any account.
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 

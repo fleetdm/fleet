@@ -1,0 +1,10 @@
+{
+  "name": "SoundSiphon",
+  "unique_identifier": "com.staticz.SoundSiphon3",
+  "token": "sound-siphon",
+  "installer_format": "dmg",
+  "slug": "sound-siphon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -105,6 +105,30 @@ jobs:
       FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
       SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # Extended Redis/Valkey coverage: only on the nightly cron schedule.
+  # Runs the Redis-touching suites against newer Redis versions and Valkey, in
+  # both standalone and cluster mode. MySQL is pinned to the always-run version
+  # (single DB dimension, not NxM). Redis 6.2 is already covered by the always-run
+  # test-go job above, so it's omitted here.
+  # make sure to update supported versions docs when Redis/Valkey versions change
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-extended-redis:
+    if: github.event_name == 'schedule'
+    strategy:
+      matrix:
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "main", "service"]
+        redis: ["redis:7.4", "redis:8.0", "valkey/valkey:7.2", "valkey/valkey:8.0"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      mysql: "mysql:8.0.44"
+      redis: ${{ matrix.redis }}
+      is_cron: true
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
     runs-on: 'ubuntu-latest'
@@ -224,7 +248,7 @@ jobs:
 
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-nanomdm]
+    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
@@ -251,7 +275,7 @@ jobs:
   # Our Go test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
   # This job explicitly checks if any Go test suites have failed and marks the overall workflow with the proper pass/fail status.
   aggregate-result:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql]
+    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest

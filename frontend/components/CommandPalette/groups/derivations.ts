@@ -6,7 +6,7 @@ import { ICommandPaletteContext } from "../helpers";
  * to each builder so the derivation logic lives in exactly one place.
  */
 export interface IDerivedContext {
-  /** Apple Business Manager configured at the org level. */
+  /** Apple Business configured at the org level. */
   isAbmConfigured: boolean;
   /** GitOps mode active — disables Create-fleet etc. */
   isGitOpsMode: boolean;
@@ -36,6 +36,7 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     availableTeams,
     hasTeamSelected,
     isPrimoMode,
+    isPremiumTier,
   } = ctx;
 
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
@@ -47,7 +48,12 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   );
 
   const isUnassigned = currentTeam?.id === 0;
-  const hasTeamOrUnassigned = !!hasTeamSelected || isUnassigned;
+  // On Fleet Free, the team concept doesn't apply — there's a single
+  // implicit fleet, no team picker, and currentTeam stays undefined. Treat
+  // Free as team-or-unassigned so team-gated palette items (Controls, Add
+  // script, etc.) still surface on Free-available destinations.
+  const hasTeamOrUnassigned =
+    !isPremiumTier || !!hasTeamSelected || isUnassigned;
 
   // In Primo Mode the user perceives a single-fleet install, so the
   // concept of "switching fleet context" doesn't apply. All destination

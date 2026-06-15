@@ -1,0 +1,10 @@
+{
+  "name": "ONLYOFFICE",
+  "unique_identifier": "asc.onlyoffice.editors-helper-renderer",
+  "token": "onlyoffice",
+  "installer_format": "zip",
+  "slug": "onlyoffice/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

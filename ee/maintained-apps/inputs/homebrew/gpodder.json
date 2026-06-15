@@ -1,0 +1,10 @@
+{
+  "name": "gPodder",
+  "unique_identifier": "org.gpodder.gpodder",
+  "token": "gpodder",
+  "installer_format": "zip",
+  "slug": "gpodder/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

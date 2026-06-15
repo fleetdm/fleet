@@ -1,0 +1,10 @@
+{
+  "name": "Alcove",
+  "unique_identifier": "com.henrikruscon.Alcove",
+  "token": "alcove",
+  "installer_format": "zip",
+  "slug": "alcove/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
