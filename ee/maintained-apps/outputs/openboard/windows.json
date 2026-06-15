@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.7.7.240",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'OpenBoard' AND publisher = 'Open Education Foundation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'OpenBoard' AND publisher = 'Open Education Foundation' AND version_compare(version, '1.7.7.240') < 0);"
+      },
+      "installer_url": "https://github.com/OpenBoard-org/OpenBoard/releases/download/v1.7.7/OpenBoard_Installer_1.7.7.exe",
+      "install_script_ref": "6aafa56b",
+      "uninstall_script_ref": "9eff95b9",
+      "sha256": "0b3e703f5d2971ca2ce68bf7203428d74426d4eb7c1447c728f590b4efaafac9",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "6aafa56b": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n  # Inno Setup installer: silent install\n  $processOptions = @{\n    FilePath     = \"$exeFilePath\"\n    ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n    PassThru     = $true\n    Wait         = $true\n    NoNewWindow  = $true\n  }\n\n  $process = Start-Process @processOptions\n  $exitCode = $process.ExitCode\n\n  Write-Host \"Install exit code: $exitCode\"\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "9eff95b9": "# Learn more about .exe uninstall scripts:\n# http://fleetdm.com/learn-more-about/exe-uninstall-scripts\n\n$softwareName = \"OpenBoard\"\n$publisherMatch = \"Open Education Foundation\"\n\ntry {\n  $uninstallKeys = @(\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n  )\n\n  $entries = Get-ChildItem -Path $uninstallKeys -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisherMatch -eq \"\" -or $_.Publisher -like \"*$publisherMatch*\")\n    }\n\n  if (-not $entries) {\n    Write-Host \"Uninstall entry not found for '$softwareName'\"\n    Exit 0\n  }\n\n  $key = $entries | Select-Object -First 1\n  $uninstallString = $key.UninstallString\n  if (-not $uninstallString) {\n    Write-Host \"No UninstallString found for '$softwareName'\"\n    Exit 0\n  }\n\n  # Parse the executable path from the UninstallString\n  if ($uninstallString -match '^\"([^\"]+)\"') {\n    $exePath = $matches[1]\n  } elseif ($uninstallString -match '^(.+?\\.exe)') {\n    $exePath = $matches[1]\n  } else {\n    $exePath = $uninstallString\n  }\n\n  # Determine install directory\n  $installDir = $key.InstallLocation\n  if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path $installDir)) {\n    $installDir = Split-Path -Parent $exePath\n  }\n\n  $argumentList = @(\"/VERYSILENT\", \"/NORESTART\")\n\n  Write-Host \"Uninstall exe: $exePath\"\n  Write-Host \"Uninstall args: $argumentList\"\n\n  $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  if ($installDir -and (Test-Path $installDir)) {\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n  }\n\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.15.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Upscayl' AND publisher = 'Nayam Amarshe';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Upscayl' AND publisher = 'Nayam Amarshe' AND version_compare(version, '2.15.0') < 0);"
+      },
+      "installer_url": "https://github.com/upscayl/upscayl/releases/download/v2.15.0/upscayl-2.15.0-win.exe",
+      "install_script_ref": "aa8818e6",
+      "uninstall_script_ref": "e44e44ba",
+      "sha256": "5dd7f58abafae2907fede489324a074cb6959a93c5714f3d0609650ab942ff3c",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "aa8818e6": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    # NSIS installers support silent installation with the /S flag\n    $processOptions = @{\n        FilePath     = $exeFilePath\n        ArgumentList = @(\"/S\")\n        PassThru     = $true\n        Wait         = $true\n        NoNewWindow  = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "e44e44ba": "$softwareName = \"Upscayl\"\n$publisher = \"Nayam Amarshe\"\n\n$registryPaths = @(\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n    $key = Get-ChildItem -Path $registryPaths -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath } |\n        Where-Object {\n            $_.DisplayName -eq \"${softwareName}\" -and\n            ($publisher -eq \"\" -or $_.Publisher -like \"*${publisher}*\")\n        } |\n        Select-Object -First 1\n\n    if (-not $key) {\n        Write-Host \"Uninstall entry not found\"\n        Exit 0\n    }\n\n    $uninstallCommand = $key.UninstallString\n    Write-Host \"Uninstall command: $uninstallCommand\"\n\n    # Parse the uninstaller executable path from the UninstallString\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n        $exePath = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n        $exePath = $matches[1]\n    } else {\n        $exePath = $uninstallCommand\n    }\n\n    # Determine the install directory\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n        $installDir = $key.InstallLocation\n    } else {\n        $installDir = Split-Path $exePath -Parent\n    }\n\n    # NSIS uninstaller: /S for silent, _?= to point at the install dir\n    $uninstallArgs = @(\"/S\", \"_?=$installDir\")\n\n    $processOptions = @{\n        FilePath     = $exePath\n        ArgumentList = $uninstallArgs\n        PassThru     = $true\n        Wait         = $true\n        NoNewWindow  = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # NSIS leaves the install directory behind after a silent uninstall\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

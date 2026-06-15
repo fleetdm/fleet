@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.1.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Netron' AND publisher = 'Lutz Roeder';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Netron' AND publisher = 'Lutz Roeder' AND version_compare(version, '9.1.1') < 0);"
+      },
+      "installer_url": "https://github.com/lutzroeder/netron/releases/download/v9.1.1/Netron-Setup-9.1.1.exe",
+      "install_script_ref": "dbb9f839",
+      "uninstall_script_ref": "d9c33ba7",
+      "sha256": "5e414082b2415d804cd298336666ad875b542b2e8a7d786290f2909c10e5cdd3",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "d9c33ba7": "# Uninstall script for Netron (NSIS / electron-builder)\n$softwareName = \"Netron\"\n$publisher = \"Lutz Roeder\"\n\n$hkcuKeys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$hklmKeys = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n$key = $null\nforeach ($scope in @($hkcuKeys, $hklmKeys)) {\n  $key = Get-ChildItem -Path $scope -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n    } | Select-Object -First 1\n  if ($key) { break }\n}\n\nif (-not $key) {\n  Write-Host \"Uninstall entry not found for '$softwareName'\"\n  Exit 0\n}\n\n$uninstallString = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n$exePath = $null\nif ($uninstallString -match '^\"([^\"]+)\"') {\n  $exePath = $matches[1]\n} elseif ($uninstallString -match '^(.+?\\.exe)') {\n  $exePath = $matches[1]\n}\n\nif (-not $exePath) {\n  Write-Host \"Could not parse uninstall executable from: $uninstallString\"\n  Exit 1\n}\n\n$installDir = $key.InstallLocation\nif (-not $installDir -or -not (Test-Path $installDir)) {\n  $installDir = Split-Path -Parent $exePath\n}\n\n# NSIS / electron-builder silent uninstall\n$argumentList = @(\"/S\", \"_?=$installDir\")\n\n$process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($installDir -and (Test-Path $installDir)) {\n  Remove-Item -Path $installDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "dbb9f839": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Netron uses an NSIS (nullsoft) installer\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Taskade",
+  "slug": "taskade/windows",
+  "package_identifier": "Taskcade.Taskade",
+  "unique_identifier": "Taskade",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/taskade_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/taskade_uninstall.ps1"
+}

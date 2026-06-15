@@ -1,0 +1,13 @@
+{
+  "name": "WebCatalog",
+  "slug": "webcatalog/windows",
+  "package_identifier": "WebCatalogLtd.WebCatalog",
+  "unique_identifier": "WebCatalog",
+  "fuzzy_match_name": true,
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/webcatalog_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/webcatalog_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Novabench",
+  "slug": "novabench/windows",
+  "package_identifier": "NovabenchInc.Novabench",
+  "unique_identifier": "Novabench",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

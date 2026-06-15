@@ -1,0 +1,12 @@
+{
+  "name": "Netron",
+  "slug": "netron/windows",
+  "package_identifier": "LutzRoeder.Netron",
+  "unique_identifier": "Netron",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/netron_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/netron_uninstall.ps1"
+}

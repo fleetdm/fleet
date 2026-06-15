@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.8.1.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'NordLayer' AND publisher = 'NordLayer';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordLayer' AND publisher = 'NordLayer' AND version_compare(version, '3.8.1.0') < 0);"
+      },
+      "installer_url": "https://downloads.nordlayer.com/win/latest/NordLayerSetup.exe",
+      "install_script_ref": "629f46cd",
+      "uninstall_script_ref": "0754f599",
+      "sha256": "9fc3d31332c8554299b010ec9696d46818e3cb08b127a9177319f64555461825",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "0754f599": "# Uninstall script for NordLayer (InstallShield/burn EXE wrapping an MSI)\n$softwareName = \"NordLayer\"\n$publisher = \"NordLayer\"\n\n$hkcuKeys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$hklmKeys = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n$key = $null\nforeach ($scope in @($hkcuKeys, $hklmKeys)) {\n  $key = Get-ChildItem -Path $scope -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n    } | Select-Object -First 1\n  if ($key) { break }\n}\n\nif (-not $key) {\n  Write-Host \"Uninstall entry not found for '$softwareName'\"\n  Exit 0\n}\n\n# Prefer QuietUninstallString for burn/InstallShield bundles\nif ($key.QuietUninstallString) {\n  $uninstallString = $key.QuietUninstallString\n  $useDefaultArgs = $false\n} else {\n  $uninstallString = $key.UninstallString\n  $useDefaultArgs = $true\n}\n\n$exePath = $null\nif ($uninstallString -match '^\"([^\"]+)\"') {\n  $exePath = $matches[1]\n} elseif ($uninstallString -match '^(.+?\\.exe)') {\n  $exePath = $matches[1]\n}\n\nif (-not $exePath) {\n  Write-Host \"Could not parse uninstall executable from: $uninstallString\"\n  Exit 1\n}\n\n$installDir = $key.InstallLocation\nif (-not $installDir -or -not (Test-Path $installDir)) {\n  $installDir = Split-Path -Parent $exePath\n}\n\n$processOptions = @{\n  FilePath    = $exePath\n  Wait        = $true\n  PassThru    = $true\n  NoNewWindow = $true\n}\nif ($useDefaultArgs) {\n  $processOptions.ArgumentList = @(\"/uninstall\", \"/quiet\", \"/norestart\")\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($installDir -and (Test-Path $installDir)) {\n  Remove-Item -Path $installDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "629f46cd": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# NordLayer ships an InstallShield/burn-style EXE wrapping an MSI\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = \"/exenoui /quiet /norestart\"\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Trezor Suite",
+  "slug": "trezor-suite/windows",
+  "package_identifier": "SatoshiLabs.trezor-suite",
+  "unique_identifier": "Trezor Suite",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Security"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/trezor-suite_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/trezor-suite_uninstall.ps1"
+}

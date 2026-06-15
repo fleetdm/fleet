@@ -1,0 +1,12 @@
+{
+  "name": "Proton Mail",
+  "slug": "proton-mail/windows",
+  "package_identifier": "Proton.ProtonMail",
+  "unique_identifier": "Proton Mail",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/proton-mail_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/proton-mail_uninstall.ps1",
+  "default_categories": ["Communication"]
+}

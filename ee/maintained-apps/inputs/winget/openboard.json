@@ -1,0 +1,12 @@
+{
+  "name": "OpenBoard",
+  "slug": "openboard/windows",
+  "package_identifier": "OpenEducationFoundation.OpenBoard",
+  "unique_identifier": "OpenBoard",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/openboard_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/openboard_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

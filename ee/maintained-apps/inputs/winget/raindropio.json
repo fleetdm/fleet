@@ -1,0 +1,12 @@
+{
+  "name": "Raindrop.io",
+  "slug": "raindropio/windows",
+  "package_identifier": "RustemMussabekov.Raindrop",
+  "unique_identifier": "Raindrop.io",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/raindropio_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/raindropio_uninstall.ps1"
+}

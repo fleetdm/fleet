@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "24.3.41107",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Tableau Prep Builder' AND publisher = 'Tableau Software, LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tableau Prep Builder' AND publisher = 'Tableau Software, LLC' AND version_compare(version, '24.3.41107') < 0);"
+      },
+      "installer_url": "https://downloads.tableau.com/esdalt/tableau_prep/2024.3.4/TableauPrep-2024-3-4.exe",
+      "install_script_ref": "1bb50d5e",
+      "uninstall_script_ref": "22b5da63",
+      "sha256": "701d117ead4ed4d01c9777730ce097eb2922793d6298c0a38e48c62a1eb7a060",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "1bb50d5e": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# WiX burn bundle installer: install silently\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = @(\"/quiet\", \"/norestart\")\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "22b5da63": "# Uninstall script for WiX burn bundle installer.\n$softwareName = \"Tableau Prep Builder\"\n$softwareNameLike = \"*$softwareName*\"\n$publisher = \"Tableau\"\n\n$keys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem -Path $keys -ErrorAction SilentlyContinue |\n  ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$found = $false\nforeach ($key in $uninstallKeys) {\n  if ($key.DisplayName -like $softwareNameLike -and ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n    $found = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n      $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n      $uninstallExe = $matches[1]\n    } else {\n      $uninstallExe = $uninstallCommand\n    }\n\n    Write-Host \"Uninstaller: $uninstallExe\"\n\n    $process = Start-Process -FilePath $uninstallExe -ArgumentList @(\"/uninstall\", \"/quiet\", \"/norestart\") -PassThru -Wait -NoNewWindow\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    break\n  }\n}\n\nif (-not $found) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\nExit $exitCode\n"
+  }
+}
