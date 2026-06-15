@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -194,6 +196,20 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
+// FleetVarsSupportedInAndroidAppConfig is the allow-list of Fleet variables that
+// can appear in an Android managed app configuration JSON.
+var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
+	FleetVarHostUUID,
+	FleetVarHostHardwareSerial,
+	FleetVarHostPlatform,
+	FleetVarHostEndUserEmailIDP,
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+}
+
 var validAndroidWorkProfileWidgets = map[string]struct{}{
 	"WORK_PROFILE_WIDGETS_UNSPECIFIED": {},
 	"WORK_PROFILE_WIDGETS_ALLOWED":     {},
@@ -230,6 +246,14 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+	}
+
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
+			return &BadRequestError{
+				Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
+			}
+		}
 	}
 
 	return nil
