@@ -42,10 +42,11 @@ const AddPatchPolicyModal = ({
       const reason = getErrorReason(error);
       if (reason.includes("already has a policy")) {
         notify.error(EXISTING_PATCH_POLICY_ERROR_MSG, { response: error });
+      } else {
+        notify.error("Couldn't add patch policy. Please try again.", {
+          response: error,
+        });
       }
-      notify.error("Couldn't add patch policy. Please try again.", {
-        response: error,
-      });
     }
     setIsAddingPatchPolicy(false);
     onExit();

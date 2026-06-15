@@ -59,6 +59,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
             "Host vitals labels are not editable. Delete the label and re-add it to make changes."
           );
           router.replace(PATHS.MANAGE_LABELS);
+          return;
         }
 
         if (currentUser && !hasEditPermission(currentUser, data)) {
