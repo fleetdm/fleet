@@ -632,7 +632,7 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 		(
 			(SELECT COUNT(*)
 			FROM software_installers
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 			AND install_during_setup = 1
 			AND platform = ?)
 			+
@@ -644,14 +644,14 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 		(
 			SELECT COUNT(*)
 			FROM vpp_apps_teams
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 			AND platform = ?
 			AND install_during_setup = 1
 		) AS vpp,
 		(
 			SELECT COUNT(*)
 			FROM setup_experience_scripts
-			WHERE team_id = ?
+			WHERE global_or_team_id = ?
 		) AS scripts`
 
 	var globalOrTeamID uint
@@ -662,10 +662,10 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 	sec := &fleet.SetupExperienceCount{}
 	if err := sqlx.GetContext(
 		ctx, ds.reader(ctx), sec, stmt,
-		teamID, platform,
 		globalOrTeamID, platform,
-		teamID, platform,
-		teamID,
+		globalOrTeamID, platform,
+		globalOrTeamID, platform,
+		globalOrTeamID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
 	}

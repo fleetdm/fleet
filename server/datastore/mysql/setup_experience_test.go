@@ -2576,7 +2576,7 @@ func testSetupExperienceCrossPlatformShScripts(t *testing.T, ds *Datastore) {
 	// .sh scripts are stored as platform='linux' but can also run on darwin.
 	tfrSh, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/sh\necho hello"), t.TempDir)
 	require.NoError(t, err)
-	shInstallerID, shTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, shTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "#!/bin/sh\necho install",
 		InstallerFile:   tfrSh,
 		StorageID:       "storage-sh-cross",
@@ -2591,7 +2591,6 @@ func testSetupExperienceCrossPlatformShScripts(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_ = shInstallerID
 
 	tfrPkg, err := fleet.NewTempFileReader(strings.NewReader("pkg content"), t.TempDir)
 	require.NoError(t, err)

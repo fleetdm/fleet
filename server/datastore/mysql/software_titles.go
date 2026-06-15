@@ -611,7 +611,9 @@ SELECT
 			WHEN si.platform = 'darwin' THEN si.install_during_setup
 			ELSE EXISTS (
 				SELECT 1 FROM setup_experience_software_installers seti
-				WHERE seti.software_installer_id = si.id AND seti.platform = 'darwin'
+				WHERE seti.software_installer_id = si.id
+					AND seti.platform = 'darwin'
+					AND seti.global_or_team_id = si.global_or_team_id
 			)
 		END){{else}}si.install_during_setup{{end}} as package_install_during_setup
 		,si.storage_id as package_storage_id
