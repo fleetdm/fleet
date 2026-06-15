@@ -34,13 +34,15 @@ body {
   body.theme-transition *::after {
     transition: background-color 300ms ease, color 300ms ease,
       border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
-      stroke 300ms ease !important;
+      stroke 300ms ease, background-image 300ms ease !important;
   }
 
-  // Hide the gradient image during theme switch so background-color
-  // can transition smoothly without the gradient snapping.
-  body.theme-transition .core-wrapper,
-  body.theme-transition .data-table__wrapper {
+  // The core-wrapper's hero gradient doesn't interpolate cleanly between
+  // themes (different shape/stops), so hide it during the transition and
+  // let background-color carry the fade. The data-table wrapper keeps its
+  // gradient — it has the same shape in both themes, so background-image
+  // interpolates smoothly along with background-color.
+  body.theme-transition .core-wrapper {
     background-image: none !important;
   }
 }
