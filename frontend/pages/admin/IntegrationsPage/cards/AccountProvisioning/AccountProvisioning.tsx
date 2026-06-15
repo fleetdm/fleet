@@ -1,6 +1,16 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { useQuery } from "react-query";
+
+import {
+  LEARN_MORE_ABOUT_BASE_LINK,
+  UNCHANGED_PASSWORD_API_RESPONSE,
+} from "utilities/constants";
+import configAPI from "services/entities/config";
+import { IConfig } from "interfaces/config";
+import { NotificationContext } from "context/notification";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
@@ -50,13 +60,33 @@ const validate = (formData: IFormData): IFormErrors => {
 };
 
 const AccountProvisioning = () => {
+  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
+  const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IFormData>({
     tokenUrl: "",
     clientId: "",
     clientSecret: "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
+
+  const { isLoading, error: loadError } = useQuery<IConfig, Error>(
+    ["fpsso"],
+    () => configAPI.loadAll(),
+    {
+      refetchOnWindowFocus: false,
+      onSuccess: (data) => {
+        const provisioning = data.apple_account_provisioning;
+        if (provisioning) {
+          setFormData({
+            tokenUrl: provisioning.idp_token_url,
+            clientId: provisioning.idp_client_id,
+            clientSecret: provisioning.oauth_idp_client_secret,
+          });
+        }
+      },
+    }
+  );
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
@@ -76,14 +106,45 @@ const AccountProvisioning = () => {
     setFormErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
   };
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validate(formData);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
+      return;
     }
-    // TODO: submit to API
+
+    const secretToSubmit =
+      formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
+        ? undefined
+        : formData.clientSecret;
+
+    setIsUpdating(true);
+    try {
+      await configAPI.update({
+        apple_account_provisioning: {
+          idp_token_url: formData.tokenUrl,
+          idp_client_id: formData.clientId,
+          ...(secretToSubmit !== undefined && {
+            oauth_idp_client_secret: secretToSubmit,
+          }),
+        },
+      });
+      renderFlash("success", "Successfully updated settings.");
+    } catch {
+      renderFlash("error", "Failed to update settings.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
+
+  if (isLoading) {
+    return <Spinner />;
+  }
+
+  if (loadError) {
+    return <DataError />;
+  }
 
   return (
     <SettingsSection title="Account provisioning" className={baseClass}>
@@ -102,7 +163,11 @@ const AccountProvisioning = () => {
         }
       />
       <form onSubmit={onSubmit}>
-        <div className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""}`}>
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
           <InputField
             label="Token URL"
             name="tokenUrl"
@@ -137,7 +202,11 @@ const AccountProvisioning = () => {
         </div>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
-            <Button type="submit" disabled={disableChildren}>
+            <Button
+              type="submit"
+              disabled={disableChildren}
+              isLoading={isUpdating}
+            >
               Save
             </Button>
           )}

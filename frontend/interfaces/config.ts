@@ -236,11 +236,18 @@ export interface IConfig {
   };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
+  apple_account_provisioning?: IAppleAccountProvisioning;
   partnerships?: IFleetPartnerships;
 }
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+export interface IAppleAccountProvisioning {
+  idp_token_url: string;
+  idp_client_id: string;
+  oauth_idp_client_secret: string;
 }
 
 export interface IWebhookSettings {
