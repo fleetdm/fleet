@@ -280,6 +280,10 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 
 	for uuid, ia := range includeModes {
 		p := byUUID[uuid]
+		if p == nil {
+			// Should not happen, so not worth logging anything here.
+			continue
+		}
 		if ia.mixed {
 			// Defensive: include rows disagreed on require_all (should
 			// be impossible in production — the upsert path enforces a
@@ -288,11 +292,7 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.AppleProfileIncludeNone
 			errMsg := "apple profile has mixed include label modes; ignoring include labels"
-			logger := ds.logger
-			if p != nil {
-				logger = logger.With("team_id", p.TeamID)
-			}
-			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid)
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id", p.TeamID)
 			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}
@@ -587,16 +587,16 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 
 	for uuid, ia := range includeModes {
 		d := byUUID[uuid]
+		if d == nil {
+			// Should never happen, so not worth logging anything here.
+			continue
+		}
 		if ia.mixed {
 			d.IncludeLabels = nil
 			d.IncludeMode = fleet.AppleProfileIncludeNone
 
 			errMsg := "apple declaration has mixed include label modes; ignoring include labels"
-			logger := ds.logger
-			if d != nil {
-				logger = logger.With("team_id", d.TeamID)
-			}
-			ds.logger.ErrorContext(ctx, errMsg, "declaration_uuid", uuid)
+			ds.logger.ErrorContext(ctx, errMsg, "declaration_uuid", uuid, "team_id", d.TeamID)
 			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}
