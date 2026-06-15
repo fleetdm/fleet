@@ -1,8 +1,6 @@
 package microsoft_mdm
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,19 +36,32 @@ func TestESPSoftwareFailureContinuableErrorText(t *testing.T) {
 			want:        "Slack and Zoom failed to install. " + suffix,
 		},
 		{
+			// The cap (espMaxFailedNamesShown) is 3, so three names list in full.
 			name:        "three names use Oxford comma",
 			failedNames: []string{"Slack", "Zoom", "Docker"},
 			want:        "Slack, Zoom, and Docker failed to install. " + suffix,
 		},
 		{
-			name:        "four names",
+			// Above the cap, the rest is summarized as "N more": four names -> first three plus "and 1 more".
+			name:        "four names list first three and one more",
 			failedNames: []string{"Slack", "Zoom", "Docker", "1Password"},
-			want:        "Slack, Zoom, Docker, and 1Password failed to install. " + suffix,
+			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + suffix,
+		},
+		{
+			name:        "six names list first three and three more",
+			failedNames: []string{"Slack", "Zoom", "Docker", "1Password", "Notion", "Chrome"},
+			want:        "Slack, Zoom, Docker, and 3 more failed to install. " + suffix,
 		},
 		{
 			name:        "empty name mixed in is skipped",
 			failedNames: []string{"Slack", "", "Zoom"},
 			want:        "Slack and Zoom failed to install. " + suffix,
+		},
+		{
+			// Empties are dropped before the cap is applied, so this counts as four names, not seven.
+			name:        "empties are dropped before the cap is counted",
+			failedNames: []string{"Slack", "", "Zoom", "", "Docker", "", "1Password"},
+			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + suffix,
 		},
 	}
 	for _, tc := range tests {
@@ -58,24 +69,4 @@ func TestESPSoftwareFailureContinuableErrorText(t *testing.T) {
 			assert.Equal(t, tc.want, ESPSoftwareFailureContinuableErrorText(tc.failedNames))
 		})
 	}
-
-	t.Run("long list is truncated to N more", func(t *testing.T) {
-		manyNames := make([]string, 50)
-		for i := range manyNames {
-			manyNames[i] = fmt.Sprintf("Application With A Fairly Long Name %02d", i)
-		}
-		got := ESPSoftwareFailureContinuableErrorText(manyNames)
-		assert.Contains(t, got, manyNames[0], "first name must always be included")
-		assert.Contains(t, got, "more failed to install. ", "truncated list must summarize the remainder as N more")
-		assert.NotContains(t, got, manyNames[len(manyNames)-1], "names past the cap must not be listed")
-		assert.True(t, strings.HasSuffix(got, suffix))
-		// The cap bounds the name list; the full message adds ", and N more failed to install. " plus the suffix.
-		assert.Less(t, len(got), espMaxFailedNamesLen+len(suffix)+50, "message must stay near the cap")
-	})
-
-	t.Run("single name longer than the cap is still included", func(t *testing.T) {
-		hugeName := strings.Repeat("x", espMaxFailedNamesLen+50)
-		got := ESPSoftwareFailureContinuableErrorText([]string{hugeName})
-		assert.Equal(t, hugeName+" failed to install. "+suffix, got)
-	})
 }

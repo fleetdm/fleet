@@ -2,6 +2,7 @@ package microsoft_mdm
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -18,18 +19,15 @@ const ESPTimeoutErrorText = "Setup is taking longer than expected. Please try ag
 const espContinuableErrorSuffix = "Reset your device to try again, or proceed and install missing software via self-service. " +
 	"If unavailable, contact your IT admin."
 
-// espMaxFailedNamesLen caps the rendered failed-software name list. The DMClient CSP does not document a maximum
-// length for CustomErrorText and the ESP renders it in a small area, so overly long lists are truncated to
-// "..., and N more".
-const espMaxFailedNamesLen = 400
+// espMaxFailedNamesShown caps how many software names the ESP failure message lists before summarizing the rest as
+// "N more". CustomErrorText renders in a small ESP area and the DMClient CSP documents no maximum length.
+const espMaxFailedNamesShown = 3
 
 // ESPSoftwareFailureContinuableErrorText returns the message shown on the Windows ESP failure screen when one or more
 // software installs failed but "Cancel setup if software fails" (require_all_software_windows) is off, so the end user
-// is allowed to continue to the desktop. The failed software is listed by name, e.g. "Slack, Zoom, and Docker failed
-// to install. Reset your device to try again, or proceed and install missing software via self-service. If
-// unavailable, contact your IT admin."
+// is allowed to continue to the desktop.
 func ESPSoftwareFailureContinuableErrorText(failedNames []string) string {
-	list := joinFailedNames(failedNames, espMaxFailedNamesLen)
+	list := joinFailedNames(failedNames)
 	if list == "" {
 		// Defensive: a failure was detected but no names were collected (e.g. rows with empty names).
 		return "Some software failed to install. " + espContinuableErrorSuffix
@@ -37,35 +35,16 @@ func ESPSoftwareFailureContinuableErrorText(failedNames []string) string {
 	return fmt.Sprintf("%s failed to install. %s", list, espContinuableErrorSuffix)
 }
 
-// joinFailedNames joins names into a human-readable list: "A", "A and B", "A, B, and C". If the joined list would
-// exceed maxLen, only the names that fit are listed and the remainder is summarized as "N more"; at least one name is
-// always included.
-func joinFailedNames(names []string, maxLen int) string {
-	nonEmpty := make([]string, 0, len(names))
-	for _, n := range names {
-		if n != "" {
-			nonEmpty = append(nonEmpty, n)
-		}
-	}
-	if len(nonEmpty) == 0 {
+// joinFailedNames renders names as a human-readable list: "A", "A and B", "A, B, and C". Empty names are dropped. When
+// more than espMaxFailedNamesShown names remain, only the first that many are listed and the rest is summarized, e.g.
+// "A, B, C, and 2 more". Returns "" when there are no non-empty names.
+func joinFailedNames(names []string) string {
+	items := slices.DeleteFunc(slices.Clone(names), func(s string) bool { return s == "" })
+	if len(items) == 0 {
 		return ""
 	}
-
-	// included counts how many names fit in maxLen. The running length approximates the final rendering (", " between
-	// items); exact "and"/Oxford-comma accounting isn't needed for a display cap.
-	included := 1
-	lenSoFar := len(nonEmpty[0])
-	for ; included < len(nonEmpty); included++ {
-		next := lenSoFar + 2 + len(nonEmpty[included])
-		if next > maxLen {
-			break
-		}
-		lenSoFar = next
-	}
-
-	items := nonEmpty[:included:included]
-	if rest := len(nonEmpty) - included; rest > 0 {
-		items = append(items, fmt.Sprintf("%d more", rest))
+	if extra := len(items) - espMaxFailedNamesShown; extra > 0 {
+		items = append(items[:espMaxFailedNamesShown:espMaxFailedNamesShown], fmt.Sprintf("%d more", extra))
 	}
 
 	switch len(items) {
