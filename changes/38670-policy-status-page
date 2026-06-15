@@ -1,2 +1,3 @@
 - Added `POST /api/v1/fleet/policies/:policy_id/reset` endpoint to reset a policy's pass/fail results, clearing counts and membership immediately.
 - Updated policy details page to show automations and labels as a single property. Also changed the layout of policy properties.
+- Added `GET /api/v1/fleet/policies/:id/automation_activities` endpoint to list automation activities for a policy.
