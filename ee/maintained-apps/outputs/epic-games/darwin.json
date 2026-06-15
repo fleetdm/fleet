@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "19.2.3",
+      "version": "20.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher' AND version_compare(bundle_short_version, '19.2.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.epicgames.EpicGamesLauncher' AND version_compare(bundle_short_version, '20.1.0') < 0);"
       },
-      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Mac/EpicInstaller-19.2.3.dmg",
+      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Mac/EpicInstaller-20.1.0.dmg",
       "install_script_ref": "6474530d",
       "uninstall_script_ref": "4515270b",
-      "sha256": "c49e9d2e61c6a577be336f61132477c8a704ffb16c3068c95dcb7f3e0934beb8",
+      "sha256": "a65ea5a3f81f47606bf45ccb71d3095459aaa4d14395d144d3a91646ab4aa35a",
       "default_categories": [
         "Productivity"
       ]
