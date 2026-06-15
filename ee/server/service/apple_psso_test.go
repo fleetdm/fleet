@@ -30,12 +30,12 @@ func newPSSOTestService(t *testing.T, settings *fleet.PSSOSettings) (*Service, c
 }
 
 func configuredPSSOSettings() *fleet.PSSOSettings {
-	return &fleet.PSSOSettings{
+	return &fleet.PSSOSettings{ //nolint:gosec // G101: test value only, not a real credential
 		Enabled:         true,
 		IssuerURL:       "https://fleet.example.com",
 		IdPTokenURL:     "https://idp.example.com/oauth2/v1/token",
 		IdPClientID:     "client-id",
-		IdPClientSecret: "client-secret", //nolint:gosec // G101: test value only
+		IdPClientSecret: "client-secret",
 	}
 }
 
