@@ -47,10 +47,10 @@ export interface IChartFilterState {
   platforms: string[];
   hostFilterMode: HostFilterMode;
   selectedHosts: IHost[];
-  // Software (cve) filters. softwareCategories holds the checked category
+  // Software (cve) filters. softwareFilters holds the checked category
   // values (defaults to all). epssMin/epssMax are raw 0–100 % strings ("" =
   // unset); the card converts them to the 0.0–1.0 API value.
-  softwareCategories: string[];
+  softwareFilters: string[];
   knownExploit: boolean;
   epssMin: string;
   epssMax: string;
@@ -82,8 +82,8 @@ const ChartFilterModal = ({
   const [activeTab, setActiveTab] = useState(initialTab === "software" ? 1 : 0);
 
   // Software (cve) filter state.
-  const [softwareCategories, setSoftwareCategories] = useState<string[]>(
-    filters.softwareCategories
+  const [softwareFilters, setSoftwareFilters] = useState<string[]>(
+    filters.softwareFilters
   );
   const [knownExploit, setKnownExploit] = useState<boolean>(
     filters.knownExploit
@@ -195,7 +195,7 @@ const ChartFilterModal = ({
       platforms: selectedPlatforms,
       hostFilterMode,
       selectedHosts,
-      softwareCategories,
+      softwareFilters,
       knownExploit,
       epssMin,
       epssMax,
@@ -214,7 +214,7 @@ const ChartFilterModal = ({
     setSearchFieldKey((k) => k + 1);
     debouncedSetSearchQuery.cancel();
     // Reset software filters to their defaults (all categories selected).
-    setSoftwareCategories([...ALL_CVE_SOFTWARE_CATEGORY_VALUES]);
+    setSoftwareFilters([...ALL_CVE_SOFTWARE_CATEGORY_VALUES]);
     setKnownExploit(false);
     setEpssMin("");
     setEpssMax("");
@@ -240,7 +240,7 @@ const ChartFilterModal = ({
 
   const softwareFiltersActive =
     isCVE &&
-    (softwareCategories.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
+    (softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
       knownExploit ||
       isEpssActive(epssMin, epssMax) ||
       excludeCVEs.length > 0);
@@ -388,12 +388,12 @@ const ChartFilterModal = ({
             <TabPanel>
               <SoftwareFilters
                 currentTeamId={currentTeamId}
-                categories={softwareCategories}
+                categories={softwareFilters}
                 knownExploit={knownExploit}
                 epssMin={epssMin}
                 epssMax={epssMax}
                 excludeCVEs={excludeCVEs}
-                setCategories={setSoftwareCategories}
+                setCategories={setSoftwareFilters}
                 setKnownExploit={setKnownExploit}
                 setEpssMin={setEpssMin}
                 setEpssMax={setEpssMax}

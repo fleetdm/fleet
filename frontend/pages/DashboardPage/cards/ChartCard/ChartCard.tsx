@@ -51,7 +51,7 @@ const DEFAULT_CHART_FILTERS: IChartFilterState = {
   platforms: [],
   hostFilterMode: "none",
   selectedHosts: [],
-  softwareCategories: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
+  softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
   knownExploit: false,
   epssMin: "",
   epssMax: "",
@@ -67,8 +67,7 @@ const hasActiveHostFilters = (filters: IChartFilterState): boolean => {
 };
 
 const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
-  filters.softwareCategories.length !==
-    ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
+  filters.softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
   filters.knownExploit ||
   isEpssActive(filters.epssMin, filters.epssMax) ||
   filters.excludeCVEs.length > 0;
@@ -83,7 +82,7 @@ const formatList = (items: string[]): string => {
 const softwareFilterTooltip = (filters: IChartFilterState): JSX.Element => {
   const lines: string[] = [];
   const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
-    filters.softwareCategories.includes(c.value)
+    filters.softwareFilters.includes(c.value)
   ).map((c) => c.tooltipLabel);
   if (cats.length) lines.push(formatList(cats));
   if (filters.knownExploit) lines.push("Known exploits only");
@@ -227,7 +226,7 @@ const ChartCard = ({
     // API takes 0.0–1.0, so divide before sending.
     const narrowsCategories =
       isCVE &&
-      chartFilters.softwareCategories.length !==
+      chartFilters.softwareFilters.length !==
         ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
     const epssMinActive =
       isCVE && chartFilters.epssMin !== "" && Number(chartFilters.epssMin) > 0;
@@ -259,7 +258,7 @@ const ChartCard = ({
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
       software_filters: narrowsCategories
-        ? chartFilters.softwareCategories.join(",")
+        ? chartFilters.softwareFilters.join(",")
         : undefined,
       has_known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
       epss_min: epssMinActive ? Number(chartFilters.epssMin) / 100 : undefined,
