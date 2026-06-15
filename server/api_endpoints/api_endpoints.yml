@@ -593,7 +593,7 @@
   path: "/api/v1/fleet/software/fleet_maintained_apps"
   display_name: "List Fleet-maintained apps"
 - method: "GET"
-  path: "/api/v1/fleet/software/fleet_maintained_apps/:id"
+  path: "/api/v1/fleet/software/fleet_maintained_apps/:app_id"
   display_name: "Get Fleet-maintained app"
 - method: "GET"
   path: "/api/v1/fleet/software/titles/:title_id/icon"
