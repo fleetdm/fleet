@@ -27,7 +27,7 @@ module.exports = {
 
     if(!country) {
       // IF a country is not provided, throw an error and log the provided inputs to help us debug the issue.
-      throw new Error(`Cannot determine Salesforce territory without a country. Provided inputs: country: ${country}, state: ${state}, city: ${city}`)
+      throw new Error(`Cannot determine Salesforce territory without a country. Provided inputs: country: ${country}, state: ${state}, city: ${city}`);
     }
     //  ╦  ╔═╗╔═╗╦╔╗╔  ╔╦╗╔═╗  ╔═╗╔═╗╦  ╔═╗╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗
     //  ║  ║ ║║ ╦║║║║   ║ ║ ║  ╚═╗╠═╣║  ║╣ ╚═╗╠╣ ║ ║╠╦╝║  ║╣
