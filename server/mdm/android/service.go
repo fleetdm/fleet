@@ -7,8 +7,6 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-const byodIdpCookieName = "__Host-FLEETBYODIDP"
-
 type Service interface {
 	EnterpriseSignup(ctx context.Context) (*SignupDetails, error)
 	EnterpriseSignupCallback(ctx context.Context, signupToken string, enterpriseToken string) error
@@ -101,22 +99,4 @@ type EnterpriseSignupResponse struct {
 type EnrollmentTokenResponse struct {
 	*EnrollmentToken
 	DefaultResponse
-}
-
-// SetCookies clears the BYOD IdP cookie after an enrollment token is
-// successfully created so that subsequent enrollments require a fresh SSO
-// authentication instead of reusing a stale identity.
-func (r EnrollmentTokenResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     byodIdpCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
 }
