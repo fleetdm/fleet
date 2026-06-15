@@ -45,13 +45,13 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (pl
 		IncludeHostIDs:  str.ParseUintList(req.IncludeHostIDs),
 		ExcludeHostIDs:  str.ParseUintList(req.ExcludeHostIDs),
 
-		SoftwareCategories: str.ParseStringList(req.SoftwareCategories),
-		KnownExploit:       req.KnownExploit,
-		EPSSMin:            req.EPSSMin,
-		EPSSMax:            req.EPSSMax,
-		SeverityMin:        req.SeverityMin,
-		SeverityMax:        req.SeverityMax,
-		ExcludeCVEs:        str.ParseStringList(req.ExcludeCVEs),
+		SoftwareFilters: str.ParseStringList(req.SoftwareFilters),
+		KnownExploit:    req.KnownExploit,
+		EPSSMin:         req.EPSSMin,
+		EPSSMax:         req.EPSSMax,
+		SeverityMin:     req.SeverityMin,
+		SeverityMax:     req.SeverityMax,
+		ExcludeCVEs:     str.ParseStringList(req.ExcludeCVEs),
 	}
 
 	resp, err := svc.GetChartData(ctx, req.Metric, opts)

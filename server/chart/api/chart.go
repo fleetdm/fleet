@@ -111,7 +111,7 @@ type DatasetStore interface {
 const MetricCVE = "cve"
 
 // CVE chart software category keys. These are the API contract for the
-// `software_categories` filter and are mirrored by the frontend. The
+// `software_filters` query parameter and are mirrored by the frontend. The
 // "os" category covers both operating-system vulnerabilities and the kernel
 // software matchers.
 const (
@@ -169,8 +169,8 @@ type RequestOpts struct {
 	ExcludeHostIDs []uint
 
 	// CVE entity filters (apply only to the MetricCVE metric).
-	SoftwareCategories []string
-	KnownExploit       bool
+	SoftwareFilters []string
+	KnownExploit    bool
 	// EPSS bounds are 0.0–1.0 (matching cve_meta.epss_probability); nil means
 	// no bound. The frontend converts its 0–100 % input before sending.
 	EPSSMin *float64
@@ -192,11 +192,11 @@ type Filters struct {
 	IncludeHostIDs []uint   `json:"include_host_ids,omitempty"`
 	ExcludeHostIDs []uint   `json:"exclude_host_ids,omitempty"`
 
-	SoftwareCategories []string `json:"software_categories,omitempty"`
-	KnownExploit       bool     `json:"known_exploit,omitempty"`
-	EPSSMin            *float64 `json:"epss_min,omitempty"`
-	EPSSMax            *float64 `json:"epss_max,omitempty"`
-	SeverityMin        *float64 `json:"severity_min,omitempty"`
-	SeverityMax        *float64 `json:"severity_max,omitempty"`
-	ExcludeCVEs        []string `json:"exclude_cves,omitempty"`
+	SoftwareFilters []string `json:"software_filters,omitempty"`
+	KnownExploit    bool     `json:"has_known_exploit,omitempty"`
+	EPSSMin         *float64 `json:"epss_min,omitempty"`
+	EPSSMax         *float64 `json:"epss_max,omitempty"`
+	SeverityMin     *float64 `json:"severity_min,omitempty"`
+	SeverityMax     *float64 `json:"severity_max,omitempty"`
+	ExcludeCVEs     []string `json:"exclude_vulnerabilities,omitempty"`
 }

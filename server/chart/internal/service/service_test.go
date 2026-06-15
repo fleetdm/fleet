@@ -389,12 +389,12 @@ func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
 		}
 
 		opts := api.RequestOpts{
-			Days:               7,
-			SoftwareCategories: []string{api.CVECategoryBrowsers, api.CVECategoryAdobe},
-			KnownExploit:       true,
-			EPSSMin:            new(0.5),
-			EPSSMax:            new(1.0),
-			ExcludeCVEs:        []string{"CVE-2026-9999"},
+			Days:            7,
+			SoftwareFilters: []string{api.CVECategoryBrowsers, api.CVECategoryAdobe},
+			KnownExploit:    true,
+			EPSSMin:         new(0.5),
+			EPSSMax:         new(1.0),
+			ExcludeCVEs:     []string{"CVE-2026-9999"},
 		}
 		_, err := svc.GetChartData(t.Context(), "cve", opts)
 		require.NoError(t, err)

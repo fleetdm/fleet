@@ -22,13 +22,13 @@ type GetChartDataRequest struct {
 	// CVE entity filters (apply only to the cve metric). Comma-separated lists
 	// for categories/CVEs; EPSS and severity bounds are scalar pointers so an
 	// absent bound stays nil. EPSS values are 0.0–1.0.
-	SoftwareCategories string   `query:"software_categories,optional"`
-	KnownExploit       bool     `query:"known_exploit,optional"`
-	EPSSMin            *float64 `query:"epss_min,optional"`
-	EPSSMax            *float64 `query:"epss_max,optional"`
-	SeverityMin        *float64 `query:"severity_min,optional"`
-	SeverityMax        *float64 `query:"severity_max,optional"`
-	ExcludeCVEs        string   `query:"exclude_cves,optional"`
+	SoftwareFilters string   `query:"software_filters,optional"`
+	KnownExploit    bool     `query:"has_known_exploit,optional"`
+	EPSSMin         *float64 `query:"epss_min,optional"`
+	EPSSMax         *float64 `query:"epss_max,optional"`
+	SeverityMin     *float64 `query:"severity_min,optional"`
+	SeverityMax     *float64 `query:"severity_max,optional"`
+	ExcludeCVEs     string   `query:"exclude_vulnerabilities,optional"`
 }
 
 // GetChartDataResponse is the HTTP response for the chart data endpoint.

@@ -148,7 +148,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		// to critical-only this round; the severity UI lands in a follow-up.
 		// TODO(#47326): honor opts.SeverityMin/Max instead of hard-coding.
 		cveFilter := types.CVEChartFilter{
-			Categories:   opts.SoftwareCategories,
+			Categories:   opts.SoftwareFilters,
 			CVSSMin:      9.0,
 			CVSSMax:      10.0,
 			EPSSMin:      opts.EPSSMin,
@@ -180,13 +180,13 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			IncludeHostIDs: opts.IncludeHostIDs,
 			ExcludeHostIDs: opts.ExcludeHostIDs,
 
-			SoftwareCategories: opts.SoftwareCategories,
-			KnownExploit:       opts.KnownExploit,
-			EPSSMin:            opts.EPSSMin,
-			EPSSMax:            opts.EPSSMax,
-			SeverityMin:        opts.SeverityMin,
-			SeverityMax:        opts.SeverityMax,
-			ExcludeCVEs:        opts.ExcludeCVEs,
+			SoftwareFilters: opts.SoftwareFilters,
+			KnownExploit:    opts.KnownExploit,
+			EPSSMin:         opts.EPSSMin,
+			EPSSMax:         opts.EPSSMax,
+			SeverityMin:     opts.SeverityMin,
+			SeverityMax:     opts.SeverityMax,
+			ExcludeCVEs:     opts.ExcludeCVEs,
 		},
 		Data: data,
 	}, nil
