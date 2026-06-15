@@ -11,12 +11,12 @@ import (
 	"os"
 	"testing"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 )
 
 func TestServeFrontend(t *testing.T) {
@@ -162,9 +162,7 @@ func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
 		Value: idpUUID,
 	})
 
-	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse // don't follow redirects
-	}}
+	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
 	response, err := client.Do(req)
 	require.NoError(t, err)
 	defer response.Body.Close()
