@@ -14,7 +14,7 @@ import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusW
 const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
     {
-      title: "Ticket destinations",
+      title: "Ticketing",
       urlSection: "ticket-destinations",
       path: PATHS.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
       Card: TicketDestinations,
@@ -26,7 +26,7 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: MdmSettings,
     },
     {
-      title: "Calendars",
+      title: "Calendar events",
       urlSection: "calendars",
       path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
       Card: Calendars,
@@ -38,25 +38,25 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: ChangeManagement,
     },
     {
-      title: "Single sign-on (SSO)",
+      title: "Authentication (SSO)",
       urlSection: "sso",
       path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
       Card: Sso,
     },
     {
-      title: "Certificate authorities",
+      title: "Certificate enrollment",
       urlSection: "certificate-authorities",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
       Card: CertificateAuthorities,
     },
     {
-      title: "Identity provider (IdP)",
+      title: "User mapping",
       urlSection: "identity-provider",
       path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
       Card: IdentityProviders,
     },
     {
-      title: "Host status webhook",
+      title: "Host status alerts",
       urlSection: "host-status-webhook",
       path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
       Card: GlobalHostStatusWebhook,

@@ -314,7 +314,7 @@ const TicketDestinations = (): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Ticket destinations" className={baseClass}>
+    <SettingsSection title="Ticketing" className={baseClass}>
       <PageDescription
         content={
           <>

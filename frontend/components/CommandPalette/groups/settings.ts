@@ -97,7 +97,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
       subItems: [
         {
           id: "settings-int-ticket-destinations",
-          label: "Ticket destinations",
+          label: "Ticketing",
           path: paths.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
           keywords: ["jira", "zendesk", "tickets"],
         },
@@ -120,7 +120,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           ? [
               {
                 id: "settings-int-calendars",
-                label: "Calendars",
+                label: "Calendar events",
                 path: paths.ADMIN_INTEGRATIONS_CALENDARS,
                 keywords: [
                   "google calendar api",
@@ -160,7 +160,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           ? [
               {
                 id: "settings-int-certificate-authorities",
-                label: "Certificate authorities",
+                label: "Certificate enrollment",
                 path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
                 keywords: [
                   "scep",
@@ -197,7 +197,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           ? [
               {
                 id: "settings-int-identity-provider",
-                label: "Identity provider (IdP)",
+                label: "User mapping",
                 path: paths.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
                 keywords: ["okta", "entra", "azure ad", "directory", "ldap"],
               },
@@ -205,7 +205,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
           : []),
         {
           id: "settings-int-host-status-webhook",
-          label: "Host status webhook",
+          label: "Host status alerts",
           path: paths.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
           keywords: ["offline", "missing hosts", "notification", "alerts"],
         },
