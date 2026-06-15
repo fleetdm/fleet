@@ -7226,13 +7226,6 @@
       "description": "Taskade is a task manager for teams."
     },
     {
-      "name": "Taskade",
-      "slug": "taskade/windows",
-      "platform": "windows",
-      "unique_identifier": "Taskade",
-      "description": "Taskade is a task manager for teams."
-    },
-    {
       "name": "Taskbar",
       "slug": "taskbar/darwin",
       "platform": "darwin",
