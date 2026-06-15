@@ -1,0 +1,432 @@
+@import "./tokens.css";
+
+/* Inter (sans) + SourceCodePro (mono) — bundled locally so the app
+ * renders Fleet's typography without depending on system fallbacks.
+ * Mirror of frontend/styles/global/_fonts.scss. */
+@font-face {
+  font-family: "Inter";
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Regular.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Regular-Italic.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 600;
+  src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 700;
+  src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "SourceCodePro";
+  font-weight: 400;
+  font-style: normal;
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf.woff") format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "SourceCodePro";
+  font-weight: 600;
+  font-style: normal;
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.woff") format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf") format("truetype");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* Kill WebKit's rubber-band overscroll so content can't be dragged
+     off-screen into empty space (esp. noticeable in VMs). Scroll
+     containers below opt in to their own scrolling explicitly. */
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-x-small);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  transition: background var(--motion-fast), border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+button:hover:not(:disabled) {
+  /* Surface-3 (lighter than surface-2) + border lift so buttons sitting
+     on surface-2 rows still get a clearly visible hover. */
+  background: var(--app-surface-3);
+  border-color: var(--app-text-dim);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--core-fleet-green);
+  border-color: var(--core-fleet-green);
+  color: var(--core-fleet-white);
+  font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+  background: var(--core-fleet-green-over);
+  border-color: var(--core-fleet-green-over);
+}
+button.primary:active:not(:disabled) {
+  background: var(--core-fleet-green-down);
+  border-color: var(--core-fleet-green-down);
+}
+
+button.danger {
+  background: var(--core-vibrant-red);
+  border-color: var(--core-vibrant-red);
+  color: var(--core-fleet-white);
+  font-weight: 600;
+}
+button.danger:hover:not(:disabled) {
+  background: var(--core-vibrant-red-over);
+  border-color: var(--core-vibrant-red-over);
+}
+button.danger:active:not(:disabled) {
+  background: var(--core-vibrant-red-down);
+  border-color: var(--core-vibrant-red-down);
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  /* Mirrors Fleet's InputField (.input-field) in
+   * frontend/components/forms/fields/InputField/_styles.scss: white-on-
+   * border, 8/16 padding, 1.5 line-height. Background uses --app-surface
+   * so light mode inputs are white (gray reads as disabled); in dark
+   * mode --app-surface (surface-0) is darker than the typical surface-2
+   * panel they sit on, so they still pop. */
+  background: var(--app-surface);
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  line-height: 1.5;
+  transition: border-color var(--motion-fast);
+}
+input::placeholder,
+textarea::placeholder {
+  /* Fleet sets opacity:1 + an explicit color so the placeholder reads
+   * the same across browsers (Firefox dims placeholders by default). */
+  color: var(--app-text-dim);
+  opacity: 1;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--app-text-dim);
+}
+
+/* Hide the native number-input spinner. On macOS WKWebView its arrows
+ * render dark-on-dark (poor contrast) and crowd a right-aligned value.
+ * We can't reliably recolor the native control, so we drop it — values
+ * are typed, and the perf tab offers quick-pick chips for common totals. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xx-small);
+}
+
+.dim {
+  color: var(--app-text-dim);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ui-offline);
+  flex-shrink: 0;
+}
+.dot.run,
+.dot.running {
+  background: var(--core-fleet-green);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--core-fleet-green) 60%, transparent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.dot.ok,
+.dot.done {
+  background: var(--ui-success);
+}
+.dot.warn {
+  background: var(--ui-warning);
+}
+.dot.fail,
+.dot.failed {
+  background: var(--core-vibrant-red);
+}
+.dot.idle,
+.dot.queue {
+  background: var(--ui-offline);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--core-fleet-green) 50%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  font-size: var(--fs-xx-small);
+  color: var(--app-text-dim);
+  background: var(--app-surface);
+}
+
+.card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  padding: var(--pad-medium);
+  box-shadow: var(--shadow-card);
+}
+/* Dense card variant — for rows like Active processes / cron triggers
+ * where the default 16px padding makes the list look airy. Replaces the
+ * scattered `10px 12px` / `10px 14px` / `12px 16px` overrides that were
+ * doing the same job. */
+.card.is-compact {
+  padding: 10px 12px;
+}
+
+/* Header label inside a card (e.g., the service name on a row). Smaller
+ * and bolder than body, distinct from the UPPERCASE `.section-title`
+ * caption used at the top of a panel. */
+.card-title {
+  font-size: var(--fs-x-small);
+  font-weight: 600;
+}
+
+.section-title {
+  font-size: var(--fs-xxx-small);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--app-text-dim);
+  margin-bottom: var(--pad-small);
+}
+
+/* Tab-bar buttons — color-only hover, no big background slab. */
+.tab-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 16px;
+  font-size: var(--fs-x-small);
+  font-weight: 400;
+  color: var(--app-text-dim);
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+.tab-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--app-text);
+  border-bottom-color: var(--app-text-dim);
+}
+.tab-btn.is-active {
+  color: var(--app-text);
+  font-weight: 600;
+  border-bottom-color: var(--core-fleet-green);
+}
+.tab-btn.is-active:hover:not(:disabled) {
+  border-bottom-color: var(--core-fleet-green);
+}
+.tab-gear {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 14px;
+  font-size: var(--fs-medium);
+  line-height: 1;
+  color: var(--app-text-dim);
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+.tab-gear:hover:not(:disabled) {
+  background: transparent;
+  color: var(--app-text);
+  border-bottom-color: var(--app-text-dim);
+}
+.tab-gear.is-active {
+  color: var(--core-fleet-green);
+  border-bottom-color: var(--core-fleet-green);
+}
+.tab-gear.is-active:hover:not(:disabled) {
+  border-bottom-color: var(--core-fleet-green);
+}
+
+/* Text-only link button. Underline on hover; no background slab. */
+.link-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--core-fleet-green);
+  cursor: pointer;
+}
+.link-btn:hover:not(:disabled) {
+  background: transparent;
+  text-decoration: underline;
+  color: var(--core-fleet-green-over);
+}
+
+/* Tunnel chip — hover intensifies border. Class is applied via JS based
+   on selected/locked state for accurate hover behavior. */
+.tunnel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  font-size: var(--fs-xx-small);
+  color: var(--app-text-dim);
+  user-select: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
+}
+.tunnel-chip:hover {
+  /* Matches button hover: surface-3 bg + brighter border. */
+  border-color: var(--app-text-dim);
+  background: var(--app-surface-3);
+}
+.tunnel-chip.is-selected {
+  border-color: var(--core-fleet-green);
+  background: var(--tint-success-soft);
+  color: var(--core-fleet-green);
+}
+.tunnel-chip.is-selected:hover {
+  /* Matches primary button hover: deepen the green like green-over. */
+  border-color: var(--core-fleet-green-over);
+  background: var(--tint-success-strong);
+}
+.tunnel-chip.is-locked {
+  cursor: default;
+}
+.tunnel-chip.is-locked:hover {
+  /* locked = controlled by "start all" — don't react to hover */
+  border-color: var(--core-fleet-green);
+}
+
+/* Chain step glyphs — distinct vocabulary from the live-status dots used
+   in Active processes. ○ / ⏵ / ✓ / ✗ for idle / running / done / failed. */
+.step-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+  font-family: var(--font-sans);
+  transition: color var(--motion-fast), opacity var(--motion-fast);
+}
+.step-glyph.idle {
+  color: var(--app-text-dim);
+}
+.step-glyph.running {
+  color: var(--core-fleet-green);
+  animation: glyph-pulse 1.6s ease-in-out infinite;
+}
+.step-glyph.done {
+  color: var(--core-fleet-green);
+  font-weight: 600;
+}
+.step-glyph.failed {
+  color: var(--core-vibrant-red);
+  font-weight: 600;
+}
+@keyframes glyph-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* Stale-row dimming — applied to short-running done steps after 15 min. */
+.chain-row.is-stale {
+  opacity: 0.6;
+}
+.chain-row {
+  transition: opacity 200ms ease-out;
+}
+
+/* Scrollbars in dark surfaces */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--app-surface-3);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
