@@ -1,6 +1,6 @@
 name: ai_tools
 description: |-
-  Cross-platform table provided by the [agentic-detector](https://github.com/karmine05/agentic-detector) osquery extension. Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool by construction — presence in the table is the signal. A `kind` column discriminates the row type; common fields are first-class columns; kind-specific extras live in a compact JSON `detail` column.
+  Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. A `kind` column discriminates the type; common fields are first-class columns; kind-specific extras live in a compact JSON `detail` column.
 platforms:
   - darwin
   - windows
