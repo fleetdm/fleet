@@ -266,6 +266,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, idpAccount.UUID),
 				nil, http.StatusOK, nil,
 			)
+			defer resp.Body.Close()
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
@@ -322,6 +323,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, cookieAccount.UUID),
 				},
 			)
+			defer resp.Body.Close()
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
