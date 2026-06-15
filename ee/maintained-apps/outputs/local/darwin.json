@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "10.1.0",
+      "version": "10.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.1.1') < 0);"
       },
-      "installer_url": "https://cdn.localwp.com/releases-stable/10.1.0+6912/local-10.1.0-mac-arm64.dmg",
+      "installer_url": "https://cdn.localwp.com/releases-stable/10.1.1+6939/local-10.1.1-mac-arm64.dmg",
       "install_script_ref": "d77c3b5c",
       "uninstall_script_ref": "4be78fce",
-      "sha256": "467ff231a00eee464e68876afbd38c3168e4ad0a5556401ed97f8b13959cea4f",
+      "sha256": "fda954e9384d87344c11c7b40556250ea6c5c6b1cd0d6715b41798185f58c185",
       "default_categories": [
         "Productivity"
       ]

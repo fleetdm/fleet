@@ -8520,8 +8520,6 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 	}
 	for _, locPrefix := range []string{"./Device", "./User"} {
 		t.Run(locPrefix, func(t *testing.T) {
-			host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-
 			profileName := "HardcodedSCEPProfile" + strings.ReplaceAll(locPrefix, "/", "_")
 			profile := bytes.ReplaceAll(fixtures[locPrefix],
 				[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(scepServerURL))
@@ -8535,6 +8533,8 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 					{Name: profileName, Contents: profile},
 				}},
 				http.StatusNoContent)
+
+			host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 			s.awaitTriggerProfileSchedule(t)
 
@@ -9147,7 +9147,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		})
 
 		// Create another host and enroll in MDM
-		_, mdmDevice2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		host2, mdmDevice2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		// Consume host2's own enroll-time profile delivery
+		s.recordWindowsHostStatus(host2, mdmDevice2)
 
 		// Start connection, and then reply with a missing CmdRef
 		cmds, err := mdmDevice2.StartManagementSession()

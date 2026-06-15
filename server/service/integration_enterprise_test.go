@@ -5124,6 +5124,83 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
 
+// A fleet-admin must not be able to create a user with roles in teams they don't administer,
+// even when one team in the payload is their own.
+//
+// Both the admin create path (POST /users) and the API-only create
+// path (POST /users/api_only) funnel through svc.CreateUser, so both are
+// exercised here.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTeams() {
+	t := s.T()
+	ctx := context.Background()
+
+	// team1 is administered by our caller; team2 is not.
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team1.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, team2.ID))
+	}()
+
+	// Create a user who is an admin of team1 only.
+	teamAdminEmail := t.Name() + "_team1_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	// Act as the team1 admin for the rest of the test.
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var resp createUserResponse
+
+	// Admin create path: a payload spanning team1 (allowed) and team2 (not
+	// allowed) must be rejected wholesale, not partially honored.
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_crossteam"),
+		Email:    new(t.Name() + "_crossteam@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+			{Team: *team2, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// The forbidden request must not have created the user.
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_crossteam@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	// API-only create path inherits the same authorization, so it must reject
+	// the cross-team payload too.
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", createAPIOnlyUserRequest{
+		Name: new(t.Name() + "_crossteam_api"),
+		Fleets: &[]fleetsPayload{
+			{ID: team1.ID, Role: fleet.RoleAdmin},
+			{ID: team2.ID, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// Sanity check: the team1 admin can still create a user scoped entirely to
+	// their own team, so the fix doesn't over-restrict the legitimate path.
+	resp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_team1only"),
+		Email:    new(t.Name() + "_team1only@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusOK, &resp)
+	require.NotNil(t, resp.User)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
@@ -27329,7 +27406,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		Version:         "99.0.0",
 		StorageID:       computeSHA([]byte(installerContent)),
 		SelfService:     true,
-		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		Title:           "Cloudflare One Client", // windows installer, so Fleet does software title matching on this field
 		InstallScript:   "install",
 		UninstallScript: "uninstall",
 		Source:          "programs",
@@ -27549,7 +27626,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"],
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"],
 			"warp should be rolled back to v2.0")
 		require.Equal(t, "3.0", activeVersions["Zoom Workplace (X64)"],
 			"zoom should remain at v3.0 (not rolled back)")
@@ -27575,7 +27652,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"], "warp should still be at v2.0")
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"], "warp should still be at v2.0")
 		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
 	})
 

@@ -19,6 +19,9 @@ const OTHER_AUTOMATION_NAMES: Record<OtherAutomationType, string> = {
 
 interface IAutomationDisplayRow {
   name: string;
+  /** Raw software name forwarded to SoftwareIcon for name-based fallback
+   * matching; display-name overrides break the known-icon lookup. */
+  iconName?: string;
   type: string;
   graphicName?: GraphicNames;
   isSoftware?: boolean;
@@ -51,6 +54,7 @@ const PolicyAutomationsList = ({
     );
     automationRows.push({
       name: displayedName,
+      iconName: storedPolicy.install_software.name,
       type: "Software",
       isSoftware: true,
       iconUrl: storedPolicy.install_software.icon_url,
@@ -128,7 +132,7 @@ const PolicyAutomationsList = ({
               <div className={`${baseClass}__row-name`}>
                 {row.isSoftware ? (
                   <SoftwareIcon
-                    name={row.name}
+                    name={row.iconName ?? row.name}
                     url={row.iconUrl}
                     size="small"
                   />

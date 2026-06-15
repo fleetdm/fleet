@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app' AND version_compare(bundle_short_version, '4.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app' AND version_compare(bundle_short_version, '4.6.0') < 0);"
       },
-      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.5.0/Zettlr-4.5.0-arm64.dmg",
+      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.6.0/Zettlr-4.6.0-arm64.dmg",
       "install_script_ref": "fc21f2d9",
       "uninstall_script_ref": "a3051277",
-      "sha256": "fd1e964378f4130703754ceee48ad99db57a5917e7d961af0e83ddf52d392a4b",
+      "sha256": "c0ff76d9e869eee312d7c131764fe73322344f85127ed2e5fada1076cb88cf32",
       "default_categories": [
         "Productivity"
       ]

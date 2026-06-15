@@ -430,12 +430,10 @@ type PolicyData struct {
 	UpdateCreateTimestamps
 }
 
-// Verify checks that the policy's label scopes are valid: at most one include
-// scope (any/all) combined with at most one exclude scope (any/all), with no
-// label appearing in both an include and an exclude list. It validates only the
-// label scopes — name/query/platform are validated on the payload types at
-// create/modify time.
-func (p PolicyData) Verify() error {
+// VerifyLabelScopes checks that the policy's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicyData) VerifyLabelScopes() error {
 	return verifyPolicyLabelScopes(
 		LabelIdentsToNames(p.LabelsIncludeAny),
 		LabelIdentsToNames(p.LabelsIncludeAll),

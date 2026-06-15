@@ -8,6 +8,10 @@ import React, {
   useRef,
 } from "react";
 import { Command } from "cmdk";
+import {
+  Title as DialogTitle,
+  Description as DialogDescription,
+} from "@radix-ui/react-dialog";
 import { browserHistory } from "react-router";
 
 import { AppContext } from "context/app";
@@ -35,6 +39,7 @@ import SoftwarePicker from "./components/SoftwarePicker";
 import ReportPicker from "./components/ReportPicker";
 import PolicyPicker from "./components/PolicyPicker";
 import HighlightedLabel from "./components/HighlightedLabel";
+import UprightEmoji from "./components/UprightEmoji";
 import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
@@ -551,7 +556,9 @@ const CommandPalette = (): JSX.Element | null => {
             )}
           </div>
           {item.teamName && (
-            <span className={`${baseClass}__item-fleet`}>{item.teamName}</span>
+            <span className={`${baseClass}__item-fleet`}>
+              <UprightEmoji text={item.teamName} />
+            </span>
           )}
         </Command.Item>
         {/* Render sub-items when expanded (browsing) or always when searching */}
@@ -639,7 +646,7 @@ const CommandPalette = (): JSX.Element | null => {
                       fleets shows "All fleets"). */}
                   {!sub && item.teamName && (
                     <span className={`${baseClass}__item-fleet`}>
-                      {item.teamName}
+                      <UprightEmoji text={item.teamName} />
                     </span>
                   )}
                   {/* Parent label as a context chip on promoted sub-items
@@ -765,6 +772,14 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
+      {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
+          a Description for screen reader accessibility — without these, Radix
+          logs a console error/warning on every open. Both are rendered
+          visually hidden so the palette UI stays unchanged. */}
+      <DialogTitle className="sr-only">Command palette</DialogTitle>
+      <DialogDescription className="sr-only">
+        Search for a page, command, or resource across Fleet.
+      </DialogDescription>
       <div className={`${baseClass}__input-wrapper`}>
         {page !== "root" && (
           // tabIndex=-1 so Radix's open-autofocus skips the back button
