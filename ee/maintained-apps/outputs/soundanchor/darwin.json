@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.0",
+      "version": "1.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor' AND version_compare(bundle_short_version, '1.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor' AND version_compare(bundle_short_version, '1.8.1') < 0);"
       },
-      "installer_url": "https://cdn.kopiro.me/soundanchor/soundanchor-1.7.0.dmg",
+      "installer_url": "https://cdn.kopiro.me/soundanchor/soundanchor-1.8.1.dmg",
       "install_script_ref": "b057933e",
       "uninstall_script_ref": "924d2c8c",
-      "sha256": "c0231b8ce768813469c00acd073dad0d768371fff841e83baf734df856c3d34c",
+      "sha256": "c91ff3f761e2d50648f8a1327c115cc2790f604cf789156faf5834619c47a64b",
       "default_categories": [
         "Utilities"
       ]

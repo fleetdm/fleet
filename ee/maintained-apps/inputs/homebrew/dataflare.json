@@ -1,0 +1,10 @@
+{
+  "name": "Dataflare",
+  "unique_identifier": "app.dataflare.desktop",
+  "token": "dataflare",
+  "installer_format": "dmg",
+  "slug": "dataflare/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

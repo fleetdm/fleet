@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.2.7",
+      "version": "4.2.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.2.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dignicy.extraDock' AND version_compare(bundle_short_version, '4.2.9') < 0);"
       },
-      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.2.7/extraDock.dmg",
+      "installer_url": "https://github.com/AppitStudio/extra-dock-updates/releases/download/v4.2.9/extraDock.dmg",
       "install_script_ref": "ea28520f",
       "uninstall_script_ref": "8b3ad59b",
-      "sha256": "88398a28fa70b3d83dd09871d90d7e23ce5eff2dab02a1cc01debc905b718ec6",
+      "sha256": "651d00c1b8b6db6e56b1474547f3f594aa641e5f1f97fdd5307fa0f048905ec0",
       "default_categories": [
         "Productivity"
       ]

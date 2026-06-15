@@ -1,0 +1,10 @@
+{
+  "name": "Nagstamon",
+  "unique_identifier": "de.nagstamon",
+  "token": "nagstamon",
+  "installer_format": "dmg",
+  "slug": "nagstamon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

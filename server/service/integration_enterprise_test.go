@@ -5124,6 +5124,83 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
 
+// A fleet-admin must not be able to create a user with roles in teams they don't administer,
+// even when one team in the payload is their own.
+//
+// Both the admin create path (POST /users) and the API-only create
+// path (POST /users/api_only) funnel through svc.CreateUser, so both are
+// exercised here.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTeams() {
+	t := s.T()
+	ctx := context.Background()
+
+	// team1 is administered by our caller; team2 is not.
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team1.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, team2.ID))
+	}()
+
+	// Create a user who is an admin of team1 only.
+	teamAdminEmail := t.Name() + "_team1_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	// Act as the team1 admin for the rest of the test.
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var resp createUserResponse
+
+	// Admin create path: a payload spanning team1 (allowed) and team2 (not
+	// allowed) must be rejected wholesale, not partially honored.
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_crossteam"),
+		Email:    new(t.Name() + "_crossteam@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+			{Team: *team2, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// The forbidden request must not have created the user.
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_crossteam@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	// API-only create path inherits the same authorization, so it must reject
+	// the cross-team payload too.
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", createAPIOnlyUserRequest{
+		Name: new(t.Name() + "_crossteam_api"),
+		Fleets: &[]fleetsPayload{
+			{ID: team1.ID, Role: fleet.RoleAdmin},
+			{ID: team2.ID, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// Sanity check: the team1 admin can still create a user scoped entirely to
+	// their own team, so the fix doesn't over-restrict the legitimate path.
+	resp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_team1only"),
+		Email:    new(t.Name() + "_team1only@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusOK, &resp)
+	require.NotNil(t, resp.User)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
@@ -22269,7 +22346,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	// a request with an invalid category silently drops the unknown name
 	pkgURL := installerServer.URL + "/non-fma.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
+		{URL: pkgURL, Categories: optjson.SetSlice([]string{"Not Found"}), SelfService: true},
 		{Slug: &maintained1.Slug, SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
@@ -22277,34 +22354,45 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 2)
 
+	// an over-length category name is rejected up front
+	softwareToInstall[0].Categories = optjson.SetSlice([]string{strings.Repeat("x", 256)})
+	res := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(res.Body), "name must be at most 255 characters")
+
 	testCases := []struct {
 		desc                 string
-		categories           []string
+		categories           optjson.Slice[string]
 		fmaDefaultCategories []string
 	}{
 		{
 			desc:       "duplicate categories provided",
-			categories: []string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"},
+			categories: optjson.SetSlice([]string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"}),
 		},
 		{
 			desc:       "valid categories 1",
-			categories: []string{"🧰 Developer tools", "🌎 Browsers"},
+			categories: optjson.SetSlice([]string{"🧰 Developer tools", "🌎 Browsers"}),
 		},
 		{
 			desc:       "valid categories 2",
-			categories: []string{"👬 Communication", "💻 Productivity"},
+			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
 		},
 		{
 			desc:       "valid categories 3 - Security and Support",
-			categories: []string{"🔐 Security", "🛟 Support"},
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: []string{"🔐 Security", "🧰 Developer tools", "🛟 Support"},
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
 		},
 		{
-			desc:                 "empty categories",
+			// omitted categories (unset) fall back to the FMA's manifest default
+			desc:                 "omitted categories use FMA default",
 			fmaDefaultCategories: []string{"💻 Productivity"},
+		},
+		{
+			// an explicitly empty categories list sets zero categories (no manifest default)
+			desc:       "explicit empty categories sets zero categories",
+			categories: optjson.SetSlice([]string{}),
 		},
 	}
 	for _, tc := range testCases {
@@ -22313,7 +22401,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			softwareToInstall[1].Categories = tc.categories
 
 			// remove duplicates if any
-			tc.categories = server.RemoveDuplicatesFromSlice(tc.categories)
+			wantCategories := server.RemoveDuplicatesFromSlice(tc.categories.Value)
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
 			require.Len(t, packages, 2)
@@ -22327,13 +22415,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
-					// if no categories are set on an FMA in GitOps, we set categories to
-					// default values
+				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && !tc.categories.Set {
+					// categories omitted on an FMA → fall back to the manifest default
 					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 					continue
 				}
-				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+				require.ElementsMatch(t, wantCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 			}
 
 			// check that the categories come back on the My device page
@@ -22343,14 +22430,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			require.NoError(t, err)
 			require.Len(t, getDeviceSw.Software, 2)
 			for _, s := range getDeviceSw.Software {
-				if s.Name == maintained1.Name && len(tc.categories) == 0 {
-					// if no categories are set on an FMA in GitOps, we set categories to
-					// default values
+				if s.Name == maintained1.Name && !tc.categories.Set {
+					// categories omitted on an FMA → fall back to the manifest default
 					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
 					continue
 				}
 
-				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
+				require.ElementsMatch(t, wantCategories, s.SoftwarePackage.Categories)
 			}
 		})
 	}
@@ -29722,8 +29808,9 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 }
 
 // TestPolicyLabelsIncludeAll exercises the full create/modify/spec stack for the
-// new include_all label scope on policies, including strict mutex rejection
-// at every API entry point and end-to-end host targeting.
+// include_all label scope on policies: combining one include scope with one
+// exclude scope, rejecting two include or two exclude scopes at every API entry
+// point, and end-to-end host targeting.
 func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	t := s.T()
 	ctx := context.Background()
@@ -29779,16 +29866,28 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 
-	// Mutex rejection on POST: include_all + exclude_any.
-	rej2Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "rej2-" + t.Name(),
+	// include_all + exclude_any is now a valid combination (one include scope
+	// plus one exclude scope), so it succeeds and persists both.
+	var combinedResp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "combined-" + t.Name(),
 		Query:            "SELECT 1",
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsExcludeAny: []string{lblB.Name},
+	}, http.StatusOK, &combinedResp)
+	require.Len(t, combinedResp.Policy.LabelsIncludeAll, 1)
+	require.Len(t, combinedResp.Policy.LabelsExcludeAny, 1)
+
+	// Two exclude scopes (exclude_any + exclude_all) are still rejected.
+	rejExclResp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "rej-excl-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsExcludeAny: []string{lblA.Name},
+		LabelsExcludeAll: []string{lblB.Name},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rej2Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejExclResp.Body), fleet.ErrPolicyConflictingExcludeLabels.Error())
 
 	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
 	switchAny := []string{lblA.Name}
@@ -29817,7 +29916,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 			LabelsIncludeAny: []string{lblB.Name},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 
 	// 4. End-to-end host targeting: only hostBoth should match the include_all policy.
 	policy, err := s.ds.Policy(ctx, createResp.Policy.ID)
@@ -30491,28 +30590,28 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 		}
 	}
 
-	// Batch with the mutex-violating spec at the END — proves we don't persist
+	// Batch with an invalid (two-include) spec at the END — proves we don't persist
 	// preceding valid specs once a later one fails validation.
 	rejResp := s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
 		Specs: []*fleet.PolicySpec{
 			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
 			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
-			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsIncludeAny: []string{lblB.Name}},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 	assertNonePersisted("violator-last")
 
-	// Batch with the mutex-violating spec at the FRONT — proves we don't persist
+	// Batch with an invalid (two-include) spec at the FRONT — proves we don't persist
 	// trailing valid specs after a per-spec validation pass that the loop never reaches.
 	rejResp = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
 		Specs: []*fleet.PolicySpec{
-			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsIncludeAny: []string{lblB.Name}},
 			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
 			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 	assertNonePersisted("violator-first")
 
 	// Fully-valid 3-spec batch (one per scope) succeeds.

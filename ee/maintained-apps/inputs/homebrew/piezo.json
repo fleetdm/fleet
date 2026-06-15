@@ -1,0 +1,10 @@
+{
+  "name": "Piezo",
+  "unique_identifier": "com.rogueamoeba.Piezo",
+  "token": "piezo",
+  "installer_format": "zip",
+  "slug": "piezo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

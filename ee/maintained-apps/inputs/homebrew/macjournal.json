@@ -1,0 +1,10 @@
+{
+  "name": "MacJournal",
+  "unique_identifier": "com.DanSchimpf.MacJournal",
+  "token": "macjournal",
+  "installer_format": "zip",
+  "slug": "macjournal/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

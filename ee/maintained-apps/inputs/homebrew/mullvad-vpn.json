@@ -1,0 +1,10 @@
+{
+  "name": "Mullvad VPN",
+  "unique_identifier": "net.mullvad.vpn",
+  "token": "mullvad-vpn",
+  "installer_format": "pkg",
+  "slug": "mullvad-vpn/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

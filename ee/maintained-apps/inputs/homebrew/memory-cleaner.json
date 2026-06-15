@@ -1,0 +1,10 @@
+{
+  "name": "Memory Cleaner",
+  "unique_identifier": "com.nektony.Memory-Cleaner-SIII",
+  "token": "memory-cleaner",
+  "installer_format": "dmg",
+  "slug": "memory-cleaner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

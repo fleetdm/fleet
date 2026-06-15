@@ -1820,7 +1820,7 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // targeted by other active profiles in the same team. These LocURIs will be
 // skipped when generating <Delete> commands, so that deleting one profile
 // does not undo settings enforced by a different profile.
-func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]bool) (*MDMWindowsCommand, error) {
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
 	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
 	// This is the only Fleet variable that appears in LocURIs (enforced by
 	// upload validation). The install path replaces it with the profile UUID
@@ -1839,14 +1839,14 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	}
 
 	// Filter out LocURIs that are still targeted by other active profiles.
-	inUse := make(map[string]bool)
+	inUse := make(map[string]struct{})
 	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
 		inUse = locURIsInUseByOtherProfiles[0]
 	}
 
 	var safeURIs []string
 	for _, uri := range allURIs {
-		if !inUse[uri] {
+		if _, ok := inUse[uri]; !ok {
 			safeURIs = append(safeURIs, uri)
 		}
 	}

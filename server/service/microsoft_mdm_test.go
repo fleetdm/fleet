@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -651,45 +652,51 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 
-	// The cron's batched path picks a host window first, then calls the
-	// scoped listings for that window. For the mock, return all host UUIDs
-	// from hostToProfile so the rest of the reconciler runs against the
-	// same set the test wants.
-	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	// The cron's batched path loads a snapshot (hosts + profiles + current state) per window and computes install/remove deltas in
+	// memory. Return every host from hostToProfile in a single window, each paired with its profile under a unique team_id so
+	// ComputeWindowsReconcileDeltas maps each host to exactly its mapped profile (regardless of whether two hosts share a profile).
+	// Empty current state => every mapped profile is a fresh install, matching the legacy listInstall fixture. The `after != ""`
+	// guard keeps these single-tick tests from looping (everything is delivered in the first window).
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
+		}
+		// Emit ONE profile row per unique ProfileUUID (the real snapshot is profile-scoped, not per-host). Each unique profile gets its
+		// own team, and every host that maps to that profile is placed in that team, so ComputeWindowsReconcileDeltas fans the single
+		// profile out to all its hosts, exercising shared-profile grouping the way production does. Hosts are returned ascending by UUID
+		// to match `ORDER BY h.uuid`.
 		hostUUIDs := make([]string, 0, len(hostToProfile))
 		for hostUUID := range hostToProfile {
 			hostUUIDs = append(hostUUIDs, hostUUID)
 		}
-		return hostUUIDs, nil
-	}
-
-	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
-		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
-		for hostUUID, profile := range hostToProfile {
-			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:   profile.ProfileUUID,
-				ProfileName:   profile.Name,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
+		sort.Strings(hostUUIDs)
+		teamByProfile := make(map[string]uint, len(hostToProfile))
+		var hosts []*fleet.WindowsHostReconcileInfo
+		var profiles []*fleet.WindowsProfileForReconcile
+		var nextHostID uint
+		for _, hostUUID := range hostUUIDs {
+			profile := hostToProfile[hostUUID]
+			tid, ok := teamByProfile[profile.ProfileUUID]
+			if !ok {
+				tid = uint(len(teamByProfile) + 1)
+				teamByProfile[profile.ProfileUUID] = tid
+				profiles = append(profiles, &fleet.WindowsProfileForReconcile{
+					ProfileUUID: profile.ProfileUUID,
+					ProfileName: profile.Name,
+					TeamID:      tid,
+				})
+			}
+			nextHostID++
+			hostID, teamID := nextHostID, tid
+			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: hostID, UUID: hostUUID, TeamID: &teamID})
 		}
-		return profilesToInstall, nil
-	}
-	// Mock both the legacy global listing (kept for tests still using it
-	// directly) and the new scoped listing the cron now calls.
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-
-	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
+		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
 
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
@@ -991,7 +998,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	}
 	setupReconcilerTest(ds, hostToProfile)
 
-	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// Simulate the race: the reconcile snapshot and
 	// GetMDMWindowsProfilesContents already ran (both set up by
 	// setupReconcilerTest to include the profile). Between those and the
 	// upsert, the admin deleted the profile, so
@@ -1094,8 +1101,14 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 				setCalls++
 				return nil
 			}
-			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
-				return nil, nil
+			ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+				[]*fleet.WindowsHostReconcileInfo,
+				[]*fleet.WindowsProfileForReconcile,
+				map[uint]map[uint]struct{},
+				map[string][]*fleet.MDMWindowsProfilePayload,
+				error,
+			) {
+				return nil, nil, nil, nil, nil
 			}
 
 			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
@@ -1103,6 +1116,262 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 			require.Equal(t, tc.wantFinalCursor, cursor)
 		})
 	}
+}
+
+// setReconcileWindowsBudgets sets the three drain-loop tunables for the duration of a test and restores them on cleanup.
+func setReconcileWindowsBudgets(t *testing.T, scanBatch, deliveryCap int, scanBudget time.Duration) {
+	t.Helper()
+	savedBatch := reconcileWindowsProfilesBatchSize
+	savedCap := reconcileWindowsProfilesDeliveryCap
+	savedBudget := reconcileWindowsProfilesScanBudget
+	t.Cleanup(func() {
+		reconcileWindowsProfilesBatchSize = savedBatch
+		reconcileWindowsProfilesDeliveryCap = savedCap
+		reconcileWindowsProfilesScanBudget = savedBudget
+	})
+	reconcileWindowsProfilesBatchSize = scanBatch
+	reconcileWindowsProfilesDeliveryCap = deliveryCap
+	reconcileWindowsProfilesScanBudget = scanBudget
+}
+
+// setKeys returns the keys of a set as a slice (order unspecified).
+func setKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+// windowSnapshotFunc returns a GetWindowsProfileReconcileSnapshot stub that pages allHosts (ascending) into windows of the
+// requested batch size, honoring the `after` cursor, and returns the given profiles for every non-empty window. Hosts present in
+// `delivered` get a matching verified install row per profile, so a delivered host no longer computes as work (modeling the real
+// upsert flipping rows to verified) and a later full pass is a true no-op. If calls is non-nil it is incremented per invocation.
+func windowSnapshotFunc(
+	allHosts []string,
+	profiles []*fleet.WindowsProfileForReconcile,
+	delivered map[string]struct{},
+	calls *int,
+) func(context.Context, string, int) ([]*fleet.WindowsHostReconcileInfo, []*fleet.WindowsProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMWindowsProfilePayload, error) {
+	return func(_ context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if calls != nil {
+			*calls++
+		}
+		var hosts []*fleet.WindowsHostReconcileInfo
+		for i, h := range allHosts {
+			if h > after {
+				hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: h}) //nolint:gosec
+				if len(hosts) == batch {
+					break
+				}
+			}
+		}
+		if len(hosts) == 0 {
+			return nil, nil, nil, nil, nil
+		}
+		currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{}
+		for _, h := range hosts {
+			if _, ok := delivered[h.UUID]; !ok {
+				continue
+			}
+			for _, p := range profiles {
+				currentByHost[h.UUID] = append(currentByHost[h.UUID], &fleet.MDMWindowsProfilePayload{
+					ProfileUUID:   p.ProfileUUID,
+					HostUUID:      h.UUID,
+					Checksum:      p.Checksum,
+					OperationType: fleet.MDMOperationTypeInstall,
+					Status:        &fleet.MDMDeliveryVerified,
+				})
+			}
+		}
+		return hosts, profiles, nil, currentByHost, nil
+	}
+}
+
+// newDrainLoopTestDS wires a mock.Store for ReconcileWindowsProfiles drain-loop tests: Windows MDM enabled, a cursor backed by
+// *cursor, the windowing snapshot over allHosts/profiles, and the downstream execute stubs a non-variable install needs. Enqueued
+// hosts are recorded in `delivered` so a later pass is a no-op. Observe results via *cursor, the `delivered` set, and *calls.
+func newDrainLoopTestDS(
+	ds *mock.Store,
+	allHosts []string,
+	profiles []*fleet.WindowsProfileForReconcile,
+	delivered map[string]struct{},
+	cursor *string,
+	calls *int,
+) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.MDM.WindowsEnabledAndConfigured = true
+		return cfg, nil
+	}
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) { return *cursor, nil }
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+		*cursor = c
+		return nil
+	}
+	ds.GetWindowsProfileReconcileSnapshotFunc = windowSnapshotFunc(allHosts, profiles, delivered, calls)
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		out := map[string]fleet.MDMWindowsProfileContents{}
+		for _, p := range profiles {
+			out[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
+				SyncML:   []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+				Checksum: p.Checksum,
+			}
+		}
+		return out, nil
+	}
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, uuids []string) (map[string]struct{}, error) {
+		out := map[string]struct{}{}
+		for _, p := range profiles {
+			out[p.ProfileUUID] = struct{}{}
+		}
+		return out, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error { return nil }
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		for _, h := range hostUUIDs {
+			delivered[h] = struct{}{}
+		}
+		return nil
+	}
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+}
+
+// TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick exercises the within-tick drain loop's delivery cap: with a large scan
+// window but a small per-tick delivery cap, a bulk change (every enrolled host needs the same profile) is throttled to
+// deliveryCap hosts per tick, the cursor advances only to the last delivered host, and successive ticks drain the remainder until
+// the host space is exhausted (cursor resets to ""). This preserves the writer-pressure smoothing the legacy 2000-host batch
+// provided.
+func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	// Large scan window (the whole fleet fits in one window), small delivery cap, no wall-clock limit.
+	setReconcileWindowsBudgets(t, 100 /*scanBatch*/, 3 /*deliveryCap*/, time.Hour)
+
+	allHosts := []string{"h00", "h01", "h02", "h03", "h04", "h05", "h06", "h07", "h08", "h09"}
+	profiles := []*fleet.WindowsProfileForReconcile{{ProfileUUID: "shared-profile", ProfileName: "Shared", TeamID: 0, Checksum: []byte("c")}}
+	delivered := map[string]struct{}{}
+	var cursor string
+	newDrainLoopTestDS(ds, allHosts, profiles, delivered, &cursor, nil)
+
+	// Capture exactly which hosts each enqueue delivered (still marking them delivered for convergence).
+	var deliveredBatches [][]string
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		deliveredBatches = append(deliveredBatches, append([]string{}, hostUUIDs...))
+		for _, h := range hostUUIDs {
+			delivered[h] = struct{}{}
+		}
+		return nil
+	}
+
+	// Tick 1: deliver the first 3 hosts (contiguous prefix); cursor advances to the last delivered host.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h02", cursor)
+	require.Equal(t, [][]string{{"h00", "h01", "h02"}}, deliveredBatches)
+
+	// Ticks 2-3: next 3 hosts each.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h05", cursor)
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h08", cursor)
+
+	// Tick 4: final host (short window) drains and resets the cursor.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Tick 5: empty fleet pass, cursor stays reset, nothing re-delivered.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Every host was delivered exactly once across the ticks.
+	var all []string
+	for _, b := range deliveredBatches {
+		all = append(all, b...)
+	}
+	require.ElementsMatch(t, allHosts, all)
+}
+
+// TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick covers the core drain behavior the other tests don't: when the delivery
+// cap spans several scan windows, one tick reads window after window (cheap indexed reads) accumulating delivered hosts until the
+// cap is reached mid-window. With scanBatch=2 and cap=5 over 6 hosts that all need work, tick 1 makes 3 snapshot reads (delivering
+// 2+2+1) and stops at the 5th host; tick 2 delivers the remainder and resets the cursor.
+func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 5 /*deliveryCap*/, time.Hour)
+
+	allHosts := []string{"h0", "h1", "h2", "h3", "h4", "h5"}
+	profiles := []*fleet.WindowsProfileForReconcile{{ProfileUUID: "p", ProfileName: "P", TeamID: 0, Checksum: []byte("c")}}
+	delivered := map[string]struct{}{}
+	var cursor string
+	var snapshotCalls int
+	newDrainLoopTestDS(ds, allHosts, profiles, delivered, &cursor, &snapshotCalls)
+
+	// Tick 1: drains 3 windows (2+2+1) to reach the cap of 5, stopping mid-third-window at h4.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 3, snapshotCalls, "one tick should read multiple windows to fill the cap")
+	require.Equal(t, "h4", cursor)
+	require.ElementsMatch(t, []string{"h0", "h1", "h2", "h3", "h4"}, setKeys(delivered))
+
+	// Tick 2: delivers the last host; the short final window resets the cursor.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+	require.ElementsMatch(t, allHosts, setKeys(delivered))
+
+	// Tick 3: full no-op pass over the now all-delivered fleet, cursor stays reset.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+}
+
+// TestReconcileWindowsProfilesScanBudgetHaltsDrain exercises the scan-budget branch of the drain loop: when the wall-clock budget
+// is already exhausted, the tick stops after the first scanned window and persists the cursor at the last scanned host (it does
+// NOT keep draining to the end of the fleet, and does NOT reset the cursor). The next tick resumes from there.
+func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	// Small windows, generous delivery cap (so the cap never governs), and an already-expired scan budget so the loop halts after
+	// the first window.
+	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 1000 /*deliveryCap*/, time.Nanosecond)
+
+	allHosts := []string{"h0", "h1", "h2", "h3", "h4", "h5"}
+	// No profiles => no work; this test is purely about the scan/cursor mechanics, so execute is never reached.
+	delivered := map[string]struct{}{}
+	var cursor string
+	var snapshotCalls int
+	newDrainLoopTestDS(ds, allHosts, nil /*profiles*/, delivered, &cursor, &snapshotCalls)
+
+	// Tick 1: the budget is already spent, so only the first window is scanned and the cursor advances to its last host (not reset).
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 1, snapshotCalls)
+	require.Equal(t, "h1", cursor)
+
+	// Tick 2: resumes from the persisted cursor, reads the NEXT window and advances again, confirming progress isn't lost.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 1, snapshotCalls)
+	require.Equal(t, "h3", cursor)
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {
@@ -1330,7 +1599,7 @@ func TestGetESPCommands(t *testing.T) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 		}
 		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly.
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 			return nil, nil
 		}
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -1455,18 +1724,59 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, cmds, "should wait while profiles are verifying")
 	})
 
-	t.Run("active waits when profiles not yet queued by reconciler", func(t *testing.T) {
+	t.Run("active queues unqueued profiles via per-host reconcile and waits", func(t *testing.T) {
 		ds, svc := newSvc(t)
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
-			return []*fleet.MDMWindowsProfilePayload{
-				{ProfileUUID: "prof-1", ProfileName: "WiFi"},
+		// setupReconcilerTest wires the execute-step mocks (contents, command insert, host-profile upserts) and an
+		// AppConfig with Windows MDM enabled, so the ESP stage-1 per-host reconcile can actually queue the profile.
+		profile := &fleet.MDMWindowsConfigProfile{ProfileUUID: "prof-1", Name: "WiFi", SyncML: syncMLForTest("./Device/WiFi")}
+		setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{hostUUID: profile})
+		// Non-variable installs dispatch through MDMWindowsEnqueueCommandAndUpsertHostProfiles; capture its payloads.
+		var queued []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+		ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+			queued = append(queued, payload...)
+			return nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: hUUID, TeamID: nil}, nil
+		}
+		ds.ListWindowsProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+			return []*fleet.WindowsProfileForReconcile{
+				{ProfileUUID: profile.ProfileUUID, ProfileName: profile.Name, TeamID: teamID, Checksum: []byte("c")},
+			}, nil
+		}
+		ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+			return nil, nil
+		}
+		ds.BulkGetHostMDMWindowsProfilesByUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+			return map[string][]*fleet.MDMWindowsProfilePayload{}, nil
+		}
+		// Stage 2 sees the freshly queued (pending) row and blocks the release.
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: profile.ProfileUUID, Name: profile.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
 		require.NoError(t, err)
-		assert.Nil(t, cmds, "should wait when profiles are configured but not yet queued")
-		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
+		assert.Nil(t, cmds, "should wait while the freshly queued profile is pending")
+		require.NotEmpty(t, queued, "per-host reconcile must queue the unqueued profile")
+		assert.Equal(t, profile.ProfileUUID, queued[0].ProfileUUID)
+		assert.Equal(t, hostUUID, queued[0].HostUUID)
+	})
+
+	t.Run("active with failing per-host reconcile returns error and does not release", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return nil, errors.New("boom")
+		}
+
+		_, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "a reconcile failure must block the release; the next checkin retries")
+		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
 
 	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
@@ -1639,8 +1949,9 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			t.Fatal("AppConfig must not be called when host has a team_id")
-			return nil, nil
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = false
+			return ac, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())

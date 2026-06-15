@@ -344,6 +344,8 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
+type CleanupWindowsMDMPendingDeleteProfilesFunc func(ctx context.Context) error
+
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
@@ -1404,21 +1406,17 @@ type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type ListMDMWindowsProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
+type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
 
-type ListMDMWindowsProfilesToInstallForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error)
+type ListWindowsProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error)
 
-type ListMDMWindowsProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListMDMWindowsProfilesToInstallForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListMDMWindowsProfilesToRemoveForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
-
-type ListNextPendingMDMWindowsHostUUIDsFunc func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+type BulkGetHostMDMWindowsProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error)
 
 type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMWindowsReconcileCursorFunc func(ctx context.Context, cursor string) error
+
+type GetWindowsProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error)
 
 type GetAppleMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error)
 
@@ -1884,7 +1882,11 @@ type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error
 
-type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
+type ListMDMAndroidProfilesToSendFunc func(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
+
+type GetMDMAndroidReconcileCursorFunc func(ctx context.Context) (string, error)
+
+type SetMDMAndroidReconcileCursorFunc func(ctx context.Context, cursor string) error
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
@@ -2576,6 +2578,9 @@ type DataStore struct {
 
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
+
+	CleanupWindowsMDMPendingDeleteProfilesFunc        CleanupWindowsMDMPendingDeleteProfilesFunc
+	CleanupWindowsMDMPendingDeleteProfilesFuncInvoked bool
 
 	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
 	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
@@ -4167,29 +4172,23 @@ type DataStore struct {
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
-	ListMDMWindowsProfilesToInstallFunc        ListMDMWindowsProfilesToInstallFunc
-	ListMDMWindowsProfilesToInstallFuncInvoked bool
+	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
+	GetWindowsMDMHostForReconcileFuncInvoked bool
 
-	ListMDMWindowsProfilesToInstallForHostFunc        ListMDMWindowsProfilesToInstallForHostFunc
-	ListMDMWindowsProfilesToInstallForHostFuncInvoked bool
+	ListWindowsProfilesForReconcileByTeamFunc        ListWindowsProfilesForReconcileByTeamFunc
+	ListWindowsProfilesForReconcileByTeamFuncInvoked bool
 
-	ListMDMWindowsProfilesToRemoveFunc        ListMDMWindowsProfilesToRemoveFunc
-	ListMDMWindowsProfilesToRemoveFuncInvoked bool
-
-	ListMDMWindowsProfilesToInstallForHostsFunc        ListMDMWindowsProfilesToInstallForHostsFunc
-	ListMDMWindowsProfilesToInstallForHostsFuncInvoked bool
-
-	ListMDMWindowsProfilesToRemoveForHostsFunc        ListMDMWindowsProfilesToRemoveForHostsFunc
-	ListMDMWindowsProfilesToRemoveForHostsFuncInvoked bool
-
-	ListNextPendingMDMWindowsHostUUIDsFunc        ListNextPendingMDMWindowsHostUUIDsFunc
-	ListNextPendingMDMWindowsHostUUIDsFuncInvoked bool
+	BulkGetHostMDMWindowsProfilesByUUIDsFunc        BulkGetHostMDMWindowsProfilesByUUIDsFunc
+	BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked bool
 
 	GetMDMWindowsReconcileCursorFunc        GetMDMWindowsReconcileCursorFunc
 	GetMDMWindowsReconcileCursorFuncInvoked bool
 
 	SetMDMWindowsReconcileCursorFunc        SetMDMWindowsReconcileCursorFunc
 	SetMDMWindowsReconcileCursorFuncInvoked bool
+
+	GetWindowsProfileReconcileSnapshotFunc        GetWindowsProfileReconcileSnapshotFunc
+	GetWindowsProfileReconcileSnapshotFuncInvoked bool
 
 	GetAppleMDMHostForReconcileFunc        GetAppleMDMHostForReconcileFunc
 	GetAppleMDMHostForReconcileFuncInvoked bool
@@ -4889,6 +4888,12 @@ type DataStore struct {
 
 	ListMDMAndroidProfilesToSendFunc        ListMDMAndroidProfilesToSendFunc
 	ListMDMAndroidProfilesToSendFuncInvoked bool
+
+	GetMDMAndroidReconcileCursorFunc        GetMDMAndroidReconcileCursorFunc
+	GetMDMAndroidReconcileCursorFuncInvoked bool
+
+	SetMDMAndroidReconcileCursorFunc        SetMDMAndroidReconcileCursorFunc
+	SetMDMAndroidReconcileCursorFuncInvoked bool
 
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
@@ -6326,6 +6331,13 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	s.CleanupWindowsMDMCommandQueueFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
+}
+
+func (s *DataStore) CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupWindowsMDMPendingDeleteProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupWindowsMDMPendingDeleteProfilesFunc(ctx)
 }
 
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
@@ -10038,46 +10050,25 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallFuncInvoked = true
+	s.GetWindowsMDMHostForReconcileFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallFunc(ctx)
+	return s.GetWindowsMDMHostForReconcileFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+func (s *DataStore) ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
 	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallForHostFuncInvoked = true
+	s.ListWindowsProfilesForReconcileByTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallForHostFunc(ctx, hostUUID)
+	return s.ListWindowsProfilesForReconcileByTeamFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+func (s *DataStore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
 	s.mu.Lock()
-	s.ListMDMWindowsProfilesToRemoveFuncInvoked = true
+	s.BulkGetHostMDMWindowsProfilesByUUIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToRemoveFunc(ctx)
-}
-
-func (s *DataStore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToInstallForHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToInstallForHostsFunc(ctx, hostUUIDs)
-}
-
-func (s *DataStore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	s.mu.Lock()
-	s.ListMDMWindowsProfilesToRemoveForHostsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMWindowsProfilesToRemoveForHostsFunc(ctx, hostUUIDs)
-}
-
-func (s *DataStore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-	s.mu.Lock()
-	s.ListNextPendingMDMWindowsHostUUIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListNextPendingMDMWindowsHostUUIDsFunc(ctx, afterHostUUID, batchSize)
+	return s.BulkGetHostMDMWindowsProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {
@@ -10092,6 +10083,13 @@ func (s *DataStore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor str
 	s.SetMDMWindowsReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetWindowsProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.WindowsHostReconcileInfo, allProfiles []*fleet.WindowsProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMWindowsProfilePayload, err error) {
+	s.mu.Lock()
+	s.GetWindowsProfileReconcileSnapshotFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsProfileReconcileSnapshotFunc(ctx, afterHostUUID, batchSize)
 }
 
 func (s *DataStore) GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error) {
@@ -11718,11 +11716,25 @@ func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *android.MD
 	return s.NewAndroidPolicyRequestFunc(ctx, req)
 }
 
-func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
+func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	s.mu.Lock()
 	s.ListMDMAndroidProfilesToSendFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMAndroidProfilesToSendFunc(ctx)
+	return s.ListMDMAndroidProfilesToSendFunc(ctx, cursor, batchSize)
+}
+
+func (s *DataStore) GetMDMAndroidReconcileCursor(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidReconcileCursorFunc(ctx)
+}
+
+func (s *DataStore) SetMDMAndroidReconcileCursor(ctx context.Context, cursor string) error {
+	s.mu.Lock()
+	s.SetMDMAndroidReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMAndroidReconcileCursorFunc(ctx, cursor)
 }
 
 func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {

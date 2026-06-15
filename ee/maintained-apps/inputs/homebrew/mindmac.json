@@ -1,0 +1,10 @@
+{
+  "name": "MindMac",
+  "unique_identifier": "app.mindmac.macos",
+  "token": "mindmac",
+  "installer_format": "dmg",
+  "slug": "mindmac/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}
