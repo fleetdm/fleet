@@ -22,8 +22,8 @@ import (
 func setupCAVerdictTest(t *testing.T, persistedPasses *bool) (
 	*Service,
 	*mock.Store,
-	*bool,      // proxyCalled
-	**bool,     // pushedCompliant
+	*bool, // proxyCalled
+	**bool, // pushedCompliant
 	chan struct{}, // setDone
 ) {
 	t.Helper()
