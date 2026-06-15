@@ -4,6 +4,10 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
+    if (-not (Test-Path $exeFilePath)) {
+        Write-Host "Error: Installer file not found at: $exeFilePath"
+        Exit 1
+    }
 
 # Electrum uses an NSIS-based installer (/S for silent)
 $processOptions = @{

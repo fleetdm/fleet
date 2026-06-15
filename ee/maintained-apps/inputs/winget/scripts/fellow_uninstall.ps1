@@ -16,7 +16,7 @@ $paths = @(
 $uninstall = $null
 foreach ($p in $paths) {
   $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*") -and
+    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName *") -and
     ($publisher -eq "" -or $_.Publisher -like "*$publisher*")
   }
   if ($items) { $uninstall = $items | Select-Object -First 1; break }
@@ -73,8 +73,13 @@ try {
 
     # Squirrel leaves the install dir in place after --uninstall; clean it up.
     Start-Sleep -Seconds 3
-    if (Test-Path -LiteralPath $installDir) {
-        Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+    # Only sweep leftovers on a successful uninstall, and never a root/short path
+    if ($exitCode -eq 0 -and $installDir) {
+        $resolvedDir = $null
+        try { $resolvedDir = (Resolve-Path -LiteralPath $installDir -ErrorAction Stop).Path } catch { $resolvedDir = $null }
+        if ($resolvedDir -and ($resolvedDir -match '^[A-Za-z]:\\') -and ((($resolvedDir.TrimEnd('\')) -split '\\').Count -ge 3) -and (Test-Path -LiteralPath $resolvedDir)) {
+            Remove-Item -LiteralPath $resolvedDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
     Exit $exitCode

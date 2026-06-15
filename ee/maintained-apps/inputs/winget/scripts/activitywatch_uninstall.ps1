@@ -24,18 +24,14 @@ if (-not $uninstall -or -not $uninstall.UninstallString) {
 $uninstallCommand = $uninstall.UninstallString
 $uninstallArgs = "/VERYSILENT /NORESTART"
 
-$splitArgs = $uninstallCommand.Split('"')
-if ($splitArgs.Length -gt 1) {
-    if ($splitArgs.Length -eq 3) {
-        $existingArgs = $splitArgs[2].Trim()
-        if ($existingArgs -ne '') {
-            $uninstallArgs = "$existingArgs $uninstallArgs"
-        }
-    } elseif ($splitArgs.Length -gt 3) {
-        Write-Host "Error: Uninstall command contains multiple quoted strings"
-        Exit 1
-    }
-    $uninstallCommand = $splitArgs[1]
+if ($uninstallCommand -match '^"([^"]+)"\s*(.*)$') {
+    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()
+    if ($extra) { $uninstallArgs = "$extra $uninstallArgs".Trim() }
+} elseif ($uninstallCommand -match '^(.+?\.exe)\s*(.*)$') {
+    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()
+    if ($extra) { $uninstallArgs = "$extra $uninstallArgs".Trim() }
+} else {
+    Write-Host "Error: Could not parse uninstall command: $uninstallCommand"; Exit 1
 }
 
 Write-Host "Uninstall command: $uninstallCommand"

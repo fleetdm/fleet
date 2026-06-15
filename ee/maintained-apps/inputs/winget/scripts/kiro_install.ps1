@@ -6,6 +6,10 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
+    if (-not (Test-Path $exeFilePath)) {
+        Write-Host "Error: Installer file not found at: $exeFilePath"
+        Exit 1
+    }
 
 # Inno Setup silent install. /mergetasks=!runcode prevents launching after install.
 $processOptions = @{
