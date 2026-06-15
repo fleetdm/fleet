@@ -180,10 +180,12 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 
-	// We paginate and count by distinct app NAME rather than by raw row, because
-	// the UI combines an app's macOS and Windows entries into a single row. The
-	// team join lets us tell whether each app has already been added, which the
-	// "available only" filter needs.
+	// We paginate by distinct app NAME, because the UI combines an app's macOS
+	// and Windows entries into a single row and an app must not be split across a
+	// page boundary. The count, by contrast, is the total number of apps (each
+	// platform entry is its own installable app). The team join lets us tell
+	// whether each app has already been added, which the "available only" filter
+	// needs.
 	fromClause := `FROM fleet_maintained_apps fma`
 	var fromArgs []any
 	if teamID != nil {
@@ -207,10 +209,14 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		where += ` AND team_titles.id IS NULL`
 	}
 
-	// Count of distinct apps (names) matching the filters.
+	// Total count of matching apps. We count distinct rows (by primary key), not
+	// distinct names: an app's macOS and Windows entries are separate installable
+	// apps and are each counted, even though the UI combines them into one row.
+	// DISTINCT fma.id also collapses any duplicate rows from the team join's
+	// fan-out.
 	countArgs := append(append([]any{}, fromArgs...), whereArgs...)
 	var filteredCount int
-	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT fma.name) `+fromClause+where, countArgs...); err != nil {
+	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, `SELECT COUNT(DISTINCT fma.id) `+fromClause+where, countArgs...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 

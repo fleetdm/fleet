@@ -11839,7 +11839,7 @@ List available Fleet-maintained apps.
 }
 ```
 
-> `count` is the number of distinct apps matching the query. An app's macOS and Windows entries are counted once, so `count` can be smaller than the number of objects in `fleet_maintained_apps`.
+> `count` is the total number of Fleet-maintained apps matching the query. An app's macOS and Windows versions are counted separately, even though the UI combines them into a single row.
 
 ### Get Fleet-maintained app
 

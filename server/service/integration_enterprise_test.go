@@ -20683,14 +20683,11 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
-	// The list paginates and counts by distinct app name (macOS and Windows
-	// entries of the same app are combined into one row in the UI), so the count
-	// reflects unique names while the returned rows include each platform.
-	uniqueNames := make(map[string]struct{}, len(expectedApps))
-	for _, a := range expectedApps {
-		uniqueNames[a.Name] = struct{}{}
-	}
-	require.Equal(t, len(uniqueNames), listMAResp.Count)
+	// Count is the total number of platform-specific maintained apps: an app's
+	// macOS and Windows entries are counted separately, even though the UI
+	// combines them into a single row. The full unfiltered list returns one row
+	// per app, so the count equals the number of rows returned.
+	require.Equal(t, len(expectedApps), listMAResp.Count)
 
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
 		if c := cmp.Compare(a.Name, b.Name); c != 0 {
