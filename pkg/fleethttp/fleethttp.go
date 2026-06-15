@@ -18,32 +18,33 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// networkBlockingEnabled is true when fleet serve activates blocking.
-// Off by default so tests, CLI tools, and non-serve callers are unaffected.
-var networkBlockingEnabled atomic.Bool
+// NetworkBlockingMode controls how outbound HTTP connections are filtered.
+type NetworkBlockingMode int32
 
-// privateNetworkAllowed is true when --allow_private_network_integrations
-// is set. Disables tier 2 (RFC 1918) but tier 1 (loopback, IMDS) stays blocked.
-var privateNetworkAllowed atomic.Bool
+const (
+	// BlockingDisabled performs no filtering. This is the default for tests,
+	// CLI tools, and any caller that doesn't go through fleet serve.
+	BlockingDisabled NetworkBlockingMode = iota
+	// BlockingFull blocks both the always-blocked tier (loopback, IMDS) and
+	// private networks (RFC 1918, etc.). This is the production default.
+	BlockingFull
+	// BlockingPrivateAllowed blocks the always-blocked tier only. Private
+	// networks are allowed for environments with on-prem integrations
+	// (e.g. EJBCA, Jira, SCEP servers). Set via
+	// --server_allow_private_network_integrations.
+	BlockingPrivateAllowed
+	// BlockingBypassAll performs no filtering at all. Used in dev mode
+	// where integrations are tested against localhost.
+	BlockingBypassAll
+)
 
-// allBlockingBypassed disables ALL network blocking, including the
-// always-blocked tier (loopback, IMDS). Used in dev mode where
-// integrations are tested against localhost.
-var allBlockingBypassed atomic.Bool
+// networkBlockingMode holds the current blocking mode. Default is
+// BlockingDisabled so tests, CLI tools, and non-serve callers are unaffected.
+var networkBlockingMode atomic.Int32
 
-// EnableNetworkBlocking activates network blocking. Called by fleet serve at startup.
-// In production (no flags): both tiers block.
-// With --allow_private_network_integrations: tier 1 blocks, tier 2 allowed.
-// In dev mode: all blocking bypassed.
-func EnableNetworkBlocking(allowPrivateNetworks bool) {
-	networkBlockingEnabled.Store(true)
-	privateNetworkAllowed.Store(allowPrivateNetworks)
-}
-
-// SetBypassAllNetworkBlocking disables all network blocking including
-// the always-blocked tier. Only used in dev mode.
-func SetBypassAllNetworkBlocking(bypass bool) {
-	allBlockingBypassed.Store(bypass)
+// SetNetworkBlockingMode sets the blocking mode. Called by fleet serve at startup.
+func SetNetworkBlockingMode(mode NetworkBlockingMode) {
+	networkBlockingMode.Store(int32(mode))
 }
 
 // ErrPrivateNetworkBlocked is returned when a connection to a private network
@@ -109,9 +110,8 @@ func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
 // checks the resolved IP before connecting -- this catches DNS rebinding.
 func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// Blocking is only active when fleet serve enables it at startup.
-		// Tests, CLI tools, and dev mode skip all checks.
-		if !networkBlockingEnabled.Load() || allBlockingBypassed.Load() {
+		mode := NetworkBlockingMode(networkBlockingMode.Load())
+		if mode == BlockingDisabled || mode == BlockingBypassAll {
 			return dialer.DialContext(ctx, network, addr)
 		}
 
@@ -127,13 +127,12 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 
 		for _, ip := range ips {
 			// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
-			// overridden with --allow_private_network_integrations.
+			// overridden with --server_allow_private_network_integrations.
 			if ipInCIDRs(ip.IP, alwaysBlockedCIDRs) {
 				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
 			}
-			// Tier 2: private networks. Blocked unless
-			// --allow_private_network_integrations is set.
-			if !privateNetworkAllowed.Load() && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
+			// Tier 2: private networks. Only blocked in BlockingFull mode.
+			if mode == BlockingFull && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
 				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
 			}
 		}
@@ -293,8 +292,12 @@ func HostnamesMatch(a, b string) (bool, error) {
 	return ap.Hostname() == bp.Hostname(), nil
 }
 
+// SizeLimitTransport wraps a base RoundTripper and enforces a response size
+// limit. It uses NewTransport() as the base to inherit the private network
+// blocking DialContext.
 type SizeLimitTransport struct {
 	maxSizeBytes int64
+	base         http.RoundTripper
 }
 
 var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
@@ -302,11 +305,12 @@ var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
 func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
 	return &SizeLimitTransport{
 		maxSizeBytes: maxSizeBytes,
+		base:         NewTransport(),
 	}
 }
 
 func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := http.DefaultTransport.RoundTrip(req)
+	resp, err := t.base.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}

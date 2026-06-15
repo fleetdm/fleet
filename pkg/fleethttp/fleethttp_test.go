@@ -171,22 +171,10 @@ func TestPrivateNetworkCIDRs(t *testing.T) {
 	}
 }
 
-func enableBlocking(t *testing.T) {
+func setBlockingMode(t *testing.T, mode NetworkBlockingMode) {
 	t.Helper()
-	EnableNetworkBlocking(false) // blocking on, private networks NOT allowed
-	t.Cleanup(func() {
-		networkBlockingEnabled.Store(false)
-		privateNetworkAllowed.Store(false)
-	})
-}
-
-func enableBlockingWithAllowPrivate(t *testing.T) {
-	t.Helper()
-	EnableNetworkBlocking(true) // blocking on, private networks allowed
-	t.Cleanup(func() {
-		networkBlockingEnabled.Store(false)
-		privateNetworkAllowed.Store(false)
-	})
+	SetNetworkBlockingMode(mode)
+	t.Cleanup(func() { SetNetworkBlockingMode(BlockingDisabled) })
 }
 
 func TestPrivateNetworkBlockingDialContext(t *testing.T) {
@@ -197,7 +185,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	defer ts.Close()
 
 	t.Run("loopback blocked when blocking enabled", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
 		require.Error(t, err)
@@ -207,7 +195,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 
 	t.Run("loopback blocked even with allow_private_network flag", func(t *testing.T) {
 		// Tier 1 (always-blocked) cannot be overridden by the flag.
-		enableBlockingWithAllowPrivate(t)
+		setBlockingMode(t, BlockingPrivateAllowed)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
 		require.Error(t, err)
@@ -224,7 +212,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	})
 
 	t.Run("public IP allowed when blocking enabled", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		client := NewClient(WithTimeout(5 * time.Second))
 		// google.com is public -- should not be blocked (may fail for other
 		// reasons in CI, so we only check it's not ErrPrivateNetworkBlocked).
@@ -235,7 +223,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	})
 
 	t.Run("error message includes hostname and IP", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
 		require.Error(t, err)
@@ -243,7 +231,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	})
 
 	t.Run("invalid address returns error", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
 		_, err := dialFn(t.Context(), "tcp", "no-port")
 		require.Error(t, err)
@@ -252,7 +240,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	})
 
 	t.Run("unresolvable host returns error", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
 		_, err := dialFn(t.Context(), "tcp", "this-host-does-not-exist.invalid:443")
 		require.Error(t, err)
@@ -260,7 +248,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 	})
 
 	t.Run("connects to resolved IP not hostname", func(t *testing.T) {
-		enableBlocking(t)
+		setBlockingMode(t, BlockingFull)
 		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
 		_, err := dialFn(t.Context(), "tcp", "localhost:9999")
 		require.Error(t, err)
