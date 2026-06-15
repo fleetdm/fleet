@@ -51,16 +51,16 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: AccountProvisioning,
     },
     {
-      title: "Certificate enrollment",
-      urlSection: "certificate-authorities",
-      path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-      Card: CertificateAuthorities,
-    },
-    {
       title: "User mapping",
       urlSection: "identity-provider",
       path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
       Card: IdentityProviders,
+    },
+    {
+      title: "Certificate enrollment",
+      urlSection: "certificate-authorities",
+      path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+      Card: CertificateAuthorities,
     },
     {
       title: "Host status alerts",
