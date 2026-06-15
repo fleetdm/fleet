@@ -175,7 +175,7 @@ func ServeEndUserEnrollOTA(
 		// Clear the BYOD IdP cookie now that we are about to render the enrollment page.
 		var idpUUID string
 		fullyManaged := r.URL.Query().Get("fully_managed")
-		if authRequired && fullyManaged == "true" {
+		if authRequired && (fullyManaged == "true" || fullyManaged == "1") {
 			idpUUID = r.URL.Query().Get("enrollment_reference")
 			http.SetCookie(w, &http.Cookie{
 				Name:     shared_mdm.BYODIdpCookieName,
