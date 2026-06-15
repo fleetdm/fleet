@@ -4734,13 +4734,6 @@
       "description": "NDI Tools is a set of tools and plugins for NDI."
     },
     {
-      "name": "NDI Tools",
-      "slug": "ndi-tools/windows",
-      "platform": "windows",
-      "unique_identifier": "NDI Tools",
-      "description": "NDI Tools is a set of tools and plugins for NDI."
-    },
-    {
       "name": "NeoFinder",
       "slug": "neofinder/darwin",
       "platform": "darwin",
@@ -4843,13 +4836,6 @@
       "slug": "nordlayer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos.teams",
-      "description": "NordLayer is a security software for business."
-    },
-    {
-      "name": "NordLayer",
-      "slug": "nordlayer/windows",
-      "platform": "windows",
-      "unique_identifier": "NordLayer",
       "description": "NordLayer is a security software for business."
     },
     {
@@ -4983,13 +4969,6 @@
       "slug": "novabench/darwin",
       "platform": "darwin",
       "unique_identifier": "com.novabench.client",
-      "description": "Novabench is a benchmark tool to quickly test and compare the computer's performance."
-    },
-    {
-      "name": "Novabench",
-      "slug": "novabench/windows",
-      "platform": "windows",
-      "unique_identifier": "Novabench",
       "description": "Novabench is a benchmark tool to quickly test and compare the computer's performance."
     },
     {
@@ -5231,13 +5210,6 @@
       "description": "OpenCloud Desktop is a desktop syncing client for OpenCloud."
     },
     {
-      "name": "OpenCloud Desktop",
-      "slug": "opencloud/windows",
-      "platform": "windows",
-      "unique_identifier": "OpenCloud",
-      "description": "OpenCloud Desktop is a desktop syncing client for OpenCloud."
-    },
-    {
       "name": "OpenCode",
       "slug": "opencode-desktop/darwin",
       "platform": "darwin",
@@ -5259,13 +5231,6 @@
       "description": "OpenLens is an open source build of Lens Kubernetes IDE."
     },
     {
-      "name": "OpenLens",
-      "slug": "openlens/windows",
-      "platform": "windows",
-      "unique_identifier": "OpenLens",
-      "description": "OpenLens is an open source build of Lens Kubernetes IDE."
-    },
-    {
       "name": "OpenMTP",
       "slug": "openmtp/darwin",
       "platform": "darwin",
@@ -5277,13 +5242,6 @@
       "slug": "openrct2/darwin",
       "platform": "darwin",
       "unique_identifier": "io.openrct2.OpenRCT2",
-      "description": "OpenRCT2 is an open-source re-implementation of RollerCoaster Tycoon 2."
-    },
-    {
-      "name": "OpenRCT2",
-      "slug": "openrct2/windows",
-      "platform": "windows",
-      "unique_identifier": "OpenRCT2",
       "description": "OpenRCT2 is an open-source re-implementation of RollerCoaster Tycoon 2."
     },
     {
@@ -5567,13 +5525,6 @@
       "description": "Plex HTPC is a home Theater PC media player."
     },
     {
-      "name": "Plex HTPC",
-      "slug": "plex-htpc/windows",
-      "platform": "windows",
-      "unique_identifier": "Plex HTPC",
-      "description": "Plex HTPC is a home Theater PC media player."
-    },
-    {
       "name": "Plex Media Server",
       "slug": "plex-media-server/darwin",
       "platform": "darwin",
@@ -5581,24 +5532,10 @@
       "description": "Plex Media Server is a home media server."
     },
     {
-      "name": "Plex Media Server",
-      "slug": "plex-media-server/windows",
-      "platform": "windows",
-      "unique_identifier": "Plex Media Server",
-      "description": "Plex Media Server is a home media server."
-    },
-    {
       "name": "Plex",
       "slug": "plex/darwin",
       "platform": "darwin",
       "unique_identifier": "tv.plex.desktop",
-      "description": "Plex is a home media player."
-    },
-    {
-      "name": "Plex",
-      "slug": "plex/windows",
-      "platform": "windows",
-      "unique_identifier": "Plex",
       "description": "Plex is a home media player."
     },
     {
