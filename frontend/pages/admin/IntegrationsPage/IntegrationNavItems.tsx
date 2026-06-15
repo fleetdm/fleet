@@ -9,6 +9,7 @@ import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
 import Sso from "./cards/Sso";
+import AccountProvisioning from "./cards/AccountProvisioning";
 import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
@@ -42,6 +43,12 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       urlSection: "sso",
       path: PATHS.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
       Card: Sso,
+    },
+    {
+      title: "Account provisioning",
+      urlSection: "account-provisioning",
+      path: PATHS.ADMIN_INTEGRATIONS_FPSSO,
+      Card: AccountProvisioning,
     },
     {
       title: "Certificate enrollment",

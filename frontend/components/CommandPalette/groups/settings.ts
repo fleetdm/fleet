@@ -138,6 +138,12 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
             ]
           : []),
         {
+          id: "settings-int-fpsso",
+          label: "Account provisioning",
+          path: paths.ADMIN_INTEGRATIONS_FPSSO,
+          keywords: ["sso", "fpsso", "provision", "scim"],
+        },
+        {
           id: "settings-int-sso-fleet-users",
           label: "Single sign-on (SSO) for Fleet users",
           path: paths.ADMIN_INTEGRATIONS_SSO_FLEET_USERS,
