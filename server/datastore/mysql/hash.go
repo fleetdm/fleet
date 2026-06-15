@@ -47,7 +47,6 @@ func mysqlDatetime6(t *time.Time) string {
 	return t.UTC().Round(time.Microsecond).Format("2006-01-02 15:04:05.000000")
 }
 
-
 // md5ChecksumFromJSON computes an md5 checksum of the canonical JSON form of b:
 // object keys are sorted and insignificant whitespace is removed, while array
 // order is preserved. Numbers are kept as written (json.Number), so a value

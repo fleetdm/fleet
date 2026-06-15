@@ -8645,7 +8645,7 @@ func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
 }
 
 // TestPoliciesChecksumMatchesSQL pins the Go policies.checksum against the
-// previous SQL expression unhex(md5(concat_ws(char(0), coalesce(team_id, ''), name))),
+// previous SQL expression unhex(md5(concat_ws(char(0), coalesce(team_id, ”), name))),
 // the value backing the idx_policies_checksum unique index.
 func TestPoliciesChecksumMatchesSQL(t *testing.T) {
 	ds := CreateMySQLDS(t)
