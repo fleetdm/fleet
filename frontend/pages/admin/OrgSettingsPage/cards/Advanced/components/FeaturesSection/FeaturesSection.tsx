@@ -104,7 +104,7 @@ const FeaturesSection = ({
                 </>
               )
             }
-            helpText="Only policy queries (SQL) are sent to the LLM. Fleet doesn't use this data to train models."
+            helpText="When enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn't use this data to train models."
           >
             Generative AI
           </Checkbox>
