@@ -1122,13 +1122,6 @@
       "description": "BreakTimer is a tool to manage periodic breaks."
     },
     {
-      "name": "BreakTimer",
-      "slug": "breaktimer/windows",
-      "platform": "windows",
-      "unique_identifier": "BreakTimer",
-      "description": "BreakTimer is a tool to manage periodic breaks."
-    },
-    {
       "name": "BrickLink Studio",
       "slug": "bricklink-studio/darwin",
       "platform": "darwin",
@@ -1378,13 +1371,6 @@
       "slug": "cherry-studio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.kangfenmao.CherryStudio",
-      "description": "Cherry Studio is a desktop client that supports multiple LLM providers."
-    },
-    {
-      "name": "Cherry Studio",
-      "slug": "cherry-studio/windows",
-      "platform": "windows",
-      "unique_identifier": "Cherry Studio",
       "description": "Cherry Studio is a desktop client that supports multiple LLM providers."
     },
     {
