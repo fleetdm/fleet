@@ -179,8 +179,6 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 
 		// if this is called from an UPDATE (config changed), mark existing installs
 		// as "pending" (unless already "failed") and with the correct policy version to verify
-		// (currently temporarily stored as a string in associated_event_id, to revisit
-		// when we implement full Android apps support).
 		if appConfigChanged {
 			for hostUUID, policyRequest := range policyRequestsByHost {
 				err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
