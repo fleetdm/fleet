@@ -1,0 +1,10 @@
+{
+  "name": "Memory Tracker by Timely",
+  "unique_identifier": "com.timeapp.devlpmp.Timely-Mac-Tracker",
+  "token": "memory",
+  "installer_format": "zip",
+  "slug": "memory/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

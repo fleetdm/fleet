@@ -1,0 +1,10 @@
+{
+  "name": "Prizmo",
+  "unique_identifier": "com.creaceed.prizmo2",
+  "token": "prizmo",
+  "installer_format": "zip",
+  "slug": "prizmo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

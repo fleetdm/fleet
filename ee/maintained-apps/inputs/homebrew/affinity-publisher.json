@@ -1,0 +1,10 @@
+{
+  "name": "Affinity Publisher 2",
+  "unique_identifier": "com.seriflabs.affinitypublisher2",
+  "token": "affinity-publisher",
+  "installer_format": "zip",
+  "slug": "affinity-publisher/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

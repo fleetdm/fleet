@@ -1,0 +1,10 @@
+{
+  "name": "f.lux",
+  "unique_identifier": "org.herf.Flux",
+  "token": "flux-app",
+  "installer_format": "zip",
+  "slug": "flux-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

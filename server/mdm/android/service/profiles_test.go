@@ -122,13 +122,13 @@ func testNoHost(t *testing.T, ds fleet.Datastore, client *mock.Client, reconcile
 	}
 
 	// no host, so no calls to the Android API
-	err := reconciler.ReconcileProfiles(ctx)
+	_, err := reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	// run again, still nothing
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -149,13 +149,13 @@ func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore, client *mock.Clie
 	createAndroidHost(t, ds, 2)
 
 	// nothing to process, no profiles missing nor extraneous
-	err := reconciler.ReconcileProfiles(ctx)
+	_, err := reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	// run again, still nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -183,7 +183,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 	require.NoError(t, err)
 
 	// profile gets delivered to both hosts
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -196,7 +196,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 	})
 
 	// run again, nothing to process as everything is pending
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -228,7 +228,7 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 	require.NoError(t, err)
 
 	// profiles get delivered to both hosts, but p1 is failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -243,7 +243,7 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 	})
 
 	// run again, nothing to process as everything is pending/failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -283,7 +283,7 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	require.NoError(t, err)
 
 	// profiles get delivered to h1 only
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -297,7 +297,7 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	})
 
 	// run again, nothing to process as everything is pending/failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -324,7 +324,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.NoError(t, err)
 
 	for i := range 3 {
-		err = reconciler.ReconcileProfiles(ctx)
+		_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 		require.NoError(t, err)
 		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 		client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -338,7 +338,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	}
 
 	// next run marks as failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -349,7 +349,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	})
 
 	// next run has nothing to do
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -365,7 +365,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return policy, nil
 	}
 
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -404,7 +404,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
 	// profiles get delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -417,7 +417,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -431,7 +431,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -452,7 +452,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// profile gets re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -471,7 +471,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	p2Checksum := getAndroidProfileChecksum(t, ds, p2.ProfileUUID)
 
 	// profiles get re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -486,7 +486,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -500,7 +500,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -516,7 +516,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	}
 
 	// profiles get re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -532,7 +532,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -552,7 +552,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -609,7 +609,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	}
 
 	// currently only the no-label profile is applied
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -631,7 +631,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	// no-label and exclude any are applied
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -653,7 +653,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	// no-label, exclude any and the respective include profiles are applied
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -676,7 +676,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// this only affects h1, h2 version is unchanged
 	h2Version := version
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -694,7 +694,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -1314,7 +1314,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	require.NoError(t, err)
 
 	// --- Phase 1: cert is pending, ONC should be withheld, non-ONC applied ---
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
@@ -1346,7 +1346,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	client.EnterprisesPoliciesPatchFuncInvoked = false
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 
 	// Both profiles should now be applied (included in policy, with request UUIDs)
@@ -1383,7 +1383,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	})
 
 	// cert is "delivered" (not terminal), ONC should be withheld
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 
 	phase3Profiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
@@ -1403,7 +1403,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		)
 		return err
 	})
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 
 	// Both profiles applied (cert is terminally failed, ONC released)
