@@ -43,9 +43,10 @@ func (s *MaintainedApp) AuthzType() string {
 }
 
 // MaintainedAppListOptions contains the options for listing Fleet-maintained
-// apps. Pagination and counts operate on distinct app names (an app's macOS and
-// Windows entries are combined into a single row in the UI), not on the raw
-// per-platform rows.
+// apps. Pagination operates on distinct app names (an app's macOS and Windows
+// entries are combined into a single row in the UI), so an app is never split
+// across a page boundary. The count, however, is the total number of
+// installable apps, with each platform entry counted separately.
 type MaintainedAppListOptions struct {
 	ListOptions
 

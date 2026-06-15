@@ -65,8 +65,10 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	err := maintained_apps.SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	// The list endpoint paginates and orders by app name; this helper returns
-	// the full set for tests, which should not depend on the order.
+	// The list endpoint paginates and orders by app name. With default options
+	// GetPerPage returns DefaultPerPage (effectively unbounded), so this helper
+	// gets the full set in a single page for tests, which should not depend on
+	// the order.
 	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 	return apps
