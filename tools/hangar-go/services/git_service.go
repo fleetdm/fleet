@@ -8,8 +8,8 @@ type GitService struct{}
 func (s *GitService) GitBranchStatus(repo string) (gitrepo.BranchStatus, error) {
 	return gitrepo.BranchStatusFor(repo)
 }
-func (s *GitService) GitListBranches(repo, filter string, limit *uint32) ([]gitrepo.Branch, error) {
-	return gitrepo.ListBranches(repo, filter, limit)
+func (s *GitService) GitListBranches(repo, filter, query string, limit *uint32) ([]gitrepo.Branch, error) {
+	return gitrepo.ListBranches(repo, filter, query, limit)
 }
 func (s *GitService) GitFetch(repo string) (string, error) { return gitrepo.Fetch(repo) }
 func (s *GitService) GitPull(repo string) (string, error)  { return gitrepo.Pull(repo) }

@@ -32,8 +32,8 @@ export function GitFetch(repo: string): $CancellablePromise<string> {
     return $Call.ByID(1226238379, repo);
 }
 
-export function GitListBranches(repo: string, filter: string, limit: number | null): $CancellablePromise<gitrepo$0.Branch[]> {
-    return $Call.ByID(1610953469, repo, filter, limit).then(($result: any) => {
+export function GitListBranches(repo: string, filter: string, query: string, limit: number | null): $CancellablePromise<gitrepo$0.Branch[]> {
+    return $Call.ByID(1610953469, repo, filter, query, limit).then(($result: any) => {
         return $$createType2($result);
     });
 }

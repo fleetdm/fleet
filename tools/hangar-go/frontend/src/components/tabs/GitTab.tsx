@@ -11,6 +11,25 @@ type Filter = "rc" | "main" | "all";
 
 const DEFAULT_RC_MINORS = 10;
 const ALL_LIMIT = 200;
+// Max matches returned for a name search. Like ALL_LIMIT this bounds how many
+// rows we render; unlike ALL_LIMIT the search runs server-side across the full
+// ref set, so a match is found regardless of how stale the branch is.
+const SEARCH_LIMIT = 200;
+// Debounce before a search keystroke fires an IPC call. The client-side
+// filter narrows the already-loaded list instantly; this only gates the
+// server round-trip that widens the set to branches outside that window.
+const SEARCH_DEBOUNCE_MS = 200;
+
+// limitFor picks the row cap for a load: a flat search cap when searching,
+// otherwise the per-filter recency cap (RC minors / all / unbounded main).
+function limitFor(
+  filter: Filter,
+  rcMinors: number,
+  query: string,
+): number | undefined {
+  if (query.trim()) return SEARCH_LIMIT;
+  return filter === "rc" ? rcMinors : filter === "all" ? ALL_LIMIT : undefined;
+}
 
 // Cooldown for the auto-fetch on Git-tab open. GitTab remounts every time
 // the tab is selected, so without this, rapid tab in/out would re-fetch
@@ -33,6 +52,13 @@ export function GitTab({
   const [filter, setFilter] = useState<Filter>("rc");
   const [rcMinors, setRcMinors] = useState<number>(DEFAULT_RC_MINORS);
   const [search, setSearch] = useState("");
+  // The debounced search actually sent to the backend. `search` updates per
+  // keystroke (drives the instant client-side filter); this trails it.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // The query the currently-loaded `branches` were fetched for. When it lags
+  // `search` a server fetch is pending, so we show "Searching…" rather than a
+  // premature "No branches match." for a branch outside the loaded window.
+  const [loadedQuery, setLoadedQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState<string | null>(null);
@@ -40,34 +66,48 @@ export function GitTab({
   async function loadBranches() {
     if (!repoPath) return;
     try {
-      const limit =
-        filter === "rc" ? rcMinors : filter === "all" ? ALL_LIMIT : undefined;
-      const list = await api.gitListBranches(repoPath, filter, limit);
+      const query = search.trim();
+      const list = await api.gitListBranches(
+        repoPath,
+        filter,
+        query,
+        limitFor(filter, rcMinors, query),
+      );
       setBranches(list);
+      setLoadedQuery(query);
     } catch (e) {
       setError(String(e));
     }
   }
 
-  // Rapid filter switches (rc → main → all) can resolve out of order
-  // and the last response wins is whichever IPC happened to finish last
-  // — not the most recent click. Bump a request id and ignore responses
-  // from prior calls.
+  // Debounce the search box into debouncedSearch (the value sent to the
+  // backend). Each keystroke still narrows the loaded list instantly via the
+  // client-side `filtered` memo; this just gates the server round-trip.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Rapid filter switches (rc → main → all) or fast typing can resolve out of
+  // order — "last response wins" is whichever IPC happened to finish last,
+  // not the most recent input. Bump a request id and ignore stale responses.
   const loadReqRef = useRef(0);
   useEffect(() => {
     if (!repoPath) return;
     const reqId = ++loadReqRef.current;
-    const limit =
-      filter === "rc" ? rcMinors : filter === "all" ? ALL_LIMIT : undefined;
+    const query = debouncedSearch.trim();
     api
-      .gitListBranches(repoPath, filter, limit)
+      .gitListBranches(repoPath, filter, query, limitFor(filter, rcMinors, query))
       .then((list) => {
-        if (reqId === loadReqRef.current) setBranches(list);
+        if (reqId === loadReqRef.current) {
+          setBranches(list);
+          setLoadedQuery(query);
+        }
       })
       .catch((e) => {
         if (reqId === loadReqRef.current) setError(String(e));
       });
-  }, [repoPath, filter, rcMinors]);
+  }, [repoPath, filter, rcMinors, debouncedSearch]);
 
   // Auto-fetch when the tab is opened. GitTab is conditionally rendered
   // in App, so it unmounts on tab-switch and remounts on return — this
@@ -117,6 +157,11 @@ export function GitTab({
     if (!q) return branches;
     return branches.filter((b) => b.name.toLowerCase().includes(q));
   }, [branches, search]);
+
+  // A server fetch for the current query hasn't landed yet (debounce window
+  // or in-flight IPC). Used to avoid flashing "No branches match." before a
+  // stale branch outside the loaded window has had a chance to load.
+  const searchPending = search.trim() !== loadedQuery;
 
   if (!repoPath) {
     return (
@@ -410,7 +455,7 @@ export function GitTab({
                 fontSize: "var(--fs-xx-small)",
               }}
             >
-              No branches match.
+              {searchPending ? "Searching…" : "No branches match."}
             </div>
           )}
         </div>

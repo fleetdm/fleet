@@ -145,9 +145,13 @@ func parseRCMinorKey(name string) (string, bool) {
 }
 
 // parseBranches parses for-each-ref output (6 fields per line) into a deduped
-// branch list. For RC, groups by minor line and keeps the N most-recent
-// lines; otherwise truncates to limit.
-func parseBranches(raw, current string, isRC bool, limit *uint32) []Branch {
+// branch list. When query is non-empty it's a name search: branches are
+// filtered to substring (case-insensitive) matches and capped to limit, and
+// the RC minor-line grouping is bypassed (you're looking for a specific
+// branch, not browsing recent release lines). With an empty query the
+// recency view is unchanged: RC groups by minor line and keeps the N
+// most-recent lines; other filters truncate to limit.
+func parseBranches(raw, current, query string, isRC bool, limit *uint32) []Branch {
 	seen := map[string]bool{}
 	var branches []Branch
 
@@ -180,6 +184,21 @@ func parseBranches(raw, current string, isRC bool, limit *uint32) []Branch {
 			IsRemote:   isRemote && !isLocal,
 			LastCommit: &CommitInfo{SHA: parts[1], Subject: parts[2], Author: parts[3], TimeAgo: parts[4]},
 		})
+	}
+
+	// Name search: filter across the full ref set (server-side, so matches
+	// surface regardless of recency), then cap. Skips RC grouping.
+	if q := strings.ToLower(strings.TrimSpace(query)); q != "" {
+		var matched []Branch
+		for _, b := range branches {
+			if strings.Contains(strings.ToLower(b.Name), q) {
+				matched = append(matched, b)
+			}
+		}
+		if limit != nil && len(matched) > int(*limit) {
+			matched = matched[:*limit]
+		}
+		return matched
 	}
 
 	if isRC {
@@ -271,8 +290,10 @@ func readLastCommit(repo, ref string) (*CommitInfo, error) {
 }
 
 // ListBranches lists branches matching filter ("rc", "main", or all),
-// capped by limit.
-func ListBranches(repo, filter string, limit *uint32) ([]Branch, error) {
+// capped by limit. When query is non-empty it's a case-insensitive name
+// search across the full ref set for the filter (the recency cap is dropped
+// so a stale branch still surfaces); matches are then capped by limit.
+func ListBranches(repo, filter, query string, limit *uint32) ([]Branch, error) {
 	cur, err := runGit(repo, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return nil, err
@@ -300,8 +321,10 @@ func ListBranches(repo, filter string, limit *uint32) ([]Branch, error) {
 		"%(committerdate:relative)" + unitSep + "%(refname)"
 	args := []string{"for-each-ref", "--sort=-committerdate", format}
 	// Non-RC filters cap on the for-each-ref side; RC handles its "N minor
-	// lines" semantics in parseBranches, so it fetches the full set.
-	if filter != "rc" && limit != nil {
+	// lines" semantics in parseBranches, so it fetches the full set. A name
+	// search also fetches the full set so parseBranches can match across all
+	// refs rather than only the most-recent slice.
+	if filter != "rc" && query == "" && limit != nil {
 		args = append(args, fmt.Sprintf("--count=%d", *limit*2))
 	}
 	args = append(args, patterns...)
@@ -311,7 +334,7 @@ func ListBranches(repo, filter string, limit *uint32) ([]Branch, error) {
 		return nil, err
 	}
 	// parseBranches preserves git's --sort=-committerdate order.
-	return parseBranches(raw, current, filter == "rc", limit), nil
+	return parseBranches(raw, current, query, filter == "rc", limit), nil
 }
 
 // Fetch runs `git fetch --all --prune`.

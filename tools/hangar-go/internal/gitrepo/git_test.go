@@ -40,8 +40,8 @@ func TestParsePorcelain(t *testing.T) {
 
 func TestParseAheadBehind(t *testing.T) {
 	cases := []struct {
-		raw            string
-		ahead, behind  uint32
+		raw           string
+		ahead, behind uint32
 	}{
 		{"3\t4", 3, 4},
 		{"0\t0", 0, 0},
@@ -98,7 +98,7 @@ func TestParseBranchesDedupAndRemote(t *testing.T) {
 		ref("origin/HEAD", "x", "x", "x", "x", "refs/remotes/origin/HEAD"), // skipped
 	}, "\n")
 
-	got := parseBranches(raw, "main", false, nil)
+	got := parseBranches(raw, "main", "", false, nil)
 	if len(got) != 2 {
 		t.Fatalf("got %d branches, want 2: %+v", len(got), got)
 	}
@@ -115,7 +115,7 @@ func TestParseBranchesNonRCLimit(t *testing.T) {
 	for _, n := range []string{"a", "b", "c", "d"} {
 		lines = append(lines, ref(n, "x", "s", "me", "1d", "refs/heads/"+n))
 	}
-	got := parseBranches(strings.Join(lines, "\n"), "a", false, u32p(2))
+	got := parseBranches(strings.Join(lines, "\n"), "a", "", false, u32p(2))
 	if len(got) != 2 {
 		t.Fatalf("limit not applied: got %d, want 2", len(got))
 	}
@@ -130,7 +130,7 @@ func TestParseBranchesRCGrouping(t *testing.T) {
 		ref("rc-minor-fleet-v4.85.0", "a", "s", "me", "5d", "refs/heads/rc-minor-fleet-v4.85.0"),
 	}, "\n")
 
-	got := parseBranches(raw, "rc-minor-fleet-v4.86.0", true, u32p(2))
+	got := parseBranches(raw, "rc-minor-fleet-v4.86.0", "", true, u32p(2))
 
 	names := map[string]bool{}
 	for _, b := range got {
@@ -145,5 +145,39 @@ func TestParseBranchesRCGrouping(t *testing.T) {
 	}
 	if names["rc-minor-fleet-v4.85.0"] {
 		t.Error("4.85 should have been dropped (beyond N=2 minor lines, not current)")
+	}
+}
+
+func TestParseBranchesQuery(t *testing.T) {
+	// A stale QA branch sits LAST (oldest committerdate), so a recency cap
+	// of 1 would normally drop it — a name search must still surface it.
+	raw := strings.Join([]string{
+		ref("main", "a", "s", "me", "1d", "refs/heads/main"),
+		ref("origin/feature-foo", "b", "s", "me", "2d", "refs/remotes/origin/feature-foo"),
+		ref("qa-q7x9v2m", "c", "s", "me", "300d", "refs/heads/qa-q7x9v2m"),
+	}, "\n")
+
+	// Case-insensitive substring match across the full set, recency cap of 1
+	// notwithstanding.
+	got := parseBranches(raw, "main", "QA-", false, u32p(1))
+	if len(got) != 1 || got[0].Name != "qa-q7x9v2m" {
+		t.Fatalf("query match wrong: %+v", got)
+	}
+
+	// Limit caps the matches.
+	got = parseBranches(raw, "main", "e", false, u32p(1)) // matches main, feature-foo
+	if len(got) != 1 {
+		t.Fatalf("query limit not applied: got %d, want 1", len(got))
+	}
+
+	// RC grouping is bypassed under a query: an old minor line beyond the
+	// N-most-recent window still matches.
+	rcRaw := strings.Join([]string{
+		ref("rc-minor-fleet-v4.88.0", "a", "s", "me", "1d", "refs/heads/rc-minor-fleet-v4.88.0"),
+		ref("rc-minor-fleet-v4.50.0", "a", "s", "me", "400d", "refs/heads/rc-minor-fleet-v4.50.0"),
+	}, "\n")
+	got = parseBranches(rcRaw, "", "4.50", true, u32p(1))
+	if len(got) != 1 || got[0].Name != "rc-minor-fleet-v4.50.0" {
+		t.Fatalf("RC query should bypass grouping: %+v", got)
 	}
 }

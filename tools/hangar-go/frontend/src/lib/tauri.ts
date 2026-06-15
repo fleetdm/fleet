@@ -162,9 +162,14 @@ export const api = {
 
   gitBranchStatus: (repo: string) =>
     cast<BranchStatus>(GitService.GitBranchStatus(repo)),
-  gitListBranches: (repo: string, filter?: string, limit?: number) =>
+  gitListBranches: (
+    repo: string,
+    filter?: string,
+    query?: string,
+    limit?: number,
+  ) =>
     cast<Branch[]>(
-      GitService.GitListBranches(repo, filter ?? "", limit ?? null),
+      GitService.GitListBranches(repo, filter ?? "", query ?? "", limit ?? null),
     ),
   gitFetch: (repo: string) => GitService.GitFetch(repo),
   gitPull: (repo: string) => GitService.GitPull(repo),
