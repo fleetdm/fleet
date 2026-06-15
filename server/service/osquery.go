@@ -2610,17 +2610,19 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
 
-	hostIsCompliantInFleet := true
-	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
-	for _, policyID := range conditionalAccessPolicyIDs {
-		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	// Compute the compliance verdict from persisted policy_membership, not from
+	// the in-flight submission. This prevents a host from spoofing compliance by
+	// omitting CA policy results from its distributed/write payload.
+	persistedMembership, err := svc.ds.GetHostPolicyMembershipForPolicies(ctx, hostID, conditionalAccessPolicyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get host policy membership for conditional access")
 	}
-	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
-		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
-			// Ignore results for policies that are not for conditional access.
-			continue
-		}
-		if incomingPolicyResult != nil && !*incomingPolicyResult {
+
+	hostIsCompliantInFleet := true
+	for _, policyID := range conditionalAccessPolicyIDs {
+		result, ok := persistedMembership[policyID]
+		if !ok || result == nil || !*result {
+			// No membership row, indeterminate, or failing means not compliant.
 			hostIsCompliantInFleet = false
 			break
 		}

@@ -2734,6 +2734,30 @@ func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID
 	return policyIDs, nil
 }
 
+func (ds *Datastore) GetHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) (map[uint]*bool, error) {
+	if len(policyIDs) == 0 {
+		return map[uint]*bool{}, nil
+	}
+	query := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ? AND policy_id IN (?)`
+	query, args, err := sqlx.In(query, hostID, policyIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build sqlx.In for get host policy membership")
+	}
+	var rows []struct {
+		PolicyID uint  `db:"policy_id"`
+		Passes   *bool `db:"passes"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host policy membership for policies")
+	}
+	result := make(map[uint]*bool, len(rows))
+	for _, r := range rows {
+		passes := r.Passes
+		result[r.PolicyID] = passes
+	}
+	return result, nil
+}
+
 func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
 	if len(policyIDs) == 0 {
 		return nil, nil

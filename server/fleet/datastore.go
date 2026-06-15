@@ -996,6 +996,11 @@ type Datastore interface {
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
+	// GetHostPolicyMembershipForPolicies returns the persisted pass/fail membership
+	// for a host on the given policy IDs. The returned map keys are policy IDs;
+	// values are nil (indeterminate/failed query), true (passing), or false (failing).
+	// Policies with no membership row are absent from the map.
+	GetHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) (map[uint]*bool, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
 

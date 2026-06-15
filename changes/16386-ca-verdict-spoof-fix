@@ -1,0 +1,1 @@
+- Fixed Conditional Access compliance verdict to use persisted policy membership instead of in-flight submission data, preventing a host from spoofing its compliance status by omitting CA policy results.
