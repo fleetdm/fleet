@@ -45,12 +45,15 @@ var policyAutomationActivityTypes = func() []string {
 	return all
 }()
 
-// Unqualified names are required because the ORDER BY is applied to the outer
-// subquery that wraps the UNION ALL — not directly to any aliased table.
+// The ORDER BY (and cursor WHERE) are applied to the outer subquery that wraps
+// the UNION ALL, which is aliased `t` (see ListPolicyAutomationActivities). The
+// inner per-branch aliases (ap, hsr, ...) are not in scope there, so columns are
+// qualified with `t` — which also keeps the ORDER BY unambiguous if the outer
+// query ever gains a JOIN.
 var policyAutomationActivityAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"id":            "id",
-	"created_at":    "created_at",
-	"activity_type": "activity_type",
+	"id":            "t.id",
+	"created_at":    "t.created_at",
+	"activity_type": "t.activity_type",
 }
 
 // ListHostUpcomingActivities returns the list of activities pending execution
@@ -1595,18 +1598,34 @@ const policyAutomationHostJoin = `
     JOIN  hosts               h   ON h.id            = ahp.host_id
     LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
 
-// policyAutomationNamedStatusCols projects the status/output columns for the
-// named automation branch. Named activities encode their outcome in the type
-// name — every error type is prefixed "failed_" — and carry no script or
-// install output, so the output columns are NULL. Each UNION branch must
-// project these columns in the same order.
-const policyAutomationNamedStatusCols = `
-    IF(ap.activity_type LIKE 'failed\_%', 'error', 'success') AS status,
-    NULL AS output`
+// statusOutputCols renders the trailing "status, output" column pair that every
+// UNION branch must project after policyAutomationCols. Modeling it as a struct
+// (rather than a raw SQL fragment) makes the positional contract that UNION ALL
+// relies on impossible to break by hand: both columns are always present,
+// always aliased, and always in this order, so no branch can silently reorder
+// or drop one. status and output are SQL expressions; use "NULL" for output
+// when the branch has nothing to surface.
+type statusOutputCols struct {
+	status string
+	output string
+}
+
+func (c statusOutputCols) sql() string {
+	return fmt.Sprintf("%s AS status, %s AS output", c.status, c.output)
+}
+
+// policyAutomationNamedStatusCols projects the status/output pair for the named
+// automation branch. Named activities encode their outcome in the type name —
+// every error type is prefixed "failed_" — and carry no script or install
+// output, so output is NULL.
+var policyAutomationNamedStatusCols = statusOutputCols{
+	status: `IF(ap.activity_type LIKE 'failed\_%', 'error', 'success')`,
+	output: "NULL",
+}
 
 // policyAutomationTaskBranch describes a UNION branch whose link to the policy
 // and whose success/failure state both live in a task result table (scripts,
-// in-house installs, VPP installs) rather than in the activity details.
+// in-house installs, VPP installs) rather than in the activity_past.details column.
 type policyAutomationTaskBranch struct {
 	// activityType is the activity_past.activity_type this branch matches.
 	activityType string
@@ -1618,14 +1637,15 @@ type policyAutomationTaskBranch struct {
 	// applied, so internal OR/AND precedence is preserved.
 	errorCond   string
 	successCond string
-	// statusCols projects the status/output columns for this branch, in the same
-	// order as policyAutomationNamedStatusCols: status, output.
-	statusCols string
+	// statusCols projects the status/output pair for this branch. The
+	// statusOutputCols type guarantees the columns and their order stay in sync
+	// with every other branch.
+	statusCols statusOutputCols
 }
 
 // policyAutomationTaskBranches are the non-named-automation sources of policy
 // activities: their rows are joined to the policy through a result table's
-// policy_id column rather than through details.policy_id.
+// policy_id column rather than through activity_past.details.policy_id.
 var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 	{
 		activityType: "ran_script",
@@ -1636,9 +1656,10 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
                 AND hsr.policy_id    = ?`,
 		errorCond:   "hsr.exit_code IS NOT NULL AND hsr.exit_code != 0",
 		successCond: "hsr.exit_code = 0",
-		statusCols: `
-            IF(hsr.exit_code = 0, 'success', 'error') AS status,
-            hsr.output AS output`,
+		statusCols: statusOutputCols{
+			status: "IF(hsr.exit_code = 0, 'success', 'error')",
+			output: "hsr.output",
+		},
 	},
 	{
 		activityType: "installed_software",
@@ -1649,9 +1670,10 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
                 AND hsi.policy_id    = ?`,
 		errorCond:   "hsi.status = 'failed_install'",
 		successCond: "hsi.status = 'installed'",
-		statusCols: `
-            IF(hsi.status = 'installed', 'success', 'error') AS status,
-            hsi.install_script_output AS output`,
+		statusCols: statusOutputCols{
+			status: "IF(hsi.status = 'installed', 'success', 'error')",
+			output: "hsi.install_script_output",
+		},
 	},
 	{
 		activityType: "installed_app_store_app",
@@ -1670,9 +1692,10 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 		successCond: "hvsi.verification_at IS NOT NULL",
 		// VPP apps are installed via MDM command, not a script, so there is no
 		// script output to surface.
-		statusCols: `
-            IF(hvsi.verification_at IS NOT NULL, 'success', 'error') AS status,
-            NULL AS output`,
+		statusCols: statusOutputCols{
+			status: "IF(hvsi.verification_at IS NOT NULL, 'success', 'error')",
+			output: "NULL",
+		},
 	},
 }
 
@@ -1689,7 +1712,7 @@ type policyAutomationBranch struct {
 func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.TeamFilter, status string) ([]policyAutomationBranch, error) {
 	teamFilterSQL := ds.whereFilterHostsByTeams(filter, "h")
 	// Named automation activities (webhook/ticket/calendar/CA) are selected by
-	// activity_type and linked to the policy through details.policy_id. The
+	// activity_type and linked to the policy through activity_past.details.policy_id. The
 	// status filter chooses which set of types to match.
 	namedTypes := policyAutomationActivityTypes
 	switch status {
@@ -1701,7 +1724,7 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 	namedSQL, namedArgs, err := sqlx.In(fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
         WHERE ap.activity_type IN (?)
           AND ap.details->>'$.policy_id' = ?
-          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols, policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
+          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
 	if err != nil {
 		return nil, err
 	}
@@ -1713,7 +1736,7 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 		// The policy_id placeholder lives in the joins (before WHERE), so it is
 		// bound before the activity_type placeholder.
 		sql := fmt.Sprintf("SELECT %s, %s FROM activity_past ap %s %s WHERE ap.activity_type = ? AND %s",
-			policyAutomationCols, b.statusCols, policyAutomationHostJoin, b.joins, teamFilterSQL)
+			policyAutomationCols, b.statusCols.sql(), policyAutomationHostJoin, b.joins, teamFilterSQL)
 		args := []any{policyID, b.activityType}
 		switch status {
 		case "error":

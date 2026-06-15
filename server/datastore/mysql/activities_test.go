@@ -2436,6 +2436,7 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		require.Len(t, activities, 6)
 		for _, a := range activities {
 			require.NotContains(t, a.Type, "failed_")
+			require.Contains(t, successTypes, a.Type)
 		}
 	})
 
@@ -2455,18 +2456,18 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("host name query filters rows", func(t *testing.T) {
-		// "host-alpha" matches h1 only.
+		// "host-alpha" matches h1 only: 4 error + 4 success + 1 dual-host row = 9.
 		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-alpha"}), "")
 		require.NoError(t, err)
-		require.NotEmpty(t, activities)
+		require.Len(t, activities, 9)
 		for _, a := range activities {
 			require.Equal(t, h1.ID, a.HostID)
 			require.Equal(t, "host-alpha", a.HostDisplayName)
 		}
-		// "host-b" matches h2 only.
+		// "host-b" matches h2 only, which appears in just the dual-host activity.
 		activities, _, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-b"}), "")
 		require.NoError(t, err)
-		require.NotEmpty(t, activities)
+		require.Len(t, activities, 1)
 		for _, a := range activities {
 			require.Equal(t, h2.ID, a.HostID)
 		}
