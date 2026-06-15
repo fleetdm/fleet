@@ -76,6 +76,25 @@ The engineering output and architecture DRI reviews and triages engineering-init
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
+#### Handle a security report
+
+Security reports come in through the [confidential repo](https://github.com/fleetdm/confidential). Not every report is a fire drill — the severity determines the timing, not the urgency the reporter feels.
+
+**Initial review:** An engineer or Engineering Manager reviews every new security report within **one business day** to confirm the report, assign a severity, and decide on a remediation path.
+
+**Severity timelines:**
+
+- **Critical** — Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
+- **High** — Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
+- **Medium** — Address in the next minor release.
+
+**New High reports during an in-flight patch:**
+
+When a patch release branch has already been cut to ship previously fixed High issues, newly reported High issues should be scheduled for the patch release *after* the in-flight one. This keeps the in-flight patch focused and avoids destabilizing it with last-minute additions.
+
+**Exception — high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
+
+
 #### Notify stakeholders when a user story is pushed to the next release
 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
