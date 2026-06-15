@@ -7163,18 +7163,64 @@ policies:
     query: SELECT 1
     resolution: ""
     platform: linux
-    labels_include_all:
+    labels_include_any:
       - lbl-a
-    labels_exclude_any:
+    labels_include_all:
       - lbl-b
 `)
 	require.NoError(t, err)
 
+	// A policy may combine one include scope with one exclude scope, but not two
+	// include scopes; this should be rejected before any API call is made.
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
-	require.ErrorContains(t, err, "labels_include_all")
-	require.ErrorContains(t, err, "labels_exclude_any")
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
+}
+
+func TestGitOpsPolicyLabelsExcludeAllRequiresPremium(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: premium-policy
+    description: uses premium scope
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_exclude_all:
+      - lbl-a
+`)
+	require.NoError(t, err)
+
+	// labels_exclude_all is a Premium-only scope for policies; a free-tier apply
+	// is rejected with a friendly pre-flight error before any policy is created.
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "premium-policy")
+	require.ErrorContains(t, err, "labels_exclude_all")
+	require.ErrorContains(t, err, "Fleet Premium")
 }
 
 func TestGitOpsScriptsLogging(t *testing.T) {
@@ -7926,4 +7972,57 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 		}, storedEmpty, noTeams, false)
 		assert.NoError(t, err)
 	})
+}
+
+func TestGetLabelUsagePolicyScopes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		policy          fleet.PolicySpec
+		wantErrContains string
+		wantLabels      []string // labels that must be tracked when no error is expected
+	}{
+		{
+			name:       "include_any + exclude_any combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAny: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:       "include_all + exclude_all combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAll: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:            "two include scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsIncludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_include_any or labels_include_all",
+		},
+		{
+			name:            "two exclude scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsExcludeAny: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_exclude_any or labels_exclude_all",
+		},
+		{
+			name:            "overlap between include and exclude rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAll: []string{"a"}},
+			wantErrContains: `label "a" cannot appear in both an include and an exclude list`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			usage, err := getLabelUsage(&spec.GitOps{
+				Policies: []*spec.GitOpsPolicySpec{{PolicySpec: tc.policy}},
+			})
+			if tc.wantErrContains != "" {
+				require.ErrorContains(t, err, tc.wantErrContains)
+				return
+			}
+			require.NoError(t, err)
+			// Both include and exclude labels must be tracked as in-use so a
+			// referenced label can't be silently deleted.
+			for _, l := range tc.wantLabels {
+				require.Contains(t, usage, l)
+			}
+		})
+	}
 }

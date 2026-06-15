@@ -381,6 +381,9 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label D",
 					}},
+					LabelsExcludeAll: []fleet.LabelIdent{{
+						LabelName: "Label E",
+					}},
 					Type: fleet.PolicyTypeDynamic,
 				},
 			},

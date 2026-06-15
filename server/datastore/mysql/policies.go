@@ -165,7 +165,7 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		WHERE name IN (?)
 	`
 
-	if err := policy.Verify(); err != nil {
+	if err := policy.VerifyLabelScopes(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
 	}
 
