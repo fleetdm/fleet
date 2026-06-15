@@ -1,12 +1,28 @@
 package service
 
 import (
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// TestPSSONonceEndpointAcceptsFormBody guards against the nonce request struct
+// losing its DecodeBody: Apple's AppSSOAgent POSTs a urlencoded
+// grant_type=srv_challenge form, and without a body-decoder the framework
+// falls through to JSON decoding and rejects it with a 400.
+func TestPSSONonceEndpointAcceptsFormBody(t *testing.T) {
+	decode := makeDecoder(pssoNonceRequest{}, 1<<20)
+
+	for _, body := range []string{"grant_type=srv_challenge", ""} {
+		r := httptest.NewRequest("POST", "/api/mdm/apple/psso/nonce", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		_, err := decode(t.Context(), r)
+		require.NoError(t, err, "body %q", body)
+	}
+}
 
 func TestPSSORegistrationRequestDecodeBody(t *testing.T) {
 	pem := "-----BEGIN PUBLIC KEY-----\nMFkw+abc/def=\n-----END PUBLIC KEY-----"

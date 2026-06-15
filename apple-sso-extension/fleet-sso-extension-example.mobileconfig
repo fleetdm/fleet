@@ -7,8 +7,6 @@
 		<dict>
 			<key>ExtensionData</key>
 			<dict>
-				<!-- The only Fleet-specific setting: the Fleet server URL.
-				     All Platform SSO endpoints are derived from it. -->
 				<key>BaseURL</key>
 				<string>https://fleet.example.com</string>
 			</dict>

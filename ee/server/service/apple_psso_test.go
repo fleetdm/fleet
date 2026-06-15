@@ -35,7 +35,7 @@ func configuredPSSOSettings() *fleet.PSSOSettings {
 		IssuerURL:       "https://fleet.example.com",
 		IdPTokenURL:     "https://idp.example.com/oauth2/v1/token",
 		IdPClientID:     "client-id",
-		IdPClientSecret: "client-secret",
+		IdPClientSecret: "client-secret", //nolint:gosec // G101: test value only
 	}
 }
 

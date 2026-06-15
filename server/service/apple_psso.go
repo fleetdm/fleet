@@ -22,7 +22,7 @@ import (
 const (
 	pssoNoncePath        = "/api/mdm/apple/psso/nonce"
 	pssoRegistrationPath = "/api/mdm/apple/psso/registration"
-	pssoTokenPath        = "/api/mdm/apple/psso/token"
+	pssoTokenPath        = "/api/mdm/apple/psso/token" //nolint:gosec // G101 false positive, this is a URL path
 	pssoJWKSPath         = "/api/mdm/apple/psso/jwks"
 	pssoAASAPath         = "/.well-known/apple-app-site-association"
 )
@@ -37,6 +37,15 @@ const pssoContentTypeLoginResponse = "application/platformsso-login-response+jwt
 
 type pssoNonceRequest struct{}
 
+// DecodeBody ignores the request body. Apple's AppSSOAgent POSTs a urlencoded
+// grant_type=srv_challenge form to the nonce endpoint, but Fleet needs nothing
+// from it — it just mints a nonce. The method must exist so the endpoint
+// framework routes the form body here instead of falling through to JSON
+// decoding, which rejects the form as malformed.
+func (pssoNonceRequest) DecodeBody(context.Context, io.Reader, url.Values, []*x509.Certificate) error {
+	return nil
+}
+
 type pssoNonceResponse struct {
 	// Nonce is PascalCase on the wire: Apple's AppSSOAgent consumes this
 	// response directly and expects the capitalized key.
@@ -46,7 +55,7 @@ type pssoNonceResponse struct {
 
 func (r pssoNonceResponse) Error() error { return r.Err }
 
-func pssoNonceEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func pssoNonceEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
 	nonce, err := svc.PSSONonce(ctx)
 	if err != nil {
 		return pssoNonceResponse{Err: err}, nil
@@ -85,7 +94,7 @@ func (r pssoRegistrationResponse) Error() error { return r.Err }
 
 func (r pssoRegistrationResponse) Status() int { return http.StatusNoContent }
 
-func pssoRegistrationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func pssoRegistrationEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*pssoRegistrationRequest)
 	if err := svc.PSSORegisterDevice(ctx, req.PSSODeviceRegistrationRequest); err != nil {
 		return pssoRegistrationResponse{Err: err}, nil
@@ -131,7 +140,7 @@ func (r pssoTokenResponse) HijackRender(ctx context.Context, w http.ResponseWrit
 	}
 }
 
-func pssoTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func pssoTokenEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*pssoTokenRequest)
 	out, err := svc.PSSOToken(ctx, []byte(req.Assertion))
 	if err != nil {
@@ -160,7 +169,7 @@ func (r pssoJWKSResponse) HijackRender(ctx context.Context, w http.ResponseWrite
 	}
 }
 
-func pssoJWKSEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func pssoJWKSEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
 	body, err := svc.PSSOJWKS(ctx)
 	if err != nil {
 		return pssoJWKSResponse{Err: err}, nil
