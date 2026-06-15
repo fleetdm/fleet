@@ -27432,7 +27432,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		Version:         "99.0.0",
 		StorageID:       computeSHA([]byte(installerContent)),
 		SelfService:     true,
-		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		Title:           "Cloudflare One Client", // windows installer, so Fleet does software title matching on this field
 		InstallScript:   "install",
 		UninstallScript: "uninstall",
 		Source:          "programs",
@@ -27652,7 +27652,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"],
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"],
 			"warp should be rolled back to v2.0")
 		require.Equal(t, "3.0", activeVersions["Zoom Workplace (X64)"],
 			"zoom should remain at v3.0 (not rolled back)")
@@ -27678,7 +27678,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"], "warp should still be at v2.0")
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"], "warp should still be at v2.0")
 		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
 	})
 

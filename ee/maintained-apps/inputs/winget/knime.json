@@ -1,0 +1,13 @@
+{
+  "name": "KNIME Analytics Platform",
+  "slug": "knime/windows",
+  "package_identifier": "Knime.AnalyticsPlatform.LTS",
+  "unique_identifier": "KNIME Analytics Platform",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/knime_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/knime_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
