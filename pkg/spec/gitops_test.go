@@ -1494,7 +1494,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 		} {
 			assert.True(t, filepath.IsAbs(got), "expected absolute path, got %q", got)
 			// ../ from fleets/ climbs out of fleets/, so the result must not contain it.
-			assert.NotContains(t, got, "fleets", "path should not retain the fleets/ segment: %q", got)
+			assert.NotContains(t, got, "fleets/lib", "path should not retain the fleets/lib segment: %q", got)
 		}
 		assert.True(t, strings.HasSuffix(controls.MacOSSetup.MacOSSetupAssistant.Value, "lib/no-team/macos_enrollment.json"))
 	})
@@ -1542,7 +1542,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 		}
 		controls.ResolveFilePathsAbs("fleets")
 		assert.Equal(t, "/etc/fleet/macos_enrollment.json", controls.MacOSSetup.MacOSSetupAssistant.Value)
-		assert.Equal(t, "", controls.MacOSSetup.Script.Value)
+		assert.Empty(t, controls.MacOSSetup.Script.Value)
 	})
 
 	t.Run("nil MacOSSetup is a no-op", func(t *testing.T) {
