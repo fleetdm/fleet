@@ -598,24 +598,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
-		}
-		// PSSO POC wiring: attach the Redis-backed nonce store and the OIDC
-		// ROPG IdP client to the ee service. These are wired via setters so
-		// the eeservice.NewService signature doesn't churn for an
-		// optional feature.
-		if eesvc, ok := svc.(*eeservice.Service); ok {
-			eesvc.SetPSSONonceStore(psso.NewRedisNonceStore(redisPool))
-			if cfg := appCfg.PSSOSettings; cfg != nil {
-				eesvc.SetPSSOIdPClient(eeservice.PSSOOIDCROPGClient{
-					TokenURL:     cfg.IdPTokenURL,
-					ClientID:     cfg.IdPClientID,
-					ClientSecret: cfg.IdPClientSecret,
-					Scopes:       cfg.IdPScopes,
-				})
-			}
 		}
 	}
 

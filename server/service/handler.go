@@ -1077,6 +1077,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+
+	// Apple Platform SSO (PSSO) endpoints, used by Fleet's Platform SSO
+	// extension. Unauthenticated at the HTTP layer: the token endpoint
+	// authenticates protocol-level via JWTs signed with registered device
+	// keys, and all endpoints are gated in the service layer on the feature
+	// being configured. Request bodies are capped at the endpointer's default
+	// size limit. The related /.well-known/apple-app-site-association document
+	// is served from the root mux (see registerPSSO).
+	ne.POST(pssoNoncePath, pssoNonceEndpoint, pssoNonceRequest{})
+	ne.POST(pssoRegistrationPath, pssoRegistrationEndpoint, pssoRegistrationRequest{})
+	ne.POST(pssoTokenPath, pssoTokenEndpoint, pssoTokenRequest{})
+	ne.GET(pssoJWKSPath, pssoJWKSEndpoint, pssoJWKSRequest{})
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
 
@@ -1337,16 +1349,13 @@ func registerPSSO(
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
-	// Apple Platform SSO (PSSO) endpoints. Paths follow the SCEP convention
-	// (no /api/ prefix, no version). The Mac extension talks to these directly;
-	// auth is via signed JWTs verified inside the token handler. We register
-	// directly on the root *http.ServeMux (not the versioned /api router) so
-	// the paths Apple's framework expects (`/.well-known/...`, raw protocol
-	// paths) resolve without any prefix rewriting.
+	// Only the apple-app-site-association document is served from the root
+	// *http.ServeMux: Apple's CDN fetches it at a spec-defined /.well-known
+	// path that can't live under /api. The rest of the PSSO endpoints are
+	// registered on the unauthenticated endpointer in attachFleetAPIRoutes.
 	pssoLogger := logger.With("component", "mdm-apple-psso")
-	for path, handler := range pssoHandlers(svc, pssoLogger) {
-		mux.Handle(path, otel.WrapHandler(handler, path, fleetConfig))
-	}
+	handler := pssoAASAHandler(svc, pssoLogger)
+	mux.Handle(pssoAASAPath, otel.WrapHandler(handler, pssoAASAPath, fleetConfig))
 	return nil
 }
 

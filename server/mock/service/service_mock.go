@@ -942,9 +942,7 @@ type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
 type PSSONonceFunc func(ctx context.Context) (string, error)
 
-type PSSORegisterBeginFunc func(ctx context.Context) (string, error)
-
-type PSSORegisterCompleteFunc func(ctx context.Context, req fleet.PSSORegisterRequest) error
+type PSSORegisterDeviceFunc func(ctx context.Context, req fleet.PSSODeviceRegistrationRequest) error
 
 type PSSOTokenFunc func(ctx context.Context, jwtBytes []byte) ([]byte, error)
 
@@ -2336,11 +2334,8 @@ type Service struct {
 	PSSONonceFunc        PSSONonceFunc
 	PSSONonceFuncInvoked bool
 
-	PSSORegisterBeginFunc        PSSORegisterBeginFunc
-	PSSORegisterBeginFuncInvoked bool
-
-	PSSORegisterCompleteFunc        PSSORegisterCompleteFunc
-	PSSORegisterCompleteFuncInvoked bool
+	PSSORegisterDeviceFunc        PSSORegisterDeviceFunc
+	PSSORegisterDeviceFuncInvoked bool
 
 	PSSOTokenFunc        PSSOTokenFunc
 	PSSOTokenFuncInvoked bool
@@ -5581,18 +5576,11 @@ func (s *Service) PSSONonce(ctx context.Context) (string, error) {
 	return s.PSSONonceFunc(ctx)
 }
 
-func (s *Service) PSSORegisterBegin(ctx context.Context) (string, error) {
+func (s *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODeviceRegistrationRequest) error {
 	s.mu.Lock()
-	s.PSSORegisterBeginFuncInvoked = true
+	s.PSSORegisterDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.PSSORegisterBeginFunc(ctx)
-}
-
-func (s *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegisterRequest) error {
-	s.mu.Lock()
-	s.PSSORegisterCompleteFuncInvoked = true
-	s.mu.Unlock()
-	return s.PSSORegisterCompleteFunc(ctx, req)
+	return s.PSSORegisterDeviceFunc(ctx, req)
 }
 
 func (s *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error) {

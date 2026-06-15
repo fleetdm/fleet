@@ -21,23 +21,12 @@ import (
 // pull the user's claims from.
 const defaultOIDCScopes = "openid profile email"
 
+// maxOIDCTokenResponseSize bounds how much of the IdP token response Fleet
+// will read. Real responses (id_token + refresh_token JSON) are a few KB.
+const maxOIDCTokenResponseSize = 1 << 20 // 1 MiB
+
 // PSSOOIDCROPGClient validates passwords against any OIDC IdP that exposes
-// the OAuth2 Resource Owner Password Grant on its token endpoint. The POC
-// has been exercised against Okta first; Entra ID, Auth0, Keycloak, and
-// other providers that allow ROPG will work with no code changes, only
-// different TokenURL values.
-//
-// Known limitations:
-//   - Okta: ROPG must be explicitly enabled on the application ("Allowed
-//     Grant Types → Resource Owner Password" in the Okta app config), and
-//     the app type must be Native or Service. SPAs and standard web apps
-//     reject the grant.
-//   - Entra: MFA-required users fail with conditional access errors;
-//     federated (AD FS) users are not supported. Both are upstream
-//     constraints, not Fleet bugs.
-//   - All providers: ROPG is widely considered deprecated for new
-//     deployments. Use a different PSSOIdPClient implementation (e.g. LDAP
-//     bind) if your IdP doesn't support it.
+// the OAuth2 Resource Owner Password Grant on its token endpoint
 type PSSOOIDCROPGClient struct {
 	// TokenURL is the full URL of the IdP's token endpoint.
 	TokenURL     string
@@ -101,7 +90,9 @@ func (c PSSOOIDCROPGClient) ValidatePasswordAndGetClaims(ctx context.Context, us
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	// Cap the read so a misbehaving (or misconfigured) IdP can't exhaust
+	// memory; a token response is a few KB.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxOIDCTokenResponseSize))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read oidc ropg response")
 	}

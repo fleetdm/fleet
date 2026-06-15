@@ -56,56 +56,40 @@ type PSSOClaims struct {
 // PSSOIdPClient validates a username/password pair against the upstream IdP
 // and returns OIDC-shaped claims on success. The shipped implementation is a
 // generic OIDC ROPG client (Okta-first, also tested against Entra and other
-// providers); a deterministic test stub is also provided.
+// providers).
 type PSSOIdPClient interface {
 	ValidatePasswordAndGetClaims(ctx context.Context, username, password string) (*PSSOClaims, error)
 }
 
 // PSSONonceStore is a short-lived store for the nonces issued by the PSSO
-// /nonce endpoint and consumed in registration and token flows. The Redis
+// nonce endpoint and consumed (single-use) on every token request. The Redis
 // implementation lives in server/mdm/psso/internal/redis_nonces_store.
 type PSSONonceStore interface {
 	Store(ctx context.Context, nonce string, ttl time.Duration) error
 	Consume(ctx context.Context, nonce string) (ok bool, err error)
 }
 
-// PSSORegisterRequest carries the device-key enrollment the Mac extension
-// POSTs to /mdm/apple/psso/register. In Password mode this is a pure key
-// registration: the extension generates Secure Enclave signing + encryption
-// keypairs and submits the public halves plus their kids and the hardware
-// device UUID. There is no OAuth code/state — user identity is established
-// later at each password login. Field names match the form keys the extension
-// constructs (signPubKey/encPubKey carry the PEM-encoded public keys).
-type PSSORegisterRequest struct {
-	DeviceUUID          string `json:"deviceUUID"           form:"deviceUUID"`
-	DeviceSigningKey    string `json:"deviceSigningKey"     form:"signPubKey"`
-	DeviceEncryptionKey string `json:"deviceEncryptionKey"  form:"encPubKey"`
-	SignKeyID           string `json:"signKeyID"            form:"signKeyID"`
-	EncKeyID            string `json:"encKeyID"             form:"encKeyID"`
+// PSSODeviceRegistrationRequest carries the device-key enrollment the Mac
+// extension POSTs to the PSSO registration endpoint. In Password mode this is
+// a pure key registration: the extension generates Secure Enclave signing +
+// encryption keypairs and submits the public halves plus their kids and the
+// hardware device UUID. User identity is established later, at each password
+// login on the token endpoint.
+type PSSODeviceRegistrationRequest struct {
+	DeviceUUID          string `json:"device_uuid"`
+	DeviceSigningKey    string `json:"device_signing_key"`
+	DeviceEncryptionKey string `json:"device_encryption_key"`
+	SigningKeyID        string `json:"signing_key_id"`
+	EncryptionKeyID     string `json:"encryption_key_id"`
 }
 
-// PSSOSettings holds the global Apple Platform SSO configuration: which
-// extension to bind to, what upstream OIDC IdP to proxy password validation
-// to, and Fleet's own issuer URL.
-//
-// IdP-side fields are generic OAuth2/OIDC — Fleet just needs the authorize
-// and token URLs plus client credentials. The POC has been exercised against
-// Okta first; Entra ID, Google, and any other OIDC provider that exposes
-// ROPG (grant_type=password) on its token endpoint should work with no code
-// changes, only different URLs.
-//
-// TODO: IdPClientSecret needs masking on API responses before this leaves
-// the POC stage — model the existing AppConfig secret-masking pattern.
+// PSSOSettings holds the global Apple Platform SSO configuration. IdP-side fields
+// are generic OAuth2/OIDC — Fleet just needs the token URL plus client credentials.
 type PSSOSettings struct {
 	// Enabled toggles the PSSO endpoints on/off at the service layer.
 	Enabled bool `json:"enabled"`
 	// IssuerURL is the Fleet base URL the extension talks to (e.g. https://fleet.example.com).
 	IssuerURL string `json:"issuer_url"`
-	// IdPAuthorizeURL is the upstream OIDC authorize endpoint used during
-	// device registration (browser auth code flow).
-	// Okta example:  https://dev-12345.okta.com/oauth2/default/v1/authorize
-	// Entra example: https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize
-	IdPAuthorizeURL string `json:"idp_authorize_url"`
 	// IdPTokenURL is the upstream OIDC token endpoint used for the
 	// ROPG (grant_type=password) flow at sign-in.
 	// Okta example:  https://dev-12345.okta.com/oauth2/default/v1/token

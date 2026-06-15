@@ -24,6 +24,7 @@ apple-sso-extension/
 │   ├── AuthenticationViewController.swift
 │   ├── AuthenticationViewController+PSSO.swift
 │   ├── AuthenticationViewController+Shared.swift
+│   ├── AuthenticationViewController+Networking.swift
 │   ├── Info.plist
 │   └── FleetPSSOExtension.entitlements
 └── README.md
@@ -35,29 +36,28 @@ launching it once is enough for macOS to discover the bundled
 
 ## How it fits with Fleet's server
 
-The Fleet Go server exposes (paths are illustrative — confirm against
-the actual handler registrations):
+The Fleet server exposes the Platform SSO endpoints under
+`/api/mdm/apple/psso/`:
 
-- `IssuerHostname`           — issuer string returned in JWTs
-- `NonceEndpoint`            — single-use nonces for PSSO requests
-- `JwksEndpoint`             — IdP public keys
-- `TokenEndpoint`            — password-grant token exchange
-- `RegistrationEndpoint`     — device registration callback
+- `POST /api/mdm/apple/psso/nonce`        — single-use nonces for token requests
+- `POST /api/mdm/apple/psso/registration` — device key registration
+- `POST /api/mdm/apple/psso/token`        — password login / key request / key exchange
+- `GET  /api/mdm/apple/psso/jwks`         — Fleet's PSSO signing public key
 
-The extension picks these up from `loginManager.extensionData`, i.e.
-the *second* arbitrary dictionary in the extensible-SSO profile.
+The extension derives all of them from the single `BaseURL` value in
+`loginManager.extensionData`, i.e. the arbitrary dictionary in the
+extensible-SSO profile. The issuer/audience is the BaseURL's bare
+hostname.
 
 ## Configuration profile
 
 Install a `com.apple.extensiblesso` profile referencing the extension
-bundle ID and Team ID, with an `ExtensionData` dict that includes:
+bundle ID and Team ID, with an `ExtensionData` dict that includes only
+the Fleet server URL (see `fleet-sso-extension-example.mobileconfig`
+for a complete profile):
 
 ```xml
-<key>IssuerHostname</key>      <string>fleet.example.com</string>
-<key>NonceEndpoint</key>       <string>https://fleet.example.com/api/v1/fleet/psso/nonce</string>
-<key>JwksEndpoint</key>        <string>https://fleet.example.com/api/v1/fleet/psso/jwks</string>
-<key>TokenEndpoint</key>       <string>https://fleet.example.com/api/v1/fleet/psso/token</string>
-<key>RegistrationEndpoint</key><string>https://fleet.example.com/api/v1/fleet/psso/register</string>
+<key>BaseURL</key> <string>https://fleet.example.com</string>
 ```
 
 The hostname must also be served as an Apple App Site Association
