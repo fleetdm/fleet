@@ -23,6 +23,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
+		{"ListAvailableAppsByNameAndFilters", testListAvailableAppsByNameAndFilters},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
@@ -60,11 +61,11 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
+	require.ElementsMatch(t, expectedAppsBaseInfo, listSavedApps())
 
 	// ingesting again results in no changes
 	maintainedappstest.SyncApps(t, ds)
-	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
+	require.ElementsMatch(t, expectedAppsBaseInfo, listSavedApps())
 
 	// upsert the figma app, changing the version
 	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -82,7 +83,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
+	require.ElementsMatch(t, expectedAppsBaseInfo, listSavedApps())
 }
 
 func testSync(t *testing.T, ds *Datastore) {
@@ -106,7 +107,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Testing search that returns no results; nothing inserted yet case
-	_, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	_, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.ErrorIs(t, err, &fleet.NoMaintainedAppsInDatabaseError{})
 
 	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -175,21 +176,21 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	}
 
 	// Testing pagination
-	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 	require.False(t, meta.HasNextResults)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps[:1], apps)
 	require.True(t, meta.HasNextResults)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -197,7 +198,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -205,7 +206,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 3, IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 3, IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -214,7 +215,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.True(t, meta.HasPreviousResults)
 
 	// Testing search
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{MatchQuery: "Maintained4", IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{MatchQuery: "Maintained4", IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, 1, meta.TotalResults)
@@ -223,7 +224,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.False(t, meta.HasPreviousResults)
 
 	// Testing search that returns no results; non-error case
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{MatchQuery: "Maintained5", IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{MatchQuery: "Maintained5", IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 0)
 	require.EqualValues(t, 0, meta.TotalResults)
@@ -246,7 +247,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -265,7 +266,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -284,7 +285,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -300,7 +301,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -317,7 +318,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, maintained1, gotApp)
 
 	// we haven't added the windows app yet, so we shouldn't have a title ID for it
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -335,7 +336,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -366,7 +367,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID)
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -386,7 +387,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -407,7 +408,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID)
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -421,7 +422,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -434,7 +435,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, maintained2, gotApp)
 
 	// viewing with no team selected shouldn't include any title IDs
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{IncludeMetadata: true})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, meta.TotalResults, 4)
@@ -455,14 +456,14 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	for _, key := range []string{"id", "name", "platform", "slug"} {
 		t.Run("order_"+key, func(t *testing.T) {
-			result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: key, PerPage: 10, IncludeMetadata: true})
+			result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10, IncludeMetadata: true}})
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
 		})
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: "h.node_key", IncludeMetadata: true})
+		_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: "h.node_key", IncludeMetadata: true}})
 		require.Error(t, err)
 	})
 }
@@ -597,7 +598,7 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 			Slug:     "maintained2",
 		},
 	}
-	apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	require.Nil(t, apps[0].TitleID)
@@ -638,13 +639,122 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the windows app should be found using using name, because the existing software title has an upgrade code
-	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	require.NotNil(t, apps[0].TitleID)
 	require.Equal(t, titleID, *apps[0].TitleID)
 	// the darwin app should not be matched by name
 	require.Nil(t, apps[1].TitleID)
+}
+
+// testListAvailableAppsByNameAndFilters verifies that the list paginates and
+// counts by distinct app NAME (an app's macOS and Windows entries are combined
+// into one logical app in the UI), and that the platform and available-only
+// filters work server-side.
+func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Filters"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Filter Tester", "filters@example.com", true)
+
+	mkApp := func(name, slug, platform, ident string) *fleet.MaintainedApp {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: slug, Platform: platform, UniqueIdentifier: ident,
+		})
+		require.NoError(t, err)
+		return app
+	}
+	// Alpha and Delta exist on both platforms; Beta is macOS-only; Gamma is
+	// Windows-only. That's 4 distinct apps across 6 rows.
+	mkApp("Alpha", "alpha/darwin", "darwin", "com.example.alpha")
+	mkApp("Alpha", "alpha/windows", "windows", "Alpha (MSI)")
+	beta := mkApp("Beta", "beta/darwin", "darwin", "com.example.beta")
+	mkApp("Gamma", "gamma/windows", "windows", "Gamma (MSI)")
+	mkApp("Delta", "delta/darwin", "darwin", "com.example.delta")
+	mkApp("Delta", "delta/windows", "windows", "Delta (MSI)")
+
+	appNames := func(apps []fleet.MaintainedApp) []string {
+		out := make([]string, len(apps))
+		for i, a := range apps {
+			out[i] = a.Name
+		}
+		return out
+	}
+	listOpts := func(o fleet.ListOptions) fleet.MaintainedAppListOptions {
+		o.IncludeMetadata = true
+		return fleet.MaintainedAppListOptions{ListOptions: o}
+	}
+
+	// Unfiltered: 4 distinct apps (the count), 6 rows returned.
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{}))
+	require.NoError(t, err)
+	require.EqualValues(t, 4, meta.TotalResults)
+	require.Len(t, apps, 6)
+	require.False(t, meta.HasNextResults)
+
+	// Pagination is by app name: a page of 2 names that includes a dual-platform
+	// app returns ALL of that app's rows, so an app is never split across a page
+	// boundary. Page 0 => Alpha (darwin+windows) + Beta (darwin) = 3 rows.
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{PerPage: 2}))
+	require.NoError(t, err)
+	require.EqualValues(t, 4, meta.TotalResults)
+	require.True(t, meta.HasNextResults)
+	require.False(t, meta.HasPreviousResults)
+	require.Equal(t, []string{"Alpha", "Alpha", "Beta"}, appNames(apps))
+
+	// Page 1 => Delta (darwin+windows) + Gamma (windows) = 3 rows.
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{PerPage: 2, Page: 1}))
+	require.NoError(t, err)
+	require.True(t, meta.HasPreviousResults)
+	require.False(t, meta.HasNextResults)
+	require.Equal(t, []string{"Delta", "Delta", "Gamma"}, appNames(apps))
+
+	// Platform filter (darwin): keeps apps that have a macOS entry (Alpha, Beta,
+	// Delta) and returns all of their rows so the UI can still show both columns.
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "darwin", ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.ElementsMatch(t, []string{"Alpha", "Alpha", "Beta", "Delta", "Delta"}, appNames(apps))
+
+	// Platform filter (windows): keeps Alpha, Gamma, Delta.
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "windows", ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.ElementsMatch(t, []string{"Alpha", "Alpha", "Gamma", "Delta", "Delta"}, appNames(apps))
+
+	// Add Beta (macOS-only) to the team so it is no longer "available".
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            beta.Name,
+		TeamID:           &team.ID,
+		InstallScript:    "nothing",
+		Filename:         "beta.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: beta.UniqueIdentifier,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Available-only hides Beta (its only platform is added) but keeps the other
+	// three apps, which still have at least one not-yet-added platform.
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.NotContains(t, appNames(apps), "Beta")
+
+	// Without the filter, Beta is still listed (as added).
+	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{}))
+	require.NoError(t, err)
+	require.Contains(t, appNames(apps), "Beta")
+
+	// Platform and available-only combine: macOS apps not yet added are Alpha
+	// and Delta (Beta's macOS entry is added; Gamma has no macOS entry).
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "darwin", AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, meta.TotalResults)
+	require.ElementsMatch(t, []string{"Alpha", "Alpha", "Delta", "Delta"}, appNames(apps))
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {

@@ -65,9 +65,9 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	err := maintained_apps.SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{
-		OrderKey: "slug",
-	})
+	// The list endpoint paginates and orders by app name; this helper returns
+	// the full set for tests, which should not depend on the order.
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 	return apps
 }
@@ -119,7 +119,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = maintained_apps.SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	originalApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	originalApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 
 	require.Len(t, originalApps, len(appsFile.Apps))
@@ -131,7 +131,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = maintained_apps.SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	modifiedApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	modifiedApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 
 	require.Len(t, modifiedApps, len(appsFile.Apps))
@@ -148,7 +148,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = maintained_apps.SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.ErrorIs(t, err, &fleet.NoMaintainedAppsInDatabaseError{})
 	require.Empty(t, modifiedApps)
 }

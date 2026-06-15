@@ -1157,7 +1157,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 			},
 		}, 3, nil, nil
 	}
-	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 		return []fleet.MaintainedApp{
 			{ID: 100, Slug: "zoom/darwin"},
 		}, nil, nil

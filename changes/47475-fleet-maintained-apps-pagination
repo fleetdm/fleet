@@ -1,0 +1,1 @@
+- Fixed the Fleet-maintained apps list being cut off so that apps near the end of the alphabet were unreachable. The list is now paginated (500 apps per page), and the platform and "Hide added apps" filters are applied across the full library instead of only the loaded apps.
