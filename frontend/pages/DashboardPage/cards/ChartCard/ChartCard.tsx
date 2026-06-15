@@ -79,32 +79,22 @@ const formatList = (items: string[]): string => {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
-const softwareFilterTooltip = (filters: IChartFilterState): JSX.Element => {
-  const lines: string[] = [];
-  const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
-    filters.softwareFilters.includes(c.value)
-  ).map((c) => c.tooltipLabel);
-  if (cats.length) lines.push(formatList(cats));
-  if (filters.knownExploit) lines.push("Known exploits only");
-  if (
-    isEpssActive(filters.epssMin, filters.epssMax) ||
-    filters.excludeCVEs.length > 0
-  ) {
-    lines.push("Advanced filters");
-  }
-  return (
-    <>
-      {lines.map((line) => (
-        <div key={line}>{line}</div>
-      ))}
-    </>
-  );
+// Maps platform filter values to their display names for the tooltip.
+const PLATFORM_LABELS: Record<string, string> = {
+  darwin: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
 };
 
-const hostFilterTooltip = (filters: IChartFilterState): JSX.Element => {
+const hostFilterLines = (filters: IChartFilterState): string[] => {
   const lines: string[] = [];
+  if (filters.platforms.length > 0) {
+    lines.push(
+      formatList(filters.platforms.map((p) => PLATFORM_LABELS[p] ?? p))
+    );
+  }
   if (filters.labelIDs.length > 0) lines.push("Labels");
-  if (filters.platforms.length > 0) lines.push("Platforms");
   if (
     filters.hostFilterMode === "include" &&
     filters.selectedHosts.length > 0
@@ -117,11 +107,49 @@ const hostFilterTooltip = (filters: IChartFilterState): JSX.Element => {
   ) {
     lines.push("Excluded hosts");
   }
+  return lines;
+};
+
+const softwareFilterLines = (filters: IChartFilterState): string[] => {
+  const lines: string[] = [];
+  const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
+    filters.softwareFilters.includes(c.value)
+  ).map((c) => c.tooltipLabel);
+  if (cats.length) lines.push(formatList(cats));
+  if (filters.knownExploit) lines.push("Known exploits only");
+  if (
+    isEpssActive(filters.epssMin, filters.epssMax) ||
+    filters.excludeCVEs.length > 0
+  ) {
+    lines.push("Advanced filters");
+  }
+  return lines;
+};
+
+// A single consolidated tooltip summarizing every active filter, grouped into
+// "Hosts" and "Software" sections. Each section is omitted when it has no
+// active filters; software filters only apply to the cve dataset.
+const filterTooltip = (
+  filters: IChartFilterState,
+  isCVE: boolean
+): JSX.Element => {
+  const hostLines = hostFilterLines(filters);
+  const softwareLines = isCVE ? softwareFilterLines(filters) : [];
+  const renderSection = (header: string, lines: string[]) =>
+    lines.length > 0 ? (
+      <div className={`${baseClass}__tooltip-section`}>
+        <div className={`${baseClass}__tooltip-section-header`}>{header}</div>
+        {lines.map((line) => (
+          <div key={line} className={`${baseClass}__tooltip-section-line`}>
+            {line}
+          </div>
+        ))}
+      </div>
+    ) : null;
   return (
     <>
-      {lines.map((line) => (
-        <div key={line}>{line}</div>
-      ))}
+      {renderSection("Hosts", hostLines)}
+      {renderSection("Software", softwareLines)}
     </>
   );
 };
@@ -211,6 +239,11 @@ const ChartCard = ({
 
   const currentDataset = getDataset(selectedMetric);
 
+  const isCVE = currentDataset.name === "cve";
+  const hostFiltersActive = hasActiveHostFilters(chartFilters);
+  const softwareFiltersActive = isCVE && hasActiveSoftwareFilters(chartFilters);
+  const anyFiltersActive = hostFiltersActive || softwareFiltersActive;
+
   const datasetConfigKey = DATASET_CONFIG_KEY[currentDataset.name];
   // If a dataset has no config-key mapping (future addition), treat it as
   // enabled — collection toggles only apply to known config keys.
@@ -220,7 +253,6 @@ const ChartCard = ({
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
   const queryParams: IChartApiParams = useMemo(() => {
-    const isCVE = selectedMetric === "cve";
     // Only narrow categories when not all are selected; EPSS only narrows when
     // min > 0 or max < 100. The Software tab enters EPSS as 0–100 %, but the
     // API takes 0.0–1.0, so divide before sending.
@@ -268,7 +300,7 @@ const ChartCard = ({
           ? chartFilters.excludeCVEs.join(",")
           : undefined,
     };
-  }, [chartFilters, currentTeamId, selectedMetric]);
+  }, [chartFilters, currentTeamId, isCVE]);
 
   const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,
@@ -374,27 +406,9 @@ const ChartCard = ({
               <Icon name="info-outline" />
             </TooltipWrapper>
           )}
-          {currentDataset.name === "cve" &&
-            hasActiveSoftwareFilters(chartFilters) && (
-              <TooltipWrapper
-                tipContent={softwareFilterTooltip(chartFilters)}
-                position="top"
-                underline={false}
-                showArrow
-                tipOffset={8}
-              >
-                <button
-                  type="button"
-                  className={`${baseClass}__filter-pill`}
-                  onClick={() => openFilterModal("software")}
-                >
-                  Software filtered
-                </button>
-              </TooltipWrapper>
-            )}
-          {hasActiveHostFilters(chartFilters) && (
+          {anyFiltersActive && (
             <TooltipWrapper
-              tipContent={hostFilterTooltip(chartFilters)}
+              tipContent={filterTooltip(chartFilters, isCVE)}
               position="top"
               underline={false}
               showArrow
@@ -403,9 +417,11 @@ const ChartCard = ({
               <button
                 type="button"
                 className={`${baseClass}__filter-pill`}
-                onClick={() => openFilterModal("hosts")}
+                onClick={() =>
+                  openFilterModal(hostFiltersActive ? "hosts" : "software")
+                }
               >
-                Hosts filtered
+                Filtered
               </button>
             </TooltipWrapper>
           )}

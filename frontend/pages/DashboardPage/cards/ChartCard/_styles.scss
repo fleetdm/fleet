@@ -95,21 +95,8 @@
     }
   }
 
-  &__filtered-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 10px;
-    font-size: $xx-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 12px;
-    background: $core-fleet-white;
-    white-space: nowrap;
-  }
-
-  // Clickable variant of the filtered badge — opens the Settings modal to the
-  // matching tab. Shares the badge's pill appearance.
+  // Clickable filtered badge — opens the Settings modal to the first tab with
+  // active filters.
   &__filter-pill {
     display: inline-flex;
     align-items: center;
@@ -171,6 +158,25 @@
   }
 
   &__tooltip-value {
+    font-weight: $bold;
+  }
+
+  // Consolidated filter tooltip: "Hosts" / "Software" sections, each with a
+  // muted header above its active-filter value lines.
+  &__tooltip-section {
+    text-align: left;
+
+    & + & {
+      margin-top: $pad-small;
+    }
+  }
+
+  &__tooltip-section-header {
+    font-weight: $regular;
+    opacity: 0.8;
+  }
+
+  &__tooltip-section-line {
     font-weight: $bold;
   }
 
