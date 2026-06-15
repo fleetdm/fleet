@@ -3,17 +3,20 @@
 # fallback, then runs the Chromium uninstaller with --force-uninstall.
 
 $displayName = "Vivaldi"
+$publisher = "Vivaldi Technologies AS."
 
+# Install is machine-wide (--system-level), which registers under HKLM, so look
+# there first. HKCU is only a fallback for a stale user-level install.
 $paths = @(
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 
 $uninstall = $null
 foreach ($p in $paths) {
   $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -and $_.DisplayName -eq $displayName
+    $_.DisplayName -eq $displayName -and $_.Publisher -eq $publisher
   }
   if ($items) { $uninstall = $items | Select-Object -First 1; break }
 }
@@ -33,10 +36,21 @@ $uninstallCommand = if ($uninstall.QuietUninstallString) {
   $uninstall.UninstallString
 }
 
-# Parse quoted executable from any trailing args in the registry string
-$splitArgs = $uninstallCommand.Split('"')
-$exe = $splitArgs[1]
-$existingArgs = if ($splitArgs.Length -eq 3) { $splitArgs[2].Trim() } else { "" }
+# Parse the executable + trailing args, handling the three registry shapes:
+# quoted, unquoted-with-spaces (capture through .exe), and a bare token.
+if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+  $exe = $Matches[1]
+  $existingArgs = $Matches[2].Trim()
+} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+  $exe = $Matches[1]
+  $existingArgs = $Matches[2].Trim()
+} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+  $exe = $Matches[1]
+  $existingArgs = $Matches[2].Trim()
+} else {
+  Write-Host "Unable to parse uninstall command: $uninstallCommand"
+  Exit 1
+}
 
 # Chromium-based uninstaller flags
 $uninstallArgs = "$existingArgs --uninstall --force-uninstall".Trim()
