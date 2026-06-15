@@ -1,10 +1,7 @@
 {
-  "title": "DB & Connection Observability",
+  "title": "Fleet DB & Connection Observability",
   "description": "MySQL client observability from db.sql.* instrumentation: query rate, latency, error rate, and connection-pool health.",
-  "tags": [
-    "mysql",
-    "database"
-  ],
+  "tags": ["mysql", "database"],
   "variables": {
     "environment": {
       "id": "environment",
@@ -128,7 +125,7 @@
               ],
               "dataSource": "metrics",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -164,7 +161,7 @@
               "disabled": true,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -191,7 +188,7 @@
               "disabled": true,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -267,7 +264,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -387,7 +384,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [
@@ -514,7 +511,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -542,7 +539,7 @@
               "disabled": false,
               "expression": "B",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -669,7 +666,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -789,7 +786,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -909,7 +906,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "status IN (\"idle\") AND deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND status IN (\"idle\") AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1029,7 +1026,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1057,7 +1054,7 @@
               "disabled": false,
               "expression": "B",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1184,7 +1181,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1212,7 +1209,7 @@
               "disabled": false,
               "expression": "B",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1339,7 +1336,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],
@@ -1459,7 +1456,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [],

@@ -66,7 +66,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "result IN ['hit', 'negative_hit'] AND deployment.environment IN $environment" },
+              "filter": { "expression": "service.name = 'fleet' AND result IN ['hit', 'negative_hit'] AND deployment.environment IN $environment" },
               "groupBy": [],
               "orderBy": [],
               "selectColumns": [],
@@ -86,7 +86,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "deployment.environment IN $environment" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [],
               "orderBy": [],
               "selectColumns": [],
@@ -136,7 +136,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "deployment.environment IN $environment" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "result", "dataType": "string", "type": "tag" }
               ],
@@ -180,7 +180,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "deployment.environment IN $environment" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "op", "dataType": "string", "type": "tag" }
               ],
@@ -225,7 +225,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "deployment.environment IN $environment" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "reason", "dataType": "string", "type": "tag" }
               ],

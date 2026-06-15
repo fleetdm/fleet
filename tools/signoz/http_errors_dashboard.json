@@ -63,7 +63,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [
@@ -192,7 +192,7 @@
               "disabled": false,
               "expression": "A",
               "filter": {
-                "expression": "deployment.environment IN $environment"
+                "expression": "service.name = 'fleet' AND deployment.environment IN $environment"
               },
               "functions": [],
               "groupBy": [
