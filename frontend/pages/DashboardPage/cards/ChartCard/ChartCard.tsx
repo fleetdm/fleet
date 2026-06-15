@@ -258,13 +258,13 @@ const ChartCard = ({
         chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
-      software_categories: narrowsCategories
+      software_filters: narrowsCategories
         ? chartFilters.softwareCategories.join(",")
         : undefined,
-      known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
+      has_known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
       epss_min: epssMinActive ? Number(chartFilters.epssMin) / 100 : undefined,
       epss_max: epssMaxActive ? Number(chartFilters.epssMax) / 100 : undefined,
-      exclude_cves:
+      exclude_vulnerabilities:
         isCVE && chartFilters.excludeCVEs.length
           ? chartFilters.excludeCVEs.join(",")
           : undefined,

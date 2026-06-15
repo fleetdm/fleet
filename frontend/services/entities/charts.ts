@@ -14,13 +14,13 @@ export interface IChartFilters {
   exclude_host_ids?: number[];
 
   // CVE entity filters (cve metric only). Echoed back from the API.
-  software_categories?: string[];
-  known_exploit?: boolean;
+  software_filters?: string[];
+  has_known_exploit?: boolean;
   epss_min?: number;
   epss_max?: number;
   severity_min?: number;
   severity_max?: number;
-  exclude_cves?: string[];
+  exclude_vulnerabilities?: string[];
 }
 
 export interface IChartResponse {
@@ -45,13 +45,13 @@ export interface IChartApiParams {
 
   // CVE entity filters (cve metric only). Lists are comma-separated; EPSS is
   // 0.0–1.0 (the Software tab converts from its 0–100 % input before sending).
-  software_categories?: string;
-  known_exploit?: boolean;
+  software_filters?: string;
+  has_known_exploit?: boolean;
   epss_min?: number;
   epss_max?: number;
   severity_min?: number;
   severity_max?: number;
-  exclude_cves?: string;
+  exclude_vulnerabilities?: string;
 }
 
 export interface IChartQueryKey {
