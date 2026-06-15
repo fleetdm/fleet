@@ -708,6 +708,7 @@ function ChainCard({
               now={now}
               externalRunning={externalRunningByStepId?.[s.id] ?? false}
               treatAsIdle={isStepStale(s.id)}
+              actionsDisabled={running}
             />
             {s.id === "fleet-serve" && fleetServePreview}
           </div>
@@ -753,17 +754,19 @@ function deriveStepDisplay(
   // If the user explicitly stopped this process (via stop, stop all, or
   // docker compose down) treat the row as idle — not failed. Avoids the
   // "I clicked stop and now it's red" confusion.
-  if (proc?.was_user_stopped && !ourProcRunning) {
+  // ...unless it's a service we don't own that's currently up externally —
+  // then the health probe (externalRunning) should win over the stale
+  // user-stopped flag, so we don't show idle/▶ for something that's running.
+  if (proc?.was_user_stopped && !ourProcRunning && !(step.service && externalRunning)) {
     return { state: "idle", subMessage: null, isStale: false, ourProcRunning };
   }
 
   if (step.service) {
     // Service step state comes from the health probe, NOT the spawn exit
     // code. The spawn might be alive while the service is still starting;
-    // or the spawn might be done but the service running (docker -d).
-    if (!proc || procState === "idle") {
-      return { state: "idle", subMessage: null, isStale: false, ourProcRunning };
-    }
+    // or the spawn might be done but the service running (docker -d). We
+    // therefore check externalRunning below BEFORE falling back to idle, so
+    // a service started outside Hangar isn't shown as idle (with a ▶ action).
     // Stopping wins over externalRunning: when the user just clicked stop,
     // docker may still report containers up for a beat while compose tears
     // them down — we want to show "stopping…", not ✓ running.
@@ -782,7 +785,7 @@ function deriveStepDisplay(
       return {
         state: "failed",
         subMessage:
-          proc.exit_code != null
+          proc?.exit_code != null
             ? `failed to start · exit ${proc.exit_code}`
             : "failed to start",
         isStale: false,
@@ -852,6 +855,7 @@ function StepRow({
   now,
   externalRunning,
   treatAsIdle,
+  actionsDisabled,
 }: {
   step: ChainStep;
   proc?: ProcInfo;
@@ -860,6 +864,7 @@ function StepRow({
   now: number;
   externalRunning?: boolean;
   treatAsIdle?: boolean;
+  actionsDisabled?: boolean;
 }) {
   const display = deriveStepDisplay(
     step,
@@ -1024,6 +1029,7 @@ function StepRow({
         ) : (
           <button
             onClick={onRun}
+            disabled={actionsDisabled}
             style={{ padding: "2px 8px", fontSize: "var(--fs-xx-small)" }}
           >
             ▶

@@ -248,18 +248,21 @@ export function GitopsTab({
   // the common case and avoids "I clicked Apply by accident and it
   // pushed every team."
   const repoSelection = repo ? selectionByRepo[repo.name] : undefined;
+  // Selections are keyed by full file path, not basename: files in different
+  // subdirs (e.g. teams/foo.yml vs fleets/foo.yml) share a name and would
+  // otherwise collide, selecting/applying both at once.
   const selectedFiles = allFiles.filter((f) =>
-    repoSelection != null && repoSelection.has(f.name),
+    repoSelection != null && repoSelection.has(f.path),
   );
   const dryRun =
     repo != null ? (dryRunByRepo[repo.name] ?? true) : true;
 
-  function toggleFile(name: string) {
+  function toggleFile(path: string) {
     if (!repo) return;
     setSelectionByRepo((prev) => {
       const cur = new Set(prev[repo.name] ?? []);
-      if (cur.has(name)) cur.delete(name);
-      else cur.add(name);
+      if (cur.has(path)) cur.delete(path);
+      else cur.add(path);
       return { ...prev, [repo.name]: cur };
     });
   }
@@ -267,7 +270,7 @@ export function GitopsTab({
     if (!repo) return;
     setSelectionByRepo((prev) => ({
       ...prev,
-      [repo.name]: new Set(allFiles.map((f) => f.name)),
+      [repo.name]: new Set(allFiles.map((f) => f.path)),
     }));
   }
   function selectNone() {
@@ -838,7 +841,7 @@ function RepoPanel({
       </div>
     );
   }
-  const isChecked = (name: string) => selection?.has(name) ?? false;
+  const isChecked = (path: string) => selection?.has(path) ?? false;
 
   return (
     <div
@@ -940,7 +943,7 @@ function RepoPanel({
                   alignItems: "center",
                   gap: 10,
                   padding: "6px 10px",
-                  background: isChecked(f.name)
+                  background: isChecked(f.path)
                     ? "var(--tint-success-soft)"
                     : undefined,
                   borderTop: i > 0 ? "1px solid var(--app-border)" : "none",
@@ -950,8 +953,8 @@ function RepoPanel({
               >
                 <input
                   type="checkbox"
-                  checked={isChecked(f.name)}
-                  onChange={() => onToggle(f.name)}
+                  checked={isChecked(f.path)}
+                  onChange={() => onToggle(f.path)}
                   style={{ accentColor: "var(--core-fleet-green)" }}
                 />
                 <span
@@ -1153,35 +1156,47 @@ function GenerateCard({
   const [name, setName] = useState("");
   const [force, setForce] = useState(false);
   const [check, setCheck] = useState<GitopsTargetCheck | null>(null);
+  // The name `check` was computed for. While this lags the current input
+  // (debounce window or in-flight request) the check is stale and must not
+  // gate Generate — otherwise typing a valid name, switching to an existing
+  // one, and clicking Generate before the new check lands bypasses the gate.
+  const [checkedName, setCheckedName] = useState<string | null>(null);
+  const trimmedName = name.trim();
 
   // Debounce target check by 200ms — typing fires once after the user
   // stops, not on every keystroke. Empty name resets the check.
   useEffect(() => {
-    if (!name.trim()) {
+    if (!trimmedName) {
       setCheck(null);
+      setCheckedName(null);
       return;
     }
+    const requestedName = trimmedName;
     const t = window.setTimeout(async () => {
       try {
-        const r = await api.gitopsCheckTarget(gitopsDir, name.trim());
+        const r = await api.gitopsCheckTarget(gitopsDir, requestedName);
         setCheck(r);
+        setCheckedName(requestedName);
       } catch (e) {
         console.error("check target failed", e);
       }
     }, 200);
     return () => window.clearTimeout(t);
-  }, [gitopsDir, name]);
+  }, [gitopsDir, trimmedName]);
+
+  // The check applies to the current input only when it was computed for it.
+  const checkCurrent = check != null && checkedName === trimmedName;
 
   // When the target doesn't exist, the force toggle is irrelevant —
   // reset it so a previous "force" state doesn't carry over silently.
   useEffect(() => {
-    if (check && !check.exists) setForce(false);
-  }, [check]);
+    if (checkCurrent && !check.exists) setForce(false);
+  }, [checkCurrent, check]);
 
-  const exists = check?.exists ?? false;
-  const valid = check != null && check.reason == null && check.writable;
+  const exists = checkCurrent ? check.exists : false;
+  const valid = checkCurrent && check.reason == null && check.writable;
   const startDisabled =
-    disabled || !name.trim() || !valid || (exists && !force);
+    disabled || !trimmedName || !valid || (exists && !force);
 
   const previewArgs: string[] = [
     "generate-gitops",

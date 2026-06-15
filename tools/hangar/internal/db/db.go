@@ -167,6 +167,11 @@ func trimToNil(s *string) *string {
 // explicitly so we can't be coerced into deleting outside the project.
 func DeleteBackup(repo, path string) error {
 	dir := backupsDir(repo)
+	// Clean the frontend-supplied path first: HasPathPrefix compares raw
+	// components, so without this a ".." traversal like
+	// "<dir>/../db-backups-evil/x.sql.gz" would pass the prefix check (its
+	// leading components match dir) yet resolve to a *.sql.gz outside dir.
+	path = filepath.Clean(path)
 	if !paths.HasPathPrefix(path, dir) {
 		return fmt.Errorf("refusing to delete outside %s", dir)
 	}

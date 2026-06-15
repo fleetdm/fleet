@@ -140,6 +140,17 @@ func TestDeleteBackupRefusals(t *testing.T) {
 	if err := DeleteBackup(repo, bad); err == nil {
 		t.Error("should refuse to delete non-.sql.gz file")
 	}
+	// ".." traversal that resolves outside the dir but whose leading
+	// components match it must be rejected (path is cleaned first).
+	evil := filepath.Join(repo, "db-backups-evil", "x.sql.gz")
+	write(t, evil, "x")
+	traversal := filepath.Join(repo, "db-backups", "..", "db-backups-evil", "x.sql.gz")
+	if err := DeleteBackup(repo, traversal); err == nil {
+		t.Error("should refuse to delete via .. traversal out of db-backups")
+	}
+	if _, err := os.Stat(evil); err != nil {
+		t.Error("traversal target should not have been deleted")
+	}
 }
 
 func TestCheckBackupName(t *testing.T) {

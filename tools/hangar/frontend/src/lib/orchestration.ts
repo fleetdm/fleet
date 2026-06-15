@@ -65,7 +65,8 @@ export function serveArgsFor(settings: Settings): string[] {
 /// skipped too so the toggle behaves the same as removing the row.
 export function serveEnvFor(settings: Settings): Array<[string, string]> {
   return settings.fleet_serve.env
-    .filter((e) => e.enabled && e.key.trim().length > 0)
+    .map((e) => ({ ...e, key: e.key.trim() }))
+    .filter((e) => e.enabled && e.key.length > 0)
     .map((e) => [e.key, e.value] as [string, string]);
 }
 

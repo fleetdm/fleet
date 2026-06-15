@@ -546,6 +546,9 @@ type LoginMode = "credentials" | "token";
 // compliant"). A tunneled/remote URL (ngrok etc.) presents a real CA cert
 // and must keep verifying — so skip-verify auto-on is scoped to loopback
 // only. Mirrors fleetctl preview, which sets TLSSkipVerify for local dev.
+// Dev default used when a context has no stored address.
+const DEFAULT_FLEET_ADDRESS = "https://localhost:8080";
+
 function isLoopbackUrl(addr: string): boolean {
   try {
     const h = new URL(addr.trim()).hostname.toLowerCase();
@@ -602,7 +605,7 @@ function LoginPanel({
   const selectedAddress =
     ctx?.contexts.find((c) => c.name === selectedContext)?.address ?? null;
   const [address, setAddress] = useState(
-    selectedAddress ?? "https://localhost:8080",
+    selectedAddress ?? DEFAULT_FLEET_ADDRESS,
   );
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -611,7 +614,7 @@ function LoginPanel({
   // "x509: certificate is not standard compliant". Default it ON for
   // loopback URLs (the self-signed dev case) and OFF otherwise.
   const [skipTlsVerify, setSkipTlsVerify] = useState(() =>
-    isLoopbackUrl(selectedAddress ?? "https://localhost:8080"),
+    isLoopbackUrl(selectedAddress ?? DEFAULT_FLEET_ADDRESS),
   );
   // Mirror in a ref so the "Enable & retry" action can flip it on and
   // immediately re-run login without waiting for a state-update render.
@@ -642,8 +645,12 @@ function LoginPanel({
     }
   }, [address]);
   useEffect(() => {
-    if (!userEditedAddress.current && selectedAddress) {
-      setAddress(selectedAddress);
+    // On a context switch, pull the stored address — or fall back to the dev
+    // default when the new context has none, so a stale URL from the previous
+    // context isn't carried over (and then written into the fresh context on
+    // token login).
+    if (!userEditedAddress.current) {
+      setAddress(selectedAddress ?? DEFAULT_FLEET_ADDRESS);
     }
   }, [selectedAddress]);
 
@@ -653,8 +660,11 @@ function LoginPanel({
   // running it first in the token flow too is harmless. Returns false (and
   // sets the error) on failure so callers can bail early.
   async function applySkipTlsVerify(): Promise<boolean> {
-    if (!skipRef.current) return true;
     if (!binary) return false;
+    // Always persist the explicit value: passing it only when enabled would
+    // leave a previously-enabled context skipping verification after the user
+    // unchecks the box. `config set` is idempotent, so writing it every login
+    // is harmless.
     const run = await api.fleetctlRunCapture({
       program: binary.path,
       cwd: repoPath,
@@ -663,7 +673,7 @@ function LoginPanel({
         "set",
         "--context",
         selectedContext,
-        "--tls-skip-verify",
+        `--tls-skip-verify=${skipRef.current ? "true" : "false"}`,
       ],
       timeoutMs: 15_000,
     });

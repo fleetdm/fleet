@@ -12,7 +12,7 @@
         <key>CFBundleVersion</key>
             <string>1.0.0</string>
         <key>CFBundleGetInfoString</key>
-            <string>This is a comment</string>
+            <string>Desktop control panel for the Fleet dev environment</string>
         <key>CFBundleShortVersionString</key>
             <string>1.0.0</string>
         <key>CFBundleIconFile</key>
@@ -22,8 +22,8 @@
         <key>LSMinimumSystemVersion</key>
             <string>12.0.0</string>
         <key>NSHighResolutionCapable</key>
-            <string>true</string>
+            <true/>
         <key>NSHumanReadableCopyright</key>
-            <string>© 2026, My Company</string>
+            <string>© 2026, Fleet Device Management</string>
     </dict>
 </plist>
