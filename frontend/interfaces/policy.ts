@@ -58,6 +58,7 @@ export interface IPolicy {
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  labels_exclude_all?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
