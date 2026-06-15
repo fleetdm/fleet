@@ -5714,6 +5714,13 @@
       "description": "PreForm is a 3D printing setup, management, and monitoring."
     },
     {
+      "name": "PreForm",
+      "slug": "preform/windows",
+      "platform": "windows",
+      "unique_identifier": "PreForm",
+      "description": "PreForm is a 3D printing setup, management, and monitoring."
+    },
+    {
       "name": "Principle",
       "slug": "principle/darwin",
       "platform": "darwin",
@@ -5788,6 +5795,13 @@
       "slug": "proton-drive/darwin",
       "platform": "darwin",
       "unique_identifier": "ch.protonmail.drive",
+      "description": "Proton Drive is a client for Proton Drive."
+    },
+    {
+      "name": "Proton Drive",
+      "slug": "proton-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Drive",
       "description": "Proton Drive is a client for Proton Drive."
     },
     {

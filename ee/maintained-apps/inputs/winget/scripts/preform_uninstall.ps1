@@ -1,11 +1,11 @@
-# Uninstall Surfshark (WiX burn bundle).
+# Uninstall PreForm (WiX burn bundle).
 # Burn bundles register the bundle's own ARP entry (UninstallString = the cached
 # setup.exe, run with /uninstall /quiet /norestart) alongside MSI *component*
 # entries. Prefer the bundle (a .exe UninstallString) over any MsiExec component;
 # shelling MsiExec.exe with /uninstall fails (exit 1619), and /I{GUID} would
 # install/repair rather than uninstall.
 
-$softwareNameLike = "*Surfshark*"
+$softwareNameLike = "*PreForm*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',

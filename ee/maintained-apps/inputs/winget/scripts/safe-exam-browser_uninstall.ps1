@@ -1,68 +1,81 @@
-# Locate the uninstall entry in the registry and run it silently.
+# Uninstall Safe Exam Browser (WiX burn bundle).
+# Burn bundles register the bundle's own ARP entry (UninstallString = the cached
+# setup.exe, run with /uninstall /quiet /norestart) alongside MSI *component*
+# entries. Prefer the bundle (a .exe UninstallString) over any MsiExec component;
+# shelling MsiExec.exe with /uninstall fails (exit 1619), and /I{GUID} would
+# install/repair rather than uninstall.
 
-$displayNameLike = "Safe Exam Browser*"
-$publisher = "ETH"
+$softwareNameLike = "*Safe Exam Browser*"
 
 $paths = @(
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like $displayNameLike -and ($publisher -eq "" -or $_.Publisher -like "*$publisher*")
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
-}
-
-if (-not $uninstall -or -not $uninstall.UninstallString) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
-}
+$exitCode = 0
 
 try {
-    $uninstallString = $uninstall.UninstallString
 
-    # Parse the uninstaller executable path from the UninstallString.
-    if ($uninstallString -match '^"([^"]+)"') {
-        $uninstallExe = $matches[1]
-    } elseif ($uninstallString -match '^(.+?\.exe)') {
-        $uninstallExe = $matches[1]
+[array]$uninstallKeys = Get-ChildItem -Path $paths -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ItemProperty $_.PSPath }
+
+[array]$matchedKeys = $uninstallKeys | Where-Object { $_.DisplayName -like $softwareNameLike }
+
+# Prefer the burn bundle (.exe UninstallString, not MsiExec.exe) over MSI components.
+$bundleKeys = @($matchedKeys | Where-Object {
+    $u = $_.QuietUninstallString
+    if ([string]::IsNullOrWhiteSpace($u)) { $u = $_.UninstallString }
+    $u -match '(?i)\.exe' -and $u -notmatch '(?i)^\s*"?\s*MsiExec\.exe'
+})
+if ($bundleKeys.Count -gt 0) {
+    $orderedKeys = @($bundleKeys) + @($matchedKeys | Where-Object { $bundleKeys -notcontains $_ })
+} else {
+    $orderedKeys = $matchedKeys
+}
+
+$foundUninstaller = $false
+foreach ($key in $orderedKeys) {
+    $foundUninstaller = $true
+    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+    if ([string]::IsNullOrWhiteSpace($uninstallCommand)) { continue }
+
+    # Parse defensively: quoted path, unquoted path-with-spaces, or bare token.
+    $exe = $null; $existingArgs = ""
+    if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') { $exe = $matches[1]; $existingArgs = $matches[2].Trim() }
+    elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') { $exe = $matches[1]; $existingArgs = $matches[2].Trim() }
+    elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') { $exe = $matches[1]; $existingArgs = $matches[2].Trim() }
+    else { Write-Host "Error: Could not parse uninstall command: $uninstallCommand"; Exit 1 }
+
+    if ($exe -match '(?i)MsiExec\.exe$') {
+        # MSI component fallback: rewrite /I{GUID} -> /X{GUID} so we uninstall.
+        $uninstallArgs = $existingArgs -replace '(?i)/I({)', '/X$1'
+        if ($uninstallArgs -notmatch '(?i)/quiet|/qn') { $uninstallArgs = "$uninstallArgs /quiet".Trim() }
+        if ($uninstallArgs -notmatch '(?i)/norestart') { $uninstallArgs = "$uninstallArgs /norestart".Trim() }
     } else {
-        $uninstallExe = $uninstallString
+        # Burn bundle setup.exe: uninstall silently.
+        $uninstallArgs = $existingArgs
+        if ($uninstallArgs -notmatch '(?i)/uninstall') { $uninstallArgs = "$uninstallArgs /uninstall".Trim() }
+        if ($uninstallArgs -notmatch '(?i)/quiet|/silent') { $uninstallArgs = "$uninstallArgs /quiet".Trim() }
+        if ($uninstallArgs -notmatch '(?i)/norestart') { $uninstallArgs = "$uninstallArgs /norestart".Trim() }
     }
 
-    # Determine the install directory for cleanup.
-    $installDir = $uninstall.InstallLocation
-    if (-not $installDir -or -not (Test-Path $installDir)) {
-        $installDir = Split-Path $uninstallExe -Parent
-    }
-
-    $uninstallArgs = @("/uninstall", "/quiet", "/norestart")
-
-    Write-Host "Uninstall command: $uninstallExe"
+    Write-Host "Uninstall command: $exe"
     Write-Host "Uninstall args: $uninstallArgs"
 
-    $processOptions = @{
-        FilePath = $uninstallExe
-        ArgumentList = $uninstallArgs
-        PassThru = $true
-        Wait = $true
-        NoNewWindow = $true
-    }
-
+    $processOptions = @{ FilePath = $exe; PassThru = $true; Wait = $true }
+    if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
+    break
+}
 
-    if ($installDir -and (Test-Path $installDir)) {
-        Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
+if (-not $foundUninstaller) { Write-Host "Uninstall entry not found for $softwareNameLike"; Exit 0 }
+Exit $exitCode
 
-    Exit $exitCode
 } catch {
-    Write-Host "Error running uninstaller: $_"
+    Write-Host "Error: $_"
     Exit 1
 }
