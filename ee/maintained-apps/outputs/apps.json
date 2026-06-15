@@ -4384,13 +4384,6 @@
       "description": "MarkText is a markdown editor."
     },
     {
-      "name": "MarkText",
-      "slug": "mark-text/windows",
-      "platform": "windows",
-      "unique_identifier": "MarkText",
-      "description": "MarkText is a markdown editor."
-    },
-    {
       "name": "Marked",
       "slug": "marked-app/darwin",
       "platform": "darwin",
