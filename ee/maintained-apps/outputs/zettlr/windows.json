@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz' AND version_compare(version, '4.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zettlr' AND publisher = 'Hendrik Erz' AND version_compare(version, '4.6.0') < 0);"
       },
-      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.5.0/Zettlr-4.5.0-x64.exe",
+      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.6.0/Zettlr-4.6.0-x64.exe",
       "install_script_ref": "64dd4e97",
       "uninstall_script_ref": "5d3c0b64",
-      "sha256": "93db764f669494ea805540d035d0579672480753aad60bcdde56a1ccf079829e",
+      "sha256": "79670357c5badcc7bab7ff73ebc7f57d50647bd141ad655b94913010bd707874",
       "default_categories": [
         "Productivity"
       ]
