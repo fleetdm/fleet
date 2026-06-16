@@ -39,6 +39,11 @@ type s3store struct {
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
 	gcs              bool
+	// signedURL, when true, makes Sign() return a presigned GET URL generated
+	// with this store's client/credentials (used for GCS, where there is no
+	// CloudFront-style signer). Gated by config and validated to require a GCS
+	// endpoint.
+	signedURL bool
 }
 
 type installerNotFoundError struct{}
@@ -176,6 +181,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
 		gcs:              gcsEndpoint,
+		signedURL:        cfg.SignedURL,
 	}, nil
 }
 
