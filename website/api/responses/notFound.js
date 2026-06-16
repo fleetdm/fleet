@@ -43,7 +43,7 @@ module.exports = function notFound () {
     res.locals.hideFooter = true;
   }
 
-  return res.view('404', {}, function (err, html) {
+  return res.view('404', {}, (err, html)=> {
     // If a view error occured, fall back to JSON.
     if (err) {
       //
