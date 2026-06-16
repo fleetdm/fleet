@@ -107,10 +107,10 @@ The best workflow is the one your whole team can still run after you're gone. Ev
 
 The quickest way to see this in detail is to inspect our [it-and-security](../it-and-security) folder to review the config, then download the [fleetctl](https://fleetdm.com/download) CLI and run `fleetctl new` to generate the GitOps scaffold. If you’d like help getting started, two good next steps are:
 
-- [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through seeing, controlling, and governing AI tooling at scale across your fleet and answer the "what's actually running in *our* environment?" question against real machines.
-- [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** If you want to manage AI governance as code — reports and policies in Git, reviewed in pull requests, deployed through CI — our hands-on workshop is the place to start.
+- [**Get a demo**](https://fleetdm.com/contact)**.**  We'll walk through how Config-as-Code and GitOps Exceptions would work in your environment.
+- [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Learn to manage configuration as code: set up apps, configs, reports, and policies in Git, review changes with pull requests, and deploy through CI in our hands‑on workshop..
 
-*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to try these reports on your own fleet?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*reports library*](https://fleetdm.com/reports)*.*
+*Fleet is the open-source endpoint management platform for macOS, Windows, Linux, and more. Want to try GitOps in your own fleet?* [*Get a demo*](https://fleetdm.com/contact) *or explore the* [*GitOps reference*](https://fleetdm.com/docs/configuration/yaml-files)*.*
 
 <meta name="articleTitle" value="The hidden cost of config-as-code: simplicity, tribal knowledge, and what stays in Git">
 <meta name="authorFullName" value="Henry Stamerjohann">
