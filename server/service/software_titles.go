@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -209,9 +211,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 				meta.FleetMaintainedVersions = fmaVersions
 
-				// TODO(storage): populate meta.PinnedVersion with the stored pin string (literal / "^major" / nil for
-				// Latest). is_active only tells us which row is active, not the pin intent, so this needs the pinned
-				// version persisted first (see the pin-string storage design). Left nil until then.
+				// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+				pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+				}
+				meta.PinnedVersion = pinnedVersion
 
 				// Populate PatchPolicy if there is one
 				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)

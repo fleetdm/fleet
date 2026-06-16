@@ -3001,10 +3001,11 @@ WHERE
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
 				// Determine which installer should be "active" for this FMA+team.
-				// If RollbackVersion is specified, find the cached installer with that version;
-				// otherwise default to the newest (just inserted/updated).
+				// A literal RollbackVersion pins that exact cached version; a "^major" caret (or empty) falls through
+				// to the newest just inserted/updated — for caret, softwareInstallerPayloadFromSlug already resolved
+				// and inserted the correct version, so we must not exact-match the caret string here.
 				activeInstallerID := installerID
-				if installer.RollbackVersion != "" {
+				if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
 					var pinnedID uint
 					err := sqlx.GetContext(ctx, tx, &pinnedID, `
 						SELECT id FROM software_installers
@@ -3081,7 +3082,21 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
 				}
 
+				// GitOps writes the pin here but never reads it back: the YAML is the source of truth for
+				// GitOps-managed titles, so this only keeps the table consistent for the API and the cron.
+				if installer.RollbackVersion != "" {
+					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, installer.RollbackVersion); err != nil {
+						return ctxerr.Wrapf(ctx, err, "pinning version for %q", installer.Filename)
+					}
+				} else if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
+				}
+
 				// Re-point policies from any non-FMA installers for this title to the active FMA installer.
+				// TODO(pin): this does not re-point policies that point at another *cached FMA version* when the
+				// active version flips (e.g. after a version pin), so an install policy can be left pointing at an
+				// inactive installer. The PATCH path (SetFleetMaintainedAppActiveInstaller) re-points all of the
+				// title's installers; this should be made consistent.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (

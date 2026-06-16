@@ -2677,6 +2677,16 @@ type Datastore interface {
 	// cached versions inactive, re-pointing the title's policies to the active installer.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error
 
+	// GetPinnedVersion returns the pinned version expression (a literal version or a
+	// "^major" caret) for the given team and title, or nil if the title is not pinned (Latest).
+	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+
+	// SetPinnedVersion upserts the pinned version expression for the given team and title.
+	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
+
+	// DeletePinnedVersion removes the pin for the given team and title (back to Latest).
+	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
+
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)

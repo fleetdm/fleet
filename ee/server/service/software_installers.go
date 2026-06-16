@@ -723,8 +723,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
 		} else if len(dirty) == 1 && dirty["RollbackVersion"] {
+			// TODO(pin): this light branch flips the active installer but does not run
+			// ProcessInstallerUpdateSideEffects, so in-flight host installs of the previously active version are
+			// not cancelled when the pin changes. Decide whether a version pin should cancel them.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
+			}
+			if *payload.RollbackVersion == "" {
+				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+				}
+			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.RollbackVersion); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
 		} else {
 			if payloadForNewInstallerFile != nil {
@@ -2537,12 +2547,19 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 	}
+
+	// TODO(JK): long comment
+	// Leave payload.RollbackVersion untouched so it carries the verbatim pin expression downstream (persisted to
+	// software_title_team_pins by BatchSetSoftwareInstallers). NOTE: it may be a "^major" caret, not just a literal
+	// version — callers that exact-match on RollbackVersion must skip the caret form (today only
+	// BatchSetSoftwareInstallers). Hydrate gets a local "" for caret so it fetches the latest manifest rather than a
+	// specific cached version.
+	hydrateVersion := payload.RollbackVersion
 	if usesCaret {
-		// unset rollback version to avoid getting a cached installer
-		payload.RollbackVersion = ""
+		hydrateVersion = ""
 	}
 
-	_, err = maintained_apps.Hydrate(ctx, app, payload.RollbackVersion, teamID, svc.ds)
+	_, err = maintained_apps.Hydrate(ctx, app, hydrateVersion, teamID, svc.ds)
 	if err != nil {
 		return err
 	}
@@ -2563,6 +2580,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
+			// Intentionally use the newest cached version (versions[0]) when the pinned major has no cached
+			// installer (e.g. "^8" while only 7.x is cached): keeping the newest cached version is preferred over
+			// erroring or pinning to an older/previously-active one.
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.

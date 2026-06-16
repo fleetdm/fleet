@@ -1002,6 +1002,49 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 	return result[titleID], nil
 }
 
+func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
+		SELECT pinned_version FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+	`, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+	}
+	return &version, nil
+}
+
+func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "set pinned version")
+	}
+	return nil
+}
+
+func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pinned version")
+	}
+	return nil
+}
+
+// setPinnedVersionDB and deletePinnedVersionDB take an executor so they can run on either ds.writer or a
+// transaction (e.g. from BatchSetSoftwareInstallers); callers wrap the returned error with context.
+func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
+	_, err := ex.ExecContext(ctx, `
+		INSERT INTO software_title_team_pins (global_or_team_id, title_id, pinned_version)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
+	`, globalOrTeamID, titleID, version)
+	return err
+}
+
+func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
+	_, err := ex.ExecContext(ctx, `
+		DELETE FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+	`, globalOrTeamID, titleID)
+	return err
+}
+
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
 // for the given title IDs and team, keyed by title ID.
 func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
