@@ -865,6 +865,7 @@ func (c *AppConfig) Copy() *AppConfig {
 			clone.Features.DetailQueryOverrides[k] = s
 		}
 	}
+	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
 		copy(ao, *c.AgentOptions)
