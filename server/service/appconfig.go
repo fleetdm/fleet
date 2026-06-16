@@ -474,6 +474,33 @@ func applyAndValidateConditionalAccessOktaFields(
 	return nil
 }
 
+// persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
+// Apple account provisioning IdP client secret in mdm_config_assets so it
+// matches the (already-validated) incoming config. The secret is only
+// soft-deleted when the feature is cleared or the secret genuinely changes:
+//   - configured + a new secret provided: insert, or soft-delete + insert when
+//     the value differs (no-op when unchanged).
+//   - configured + no new secret: preserve the existing secret.
+//   - feature cleared (was configured, now isn't): soft-delete the secret.
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) error {
+	switch {
+	case configured && newSecretProvided:
+		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			Value: []byte(secret),
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+		}
+	case !configured && wasConfigured:
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+		}
+	}
+	return nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -680,6 +707,53 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
+	// Apple account provisioning (Platform SSO): the IdP client secret is never
+	// persisted in the AppConfig JSON — it's stored encrypted in
+	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
+	// strip it from the config that gets saved. The actual asset
+	// store/preserve/soft-delete happens further down, after the dry-run guard.
+	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
+	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
+	// In Overwrite mode (GitOps) an omitted or empty section must clear the
+	// feature, so take the incoming section wholesale rather than merging it
+	// onto the stored one.
+	if applyOpts.Overwrite {
+		appConfig.MDM.AppleAccountProvisioning = incomingAAP
+	}
+	// A "real" secret is one the caller actually wants stored — not omitted, not
+	// the masked placeholder echoed back by the API/UI.
+	incomingSecret := incomingAAP.OAuthIdPClientSecret
+	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
+	newAAPSecret := incomingSecret.Value
+
+	mergedAAP := appConfig.MDM.AppleAccountProvisioning
+	// Never let the secret reach the saved JSON; masking for responses is applied
+	// separately in Obfuscate (keyed on the token URL being present).
+	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
+
+	if mergedAAP.Configured() {
+		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
+		if aapProvided && !lic.IsPremium() {
+			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
+		}
+		if newAAPSecretProvided && svc.config.Server.PrivateKey == "" {
+			invalid.Append("mdm.apple_account_provisioning",
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		// Require https: the client secret is sent to this endpoint, so plaintext
+		// http would leak it.
+		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
+		}
+		// Require a freshly-supplied secret whenever the token URL changes, so a
+		// caller can't repoint the IdP token endpoint while reusing the stored
+		// secret (which would leak it to the new, possibly hostile, URL).
+		if mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value && !newAAPSecretProvided {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"must be provided when changing oauth_idp_token_url")
+		}
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
@@ -987,6 +1061,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+	}
+
+	if err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret); err != nil {
+		return nil, err
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {

@@ -1402,6 +1402,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
+
+			// apple_account_provisioning is a global-only MDM setting. The IdP
+			// client secret is masked/non-exportable from the API, so emit a TODO
+			// for the user to fill in (mirrors the other secret placeholders).
+			if aap := cmd.AppConfig.MDM.AppleAccountProvisioning; aap.Configured() {
+				aapT := reflect.TypeFor[fleet.AppleAccountProvisioning]()
+				controlsFile := "default.yml"
+				if teamId != nil {
+					controlsFile = "fleets/" + teamName + ".yml"
+				}
+				result[jsonFieldName(mdmT, "AppleAccountProvisioning")] = map[string]any{
+					jsonFieldName(aapT, "OAuthIdPTokenURL"):     aap.OAuthIdPTokenURL.Value,
+					jsonFieldName(aapT, "OAuthIdPClientID"):     aap.OAuthIdPClientID.Value,
+					jsonFieldName(aapT, "OAuthIdPClientSecret"): cmd.AddComment(controlsFile, "TODO: Add your IdP client secret here"),
+				}
+			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured

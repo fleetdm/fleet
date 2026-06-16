@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 )
 
 // PSSODevice marks a Mac host as Apple Platform SSO-registered. It carries no
@@ -83,24 +85,54 @@ type PSSODeviceRegistrationRequest struct {
 	EncryptionKeyID     string `json:"encryption_key_id"`
 }
 
-// PSSOSettings holds the global Apple Platform SSO configuration. IdP-side fields
-// are generic OAuth2/OIDC — Fleet just needs the token URL plus client credentials.
-type PSSOSettings struct {
-	// Enabled toggles the PSSO endpoints on/off at the service layer.
-	Enabled bool `json:"enabled"`
-	// IssuerURL is the Fleet base URL the extension talks to (e.g. https://fleet.example.com).
-	IssuerURL string `json:"issuer_url"`
-	// IdPTokenURL is the upstream OIDC token endpoint used for the
-	// ROPG (grant_type=password) flow at sign-in.
+// AppleAccountProvisioning is the macOS local account provisioning / Platform
+// SSO password sync configuration stored on AppConfig.MDM. The IdP fields are
+// generic OAuth2 ROPG credentials (the oauth_ prefix leaves room for other
+// auth methods, e.g. LDAP, later).
+//
+// The client secret is never persisted in the AppConfig JSON: on write it's
+// stripped out and stored encrypted in mdm_config_assets, and the API only
+// returns the masked value. token URL + client ID are stored in the JSON.
+type AppleAccountProvisioning struct {
+	// OAuthIdPTokenURL is the upstream OIDC token endpoint used for the ROPG
+	// (grant_type=password) flow at sign-in.
 	// Okta example:  https://dev-12345.okta.com/oauth2/default/v1/token
 	// Entra example: https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
-	IdPTokenURL string `json:"idp_token_url"`
+	OAuthIdPTokenURL optjson.String `json:"oauth_idp_token_url"`
+	// OAuthIdPClientID is the client/application ID registered with the upstream IdP.
+	OAuthIdPClientID optjson.String `json:"oauth_idp_client_id"`
+	// OAuthIdPClientSecret is the client secret registered with the upstream IdP.
+	// Stored in mdm_config_assets, not here; this field carries the masked value
+	// in API responses and the caller-supplied value on writes.
+	OAuthIdPClientSecret optjson.String `json:"oauth_idp_client_secret"`
+}
+
+// Configured reports whether the public IdP fields required to operate the
+// feature are present. The client secret lives in mdm_config_assets and is not
+// part of this check; the write path guarantees a stored secret whenever these
+// are set.
+func (a AppleAccountProvisioning) Configured() bool {
+	return a.OAuthIdPTokenURL.Value != "" && a.OAuthIdPClientID.Value != ""
+}
+
+// PSSOSettings is the resolved Platform SSO configuration the service flows
+// operate on. It is assembled per request from AppConfig (public IdP fields
+// plus the Fleet server URL) and mdm_config_assets (the client secret); it is
+// not stored or serialized on its own.
+type PSSOSettings struct {
+	// IssuerURL is Fleet's own base URL (server_settings.server_url), used as the
+	// token issuer and to build the AASA/JWKS URLs.
+	IssuerURL string
+	// IdPTokenURL is the upstream OIDC token endpoint used for the
+	// ROPG (grant_type=password) flow at sign-in.
+	IdPTokenURL string
 	// IdPClientID is the client/application ID registered with the upstream IdP.
-	IdPClientID string `json:"idp_client_id"`
-	// IdPClientSecret is the client secret registered with the upstream IdP.
-	IdPClientSecret string `json:"idp_client_secret"`
+	IdPClientID string
+	// IdPClientSecret is the client secret registered with the upstream IdP,
+	// loaded from mdm_config_assets.
+	IdPClientSecret string
 	// IdPScopes is the space-separated scope string sent on both the
 	// authorize and token requests. Defaults to "openid profile email" when
 	// empty.
-	IdPScopes string `json:"idp_scopes"`
+	IdPScopes string
 }

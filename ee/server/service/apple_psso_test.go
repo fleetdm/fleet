@@ -6,18 +6,56 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
-func newPSSOTestService(t *testing.T, settings *fleet.PSSOSettings) (*Service, context.Context) {
+// pssoTestConfig describes the resolved configuration the PSSO flows read:
+// public IdP fields + Fleet server URL from AppConfig, and the IdP client
+// secret from mdm_config_assets. The feature is "configured" only when all of
+// them are present.
+type pssoTestConfig struct {
+	serverURL string
+	tokenURL  string
+	clientID  string
+	secret    string // empty => no stored secret asset
+}
+
+func configuredPSSOTestConfig() pssoTestConfig {
+	return pssoTestConfig{ //nolint:gosec // G101: test value only, not a real credential
+		serverURL: "https://fleet.example.com",
+		tokenURL:  "https://idp.example.com/oauth2/v1/token",
+		clientID:  "client-id",
+		secret:    "client-secret",
+	}
+}
+
+func newPSSOTestService(t *testing.T, cfg pssoTestConfig) (*Service, context.Context) {
 	t.Helper()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{PSSOSettings: settings}, nil
+		ac := &fleet.AppConfig{}
+		ac.ServerSettings.ServerURL = cfg.serverURL
+		ac.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+			OAuthIdPTokenURL: optjson.SetString(cfg.tokenURL),
+			OAuthIdPClientID: optjson.SetString(cfg.clientID),
+		}
+		return ac, nil
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		out := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+		if cfg.secret != "" {
+			out[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret] = fleet.MDMConfigAsset{
+				Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+				Value: []byte(cfg.secret),
+			}
+		}
+		return out, nil
 	}
 	auth, err := authz.NewAuthorizer()
 	require.NoError(t, err)
@@ -27,16 +65,6 @@ func newPSSOTestService(t *testing.T, settings *fleet.PSSOSettings) (*Service, c
 		authz:  auth,
 		logger: slog.New(slog.DiscardHandler),
 	}, ctx
-}
-
-func configuredPSSOSettings() *fleet.PSSOSettings {
-	return &fleet.PSSOSettings{ //nolint:gosec // G101: test value only, not a real credential
-		Enabled:         true,
-		IssuerURL:       "https://fleet.example.com",
-		IdPTokenURL:     "https://idp.example.com/oauth2/v1/token",
-		IdPClientID:     "client-id",
-		IdPClientSecret: "client-secret",
-	}
 }
 
 // memNonceStore is a minimal in-memory fleet.PSSONonceStore.
@@ -61,18 +89,18 @@ func (s *memNonceStore) Consume(_ context.Context, nonce string) (bool, error) {
 }
 
 func TestPSSO_EndpointsGatedOnConfiguration(t *testing.T) {
-	notConfigured := []*fleet.PSSOSettings{
-		nil,
+	configured := configuredPSSOTestConfig()
+	// When the public config is incomplete the feature is off for every
+	// endpoint, determined without reading the client secret.
+	notConfigured := []pssoTestConfig{
 		{},
-		func() *fleet.PSSOSettings { s := configuredPSSOSettings(); s.Enabled = false; return s }(),
-		func() *fleet.PSSOSettings { s := configuredPSSOSettings(); s.IssuerURL = ""; return s }(),
-		func() *fleet.PSSOSettings { s := configuredPSSOSettings(); s.IdPTokenURL = ""; return s }(),
-		func() *fleet.PSSOSettings { s := configuredPSSOSettings(); s.IdPClientID = ""; return s }(),
-		func() *fleet.PSSOSettings { s := configuredPSSOSettings(); s.IdPClientSecret = ""; return s }(),
+		func() pssoTestConfig { c := configured; c.serverURL = ""; return c }(),
+		func() pssoTestConfig { c := configured; c.tokenURL = ""; return c }(),
+		func() pssoTestConfig { c := configured; c.clientID = ""; return c }(),
 	}
 
-	for _, settings := range notConfigured {
-		svc, ctx := newPSSOTestService(t, settings)
+	for _, cfg := range notConfigured {
+		svc, ctx := newPSSOTestService(t, cfg)
 
 		// Device-facing endpoints return a 400.
 		_, err := svc.PSSONonce(ctx)
@@ -88,15 +116,29 @@ func TestPSSO_EndpointsGatedOnConfiguration(t *testing.T) {
 		_, err = svc.PSSOAASA(ctx)
 		require.True(t, fleet.IsNotFound(err), "aasa should be 404, got %v", err)
 	}
+
+	// The client secret is only required by the token (password login) flow, so
+	// a missing secret gates that endpoint alone — the others don't read it.
+	t.Run("token gated when secret missing", func(t *testing.T) {
+		cfg := configured
+		cfg.secret = ""
+		svc, ctx := newPSSOTestService(t, cfg)
+		_, err := svc.PSSOToken(ctx, []byte("ignored"))
+		require.ErrorIs(t, err, errPSSONotConfigured)
+	})
 }
 
 func TestPSSO_NonceIssuedAndConsumedWhenConfigured(t *testing.T) {
-	svc, ctx := newPSSOTestService(t, configuredPSSOSettings())
+	svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
 	svc.pssoNonceStore = &memNonceStore{}
 
 	nonce, err := svc.PSSONonce(ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, nonce)
+
+	// The nonce flow doesn't need the IdP client secret, so it must not pay the
+	// mdm_config_assets read.
+	require.False(t, svc.ds.(*mock.Store).GetAllMDMConfigAssetsByNameFuncInvoked)
 
 	// First consume succeeds, replay is rejected.
 	require.NoError(t, svc.consumePSSORequestNonce(ctx, nonce))

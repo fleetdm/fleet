@@ -35,7 +35,7 @@ import (
 // unauthenticated GET triggers a write + KMS roundtrip if the key doesn't
 // exist yet. Acceptable for POC but worth revisiting before GA. Alternatives
 // to consider:
-//   - mint when an admin enables PSSO via AppConfig.PSSOSettings.Enabled = true
+//   - mint when an admin first configures AppConfig.MDM.AppleAccountProvisioning
 //   - mint on the first device registration request
 //   - explicit `fleetctl psso bootstrap` step
 type pssoServiceState struct {
@@ -167,20 +167,72 @@ func isAssetNotFound(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }
 
-// pssoSettingsIfConfigured returns the PSSO settings from the current
-// AppConfig when the feature is enabled and carries everything the flows
-// need; otherwise it returns nil. Read per request so enabling, disabling,
-// or repointing the IdP takes effect without a server restart.
-func (svc *Service) pssoSettingsIfConfigured(ctx context.Context) (*fleet.PSSOSettings, error) {
+// loadSecret / skipSecret are readable arguments for pssoSettingsIfConfigured's
+// loadSecret parameter.
+const (
+	loadSecret = true
+	skipSecret = false
+)
+
+// pssoSettingsIfConfigured resolves the Platform SSO settings for the current
+// request, returning nil when the feature isn't configured. The public IdP
+// fields come from AppConfig.MDM.AppleAccountProvisioning and the issuer is the
+// Fleet server URL. The client secret lives in mdm_config_assets (a separate,
+// uncached read + decrypt); only the token flow needs it, so pass skipSecret
+// from the endpoints that don't (nonce, registration, JWKS, AASA) to avoid the
+// extra read. Read per request so configuring, clearing, or repointing the IdP
+// takes effect without a server restart.
+func (svc *Service) pssoSettingsIfConfigured(ctx context.Context, loadSecret bool) (*fleet.PSSOSettings, error) {
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load app config for psso")
 	}
-	s := cfg.PSSOSettings
-	if s == nil || !s.Enabled || s.IssuerURL == "" || s.IdPTokenURL == "" || s.IdPClientID == "" || s.IdPClientSecret == "" {
+	aap := cfg.MDM.AppleAccountProvisioning
+	if !aap.Configured() || cfg.ServerSettings.ServerURL == "" {
 		return nil, nil
 	}
-	return s, nil
+
+	settings := &fleet.PSSOSettings{
+		IssuerURL:   cfg.ServerSettings.ServerURL,
+		IdPTokenURL: aap.OAuthIdPTokenURL.Value,
+		IdPClientID: aap.OAuthIdPClientID.Value,
+	}
+
+	if loadSecret {
+		secret, err := svc.pssoIdPClientSecret(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if secret == "" {
+			// Public config is present but the secret asset is missing: treat the
+			// feature as not configured rather than attempting the ROPG flow with
+			// empty credentials.
+			return nil, nil
+		}
+		settings.IdPClientSecret = secret
+	}
+
+	return settings, nil
+}
+
+// pssoIdPClientSecret returns the stored OAuth IdP client secret for the macOS
+// account provisioning feature, or "" if none is stored.
+func (svc *Service) pssoIdPClientSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret},
+		nil,
+	)
+	if err != nil {
+		if isAssetNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get psso idp client secret asset")
+	}
+	asset, ok := assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret]
+	if !ok || len(asset.Value) == 0 {
+		return "", nil
+	}
+	return string(asset.Value), nil
 }
 
 // errPSSONotConfigured is returned from the device-facing endpoints when the
@@ -202,7 +254,7 @@ func (svc *Service) PSSONonce(ctx context.Context) (string, error) {
 	// before any user identity is established.
 	svc.authz.SkipAuthorization(ctx)
 
-	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	settings, err := svc.pssoSettingsIfConfigured(ctx, skipSecret)
 	if err != nil {
 		return "", err
 	}
@@ -261,7 +313,7 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 	// key registered here, verified against the kid.
 	svc.authz.SkipAuthorization(ctx)
 
-	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	settings, err := svc.pssoSettingsIfConfigured(ctx, skipSecret)
 	if err != nil {
 		return err
 	}
@@ -323,7 +375,7 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 	// JWT signature against a known device signing pubkey is the auth.
 	svc.authz.SkipAuthorization(ctx)
 
-	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	settings, err := svc.pssoSettingsIfConfigured(ctx, loadSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +716,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 	// signing public key — there is no caller identity to authorize.
 	svc.authz.SkipAuthorization(ctx)
 
-	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	settings, err := svc.pssoSettingsIfConfigured(ctx, skipSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -708,7 +760,7 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 	// framework fetches it anonymously to validate the extension binding.
 	svc.authz.SkipAuthorization(ctx)
 
-	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	settings, err := svc.pssoSettingsIfConfigured(ctx, skipSecret)
 	if err != nil {
 		return nil, err
 	}
