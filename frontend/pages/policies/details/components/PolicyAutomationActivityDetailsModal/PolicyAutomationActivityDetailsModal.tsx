@@ -85,6 +85,7 @@ const PolicyAutomationActivityDetailsModal = ({
                   variant="icon"
                   onClick={onCopyDetails}
                   className={`${baseClass}__copy`}
+                  ariaLabel="Copy details"
                 >
                   <Icon name="copy" />
                 </Button>

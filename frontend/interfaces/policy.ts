@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ActivityType, IActivityDetails } from "interfaces/activity";
+import type { ActivityType, IActivityDetails } from "interfaces/activity";
 import { IScript } from "./script";
 import { ILabelPolicy } from "./label";
 
