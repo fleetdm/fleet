@@ -157,7 +157,11 @@ func IsAppAlreadyInstalledError(chain []mdm.ErrorChain) bool {
 func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 	var errMsg strings.Builder
 	for _, r := range reasons {
-		errMsg.WriteString(fmt.Sprintf("%s: %s %+v\n", r.Code, r.Description, r.Details))
+		baseString := fmt.Sprintf("%s: %s", r.Code, r.Description)
+		if len(r.Details) > 0 {
+			baseString = fmt.Sprintf("%s %+v", baseString, r.Details)
+		}
+		errMsg.WriteString(fmt.Sprintf("%s\n", baseString))
 	}
 	return errMsg.String()
 }

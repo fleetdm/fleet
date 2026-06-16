@@ -1641,6 +1641,8 @@ type newMDMConfigProfileRequest struct {
 	LabelsIncludeAll []string
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
+	// This is only checked and used for DDM profiles.
+	ProfileScope fleet.PayloadScope
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1705,6 +1707,20 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
 	}
 
+	ddmPayloadScope, existsDDMPayloadScope := r.MultipartForm.Value["scope"]
+	ddmScope := fleet.PayloadScopeSystem // Default to system
+	if existsDDMPayloadScope {
+		switch ddmPayloadScope[0] {
+		case "system":
+			ddmScope = fleet.PayloadScopeSystem
+		case "user":
+			ddmScope = fleet.PayloadScopeUser
+		default:
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid scope: %s", ddmPayloadScope[0])}
+		}
+	}
+	decoded.ProfileScope = ddmScope
+
 	return &decoded, nil
 }
 
@@ -1768,7 +1784,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny, req.ProfileScope)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -2533,7 +2549,7 @@ func getAppleProfiles(
 				}
 			}
 
-			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
+			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier, fleet.PayloadScopeSystem) // TODO: Parse scope from HTTP request
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
