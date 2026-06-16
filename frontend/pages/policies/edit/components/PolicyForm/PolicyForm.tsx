@@ -388,6 +388,7 @@ const PolicyForm = ({
         team_id: storedPolicy.team_id,
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
+      queryClient.setQueryData(["policy", policyIdForEdit], response);
       queryClient.setQueryData(
         ["policy", policyIdForEdit, teamIdForApi],
         response

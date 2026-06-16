@@ -3400,7 +3400,7 @@ func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, sv
 	}
 	// Return updated config so the frontend can update its cache without a
 	// separate read that might hit a stale replica.
-	config, err := svc.AppConfigObfuscated(ctx)
+	config, err := svc.AppConfigObfuscated(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
 	}

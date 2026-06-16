@@ -67,7 +67,7 @@ func putOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fl
 	}
 	// Return updated config so the frontend can update its cache without a
 	// separate read that might hit a stale replica.
-	config, err := svc.AppConfigObfuscated(ctx)
+	config, err := svc.AppConfigObfuscated(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return putOrgLogoResponse{Err: err}, nil
 	}
@@ -100,7 +100,7 @@ func deleteOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) 
 	if err := svc.DeleteOrgLogo(ctx, req.Mode); err != nil {
 		return deleteOrgLogoResponse{Err: err}, nil
 	}
-	config, err := svc.AppConfigObfuscated(ctx)
+	config, err := svc.AppConfigObfuscated(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return deleteOrgLogoResponse{Err: err}, nil
 	}

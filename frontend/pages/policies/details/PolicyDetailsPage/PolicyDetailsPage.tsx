@@ -230,6 +230,10 @@ const PolicyDetailsPage = ({
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.setQueryData(["policy", policyId], response);
+      queryClient.setQueryData(
+        ["policy", policyId, teamIdForApi],
+        response
+      );
       renderFlash("success", "Automation added.");
     } catch {
       renderFlash("error", "Couldn't set automation. Please try again.");

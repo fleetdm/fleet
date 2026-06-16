@@ -35,9 +35,9 @@ check_pattern() {
   done < <(
     grep -rn "$pattern" "$FRONTEND_DIR" --include='*.tsx' --include='*.ts' 2>/dev/null \
       | grep -v '\.tests\.\|\.test\.\|__tests__' \
-      | grep -v '^\s*//' \
-      | grep -v ':\s*//' \
-      | grep -v ':\s*/\*' \
+      | grep -Ev '^[[:space:]]*//' \
+      | grep -Ev ':[[:space:]]*//' \
+      | grep -Ev ':[[:space:]]*/\*' \
       | grep -v ': () => void' \
       | grep -v 'refetch:' \
       | grep -v '={.*}' \

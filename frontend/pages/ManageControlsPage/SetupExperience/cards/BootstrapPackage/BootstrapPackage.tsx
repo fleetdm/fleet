@@ -145,16 +145,14 @@ const BootstrapPackage = ({
         fleet_id: currentTeamId,
         macos_manual_agent_install: false,
       });
+      // Only update local state after both writes succeed.
+      setSelectedManualAgentInstall(false);
       renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
-      // We just set macos_manual_agent_install to false, so update the
-      // local state directly instead of refetching from a potentially
-      // stale replica.
-      setSelectedManualAgentInstall(false);
     }
   };
 

@@ -143,6 +143,7 @@ const TicketDestinations = (): JSX.Element => {
           );
           toggleAddTicketDestinationModal();
           queryClient.setQueryData(["config"], updatedConfig);
+          queryClient.setQueryData(["integrations"], updatedConfig);
           setConfig(updatedConfig);
           setJiraIntegrations(updatedConfig.integrations.jira);
           setZendeskIntegrations(updatedConfig.integrations.zendesk);
@@ -234,6 +235,7 @@ const TicketDestinations = (): JSX.Element => {
             </>
           );
           queryClient.setQueryData(["config"], updatedConfig);
+          queryClient.setQueryData(["integrations"], updatedConfig);
           setConfig(updatedConfig);
           setJiraIntegrations(updatedConfig.integrations.jira);
           setZendeskIntegrations(updatedConfig.integrations.zendesk);

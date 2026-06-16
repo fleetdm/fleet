@@ -61,7 +61,6 @@ const IntegrationsPage = ({
       const diff = deepDifference(formUpdates, appConfig);
 
       // If there's no actual change, don't make the API call to update config.
-      // Still refetch in case settings were changed inside a card (like end-user auth).
       if (Object.keys(diff).length === 0) {
         return true;
       }

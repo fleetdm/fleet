@@ -262,7 +262,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       // stale reads from a lagging replica (read-after-write fix).
       queryClient.setQueryData(["config"], updatedConfig);
       queryClient.setQueryData(
-        [{ scope: "softwareConfig", teamId: undefined }],
+        [{ scope: "softwareConfig", teamId: teamIdForApi }],
         updatedConfig
       );
       setConfig(updatedConfig);

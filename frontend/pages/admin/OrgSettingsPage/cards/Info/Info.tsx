@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
+import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IOrgLogoStorableMode } from "interfaces/org_logo";
 
@@ -336,12 +337,15 @@ const Info = ({
       // GET /config includes, so we merge to preserve them.
       if (succeededModes.length > 0 && lastLogoResponse?.config) {
         const logoConfig = lastLogoResponse.config as Record<string, unknown>;
-        const oldConfig = queryClient.getQueryData(["config"]) as
-          | Record<string, unknown>
-          | undefined;
-        const merged = { ...oldConfig, ...logoConfig };
-        queryClient.setQueryData(["config"], merged);
-        setConfig((merged as unknown) as Parameters<typeof setConfig>[0]);
+        const oldConfig = queryClient.getQueryData<IConfig>(["config"]);
+        if (oldConfig) {
+          const merged = {
+            ...(oldConfig as unknown as Record<string, unknown>),
+            ...logoConfig,
+          } as unknown as IConfig;
+          queryClient.setQueryData(["config"], merged);
+          setConfig(merged);
+        }
       }
 
       const reset = (prev: ILogoModeState) => {
