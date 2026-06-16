@@ -614,6 +614,26 @@ export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
 
 See [logging_tracing_enabled](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) for the full list of related settings. For a local development setup, see [tools/signoz](https://github.com/fleetdm/fleet/tree/main/tools/signoz).
 
+#### Multiple environments
+
+When you run more than one Fleet deployment (for example, `production`, `staging`, and `dev`) and send their telemetry to the same observability backend, keep the service name the same and distinguish deployments by environment instead.
+
+Leave `OTEL_SERVICE_NAME` at its default of `fleet` on every deployment. This keeps all of your Fleet instances grouped under a single service so dashboards, service maps, and alerts treat them as one application. Then set the deployment environment through `OTEL_RESOURCE_ATTRIBUTES`, which lets you filter and compare environments within that service.
+
+Set two attributes for the environment:
+
+- `deployment.environment.name` is the current [OpenTelemetry semantic convention](https://opentelemetry.io/docs/specs/semconv/resource/deployment-environment/) for the deployment environment.
+- `deployment.environment` is the older, now-deprecated attribute. Some tools, including SigNoz, still key off this name, so set it to the same value for compatibility.
+
+For example, on a development deployment:
+
+```bash
+export OTEL_SERVICE_NAME=fleet
+export OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev,deployment.environment=dev
+```
+
+Use a distinct value (such as `production`, `staging`, or `dev`) on each deployment, and keep both attributes in sync. Fleet's [SigNoz dashboards](https://github.com/fleetdm/fleet/tree/main/tools/signoz) include an environment selector backed by these attributes.
+
 #### Sampling
 
 Tracing every request on a large fleet would emit an unsustainable volume of spans: agent endpoints such as osquery distributed read/write and orbit check-ins dominate request volume. Fleet uses route-aware head sampling so tracing can stay enabled in production at a reasonable cost. Each route is assigned to a tier:
