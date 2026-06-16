@@ -90,7 +90,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Single sign-on (SSO)")).toHaveLength(
+      expect(await screen.findAllByText("Authentication (SSO)")).toHaveLength(
         2
       );
     });
@@ -111,7 +111,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Host status webhook")).toHaveLength(2);
+      expect(await screen.findAllByText("Host status alerts")).toHaveLength(2);
     });
   });
 });
