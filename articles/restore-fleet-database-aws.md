@@ -1,6 +1,6 @@
 # Restore a Fleet database on AWS
 
-This guide provides the steps for restoring the Aurora database for a [self-hosted Fleet deployment on AWS using Terraform](https://github.com/fleetdm/fleet-terraform/tree/main).
+This guide provides the steps for restoring the Aurora database for a [self-hosted Fleet deployment on AWS using Terraform](https://github.com/fleetdm/fleet-terraform/tree/main). Please contact Fleet support before performing this action, or proceed at your own risk.
 
 The `db-restore.sh` script creates a new database cluster from a point-in-time recovery or snapshot. It updates Terraform configuration and brings services back online.
 
@@ -8,7 +8,7 @@ This guide covers deployments created with the [fleet-terraform `example` module
 
 All commands in this guide use `example` as the environment name. Replace `example` with your environment directory name. Replace `fleet-terraform/example` with the path to your Terraform checkout.
 
-> **Note:** Fleet built and tested `db-restore.sh` against the [`fleet-terraform/example`](https://github.com/fleetdm/fleet-terraform/tree/main/example) (Standard) deployment layout. If your Fleet deployment is not based on `fleet-terraform/example`, contact Fleet customer support before running this script.
+> **Note:** Fleet built and tested `db-restore.sh` against the [`fleet-terraform/example`](https://github.com/fleetdm/fleet-terraform/tree/main/example) (Standard) deployment layout. If your Fleet deployment is not based on `fleet-terraform/example`, this guide will not support your restore.
 
 ## Prerequisites
 
