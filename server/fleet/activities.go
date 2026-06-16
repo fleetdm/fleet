@@ -1186,6 +1186,9 @@ type ActivityTypeEditedSoftware struct {
 	LabelsIncludeAll    []ActivitySoftwareLabel `json:"labels_include_all,omitempty"`
 	SoftwareTitleID     uint                    `json:"software_title_id"`
 	SoftwareDisplayName string                  `json:"software_display_name"`
+	// PinnedVersion is the version a Fleet-maintained app was pinned to (a literal version or a "^major" caret).
+	// nil means the title is set to "Latest" (no pin).
+	PinnedVersion *string `json:"pinned_version,omitempty"`
 }
 
 func (a ActivityTypeEditedSoftware) ActivityName() string {

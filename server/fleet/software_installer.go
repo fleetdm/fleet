@@ -116,6 +116,8 @@ type SoftwareInstaller struct {
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	// PinnedVersion is the version a Fleet-maintained app is pinned to (if not nil).
+	PinnedVersion *string `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`

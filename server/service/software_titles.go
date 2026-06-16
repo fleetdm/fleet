@@ -209,6 +209,10 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 				meta.FleetMaintainedVersions = fmaVersions
 
+				// TODO(storage): populate meta.PinnedVersion with the stored pin string (literal / "^major" / nil for
+				// Latest). is_active only tells us which row is active, not the pin intent, so this needs the pinned
+				// version persisted first (see the pin-string storage design). Left nil until then.
+
 				// Populate PatchPolicy if there is one
 				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
 				if err != nil && !fleet.IsNotFound(err) {
