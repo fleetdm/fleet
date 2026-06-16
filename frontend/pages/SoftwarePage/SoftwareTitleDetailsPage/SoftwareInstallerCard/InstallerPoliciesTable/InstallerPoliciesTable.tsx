@@ -43,7 +43,9 @@ const InstallerPoliciesTable = ({
       emptyComponent={() => <></>}
       showMarkAllPages={false}
       isAllPagesSelected={false}
-      hideFooter
+      renderTableHelpText={() => (
+        <>Software will be installed when hosts fail these policies.</>
+      )}
     />
   );
 };

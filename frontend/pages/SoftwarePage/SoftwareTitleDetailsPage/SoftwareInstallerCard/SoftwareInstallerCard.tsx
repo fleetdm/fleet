@@ -13,11 +13,7 @@ import softwareAPI from "services/entities/software";
 
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 
-import {
-  getSelfServiceTooltip,
-  getAutoUpdatesTooltip,
-  mergePolicies,
-} from "pages/SoftwarePage/helpers";
+import { getAutoUpdatesTooltip } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -41,7 +37,6 @@ import {
   downloadFile,
 } from "./helpers";
 import InstallerStatusTable from "./InstallerStatusTable";
-import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 const baseClass = "software-installer-card";
 
@@ -194,7 +189,6 @@ const SoftwareInstallerCard = ({
     status,
     iconUrl,
     displayName,
-    isSelfService,
     isScriptPackage,
     autoUpdateEnabled,
     autoUpdateStartTime,
@@ -208,9 +202,8 @@ const SoftwareInstallerCard = ({
     isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
+    sha256,
     androidPlayStoreId,
-    patchPolicy,
-    automaticInstallPolicies,
     gitOpsModeEnabled,
     repoURL,
   } = softwareInstallerMeta;
@@ -266,11 +259,6 @@ const SoftwareInstallerCard = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
-  const mergedPolicies = mergePolicies({
-    automaticInstallPolicies,
-    patchPolicy,
-  });
-
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
@@ -287,19 +275,6 @@ const SoftwareInstallerCard = ({
               androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
-              {isSelfService && (
-                <TooltipWrapper
-                  showArrow
-                  position="top"
-                  tipContent={getSelfServiceTooltip(
-                    isIosOrIpadosApp,
-                    isAndroidPlayStoreApp
-                  )}
-                  underline={false}
-                >
-                  <Tag icon="user" text="Self-service" />
-                </TooltipWrapper>
-              )}
               {autoUpdateEnabled && (
                 <TooltipWrapper
                   className={`${baseClass}__auto-updates-tooltip`}
@@ -347,15 +322,6 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {mergedPolicies.length > 0 && (
-        <div className={`${baseClass}__installer-policies-table`}>
-          <InstallerPoliciesTable
-            teamId={teamId}
-            isLoading={isLoading}
-            policies={mergedPolicies}
-          />
-        </div>
-      )}
       {showDeleteModal && (
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}

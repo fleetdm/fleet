@@ -3,17 +3,28 @@ import classnames from "classnames";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "tag";
 
 interface ITagProps {
-  icon: IconNames;
+  icon?: IconNames;
   text: string;
+  trailingIcon?: IconNames;
   className?: string;
   onClick?: () => void;
+  /** Optional tooltip shown on hover/focus. Pass a string or JSX. */
+  tooltip?: React.ReactNode;
 }
 
-const Tag = ({ icon, text, className, onClick }: ITagProps) => {
+const Tag = ({
+  icon,
+  text,
+  trailingIcon,
+  className,
+  onClick,
+  tooltip,
+}: ITagProps) => {
   const classNames = classnames(
     baseClass,
     className,
@@ -22,12 +33,15 @@ const Tag = ({ icon, text, className, onClick }: ITagProps) => {
 
   const content = (
     <>
-      <Icon name={icon} size="small" color="ui-fleet-black-75" />
+      {icon && <Icon name={icon} size="small" color="ui-fleet-black-75" />}
       <span className={`${baseClass}__text`}>{text}</span>
+      {trailingIcon && (
+        <Icon name={trailingIcon} size="small" color="ui-fleet-black-75" />
+      )}
     </>
   );
 
-  return onClick ? (
+  const tag = onClick ? (
     // use a button element so that the tag can be focused and clicked
     // with the keyboard
     <button className={classNames} onClick={onClick}>
@@ -35,6 +49,21 @@ const Tag = ({ icon, text, className, onClick }: ITagProps) => {
     </button>
   ) : (
     <div className={classNames}>{content}</div>
+  );
+
+  if (!tooltip) {
+    return tag;
+  }
+
+  return (
+    <TooltipWrapper
+      tipContent={tooltip}
+      position="top"
+      underline={false}
+      showArrow
+    >
+      {tag}
+    </TooltipWrapper>
   );
 };
 

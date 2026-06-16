@@ -37,6 +37,7 @@ export const ACTION_EDIT_APPEARANCE = "edit_appearance";
 export const ACTION_EDIT_SOFTWARE = "edit_software";
 export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
 export const ACTION_PATCH = "patch";
+export const ACTION_VERSIONS = "versions";
 export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
 
@@ -47,6 +48,7 @@ export interface BuildActionOptionsArgs {
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
   canAddPatchPolicy: boolean;
+  canManageVersions: boolean;
   canConfigureAutoUpdate: boolean;
   hasExistingPatchPolicy?: boolean;
 }
@@ -58,6 +60,7 @@ export const buildActionOptions = ({
   canEditSoftware,
   canEditConfiguration,
   canAddPatchPolicy,
+  canManageVersions,
   canConfigureAutoUpdate,
   hasExistingPatchPolicy = false,
 }: BuildActionOptionsArgs): CustomOptionType[] => {
@@ -65,6 +68,7 @@ export const buildActionOptions = ({
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
   let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
+  let disabledVersionsTooltipContent: TooltipContent | undefined;
 
   if (gitOpsModeEnabled) {
     const gitOpsModeTooltipContent =
@@ -72,6 +76,7 @@ export const buildActionOptions = ({
 
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
+    disabledVersionsTooltipContent = gitOpsModeTooltipContent;
 
     if (source === "vpp_apps") {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
@@ -121,6 +126,16 @@ export const buildActionOptions = ({
     });
   }
 
+  // Show versions option only for Fleet-maintained apps on Premium
+  if (canManageVersions) {
+    options.push({
+      label: "Versions",
+      value: ACTION_VERSIONS,
+      isDisabled: !!disabledVersionsTooltipContent,
+      tooltipContent: disabledVersionsTooltipContent,
+    });
+  }
+
   if (canConfigureAutoUpdate) {
     options.push({
       label: "Schedule auto updates",
@@ -160,6 +175,8 @@ interface ISoftwareDetailsSummaryProps {
   onClickEditSoftware?: () => void;
   /** Displays Patch CTA to add a patch policy */
   onClickAddPatchPolicy?: () => void;
+  /** Displays Versions CTA to open the versions / pin modal (Premium FMA only) */
+  onClickVersions?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
@@ -169,6 +186,9 @@ interface ISoftwareDetailsSummaryProps {
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
   patchPolicyId?: number;
+  /** Optional pill row rendered between the title and the Actions dropdown
+   * (e.g. Fleet-maintained, Self-service, Auto install). */
+  headerPills?: React.ReactNode;
 }
 
 const SoftwareDetailsSummary = ({
@@ -186,11 +206,13 @@ const SoftwareDetailsSummary = ({
   onClickEditAppearance,
   onClickEditSoftware,
   onClickAddPatchPolicy,
+  onClickVersions,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
   patchPolicyId,
+  headerPills,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -207,6 +229,9 @@ const SoftwareDetailsSummary = ({
         break;
       case ACTION_PATCH:
         onClickAddPatchPolicy && onClickAddPatchPolicy();
+        break;
+      case ACTION_VERSIONS:
+        onClickVersions && onClickVersions();
         break;
       case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
@@ -255,6 +280,7 @@ const SoftwareDetailsSummary = ({
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
     canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canManageVersions: !!onClickVersions,
     canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
     hasExistingPatchPolicy: !!patchPolicyId,
   });
@@ -262,38 +288,41 @@ const SoftwareDetailsSummary = ({
   return (
     <>
       <div className={baseClass}>
-        {isOperatingSystem ? (
-          <OSIcon name={name} size="xlarge" />
-        ) : (
-          renderSoftwareIcon()
-        )}
-        <dl className={`${baseClass}__info`}>
-          <div className={`${baseClass}__title-actions`}>
-            <h1 aria-label="software display name">
-              {isRollingArch ? (
-                // wrap a tooltip around the "rolling" suffix
-                <>
-                  {displayName.slice(0, -8)}
-                  <TooltipWrapperArchLinuxRolling />
-                </>
-              ) : (
-                <TooltipTruncatedText value={displayName} />
-              )}
-            </h1>
-            {canManageSoftware && (
-              <div className={`${baseClass}__actions-wrapper`}>
-                <DropdownWrapper
-                  className={`${baseClass}__actions-dropdown`}
-                  name="software-actions"
-                  onChange={onSelectSoftwareAction}
-                  placeholder="Actions"
-                  options={actionOptions}
-                  variant="button"
-                  nowrapMenu
-                />
-              </div>
+        <div className={`${baseClass}__icon-wrap`}>
+          {isOperatingSystem ? (
+            <OSIcon name={name} size="xlarge" />
+          ) : (
+            renderSoftwareIcon()
+          )}
+        </div>
+        <div className={`${baseClass}__info`}>
+          <h1
+            aria-label="software display name"
+            className={`${baseClass}__title`}
+          >
+            {isRollingArch ? (
+              // wrap a tooltip around the "rolling" suffix
+              <>
+                {displayName.slice(0, -8)}
+                <TooltipWrapperArchLinuxRolling />
+              </>
+            ) : (
+              <TooltipTruncatedText value={displayName} />
             )}
-          </div>
+          </h1>
+          {canManageSoftware && (
+            <div className={`${baseClass}__actions-wrapper`}>
+              <DropdownWrapper
+                className={`${baseClass}__actions-dropdown`}
+                name="software-actions"
+                onChange={onSelectSoftwareAction}
+                placeholder="Actions"
+                options={actionOptions}
+                variant="button"
+                nowrapMenu
+              />
+            </div>
+          )}
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 
@@ -317,7 +346,10 @@ const SoftwareDetailsSummary = ({
               />
             )}
           </dl>
-        </dl>
+          {headerPills && (
+            <div className={`${baseClass}__header-pills`}>{headerPills}</div>
+          )}
+        </div>
       </div>
     </>
   );
