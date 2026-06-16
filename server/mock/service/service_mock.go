@@ -104,7 +104,7 @@ type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlRespons
 
 type MDMSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string)
 
-type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context) (string, error)
+type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context, enrollmentToken string) (string, error)
 
 type GetSSOUserFunc func(ctx context.Context, auth fleet.Auth) (*fleet.User, error)
 
@@ -498,7 +498,7 @@ type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string)
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) (string, error)
 
-type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, err error)
+type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, categories []string, err error)
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
@@ -570,7 +570,7 @@ type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
 type CreateAndroidWebAppFunc func(ctx context.Context, title string, startURL string, icon io.Reader) (string, error)
 
-type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error)
+type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error)
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
@@ -2618,11 +2618,11 @@ func (s *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResp
 	return s.MDMSSOCallbackFunc(ctx, sessionID, samlResponse)
 }
 
-func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error) {
+func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMAccountDrivenEnrollmentSSOURLFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx)
+	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx, enrollmentToken)
 }
 
 func (s *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
@@ -3997,7 +3997,7 @@ func (s *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string,
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmName, payloads, dryRun)
 }
 
-func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, err error) {
+func (s *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (status string, message string, packages []fleet.SoftwarePackageResponse, deletedPackages []fleet.DeletedSoftwarePackage, categories []string, err error) {
 	s.mu.Lock()
 	s.GetBatchSetSoftwareInstallersResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4249,7 +4249,7 @@ func (s *Service) CreateAndroidWebApp(ctx context.Context, title string, startUR
 	return s.CreateAndroidWebAppFunc(ctx, title, startURL, icon)
 }
 
-func (s *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
+func (s *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
 	s.mu.Lock()
 	s.BatchAssociateVPPAppsFuncInvoked = true
 	s.mu.Unlock()

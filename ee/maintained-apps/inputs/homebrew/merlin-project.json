@@ -1,0 +1,10 @@
+{
+  "name": "Merlin Project",
+  "unique_identifier": "net.projectwizards.merlinproject",
+  "token": "merlin-project",
+  "installer_format": "zip",
+  "slug": "merlin-project/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

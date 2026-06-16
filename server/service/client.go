@@ -1095,17 +1095,20 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		// Categories referenced across both the installer and app store batches, unused ones should be deleted.
+		categoriesByTeam := map[string][]string{}
 		if len(tmSoftwarePackagesPayloads) > 0 {
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(software), "software package", "software packages"), tmName)
-				installers, deletedInstallers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
+				installers, deletedInstallers, categories, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
 				}
 				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
+				categoriesByTeam[currentTeamName] = append(categoriesByTeam[currentTeamName], categories...)
 			}
 		}
 		if len(tmSoftwareAppsPayloads) > 0 {
@@ -1113,13 +1116,24 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn(format, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
-				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
+				appsResponse, categories, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for fleet: %q: %w", tmName, err)
 				}
 				teamsVPPApps[tmName] = appsResponse
+				categoriesByTeam[currentTeamName] = append(categoriesByTeam[currentTeamName], categories...)
 			}
 		}
+
+		// Delete categories no longer referenced by any of the fleet's software.
+		if viaGitOps && !opts.DryRun && !softwareExcepted {
+			for tmName, tmID := range teamIDsByName {
+				if err := c.deleteUnusedSelfServiceCategories(tmID, categoriesByTeam[tmName]); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("deleting unused self-service categories for fleet %q: %w", tmName, err)
+				}
+			}
+		}
+
 		if opts.DryRun {
 			logfn(dryRunAppliedFormat, numberWithPluralization(len(specs.Teams), "fleet", "fleets"))
 		} else {
@@ -2496,9 +2510,6 @@ func (c *Client) DoGitOps(
 			for _, teamID := range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
-			if err := c.doSelfServiceCategories(incoming, dryRun); err != nil {
-				return err
-			}
 			if incoming.Labels == nil || len(incoming.Labels) > 0 {
 				return c.doGitOpsLabels(incoming, logFn, dryRun)
 			}
@@ -2827,26 +2838,30 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 
-	if err := c.doSelfServiceCategories(config, dryRun); err != nil {
-		return nil, nil, err
-	}
-
 	format := applyingTeamFormat
 	if dryRun {
 		format = dryRunAppliedTeamFormat
 	}
 
 	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, deletedInstallers, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 	logSoftwareDeletions(logFn, deletedInstallers, dryRun)
 
 	logFn(format, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'Unassigned'")
-	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	vppApps, appCategories, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
+	}
+
+	// Delete categories not referenced by any software.
+	if !dryRun && !softwareExcepted {
+		categories := slices.Concat(installerCategories, appCategories)
+		if err := c.deleteUnusedSelfServiceCategories(0, categories); err != nil {
+			return nil, nil, fmt.Errorf("deleting unused self-service categories: %w", err)
+		}
 	}
 
 	if !dryRun {
@@ -2927,50 +2942,6 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		logFn("[+] would've applied webhook settings for unassigned hosts\n")
 	}
 
-	return nil
-}
-
-func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error {
-	if !config.Software.SelfServiceCategories.Set {
-		return nil
-	}
-	var teamID uint
-	if config.TeamID != nil {
-		teamID = *config.TeamID
-	}
-
-	existing, err := c.ListSelfServiceCategories(teamID)
-	if err != nil {
-		return fmt.Errorf("listing existing self-service categories: %w", err)
-	}
-	payloads := config.Software.SelfServiceCategories.Value
-
-	var toInsert []string
-	for _, name := range payloads {
-		if !slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
-			toInsert = append(toInsert, name)
-		}
-	}
-	var toDelete []fleet.SoftwareCategory
-	for _, cat := range existing {
-		if !slices.ContainsFunc(payloads, func(p string) bool { return strings.EqualFold(p, cat.Name) }) {
-			toDelete = append(toDelete, cat)
-		}
-	}
-
-	if dryRun {
-		return nil
-	}
-	for _, name := range toInsert {
-		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
-			return fmt.Errorf("adding self-service category %q: %w", name, err)
-		}
-	}
-	for _, cat := range toDelete {
-		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
-			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
-		}
-	}
 	return nil
 }
 

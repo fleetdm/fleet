@@ -1,0 +1,10 @@
+{
+  "name": "BetterZip",
+  "unique_identifier": "com.macitbetter.betterzip",
+  "token": "betterzip",
+  "installer_format": "zip",
+  "slug": "betterzip/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

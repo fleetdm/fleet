@@ -5161,8 +5161,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	// device gets the regular MDM endpoints.
 	originalServerURL := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
-	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#")
+	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
 	loc, err := ssoResult.Location()
 	require.NoError(t, err)
 	require.NotNil(t, loc)
@@ -5259,7 +5260,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	enrollHostWithSEInstallers := func(t *testing.T, installers []struct {
 		Filename string
 		Title    string
-	}) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
+	},
+	) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
 		// unique per-subtest team name and ABM org so subtests don't collide
 		isoName := strings.ReplaceAll(t.Name(), "/", "_")
 		s.enableABM(isoName)
