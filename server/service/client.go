@@ -2388,10 +2388,13 @@ func (c *Client) DoGitOps(
 			macOSUpdates["deadline"] = ""
 		}
 
-		// To keep things backward compatible, if a minimum_version and deadline are both set but the user hasn't set update_new_hosts,
-		// then we default update_new_hosts to true
-		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" && macOSUpdates["update_new_hosts"] == nil {
-			macOSUpdates["update_new_hosts"] = true
+		// When update_new_hosts isn't explicitly set, derive it from whether OS updates
+		// are configured: default to true when both minimum_version and deadline are set
+		// (kept for backward compatibility) and false otherwise. Defaulting to false when
+		// updates aren't configured prevents a previously stored "true" from sticking
+		// around once minimum_version/deadline are cleared.
+		if macOSUpdates["update_new_hosts"] == nil {
+			macOSUpdates["update_new_hosts"] = macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != ""
 		}
 
 		// Put in default values for ios_updates

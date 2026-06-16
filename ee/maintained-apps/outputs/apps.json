@@ -128,6 +128,13 @@
       "description": "ActivityWatch is a time tracker."
     },
     {
+      "name": "ActivityWatch",
+      "slug": "activitywatch/windows",
+      "platform": "windows",
+      "unique_identifier": "ActivityWatch",
+      "description": "ActivityWatch is a time tracker."
+    },
+    {
       "name": "Actual",
       "slug": "actual/darwin",
       "platform": "darwin",
@@ -300,6 +307,13 @@
       "slug": "airparrot/darwin",
       "platform": "darwin",
       "unique_identifier": "com.squirrels.AirParrot-3",
+      "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
+    },
+    {
+      "name": "AirParrot",
+      "slug": "airparrot/windows",
+      "platform": "windows",
+      "unique_identifier": "AirParrot 3",
       "description": "AirParrot is a tool to wirelessly mirror the screen or stream media files."
     },
     {
@@ -821,6 +835,13 @@
       "description": "Bdash is a simple SQL client for lightweight data analysis."
     },
     {
+      "name": "Bdash",
+      "slug": "bdash/windows",
+      "platform": "windows",
+      "unique_identifier": "Bdash",
+      "description": "Bdash is a simple SQL client for lightweight data analysis."
+    },
+    {
       "name": "Beaver Notes",
       "slug": "beaver-notes/darwin",
       "platform": "darwin",
@@ -912,10 +933,24 @@
       "description": "Binance is a cryptocurrency exchange app."
     },
     {
+      "name": "Binance",
+      "slug": "binance/windows",
+      "platform": "windows",
+      "unique_identifier": "Binance",
+      "description": "Binance is a cryptocurrency exchange app."
+    },
+    {
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
       "unique_identifier": "com.eatbiscuit.biscuit",
+      "description": "Biscuit is a browser to organise apps."
+    },
+    {
+      "name": "Biscuit",
+      "slug": "biscuit/windows",
+      "platform": "windows",
+      "unique_identifier": "Biscuit",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -1815,6 +1850,13 @@
       "description": "darktable is a photography workflow application and raw developer."
     },
     {
+      "name": "darktable",
+      "slug": "darktable/windows",
+      "platform": "windows",
+      "unique_identifier": "darktable",
+      "description": "darktable is a photography workflow application and raw developer."
+    },
+    {
       "name": "Dash",
       "slug": "dash/darwin",
       "platform": "darwin",
@@ -1826,6 +1868,13 @@
       "slug": "dataflare/darwin",
       "platform": "darwin",
       "unique_identifier": "app.dataflare.desktop",
+      "description": "Dataflare is a database manager."
+    },
+    {
+      "name": "Dataflare",
+      "slug": "dataflare/windows",
+      "platform": "windows",
+      "unique_identifier": "Dataflare",
       "description": "Dataflare is a database manager."
     },
     {
@@ -1941,6 +1990,13 @@
       "description": "DbVisualizer is a database management and analysis tool."
     },
     {
+      "name": "DbVisualizer",
+      "slug": "dbvisualizer/windows",
+      "platform": "windows",
+      "unique_identifier": "DbVisualizer",
+      "description": "DbVisualizer is a database management and analysis tool."
+    },
+    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
@@ -1997,6 +2053,13 @@
       "description": "Descript is an audio and video editor."
     },
     {
+      "name": "Descript",
+      "slug": "descript/windows",
+      "platform": "windows",
+      "unique_identifier": "Descript",
+      "description": "Descript is an audio and video editor."
+    },
+    {
       "name": "DeskPad",
       "slug": "deskpad/darwin",
       "platform": "darwin",
@@ -2043,6 +2106,13 @@
       "slug": "devtoys/darwin",
       "platform": "darwin",
       "unique_identifier": "com.devtoys",
+      "description": "DevToys is a utilities designed to make common development tasks easier."
+    },
+    {
+      "name": "DevToys",
+      "slug": "devtoys/windows",
+      "platform": "windows",
+      "unique_identifier": "DevToys",
       "description": "DevToys is a utilities designed to make common development tasks easier."
     },
     {
@@ -2305,6 +2375,13 @@
       "description": "dupeGuru is a finds duplicate files in a computer system."
     },
     {
+      "name": "dupeGuru",
+      "slug": "dupeguru/windows",
+      "platform": "windows",
+      "unique_identifier": "dupeGuru",
+      "description": "dupeGuru is a finds duplicate files in a computer system."
+    },
+    {
       "name": "Dymo Connect",
       "slug": "dymo-connect/darwin",
       "platform": "darwin",
@@ -2316,6 +2393,13 @@
       "slug": "dynalist/darwin",
       "platform": "darwin",
       "unique_identifier": "io.dynalist",
+      "description": "Dynalist is an app for outlining app for your work."
+    },
+    {
+      "name": "Dynalist",
+      "slug": "dynalist/windows",
+      "platform": "windows",
+      "unique_identifier": "Dynalist",
       "description": "Dynalist is an app for outlining app for your work."
     },
     {
@@ -2372,6 +2456,13 @@
       "slug": "electrum/darwin",
       "platform": "darwin",
       "unique_identifier": "org.org.pythonmac.unspecified.Electrum",
+      "description": "Electrum is a bitcoin thin client."
+    },
+    {
+      "name": "Electrum",
+      "slug": "electrum/windows",
+      "platform": "windows",
+      "unique_identifier": "Electrum",
       "description": "Electrum is a bitcoin thin client."
     },
     {
@@ -2582,6 +2673,13 @@
       "slug": "fellow/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.fellow",
+      "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
+    },
+    {
+      "name": "Fellow",
+      "slug": "fellow/windows",
+      "platform": "windows",
+      "unique_identifier": "Fellow",
       "description": "Fellow is a collaborative tool for meeting agendas, notes, and action items."
     },
     {
@@ -2802,6 +2900,13 @@
       "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
     },
     {
+      "name": "Franz",
+      "slug": "franz/windows",
+      "platform": "windows",
+      "unique_identifier": "Franz",
+      "description": "Franz is a messaging app for WhatsApp, Facebook Messenger, Slack, Telegram, and more."
+    },
+    {
       "name": "Free Download Manager",
       "slug": "free-download-manager/darwin",
       "platform": "darwin",
@@ -2858,10 +2963,24 @@
       "description": "GDevelop is an open-source, cross-platform game engine designed to be used by everyone."
     },
     {
+      "name": "GDevelop",
+      "slug": "gdevelop/windows",
+      "platform": "windows",
+      "unique_identifier": "GDevelop",
+      "description": "GDevelop is an open-source, cross-platform game engine designed to be used by everyone."
+    },
+    {
       "name": "Geany",
       "slug": "geany/darwin",
       "platform": "darwin",
       "unique_identifier": "org.geany.geany",
+      "description": "Geany is a small and lightweight IDE."
+    },
+    {
+      "name": "Geany",
+      "slug": "geany/windows",
+      "platform": "windows",
+      "unique_identifier": "Geany",
       "description": "Geany is a small and lightweight IDE."
     },
     {
@@ -2897,6 +3016,13 @@
       "slug": "gephi/darwin",
       "platform": "darwin",
       "unique_identifier": "org.gephi",
+      "description": "Gephi is an open-source platform for visualizing and manipulating large graphs."
+    },
+    {
+      "name": "Gephi",
+      "slug": "gephi/windows",
+      "platform": "windows",
+      "unique_identifier": "Gephi",
       "description": "Gephi is an open-source platform for visualizing and manipulating large graphs."
     },
     {
@@ -3019,6 +3145,13 @@
       "description": "GOG Galaxy is a game client."
     },
     {
+      "name": "GOG Galaxy",
+      "slug": "gog-galaxy/windows",
+      "platform": "windows",
+      "unique_identifier": "GOG GALAXY",
+      "description": "GOG Galaxy is a game client."
+    },
+    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
@@ -3114,6 +3247,13 @@
       "slug": "gpodder/darwin",
       "platform": "darwin",
       "unique_identifier": "org.gpodder.gpodder",
+      "description": "gPodder is a podcast client."
+    },
+    {
+      "name": "gPodder",
+      "slug": "gpodder/windows",
+      "platform": "windows",
+      "unique_identifier": "gPodder",
       "description": "gPodder is a podcast client."
     },
     {
@@ -3404,6 +3544,13 @@
       "description": "ImHex is a hex editor for reverse engineers."
     },
     {
+      "name": "ImHex",
+      "slug": "imhex/windows",
+      "platform": "windows",
+      "unique_identifier": "ImHex",
+      "description": "ImHex is a hex editor for reverse engineers."
+    },
+    {
       "name": "Inkscape",
       "slug": "inkscape/darwin",
       "platform": "darwin",
@@ -3530,6 +3677,13 @@
       "description": "Jami is a decentralised instant messenger and softphone."
     },
     {
+      "name": "Jami",
+      "slug": "jami/windows",
+      "platform": "windows",
+      "unique_identifier": "Jami",
+      "description": "Jami is a decentralised instant messenger and softphone."
+    },
+    {
       "name": "jamovi",
       "slug": "jamovi/darwin",
       "platform": "darwin",
@@ -3604,6 +3758,13 @@
       "slug": "julia-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.Julia",
+      "description": "Julia is an app for programming language for technical computing."
+    },
+    {
+      "name": "Julia",
+      "slug": "julia-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Julia",
       "description": "Julia is an app for programming language for technical computing."
     },
     {
@@ -3733,6 +3894,13 @@
       "description": "kiro is an agent-centric IDE with spec-driven development."
     },
     {
+      "name": "Kiro",
+      "slug": "kiro/windows",
+      "platform": "windows",
+      "unique_identifier": "Kiro (User)",
+      "description": "kiro is an agent-centric IDE with spec-driven development."
+    },
+    {
       "name": "kitty",
       "slug": "kitty/darwin",
       "platform": "darwin",
@@ -3751,6 +3919,13 @@
       "slug": "knime/darwin",
       "platform": "darwin",
       "unique_identifier": "org.knime.product",
+      "description": "KNIME Analytics Platform is a software to create and productionise data science."
+    },
+    {
+      "name": "KNIME Analytics Platform",
+      "slug": "knime/windows",
+      "platform": "windows",
+      "unique_identifier": "KNIME Analytics Platform",
       "description": "KNIME Analytics Platform is a software to create and productionise data science."
     },
     {
@@ -3786,6 +3961,13 @@
       "slug": "lapce/darwin",
       "platform": "darwin",
       "unique_identifier": "io.lapce",
+      "description": "Lapce is an open source code editor written in Rust."
+    },
+    {
+      "name": "Lapce",
+      "slug": "lapce/windows",
+      "platform": "windows",
+      "unique_identifier": "Lapce",
       "description": "Lapce is an open source code editor written in Rust."
     },
     {
@@ -3926,6 +4108,13 @@
       "slug": "localsend/darwin",
       "platform": "darwin",
       "unique_identifier": "org.localsend.localsendApp",
+      "description": "LocalSend is an open-source cross-platform alternative to AirDrop."
+    },
+    {
+      "name": "LocalSend",
+      "slug": "localsend/windows",
+      "platform": "windows",
+      "unique_identifier": "LocalSend",
       "description": "LocalSend is an open-source cross-platform alternative to AirDrop."
     },
     {
@@ -4248,6 +4437,13 @@
       "slug": "megasync/darwin",
       "platform": "darwin",
       "unique_identifier": "mega.mac",
+      "description": "MEGAsync is a syncs files between computers and MEGA Cloud drives."
+    },
+    {
+      "name": "MEGAsync",
+      "slug": "megasync/windows",
+      "platform": "windows",
+      "unique_identifier": "MEGAsync",
       "description": "MEGAsync is a syncs files between computers and MEGA Cloud drives."
     },
     {
@@ -4591,7 +4787,7 @@
       "slug": "moom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.manytricks.Moom",
-      "description": "Moom is a utility to move and zoom windows—on one display."
+      "description": "Moom is a utility to move and zoom windows\u2014on one display."
     },
     {
       "name": "Moonlight",
@@ -4605,6 +4801,13 @@
       "slug": "morgen/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todesktop.210203cqcj00tw1",
+      "description": "Morgen is an all-in-one calendars, tasks and scheduler."
+    },
+    {
+      "name": "Morgen",
+      "slug": "morgen/windows",
+      "platform": "windows",
+      "unique_identifier": "Morgen",
       "description": "Morgen is an all-in-one calendars, tasks and scheduler."
     },
     {
@@ -4633,6 +4836,13 @@
       "slug": "mullvad-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "net.mullvad.mullvadbrowser",
+      "description": "Mullvad Browser is a web browser focused on privacy and on minimizing tracking and fingerprinting."
+    },
+    {
+      "name": "Mullvad Browser",
+      "slug": "mullvad-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad Browser",
       "description": "Mullvad Browser is a web browser focused on privacy and on minimizing tracking and fingerprinting."
     },
     {
@@ -4696,6 +4906,13 @@
       "slug": "nagstamon/darwin",
       "platform": "darwin",
       "unique_identifier": "de.nagstamon",
+      "description": "Nagstamon is a nagios status monitor."
+    },
+    {
+      "name": "Nagstamon",
+      "slug": "nagstamon/windows",
+      "platform": "windows",
+      "unique_identifier": "Nagstamon",
       "description": "Nagstamon is a nagios status monitor."
     },
     {
@@ -4860,6 +5077,13 @@
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
     },
     {
+      "name": "NoSQL Workbench",
+      "slug": "nosql-workbench/windows",
+      "platform": "windows",
+      "unique_identifier": "NoSQL Workbench",
+      "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
+    },
+    {
       "name": "NotchNook",
       "slug": "notchnook/darwin",
       "platform": "darwin",
@@ -4885,6 +5109,13 @@
       "slug": "notesnook/darwin",
       "platform": "darwin",
       "unique_identifier": "com.streetwriters.notesnook",
+      "description": "Notesnook is a privacy-focused note taking app."
+    },
+    {
+      "name": "Notesnook",
+      "slug": "notesnook/windows",
+      "platform": "windows",
+      "unique_identifier": "Notesnook",
       "description": "Notesnook is a privacy-focused note taking app."
     },
     {
@@ -5004,6 +5235,13 @@
       "slug": "ocenaudio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.ocenaudio",
+      "description": "ocenaudio is an audio editor."
+    },
+    {
+      "name": "ocenaudio",
+      "slug": "ocenaudio/windows",
+      "platform": "windows",
+      "unique_identifier": "ocenaudio",
       "description": "ocenaudio is an audio editor."
     },
     {
@@ -5203,6 +5441,13 @@
       "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
     },
     {
+      "name": "OpenRefine",
+      "slug": "openrefine/windows",
+      "platform": "windows",
+      "unique_identifier": "OpenRefine",
+      "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
+    },
+    {
       "name": "OpenToonz",
       "slug": "opentoonz/darwin",
       "platform": "darwin",
@@ -5277,6 +5522,13 @@
       "slug": "pale-moon/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.pale moon",
+      "description": "Pale Moon is a web browser."
+    },
+    {
+      "name": "Pale Moon",
+      "slug": "pale-moon/windows",
+      "platform": "windows",
+      "unique_identifier": "Pale Moon",
       "description": "Pale Moon is a web browser."
     },
     {
@@ -5525,6 +5777,13 @@
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
+      "name": "Portfolio Performance",
+      "slug": "portfolioperformance/windows",
+      "platform": "windows",
+      "unique_identifier": "Portfolio Performance",
+      "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
+    },
+    {
       "name": "Postgres",
       "slug": "postgres-app/darwin",
       "platform": "darwin",
@@ -5637,6 +5896,13 @@
       "description": "PreForm is a 3D printing setup, management, and monitoring."
     },
     {
+      "name": "PreForm",
+      "slug": "preform/windows",
+      "platform": "windows",
+      "unique_identifier": "PreForm",
+      "description": "PreForm is a 3D printing setup, management, and monitoring."
+    },
+    {
       "name": "Principle",
       "slug": "principle/darwin",
       "platform": "darwin",
@@ -5714,6 +5980,13 @@
       "description": "Proton Drive is a client for Proton Drive."
     },
     {
+      "name": "Proton Drive",
+      "slug": "proton-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Drive",
+      "description": "Proton Drive is a client for Proton Drive."
+    },
+    {
       "name": "Proton Mail Bridge",
       "slug": "proton-mail-bridge/darwin",
       "platform": "darwin",
@@ -5763,6 +6036,13 @@
       "description": "ProtoPie is a tool to create interactive prototypes."
     },
     {
+      "name": "ProtoPie",
+      "slug": "protopie/windows",
+      "platform": "windows",
+      "unique_identifier": "ProtoPie",
+      "description": "ProtoPie is a tool to create interactive prototypes."
+    },
+    {
       "name": "Proxifier",
       "slug": "proxifier/darwin",
       "platform": "darwin",
@@ -5781,6 +6061,13 @@
       "slug": "proxyman/darwin",
       "platform": "darwin",
       "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+    },
+    {
+      "name": "Proxyman",
+      "slug": "proxyman/windows",
+      "platform": "windows",
+      "unique_identifier": "Proxyman",
       "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
@@ -5945,6 +6232,13 @@
       "description": "Readest is an ebook reader."
     },
     {
+      "name": "Readest",
+      "slug": "readest/windows",
+      "platform": "windows",
+      "unique_identifier": "Readest",
+      "description": "Readest is an ebook reader."
+    },
+    {
       "name": "REAPER",
       "slug": "reaper/darwin",
       "platform": "darwin",
@@ -6008,6 +6302,13 @@
       "description": "Reflector is a wireless screen-mirroring application."
     },
     {
+      "name": "Reflector",
+      "slug": "reflector/windows",
+      "platform": "windows",
+      "unique_identifier": "Reflector 4",
+      "description": "Reflector is a wireless screen-mirroring application."
+    },
+    {
       "name": "Reminders MenuBar",
       "slug": "reminders-menubar/darwin",
       "platform": "darwin",
@@ -6029,6 +6330,13 @@
       "description": "Remote Desktop Manager is an app that centralises all remote connections on a single platform."
     },
     {
+      "name": "Remote Desktop Manager",
+      "slug": "remote-desktop-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Remote Desktop Manager",
+      "description": "Remote Desktop Manager is an app that centralises all remote connections on a single platform."
+    },
+    {
       "name": "Reqable",
       "slug": "reqable/darwin",
       "platform": "darwin",
@@ -6036,10 +6344,24 @@
       "description": "Reqable is an advanced API Debugging Proxy."
     },
     {
+      "name": "Reqable",
+      "slug": "reqable/windows",
+      "platform": "windows",
+      "unique_identifier": "Reqable",
+      "description": "Reqable is an advanced API Debugging Proxy."
+    },
+    {
       "name": "Requestly",
       "slug": "requestly/darwin",
       "platform": "darwin",
       "unique_identifier": "io.requestly.beta",
+      "description": "Requestly is an app for intercepting and modifying HTTP requests."
+    },
+    {
+      "name": "Requestly",
+      "slug": "requestly/windows",
+      "platform": "windows",
+      "unique_identifier": "Requestly",
       "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
@@ -6054,6 +6376,13 @@
       "slug": "retroarch/darwin",
       "platform": "darwin",
       "unique_identifier": "com.libretro.RetroArch",
+      "description": "RetroArch is a frontend for emulators, game engines and media players (OpenGL graphics API)."
+    },
+    {
+      "name": "RetroArch",
+      "slug": "retroarch/windows",
+      "platform": "windows",
+      "unique_identifier": "RetroArch",
       "description": "RetroArch is a frontend for emulators, game engines and media players (OpenGL graphics API)."
     },
     {
@@ -6155,6 +6484,13 @@
       "description": "Royal TSX is a remote management solution."
     },
     {
+      "name": "Royal TSX",
+      "slug": "royal-tsx/windows",
+      "platform": "windows",
+      "unique_identifier": "Royal TS V7",
+      "description": "Royal TSX is a remote management solution."
+    },
+    {
       "name": "RStudio",
       "slug": "rstudio/windows",
       "platform": "windows",
@@ -6222,6 +6558,13 @@
       "slug": "safe-exam-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "org.safeexambrowser.SafeExamBrowser",
+      "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
+    },
+    {
+      "name": "Safe Exam Browser",
+      "slug": "safe-exam-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Safe Exam Browser",
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
     },
     {
@@ -6295,6 +6638,13 @@
       "description": "Scrivener is a word processing software with a typewriter style."
     },
     {
+      "name": "Scrivener",
+      "slug": "scrivener/windows",
+      "platform": "windows",
+      "unique_identifier": "Scrivener",
+      "description": "Scrivener is a word processing software with a typewriter style."
+    },
+    {
       "name": "Secretive",
       "slug": "secretive/darwin",
       "platform": "darwin",
@@ -6365,10 +6715,24 @@
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
+      "name": "ShareFile",
+      "slug": "sharefile/windows",
+      "platform": "windows",
+      "unique_identifier": "ShareFile For Windows",
+      "description": "ShareFile is a client for the Progress ShareFile storage service."
+    },
+    {
       "name": "Shift",
       "slug": "shift/darwin",
       "platform": "darwin",
       "unique_identifier": "com.rdbrck.shift",
+      "description": "Shift is a workstation to streamline your accounts, apps, and workflows."
+    },
+    {
+      "name": "Shift",
+      "slug": "shift/windows",
+      "platform": "windows",
+      "unique_identifier": "Shift",
       "description": "Shift is a workstation to streamline your accounts, apps, and workflows."
     },
     {
@@ -6390,6 +6754,13 @@
       "slug": "shotcut/darwin",
       "platform": "darwin",
       "unique_identifier": "com.meltytech.Shotcut",
+      "description": "Shotcut is a video editor."
+    },
+    {
+      "name": "Shotcut",
+      "slug": "shotcut/windows",
+      "platform": "windows",
+      "unique_identifier": "Shotcut",
       "description": "Shotcut is a video editor."
     },
     {
@@ -6495,6 +6866,13 @@
       "slug": "smartsheet/darwin",
       "platform": "darwin",
       "unique_identifier": "com.smartsheet.desktopapp",
+      "description": "Smartsheet is a spreadsheet-style project management solution."
+    },
+    {
+      "name": "Smartsheet",
+      "slug": "smartsheet/windows",
+      "platform": "windows",
+      "unique_identifier": "Smartsheet",
       "description": "Smartsheet is a spreadsheet-style project management solution."
     },
     {
@@ -6663,7 +7041,7 @@
       "slug": "splice/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splice.Splice",
-      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
+      "description": "Splice is a tool to browse and preview sounds from Splice\u2019s entire catalog."
     },
     {
       "name": "Spotify",
@@ -6698,6 +7076,13 @@
       "slug": "sqlectron/darwin",
       "platform": "darwin",
       "unique_identifier": "org.sqlectron.gui",
+      "description": "Sqlectron is a SQL client."
+    },
+    {
+      "name": "Sqlectron",
+      "slug": "sqlectron/windows",
+      "platform": "windows",
+      "unique_identifier": "sqlectron",
       "description": "Sqlectron is a SQL client."
     },
     {
@@ -6757,6 +7142,13 @@
       "description": "Standard Notes is a free, open-source, and completely encrypted notes app."
     },
     {
+      "name": "Standard Notes",
+      "slug": "standard-notes/windows",
+      "platform": "windows",
+      "unique_identifier": "Standard Notes",
+      "description": "Standard Notes is a free, open-source, and completely encrypted notes app."
+    },
+    {
       "name": "StarUML",
       "slug": "staruml/darwin",
       "platform": "darwin",
@@ -6813,6 +7205,13 @@
       "description": "Stretchly is a break time reminder app."
     },
     {
+      "name": "Stretchly",
+      "slug": "stretchly/windows",
+      "platform": "windows",
+      "unique_identifier": "Stretchly",
+      "description": "Stretchly is a break time reminder app."
+    },
+    {
       "name": "Sublime Merge",
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
@@ -6845,6 +7244,13 @@
       "slug": "supercollider/darwin",
       "platform": "darwin",
       "unique_identifier": "net.sourceforge.supercollider",
+      "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
+    },
+    {
+      "name": "SuperCollider",
+      "slug": "supercollider/windows",
+      "platform": "windows",
+      "unique_identifier": "SuperCollider",
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
     },
     {
@@ -7100,6 +7506,13 @@
       "description": "Termius is a SSH client."
     },
     {
+      "name": "Termius",
+      "slug": "termius/windows",
+      "platform": "windows",
+      "unique_identifier": "Termius",
+      "description": "Termius is a SSH client."
+    },
+    {
       "name": "TeX Live Utility",
       "slug": "tex-live-utility/darwin",
       "platform": "darwin",
@@ -7146,6 +7559,13 @@
       "slug": "thorium/darwin",
       "platform": "darwin",
       "unique_identifier": "io.github.edrlab.thorium",
+      "description": "Thorium Reader is an epub reader."
+    },
+    {
+      "name": "Thorium Reader",
+      "slug": "thorium/windows",
+      "platform": "windows",
+      "unique_identifier": "Thorium",
       "description": "Thorium Reader is an epub reader."
     },
     {
@@ -7373,6 +7793,13 @@
       "description": "Twine is a tool for telling interactive, nonlinear stories."
     },
     {
+      "name": "Twine",
+      "slug": "twine-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Twine",
+      "description": "Twine is a tool for telling interactive, nonlinear stories."
+    },
+    {
       "name": "Twingate",
       "slug": "twingate/darwin",
       "platform": "darwin",
@@ -7415,6 +7842,13 @@
       "description": "Typora is a configurable document editor that supports Markdown."
     },
     {
+      "name": "Typora",
+      "slug": "typora/windows",
+      "platform": "windows",
+      "unique_identifier": "Typora",
+      "description": "Typora is a configurable document editor that supports Markdown."
+    },
+    {
       "name": "UA Connect",
       "slug": "ua-connect/darwin",
       "platform": "darwin",
@@ -7433,6 +7867,13 @@
       "slug": "ultimaker-cura/darwin",
       "platform": "darwin",
       "unique_identifier": "nl.ultimaker.cura.dmg",
+      "description": "UltiMaker Cura is a 3D printer and slicing GUI."
+    },
+    {
+      "name": "UltiMaker Cura",
+      "slug": "ultimaker-cura/windows",
+      "platform": "windows",
+      "unique_identifier": "UltiMaker Cura",
       "description": "UltiMaker Cura is a 3D printer and slicing GUI."
     },
     {
@@ -7517,6 +7958,13 @@
       "slug": "vernier-spectral-analysis/darwin",
       "platform": "darwin",
       "unique_identifier": "Vernier.SpectralAnalysis",
+      "description": "Vernier Spectral Analysis is a spectrometer data analysis tool."
+    },
+    {
+      "name": "Vernier Spectral Analysis",
+      "slug": "vernier-spectral-analysis/windows",
+      "platform": "windows",
+      "unique_identifier": "Vernier Spectral Analysis",
       "description": "Vernier Spectral Analysis is a spectrometer data analysis tool."
     },
     {
@@ -7744,6 +8192,13 @@
       "description": "Wave Terminal is a terminal emulator."
     },
     {
+      "name": "Wave Terminal",
+      "slug": "wave/windows",
+      "platform": "windows",
+      "unique_identifier": "Wave",
+      "description": "Wave Terminal is a terminal emulator."
+    },
+    {
       "name": "Wavebox",
       "slug": "wavebox/darwin",
       "platform": "darwin",
@@ -7762,6 +8217,13 @@
       "slug": "weasis/darwin",
       "platform": "darwin",
       "unique_identifier": "org.weasis.launcher",
+      "description": "Weasis is a free DICOM viewer for displaying and analyzing medical images."
+    },
+    {
+      "name": "Weasis",
+      "slug": "weasis/windows",
+      "platform": "windows",
+      "unique_identifier": "Weasis",
       "description": "Weasis is a free DICOM viewer for displaying and analyzing medical images."
     },
     {
@@ -7804,6 +8266,13 @@
       "slug": "wechat/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tencent.xinWeChat",
+      "description": "WeChat for Mac is a free messaging and calling application."
+    },
+    {
+      "name": "WeChat for Mac",
+      "slug": "wechat/windows",
+      "platform": "windows",
+      "unique_identifier": "WeChat",
       "description": "WeChat for Mac is a free messaging and calling application."
     },
     {
@@ -8024,10 +8493,24 @@
       "description": "XnSoft XnConvert is an image-converter and resiser tool."
     },
     {
+      "name": "XnSoft XnConvert",
+      "slug": "xnconvert/windows",
+      "platform": "windows",
+      "unique_identifier": "XnConvert",
+      "description": "XnSoft XnConvert is an image-converter and resiser tool."
+    },
+    {
       "name": "XnViewMP",
       "slug": "xnviewmp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.xnview.XnView",
+      "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
+    },
+    {
+      "name": "XnViewMP",
+      "slug": "xnviewmp/windows",
+      "platform": "windows",
+      "unique_identifier": "XnView MP",
       "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
     },
     {
@@ -8045,10 +8528,24 @@
       "description": "Yaak is a REST, GraphQL and gRPC client."
     },
     {
+      "name": "Yaak",
+      "slug": "yaak/windows",
+      "platform": "windows",
+      "unique_identifier": "Yaak",
+      "description": "Yaak is a REST, GraphQL and gRPC client."
+    },
+    {
       "name": "YACReader",
       "slug": "yacreader/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yacreader.YACReader",
+      "description": "YACReader is a comic reader."
+    },
+    {
+      "name": "YACReader",
+      "slug": "yacreader/windows",
+      "platform": "windows",
+      "unique_identifier": "YACReader",
       "description": "YACReader is a comic reader."
     },
     {
@@ -8091,6 +8588,13 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+    },
+    {
+      "name": "Yubikey Manager",
+      "slug": "yubico-yubikey-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "YubiKey Manager",
       "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
@@ -8140,6 +8644,13 @@
       "slug": "zettlr/darwin",
       "platform": "darwin",
       "unique_identifier": "com.zettlr.app",
+      "description": "Zettlr is an open-source markdown editor."
+    },
+    {
+      "name": "Zettlr",
+      "slug": "zettlr/windows",
+      "platform": "windows",
+      "unique_identifier": "Zettlr",
       "description": "Zettlr is an open-source markdown editor."
     },
     {

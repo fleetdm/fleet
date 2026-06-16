@@ -81,6 +81,7 @@ import Audacity from "./Audacity";
 import AudioHijack from "./AudioHijack";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
+import AwsCli from "./AwsCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
@@ -806,6 +807,7 @@ import Slicer from "./Slicer";
 import Slidepad from "./Slidepad";
 import Sloth from "./Sloth";
 import Smartsheet from "./Smartsheet";
+import Smartsvn from "./Smartsvn";
 import Smoothscroll from "./Smoothscroll";
 import Smultron from "./Smultron";
 import Snagit from "./Snagit";
@@ -1105,10 +1107,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
   "aws client vpn": AwsVpnClient,
+  "aws command line interface": AwsCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
-  "azul zulu 25 jdk": AzulZulu25Jdk,
-  "azul zulu 25 jre": AzulZulu25Jre,
+  "azul zulu jdk": AzulZulu25Jdk,
+  "azul zulu jre": AzulZulu25Jre,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
@@ -1292,6 +1295,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   droplr: Droplr,
   dropshare: Dropshare,
   dropzone: Dropzone,
+  "druva insync": DruvaInSync,
   duckduckgo: Duckduckgo,
   duet: Duet,
   "duo desktop": DuoDesktop,
@@ -1835,6 +1839,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slidepad: Slidepad,
   sloth: Sloth,
   smartsheet: Smartsheet,
+  smartsvn: Smartsvn,
   smoothscroll: Smoothscroll,
   smultron: Smultron,
   snagit: Snagit,
@@ -1974,6 +1979,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,
+  "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
   "vpn tracker 365": VpnTracker365,
