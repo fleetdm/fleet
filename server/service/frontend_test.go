@@ -173,9 +173,7 @@ func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
 	setCookieHeaders := response.Header.Values("Set-Cookie")
 	var foundClear bool
 	for _, sc := range setCookieHeaders {
-		if assert.ObjectsAreEqual(true, true) &&
-			len(sc) > 0 &&
-			bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+		if bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
 			bytes.Contains([]byte(sc), []byte("Max-Age=0")) {
 			foundClear = true
 			break
@@ -188,4 +186,32 @@ func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
 	require.NoError(t, err)
 	bodyString := string(bodyBytes)
 	require.Contains(t, bodyString, fmt.Sprintf(`const IDP_UUID = "%s";`, idpUUID))
+
+	// BYOD (non-fully-managed) requests should NOT clear the cookie
+	req2, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&enrollment_reference="+idpUUID, nil)
+	require.NoError(t, err)
+	req2.AddCookie(&http.Cookie{
+		Name:  shared_mdm.BYODIdpCookieName,
+		Value: idpUUID,
+	})
+
+	response2, err := client.Do(req2)
+	require.NoError(t, err)
+	defer response2.Body.Close()
+
+	require.Equal(t, http.StatusOK, response2.StatusCode)
+
+	setCookieHeaders2 := response2.Header.Values("Set-Cookie")
+	for _, sc := range setCookieHeaders2 {
+		require.False(t,
+			bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+				bytes.Contains([]byte(sc), []byte("Max-Age=0")),
+			"BYOD request should not clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders2,
+		)
+	}
+
+	// Assert that BYOD rendered HTML has an empty IdP UUID (not passed through template).
+	bodyBytes2, err := io.ReadAll(response2.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(bodyBytes2), `const IDP_UUID = "";`)
 }
