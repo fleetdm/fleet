@@ -1316,7 +1316,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -1491,7 +1491,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
