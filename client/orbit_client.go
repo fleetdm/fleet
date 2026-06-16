@@ -103,11 +103,15 @@ const configCacheTTL = 3 * time.Second
 const ssoWindowReopenInterval = 5 * time.Minute
 
 // unauthenticatedReenrollGracePeriod is how long authenticated requests must keep failing with a
-// 401 before orbit re-enrolls. Deleting/replacing the node key is a heavyweight action (it forces a
-// re-enroll, which can require end-user SSO), so we ride out transient or spurious 401s first (e.g.
-// brief read-replica lag or a short-lived server-side negative cache) rather than reacting to a
-// single one. It is a var (not a const) so tests can shorten it.
-var unauthenticatedReenrollGracePeriod = 60 * time.Second
+// 401 before orbit re-enrolls. Re-enrolling is a heavyweight action (it can trigger an end-user SSO
+// prompt), so we ride out transient or spurious 401s first (e.g. brief read-replica lag or a
+// short-lived server-side negative cache) rather than reacting to a single one. The only conditions
+// that 401 a valid key are those caches/lag of a few seconds; server faults return 5xx, which we
+// already ignore here. 45s comfortably outlasts them while still recovering a genuinely
+// invalidated key within ~1 minute, and is deliberately not a multiple of the ~30s config poll
+// interval so the re-enroll decision doesn't land on a poll boundary. It is a var (not a const) so
+// tests can shorten it.
+var unauthenticatedReenrollGracePeriod = 45 * time.Second
 
 type configCache struct {
 	mu          sync.Mutex
@@ -749,10 +753,10 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any
 		oc.setEnrolled(false)
 		reenroll, waited := oc.noteUnauthenticated()
 		if reenroll {
-			log.Info().Str("path", path).Dur("after", waited).
+			log.Info().Str("path", path).Str("after", waited.Round(time.Second).String()).
 				Msg("orbit node key repeatedly rejected with 401, will re-enroll on next request")
 		} else {
-			log.Info().Str("path", path).Dur("after", waited).
+			log.Info().Str("path", path).Str("after", waited.Round(time.Second).String()).
 				Msg("orbit received 401 unauthenticated, retrying with existing node key before re-enrolling")
 			return err
 		}
