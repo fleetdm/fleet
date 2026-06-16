@@ -39,11 +39,9 @@ module.exports = function notFound () {
   // If the request wants JSON, send back the appropriate status code.
   if (req.wantsJSON || !res.view) {
     return res.sendStatus(404);
-  } else {
-    res.locals.hideFooter = true;
   }
 
-  return res.view('404', {}, (err, html)=> {
+  return res.view('404', { hideFooter: true }, (err, html)=> {
     // If a view error occured, fall back to JSON.
     if (err) {
       //
