@@ -21,24 +21,25 @@ const DEPSSOLoginPage = ({
 }: WithRouterProps<Params, IMDMSSOParams>) => {
   const [clickedLogin, setClickedLogin] = useState(false);
   localStorage.setItem("deviceinfo", query.deviceinfo || "");
-  if (!query.initiator) {
+  let initiator = query.initiator;
+  if (!initiator) {
     if (pathname.startsWith("/mdm/apple/account_driven_enroll/sso")) {
       // While I acknowledge startsWith for route matching is a bit brittle
       // I couldn't find a better way, since the pathname is the actual resolved value and not the placeholder route.
       if (params.token) {
-        query.initiator = `account_driven_enroll:${params.token}`;
+        initiator = `account_driven_enroll:${params.token}`;
       } else {
-        query.initiator = "account_driven_enroll";
+        initiator = "account_driven_enroll";
       }
     } else {
-      query.initiator = "mdm_sso";
+      initiator = "mdm_sso";
     }
   }
   const { error } = useQuery<IMdmSSOResponse, AxiosError>(
     ["dep_sso"],
-    () => mdmAPI.initiateMDMAppleSSO(query),
+    () => mdmAPI.initiateMDMAppleSSO({ ...query, initiator }),
     {
-      enabled: clickedLogin || query.initiator !== "setup_experience",
+      enabled: clickedLogin || initiator !== "setup_experience",
       retry: false,
       refetchOnWindowFocus: false,
       onSuccess: ({ url }) => {
@@ -47,7 +48,7 @@ const DEPSSOLoginPage = ({
     }
   );
 
-  if (query.initiator === "setup_experience") {
+  if (initiator === "setup_experience") {
     return (
       <AuthenticationFormWrapper header="Authentication required">
         <div className={`${baseClass} form`}>
