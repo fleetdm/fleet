@@ -1,16 +1,14 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
-import { useQuery } from "react-query";
+import { useQueryClient } from "react-query";
 
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
   UNCHANGED_PASSWORD_API_RESPONSE,
 } from "utilities/constants";
 import configAPI from "services/entities/config";
-import { IConfig } from "interfaces/config";
 import { NotificationContext } from "context/notification";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
+import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
@@ -59,9 +57,10 @@ const validate = (formData: IFormData): IFormErrors => {
   return errors;
 };
 
-const AccountProvisioning = () => {
+const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
+  const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IFormData>({
     tokenUrl: "",
@@ -70,23 +69,16 @@ const AccountProvisioning = () => {
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
-  const { isLoading, error: loadError } = useQuery<IConfig, Error>(
-    ["fpsso"],
-    () => configAPI.loadAll(),
-    {
-      refetchOnWindowFocus: false,
-      onSuccess: (data) => {
-        const provisioning = data.apple_account_provisioning;
-        if (provisioning) {
-          setFormData({
-            tokenUrl: provisioning.idp_token_url,
-            clientId: provisioning.idp_client_id,
-            clientSecret: provisioning.oauth_idp_client_secret,
-          });
-        }
-      },
+  useEffect(() => {
+    const provisioning = appConfig.apple_account_provisioning;
+    if (provisioning) {
+      setFormData({
+        tokenUrl: provisioning.idp_token_url,
+        clientId: provisioning.idp_client_id,
+        clientSecret: provisioning.oauth_idp_client_secret,
+      });
     }
-  );
+  }, [appConfig]);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
@@ -130,6 +122,7 @@ const AccountProvisioning = () => {
           }),
         },
       });
+      await queryClient.invalidateQueries(["config"]);
       renderFlash("success", "Successfully updated settings.");
     } catch {
       renderFlash("error", "Failed to update settings.");
@@ -137,14 +130,6 @@ const AccountProvisioning = () => {
       setIsUpdating(false);
     }
   };
-
-  if (isLoading) {
-    return <Spinner />;
-  }
-
-  if (loadError) {
-    return <DataError />;
-  }
 
   return (
     <SettingsSection title="Account provisioning" className={baseClass}>
