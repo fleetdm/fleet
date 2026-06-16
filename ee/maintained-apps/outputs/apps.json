@@ -359,6 +359,13 @@
       "description": "Akiflow is a time blocking and productivity platform."
     },
     {
+      "name": "Alacritty",
+      "slug": "alacritty/windows",
+      "platform": "windows",
+      "unique_identifier": "Alacritty",
+      "description": "Alacritty is a free and open-source, GPU-accelerated terminal emulator focused on performance and simplicity."
+    },
+    {
       "name": "Alcove",
       "slug": "alcove/darwin",
       "platform": "darwin",
@@ -448,6 +455,13 @@
       "platform": "windows",
       "unique_identifier": "Amazon Corretto (x64)",
       "description": "Amazon Corretto 26 is a no-cost, multiplatform, production-ready distribution of OpenJDK 26."
+    },
+    {
+      "name": "Amazon Corretto JRE 8",
+      "slug": "amazon-corretto-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto JRE 8 (x64)",
+      "description": "Amazon Corretto JRE 8 is a no-cost, multiplatform, production-ready distribution of the OpenJDK 8 Java runtime environment."
     },
     {
       "name": "Amazon DCV Client",
@@ -625,6 +639,13 @@
       "description": "Applite is a user-friendly GUI for Homebrew."
     },
     {
+      "name": "Aptakube",
+      "slug": "aptakube/windows",
+      "platform": "windows",
+      "unique_identifier": "Aptakube",
+      "description": "Aptakube is a modern, lightweight, multi-cluster Kubernetes graphical user interface."
+    },
+    {
       "name": "Arc",
       "slug": "arc/darwin",
       "platform": "darwin",
@@ -709,6 +730,20 @@
       "description": "Audio Hijack is an app that records audio from any application."
     },
     {
+      "name": "Audiveris",
+      "slug": "audiveris/windows",
+      "platform": "windows",
+      "unique_identifier": "Audiveris",
+      "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
+    },
+    {
+      "name": "Autopsy",
+      "slug": "autopsy/windows",
+      "platform": "windows",
+      "unique_identifier": "Autopsy",
+      "description": "Autopsy is an open-source digital forensics platform for analyzing hard drives and smartphones."
+    },
+    {
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
@@ -728,6 +763,13 @@
       "platform": "windows",
       "unique_identifier": "AWS Command Line Interface v2",
       "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
+    },
+    {
+      "name": "AWS SAM Command Line Interface",
+      "slug": "aws-sam-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS SAM Command Line Interface",
+      "description": "AWS SAM Command Line Interface is a tool for building, testing, and deploying serverless applications using the AWS Serverless Application Model."
     },
     {
       "name": "AWS Client VPN",
@@ -2723,6 +2765,13 @@
       "platform": "darwin",
       "unique_identifier": "com.echoone.FileJuicer",
       "description": "File Juicer is an app that extracts images from PDF, PowerPoint, Word, Excel and other Files."
+    },
+    {
+      "name": "Filebeat",
+      "slug": "filebeat/windows",
+      "platform": "windows",
+      "unique_identifier": "Beats filebeat",
+      "description": "Filebeat is a lightweight shipper from Elastic for forwarding and centralizing log data."
     },
     {
       "name": "FileMaker Pro",
@@ -4787,7 +4836,7 @@
       "slug": "moom/darwin",
       "platform": "darwin",
       "unique_identifier": "com.manytricks.Moom",
-      "description": "Moom is a utility to move and zoom windows\u2014on one display."
+      "description": "Moom is a utility to move and zoom windows—on one display."
     },
     {
       "name": "Moonlight",
@@ -7041,7 +7090,7 @@
       "slug": "splice/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splice.Splice",
-      "description": "Splice is a tool to browse and preview sounds from Splice\u2019s entire catalog."
+      "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
     },
     {
       "name": "Spotify",
@@ -8330,6 +8379,13 @@
       "platform": "windows",
       "unique_identifier": "Windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "Winlogbeat",
+      "slug": "winlogbeat/windows",
+      "platform": "windows",
+      "unique_identifier": "Beats winlogbeat",
+      "description": "Winlogbeat is a lightweight shipper from Elastic for forwarding and centralizing Windows event logs."
     },
     {
       "name": "WinRAR",
