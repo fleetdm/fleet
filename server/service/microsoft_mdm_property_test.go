@@ -17,8 +17,8 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Property-based tests for handleESPRelease. They cover the wait-gate decision and the universal
-// block/warn/release command-shape invariants in a single combined property check.
+// Property-based tests for handleESPRelease. They cover the wait-gate decision and the universal block/warn/release
+// command-shape invariants in a single combined property check.
 //
 // The spec function pbtESPSpec computes the expected (decision, observedHasFailure) from the inputs without
 // referencing the production code. We then run getESPCommands against a mock datastore and assert:
@@ -161,11 +161,14 @@ const (
 	pbtESPRelease pbtESPDecision = "release"
 )
 
-// pbtESPSpec computes the expected outcome from the inputs without referencing production code. It returns
-// the decision and the hasSoftwareFailure that production would observe. The latter differs from "results
-// contain Failure" only on the require_all=true timeout branch: Stage 3 is skipped and that branch is not
-// re-scanned, so the production variable stays false there. The require_all=false timeout branch IS re-scanned,
-// so it reflects input failures.
+// pbtESPSpec computes the expected outcome from the inputs without referencing production code. It returns the
+// decision and the hasSoftwareFailure that production would observe.
+//
+// observedHasFailure equals "the inputs contain a Failure row" on every path except one: a require_all=true timeout.
+// When the device times out, production finalizes immediately instead of examining each setup-experience result. The
+// require_all=false timeout path still examines the results so it can list the failed software, so observedHasFailure
+// reflects the inputs there. The require_all=true timeout path does not re-examine them (a real failure would already
+// have hard-blocked on an earlier check-in), so observedHasFailure stays false there even when a failure is present.
 func pbtESPSpec(
 	statuses []fleet.SetupExperienceStatusResultStatus, timedOut, requireAll bool,
 ) (decision pbtESPDecision, observedHasFailure bool) {
@@ -188,7 +191,7 @@ func pbtESPSpec(
 		// observedHasFailure reflects whether the scan saw a Failure row.
 		return pbtESPWarn, inputHasFailure
 	}
-	// !timedOut: Stage 3 ran. observedHasFailure = inputHasFailure.
+	// Not timed out: production examined every setup-experience result, so observedHasFailure = inputHasFailure.
 	if inputAnyInFlight {
 		if !inputHasFailure {
 			return pbtESPWait, inputHasFailure
@@ -291,11 +294,7 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "IsSyncDone"),
 				"%s path must NOT include IsSyncDone (verified on Win11 26200: the documented path does not "+
 					"render failure UI on non-Sidecar MDM)", expected)
-			// Both flavors include BlockInStatusPage, AllowCollectLogsButton, and TimeOutUntilSyncFailure=1 (one
-			// minute, forces failure UI). The hard block offers Reset PC only (1); the warn path adds Continue
-			// Anyway (5 = 1|4). Hard-block errorText is software-failure text iff observedHasFailure (Stage 3 ran
-			// AND saw a Failure), else timeout text (the pure-timeout path lands there with
-			// observedHasFailure=false); warn errorText lists the failed software dynamically.
+			// The hard block offers Reset PC only (1); the warn path adds Continue Anyway (5 = 1|4).
 			expectedButtons := "1"
 			expectedErrorText := microsoft_mdm.ESPTimeoutErrorText
 			switch {
