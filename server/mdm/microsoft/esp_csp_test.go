@@ -7,9 +7,6 @@ import (
 )
 
 func TestESPSoftwareFailureContinuableErrorText(t *testing.T) {
-	const suffix = "Reset your device to try again, or proceed and install missing software via self-service. " +
-		"If unavailable, contact your IT admin."
-
 	tests := []struct {
 		name        string
 		failedNames []string
@@ -18,50 +15,50 @@ func TestESPSoftwareFailureContinuableErrorText(t *testing.T) {
 		{
 			name:        "no names falls back to generic text",
 			failedNames: nil,
-			want:        "Some software failed to install. " + suffix,
+			want:        "Some software failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			name:        "empty names are skipped",
 			failedNames: []string{"", ""},
-			want:        "Some software failed to install. " + suffix,
+			want:        "Some software failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			name:        "one name",
 			failedNames: []string{"Slack"},
-			want:        "Slack failed to install. " + suffix,
+			want:        "Slack failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			name:        "two names",
 			failedNames: []string{"Slack", "Zoom"},
-			want:        "Slack and Zoom failed to install. " + suffix,
+			want:        "Slack and Zoom failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			// The cap (espMaxFailedNamesShown) is 3, so three names list in full.
 			name:        "three names use Oxford comma",
 			failedNames: []string{"Slack", "Zoom", "Docker"},
-			want:        "Slack, Zoom, and Docker failed to install. " + suffix,
+			want:        "Slack, Zoom, and Docker failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			// Above the cap, the rest is summarized as "N more": four names -> first three plus "and 1 more".
 			name:        "four names list first three and one more",
 			failedNames: []string{"Slack", "Zoom", "Docker", "1Password"},
-			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + suffix,
+			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			name:        "six names list first three and three more",
 			failedNames: []string{"Slack", "Zoom", "Docker", "1Password", "Notion", "Chrome"},
-			want:        "Slack, Zoom, Docker, and 3 more failed to install. " + suffix,
+			want:        "Slack, Zoom, Docker, and 3 more failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			name:        "empty name mixed in is skipped",
 			failedNames: []string{"Slack", "", "Zoom"},
-			want:        "Slack and Zoom failed to install. " + suffix,
+			want:        "Slack and Zoom failed to install. " + espContinuableErrorSuffix,
 		},
 		{
 			// Empties are dropped before the cap is applied, so this counts as four names, not seven.
 			name:        "empties are dropped before the cap is counted",
 			failedNames: []string{"Slack", "", "Zoom", "", "Docker", "", "1Password"},
-			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + suffix,
+			want:        "Slack, Zoom, Docker, and 1 more failed to install. " + espContinuableErrorSuffix,
 		},
 	}
 	for _, tc := range tests {

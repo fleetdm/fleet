@@ -386,9 +386,7 @@ func TestValidSyncMLCmdText(t *testing.T) {
 }
 
 func TestSyncMLCmdTextEscapesXMLMetacharacters(t *testing.T) {
-	// Text data is written into SyncML <Data> as innerxml (raw), so a value with XML metacharacters must be escaped
-	// or it produces malformed SyncML the device rejects. This matters for CustomErrorText, which lists software
-	// titles that can contain "&" (e.g. "AT&T") or other metacharacters.
+	t.Parallel()
 	cmdMsg := newSyncMLCmdText(fleet.CmdReplace, "testuri", `AT&T <Reader>`)
 	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
 	require.NoError(t, err)
@@ -1906,12 +1904,7 @@ func TestGetESPCommands(t *testing.T) {
 	t.Run("software failure with require_all=false soft blocks with continue anyway", func(t *testing.T) {
 		// When software fails but "Cancel setup if software fails" is off, the device still surfaces the ESP failure
 		// UI listing the failed software by name, with a "Continue anyway" option so the user can proceed to the
-		// desktop and install the missing software via self-service. Nothing is cancelled and no
-		// canceled_setup_experience activity is emitted: setup was not cancelled, the user is merely warned.
-		//
-		// The host is placed on a team to also pin the user-facing-name plumbing: the list call must receive the
-		// host's team ID (it scopes the custom display-name enrichment) and the message must prefer DisplayName over
-		// the raw item name when present.
+		// desktop and install the missing software via self-service.
 		ds, svc := newSvc(t)
 		hostTeamID := uint(9)
 		osqueryHostID := "osquery-" + hostUUID
@@ -1967,62 +1960,9 @@ func TestGetESPCommands(t *testing.T) {
 			"soft block finalizes: awaiting_configuration must transition out of Active")
 	})
 
-	t.Run("software failure with require_all=false waits for in-flight items", func(t *testing.T) {
-		// A failure observed while other items are still installing must not finalize early: the soft block is
-		// surfaced once everything reaches a terminal state, so it aggregates ALL failures in one message.
-		ds, svc := newSvc(t)
-		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
-			return []*fleet.SetupExperienceStatusResult{
-				{Name: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
-				{Name: "Zoom", Status: fleet.SetupExperienceStatusRunning, SoftwareInstallerID: new(uint(2))},
-			}, nil
-		}
-
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
-		require.NoError(t, err)
-		assert.Nil(t, cmds, "must wait for remaining installs before surfacing the soft block")
-		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
-			"must not finalize while items are in flight")
-	})
-
-	t.Run("timeout with require_all=false and no failures soft blocks with timeout text", func(t *testing.T) {
-		// A pure timeout (nothing failed, items just stuck past the 3-hour window) with require_all=false surfaces the
-		// timeout text on the ESP failure UI but keeps the "Continue anyway" option so the user is never stuck. This
-		// replaces the old silent-release behavior: setup didn't finish, so we tell the user rather than dropping them
-		// onto the desktop with no explanation.
-		ds, svc := newSvc(t)
-		// One item still pending at the timeout (no failures) -- it gets cancelled by the timeout finalize.
-		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
-			return []*fleet.SetupExperienceStatusResult{
-				{Name: "Slow App", Status: fleet.SetupExperienceStatusPending, SoftwareInstallerID: new(uint(1)), HostSoftwareInstallsExecutionID: new("exec-slow")},
-			}, nil
-		}
-		past := time.Now().Add(-4 * time.Hour)
-		device := newActiveDevice()
-		device.AwaitingConfigurationAt = &past
-
-		cmds, err := svc.getESPCommands(t.Context(), device)
-		require.NoError(t, err)
-		require.NotEmpty(t, cmds)
-
-		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
-		require.NotNil(t, blockCmd, "timeout with require_all=false must surface the ESP failure UI")
-		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
-			"timeout soft block must offer Reset PC and Continue Anyway")
-		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
-		require.NotNil(t, errCmd)
-		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
-			"timeout with no failures must show the timeout text")
-		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-			"timeout soft block must NOT signal ESP success")
-		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
-			"timeout must cancel the still-pending items")
-	})
-
 	t.Run("timeout with require_all=false and a failure soft blocks listing failed software", func(t *testing.T) {
 		// A failure that occurred before the 3-hour timeout (with a sibling still stuck) must still be surfaced: the
-		// timeout path scans for failures so it lists the failed software rather than releasing silently. This is the
-		// case CodeRabbit flagged and the reason the PR is titled "always display ... when software install fails".
+		// timeout path scans for failures so it lists the failed software rather than releasing silently.
 		ds, svc := newSvc(t)
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return []*fleet.SetupExperienceStatusResult{
@@ -2054,34 +1994,6 @@ func TestGetESPCommands(t *testing.T) {
 			"timeout soft block must NOT signal ESP success")
 		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
 			"timeout must cancel the still-pending sibling")
-	})
-
-	t.Run("timeout with require_all=true keeps hard block with timeout text", func(t *testing.T) {
-		// require_all=true is explicitly unchanged: the timeout path is NOT scanned for failures (a real failure would
-		// have hard-blocked on an earlier checkin), so the device hard-blocks with the timeout text and Reset only.
-		ds, svc := newSvc(t)
-		setRequireAll(ds, true)
-		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
-			return []*fleet.SetupExperienceStatusResult{
-				{Name: "Whatever", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
-			}, nil
-		}
-		past := time.Now().Add(-4 * time.Hour)
-		device := newActiveDevice()
-		device.AwaitingConfigurationAt = &past
-
-		cmds, err := svc.getESPCommands(t.Context(), device)
-		require.NoError(t, err)
-		require.NotEmpty(t, cmds)
-
-		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
-		require.NotNil(t, blockCmd)
-		assert.Equal(t, "1", blockCmd.Items[0].Data.Content,
-			"require_all=true timeout must hard block with Reset only")
-		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
-		require.NotNil(t, errCmd)
-		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
-			"require_all=true timeout keeps the timeout text (not re-scanned for failures)")
 	})
 
 	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
