@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,6 +29,29 @@ func newReenrollTestClient(t *testing.T, serverURL, nodeKeyPath string) *OrbitCl
 	}
 }
 
+// newNodeKeyFile creates a temp dir containing a node key file with the given contents and returns
+// both. The dir is returned so tests can assert no stray temp files are left behind.
+func newNodeKeyFile(t *testing.T, contents string) (dir, path string) {
+	t.Helper()
+	dir = t.TempDir()
+	path = filepath.Join(dir, "secret-orbit-node-key.txt")
+	require.NoError(t, os.WriteFile(path, []byte(contents), 0o600))
+	return dir, path
+}
+
+func requireNodeKey(t *testing.T, path, want string) {
+	t.Helper()
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// writeEnrollResponse writes a successful enroll response handing back nodeKey.
+func writeEnrollResponse(t *testing.T, w http.ResponseWriter, nodeKey string) {
+	t.Helper()
+	assert.NoError(t, json.NewEncoder(w).Encode(fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}))
+}
+
 // setReenrollGracePeriod temporarily overrides the package-level grace period for the duration of
 // the test, restoring it via t.Cleanup. The grace period is package state, so tests using it must
 // not run in parallel.
@@ -39,17 +63,15 @@ func setReenrollGracePeriod(t *testing.T, d time.Duration) {
 }
 
 func TestGetNodeKeyOrEnrollEmptyFileEnrolls(t *testing.T) {
-	dir := t.TempDir()
-	nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
 	// An empty/whitespace-only file must be treated like a missing one and trigger enrollment,
 	// rather than returning "" which the server would reject with a 401.
-	require.NoError(t, os.WriteFile(nodeKeyPath, []byte("  \n"), 0o600))
+	_, nodeKeyPath := newNodeKeyFile(t, "  \n")
 
 	var enrollCalls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/orbit/enroll") {
 			enrollCalls++
-			assert.NoError(t, json.NewEncoder(w).Encode(fleet.EnrollOrbitResponse{OrbitNodeKey: "new-key"}))
+			writeEnrollResponse(t, w, "new-key")
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -61,16 +83,11 @@ func TestGetNodeKeyOrEnrollEmptyFileEnrolls(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "new-key", key)
 	require.Equal(t, 1, enrollCalls)
-
-	contents, err := os.ReadFile(nodeKeyPath)
-	require.NoError(t, err)
-	require.Equal(t, "new-key", string(contents))
+	requireNodeKey(t, nodeKeyPath, "new-key")
 }
 
 func TestGetNodeKeyOrEnrollValidFileReturnsKeyWithoutEnrolling(t *testing.T) {
-	dir := t.TempDir()
-	nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-	require.NoError(t, os.WriteFile(nodeKeyPath, []byte("existing-key"), 0o600))
+	_, nodeKeyPath := newNodeKeyFile(t, "existing-key")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("server must not be called when a valid node key exists, got %s", r.URL.Path)
@@ -86,12 +103,10 @@ func TestGetNodeKeyOrEnrollValidFileReturnsKeyWithoutEnrolling(t *testing.T) {
 
 func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 	t.Run("success overwrites existing key and leaves no temp file", func(t *testing.T) {
-		dir := t.TempDir()
-		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-		require.NoError(t, os.WriteFile(nodeKeyPath, []byte("old-key"), 0o600))
+		dir, nodeKeyPath := newNodeKeyFile(t, "old-key")
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.NoError(t, json.NewEncoder(w).Encode(fleet.EnrollOrbitResponse{OrbitNodeKey: "fresh-key"}))
+			writeEnrollResponse(t, w, "fresh-key")
 		}))
 		defer srv.Close()
 
@@ -99,10 +114,7 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 		key, err := oc.enrollAndWriteNodeKeyFile()
 		require.NoError(t, err)
 		require.Equal(t, "fresh-key", key)
-
-		contents, err := os.ReadFile(nodeKeyPath)
-		require.NoError(t, err)
-		require.Equal(t, "fresh-key", string(contents))
+		requireNodeKey(t, nodeKeyPath, "fresh-key")
 
 		entries, err := os.ReadDir(dir)
 		require.NoError(t, err)
@@ -110,9 +122,7 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 	})
 
 	t.Run("failed enroll preserves existing key and leaves no temp file", func(t *testing.T) {
-		dir := t.TempDir()
-		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-		require.NoError(t, os.WriteFile(nodeKeyPath, []byte("old-key"), 0o600))
+		dir, nodeKeyPath := newNodeKeyFile(t, "old-key")
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -124,9 +134,7 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 		require.Error(t, err)
 
 		// acquire-then-replace: the existing key must survive a failed enroll.
-		contents, err := os.ReadFile(nodeKeyPath)
-		require.NoError(t, err)
-		require.Equal(t, "old-key", string(contents))
+		requireNodeKey(t, nodeKeyPath, "old-key")
 
 		entries, err := os.ReadDir(dir)
 		require.NoError(t, err)
@@ -134,19 +142,51 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 	})
 }
 
+// TestNoteUnauthenticated covers the 401 debounce state machine directly. It runs in a
+// testing/synctest bubble so the elapsed-time logic is driven by a fake clock that fast-forwards
+// time.Sleep (no real waiting), exercising the actual now.Sub(since) computation rather than
+// poking internal state. It verifies that a streak must accumulate past the grace period before
+// re-enroll is armed, and that a success resets an in-progress streak so a transient 401 followed
+// by a success never re-enrolls.
+func TestNoteUnauthenticated(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		setReenrollGracePeriod(t, 30*time.Second)
+		oc := &OrbitClient{}
+
+		// First 401 starts the streak with zero elapsed time.
+		reenroll, waited := oc.noteUnauthenticated()
+		require.False(t, reenroll)
+		require.Zero(t, waited)
+		require.False(t, oc.reenrollForced())
+
+		// A success resets the streak (the transient 401 recovered).
+		oc.clearReenrollState()
+		require.True(t, oc.unauthenticatedSince.IsZero())
+
+		// A fresh 401 after the reset starts a new streak from zero, not from the earlier one.
+		reenroll, waited = oc.noteUnauthenticated()
+		require.False(t, reenroll)
+		require.Zero(t, waited)
+
+		// Advance the fake clock past the grace period; the next 401 then arms re-enroll.
+		time.Sleep(31 * time.Second)
+		reenroll, waited = oc.noteUnauthenticated()
+		require.True(t, reenroll, "a 401 streak older than the grace period should arm re-enroll")
+		require.Equal(t, 31*time.Second, waited)
+		require.True(t, oc.reenrollForced())
+	})
+}
+
 func TestAuthenticatedRequest401Debounce(t *testing.T) {
 	t.Run("single 401 within grace does not delete key or re-enroll", func(t *testing.T) {
 		setReenrollGracePeriod(t, time.Hour)
-
-		dir := t.TempDir()
-		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-		require.NoError(t, os.WriteFile(nodeKeyPath, []byte("existing-key"), 0o600))
+		_, nodeKeyPath := newNodeKeyFile(t, "existing-key")
 
 		var enrollCalls int
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/orbit/enroll") {
 				enrollCalls++
-				assert.NoError(t, json.NewEncoder(w).Encode(fleet.EnrollOrbitResponse{OrbitNodeKey: "new-key"}))
+				writeEnrollResponse(t, w, "new-key")
 				return
 			}
 			w.WriteHeader(http.StatusUnauthorized)
@@ -158,18 +198,13 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		require.ErrorIs(t, err, ErrUnauthenticated)
 		require.False(t, oc.reenrollForced(), "a single 401 within the grace period should not arm re-enroll")
 		require.Equal(t, 0, enrollCalls)
-
-		contents, err := os.ReadFile(nodeKeyPath)
-		require.NoError(t, err)
-		require.Equal(t, "existing-key", string(contents), "the node key must not be deleted on a transient 401")
+		requireNodeKey(t, nodeKeyPath, "existing-key") // not deleted on a transient 401
 	})
 
 	t.Run("sustained 401 arms re-enroll and next request replaces the key", func(t *testing.T) {
 		setReenrollGracePeriod(t, 0) // any 401 immediately exceeds the grace period
 
-		dir := t.TempDir()
-		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-		require.NoError(t, os.WriteFile(nodeKeyPath, []byte("existing-key"), 0o600))
+		_, nodeKeyPath := newNodeKeyFile(t, "existing-key")
 
 		var mu sync.Mutex
 		rejectAuthed := true
@@ -179,7 +214,7 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 			defer mu.Unlock()
 			if strings.HasSuffix(r.URL.Path, "/orbit/enroll") {
 				enrollCalls++
-				assert.NoError(t, json.NewEncoder(w).Encode(fleet.EnrollOrbitResponse{OrbitNodeKey: "new-key"}))
+				writeEnrollResponse(t, w, "new-key")
 				return
 			}
 			if rejectAuthed {
@@ -196,9 +231,7 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		err := oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
 		require.ErrorIs(t, err, ErrUnauthenticated)
 		require.True(t, oc.reenrollForced())
-		contents, err := os.ReadFile(nodeKeyPath)
-		require.NoError(t, err)
-		require.Equal(t, "existing-key", string(contents))
+		requireNodeKey(t, nodeKeyPath, "existing-key")
 
 		// Stop rejecting the authenticated endpoint so the post-enroll request succeeds.
 		mu.Lock()
@@ -214,18 +247,12 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		mu.Unlock()
 		require.GreaterOrEqual(t, gotEnrollCalls, 1)
 		require.False(t, oc.reenrollForced(), "re-enroll state should be cleared after success")
-
-		contents, err = os.ReadFile(nodeKeyPath)
-		require.NoError(t, err)
-		require.Equal(t, "new-key", string(contents))
+		requireNodeKey(t, nodeKeyPath, "new-key")
 	})
 
 	t.Run("host identity cert is removed only after the grace period, not on the first 401", func(t *testing.T) {
 		setReenrollGracePeriod(t, time.Hour)
-
-		dir := t.TempDir()
-		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
-		require.NoError(t, os.WriteFile(nodeKeyPath, []byte("existing-key"), 0o600))
+		dir, nodeKeyPath := newNodeKeyFile(t, "existing-key")
 		certPath := filepath.Join(dir, "host-identity.crt")
 		require.NoError(t, os.WriteFile(certPath, []byte("cert"), 0o600))
 
