@@ -1431,6 +1431,11 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
+	hostMDMSeenJoin := ""
+	if opt.StatusFilter.IsValid() {
+		hostMDMSeenJoin = hostMDMSeenTimeJoin
+	}
+
 	var depStatusFilter string
 	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
 	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
@@ -1444,7 +1449,7 @@ func (ds *Datastore) applyHostFilters(
 
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
-    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+`
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
@@ -1462,6 +1467,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+	%s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
@@ -1481,6 +1487,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
+		hostMDMSeenJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
@@ -1657,7 +1664,12 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 // for hosts that never check in via osquery (ios/ipados).
 // It uses a dedicated alias (nes) to avoid colliding with the connected-to-Fleet join (ne)
 const hostMDMSeenTimeJoin = `
-	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
+	LEFT JOIN (
+ 		SELECT device_id, MAX(last_seen_at) AS last_seen_at
+ 		FROM nano_enrollments
+ 		WHERE type IN ('Device', 'User Enrollment (Device)', 'User')
+ 		GROUP BY device_id
+ 	) nes ON nes.device_id = h.uuid`
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),

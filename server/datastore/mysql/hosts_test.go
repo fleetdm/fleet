@@ -3007,9 +3007,13 @@ func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datast
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
 	require.NoError(t, err)
 
-	// Recent MDM check-in: device-channel nano enrollment with a fresh last_seen_at.
-	nanoEnroll(t, ds, h, false)
-	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), h.UUID)
+	// Recent MDM check-in: device + user-channel nano enrollments.
+	nanoEnroll(t, ds, h, true)
+	userID := h.UUID + ":" + nanoenroll_useruuid_prefix + h.UUID
+	// Make the device enrollment stale but user enrollment fresh, so missing detection must consider the user-channel activity.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), userID)
 	require.NoError(t, err)
 
 	missingFilter := fleet.HostListOptions{StatusFilter: fleet.StatusMissing}
@@ -3023,8 +3027,8 @@ func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	assert.Empty(t, hosts, "ios host with recent MDM check-in should not appear in missing list")
 
-	// Stale MDM check-in (> 30 days): the host should now be counted/listed as missing.
-	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	// Stale MDM check-in (> 30 days): all enrollments for the device should now be stale.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE device_id = ?`, now.Add(-40*24*time.Hour), h.UUID)
 	require.NoError(t, err)
 
 	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
