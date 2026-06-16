@@ -38,20 +38,23 @@ describe("theme - setThemeMode", () => {
     expect(document.body.classList.contains("theme-transition")).toBe(false);
   });
 
-  it("dispatches fleet-theme-change on every applied mode change", () => {
-    // Both the animated path (real flip) and the no-op path (System →
-    // Light when System resolves to Light) must dispatch the event, so
-    // subscribers like AccountSidePanel can re-read getThemeMode() and
-    // keep the radio in sync with the picked mode.
+  it("dispatches fleet-theme-change on every applied mode change, including no-op picks", () => {
+    // Both the animated path (real flip) and the no-op path (picking
+    // a mode that resolves to the current dark state) must dispatch
+    // the event, so subscribers like AccountSidePanel can re-read
+    // getThemeMode() and keep the radio in sync with the picked mode
+    // even when nothing visual changes.
     const handler = jest.fn();
     window.addEventListener("fleet-theme-change", handler);
 
-    setThemeMode("dark");
-    setThemeMode("light");
+    setThemeMode("light"); // no-op: body starts without dark-mode
+    setThemeMode("dark"); // real flip
+    setThemeMode("light"); // real flip back
 
-    expect(handler).toHaveBeenCalledTimes(2);
-    expect(handler.mock.calls[0][0].detail).toEqual({ dark: true });
-    expect(handler.mock.calls[1][0].detail).toEqual({ dark: false });
+    expect(handler).toHaveBeenCalledTimes(3);
+    expect(handler.mock.calls[0][0].detail).toEqual({ dark: false });
+    expect(handler.mock.calls[1][0].detail).toEqual({ dark: true });
+    expect(handler.mock.calls[2][0].detail).toEqual({ dark: false });
 
     window.removeEventListener("fleet-theme-change", handler);
   });
