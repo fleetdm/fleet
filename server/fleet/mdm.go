@@ -181,7 +181,9 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
+	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using

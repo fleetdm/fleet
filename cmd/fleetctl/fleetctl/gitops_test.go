@@ -570,6 +570,100 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
+	cases := []struct {
+		name                          string
+		currentlyStoredUpdateNewHosts optjson.Bool
+		macOSUpdatesYAML              string
+		wantUpdateNewHosts            optjson.Bool
+	}{
+		{
+			name:                          "empty minimum_version and deadline default update_new_hosts to false",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(true),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""`,
+			wantUpdateNewHosts: optjson.SetBool(false),
+		},
+		{
+			name:                          "configured minimum_version and deadline default update_new_hosts to true",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: "2024-03-03"
+    minimum_version: "14.6.1"`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+		{
+			// "Update all new hosts to latest" with no minimum version is a valid config, so an
+			// explicit update_new_hosts: true must be honored even when version/deadline are empty.
+			name:                          "explicit update_new_hosts true is honored without minimum_version or deadline",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""
+    update_new_hosts: true`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+				License:       license,
+				KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			})
+
+			// Mock Apple GDMF API (required for validating OS update minimum version settings).
+			mdmtest.StartNewAppleGDMFTestServer(t)
+
+			setupEmptyGitOpsMocks(ds)
+
+			storedUpdateNewHosts := c.currentlyStoredUpdateNewHosts
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.MacOSUpdates.UpdateNewHosts = storedUpdateNewHosts
+				return cfg, nil
+			}
+			savedAppConfig := &fleet.AppConfig{}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = tmpFile.WriteString(`
+controls:` + c.macOSUpdatesYAML + `
+queries:
+policies:
+labels:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+software:
+`)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+			require.Equal(t, c.wantUpdateNewHosts, savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+		})
+	}
+}
+
 // TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
 // `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
 // which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored

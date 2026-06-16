@@ -2001,6 +2001,9 @@ type Datastore interface {
 	// its unique name (the organization name).
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
 
+	// GetABMTokenByUniqueToken retrieves the ABM token by its enrollment_url_token value.
+	GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*ABMToken, error)
+
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
@@ -3443,6 +3446,17 @@ type Datastore interface {
 	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
 	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
 	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
+
+	// InsertADUEEnrollmentChallenge generates and inserts a new challenge for Apple Device User Enrollment (ADUE) enrollment,
+	// associated with the given ABM token ID (if nil = unassigned) and MDM IdP account UUID, and with the specified expiration duration.
+	// Returns the generated challenge string.
+	InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error)
+	// GetADUEEnrollmentChallenge retrieves the ADUE enrollment challenge by its challenge value.
+	GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
+	// ConsumeADUEEnrollmentChallenge, consumes (used_at=NOW()) the challenge row, so it can't be re-used.
+	ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
+	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
+	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
 }
 
 type AndroidDatastore interface {

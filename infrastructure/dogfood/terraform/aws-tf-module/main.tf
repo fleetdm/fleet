@@ -64,7 +64,8 @@ locals {
     FLEET_LOGGING_JSON            = "true"
     FLEET_LOGGING_TRACING_ENABLED = "true"
     FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
-    OTEL_SERVICE_NAME             = local.customer
+    OTEL_SERVICE_NAME             = "fleet"
+    OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${local.customer},deployment.environment=${local.customer}"
     OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"

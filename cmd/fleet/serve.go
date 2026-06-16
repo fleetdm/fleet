@@ -772,7 +772,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc, config.MDM.AndroidBatchSize)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
@@ -918,6 +918,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
 		}); err != nil {
 			initFatal(err, "failed to register managed local account rotation schedule")
+		}
+
+		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			return newCleanupExpiredADUEChallengesSchedule(ctx, instanceID, ds, logger)
+		}); err != nil {
+			initFatal(err, "failed to register cleanup expired ADUE challenges schedule")
 		}
 	}
 

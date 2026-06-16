@@ -12382,6 +12382,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
 	require.NoError(t, err)
 
+	// Add CVSS scores and exploit metadata so the severity filters have data to match against.
+	// "bar" has one critical, actively-exploited CVE and one low-severity CVE, so it should match
+	// both a critical filter and a low filter (matches if ANY CVE is in range).
+	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: "CVE-bar-1234", CVSSScore: new(float64(9.5)), CISAKnownExploit: new(true)},
+		{CVE: "CVE-bar-5678", CVSSScore: new(float64(3.0)), CISAKnownExploit: new(false)},
+	}))
+
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
 	require.Len(t, getHostSw.Software, 1)
@@ -12639,6 +12647,93 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
+
+	// =========================================
+	// vulnerability severity filters on the device-authenticated "My device" software endpoint
+	// =========================================
+	//
+	// "bar" has two CVEs: CVE-bar-1234 (CVSS 9.5, actively exploited) and CVE-bar-5678 (CVSS 3.0).
+	// "foo" has no vulnerabilities. The host also has the (not installed) "ruby" installer, which
+	// must never appear in the inventory-only device responses below.
+	deviceSoftware := func(t *testing.T, query string) getDeviceSoftwareResponse {
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+query, nil, http.StatusOK)
+		defer res.Body.Close()
+		var resp getDeviceSoftwareResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+
+	// vulnerable=true returns only software with vulnerabilities.
+	resp := deviceSoftware(t, "vulnerable=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	require.Equal(t, 1, resp.Count)
+
+	// min_cvss_score is inclusive: 9.5 is returned for min_cvss_score=9.5 (the critical band edge).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.5")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a min above all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.6")
+	require.Empty(t, resp.Software)
+	require.Equal(t, 0, resp.Count)
+
+	// max_cvss_score is inclusive: a low max still matches the low-severity CVE (3.0).
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a max below all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=2.9")
+	require.Empty(t, resp.Software)
+
+	// min + max together apply both bounds (range filter).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=1&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// min == max returns only CVEs scored exactly that value (3.0 matches, 5.0 does not).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=3.0&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=5.0&max_cvss_score=5.0")
+	require.Empty(t, resp.Software)
+
+	// min > max yields an empty result, not a server error.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=8&max_cvss_score=2")
+	require.Empty(t, resp.Software)
+
+	// a title with multiple CVEs of differing scores appears under BOTH a low and a critical
+	// filter (matches if ANY CVE is in range).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.0&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit=true returns only software with a CISA known-exploited CVE.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit combined with a range that only covers the non-exploited CVE returns nothing,
+	// since the exploited CVE (9.5) is outside the 0.1-3.9 band.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Empty(t, resp.Software)
+
+	// filters combine with the search query: "foo" has no vulnerabilities so it is filtered out.
+	resp = deviceSoftware(t, "vulnerable=true&query=foo")
+	require.Empty(t, resp.Software)
+	resp = deviceSoftware(t, "vulnerable=true&query=bar")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// severity filters require vulnerable=true; otherwise the request is rejected with 422.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+premiumFilter, nil, http.StatusUnprocessableEntity)
+		require.NoError(t, res.Body.Close())
+	}
 }
 
 func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {

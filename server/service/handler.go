@@ -1086,6 +1086,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.GET("/api/_version_/fleet/enrollment_profiles/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
 
 	// This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
+	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollTokenPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+	// Deprecated: Non unique token enrollment is deprecated in favour of AccountDrivenEnrollTokenPath. This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
@@ -1341,18 +1343,27 @@ func registerMDMServiceDiscovery(
 	fleetConfig config.FleetConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
-	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var mdmEnrollmentURL string
+		token := r.PathValue("token")
+		if token != "" {
+			tokenPath := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", url.PathEscape(token), 1)
+			mdmEnrollmentURL = serverURLPrefix + tokenPath
+		} else {
+			mdmEnrollmentURL = serverURLPrefix + apple_mdm.AccountDrivenEnrollPath // nolint:staticcheck // deprecated path, kept for backwards compatibility
+		}
+
 		ctx := r.Context()
-		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
+		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, fullMDMEnrollmentURL)
+		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	})
+	mux.Handle(apple_mdm.ServiceDiscoveryTokenPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryTokenPath, fleetConfig))
 	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
 	return nil
 }
