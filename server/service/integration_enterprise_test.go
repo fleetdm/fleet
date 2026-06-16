@@ -32827,3 +32827,162 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
 }
+
+func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
+	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
+	zoom := &fmaTestState{
+		version:        "1.0",
+		installerBytes: []byte("zoom-1.0"),
+		installerPath:  "/zoom.msi",
+		patchQuery:     "SELECT 1 FROM osquery_info;",
+	}
+	startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": zoom})
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		TeamPayload: fleet.TeamPayload{Name: new("fma_pin_" + t.Name())},
+	}, http.StatusOK, &teamResp)
+	team := *teamResp.Team
+
+	batchSet := func(software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			http.StatusAccepted, &resp, "team_name", team.Name)
+		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+	bumpVersion := func(version string, bytes []byte) {
+		zoom.version = version
+		zoom.installerBytes = bytes
+		zoom.ComputeSHA(bytes)
+	}
+
+	// Cache v1.0, then bump the manifest and cache v2.0 (GitOps applies, no pin).
+	pkgs := batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	require.NotEmpty(t, pkgs)
+	require.NotNil(t, pkgs[0].TitleID)
+	titleID := *pkgs[0].TitleID
+
+	bumpVersion("2.0", []byte("zoom-2.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+
+	getPkg := func() *fleet.SoftwareInstaller {
+		var resp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, resp.SoftwareTitle)
+		require.NotNil(t, resp.SoftwareTitle.SoftwarePackage)
+		return resp.SoftwareTitle.SoftwarePackage
+	}
+	idForVersion := func(p *fleet.SoftwareInstaller, version string) uint {
+		for _, v := range p.FleetMaintainedVersions {
+			if v.Version == version {
+				return v.ID
+			}
+		}
+		t.Fatalf("version %q is not cached (have %+v)", version, p.FleetMaintainedVersions)
+		return 0
+	}
+	policyInstallerID := func(policyID uint) uint {
+		var id *uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT software_installer_id FROM policies WHERE id = ?", policyID)
+		})
+		require.NotNilf(t, id, "policy %d has no software_installer_id", policyID)
+		return *id
+	}
+	// Patch policies are title-scoped (patch_software_title_id), not installer-scoped, so they don't carry a
+	// software_installer_id and aren't re-pointed on a version flip — they stay attached to the title.
+	patchPolicyTitleID := func(policyID uint) uint {
+		var id *uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT patch_software_title_id FROM policies WHERE id = ?", policyID)
+		})
+		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
+		return *id
+	}
+
+	// Two cached versions; GitOps left the title on Latest (newest active, no pin).
+	p := getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	idV1 := idForVersion(p, "1.0")
+	idV2 := idForVersion(p, "2.0")
+	require.Equal(t, idV2, p.InstallerID)
+
+	// Dependencies on the title: an install-automation policy (carries software_installer_id) and a patch policy
+	// (title-scoped via patch_software_title_id). A PATCH pin re-points the install policy to the active installer.
+	var installPol fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name: "install zoom", Query: "SELECT 1 FROM osquery_info;", SoftwareTitleID: &titleID,
+	}, http.StatusOK, &installPol)
+	var patchPol fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPol)
+	require.Equal(t, idV2, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+
+	// assertState checks the active installer id + version + pinned_version, and the dependent policies.
+	assertState := func(msg string, wantID uint, wantVersion string, wantPinned *string, installPolicyRepoints bool) {
+		p := getPkg()
+		require.Equalf(t, wantID, p.InstallerID, "%s: active installer id", msg)
+		require.Equalf(t, wantVersion, p.Version, "%s: active version", msg)
+		if wantPinned == nil {
+			require.Nilf(t, p.PinnedVersion, "%s: pinned_version", msg)
+		} else {
+			require.NotNilf(t, p.PinnedVersion, "%s: pinned_version", msg)
+			require.Equalf(t, *wantPinned, *p.PinnedVersion, "%s: pinned_version", msg)
+		}
+		// The PATCH path re-points install policies to the active installer; the GitOps/batch path does not yet
+		// re-point off an inactive cached version (TODO in BatchSetSoftwareInstallers), so only assert it where it holds.
+		if installPolicyRepoints {
+			require.Equalf(t, wantID, policyInstallerID(installPol.Policy.ID), "%s: install policy re-point", msg)
+		}
+		// Patch policy stays attached to the title across pins (title-scoped, not installer-scoped).
+		require.Equalf(t, titleID, patchPolicyTitleID(patchPol.Policy.ID), "%s: patch policy title", msg)
+	}
+
+	patchVersion := func(version string) {
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id": {fmt.Sprint(team.ID)},
+			"version": {version},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+	}
+
+	// --- UI (PATCH) pins ---
+
+	// Rollback to an older cached version.
+	patchVersion("1.0")
+	assertState("patch rollback 1.0", idV1, "1.0", new("1.0"), true)
+
+	// Pin a major; resolves to the newest cached minor in that major.
+	patchVersion("^2")
+	assertState("patch pin ^2", idV2, "2.0", new("^2"), true)
+
+	// Back to Latest clears the pin row.
+	patchVersion("")
+	assertState("patch latest", idV2, "2.0", nil, true)
+
+	// --- Last write wins: a GitOps apply with no version sets Latest, regardless of a prior UI pin ---
+	// (install-policy re-pointing on GitOps active-flips is a known gap, see assertState / the TODO in
+	// BatchSetSoftwareInstallers, hence installPolicyRepoints=false below.)
+	patchVersion("1.0")
+	assertState("patch re-pin 1.0", idV1, "1.0", new("1.0"), true)
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	assertState("gitops no-version -> latest", idV2, "2.0", nil, false)
+
+	// --- GitOps pins persist the verbatim expression ---
+
+	// Literal rollback via GitOps.
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}})
+	assertState("gitops literal 1.0", idV1, "1.0", new("1.0"), false)
+
+	// Caret pin via GitOps (latest major); the "^2" string is stored verbatim despite the erase-for-hydrate path.
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^2"}})
+	assertState("gitops caret ^2", idV2, "2.0", new("^2"), false)
+}

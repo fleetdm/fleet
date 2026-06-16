@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
+		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -5740,4 +5741,72 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
+}
+
+func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "testpkg",
+		Source:               "apps",
+		Platform:             "darwin",
+		InstallScript:        "echo install",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        tfr,
+		StorageID:            "storageid1",
+		Filename:             "test.pkg",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(fma.ID),
+	})
+	require.NoError(t, err)
+
+	noTeam := new(uint(0))
+	otherTeam := new(uint(42))
+
+	// No row -> not found; the caller treats this as "Latest".
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// A literal pin round-trips.
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
+	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("1.0"), pin)
+
+	// Upsert overwrites in place (literal -> caret).
+	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("^1"), pin)
+
+	// A different team's pin on the same title is independent.
+	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("2.0"), pin)
+	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("^1"), pin)
+
+	// Deleting one team's pin leaves the other intact; deleting again is a no-op.
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
+	_, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.NoError(t, ds.DeletePinnedVersion(ctx, noTeam, titleID))
+	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("2.0"), pin)
 }
