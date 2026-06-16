@@ -12,11 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// maintainedAppsAllowedOrderKeys allowlists order keys for listing
+// Fleet-maintained apps. The list is a combined-by-name view, so name is the
+// only meaningful key; it's validation-only, since ORDER BY is hard-coded below.
 var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"id":       "fma.id",
-	"name":     "fma.name",
-	"platform": "fma.platform",
-	"slug":     "fma.slug",
+	"name": "fma.name",
 }
 
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
@@ -233,9 +233,10 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		return []fleet.MaintainedApp{}, &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}, nil
 	}
 
-	// Validate the requested order key against the allowlist (rejects unknown
-	// keys). The combined-by-name view is only meaningfully sortable by name, so
-	// for any valid key we order the apps by name.
+	// Validate the requested order key against the allowlist, which permits only
+	// "name" (the apps are always ordered by name below; see the allowlist
+	// declaration). Any other key, including an empty one, is handled here: an
+	// empty key skips validation and falls through to the default name ordering.
 	if key := opt.OrderKey; key != "" {
 		if _, ok := maintainedAppsAllowedOrderKeys[key]; !ok {
 			return nil, nil, ctxerr.Wrap(ctx, common_mysql.InvalidOrderKeyError{Key: key, Allowed: maintainedAppsAllowedOrderKeys.AllowedKeys()}, "list fleet maintained apps")

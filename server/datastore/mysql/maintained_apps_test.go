@@ -454,18 +454,49 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
 
-	for _, key := range []string{"id", "name", "platform", "slug"} {
-		t.Run("order_"+key, func(t *testing.T) {
-			result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10, IncludeMetadata: true}})
-			require.NoError(t, err)
-			require.NotEmpty(t, result)
-		})
+	// Ordering: the combined-by-name view is only meaningfully sortable by name,
+	// so "name" is the one allowed order key. expectedApps is declared in
+	// ascending name order, so we derive the expected name sequences from it.
+	appNames := func(apps []fleet.MaintainedApp) []string {
+		got := make([]string, 0, len(apps))
+		for _, a := range apps {
+			got = append(got, a.Name)
+		}
+		return got
+	}
+	ascNames := appNames(expectedApps)
+	descNames := make([]string, len(ascNames))
+	for i, name := range ascNames {
+		descNames[len(ascNames)-1-i] = name
 	}
 
-	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: "h.node_key", IncludeMetadata: true}})
-		require.Error(t, err)
+	t.Run("order_name_ascending", func(t *testing.T) {
+		result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending, PerPage: 10, IncludeMetadata: true}})
+		require.NoError(t, err)
+		require.Equal(t, ascNames, appNames(result))
 	})
+
+	t.Run("order_name_descending", func(t *testing.T) {
+		result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending, PerPage: 10, IncludeMetadata: true}})
+		require.NoError(t, err)
+		require.Equal(t, descNames, appNames(result))
+	})
+
+	t.Run("empty_order_key_defaults_to_name", func(t *testing.T) {
+		result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 10, IncludeMetadata: true}})
+		require.NoError(t, err)
+		require.Equal(t, ascNames, appNames(result))
+	})
+
+	// Only "name" is allowed. Keys that used to be in the allowlist (id,
+	// platform, slug) and any other column must now be rejected, rather than
+	// silently falling back to name ordering.
+	for _, key := range []string{"id", "platform", "slug", "h.node_key"} {
+		t.Run("rejects_"+key, func(t *testing.T) {
+			_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{OrderKey: key, IncludeMetadata: true}})
+			require.Error(t, err)
+		})
+	}
 }
 
 func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
