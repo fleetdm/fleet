@@ -114,10 +114,17 @@ const hostFilterLines = (filters: IChartFilterState): string[] => {
 
 const softwareFilterLines = (filters: IChartFilterState): string[] => {
   const lines: string[] = [];
+  // Only surface category text when the user has actually narrowed the
+  // selection — all categories are selected by default, so an unnarrowed
+  // selection isn't an active filter and shouldn't show a Software section.
+  const categoriesNarrowed =
+    filters.softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
   const cats = CVE_SOFTWARE_CATEGORIES.filter((c) =>
     filters.softwareFilters.includes(c.value)
   ).map((c) => c.tooltipLabel);
-  if (cats.length) lines.push(formatList(cats));
+  if (categoriesNarrowed) {
+    lines.push(cats.length ? formatList(cats) : "No software categories");
+  }
   if (filters.knownExploit) lines.push("Known exploits only");
   if (
     isEpssActive(filters.epssMin, filters.epssMax) ||

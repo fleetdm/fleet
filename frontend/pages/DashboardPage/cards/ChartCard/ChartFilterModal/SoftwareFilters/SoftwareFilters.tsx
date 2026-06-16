@@ -85,7 +85,9 @@ const SoftwareFilters = ({
         per_page: pageCount * PAGE_SIZE,
         query: searchQuery || undefined,
       }),
-    { keepPreviousData: true, staleTime: 30000 }
+    // The CVE search UI lives entirely inside the Advanced section, so don't
+    // fetch until the user opens it.
+    { keepPreviousData: true, staleTime: 30000, enabled: showAdvanced }
   );
 
   const cves: IVulnerability[] = vulnData?.vulnerabilities ?? [];
