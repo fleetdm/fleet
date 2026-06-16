@@ -919,6 +919,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}); err != nil {
 			initFatal(err, "failed to register managed local account rotation schedule")
 		}
+
+		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			return newCleanupExpiredADUEChallengesSchedule(ctx, instanceID, ds, logger)
+		}); err != nil {
+			initFatal(err, "failed to register cleanup expired ADUE challenges schedule")
+		}
 	}
 
 	if license.IsPremium() && config.Activity.EnableAuditLog {
