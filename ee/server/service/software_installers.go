@@ -2555,7 +2555,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 	}
 
-	// TODO(JK): long comment
+	// TODO(JK): remove long comment
 	// Leave payload.RollbackVersion untouched so it carries the verbatim pin expression downstream (persisted to
 	// software_title_team_pins by BatchSetSoftwareInstallers). NOTE: it may be a "^major" caret, not just a literal
 	// version — callers that exact-match on RollbackVersion must skip the caret form (today only
