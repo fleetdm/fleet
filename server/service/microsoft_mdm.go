@@ -1647,23 +1647,22 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 </Exec>
 `)
 
-	// TODO: add ability to batch-enqueue multiple commands at the same time
-	addFleetdCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  addCommandUUID,
-		RawCommand:   rawAddCmd,
-		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
-	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
-	}
-
-	execFleetCmd := &fleet.MDMWindowsCommand{
+	// Deliver the Add and Exec as a SINGLE command so they ride in one SyncML body with Add textually before
+	// Exec. As two separate queued commands they can be reordered: MDMWindowsGetPendingCommands orders only by
+	// created_at, which ties at the 1-second granularity of the `timestamp` column (the pair is inserted
+	// back-to-back), so the Exec can be delivered before the Add. The device then runs DownloadInstall on a node
+	// that doesn't exist yet, returns 404, and the install is created-but-never-run (stuck at "Ready") -- an
+	// intermittent fleetd-install failure, most visibly a hung Autopilot ESP. One raw_command guarantees order.
+	// The command_uuid is the Exec's so the install result (the meaningful status) is the one tracked and the
+	// one that acks the queue; the Add's CmdID is harmlessly unmatched (no "unmatched" warning, since the Exec matches).
+	rawCombinedCmd := []byte(string(rawAddCmd) + string(rawExecCmd))
+	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
-		RawCommand:   rawExecCmd,
+		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
 	}
 
 	return nil
