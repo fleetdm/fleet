@@ -485,7 +485,7 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 		return labels, nil
 	}
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	testAdmin := fleet.User{
 		ID:         1,
