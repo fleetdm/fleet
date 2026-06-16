@@ -6164,11 +6164,11 @@ WHERE
 `
 	var args []any
 	teamFilter := `h.team_id IS NULL`
-	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL`
+	abmtFilter := `abmt.macos_default_team_id IS NULL OR abmt.ios_default_team_id IS NULL OR abmt.ipados_default_team_id IS NULL OR abmt.byod_default_team_id IS NULL`
 	if teamID != nil {
 		teamFilter = `h.team_id = ?`
-		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ?`
-		args = append(args, *teamID, *teamID, *teamID, *teamID)
+		abmtFilter = `abmt.macos_default_team_id = ? OR abmt.ios_default_team_id = ? OR abmt.ipados_default_team_id = ? OR abmt.byod_default_team_id = ?`
+		args = append(args, *teamID, *teamID, *teamID, *teamID, *teamID)
 	}
 
 	stmt = fmt.Sprintf(stmt, teamFilter, abmtFilter)
