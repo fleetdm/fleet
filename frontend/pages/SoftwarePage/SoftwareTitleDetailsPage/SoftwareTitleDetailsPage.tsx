@@ -30,6 +30,7 @@ import TeamsHeader from "components/TeamsHeader";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
+import LibraryItemAccordion from "./LibraryItemAccordion";
 
 const baseClass = "software-title-details-page";
 
@@ -205,6 +206,44 @@ const SoftwareTitleDetailsPage = ({
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}
+          {/* TODO #47622 preview — remove before merging into main */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <LibraryItemAccordion
+              filename="GoogleChrome.pkg"
+              version="149.0.7827.54"
+              addedAt={new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()}
+              isActive
+              isLatest
+              labels={
+                [
+                  { id: 1, name: "Engineering" },
+                  { id: 2, name: "Product" },
+                  { id: 3, name: "Quality Assurance" },
+                  { id: 4, name: "Marketing" },
+                  { id: 5, name: "Sales" },
+                  { id: 6, name: "Support" },
+                  { id: 7, name: "Ops" },
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ] as any
+              }
+              installed={32}
+              pending={5}
+              failed={3}
+              hashSha256="af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7"
+              downloadUrl="https://example.com/installer.pkg"
+            />
+            <LibraryItemAccordion
+              filename="GoogleChrome.pkg"
+              version="148.0.7778.179"
+              addedAt={new Date(
+                Date.now() - 1000 * 60 * 60 * 24 * 20
+              ).toISOString()}
+              isActive={false}
+              installed={0}
+              pending={0}
+              failed={0}
+            />
+          </div>
           {renderSoftwareInstallerCard(softwareTitle)}
         </>
       );
