@@ -105,7 +105,7 @@ The best workflow is the one your whole team can still run after you're gone. Ev
 
 ## See it live
 
-The fastest way to see what this looks like in your environment is to run the reports above against your own devices. If you'd like a hand getting there, two good next steps:
+The quickest way to see this in detail is to inspect our [it-and-security](../it-and-security) folder to review the config, then download the [fleetctl](https://fleetdm.com/download) CLI and run `fleetctl new` to generate the GitOps scaffold. If you’d like help getting started, two good next steps are:
 
 - [**Get a demo**](https://fleetdm.com/contact)**.** We'll walk through seeing, controlling, and governing AI tooling at scale across your fleet and answer the "what's actually running in *our* environment?" question against real machines.
 - [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** If you want to manage AI governance as code — reports and policies in Git, reviewed in pull requests, deployed through CI — our hands-on workshop is the place to start.
