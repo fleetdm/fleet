@@ -1469,6 +1469,18 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "b.cb"}}, 1)
 	require.Equal(t, 1, len(gotHosts))
 	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
+
+	// check that ListHosts also filters by public IP address
+	hosts[3].PublicIP = "203.0.113.42"
+	err = ds.UpdateHost(context.Background(), hosts[3])
+	require.NoError(t, err)
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.42"}}, 1)
+	require.Len(t, gotHosts, 1)
+	assert.Equal(t, hosts[3].ID, gotHosts[0].ID)
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
+	assert.Empty(t, gotHosts)
 }
 
 func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
