@@ -4074,6 +4074,16 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
+	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// This applies to both the user-authenticated host software endpoint and the
+	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
+	// these filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+		if !license.IsPremium(ctx) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+	}
+
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
