@@ -2767,6 +2767,13 @@
       "description": "File Juicer is an app that extracts images from PDF, PowerPoint, Word, Excel and other Files."
     },
     {
+      "name": "Filebeat",
+      "slug": "filebeat/windows",
+      "platform": "windows",
+      "unique_identifier": "Beats filebeat",
+      "description": "Filebeat is a lightweight shipper from Elastic for forwarding and centralizing log data."
+    },
+    {
       "name": "FileMaker Pro",
       "slug": "filemaker-pro/darwin",
       "platform": "darwin",
@@ -8113,6 +8120,13 @@
       "platform": "windows",
       "unique_identifier": "Windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "Winlogbeat",
+      "slug": "winlogbeat/windows",
+      "platform": "windows",
+      "unique_identifier": "Beats winlogbeat",
+      "description": "Winlogbeat is a lightweight shipper from Elastic for forwarding and centralizing Windows event logs."
     },
     {
       "name": "WinRAR",

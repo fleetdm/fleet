@@ -319,6 +319,7 @@ import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
 import Fig from "./Fig";
 import Figma from "./Figma";
+import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
 import FileMakerPro from "./FileMakerPro";
 import Filen from "./Filen";
@@ -979,6 +980,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winlogbeat from "./Winlogbeat";
 import Winrar from "./Winrar";
 import Wins from "./Wins";
 import Winscp from "./Winscp";
@@ -1356,6 +1358,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
+  filebeat: Filebeat,
   "filemaker pro": FileMakerPro,
   filen: Filen,
   "fing desktop": Fing,
@@ -2018,6 +2021,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
