@@ -30,7 +30,6 @@ module.exports = function notFound () {
   // Get access to `req` and `res`
   var req = this.req;
   var res = this.res;
-  console.log('aaaaaa');
   // Get access to `sails`
   var sails = req._sails;
 
