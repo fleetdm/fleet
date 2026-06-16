@@ -9,6 +9,7 @@ import chartsAPI, {
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import stringUtils from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -74,6 +75,7 @@ const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
 
 // Human-readable "a, b, and c".
 const formatList = (items: string[]): string => {
+  items = items.map(stringUtils.capitalize);
   if (items.length <= 1) return items.join("");
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
