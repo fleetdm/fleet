@@ -876,7 +876,7 @@ CREATE TABLE `host_mdm` (
   `is_server` tinyint(1) DEFAULT NULL,
   `fleet_enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `managed_apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `enrollment_status` enum('On (manual)','On (automatic)','Pending','Off','On (personal)') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`is_server` = 1) then NULL when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 1)) then _utf8mb4'On (personal)' when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (manual)' when ((`enrolled` = 1) and (`installed_from_dep` = 1) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (automatic)' when ((`enrolled` = 0) and (`installed_from_dep` = 1)) then _utf8mb4'Pending' when ((`enrolled` = 0) and (`installed_from_dep` = 0)) then _utf8mb4'Off' else NULL end)) VIRTUAL,
+  `enrollment_status` enum('On (manual)','On (automatic)','Pending','Off','On (manual - personal)') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`is_server` = 1) then NULL when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 1)) then _utf8mb4'On (manual - personal)' when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (manual)' when ((`enrolled` = 1) and (`installed_from_dep` = 1) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (automatic)' when ((`enrolled` = 0) and (`installed_from_dep` = 1)) then _utf8mb4'Pending' when ((`enrolled` = 0) and (`installed_from_dep` = 0)) then _utf8mb4'Off' else NULL end)) VIRTUAL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `is_personal_enrollment` tinyint(1) NOT NULL DEFAULT '0',
@@ -936,6 +936,14 @@ CREATE TABLE `host_mdm_apple_awaiting_configuration` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_mdm_apple_enrollment_permissions` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `access_rights` int NOT NULL DEFAULT '8191',
+  `delivered_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 CREATE TABLE `host_mdm_apple_bootstrap_packages` (
   `host_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,

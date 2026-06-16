@@ -632,14 +632,15 @@ var hostRefs = []string{
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":               "host_uuid",
-	"host_mdm_apple_bootstrap_packages":     "host_uuid",
-	"host_mdm_windows_profiles":             "host_uuid",
-	"host_mdm_apple_declarations":           "host_uuid",
-	"host_mdm_apple_awaiting_configuration": "host_uuid",
-	"setup_experience_status_results":       "host_uuid",
-	"host_mdm_android_profiles":             "host_uuid",
-	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_profiles":                      "host_uuid",
+	"host_mdm_apple_bootstrap_packages":            "host_uuid",
+	"host_mdm_windows_profiles":                    "host_uuid",
+	"host_mdm_apple_declarations":                  "host_uuid",
+	"host_mdm_apple_awaiting_configuration":        "host_uuid",
+	"setup_experience_status_results":              "host_uuid",
+	"host_mdm_android_profiles":                    "host_uuid",
+	"host_certificate_templates":                   "host_uuid",
+	"host_mdm_apple_enrollment_permissions":        "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4643,6 +4644,33 @@ func (ds *Datastore) SetOrUpdateMDMData(
 		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID,
 	)
+}
+
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	var p fleet.HostMDMApplePermissions
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &p,
+		`SELECT host_uuid, access_rights, delivered_at
+		 FROM host_mdm_apple_enrollment_permissions
+		 WHERE host_uuid = ?`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("HostMDMAppleEnrollmentPermissions").WithName(hostUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+	}
+	return &p, nil
+}
+
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid, access_rights)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights)
+	`, hostUUID, accessRights)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host mdm apple enrollment permissions")
+	}
+	return nil
 }
 
 func (ds *Datastore) UpdateMDMData(

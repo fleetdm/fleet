@@ -363,7 +363,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserTeamObserverPlusTeam1,
 	} {
 		usrctx := test.UserContext(ctx, user)
-		_, err = svc.GetMDMManualEnrollmentProfile(usrctx)
+		_, err = svc.GetMDMManualEnrollmentProfile(usrctx, false)
 		require.NoError(t, err)
 	}
 
@@ -3941,7 +3941,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", apple_mdm.MDMAccessRightAll)
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }
