@@ -37,12 +37,15 @@ const pssoContentTypeLoginResponse = "application/platformsso-login-response+jwt
 
 type pssoNonceRequest struct{}
 
-// DecodeBody ignores the request body. Apple's AppSSOAgent POSTs a urlencoded
-// grant_type=srv_challenge form to the nonce endpoint, but Fleet needs nothing
-// from it — it just mints a nonce. The method must exist so the endpoint
-// framework routes the form body here instead of falling through to JSON
-// decoding, which rejects the form as malformed.
-func (pssoNonceRequest) DecodeBody(context.Context, io.Reader, url.Values, []*x509.Certificate) error {
+// DecodeBody drains and discards the request body. Apple's AppSSOAgent POSTs a
+// urlencoded grant_type=srv_challenge form to the nonce endpoint, but Fleet
+// needs nothing from it — it just mints a nonce. Draining (rather than leaving
+// it unread) keeps the connection reusable; the reader is already size-limited
+// by the endpointer. The method must exist so the endpoint framework routes the
+// form body here instead of falling through to JSON decoding, which rejects the
+// form as malformed.
+func (pssoNonceRequest) DecodeBody(_ context.Context, r io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	_, _ = io.Copy(io.Discard, r)
 	return nil
 }
 
