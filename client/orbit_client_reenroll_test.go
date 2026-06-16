@@ -28,8 +28,9 @@ func newReenrollTestClient(t *testing.T, serverURL, nodeKeyPath string) *OrbitCl
 	}
 }
 
-// setReenrollGracePeriod temporarily overrides the package-level grace period and returns a restore
-// func. The grace period is package state, so tests using it must not run in parallel.
+// setReenrollGracePeriod temporarily overrides the package-level grace period for the duration of
+// the test, restoring it via t.Cleanup. The grace period is package state, so tests using it must
+// not run in parallel.
 func setReenrollGracePeriod(t *testing.T, d time.Duration) {
 	t.Helper()
 	orig := unauthenticatedReenrollGracePeriod
@@ -208,7 +209,10 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		// and the request then succeeds.
 		err = oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, enrollCalls, 1)
+		mu.Lock()
+		gotEnrollCalls := enrollCalls
+		mu.Unlock()
+		require.GreaterOrEqual(t, gotEnrollCalls, 1)
 		require.False(t, oc.reenrollForced(), "re-enroll state should be cleared after success")
 
 		contents, err = os.ReadFile(nodeKeyPath)

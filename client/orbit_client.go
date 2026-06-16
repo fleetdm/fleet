@@ -79,8 +79,10 @@ type OrbitClient struct {
 
 	// hostIdentityCertPath is the file path to the host identity certificate issued using SCEP.
 	//
-	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
-	// to terminate to trigger a restart.
+	// If set, it is deleted once HTTP 401 errors from Fleet have persisted past
+	// unauthenticatedReenrollGracePeriod (see authenticatedRequest), which also causes
+	// ExecuteConfigReceivers to terminate and trigger a restart. Transient 401s within the grace
+	// period leave it in place.
 	hostIdentityCertPath string
 
 	// lastSSOWindowOpen tracks when the SSO browser window was last opened.
