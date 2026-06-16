@@ -2005,6 +2005,7 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.BYODDefaultTeamID = nil
 			tokensByName[token.OrganizationName] = token
 		}
 
