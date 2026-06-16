@@ -1024,6 +1024,7 @@ func newWorkerIntegrationsSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
 	chartSvc chart_api.Service,
+	androidBatchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1082,9 +1083,10 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
-		Datastore:     ds,
-		Log:           logger,
-		AndroidModule: androidModule,
+		Datastore:        ds,
+		Log:              logger,
+		AndroidModule:    androidModule,
+		AndroidBatchSize: androidBatchSize,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -1477,6 +1479,11 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_pending_delete_profiles", func(ctx context.Context) error {
+			// Retained content for deleted Windows profiles is GC'd (reference-counted) once no host still references the profile, so
+			// the content survives exactly as long as some host still needs its <Delete>.
+			return ds.CleanupWindowsMDMPendingDeleteProfiles(ctx)
 		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
@@ -1925,6 +1932,7 @@ func newAndroidMDMProfileManagerSchedule(
 	logger *slog.Logger,
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1936,7 +1944,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
 		}),
 	)
 

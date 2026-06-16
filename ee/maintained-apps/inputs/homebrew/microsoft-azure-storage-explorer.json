@@ -1,0 +1,10 @@
+{
+  "name": "Microsoft Azure Storage Explorer",
+  "unique_identifier": "com.microsoft.StorageExplorer",
+  "token": "microsoft-azure-storage-explorer",
+  "installer_format": "zip",
+  "slug": "microsoft-azure-storage-explorer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

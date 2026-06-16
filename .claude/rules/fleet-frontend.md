@@ -73,8 +73,11 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 - Use `renderMultiFlash()` for batch operations
 
 ## XSS Prevention
-- ALWAYS sanitize user-generated HTML with `DOMPurify.sanitize(html, options)` before `dangerouslySetInnerHTML`
-- Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+- ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
+  - `DOMPurify.sanitize(html, options)` — arbitrary HTML. Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+  - `syntaxHighlight(value)` from `frontend/utilities/helpers.tsx` — JSON/code previews. Input must be a value to JSON-serialize (object/array/primitive), not a pre-built string of user content
+  - `ClickableUrls` from `frontend/components/ClickableUrls/` — plain text that may contain URLs, rendered as clickable links
+- See `frontend/docs/patterns.md#security-considerations` for full guidance, including frontend pitfalls common in AI-assisted code
 
 ## String Utilities
 Use helpers from `frontend/utilities/strings/stringUtils.ts`:
@@ -83,8 +86,13 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
-## Software titles — display name
+## Software titles
+
+### Display name
 Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
+### Icons
+`<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.
 
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component

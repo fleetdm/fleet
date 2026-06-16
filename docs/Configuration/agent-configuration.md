@@ -50,6 +50,11 @@ command_line_flags:
 - `options` include the agent settings listed under `osqueryOptions` in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
 - `command_line_flags` include the agent settings listed under osqueryCommandLineFlags in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
 
+Setting `command_line_flags` to an empty value (`{}` or `null`) is not the same as leaving the key out:
+
+- If `command_line_flags` isn't present in your agent options, Fleet leaves each host's osquery flags as they are. Flags that shipped with the fleetd installer, or were set locally on the host, are preserved.
+- If `command_line_flags` is set to `{}` or `null`, Fleet clears all local osquery flags on your hosts. On each host, fleetd empties the `osquery.flags` file and restarts osquery without those flags.
+
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```

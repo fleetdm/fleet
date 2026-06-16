@@ -443,6 +443,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
+	config.MDM.ValidateAndroidBatchSize(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -771,7 +772,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc, config.MDM.AndroidBatchSize)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
@@ -829,6 +830,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			config.MDM.AndroidAgent,
+			config.MDM.AndroidBatchSize,
 		)
 	}); err != nil {
 		initFatal(err, "failed to register mdm_android_profile_manager schedule")
@@ -1020,6 +1022,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		var extra []service.ExtraHandlerOption
 		if config.MDM.SSORateLimitPerMinute > 0 {
 			extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
+		}
+		if config.Auth.SSORateLimitPerMinute > 0 {
+			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
 		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 

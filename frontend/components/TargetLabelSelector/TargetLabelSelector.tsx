@@ -20,7 +20,7 @@ const baseClass = "target-label-selector";
 export type LabelTargetMode = "any" | "all";
 export type TargetType = "All hosts" | "Custom";
 
-export interface ILabelTabConfig {
+export interface ILabelConfig {
   selectedLabels: Record<string, boolean>;
   onSelectLabel: (arg: { name: string; value: boolean }) => void;
   /** When true, shows an "Any"/"All" radio that switches this tab between its
@@ -168,7 +168,7 @@ const LabelModeToggle = ({
 };
 
 interface ILabelTabContentProps {
-  tab: ILabelTabConfig;
+  tab: ILabelConfig;
   filteredLabels: ILabelSummary[];
   /** Labels selected in the other tab; disabled here to prevent overlap. */
   disabledLabels: Record<string, boolean>;
@@ -214,8 +214,8 @@ const LabelTabContent = ({
 
 interface ICustomTargetTabsProps {
   labels: ILabelSummary[];
-  include: ILabelTabConfig;
-  exclude: ILabelTabConfig;
+  include: ILabelConfig;
+  exclude: ILabelConfig;
   emptyStateDescription: ReactNode;
   onAddLabel: () => void;
   isLoadingLabels: boolean;
@@ -356,8 +356,8 @@ export interface ITargetLabelSelectorProps {
   selectedTargetType: TargetType;
   onSelectTargetType: (val: TargetType) => void;
   labels: ILabelSummary[];
-  include: ILabelTabConfig;
-  exclude: ILabelTabConfig;
+  includeConfig: ILabelConfig;
+  excludeConfig: ILabelConfig;
   emptyStateDescription: ReactNode;
   onAddLabel: () => void;
   isLoadingLabels?: boolean;
@@ -375,8 +375,8 @@ const TargetLabelSelector = ({
   selectedTargetType,
   onSelectTargetType,
   labels,
-  include,
-  exclude,
+  includeConfig,
+  excludeConfig,
   emptyStateDescription,
   onAddLabel,
   isLoadingLabels = false,
@@ -396,8 +396,8 @@ const TargetLabelSelector = ({
       {selectedTargetType === "Custom" && (
         <CustomTargetTabs
           labels={labels || []}
-          include={include}
-          exclude={exclude}
+          include={includeConfig}
+          exclude={excludeConfig}
           emptyStateDescription={emptyStateDescription}
           onAddLabel={onAddLabel}
           isLoadingLabels={isLoadingLabels}
