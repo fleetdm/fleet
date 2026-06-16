@@ -572,13 +572,13 @@ software:
 
 func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
 	cases := []struct {
-		name string
+		name                          string
 		currentlyStoredUpdateNewHosts optjson.Bool
-		macOSUpdatesYAML     string
-		wantUpdateNewHosts   optjson.Bool
+		macOSUpdatesYAML              string
+		wantUpdateNewHosts            optjson.Bool
 	}{
 		{
-			name:                 "empty minimum_version and deadline default update_new_hosts to false",
+			name:                          "empty minimum_version and deadline default update_new_hosts to false",
 			currentlyStoredUpdateNewHosts: optjson.SetBool(true),
 			macOSUpdatesYAML: `
   macos_updates:
@@ -587,7 +587,7 @@ func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
 			wantUpdateNewHosts: optjson.SetBool(false),
 		},
 		{
-			name:                 "configured minimum_version and deadline default update_new_hosts to true",
+			name:                          "configured minimum_version and deadline default update_new_hosts to true",
 			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
 			macOSUpdatesYAML: `
   macos_updates:
@@ -598,7 +598,7 @@ func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
 		{
 			// "Update all new hosts to latest" with no minimum version is a valid config, so an
 			// explicit update_new_hosts: true must be honored even when version/deadline are empty.
-			name:                 "explicit update_new_hosts true is honored without minimum_version or deadline",
+			name:                          "explicit update_new_hosts true is honored without minimum_version or deadline",
 			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
 			macOSUpdatesYAML: `
   macos_updates:
