@@ -7,6 +7,7 @@
   var currentSection;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
+  var hideFooter;// Hides the footer.
   var showAdminLinks;// Shows links to admin pages to admin users.
   var showConfigurationProfileLayout;
   var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
@@ -162,7 +163,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : (showConfigurationProfileLayout || hideFooter) ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
@@ -758,6 +759,7 @@
       <% } %>
 
       <%- body %>
+      <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
@@ -879,6 +881,7 @@
               </div>
             </div>
           </div>
+      <% } %>
       <% } %>
       <% } %>
     </div>
