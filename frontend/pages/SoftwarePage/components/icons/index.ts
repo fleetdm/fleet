@@ -34,6 +34,7 @@ import Airtable from "./Airtable";
 import Airtame from "./Airtame";
 import Airy from "./Airy";
 import Akiflow from "./Akiflow";
+import Alacritty from "./Alacritty";
 import Alcove from "./Alcove";
 import Aldente from "./Aldente";
 import Alloy from "./Alloy";
@@ -71,6 +72,7 @@ import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Applite from "./Applite";
+import Aptakube from "./Aptakube";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
 import ArduinoIde from "./ArduinoIde";
@@ -79,9 +81,12 @@ import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
 import Atext from "./Atext";
 import Audacity from "./Audacity";
 import AudioHijack from "./AudioHijack";
+import Audiveris from "./Audiveris";
+import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
 import AviatrixVpnClient from "./AviatrixVpnClient";
 import AwsCli from "./AwsCli";
+import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
@@ -1061,6 +1066,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   airtame: Airtame,
   airy: Airy,
   akiflow: Akiflow,
+  alacritty: Alacritty,
   alcove: Alcove,
   aldente: Aldente,
   alloy: Alloy,
@@ -1073,6 +1079,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
   amethyst: Amethyst,
@@ -1095,6 +1102,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
+  aptakube: Aptakube,
   arc: Arc,
   archaeology: Archaeology,
   "arduino ide": ArduinoIde,
@@ -1103,10 +1111,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   atext: Atext,
   audacity: Audacity,
   "audio hijack": AudioHijack,
+  audiveris: Audiveris,
+  autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
   "aws client vpn": AwsVpnClient,
   "aws command line interface": AwsCli,
+  "aws sam command line interface": AwsSamCli,
   "aws vpn client": AwsVpnClient,
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
