@@ -175,6 +175,8 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
             helpText="In Okta, this will be in the Client Credentials section."
           />
           <InputField
+            type="password"
+            enableShowSecret
             label="Client secret"
             name="clientSecret"
             value={formData.clientSecret}
