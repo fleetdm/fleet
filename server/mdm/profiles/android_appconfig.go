@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -116,9 +115,7 @@ func SubstituteFleetVarsInAndroidAppConfig(
 			contents = replaceJSONSafe(contents, name, value)
 
 		default:
-			if !slices.Contains(fleet.FleetVarsSupportedInAndroidAppConfig, fleet.FleetVarName(name)) {
-				return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name}
-			}
+			return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name}
 		}
 	}
 

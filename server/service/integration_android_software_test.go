@@ -1475,7 +1475,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigFleetVariables() {
 	}
 	s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
 		&batchAssociateAppStoreAppsRequest{Apps: batchSupported, DryRun: true},
-		http.StatusNoContent,
+		http.StatusOK,
 	)
 }
 

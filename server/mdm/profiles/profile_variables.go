@@ -124,6 +124,8 @@ func ResolveHostEndUserIDPValue(ctx context.Context, ds fleet.Datastore,
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
 		value = strings.TrimSpace(user.IdpFullName)
+	default:
+		return "", nil, false, nil
 	}
 	return value, rx, true, nil
 }
