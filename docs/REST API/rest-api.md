@@ -1665,8 +1665,8 @@ None.
     },
     "client_url": "https://instance.fleet.com",
     "apple_account_provisioning": {
-      "idp_token_url": "https://fleet-example.okta.com/oauth2/v1/token",
-      "idp_client_id": "Ooa12345abcdeFGHI678",
+      "oauth_idp_token_url": "https://fleet-example.okta.com/oauth2/v1/token",
+      "oauth_idp_client_id": "Ooa12345abcdeFGHI678",
       "oauth_idp_client_secret": "********"
     }
   },
