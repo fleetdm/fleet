@@ -63,8 +63,7 @@ func setReenrollGracePeriod(t *testing.T, d time.Duration) {
 }
 
 func TestGetNodeKeyOrEnrollEmptyFileEnrolls(t *testing.T) {
-	// An empty/whitespace-only file must be treated like a missing one and trigger enrollment,
-	// rather than returning "" which the server would reject with a 401.
+	// An empty/whitespace-only file must be treated like a missing one and trigger enrollment
 	_, nodeKeyPath := newNodeKeyFile(t, "  \n")
 
 	var enrollCalls int
@@ -142,12 +141,7 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 	})
 }
 
-// TestNoteUnauthenticated covers the 401 debounce state machine directly. It runs in a
-// testing/synctest bubble so the elapsed-time logic is driven by a fake clock that fast-forwards
-// time.Sleep (no real waiting), exercising the actual now.Sub(since) computation rather than
-// poking internal state. It verifies that a streak must accumulate past the grace period before
-// re-enroll is armed, and that a success resets an in-progress streak so a transient 401 followed
-// by a success never re-enrolls.
+// TestNoteUnauthenticated covers the 401 debounce state machine directly.
 func TestNoteUnauthenticated(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		setReenrollGracePeriod(t, 30*time.Second)
@@ -238,8 +232,7 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		rejectAuthed = false
 		mu.Unlock()
 
-		// Second request: getNodeKeyOrEnroll sees the armed re-enroll, enrolls, overwrites the key,
-		// and the request then succeeds.
+		// Second request: getNodeKeyOrEnroll sees the armed re-enroll, enrolls, overwrites the key, and the request then succeeds.
 		err = oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
 		require.NoError(t, err)
 		mu.Lock()
