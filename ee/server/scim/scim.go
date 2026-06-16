@@ -268,6 +268,10 @@ func RegisterSCIM(
 		handler = debugPayloadDumpMiddleware(scimLogger, dumpPayloadsEnabled, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
+		// Placed before (outside) LastRequestMiddleware so that ignored SCIM
+		// requests don't overwrite the last-sync status owned by the Google
+		// Workspace sync.
+		handler = GoogleWorkspaceExclusionMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -398,6 +402,40 @@ func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Han
 			"size", len(body), "body", string(body))
 		r.Body = io.NopCloser(bytes.NewReader(body))
 		next.ServeHTTP(w, r)
+	})
+}
+
+// GoogleWorkspaceExclusionMiddleware short-circuits SCIM requests when a Google
+// Workspace integration is configured. Google Workspace and SCIM are mutually
+// exclusive sources for IdP host vitals: while Google Workspace is configured,
+// Fleet pulls the directory itself and must ignore SCIM pushes so they cannot
+// clobber the synced data. It is placed before LastRequestMiddleware so ignored
+// requests don't overwrite the last-sync status.
+func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			// Fail open: if the (cached) config can't be read, fall back to normal
+			// SCIM handling rather than breaking provisioning on a transient error.
+			logger.ErrorContext(ctx, "scim: failed to load app config for google workspace exclusion", "err", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if len(appConfig.Integrations.GoogleWorkspace) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		logger.WarnContext(ctx, "ignoring SCIM request because a Google Workspace integration is configured",
+			"method", r.Method, "path", r.URL.Path)
+		w.Header().Set("Content-Type", "application/scim+json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:Error"},
+			"detail":  "SCIM provisioning is disabled because a Google Workspace integration is configured in Fleet.",
+			"status":  fmt.Sprintf("%d", http.StatusConflict),
+		})
 	})
 }
 

@@ -58,6 +58,9 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
+	// GoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// configured (integrations.google_workspace[0] has a domain and service account).
+	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
 	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS

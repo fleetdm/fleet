@@ -62,6 +62,11 @@ integrations:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_workspace:
+    - api_key_json:
+        owl: hoot
+      domain: fleetdm.com
+      impersonated_user_email: admin@fleetdm.com
   jira:
     - api_token: some-jira-api-token
       enable_failing_policies: false
