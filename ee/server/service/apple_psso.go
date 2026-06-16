@@ -434,8 +434,12 @@ const pssoDefaultTokenTTL = time.Hour
 // from the extension's configured hostname — a bare hostname with no scheme —
 // so the configured IssuerURL is reduced to its host.
 func pssoIDTokenIssuer(settings *fleet.PSSOSettings) string {
-	if u, err := url.Parse(settings.IssuerURL); err == nil && u.Host != "" {
-		return u.Host
+	// Hostname() (not Host) so a non-default port is dropped: the extension
+	// derives the issuer from the BaseURL via Swift's URL.host, which excludes
+	// the port. Returning Host here would mint iss with the port and the device
+	// would reject the id_token on mismatch.
+	if u, err := url.Parse(settings.IssuerURL); err == nil && u.Hostname() != "" {
+		return u.Hostname()
 	}
 	return strings.TrimSuffix(settings.IssuerURL, "/")
 }
