@@ -230,18 +230,18 @@
   },
   {
     "name": "ai_tools",
-    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. A `kind` column discriminates the type; common fields are first-class columns; kind-specific extras live in a compact JSON `detail` column.",
+    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
     "platforms": [
       "darwin",
       "windows",
       "linux"
     ],
     "evented": false,
-    "examples": "Count AI tools per kind on the host.\n\n```\nSELECT kind, count(*) FROM ai_tools GROUP BY kind;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE kind = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE kind = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every kind.\n\n```\nSELECT kind, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE kind = 'ide_plugins';\n```",
+    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```",
     "notes": "The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.",
     "columns": [
       {
-        "name": "kind",
+        "name": "type",
         "description": "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`.",
         "type": "text",
         "required": false
@@ -254,7 +254,7 @@
       },
       {
         "name": "identifier",
-        "description": "Unique identifier varying by kind: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool.",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool.",
         "type": "text",
         "required": false
       },
@@ -308,7 +308,7 @@
       },
       {
         "name": "port",
-        "description": "Listening port, API port, or local port (varies by kind).",
+        "description": "Listening port, API port, or local port (varies by type).",
         "type": "integer",
         "required": false
       },
@@ -338,7 +338,7 @@
       },
       {
         "name": "detail",
-        "description": "Compact JSON with kind-specific extras (empty fields omitted). Examples: `transport`, `command`, `args`, `env_keys`, `capabilities`, `launch_hash`, `permission_mode`, `markers`, `scope`, `publisher`, `editor_family`, `runtime`, `protocol`, `remote_host`, `cmdline`.",
+        "description": "Compact JSON with type-specific extras (empty fields omitted). Examples: `transport`, `command`, `args`, `env_keys`, `capabilities`, `launch_hash`, `permission_mode`, `markers`, `scope`, `publisher`, `editor_family`, `runtime`, `protocol`, `remote_host`, `cmdline`.",
         "type": "text",
         "required": false
       }
