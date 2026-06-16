@@ -688,7 +688,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 			if activeInstallerID == 0 {
-				return nil, fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+				// "^N" allows versions up to N.x; when no cached version is in that major, use the newest cached
+				// version (sorted descending) instead of erroring — matching the GitOps batch behavior.
+				activeInstallerID = versions[0].ID
 			}
 		default: // literal version
 			for _, v := range versions {
@@ -723,9 +725,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
 		} else if len(dirty) == 1 && dirty["RollbackVersion"] {
-			// TODO(pin): this light branch flips the active installer but does not run
-			// ProcessInstallerUpdateSideEffects, so in-flight host installs of the previously active version are
-			// not cancelled when the pin changes. Decide whether a version pin should cancel them.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
 			}
@@ -735,6 +734,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.RollbackVersion); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+			}
+			// If the active version actually changed, cancel in-flight installs/uninstalls of the previously-active
+			// version so hosts don't keep installing what we just pinned away from. No new package file was uploaded,
+			// so existing install stats are kept (wasPackageUpdated=false).
+			if activeInstallerID != existingInstaller.InstallerID {
+				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
+				}
 			}
 		} else {
 			if payloadForNewInstallerFile != nil {

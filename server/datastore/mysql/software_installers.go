@@ -3092,19 +3092,17 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
 				}
 
-				// Re-point policies from any non-FMA installers for this title to the active FMA installer.
-				// TODO(pin): this does not re-point policies that point at another *cached FMA version* when the
-				// active version flips (e.g. after a version pin), so an install policy can be left pointing at an
-				// inactive installer. The PATCH path (SetFleetMaintainedAppActiveInstaller) re-points all of the
-				// title's installers; this should be made consistent.
+				// Re-point this title's policies to the active FMA installer. This covers a replaced custom package
+				// and any other cached FMA version that was previously active (e.g. after a version flip), matching
+				// the PATCH path (SetFleetMaintainedAppActiveInstaller) so a policy never points at an inactive installer.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
 						SELECT id FROM software_installers
-						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+						WHERE global_or_team_id = ? AND title_id = ? AND id != ?
 					)
-				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
+				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies to active FMA installer %q", installer.Filename)
 				}
 				// Mark previous custom package installers for this title for deletion.
 				for _, e := range existing {

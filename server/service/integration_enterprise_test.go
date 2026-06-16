@@ -32927,7 +32927,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
 
 	// assertState checks the active installer id + version + pinned_version, and the dependent policies.
-	assertState := func(msg string, wantID uint, wantVersion string, wantPinned *string, installPolicyRepoints bool) {
+	assertState := func(msg string, wantID uint, wantVersion string, wantPinned *string) {
 		p := getPkg()
 		require.Equalf(t, wantID, p.InstallerID, "%s: active installer id", msg)
 		require.Equalf(t, wantVersion, p.Version, "%s: active version", msg)
@@ -32937,11 +32937,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 			require.NotNilf(t, p.PinnedVersion, "%s: pinned_version", msg)
 			require.Equalf(t, *wantPinned, *p.PinnedVersion, "%s: pinned_version", msg)
 		}
-		// The PATCH path re-points install policies to the active installer; the GitOps/batch path does not yet
-		// re-point off an inactive cached version (TODO in BatchSetSoftwareInstallers), so only assert it where it holds.
-		if installPolicyRepoints {
-			require.Equalf(t, wantID, policyInstallerID(installPol.Policy.ID), "%s: install policy re-point", msg)
-		}
+		// Both the PATCH and the GitOps/batch paths re-point install policies to the active installer, so a policy
+		// never points at an inactive cached version.
+		require.Equalf(t, wantID, policyInstallerID(installPol.Policy.ID), "%s: install policy re-point", msg)
 		// Patch policy stays attached to the title across pins (title-scoped, not installer-scoped).
 		require.Equalf(t, titleID, patchPolicyTitleID(patchPol.Policy.ID), "%s: patch policy title", msg)
 	}
@@ -32958,31 +32956,34 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Rollback to an older cached version.
 	patchVersion("1.0")
-	assertState("patch rollback 1.0", idV1, "1.0", new("1.0"), true)
+	assertState("patch rollback 1.0", idV1, "1.0", new("1.0"))
 
 	// Pin a major; resolves to the newest cached minor in that major.
 	patchVersion("^2")
-	assertState("patch pin ^2", idV2, "2.0", new("^2"), true)
+	assertState("patch pin ^2", idV2, "2.0", new("^2"))
+
+	// A caret with no matching cached major resolves to the newest cached version instead of erroring (matching
+	// GitOps): "^9" means "up to 9.x", so with only 1.x/2.x cached it pins to the latest.
+	patchVersion("^9")
+	assertState("patch caret ^9 -> latest cached", idV2, "2.0", new("^9"))
 
 	// Back to Latest clears the pin row.
 	patchVersion("")
-	assertState("patch latest", idV2, "2.0", nil, true)
+	assertState("patch latest", idV2, "2.0", nil)
 
 	// --- Last write wins: a GitOps apply with no version sets Latest, regardless of a prior UI pin ---
-	// (install-policy re-pointing on GitOps active-flips is a known gap, see assertState / the TODO in
-	// BatchSetSoftwareInstallers, hence installPolicyRepoints=false below.)
 	patchVersion("1.0")
-	assertState("patch re-pin 1.0", idV1, "1.0", new("1.0"), true)
+	assertState("patch re-pin 1.0", idV1, "1.0", new("1.0"))
 	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
-	assertState("gitops no-version -> latest", idV2, "2.0", nil, false)
+	assertState("gitops no-version -> latest", idV2, "2.0", nil)
 
 	// --- GitOps pins persist the verbatim expression ---
 
 	// Literal rollback via GitOps.
 	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}})
-	assertState("gitops literal 1.0", idV1, "1.0", new("1.0"), false)
+	assertState("gitops literal 1.0", idV1, "1.0", new("1.0"))
 
 	// Caret pin via GitOps (latest major); the "^2" string is stored verbatim despite the erase-for-hydrate path.
 	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^2"}})
-	assertState("gitops caret ^2", idV2, "2.0", new("^2"), false)
+	assertState("gitops caret ^2", idV2, "2.0", new("^2"))
 }
