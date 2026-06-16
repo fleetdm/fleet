@@ -41,14 +41,12 @@ type OrbitClient struct {
 
 	// reenrollMu guards the 401 debounce state below.
 	reenrollMu sync.Mutex
-	// unauthenticatedSince is when authenticated requests first started failing with a 401 in the
-	// current streak. Zero means the most recent authenticated request succeeded (or none have
-	// failed). Used to debounce re-enrollment so a transient/spurious 401 does not throw away an
-	// otherwise-valid node key.
+	// unauthenticatedSince is when authenticated requests first started failing with a 401 in the current streak. Zero means the most
+	// recent authenticated request succeeded (or none have failed). Used to debounce re-enrollment so a transient/spurious 401 does
+	// not throw away an otherwise-valid node key.
 	unauthenticatedSince time.Time
-	// forceReenroll is armed once 401s have persisted past unauthenticatedReenrollGracePeriod. When
-	// set, getNodeKeyOrEnroll re-enrolls (overwriting the existing key) even though a node key file
-	// is present.
+	// forceReenroll is armed once 401s have persisted past unauthenticatedReenrollGracePeriod. When set, getNodeKeyOrEnroll
+	// re-enrolls (overwriting the existing key).
 	forceReenroll bool
 
 	lastRecordedErrMu sync.Mutex
@@ -79,10 +77,8 @@ type OrbitClient struct {
 
 	// hostIdentityCertPath is the file path to the host identity certificate issued using SCEP.
 	//
-	// If set, it is deleted once HTTP 401 errors from Fleet have persisted past
-	// unauthenticatedReenrollGracePeriod (see authenticatedRequest), which also causes
-	// ExecuteConfigReceivers to terminate and trigger a restart. Transient 401s within the grace
-	// period leave it in place.
+	// If set, it is deleted once HTTP 401 errors from Fleet have persisted past unauthenticatedReenrollGracePeriod (see
+	// authenticatedRequest), which also causes ExecuteConfigReceivers to terminate and trigger a restart.
 	hostIdentityCertPath string
 
 	// lastSSOWindowOpen tracks when the SSO browser window was last opened.
@@ -102,15 +98,8 @@ const configCacheTTL = 3 * time.Second
 // the window will be re-opened after this interval.
 const ssoWindowReopenInterval = 5 * time.Minute
 
-// unauthenticatedReenrollGracePeriod is how long authenticated requests must keep failing with a
-// 401 before orbit re-enrolls. Re-enrolling is a heavyweight action (it can trigger an end-user SSO
-// prompt), so we ride out transient or spurious 401s first (e.g. brief read-replica lag or a
-// short-lived server-side negative cache) rather than reacting to a single one. The only conditions
-// that 401 a valid key are those caches/lag of a few seconds; server faults return 5xx, which we
-// already ignore here. 45s comfortably outlasts them while still recovering a genuinely
-// invalidated key within ~1 minute, and is deliberately not a multiple of the ~30s config poll
-// interval so the re-enroll decision doesn't land on a poll boundary. It is a var (not a const) so
-// tests can shorten it.
+// unauthenticatedReenrollGracePeriod is how long authenticated requests must keep failing with a 401 before orbit re-enrolls.
+// It is a var (not a const) so tests can shorten it.
 var unauthenticatedReenrollGracePeriod = 45 * time.Second
 
 type configCache struct {
@@ -580,9 +569,8 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", fmt.Errorf("read orbit node key file: %w", err)
 	}
-	// A present, non-empty key is reused unless the server has been rejecting it (forceReenroll,
-	// armed by repeated 401s in authenticatedRequest). Read it once so the reuse check and the log
-	// message below agree even if a concurrent 401 flips it.
+	// A present, non-empty key is reused unless the server has been rejecting it (forceReenroll). Read it once so the reuse check and
+	// the log message below agree even if a concurrent 401 flips it.
 	forced := oc.reenrollForced()
 	if err == nil && len(bytes.TrimSpace(orbitNodeKey)) > 0 && !forced {
 		return string(orbitNodeKey), nil
@@ -672,10 +660,9 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 		return "", fmt.Errorf("enroll request: %w", err)
 	}
 
-	// Write the new node key atomically: write+restrict a temp file in the same directory, then
-	// rename it over the destination. This guarantees we never truncate or remove an existing,
-	// still-valid node key until the new key is fully on disk, so a crash mid-write (or an enroll
-	// that is ultimately rejected) cannot leave the host with an empty or missing node key file.
+	// Write the new node key atomically: write+restrict a temp file in the same directory, then rename it over the destination. This
+	// guarantees we never truncate or remove an existing, still-valid node key until the new key is fully on disk, so a crash
+	// mid-write (or an enroll that is ultimately rejected) cannot leave the host with an empty or missing node key file.
 	tmp, err := os.CreateTemp(filepath.Dir(oc.nodeKeyFilePath), ".orbit-node-key-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp orbit node key file: %w", err)
@@ -713,10 +700,11 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	if err := closeTmp(); err != nil {
 		return "", fmt.Errorf("close temp orbit node key file: %w", err)
 	}
-	// os.Rename replaces the destination atomically. On Windows this can fail with a sharing
-	// violation if another process (e.g. antivirus/EDR) holds the destination open at this instant;
-	// in that case the existing key is left intact and we retry on the next enroll, which is the
-	// desired fallback.
+	// os.Rename atomically replaces the destination; this matches orbit's existing atomic-write pattern (e.g. pkg/update). On Windows
+	// a rename can fail with a sharing violation if another process (e.g. antivirus/EDR) holds the destination open at this instant
+	// (orbit already contends with Windows file-in-use locking elsewhere, see orbit/pkg/platform). On failure we don't leave an empty
+	// or partial file: the prior key stays on disk. enroll() has already rotated the server-side key by this point, so that on-disk
+	// key is now stale and the host will 401 and re-enroll via the debounce path on a later attempt (self-healing).
 	if err := os.Rename(tmpPath, oc.nodeKeyFilePath); err != nil {
 		return "", fmt.Errorf("replace orbit node key file: %w", err)
 	}
@@ -742,14 +730,7 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any
 		oc.clearReenrollState()
 		return nil
 	case errors.Is(err, ErrUnauthenticated):
-		// A 401 on an authenticated request means the server rejected the orbit node key (e.g. the host
-		// was deleted, the key was rotated, or the --fleet-url changed). Rather than reacting to a single
-		// 401 (which can be transient/spurious and would needlessly destroy a valid key and force a
-		// re-enroll), we wait until 401s have persisted for unauthenticatedReenrollGracePeriod. We never
-		// delete the key here: getNodeKeyOrEnroll re-enrolls and overwrites it only once a new key is
-		// obtained (acquire-then-replace), so a re-enroll blocked by end-user auth keeps the current key.
-		// Logged at INFO (not debug) because this is the event that triggers an unexpected re-enrollment,
-		// and the request path identifies which endpoint saw the 401 (e.g. the orbit config endpoint).
+		// A 401 on an authenticated request means the server rejected the orbit node key. Rather than reacting to a single 401, we wait until 401s have persisted for unauthenticatedReenrollGracePeriod.
 		oc.setEnrolled(false)
 		reenroll, waited := oc.noteUnauthenticated()
 		if reenroll {
@@ -774,10 +755,9 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any
 	}
 }
 
-// noteUnauthenticated records a 401 on an authenticated request and reports whether 401s have
-// persisted long enough (unauthenticatedReenrollGracePeriod) to warrant a re-enroll, along with how
-// long the current 401 streak has lasted. When it returns true it arms forceReenroll, which
-// getNodeKeyOrEnroll acts on (overwriting the existing key) on the next call.
+// noteUnauthenticated records a 401 on an authenticated request and reports whether 401s have persisted long enough
+// (unauthenticatedReenrollGracePeriod) to warrant a re-enroll, along with how long the current 401 streak has lasted. When it
+// returns true it arms forceReenroll, which getNodeKeyOrEnroll acts on (overwriting the existing key) on the next call.
 func (oc *OrbitClient) noteUnauthenticated() (reenroll bool, waited time.Duration) {
 	oc.reenrollMu.Lock()
 	defer oc.reenrollMu.Unlock()
