@@ -3904,13 +3904,13 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		}
 	}
 
-	// filter out pending or already installed software, and software not in the category if one is provided
+	// filter out pending or already installed software, and software not in the category if one is provided.
+	// Failed install/uninstall states are included so they get re-queued (matches the per-row Retry behavior).
 	var toInstall []*fleet.HostSoftwareWithInstaller
 	for _, s := range software {
 		if s.Status != nil {
 			switch *s.Status {
-			case fleet.SoftwareInstallPending, fleet.SoftwareUninstallPending, fleet.SoftwareInstalled,
-				fleet.SoftwareInstallFailed, fleet.SoftwareUninstallFailed:
+			case fleet.SoftwareInstallPending, fleet.SoftwareUninstallPending, fleet.SoftwareInstalled:
 				continue
 			}
 		}
