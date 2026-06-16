@@ -14,6 +14,8 @@ interface IPoliciesModalProps {
   onExit: () => void;
 }
 
+// TODO: Marko to update the design of this modal — layout, plus a
+// description that accounts for patch policies that may not auto-update.
 const PoliciesModal = ({ policies, teamId, onExit }: IPoliciesModalProps) => {
   return (
     <Modal className={baseClass} title="Policies" onExit={onExit}>
