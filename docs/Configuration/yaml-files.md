@@ -422,8 +422,8 @@ controls:
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
   apple_account_provisioning: # Available in Fleet Premium
-    idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
-    idp_client_id: Ooa12345abcdeFGHI678
+    oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
+    oauth_idp_client_id: Ooa12345abcdeFGHI678
     oauth_idp_client_secret: a1b2c3d4e5
 ```
 
