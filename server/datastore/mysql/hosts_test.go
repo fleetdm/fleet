@@ -2981,7 +2981,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 
 // testHostsGenerateStatusStatisticsMobileMDMSeenTime verifies that ios/ipados hosts, which never
 // report a host_seen_times entry (no osquery), are not flagged as "missing" when they have recently
-// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at). See issue #46243.
+// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at).
 func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	filter := fleet.TeamFilter{User: test.UserAdmin}

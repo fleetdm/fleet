@@ -1661,8 +1661,7 @@ const hostMDMSeenTimeJoin = `
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),
-// then created_at. The nested COALESCE/GREATEST returns the greater of seen_time and last_seen_at when
-// both are set, but still yields NULL when neither is (GREATEST returns NULL if any operand is NULL).
+// then created_at.
 // Requires hostMDMSeenTimeJoin (alias nes) and the host_seen_times join (alias hst) to be present.
 const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes.last_seen_at), COALESCE(nes.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
 
