@@ -23,7 +23,7 @@ foreach ($p in $paths) {
 
 if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {
   Write-Host "Uninstall entry not found for '$displayName'"
-  Exit 1
+  Exit 0
 }
 
 # Kill any running Vivaldi processes before uninstalling
