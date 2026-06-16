@@ -6995,6 +6995,20 @@
       "description": "SonoBus is a high-quality network audio streaming."
     },
     {
+      "name": "Sonos",
+      "slug": "sonos/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sonos.macController2",
+      "description": "Sonos is an app to set up and control Sonos wireless speakers and home audio systems."
+    },
+    {
+      "name": "Sonos",
+      "slug": "sonos/windows",
+      "platform": "windows",
+      "unique_identifier": "Sonos",
+      "description": "Sonos is an app to set up and control Sonos wireless speakers and home audio systems."
+    },
+    {
       "name": "PS Remote Play",
       "slug": "sony-ps-remote-play/darwin",
       "platform": "darwin",

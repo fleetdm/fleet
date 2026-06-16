@@ -822,6 +822,7 @@ import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
 import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
 import Soulver from "./Soulver";
 import Soundanchor from "./Soundanchor";
@@ -1861,6 +1862,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
   sonobus: Sonobus,
+  sonos: Sonos,
   soulver: Soulver,
   "sound control": SoundControl,
   soundanchor: Soundanchor,
