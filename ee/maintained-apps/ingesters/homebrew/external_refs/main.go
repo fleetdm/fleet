@@ -42,6 +42,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"logitune/darwin":               {LogiTunePKGInstaller},
 	"anka-virtualization/darwin":    {AnkaVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
+	"sonos/darwin":                  {SonosVersionTransformer},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
