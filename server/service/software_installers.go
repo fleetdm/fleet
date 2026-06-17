@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -149,8 +148,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 	// Only set Version when the field is present, so an omitted field stays nil and an empty value means "Latest".
 	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
-		trimmed := strings.TrimSpace(versionMultipart[0])
-		decoded.Version = &trimmed
+		decoded.Version = &versionMultipart[0]
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]

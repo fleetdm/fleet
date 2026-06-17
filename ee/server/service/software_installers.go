@@ -655,8 +655,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 
-		requestedVersion := *payload.PinnedVersion
-		majorVersionString, usesCaret, err := parsePinnedVersion(ctx, requestedVersion)
+		*payload.PinnedVersion = strings.TrimSpace(*payload.PinnedVersion)
+		majorVersionString, usesCaret, err := parsePinnedVersion(ctx, *payload.PinnedVersion)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 		}
@@ -670,7 +670,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 
 		switch {
-		case requestedVersion == "": // Latest
+		case *payload.PinnedVersion == "": // Latest
 			activeInstallerID = versions[0].ID
 		case usesCaret:
 			for _, v := range versions {
@@ -688,7 +688,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		default: // literal version
 			for _, v := range versions {
-				if v.Version == requestedVersion {
+				if v.Version == *payload.PinnedVersion {
 					activeInstallerID = v.ID
 					break
 				}
@@ -2517,6 +2517,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return err
 	}
 
+	payload.RollbackVersion = strings.TrimSpace(payload.RollbackVersion)
 	majorVersionString, usesCaret, err := parsePinnedVersion(ctx, payload.RollbackVersion)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
