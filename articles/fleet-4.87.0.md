@@ -21,7 +21,7 @@ Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/f
 
 _Available in Fleet Premium_
 
-Fleet 4.87 adds 800+ new Fleet-maintained apps which brings the total catalog to over 1,250 apps. IT admins can add any of these under **Software > Add software > Fleet-maintained** and deploy with a single click.
+Fleet 4.87 adds 800+ new Fleet-maintained apps which brings [the catalog](https://fleetdm.com/software-catalog) to over 1,250 apps. IT admins can add any of these under **Software > Add software > Fleet-maintained** and deploy with a single click.
 
 Windows gets its biggest catalog expansion yet. Highlights include:
 
