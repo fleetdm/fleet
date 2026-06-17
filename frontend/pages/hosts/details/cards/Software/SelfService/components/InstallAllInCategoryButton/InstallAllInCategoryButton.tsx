@@ -21,6 +21,9 @@ export interface IInstallAllInCategoryButtonProps {
    * — the service omits the `category_id` query param and the BE installs
    * every uninstalled item the device user is entitled to. */
   categoryId?: number;
+  /** Fires synchronously before the install_all request so the parent can
+   * snapshot eligible IDs (powers the "Recently installed" badge). */
+  onSubmit?: () => void;
   /** Called after the install_all request resolves successfully. */
   onSuccess: () => void;
 }
@@ -30,6 +33,7 @@ const InstallAllInCategoryButton = ({
   hasInProgressInCategory,
   deviceToken,
   categoryId,
+  onSubmit,
   onSuccess,
 }: IInstallAllInCategoryButtonProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -38,6 +42,7 @@ const InstallAllInCategoryButton = ({
 
   const handleConfirm = useCallback(async () => {
     setIsSubmitting(true);
+    onSubmit?.();
     try {
       await deviceUserAPI.installAllSelfServiceSoftwareInCategory(
         deviceToken,
@@ -50,7 +55,7 @@ const InstallAllInCategoryButton = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [deviceToken, categoryId, onSuccess, renderFlash]);
+  }, [deviceToken, categoryId, onSubmit, onSuccess, renderFlash]);
 
   const isDisabled = hasInProgressInCategory || uninstalledCount === 0;
 

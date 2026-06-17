@@ -96,6 +96,15 @@ export const countUninstalledForInstallAll = (
     (item) => !INSTALLED_OR_IN_FLIGHT_UI_STATUSES.has(item.ui_status)
   ).length;
 
+/** IDs of items eligible to be queued by install_all (mirrors
+ * `countUninstalledForInstallAll`). */
+export const getEligibleInstallAllIds = (
+  software: IDeviceSoftwareWithUiStatus[]
+): number[] =>
+  software
+    .filter((item) => !INSTALLED_OR_IN_FLIGHT_UI_STATUSES.has(item.ui_status))
+    .map((item) => item.id);
+
 /** True if any item in the list is currently in-progress (install_all should
  * be disabled until they all leave that state). */
 export const hasInProgressInstallAllItems = (

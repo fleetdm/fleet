@@ -23,6 +23,7 @@ import SelfServiceTiles from "../components/SelfServiceTiles";
 import {
   countUninstalledForInstallAll,
   filterSoftwareByCustomCategory,
+  getEligibleInstallAllIds,
   hasInProgressInstallAllItems,
 } from "../helpers";
 
@@ -52,6 +53,9 @@ export interface ISelfServiceCardProps {
   pathname: string;
   isMobileView?: boolean;
   onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  /** Fires at click time with the eligible IDs so the parent can track the
+   * "Recently installed" badge — install_all's response doesn't carry them. */
+  onInstallAllSubmit?: (ids: number[]) => void;
   onInstallAllSuccess?: () => void;
 }
 
@@ -70,6 +74,7 @@ const SelfServiceCard = ({
   pathname,
   isMobileView,
   onClickInstallAction,
+  onInstallAllSubmit,
   onInstallAllSuccess,
 }: ISelfServiceCardProps) => {
   const initialSortHeader = queryParams.order_key || "name";
@@ -244,6 +249,11 @@ const SelfServiceCard = ({
       hasInProgressInCategory={hasInProgress}
       deviceToken={deviceToken}
       categoryId={queryParams.category_id}
+      onSubmit={() =>
+        onInstallAllSubmit?.(
+          getEligibleInstallAllIds(softwareInSelectedCategory)
+        )
+      }
       onSuccess={() => onInstallAllSuccess?.()}
     />
   ) : null;

@@ -560,6 +560,15 @@ const SoftwareSelfService = ({
     [deviceToken, registerUserSoftwareAction, onInstallOrUninstall, renderFlash]
   );
 
+  // install_all's response doesn't carry per-app IDs, so snapshot them at click
+  // time to keep the "Recently installed" badge through the refetch window.
+  const onInstallAllSubmit = useCallback(
+    (ids: number[]) => {
+      ids.forEach((id) => registerUserSoftwareAction(id));
+    },
+    [registerUserSoftwareAction]
+  );
+
   const onClickUpdateAll = useCallback(async () => {
     const updateAvailableSoftware = enhancedSoftware.filter(
       (software) =>
@@ -747,6 +756,7 @@ const SoftwareSelfService = ({
         pathname={pathname}
         isMobileView={isMobileView}
         onClickInstallAction={onClickInstallAction}
+        onInstallAllSubmit={onInstallAllSubmit}
         onInstallAllSuccess={onInstallOrUninstall}
       />
     );
@@ -775,6 +785,7 @@ const SoftwareSelfService = ({
         router={router}
         pathname={pathname}
         onClickInstallAction={onClickInstallAction}
+        onInstallAllSubmit={onInstallAllSubmit}
         onInstallAllSuccess={onInstallOrUninstall}
       />
       {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
