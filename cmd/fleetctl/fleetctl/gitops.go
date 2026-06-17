@@ -405,10 +405,15 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
 						}
 					}
-					// TODO(nulmete): might need to revisit if just this scopes are premium-only or all of them (include_any and exclude_any)
 					for _, policy := range config.Policies {
+						if len(policy.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_include_any', which is only available in Fleet Premium", policy.Name)
+						}
 						if len(policy.LabelsIncludeAll) > 0 {
 							return fmt.Errorf("policy %q uses 'labels_include_all', which is only available in Fleet Premium", policy.Name)
+						}
+						if len(policy.LabelsExcludeAny) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_exclude_any', which is only available in Fleet Premium", policy.Name)
 						}
 						if len(policy.LabelsExcludeAll) > 0 {
 							return fmt.Errorf("policy %q uses 'labels_exclude_all', which is only available in Fleet Premium", policy.Name)

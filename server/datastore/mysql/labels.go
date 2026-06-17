@@ -1271,6 +1271,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
+	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
+	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	if opt.StatusFilter.IsValid() {
+		query += hostMDMSeenTimeJoin
+	}
+
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}

@@ -36,6 +36,7 @@ export interface IMdmAbToken {
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
+  byod_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
@@ -96,7 +97,7 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     filterValue: "automatic",
   },
   "On (personal)": {
-    displayName: "On (personal)",
+    displayName: "On (BYOD)",
     filterValue: "personal",
   },
   Off: {
