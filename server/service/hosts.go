@@ -3252,10 +3252,10 @@ func (svc *Service) OSVersions(
 		})
 	}
 
-	// Total count BEFORE pagination
-	count = len(osVersions.OSVersions)
-
 	filtered := filterOSVersions(osVersions.OSVersions, opts)
+
+	// Total count BEFORE pagination but AFTER filtering.
+	count = len(filtered)
 
 	// Paginate first
 	paged, meta := paginateOSVersions(filtered, opts)

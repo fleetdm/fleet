@@ -2730,9 +2730,10 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// platform filtering
 	opts = fleet.ListOptions{MatchQuery: "darwin"}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
+	vers, count, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, 2, count)
 	assert.Equal(t, "macOS 12.2", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[1].NameOnly)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
