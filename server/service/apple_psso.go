@@ -269,7 +269,7 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 // ----- PSSO asset bootstrap -------------------------------------------------
 //
 // The signing key and CA are pure crypto + datastore work, so they live here in
-// core (callable from ModifyAppConfig) rather than in ee. The ee service only
+// core (callable from ModifyAppConfig) rather than in ee/. The ee service only
 // loads them back, using the standard PEM encodings written below.
 
 // pssoCAValidYears is the lifetime of the self-signed Platform SSO CA, matching
