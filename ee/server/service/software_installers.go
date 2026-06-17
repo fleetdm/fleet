@@ -688,9 +688,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 			if activeInstallerID == 0 {
-				// "^N" allows versions up to N.x; when no cached version is in that major, use the newest cached
-				// version (sorted descending) instead of erroring — matching the GitOps batch behavior.
-				activeInstallerID = versions[0].ID
+				// No cached installer in the pinned major. The Versions modal only offers cached majors, so the
+				// update endpoint rejects this rather than silently pinning a different major. (GitOps instead keeps
+				// the newest cached version — see softwareInstallerPayloadFromSlug.)
+				return nil, fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 		default: // literal version
 			for _, v := range versions {

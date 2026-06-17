@@ -32942,14 +32942,6 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, new("^2"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 
-	// A caret with no matching cached major resolves to the newest cached version instead of erroring: "^9" means
-	// "up to 9.x", so with only 1.x/2.x cached it pins to the latest (matching the GitOps fallback).
-	patchVersion("^9")
-	p = getPkg()
-	require.Equal(t, "2.0", p.Version)
-	require.Equal(t, new("^9"), p.PinnedVersion)
-	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
-
 	// Empty clears the pin row, back to Latest.
 	patchVersion("")
 	p = getPkg()
@@ -33046,8 +33038,16 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// --- Validation ---
 
-	// "version" can't be changed in the same PATCH as another field.
+	// A caret with no cached installer in that major is rejected on the update endpoint. (GitOps instead keeps the
+	// newest cached version — that behavior is intentionally different.)
 	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"team_id": {fmt.Sprint(team.ID)},
+		"version": {"^999"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusNotFound, headers)
+
+	// "version" can't be changed in the same PATCH as another field.
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"team_id":        {fmt.Sprint(team.ID)},
 		"version":        {"2.0"},
 		"install_script": {"echo changed"},
