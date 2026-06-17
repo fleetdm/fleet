@@ -53,7 +53,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 
 // targetSQLCondAndArgs returns the SQL condition and the arguments for matching whether
 // a host ID is a target of a live query.
-func targetSQLCondAndArgs(targets fleet.HostTargets, hostKey string) (sql string, args []interface{}) {
+func targetSQLCondAndArgs(targets fleet.HostTargets, hostKey string) (sql string, args []any) {
 	const queryTargetLogicCondition = `(
 	/* The host was selected explicitly. */
 	%[1]s.id IN (? /* queryHostIDs */)
@@ -114,7 +114,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets, hostKey string) (sql string
 	labelsSpecified := len(queryLabelIDs) > 1
 	teamsSpecified := len(queryTeamIDs) > 1 || extraTeamIDCondition != ""
 
-	return fmt.Sprintf(queryTargetLogicCondition, hostKey, extraTeamIDCondition), []interface{}{
+	return fmt.Sprintf(queryTargetLogicCondition, hostKey, extraTeamIDCondition), []any{
 		queryHostIDs,
 		queryLabelIDs,
 		labelsSpecified, teamsSpecified,
