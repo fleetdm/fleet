@@ -530,7 +530,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		{
 			name:    "no version",
 			version: "^",
-			wantErr: "no version number provided",
+			wantErr: errEmptyCaretVersion.Error(),
 		},
 		{
 			name:    "invalid version",

@@ -655,7 +655,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 		}
 
-		// Never hydrates: every selectable version is already cached, so we only resolve which installer is active.
 		requestedVersion := *payload.PinnedVersion
 		majorVersionString, usesCaret, err := parsePinnedVersion(ctx, requestedVersion)
 		if err != nil {
@@ -715,11 +714,31 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
+		switch {
+		case len(dirty) == 1 && dirty["SelfService"]: // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
-		} else {
+		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
+			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
+			}
+
+			if *payload.PinnedVersion == "" {
+				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+				}
+			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.PinnedVersion); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+			}
+
+			// cancel pending installs of the version we pinned away from
+			if activeInstallerID != existingInstaller.InstallerID {
+				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
+				}
+			}
+		default:
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -785,31 +804,12 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
-			// a version pin flips the active installer below, so cancel pending installs of the version we pinned away from
-			if dirty["PinnedVersion"] && activeInstallerID != existingInstaller.InstallerID {
-				shouldDoSideEffects = true
-			}
-
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
 			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, shouldDoSideEffects, dirty["Package"]); err != nil {
 				return nil, err
-			}
-		}
-
-		if dirty["PinnedVersion"] {
-			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
-			}
-
-			if *payload.PinnedVersion == "" {
-				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
-				}
-			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.PinnedVersion); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
 		}
 
@@ -2490,6 +2490,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 }
 
 var (
+	errEmptyCaretVersion    = errors.New("a major version must be specified after the caret (^). For example, \"^32\".")
 	errNonMajorVersion      = errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\".")
 	errMajorVersionNotFound = errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
 	errVersionNotFound      = errors.New("specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
@@ -3993,7 +3994,7 @@ func parsePinnedVersion(ctx context.Context, version string) (majorVersion strin
 	majorVersion, usesCaret = strings.CutPrefix(version, "^")
 	if usesCaret {
 		if len(majorVersion) == 0 {
-			return "", false, ctxerr.New(ctx, "no version number provided")
+			return "", false, fleet.NewUserMessageError(errEmptyCaretVersion, http.StatusBadRequest)
 		}
 		if parts := strings.Split(version, "."); len(parts) > 1 {
 			return "", false, fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
