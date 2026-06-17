@@ -2728,6 +2728,15 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 
+	// platform filtering
+	opts = fleet.ListOptions{MatchQuery: "darwin"}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, new("darwin"), nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, now, vers.CountsUpdatedAt)
+
 	// pagination
 	opts = fleet.ListOptions{Page: 0, PerPage: 2}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
