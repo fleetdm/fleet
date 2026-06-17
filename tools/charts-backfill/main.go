@@ -150,7 +150,7 @@ func main() {
 			log.Fatal("collectible-CVE query returned no CVEs (vulnerability data may not be populated yet)")
 		}
 		entityIDs = cves
-		log.Printf("discovered %d tracked CVEs from the live database", len(entityIDs))
+		log.Printf("discovered %d collectible CVEs from the live database", len(entityIDs))
 	case *entityIDsStr != "":
 		entityIDs = str.ParseStringList(*entityIDsStr)
 	default:

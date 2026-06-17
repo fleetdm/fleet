@@ -184,9 +184,11 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			KnownExploit:    opts.KnownExploit,
 			EPSSMin:         opts.EPSSMin,
 			EPSSMax:         opts.EPSSMax,
-			SeverityMin:     opts.SeverityMin,
-			SeverityMax:     opts.SeverityMax,
-			ExcludeCVEs:     opts.ExcludeCVEs,
+			// Severity is not echoed: it's forced to critical-only this round
+			// (see above), so echoing the client's requested severity_min/max
+			// would misrepresent what was actually applied. It returns to the
+			// echo when severity becomes a real filter (#47326).
+			ExcludeCVEs: opts.ExcludeCVEs,
 		},
 		Data: data,
 	}, nil

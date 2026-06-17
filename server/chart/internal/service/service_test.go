@@ -88,14 +88,17 @@ func (m *mockDatastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
 	if m.collectibleCVEsFn != nil {
 		return m.collectibleCVEsFn(ctx)
 	}
-	return nil, nil
+	// Match the real contract: non-nil, empty when nothing matches.
+	return []string{}, nil
 }
 
 func (m *mockDatastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
 	if m.resolveCVEEntitiesFn != nil {
 		return m.resolveCVEEntitiesFn(ctx, filter)
 	}
-	return nil, nil
+	// Match the real contract: non-nil, empty means "match nothing" (never nil,
+	// which would be interpreted as "no entity filter").
+	return []string{}, nil
 }
 
 func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
