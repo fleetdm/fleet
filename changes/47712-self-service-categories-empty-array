@@ -1,1 +1,0 @@
-* Fixed self-service Categories picker showing an error instead of the empty state when editing software on a team with zero categories. `GET /api/latest/fleet/software/self_service_categories` now returns `[]` rather than `null` for teams with no categories.
