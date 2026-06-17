@@ -268,7 +268,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Categories:        req.Categories,
 		DisplayName:       req.DisplayName,
 		Configuration:     req.Configuration,
-		RollbackVersion:   req.Version,
+		PinnedVersion:     req.Version,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()

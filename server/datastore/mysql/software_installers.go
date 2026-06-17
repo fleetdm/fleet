@@ -3078,8 +3078,7 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
 				}
 
-				// GitOps writes the pin here but never reads it back: the YAML is the source of truth for
-				// GitOps-managed titles, so this only keeps the table consistent for the API and the cron.
+				// Write the pinned version so the auto update cron job keeps this information
 				if installer.RollbackVersion != "" {
 					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, installer.RollbackVersion); err != nil {
 						return ctxerr.Wrapf(ctx, err, "pinning version for %q", installer.Filename)
@@ -3088,9 +3087,7 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
 				}
 
-				// Re-point this title's policies to the active FMA installer. This covers a replaced custom package
-				// and any other cached FMA version that was previously active, so a policy never points at an inactive
-				// installer. The update endpoint does the same re-pointing.
+				// Re-point this title's policies to the active FMA installer.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
@@ -4004,4 +4001,45 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 	}
 
 	return toInstall, categoryName, nil
+}
+
+func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
+		SELECT pinned_version FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+	`, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+	}
+	return &version, nil
+}
+
+func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "set pinned version")
+	}
+	return nil
+}
+
+func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pinned version")
+	}
+	return nil
+}
+
+func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
+	_, err := ex.ExecContext(ctx, `
+		INSERT INTO software_title_team_pins (global_or_team_id, title_id, pinned_version)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
+	`, globalOrTeamID, titleID, version)
+	return err
+}
+
+func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
+	_, err := ex.ExecContext(ctx, `
+		DELETE FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+	`, globalOrTeamID, titleID)
+	return err
 }
