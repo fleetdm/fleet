@@ -120,6 +120,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationN
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	BYODTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnabledAndConfigured	bool
