@@ -370,8 +370,8 @@ export const MDM_STATUS_TOOLTIP: Record<
   ),
   "On (manual)": (
     <span>
-      Apple hosts manually installed the enrollment profile. Windows hosts were
-      enrolled without Autopilot. End users can turn MDM off.
+      On Apple hosts, the enrollment profile was installed manually. Windows
+      hosts were enrolled without Autopilot. End users can turn MDM off.
     </span>
   ),
   "On (personal)": (
