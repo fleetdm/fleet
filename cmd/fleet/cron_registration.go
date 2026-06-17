@@ -198,7 +198,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
 	})
 }
 
@@ -338,7 +338,7 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		} else {
 			deps.config.Calendar.Periodicity = 5 * time.Minute
 		}
-		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger)
+		return cron.NewCalendarSchedule(ctx, deps.instanceID, deps.ds, deps.distributedLock, deps.config.Calendar, deps.logger, deps.activitySvc)
 	})
 }
 
