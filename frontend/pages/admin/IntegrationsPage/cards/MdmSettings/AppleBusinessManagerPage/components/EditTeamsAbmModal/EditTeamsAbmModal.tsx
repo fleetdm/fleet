@@ -59,7 +59,7 @@ type SelectedTeamIds = Parameters<typeof mdmAbmAPI.editTeams>[0]["teams"];
  * `validateSelectedTeamIds` function).
  */
 export const getSelectedTeamIds = (
-  { ios_team, ipados_team, macos_team }: SelectedTeamNames,
+  { ios_team, ipados_team, macos_team, byod_team }: SelectedTeamNames,
   availableTeams: ITeamSummary[] = []
 ): SelectedTeamIds => {
   const byName = availableTeams.reduce((acc, t) => {
@@ -70,6 +70,7 @@ export const getSelectedTeamIds = (
     ios_fleet_id: byName[ios_team],
     ipados_fleet_id: byName[ipados_team],
     macos_fleet_id: byName[macos_team],
+    byod_fleet_id: byName[byod_team],
   };
 };
 
@@ -111,7 +112,7 @@ const EditTeamsAbmModal = ({
           tokenId: token.id,
           teams: getSelectedTeamIds(selectedTeamNames, availableTeams),
         });
-        renderFlash("success", "Edited successfully.");
+        renderFlash("success", "Successfully updated fleets for AB token.");
         onSuccess();
       } catch (e) {
         renderFlash("error", "Couldn’t edit. Please try again.");

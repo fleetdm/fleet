@@ -25,15 +25,15 @@ const AppleBusinessManagerTable = ({
 }: IAppleBusinessManagerTableProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredAbTokens, setFilteredAbTokens] = useState(abTokens);
+  const normalizedQuery = searchQuery.toLowerCase();
+  const filteredAbTokens = normalizedQuery
+    ? abTokens.filter((token) =>
+        token.org_name.toLowerCase().includes(normalizedQuery)
+      )
+    : abTokens;
 
   const handleSearchQueryChange = (query: string) => {
     setSearchQuery(query);
-    const lowerCaseQuery = query.toLowerCase();
-    const filteredTokens = abTokens.filter((token) =>
-      token.org_name.toLowerCase().includes(lowerCaseQuery)
-    );
-    setFilteredAbTokens(filteredTokens);
   };
 
   const onSelectAction = (action: string, abmToken: IMdmAbToken) => {

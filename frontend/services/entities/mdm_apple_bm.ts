@@ -90,6 +90,7 @@ export default {
       ios_fleet_id: number;
       ipados_fleet_id: number;
       macos_fleet_id: number;
+      byod_fleet_id: number;
     };
   }) => {
     const { MDM_AB_TOKEN_TEAMS } = endpoints;
