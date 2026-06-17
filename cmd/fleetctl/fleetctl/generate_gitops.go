@@ -1409,6 +1409,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if aap := cmd.AppConfig.MDM.AppleAccountProvisioning; aap.Configured() {
 				aapT := reflect.TypeFor[fleet.AppleAccountProvisioning]()
 				controlsFile := "default.yml"
+				// This may look odd but ensures we put it in unassigned.yml if that's where
+				// we're putting the rest
 				if teamId != nil {
 					controlsFile = "fleets/" + teamName + ".yml"
 				}
@@ -1417,6 +1419,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					jsonFieldName(aapT, "OAuthIdPClientID"):     aap.OAuthIdPClientID.Value,
 					jsonFieldName(aapT, "OAuthIdPClientSecret"): cmd.AddComment(controlsFile, "TODO: Add your IdP client secret here"),
 				}
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: controlsFile,
+					Key:      "apple_account_provisioning.oauth_idp_client_secret",
+				})
 			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
