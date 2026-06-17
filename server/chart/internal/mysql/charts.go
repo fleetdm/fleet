@@ -268,7 +268,9 @@ func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.C
 	// Software-side: skip entirely when no matcher falls in the selected
 	// categories (e.g. only the OS category is selected).
 	if swClause, swArgs, ok := softwareMatcherClause(cats); ok {
-		args := append(swArgs, metaArgs...)
+		args := make([]any, 0, len(swArgs)+len(metaArgs))
+		args = append(args, swArgs...)
+		args = append(args, metaArgs...)
 		swQuery := `
 			SELECT DISTINCT sc.cve
 			FROM software_cve sc
