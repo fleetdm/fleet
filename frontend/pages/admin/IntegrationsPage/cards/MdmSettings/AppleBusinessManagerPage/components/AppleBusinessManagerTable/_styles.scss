@@ -13,6 +13,10 @@
         align-items: center;
       }
     }
+
+    th.id__header {
+      border: none; // or `border-bottom: none;` if you only want to remove the bottom border
+    }
   }
 
   // The desired behavior is to hide the header and team cell one by one
