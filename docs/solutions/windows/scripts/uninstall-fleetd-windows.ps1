@@ -1,3 +1,7 @@
+# Please don't delete. This script is referenced in the guides here:
+# https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm
+# https://fleetdm.com/guides/how-to-uninstall-fleetd
+
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
