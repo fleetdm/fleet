@@ -2,15 +2,24 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"errors"
 	"io"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 )
 
 // HTTP paths for the Apple Platform SSO endpoints. All but the AASA path live
@@ -258,4 +267,116 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 	// skipauth: Implementation returns only the license error; nothing to authorize.
 	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense
+}
+
+// ----- PSSO asset bootstrap -------------------------------------------------
+//
+// The signing key and CA are pure crypto + datastore work, so they live here in
+// core (callable from ModifyAppConfig) rather than in ee. The ee service only
+// loads them back, using the standard PEM encodings written below.
+
+// pssoCAValidYears is the lifetime of the self-signed Platform SSO CA. It's
+// minted once, when the feature is first configured, and reused for its whole
+// life — long enough that it never needs rotation during normal operation.
+const pssoCAValidYears = 10
+
+// bootstrapPSSOAssets ensures the Platform SSO signing key and its CA
+// certificate exist in mdm_config_assets, creating whichever is missing. It runs
+// when the feature is configured (covering both the config API and GitOps, which
+// both flow through ModifyAppConfig) and is idempotent: existing assets are never
+// regenerated, so the signing key (published via JWKS) and the CA stay stable
+// across reconfiguration and across disable/re-enable. The CA is self-signed by
+// the signing key — they share one private key — so the CA certificate is the
+// only new asset.
+func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey, fleet.MDMAssetPSSOCACert},
+		nil,
+	)
+	// A partial result (one asset present, the other missing) returns an error
+	// alongside the assets it did find; only a hard error with nothing usable is fatal.
+	if err != nil && !fleet.IsNotFound(err) && len(assets) == 0 {
+		return ctxerr.Wrap(ctx, err, "load psso assets")
+	}
+
+	_, haveKey := assets[fleet.MDMAssetPSSOSigningKey]
+	_, haveCA := assets[fleet.MDMAssetPSSOCACert]
+	if haveKey && haveCA {
+		return nil
+	}
+
+	signingKey, err := pssoSigningKeyFromAssets(assets)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parse existing psso signing key")
+	}
+
+	var toInsert []fleet.MDMConfigAsset
+	if signingKey == nil {
+		signingKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generate psso signing key")
+		}
+		der, err := x509.MarshalECPrivateKey(signingKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal psso signing key")
+		}
+		toInsert = append(toInsert, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetPSSOSigningKey,
+			Value: pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}),
+		})
+	}
+	if !haveCA {
+		caDER, err := selfSignPSSOCACert(signingKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create psso ca certificate")
+		}
+		toInsert = append(toInsert, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetPSSOCACert,
+			Value: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}),
+		})
+	}
+
+	if err := ds.InsertMDMConfigAssets(ctx, toInsert, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert psso assets")
+	}
+	return nil
+}
+
+// pssoSigningKeyFromAssets parses the PSSO signing key out of a loaded asset map,
+// returning (nil, nil) when it isn't present so the caller can mint a fresh one.
+func pssoSigningKeyFromAssets(assets map[fleet.MDMAssetName]fleet.MDMConfigAsset) (*ecdsa.PrivateKey, error) {
+	asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
+	if !ok || len(asset.Value) == 0 {
+		return nil, nil
+	}
+	block, _ := pem.Decode(asset.Value)
+	if block == nil {
+		return nil, errors.New("psso signing key: pem decode returned nil block")
+	}
+	return x509.ParseECPrivateKey(block.Bytes)
+}
+
+// selfSignPSSOCACert self-signs a Platform SSO CA certificate over signingKey.
+// Serial 1 matches Fleet's other self-signed CA roots (server/mdm/scep/depot):
+// the CA is the only self-signed certificate this key ever produces, so the
+// serial is unique by construction.
+func selfSignPSSOCACert(signingKey *ecdsa.PrivateKey) ([]byte, error) {
+	subjectKeyID, err := cryptoutil.GenerateSubjectKeyID(&signingKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Fleet PSSO CA"},
+		NotBefore:             now.Add(-time.Hour),
+		NotAfter:              now.AddDate(pssoCAValidYears, 0, 0),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          subjectKeyID,
+	}
+	return x509.CreateCertificate(rand.Reader, tmpl, tmpl, &signingKey.PublicKey, signingKey)
 }

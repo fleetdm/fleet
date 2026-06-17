@@ -27,21 +27,14 @@ import (
 	jose "github.com/go-jose/go-jose/v3"
 )
 
-// pssoServiceState holds the lazily-loaded PSSO signing key.
-//
-// TODO(psso bootstrap): the current lazy-mint behavior runs on the first call
-// to any method that reaches getOrMintPSSOSigningKey — most commonly
-// PSSOJWKS, which is an unauthenticated public endpoint. That means an
-// unauthenticated GET triggers a write + KMS roundtrip if the key doesn't
-// exist yet. Acceptable for POC but worth revisiting before GA. Alternatives
-// to consider:
-//   - mint when an admin first configures AppConfig.MDM.AppleAccountProvisioning
-//   - mint on the first device registration request
-//   - explicit `fleetctl psso bootstrap` step
+// pssoServiceState caches the PSSO signing key and CA certificate after first
+// load. Both are created in mdm_config_assets when the feature is first
+// configured (bootstrapPSSOAssets, core side); this layer only loads them.
 type pssoServiceState struct {
 	mu         sync.Mutex
 	signingKey *ecdsa.PrivateKey
 	kid        string
+	caCert     *x509.Certificate
 }
 
 const (
@@ -57,70 +50,90 @@ const (
 	teamID2 = "B34KW9D28L"
 )
 
-// getOrMintPSSOSigningKey returns Fleet's PSSO signing key, loading it from
-// mdm_config_assets or minting+persisting a fresh one if not present.
-func (svc *Service) getOrMintPSSOSigningKey(ctx context.Context) (*ecdsa.PrivateKey, string, error) {
+// getPSSOSigningKey loads Fleet's PSSO signing key from mdm_config_assets,
+// caching it after first use. The key (and CA) are created when the feature is
+// first configured (bootstrapPSSOAssets); a missing key here means the feature
+// isn't configured, so this never mints — it returns an error.
+func (svc *Service) getPSSOSigningKey(ctx context.Context) (*ecdsa.PrivateKey, string, error) {
 	svc.pssoState.mu.Lock()
 	defer svc.pssoState.mu.Unlock()
+	return svc.loadPSSOSigningKeyLocked(ctx)
+}
 
+// loadPSSOSigningKeyLocked is the cache-populating load shared by
+// getPSSOSigningKey and getPSSOCA. Callers must hold pssoState.mu.
+func (svc *Service) loadPSSOSigningKeyLocked(ctx context.Context) (*ecdsa.PrivateKey, string, error) {
 	if svc.pssoState.signingKey != nil {
 		return svc.pssoState.signingKey, svc.pssoState.kid, nil
 	}
-
-	// Try load.
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
 		[]fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey},
 		nil,
 	)
-	if err == nil {
-		asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
-		if ok && len(asset.Value) > 0 {
-			key, kid, err := parsePSSOSigningKeyPEM(asset.Value)
-			if err != nil {
-				return nil, "", ctxerr.Wrap(ctx, err, "parse stored psso signing key")
-			}
-			svc.pssoState.signingKey = key
-			svc.pssoState.kid = kid
-			return key, kid, nil
+	if err != nil {
+		if isAssetNotFound(err) {
+			return nil, "", ctxerr.Wrap(ctx, err, "psso signing key not found; configure the feature first")
 		}
-	} else if !isAssetNotFound(err) {
 		return nil, "", ctxerr.Wrap(ctx, err, "get psso signing key asset")
 	}
-
-	// Mint a fresh key and persist.
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "generate psso signing key")
+	asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
+	if !ok || len(asset.Value) == 0 {
+		return nil, "", ctxerr.New(ctx, "psso signing key asset is empty")
 	}
-	pemBytes, kid, err := encodePSSOSigningKeyPEM(key)
+	key, kid, err := parsePSSOSigningKeyPEM(asset.Value)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "encode psso signing key")
-	}
-	if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
-		Name:  fleet.MDMAssetPSSOSigningKey,
-		Value: pemBytes,
-	}); err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "persist psso signing key")
+		return nil, "", ctxerr.Wrap(ctx, err, "parse stored psso signing key")
 	}
 	svc.pssoState.signingKey = key
 	svc.pssoState.kid = kid
 	return key, kid, nil
 }
 
-// encodePSSOSigningKeyPEM serializes a P-256 private key to PEM and returns
-// the bytes plus the kid (base64url-nopad SHA-256 of the DER-encoded public
-// key).
-func encodePSSOSigningKeyPEM(key *ecdsa.PrivateKey) ([]byte, string, error) {
-	der, err := x509.MarshalECPrivateKey(key)
+// getPSSOCA loads the PSSO CA: the signing key (which is also the CA's private
+// key) and the self-signed CA certificate, caching the certificate after first
+// use. Like the signing key, the CA is created at first configuration and is
+// never minted here.
+func (svc *Service) getPSSOCA(ctx context.Context) (*ecdsa.PrivateKey, *x509.Certificate, error) {
+	svc.pssoState.mu.Lock()
+	defer svc.pssoState.mu.Unlock()
+
+	caKey, _, err := svc.loadPSSOSigningKeyLocked(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
-	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
-	kid, err := computeKID(&key.PublicKey)
+	if svc.pssoState.caCert != nil {
+		return caKey, svc.pssoState.caCert, nil
+	}
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetPSSOCACert},
+		nil,
+	)
 	if err != nil {
-		return nil, "", err
+		if isAssetNotFound(err) {
+			return nil, nil, ctxerr.Wrap(ctx, err, "psso ca certificate not found; configure the feature first")
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get psso ca cert asset")
 	}
-	return pemBytes, kid, nil
+	asset, ok := assets[fleet.MDMAssetPSSOCACert]
+	if !ok || len(asset.Value) == 0 {
+		return nil, nil, ctxerr.New(ctx, "psso ca cert asset is empty")
+	}
+	caCert, err := parsePSSOCACertPEM(asset.Value)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "parse stored psso ca cert")
+	}
+	svc.pssoState.caCert = caCert
+	return caKey, caCert, nil
+}
+
+// parsePSSOCACertPEM decodes the stored PEM-wrapped PSSO CA certificate.
+func parsePSSOCACertPEM(pemBytes []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, errors.New("psso ca cert: pem decode returned nil block")
+	}
+	return x509.ParseCertificate(block.Bytes)
 }
 
 func parsePSSOSigningKeyPEM(pemBytes []byte) (*ecdsa.PrivateKey, string, error) {
@@ -572,7 +585,7 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, c
 		return nil, ctxerr.Wrap(ctx, err, "issue psso provisioned certificate")
 	}
 
-	signingKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
+	signingKey, _, err := svc.getPSSOSigningKey(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
 	}
@@ -580,7 +593,7 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, c
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "derive key_context key")
 	}
-	keyContext, err := sealKeyContext(provisioned, kcKey)
+	keyContext, err := sealKeyContext(provisioned, hostUUID, pssoKeyPurposeUserUnlock, kcKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "seal key_context")
 	}
@@ -604,38 +617,20 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, hostUUID string, c
 }
 
 // issuePSSOProvisionedCertificate issues an X.509 certificate over a
-// server-provisioned public key, signed by Fleet's PSSO signing key acting as
-// a CA. This is the certificate returned in a key-request response; the device
-// uses its public key for its half of the unlock-key Diffie-Hellman.
+// server-provisioned public key, signed by Fleet's persisted PSSO CA. This is
+// the certificate returned in a key-request response; the device uses its public
+// key for its half of the unlock-key Diffie-Hellman.
 func (svc *Service) issuePSSOProvisionedCertificate(ctx context.Context, provisionedKey *ecdsa.PublicKey) ([]byte, error) {
-	caKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
+	caKey, caCert, err := svc.getPSSOCA(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load psso signing key for cert issuance")
-	}
-
-	now := time.Now()
-	caTmpl := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "Fleet PSSO CA"},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.AddDate(10, 0, 0),
-		IsCA:                  true,
-		KeyUsage:              x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-	}
-	caDER, err := x509.CreateCertificate(rand.Reader, caTmpl, caTmpl, &caKey.PublicKey, caKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create psso ca certificate")
-	}
-	caCert, err := x509.ParseCertificate(caDER)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parse psso ca certificate")
+		return nil, ctxerr.Wrap(ctx, err, "load psso ca for cert issuance")
 	}
 
 	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generate psso cert serial")
 	}
+	now := time.Now()
 	devTmpl := &x509.Certificate{
 		SerialNumber: serial,
 		Subject:      pkix.Name{CommonName: "Fleet PSSO Device Key"},
@@ -664,7 +659,7 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, 
 		return nil, &fleet.BadRequestError{Message: "psso key exchange: missing other_publickey or key_context"}
 	}
 
-	signingKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
+	signingKey, _, err := svc.getPSSOSigningKey(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
 	}
@@ -672,9 +667,17 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "derive key_context key")
 	}
-	provisioned, err := openKeyContext(claims.KeyContext, kcKey)
+	kc, provisioned, err := openKeyContext(claims.KeyContext, kcKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "open key_context")
+	}
+	// Bind the sealed key_context to the device: reject a context replayed by, or
+	// fetched onto, any device other than the one it was issued to.
+	if kc.HostUUID != hostUUID {
+		return nil, &fleet.BadRequestError{Message: "psso key exchange: key_context host mismatch"}
+	}
+	if kc.KeyPurpose != pssoKeyPurposeUserUnlock {
+		return nil, &fleet.BadRequestError{Message: "psso key exchange: unsupported key_context purpose"}
 	}
 
 	otherRaw, err := decodeBase64Flexible(claims.OtherPublicKey)
@@ -724,7 +727,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 		return nil, &notFoundError{}
 	}
 
-	key, kid, err := svc.getOrMintPSSOSigningKey(ctx)
+	key, kid, err := svc.getPSSOSigningKey(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
 	}

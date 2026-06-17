@@ -1075,6 +1075,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// Mint the PSSO signing key and CA the first time the feature is configured.
+	// Idempotent: existing assets are preserved (never recreated on reconfigure),
+	// and they are deliberately kept when the feature is disabled so a later
+	// re-enable reuses the same JWKS key and unlock-key CA.
+	if mergedAAP.Configured() {
+		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
+		}
+	}
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}

@@ -113,9 +113,9 @@ The nonce store mirrors `server/mdm/acme/internal/redis_nonces_store/` and expos
 - `mdm_apple_psso_devices` — primary key `host_id`, stores the device's signing and encryption public keys (PEM), the negotiated KeyExchangeKey, and registration/update timestamps.
 - `mdm_apple_psso_key_ids` — primary key `kid`, foreign key `host_id`, plus `key_type` and `pem`. The extension references keys by SHA-256 hash of the public key, so the server needs an index keyed by that hash to resolve incoming requests back to a device.
 
-### JWKS signing key bootstrap timing (OPEN)
+### JWKS signing key bootstrap timing (RESOLVED in #47122)
 
-Current placeholder behavior: the JWKS signing key is lazily minted on the first `GET /api/mdm/apple/psso/jwks` and persisted (encrypted) in `mdm_config_assets` under `MDMAssetPSSOSigningKey`. Alternatives under consideration include minting on the first time a user enables the feature. The lazy-mint code carries a `TODO`; decision pending.
+The signing key is no longer lazily minted. Both it (`MDMAssetPSSOSigningKey`) and the self-signed PSSO CA (`MDMAssetPSSOCACert`, backed by the same private key) are created once, the first time the feature is configured, via `bootstrapPSSOAssets` in `ModifyAppConfig` (covering the config API and GitOps). The bootstrap is idempotent and never regenerates existing assets, so the JWKS key and CA stay stable across reconfiguration and disable/re-enable; the device-facing service methods now only ever load them. Since the feature is still experimental, no upgrade path is provided for POC instances that minted a key under the old lazy path — re-saving the PSSO config generates the CA over the existing key.
 
 ### In-tree Swift extension at `apple-sso-extension/`
 
@@ -234,6 +234,8 @@ Compounds the unauthenticated-registration limitation. `SetOrUpdatePSSODevice` (
 
 `parsePSSOInboundJWT` (`ee/server/service/apple_psso_crypto.go`) calls `jwt.ParseWithClaims` without `jwt.WithValidMethods` and the keyfunc returns the EC key without asserting `token.Method`. Not exploitable as written (golang-jwt v4's type assertions reject HS/`none` against an `*ecdsa.PublicKey`), but it is one refactor away from an alg-confusion forgery. Fix: pass `jwt.WithValidMethods([]string{"ES256"})` and assert `*jwt.SigningMethodECDSA` in the keyfunc. Cheap hardening.
 
+**Addressed in #47122.** `parsePSSOInboundJWT` now passes `jwt.WithValidMethods([]string{"ES256"})` and asserts `*jwt.SigningMethodECDSA` in the keyfunc; HS256 and `none` tokens are rejected.
+
 ### MEDIUM [deploy] — ROPG client is an SSRF / credential-redirection sink
 
 `idp_token_url` comes from admin-controlled `AppConfig` and is POSTed to with the user's plaintext password. There is no scheme/host validation, so whoever can edit config (or a future settings UI lacking validation) can point it at an internal address and harvest passwords. Validate `https://` and a non-internal host at config-write time, and confirm `fleethttp.NewClient()` enforces TLS verification for this client. Pair this validation with the live-reload work under *Admin configuration*.
@@ -242,9 +244,13 @@ Compounds the unauthenticated-registration limitation. `SetOrUpdatePSSODevice` (
 
 The provisioned private key sealed into `key_context` (key request) is recoverable by any registered device replaying any captured `key_context`, and the blob carries no TTL (its payload `exp` is advisory and not re-checked on exchange). It is also sealed under a key HKDF-derived from the long-lived PSSO signing key, so signing-key rotation/re-mint silently invalidates all outstanding contexts, and a signing-key leak compromises every context ever issued (no forward secrecy). **Note:** the review rated this deferrable on the assumption the key-request/key-exchange path was not exercised by the Password flow — that is no longer true; the unlock-key exchange now runs during Password-mode registration, so treat this as active. Fix: bind `key_context` to the device `kid` and an expiry inside the sealed plaintext (e.g. as AAD), and reject on open if mismatched or expired.
 
+**Device binding addressed in #47122.** `key_context` now seals a structured JSON plaintext — `{host_uuid, key_purpose, provisioned_key}` — instead of the bare private key, and key exchange rejects when the sealed `host_uuid` doesn't match the host resolved from the request's signing key (or when `key_purpose` isn't `user_unlock`). A captured context replayed by, or fetched onto, another device is rejected. An in-blob expiry was considered but deliberately left out for now to match the issue's specified shape; the forward-secrecy / signing-key-coupling concerns remain open.
+
 ### MEDIUM [GA] — Ad-hoc CA certificate issuance is sloppy
 
 `issuePSSOProvisionedCertificate` (`ee/server/service/apple_psso.go`) regenerates a self-signed, unconstrained, 10-year signing CA on every key request with fixed serial `1`. Generate the CA once (persist alongside the signing key), use random serials for both CA and leaf, and add EKU/name constraints scoping its use.
+
+**Addressed in #47122.** The CA is now minted once at first configuration and persisted (`MDMAssetPSSOCACert`); `issuePSSOProvisionedCertificate` loads it and signs each leaf with a random 128-bit serial. The CA keeps serial `1` (matching Fleet's other self-signed CA roots in `server/mdm/scep/depot`): a singular, persisted self-signed root produces exactly one certificate, so the serial is unique by construction — the random-serial recommendation applied to the per-request *leaf*, which it now uses. The CA carries `BasicConstraintsValid`, `IsCA`, `MaxPathLen: 0`, and a SubjectKeyId.
 
 ### LOW [GA] — Hardcoded developer Team/bundle IDs in the AASA
 

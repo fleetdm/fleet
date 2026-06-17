@@ -1042,6 +1042,10 @@ const (
 	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
 	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
 	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetPSSOCACert is the self-signed Platform SSO CA certificate Fleet uses
+	// to certify the provisioned unlock-key during key exchange. Its private key is
+	// MDMAssetPSSOSigningKey; both are minted once when the feature is first configured.
+	MDMAssetPSSOCACert MDMAssetName = "psso_ca_cert"
 	// MDMAssetAppleAccountProvisioningIdPClientSecret is the OAuth ROPG IdP client
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
