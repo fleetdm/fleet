@@ -68,7 +68,7 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
-	type jsonObj map[string]interface{}
+	type jsonObj map[string]any
 	var profileKeyMap jsonObj
 	err := json.Unmarshal(m.RawJSON, &profileKeyMap)
 	if err != nil {
@@ -121,7 +121,7 @@ func parseAndroidProfileValidationError(err error) error {
 	return errors.New("Invalid JSON payload.")
 }
 
-func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]interface{}) error {
+func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
 	found := variables.Find(string(rawJSON))
 	if len(found) == 0 {
 		return nil
@@ -144,17 +144,17 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]int
 	return nil
 }
 
-func walkJSONForStringVars(v interface{}, vars map[string]struct{}) {
+func walkJSONForStringVars(v any, vars map[string]struct{}) {
 	switch t := v.(type) {
 	case string:
 		for _, name := range variables.Find(t) {
 			vars[name] = struct{}{}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		for _, val := range t {
 			walkJSONForStringVars(val, vars)
 		}
-	case []interface{}:
+	case []any:
 		for _, val := range t {
 			walkJSONForStringVars(val, vars)
 		}

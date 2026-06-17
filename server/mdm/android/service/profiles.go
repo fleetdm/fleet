@@ -303,6 +303,9 @@ func (r *profileReconciler) sendHostProfiles(
 
 	hostProfilesContents, varSubErr := substituteProfileVarsForHost(ctx, r.DS, hostUUID, profilesContents)
 	if varSubErr != nil {
+		if !errors.Is(varSubErr, profiles.ErrUnresolvableAndroidAppConfigVar) {
+			return nil, ctxerr.Wrapf(ctx, varSubErr, "substitute fleet vars for host %s", hostUUID)
+		}
 		var varErr *profiles.UnresolvableAndroidAppConfigVarError
 		detail := varSubErr.Error()
 		if errors.As(varSubErr, &varErr) && varErr.Detail != "" {
@@ -317,6 +320,18 @@ func (r *profileReconciler) sendHostProfiles(
 				ProfileName:   prof.ProfileName,
 				Checksum:      prof.Checksum,
 				Detail:        detail,
+			}
+		}
+		for _, prof := range profilesToRemove {
+			status := fleet.MDMDeliveryPending
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+				HostUUID:         hostUUID,
+				Status:           &status,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				ProfileUUID:      prof.ProfileUUID,
+				ProfileName:      prof.ProfileName,
+				Checksum:         prof.Checksum,
+				RequestFailCount: setFailCount,
 			}
 		}
 		appendWithheld()
