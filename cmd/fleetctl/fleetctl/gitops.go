@@ -391,6 +391,9 @@ func gitopsCommand() *cli.Command {
 						return errors.New("'controls' must be set on global config")
 					}
 					if !config.Controls.Set() {
+						// noTeamControls had its file paths resolved to absolute against the
+						// no-team file's own dir in extractControlsForNoTeam, so they survive
+						// being applied here under the global file's baseDir.
 						config.Controls = noTeamControls
 					}
 				}
@@ -1102,6 +1105,10 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 			if err != nil {
 				return spec.GitOpsControls{}, false, fileName, err
 			}
+			// These controls are applied onto the global config and applied under the
+			// global file's baseDir, so resolve their file paths to absolute against this
+			// file's own dir to keep relative paths (e.g. ../lib/...) working.
+			config.Controls.ResolveFilePathsAbs(baseDir)
 			return config.Controls, true, fileName, nil
 		}
 	}
