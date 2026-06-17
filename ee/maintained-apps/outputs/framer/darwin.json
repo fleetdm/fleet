@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.23.3",
+      "version": "2026.23.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron' AND version_compare(bundle_short_version, '2026.23.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.framer.electron' AND version_compare(bundle_short_version, '2026.23.5') < 0);"
       },
-      "installer_url": "https://updates.framer.com/electron/darwin/arm64/Framer-2026.23.3.zip",
+      "installer_url": "https://updates.framer.com/electron/darwin/arm64/Framer-2026.23.5.zip",
       "install_script_ref": "7c743e16",
       "uninstall_script_ref": "4775195c",
-      "sha256": "fc0755e53901b9beb4f960ce5d724721a6bf393a01b49dd64af79b08243ac14a",
+      "sha256": "581a93d414c6a497ca531d66e87872d8c01817d2dc6734f241112fd0ce16f863",
       "default_categories": [
         "Productivity"
       ]

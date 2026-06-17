@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2026.1') < 0);"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.1.9/android-studio-quail1-patch1-mac_arm.dmg",
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.1.10/android-studio-quail1-patch2-mac_arm.dmg",
       "install_script_ref": "d9306d86",
       "uninstall_script_ref": "aa386b1a",
-      "sha256": "07145348f0b7bce6336eb362addd773093a84c40a4780f436beb6795a48b1270",
+      "sha256": "69a13f8b7430f91919ff8b958c941d69953c13095e29fafa51e77d32417521a2",
       "default_categories": [
         "Developer tools"
       ]
