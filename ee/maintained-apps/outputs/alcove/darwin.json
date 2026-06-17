@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.2",
+      "version": "1.7.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.henrikruscon.Alcove';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.henrikruscon.Alcove' AND version_compare(bundle_short_version, '1.7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.henrikruscon.Alcove' AND version_compare(bundle_short_version, '1.7.3') < 0);"
       },
-      "installer_url": "https://github.com/henrikruscon/alcove-releases/releases/download/1.7.2/Alcove.zip",
+      "installer_url": "https://download.tryalcove.com/Alcove.dmg",
       "install_script_ref": "bdb62bd2",
       "uninstall_script_ref": "61446eae",
-      "sha256": "83357f05d2edd1c978f7470f1cf2b943a4b81d168723f7b8cdc39d9ccf8c5588",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
