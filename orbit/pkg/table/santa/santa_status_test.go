@@ -25,6 +25,7 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	row := rows[0]
 
 	// spot check a few fields and types
+	require.Equal(t, "1", row["daemon_reachable"])
 	require.Equal(t, "Monitor", row["mode"])
 	require.Equal(t, "0", row["watchdog_cpu_events"])
 	require.Equal(t, "3", row["watchdog_ram_events"])
@@ -42,13 +43,14 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
-func TestGenerateStatus_CommandErrorReturnsEmptyNoError(t *testing.T) {
+func TestGenerateStatus_DaemonUnreachableReturnsRowNoError(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
-	execCommandContext = fakeExecCommandContext(t, "ERROR: nope", withExitCode(1))
+	execCommandContext = fakeExecCommandContext(t, "An error occurred communicating with the Santa daemon", withExitCode(1))
 
 	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
 	require.NoError(t, err)
-	require.Empty(t, rows)
+	require.Len(t, rows, 1)
+	require.Equal(t, "0", rows[0]["daemon_reachable"])
 }
 
 func TestGenerateStatus_BadJSONReturnsError(t *testing.T) {
@@ -70,7 +72,8 @@ func TestGenerateStatus_ContextCancelBehavesLikeCmdError(t *testing.T) {
 
 	rows, err := GenerateStatus(ctx, table.QueryContext{})
 	require.NoError(t, err) // your code treats cmd failure gracefully
-	require.Empty(t, rows)
+	require.Len(t, rows, 1)
+	require.Equal(t, "0", rows[0]["daemon_reachable"])
 }
 
 func TestStatusColumns_Contract(t *testing.T) {
@@ -82,7 +85,7 @@ func TestStatusColumns_Contract(t *testing.T) {
 	}
 	// a few key columns to lock contract
 	for _, name := range []string{
-		"file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
+		"daemon_reachable", "file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
 		"sync_enabled", "metrics_enabled", "events_pending_upload",
 	} {
 		if _, ok := names[name]; !ok {

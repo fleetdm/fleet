@@ -25249,6 +25249,12 @@
     "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
     "columns": [
       {
+        "name": "daemon_reachable",
+        "description": "Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the remaining columns are empty.",
+        "required": false,
+        "type": "integer"
+      },
+      {
         "name": "sync_server",
         "description": "The server Santa syncs rules and configuration from",
         "required": false,

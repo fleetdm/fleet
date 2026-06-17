@@ -80,6 +80,7 @@ type santaStatus struct {
 
 func StatusColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
+		table.IntegerColumn("daemon_reachable"),
 		table.IntegerColumn("file_logging"),
 		table.IntegerColumn("watchdog_ram_events"),
 		table.TextColumn("log_type"),
@@ -127,9 +128,12 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	cmd := execCommandContext(ctx, "/usr/local/bin/santactl", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		// Gracefully return an empty result if santactl fails
+		// santactl exits non-zero when the Santa daemon is unreachable (e.g. Full Disk
+		// Access not granted, system extension waiting for user approval, daemon crashed).
+		// Surface this as a row with daemon_reachable = 0 instead of returning zero rows,
+		// so operators get a signal that the daemon is degraded.
 		log.Debug().Err(err).Msg("failed to run santactl status --json")
-		return []map[string]string{}, nil
+		return []map[string]string{{"daemon_reachable": "0"}}, nil
 	}
 
 	var status santaStatus
@@ -138,6 +142,7 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	}
 
 	row := map[string]string{
+		"daemon_reachable":                "1",
 		"file_logging":                    boolToIntString(status.Daemon.FileLogging),
 		"watchdog_ram_events":             strconv.Itoa(status.Daemon.WatchdogRamEvents),
 		"log_type":                        status.Daemon.LogType,
