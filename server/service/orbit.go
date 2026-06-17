@@ -289,7 +289,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 						return "", fleet.NewOrbitIDPAuthRequiredError()
 					}
-					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+					svc.logger.DebugContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
 						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
