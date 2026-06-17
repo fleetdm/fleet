@@ -322,6 +322,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newManagedLocalAccountRotationSchedule(ctx, deps.instanceID, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
 	})
 
+	deps.register("failed to register cleanup expired ADUE challenges schedule", func() (fleet.CronSchedule, error) {
+		return newCleanupExpiredADUEChallengesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	if deps.config.Activity.EnableAuditLog {
 		deps.register("failed to register activities streaming schedule", func() (fleet.CronSchedule, error) {
 			return newActivitiesStreamingSchedule(ctx, deps.instanceID, deps.activitySvc, deps.ds, deps.logger, deps.auditLogger)
