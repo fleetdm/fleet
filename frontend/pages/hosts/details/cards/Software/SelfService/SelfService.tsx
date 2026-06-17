@@ -224,9 +224,8 @@ const SoftwareSelfService = ({
     };
   }, []);
 
-  /** Registers a software ID as user-initiated action */
-  const registerUserSoftwareAction = useCallback((id: number) => {
-    userActionIdsRef.current.add(id);
+  /** (Re)arms the timeout that clears a software ID's "recently updated" badge. */
+  const scheduleRecentlyUpdatedExpiry = useCallback((id: number) => {
     // Prevent double timeouts
     if (recentlyUpdatedTimeouts.current[id]) {
       clearTimeout(recentlyUpdatedTimeouts.current[id]);
@@ -244,6 +243,15 @@ const SoftwareSelfService = ({
       delete recentlyUpdatedTimeouts.current[id];
     }, 120000); // 2 minutes
   }, []);
+
+  /** Registers a software ID as a user-initiated action and arms its expiry. */
+  const registerUserSoftwareAction = useCallback(
+    (id: number) => {
+      userActionIdsRef.current.add(id);
+      scheduleRecentlyUpdatedExpiry(id);
+    },
+    [scheduleRecentlyUpdatedExpiry]
+  );
 
   const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
@@ -288,9 +296,11 @@ const SoftwareSelfService = ({
           const id = Number(idStr);
           if (userActionIdsRef.current.has(id)) {
             next.add(id);
+            // Consume the user-action flag so a later non-user-initiated
+            // completion for the same app isn't misclassified as recently updated.
             userActionIdsRef.current.delete(id);
             // (Re)arm the 2-minute expiry timeout for the "recently updated" badge.
-            registerUserSoftwareAction(id);
+            scheduleRecentlyUpdatedExpiry(id);
           }
         });
         return next;
@@ -298,7 +308,7 @@ const SoftwareSelfService = ({
     }
 
     lastObservedPendingIdsRef.current = currentlyPendingIds;
-  }, [selfServiceData, registerUserSoftwareAction]);
+  }, [selfServiceData, scheduleRecentlyUpdatedExpiry]);
 
   const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
@@ -392,9 +402,11 @@ const SoftwareSelfService = ({
               const id = Number(idStr);
               if (userActionIdsRef.current.has(id)) {
                 next.add(id);
+                // Consume the user-action flag so a later non-user-initiated
+                // completion for the same app isn't misclassified as recently updated.
                 userActionIdsRef.current.delete(id);
-                // Register a timeout for this id (for cleanup and removal)
-                registerUserSoftwareAction(id);
+                // Re-arm the expiry timeout for the "recently updated" badge.
+                scheduleRecentlyUpdatedExpiry(id);
               }
             });
             return next;
