@@ -112,6 +112,44 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
 		},
+		// Fleet variable tests
+		{
+			name:        "valid - supported Fleet variable HOST_UUID",
+			config:      json.RawMessage(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - supported Fleet variable with braces",
+			config:      json.RawMessage(`{"managedConfiguration": {"deviceId": "${FLEET_VAR_HOST_UUID}"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - multiple supported Fleet variables",
+			config:      json.RawMessage(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - HOST_PLATFORM variable",
+			config:      json.RawMessage(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - all IDP variables",
+			config:      json.RawMessage(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "local": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "groups": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "dept": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "name": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME"}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - unsupported Fleet variable NDES_SCEP_CHALLENGE",
+			config:      json.RawMessage(`{"managedConfiguration": {"challenge": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+		},
+		{
+			name:        "invalid - unsupported Fleet variable CUSTOM_SCEP",
+			config:      json.RawMessage(`{"managedConfiguration": {"url": "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA"}}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Unsupported variable $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA.",
+		},
 	}
 
 	for _, tt := range tests {
