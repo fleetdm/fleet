@@ -9,11 +9,11 @@ File carving data can be either stored in Fleet's database or to an external S3 
 In your agent configuration, add the following [command line flags](https://fleetdm.com/docs/configuration/agent-configuration#options-and-command-line-flags) to enable carving:
 
 ```yaml
-command_line_flags:
-  disable_carver=false
-  carver_disable_function=false
-  carver_start_endpoint=/api/v1/osquery/carve/begin
-  carver_continue_endpoint=/api/v1/osquery/carve/block
+  disable_carver: false
+  carver_disable_function: false
+  carver_start_endpoint: /api/v1/osquery/carve/begin
+  carver_continue_endpoint: /api/v1/osquery/carve/block
+  carver_block_size: 8000000
   carver_block_size=8000000
 ```
 
