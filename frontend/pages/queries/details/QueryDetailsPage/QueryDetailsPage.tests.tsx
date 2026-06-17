@@ -79,6 +79,49 @@ const renderPage = (
   return screen.findByTestId("back-button");
 };
 
+describe("QueryDetailsPage - renders fresh query data (regression #43310)", () => {
+  it("shows the loaded query's name/description, not stale QueryContext values", async () => {
+    mockServer.use(
+      http.get(baseUrl(`/reports/${QUERY_ID}`), () =>
+        HttpResponse.json({
+          query: createMockSchedulableQuery({
+            id: QUERY_ID,
+            team_id: null,
+            name: "Fresh report name",
+            description: "Fresh report description",
+          }),
+        })
+      ),
+      http.get(baseUrl(`/reports/${QUERY_ID}/report`), () =>
+        HttpResponse.json(
+          createMockQueryReport({ query_id: QUERY_ID, results: [] })
+        )
+      )
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: baseAppContext,
+        // Stale values left over from a previously-viewed report. The page must
+        // ignore these and render the freshly-loaded query instead.
+        query: {
+          lastEditedQueryName: "Stale report name",
+          lastEditedQueryDescription: "Stale report description",
+        },
+      },
+    });
+    render(<QueryDetailsPage {...(createProps() as any)} />);
+
+    expect(await screen.findByText("Fresh report name")).toBeInTheDocument();
+    expect(screen.getByText("Fresh report description")).toBeInTheDocument();
+    expect(screen.queryByText("Stale report name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Stale report description")
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("QueryDetailsPage - back navigation", () => {
   beforeEach(() => setupQueryHandlers());
 
