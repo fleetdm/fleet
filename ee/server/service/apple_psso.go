@@ -153,14 +153,11 @@ func computeKID(pub *ecdsa.PublicKey) (string, error) {
 }
 
 // isAssetNotFound reports whether err indicates that the requested
-// mdm_config_assets row was absent. The datastore returns a partial-result
-// error in that case.
+// mdm_config_assets row was absent.
 func isAssetNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	// fleet.IsNotFound catches the typed not-found case; the partial-result
-	// error from GetAllMDMConfigAssetsByName matches via string content.
 	if fleet.IsNotFound(err) {
 		return true
 	}
