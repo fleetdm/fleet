@@ -15,6 +15,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,7 +192,7 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	stmt := `
 INSERT INTO
     mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
-(SELECT ?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
+(SELECT ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -213,7 +214,7 @@ INSERT INTO
 			return err
 		}
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, md5Checksum(cp.Mobileconfig), cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
 			teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
@@ -2549,7 +2550,7 @@ INSERT INTO
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
@@ -2644,7 +2645,7 @@ ON DUPLICATE KEY UPDATE
 	// contents is the same as it was already).
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Scope,
-			p.Mobileconfig, p.SecretsUpdatedAt); err != nil {
+			p.Mobileconfig, md5Checksum(p.Mobileconfig), p.SecretsUpdatedAt); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
@@ -3409,9 +3410,9 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 			teamID = *cp.TeamID
 		}
 
-		args = append(args, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.SecretsUpdatedAt)
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, md5Checksum(cp.Mobileconfig), cp.SecretsUpdatedAt)
 		// see https://stackoverflow.com/a/51393124/1094941
-		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
+		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(), ?),")
 	}
 
 	stmt := fmt.Sprintf(`
@@ -4697,18 +4698,20 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	secrets_updated_at,
+	token,
 	uploaded_at,
 	team_id
 )
 VALUES (
-	?,?,?,?,?,NOW(6),?
+	?,?,?,?,?,?,NOW(6),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   identifier = VALUES(identifier),
-  raw_json = VALUES(raw_json)
+  raw_json = VALUES(raw_json),
+  token = VALUES(token)
 `
 
 	updatedDeclarationUUIDs := make([]string, 0, len(incomingDeclarations))
@@ -4721,6 +4724,7 @@ ON DUPLICATE KEY UPDATE
 			d.Name,
 			d.RawJSON,
 			d.SecretsUpdatedAt,
+			d.ComputeToken(),
 			teamID); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
@@ -4841,8 +4845,9 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	secrets_updated_at,
+	token,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4871,8 +4876,9 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	raw_json,
 	secrets_updated_at,
+	token,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4884,7 +4890,12 @@ INSERT INTO mdm_apple_declarations (
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
-	raw_json = VALUES(raw_json)`
+	raw_json = VALUES(raw_json),
+	token = VALUES(token),
+	-- token is derived from secrets_updated_at, so keep the column in sync with it
+	-- (mirrors the batch insertOrUpdateDeclarations path). The uploaded_at IF above
+	-- still compares the pre-update secrets_updated_at since it is assigned first.
+	secrets_updated_at = VALUES(secrets_updated_at)`
 
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false)
 }
@@ -4900,9 +4911,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE name = ? AND team_id = ?`
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		token := declaration.ComputeToken()
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON,
-			declaration.SecretsUpdatedAt,
+			declaration.SecretsUpdatedAt, token,
 			declaration.Name, tmID, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
@@ -5122,30 +5134,77 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 }
 
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+	// Select the raw per-declaration values and compute
+	// the token in Go, byte-for-byte, this based from the following expression:
+	//
+	//    COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, ''))
+	//            ORDER BY
+	//                    mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token
 	const stmt = `
 SELECT
-	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, ''))
-		ORDER BY
-			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token,
-	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
+	HEX(mad.token) AS token,
+	hmad.variables_updated_at AS variables_updated_at,
+	mad.created_at AS created_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	hmad.host_uuid = ? AND hmad.operation_type = ?`
+	hmad.host_uuid = ? AND hmad.operation_type = ?
+ORDER BY
+	mad.uploaded_at DESC, mad.declaration_uuid ASC`
 
-	// NOTE: the token generated as part of this query decides if the DDM session
-	// proceeds with sending the declarations - if the token differs from what
-	// the host last applied, it will proceed. That's why we use only the "to be
-	// installed" declarations for the token generation. If some declarations get
-	// removed, then they will be ignored in the token generation, which will
-	// change the token and make the DDM session proceed (and declarations not
-	// sent get removed).
+	// NOTE: the token generated here decides if the DDM session proceeds with
+	// sending the declarations - if the token differs from what the host last
+	// applied, it will proceed. That's why we use only the "to be installed"
+	// declarations for the token generation. If some declarations get removed,
+	// then they will be ignored in the token generation, which will change the
+	// token and make the DDM session proceed (and declarations not sent get
+	// removed).
 
-	var res fleet.MDMAppleDDMDeclarationsToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+	var rows []struct {
+		// Token is HEX(mad.token); it is NULL only if a declaration row somehow has
+		// a NULL token, in which case the original CONCAT(HEX(token), ...) was NULL
+		// and GROUP_CONCAT skipped it (while COUNT(0) still counted the row), so we
+		// reproduce that: skip the row's contribution but keep it in the count.
+		Token              sql.NullString `db:"token"`
+		VariablesUpdatedAt *time.Time     `db:"variables_updated_at"`
+		CreatedAt          time.Time      `db:"created_at"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declarations token")
 	}
+
+	var res fleet.MDMAppleDDMDeclarationsToken
+	if len(rows) == 0 {
+		// Mirrors COALESCE(MD5(CONCAT(0, NULL)), '') => '' and
+		// COALESCE(MAX(created_at), NOW()) => NOW().
+		res.Timestamp = time.Now().UTC()
+		return &res, nil
+	}
+
+	var b strings.Builder
+	b.WriteString(strconv.Itoa(len(rows)))
+	var latest time.Time
+	var anyToken bool
+	for _, r := range rows {
+		if r.Token.Valid {
+			b.WriteString(r.Token.String)
+			b.WriteString(mysqlDatetime6(r.VariablesUpdatedAt))
+			anyToken = true
+		}
+		if r.CreatedAt.After(latest) {
+			latest = r.CreatedAt
+		}
+	}
+	res.Timestamp = latest
+	if !anyToken {
+		// All tokens were NULL: the old GROUP_CONCAT was NULL, MD5(CONCAT(count, NULL))
+		// was NULL, and COALESCE(..., '') yielded an empty string. Mirror that here
+		// rather than hashing the bare count.
+		return &res, nil
+	}
+	sum := md5.Sum([]byte(b.String())) // nolint:gosec
+	res.DeclarationsToken = hex.EncodeToString(sum[:])
 
 	return &res, nil
 }

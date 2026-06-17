@@ -16,7 +16,7 @@ func Up_20250318165922(tx *sql.Tx) error {
 	}
 	_, err := tx.Exec(
 		`ALTER TABLE mdm_windows_configuration_profiles
-			ADD COLUMN checksum BINARY(16) AS (UNHEX(MD5(syncml))) STORED,
+			ADD COLUMN checksum BINARY(16),
 			ADD COLUMN secrets_updated_at DATETIME(6) NULL,
 			MODIFY COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT NOW(6),
 			MODIFY COLUMN uploaded_at TIMESTAMP(6) NULL DEFAULT NULL;

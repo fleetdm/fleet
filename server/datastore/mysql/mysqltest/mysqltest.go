@@ -9,7 +9,8 @@ package mysqltest
 
 import (
 	"bytes"
-	"context" // nolint:gosec // this is a test package
+	"context"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons, this is a test package
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -588,9 +589,10 @@ func generateDummyWindowsProfile(uuidStr string) []byte {
 func InsertWindowsProfileForTest(t *testing.T, ds *mysql.Datastore, teamID uint) string {
 	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
+	checksum := md5.Sum(prof) // nolint:gosec // checksum is no longer a generated column, so it must be populated explicitly
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);`
-		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof)
+		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof, checksum[:])
 		return err
 	})
 	return profUUID

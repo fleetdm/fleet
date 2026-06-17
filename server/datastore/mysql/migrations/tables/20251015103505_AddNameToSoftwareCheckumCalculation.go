@@ -2,41 +2,20 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 func init() {
 	MigrationClient.AddMigration(Up_20251015103505, Down_20251015103505)
 }
 
-func Up_20251015103505(tx *sql.Tx) error {
-	softwareStmt := `
-		UPDATE software SET
-			checksum = UNHEX(
-			MD5(
-				-- concatenate with separator \x00
-				CONCAT_WS(CHAR(0),
-					version,
-					source,
-					bundle_identifier,
-					` + "`release`" + `,
-					arch,
-					vendor,
-					browser,
-					extension_id,
-					name
-				)
-			)
-		)
-		WHERE source = 'apps'
-		  AND bundle_identifier IS NOT NULL
-		  AND bundle_identifier != ''
-		`
-	_, err := tx.Exec(softwareStmt)
-	if err != nil {
-		return fmt.Errorf("updating software checksums %w", err)
-	}
-
+func Up_20251015103505(_ *sql.Tx) error {
+	// This migration recomputed software checksums for existing 'apps' rows so the
+	// checksum would incorporate the software name, using the SQL MD5() function
+	// (removed in MySQL 9.6/9.7). It only ever rewrote rows that predated the
+	// name-inclusive checksum. A fresh install replays this against an empty
+	// software table — and runtime inserts already compute the name-inclusive
+	// checksum in Go — so there is nothing to backfill. Existing instances already
+	// ran the original backfill.
 	return nil
 }
 

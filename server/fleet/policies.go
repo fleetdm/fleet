@@ -1,14 +1,32 @@
 package fleet
 
 import (
+	"crypto/md5" //nolint:gosec // md5 is used for non-cryptographic change detection, not security
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 )
+
+// PolicyChecksum reproduces the value MySQL produced for the
+// policies.checksum column, which backs the idx_policies_checksum unique index:
+//
+//	unhex(md5(concat_ws(char(0), coalesce(team_id, ''), name)))
+//
+// team_id renders as its decimal string ("" when nil), joined to name by a
+// single NUL byte (the CONCAT_WS separator).
+func PolicyChecksum(teamID *uint, name string) []byte {
+	var teamStr string
+	if teamID != nil {
+		teamStr = strconv.FormatUint(uint64(*teamID), 10)
+	}
+	sum := md5.Sum([]byte(teamStr + "\x00" + name)) //nolint:gosec
+	return sum[:]
+}
 
 // PolicyPayload holds data for policy creation.
 //

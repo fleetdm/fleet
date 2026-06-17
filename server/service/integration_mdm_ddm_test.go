@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/md5" // nolint:gosec // used only for tests
 	"encoding/json"
 	"fmt"
 	"io"
@@ -185,11 +184,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
-	calcChecksum := func(source []byte) string {
-		csum := fmt.Sprintf("%x", md5.Sum(source)) //nolint:gosec
-		return strings.ToUpper(csum)
-	}
-
 	insertDeclaration := func(t *testing.T, decl fleet.MDMAppleDeclaration) {
 		stmt := `
 INSERT INTO mdm_apple_declarations (
@@ -198,17 +192,19 @@ INSERT INTO mdm_apple_declarations (
 	identifier,
 	name,
 	raw_json,
+	token,
 	created_at,
 	uploaded_at
-) VALUES (?,?,?,?,?,?,?)`
+) VALUES (?,?,?,?,?,?,?,?)`
 
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), stmt,
+			_, err := q.ExecContext(t.Context(), stmt,
 				decl.DeclarationUUID,
 				decl.TeamID,
 				decl.Identifier,
 				decl.Name,
 				decl.RawJSON,
+				decl.ComputeToken(),
 				decl.CreatedAt,
 				decl.UploadedAt,
 			)
@@ -225,14 +221,14 @@ INSERT INTO host_mdm_apple_declarations (
 	token,
 	declaration_uuid,
 	declaration_identifier
-) VALUES (?,?,?,UNHEX(?),?,?)`
+) VALUES (?,?,?,?,?,?)`
 
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), stmt,
+			_, err := q.ExecContext(t.Context(), stmt,
 				hostUUID,
 				fleet.MDMDeliveryPending,
 				fleet.MDMOperationTypeInstall,
-				calcChecksum(decl.RawJSON),
+				decl.ComputeToken(),
 				decl.DeclarationUUID,
 				decl.Identifier,
 			)
@@ -266,7 +262,7 @@ INSERT INTO host_mdm_apple_declarations (
 	mapDeclsByChecksum := func(byUUID map[string]fleet.MDMAppleDeclaration) map[string]fleet.MDMAppleDeclaration {
 		byChecksum := make(map[string]fleet.MDMAppleDeclaration)
 		for _, d := range byUUID {
-			byChecksum[calcChecksum(d.RawJSON)] = byUUID[d.DeclarationUUID]
+			byChecksum[fmt.Sprintf("%X", d.ComputeToken())] = byUUID[d.DeclarationUUID]
 		}
 		return byChecksum
 	}
@@ -280,7 +276,7 @@ INSERT INTO host_mdm_apple_declarations (
 		var gotParsed fleet.MDMAppleDDMDeclarationResponse
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 		require.EqualValues(t, wantParsed.Payload, gotParsed.Payload)
-		require.Equal(t, calcChecksum(expected.RawJSON), gotParsed.ServerToken)
+		require.Equal(t, fmt.Sprintf("%X", expected.ComputeToken()), gotParsed.ServerToken)
 		require.Equal(t, expected.Identifier, gotParsed.Identifier)
 		// t.Logf("decoded: %+v", gotParsed)
 	}

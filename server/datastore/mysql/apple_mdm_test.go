@@ -6288,6 +6288,133 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, oldTok, toks.DeclarationsToken)
 }
 
+// TestMDMAppleDDMDeclarationsTokenMatchesSQL pins the Go reimplementation of the
+// DDM ServerToken aggregate against the original SQL aggregate (which used the
+// now-removed MD5() function). It runs the exact old SQL on MySQL 8.0 and asserts
+// the Go-computed token is byte-identical, exercising the COUNT(0) prefix, the
+// uploaded_at DESC / declaration_uuid ASC ordering with an empty separator,
+// NULL vs set variables_updated_at, and a declaration count large enough that the
+// GROUP_CONCAT output is non-trivial (Fleet raises group_concat_max_len to 4MB,
+// so both paths see the full input).
+func TestMDMAppleDDMDeclarationsTokenMatchesSQL(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	requireLegacySQLMD5(t, ds)
+	ctx := t.Context()
+
+	const hostUUID = "host-ddm-token"
+	const n = 25
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for i := range n {
+			declUUID := fmt.Sprintf("decl-%02d", i)
+			rawJSON := fmt.Sprintf(`{"Identifier":"id-%02d"}`, i)
+			// Deliberately give several declarations the same uploaded_at so the
+			// secondary declaration_uuid ASC ordering is exercised.
+			uploadedAt := time.Date(2026, 6, 1, 0, 0, i/3, 0, time.UTC)
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_apple_declarations (declaration_uuid, team_id, identifier, name, raw_json, token, uploaded_at)
+				 VALUES (?, 0, ?, ?, ?, UNHEX(MD5(?)), ?)`,
+				declUUID, fmt.Sprintf("id-%02d", i), fmt.Sprintf("name-%02d", i), rawJSON, rawJSON, uploadedAt); err != nil {
+				return err
+			}
+			// Half the host rows carry a variables_updated_at, half leave it NULL.
+			var varsUpdatedAt any
+			if i%2 == 0 {
+				varsUpdatedAt = time.Date(2026, 6, 2, 3, 4, 5, 123456000, time.UTC)
+			}
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, declaration_identifier, declaration_name, status, operation_type, token, variables_updated_at)
+				 VALUES (?, ?, ?, ?, 'pending', ?, UNHEX(MD5(?)), ?)`,
+				hostUUID, declUUID, fmt.Sprintf("id-%02d", i), fmt.Sprintf("name-%02d", i), fleet.MDMOperationTypeInstall, rawJSON, varsUpdatedAt); err != nil {
+				return err
+			}
+		}
+		// Add a 'remove' row that must NOT contribute (the aggregate filters on install).
+		if _, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_apple_declarations (declaration_uuid, team_id, identifier, name, raw_json, token, uploaded_at)
+			 VALUES ('decl-rm', 0, 'id-rm', 'name-rm', '{}', UNHEX(MD5('{}')), ?)`,
+			time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, declaration_identifier, declaration_name, status, operation_type, token)
+			 VALUES (?, 'decl-rm', 'id-rm', 'name-rm', 'pending', ?, UNHEX(MD5('{}')))`,
+			hostUUID, fleet.MDMOperationTypeRemove)
+		return err
+	})
+
+	// The exact original SQL aggregate (still runnable on the 8.0 test DB).
+	const oldSQL = `
+SELECT
+	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, ''))
+		ORDER BY
+			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
+WHERE
+	hmad.host_uuid = ? AND hmad.operation_type = ?`
+
+	var sqlToken string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &sqlToken, oldSQL, hostUUID, fleet.MDMOperationTypeInstall))
+	require.NotEmpty(t, sqlToken)
+
+	got, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Equal(t, sqlToken, got.DeclarationsToken)
+}
+
+// TestMD5MigrationNoChurnOnReapply guards the upgrade no-churn guarantee: a host
+// that recorded a profile/declaration checksum under the old SQL MD5() path
+// carries that exact value after upgrade (preserved by the forward migration).
+// When the same content is re-applied through the new Go write path, the stored
+// checksum/token MUST be byte-identical to the old SQL MD5() value — otherwise
+// the desired checksum would differ from the host's and the profile would be
+// needlessly re-delivered (or the declaration would trigger a DDM re-sync). This
+// pins the Go write path against the old SQL value for all three converted
+// columns, including the tricky android normalized-JSON case.
+func TestMD5MigrationNoChurnOnReapply(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	requireLegacySQLMD5(t, ds)
+	ctx := t.Context()
+
+	sqlMD5 := func(query string, arg any) []byte {
+		var v []byte
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &v, query, arg))
+		require.NotEmpty(t, v)
+		return v
+	}
+
+	// Windows: checksum = md5(syncml).
+	syncml := []byte("<Replace><Item>x</Item></Replace>")
+	oldWin := sqlMD5(`SELECT UNHEX(MD5(?))`, syncml)
+	require.NoError(t, ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "w", SyncML: syncml}))
+	var gotWin []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &gotWin, `SELECT checksum FROM mdm_windows_configuration_profiles WHERE name = 'w'`))
+	require.Equal(t, oldWin, gotWin, "windows checksum diverged from the pre-upgrade md5 — would re-deliver")
+
+	// Apple declaration: token = md5(concat(raw_json, ifnull(secrets_updated_at, ''))), secrets NULL here.
+	declJSON := json.RawMessage(`{"Type":"com.apple.configuration.test","Identifier":"d"}`)
+	oldDecl := sqlMD5(`SELECT UNHEX(MD5(CONCAT(?, '')))`, []byte(declJSON))
+	_, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{Identifier: "d", Name: "d", RawJSON: declJSON}, nil)
+	require.NoError(t, err)
+	var gotDecl []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &gotDecl, `SELECT token FROM mdm_apple_declarations WHERE name = 'd'`))
+	require.Equal(t, oldDecl, gotDecl, "declaration token diverged from the pre-upgrade md5 — would trigger DDM re-sync")
+
+	// Android: checksum is the md5 of a canonical (Go-computed) JSON form, with no
+	// DB round-trip. The migration backfills existing rows with the same function,
+	// so re-applying identical content does not churn.
+	androidJSON := json.RawMessage(`{"b":1,"a":2,"n":1e3}`)
+	wantAndroid, err := md5ChecksumFromJSON(androidJSON)
+	require.NoError(t, err)
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{Name: "a", RawJSON: androidJSON})
+	require.NoError(t, err)
+	var gotAndroid []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &gotAndroid, `SELECT checksum FROM mdm_android_configuration_profiles WHERE name = 'a'`))
+	require.Equal(t, wantAndroid, gotAndroid, "android checksum diverged from the Go canonical-JSON md5")
+}
+
 func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 

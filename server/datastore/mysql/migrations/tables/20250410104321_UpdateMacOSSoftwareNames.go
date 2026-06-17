@@ -22,8 +22,11 @@ func Up_20250410104321(tx *sql.Tx) error {
 		return fmt.Errorf("updating software_titles.name: %w", err)
 	}
 
-	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, MD5(
-			-- simulate new hash
+	// new_checksum is only used as an opaque per-group key to merge duplicate rows
+	// (rows that collide on the same checksum-inputs once names are normalized), so
+	// the raw CONCAT_WS string works identically to the previous MD5() of it —
+	// and the SQL MD5() function was removed in MySQL 9.6/9.7.
+	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids,
 			CONCAT_WS(CHAR(0),
 				version,
 				source,
@@ -33,8 +36,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 				vendor,
 				browser,
 				extension_id
-			)
-		) AS new_checksum
+			) AS new_checksum
 				FROM software
 				WHERE source = 'apps' AND bundle_identifier IS NOT NULL AND bundle_identifier != ''
 				GROUP BY
@@ -194,25 +196,14 @@ WHERE
 		}
 	}
 
-	// Now we can update the software entries to use the new name
+	// Now we can update the software entries to use the new name. The checksum at
+	// this point in history is derived from columns that do NOT include name, so
+	// normalizing the name does not change the checksum — recomputing it would be a
+	// no-op. We therefore only update the name and drop the checksum recomputation,
+	// which also removes the SQL MD5() call (removed in MySQL 9.6/9.7).
 	softwareStmt := `
-	UPDATE software SET 
-		name = TRIM( TRAILING '.app' FROM name ),
-		checksum = UNHEX(
-		MD5(
-			-- concatenate with separator \x00
-			CONCAT_WS(CHAR(0),
-				version,
-				source,
-				bundle_identifier,
-				` + "`release`" + `,
-				arch,
-				vendor,
-				browser,
-				extension_id
-			)
-		)
-	)
+	UPDATE software SET
+		name = TRIM( TRAILING '.app' FROM name )
 		WHERE source = 'apps'
 		AND bundle_identifier IS NOT NULL
 		AND bundle_identifier != ''
