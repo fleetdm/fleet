@@ -911,6 +911,8 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
+> Working groups use the bug triage process below. For product groups (#g-mdm, #g-software, #g-orchestration, and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
+
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
 At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
