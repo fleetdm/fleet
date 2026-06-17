@@ -158,7 +158,9 @@ const QueryDetailsPage = ({
     data: queryReport,
     error: queryReportError,
   } = useQuery<IQueryReport, Error, IQueryReport>(
-    [],
+    // Key must include every queryFn parameter; an empty key bled one report's
+    // cached rows into another on revisit (and suppressed refetch on sort).
+    ["queryReport", queryId, currentTeamId, serverSortBy],
     () =>
       queryReportAPI.load({
         teamId: currentTeamId,
