@@ -1591,9 +1591,8 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
 	globalEnrollSecret := secrets[0].Secret
-	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command (only the Exec
-	// UUID is the queue/command_uuid), so a stray Add-only device response cannot trigger an "unmatched Windows MDM
-	// commands" warning in MDMWindowsSaveResponse.
+	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
+	// the important one, and we only track that.
 	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
 	execCommandUUID := uuid.NewString()
 
