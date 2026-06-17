@@ -715,6 +715,13 @@ type VulnerabilitiesConfig struct {
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
+// IsDisabledByInstanceCheck reports whether vulnerability processing is disabled
+// on this instance via the current_instance_checks setting ("no", or the legacy
+// "0"). It does not consider DisableSchedule, which disables processing globally.
+func (v VulnerabilitiesConfig) IsDisabledByInstanceCheck() bool {
+	return v.CurrentInstanceChecks == "no" || v.CurrentInstanceChecks == "0"
+}
+
 // UpgradesConfig defines configs related to fleet server upgrades.
 type UpgradesConfig struct {
 	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
@@ -926,11 +933,20 @@ type MDMConfig struct {
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
-	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
+	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
 func (m MDMConfig) IsCustomFileVaultEnabled() bool {
 	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
+}
+
+// ValidateAndroidBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidBatchSize < 0 {
+		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
+			"Android MDM configuration")
+	}
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -1758,6 +1774,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
+	man.addConfigInt("mdm.android_batch_size", 1000, "Maximum number of hosts per batch for Android MDM API operations (1000 default; 0 = no limit)")
+	man.hideConfig("mdm.android_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2091,6 +2109,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
+			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

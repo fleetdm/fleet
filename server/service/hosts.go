@@ -1316,7 +1316,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -1491,7 +1491,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -4072,6 +4072,16 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		}
 		host = h
+	}
+
+	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// This applies to both the user-authenticated host software endpoint and the
+	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
+	// these filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+		if !license.IsPremium(ctx) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
 	}
 
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)

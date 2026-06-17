@@ -86,8 +86,13 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
-## Software titles — display name
+## Software titles
+
+### Display name
 Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
+### Icons
+`<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.
 
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
@@ -96,6 +101,14 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
+
+## Lists & rows
+User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
+
+Anti-pattern:
+```tsx
+<span className={`${baseClass}__row-name`}>{item.name}</span>
+```
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

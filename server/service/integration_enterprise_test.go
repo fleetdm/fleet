@@ -5124,6 +5124,83 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
 
+// A fleet-admin must not be able to create a user with roles in teams they don't administer,
+// even when one team in the payload is their own.
+//
+// Both the admin create path (POST /users) and the API-only create
+// path (POST /users/api_only) funnel through svc.CreateUser, so both are
+// exercised here.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTeams() {
+	t := s.T()
+	ctx := context.Background()
+
+	// team1 is administered by our caller; team2 is not.
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team1.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, team2.ID))
+	}()
+
+	// Create a user who is an admin of team1 only.
+	teamAdminEmail := t.Name() + "_team1_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	// Act as the team1 admin for the rest of the test.
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var resp createUserResponse
+
+	// Admin create path: a payload spanning team1 (allowed) and team2 (not
+	// allowed) must be rejected wholesale, not partially honored.
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_crossteam"),
+		Email:    new(t.Name() + "_crossteam@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+			{Team: *team2, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// The forbidden request must not have created the user.
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_crossteam@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	// API-only create path inherits the same authorization, so it must reject
+	// the cross-team payload too.
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", createAPIOnlyUserRequest{
+		Name: new(t.Name() + "_crossteam_api"),
+		Fleets: &[]fleetsPayload{
+			{ID: team1.ID, Role: fleet.RoleAdmin},
+			{ID: team2.ID, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusForbidden, &resp)
+
+	// Sanity check: the team1 admin can still create a user scoped entirely to
+	// their own team, so the fix doesn't over-restrict the legitimate path.
+	resp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:     new(t.Name() + "_team1only"),
+		Email:    new(t.Name() + "_team1only@example.com"),
+		Password: new(test.GoodPassword),
+		Teams: &[]fleet.UserTeam{
+			{Team: *team1, Role: fleet.RoleAdmin},
+		},
+	}, http.StatusOK, &resp)
+	require.NotNil(t, resp.User)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
@@ -12305,6 +12382,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
 	require.NoError(t, err)
 
+	// Add CVSS scores and exploit metadata so the severity filters have data to match against.
+	// "bar" has one critical, actively-exploited CVE and one low-severity CVE, so it should match
+	// both a critical filter and a low filter (matches if ANY CVE is in range).
+	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: "CVE-bar-1234", CVSSScore: new(float64(9.5)), CISAKnownExploit: new(true)},
+		{CVE: "CVE-bar-5678", CVSSScore: new(float64(3.0)), CISAKnownExploit: new(false)},
+	}))
+
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
 	require.Len(t, getHostSw.Software, 1)
@@ -12562,6 +12647,93 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
+
+	// =========================================
+	// vulnerability severity filters on the device-authenticated "My device" software endpoint
+	// =========================================
+	//
+	// "bar" has two CVEs: CVE-bar-1234 (CVSS 9.5, actively exploited) and CVE-bar-5678 (CVSS 3.0).
+	// "foo" has no vulnerabilities. The host also has the (not installed) "ruby" installer, which
+	// must never appear in the inventory-only device responses below.
+	deviceSoftware := func(t *testing.T, query string) getDeviceSoftwareResponse {
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+query, nil, http.StatusOK)
+		defer res.Body.Close()
+		var resp getDeviceSoftwareResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+
+	// vulnerable=true returns only software with vulnerabilities.
+	resp := deviceSoftware(t, "vulnerable=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	require.Equal(t, 1, resp.Count)
+
+	// min_cvss_score is inclusive: 9.5 is returned for min_cvss_score=9.5 (the critical band edge).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.5")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a min above all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.6")
+	require.Empty(t, resp.Software)
+	require.Equal(t, 0, resp.Count)
+
+	// max_cvss_score is inclusive: a low max still matches the low-severity CVE (3.0).
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a max below all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=2.9")
+	require.Empty(t, resp.Software)
+
+	// min + max together apply both bounds (range filter).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=1&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// min == max returns only CVEs scored exactly that value (3.0 matches, 5.0 does not).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=3.0&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=5.0&max_cvss_score=5.0")
+	require.Empty(t, resp.Software)
+
+	// min > max yields an empty result, not a server error.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=8&max_cvss_score=2")
+	require.Empty(t, resp.Software)
+
+	// a title with multiple CVEs of differing scores appears under BOTH a low and a critical
+	// filter (matches if ANY CVE is in range).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.0&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit=true returns only software with a CISA known-exploited CVE.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit combined with a range that only covers the non-exploited CVE returns nothing,
+	// since the exploited CVE (9.5) is outside the 0.1-3.9 band.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Empty(t, resp.Software)
+
+	// filters combine with the search query: "foo" has no vulnerabilities so it is filtered out.
+	resp = deviceSoftware(t, "vulnerable=true&query=foo")
+	require.Empty(t, resp.Software)
+	resp = deviceSoftware(t, "vulnerable=true&query=bar")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// severity filters require vulnerable=true; otherwise the request is rejected with 422.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+premiumFilter, nil, http.StatusUnprocessableEntity)
+		require.NoError(t, res.Body.Close())
+	}
 }
 
 func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {
@@ -20606,6 +20778,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
+	// Count is the total number of platform-specific maintained apps: an app's
+	// macOS and Windows entries are counted separately, even though the UI
+	// combines them into a single row. The full unfiltered list returns one row
+	// per app, so the count equals the number of rows returned.
+	require.Equal(t, len(expectedApps), listMAResp.Count)
+
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
 		if c := cmp.Compare(a.Name, b.Name); c != 0 {
 			return c
@@ -20632,6 +20810,23 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
 	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
+
+	// The platform filter narrows the list to apps available on that platform.
+	// Fewer apps ship a Windows installer than a macOS one, so the Windows-only
+	// count is a non-empty strict subset of the full count.
+	var listMAWin listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAWin,
+		"team_id", fmt.Sprint(team.ID),
+		"platform", "windows",
+	)
+	require.NoError(t, listMAWin.Err)
+	require.Positive(t, listMAWin.Count)
+	require.Less(t, listMAWin.Count, listMAResp.Count)
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse
@@ -27329,7 +27524,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		Version:         "99.0.0",
 		StorageID:       computeSHA([]byte(installerContent)),
 		SelfService:     true,
-		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		Title:           "Cloudflare One Client", // windows installer, so Fleet does software title matching on this field
 		InstallScript:   "install",
 		UninstallScript: "uninstall",
 		Source:          "programs",
@@ -27549,7 +27744,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"],
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"],
 			"warp should be rolled back to v2.0")
 		require.Equal(t, "3.0", activeVersions["Zoom Workplace (X64)"],
 			"zoom should remain at v3.0 (not rolled back)")
@@ -27575,7 +27770,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"], "warp should still be at v2.0")
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"], "warp should still be at v2.0")
 		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
 	})
 
@@ -29731,8 +29926,9 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 }
 
 // TestPolicyLabelsIncludeAll exercises the full create/modify/spec stack for the
-// new include_all label scope on policies, including strict mutex rejection
-// at every API entry point and end-to-end host targeting.
+// include_all label scope on policies: combining one include scope with one
+// exclude scope, rejecting two include or two exclude scopes at every API entry
+// point, and end-to-end host targeting.
 func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	t := s.T()
 	ctx := context.Background()
@@ -29788,16 +29984,28 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 
-	// Mutex rejection on POST: include_all + exclude_any.
-	rej2Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "rej2-" + t.Name(),
+	// include_all + exclude_any is now a valid combination (one include scope
+	// plus one exclude scope), so it succeeds and persists both.
+	var combinedResp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "combined-" + t.Name(),
 		Query:            "SELECT 1",
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsExcludeAny: []string{lblB.Name},
+	}, http.StatusOK, &combinedResp)
+	require.Len(t, combinedResp.Policy.LabelsIncludeAll, 1)
+	require.Len(t, combinedResp.Policy.LabelsExcludeAny, 1)
+
+	// Two exclude scopes (exclude_any + exclude_all) are still rejected.
+	rejExclResp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "rej-excl-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsExcludeAny: []string{lblA.Name},
+		LabelsExcludeAll: []string{lblB.Name},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rej2Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejExclResp.Body), fleet.ErrPolicyConflictingExcludeLabels.Error())
 
 	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
 	switchAny := []string{lblA.Name}
@@ -29826,7 +30034,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 			LabelsIncludeAny: []string{lblB.Name},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 
 	// 4. End-to-end host targeting: only hostBoth should match the include_all policy.
 	policy, err := s.ds.Policy(ctx, createResp.Policy.ID)
@@ -30500,28 +30708,28 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 		}
 	}
 
-	// Batch with the mutex-violating spec at the END — proves we don't persist
+	// Batch with an invalid (two-include) spec at the END — proves we don't persist
 	// preceding valid specs once a later one fails validation.
 	rejResp := s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
 		Specs: []*fleet.PolicySpec{
 			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
 			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
-			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsIncludeAny: []string{lblB.Name}},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 	assertNonePersisted("violator-last")
 
-	// Batch with the mutex-violating spec at the FRONT — proves we don't persist
+	// Batch with an invalid (two-include) spec at the FRONT — proves we don't persist
 	// trailing valid specs after a per-spec validation pass that the loop never reaches.
 	rejResp = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
 		Specs: []*fleet.PolicySpec{
-			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsIncludeAny: []string{lblB.Name}},
 			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
 			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
 		},
 	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 	assertNonePersisted("violator-first")
 
 	// Fully-valid 3-spec batch (one per scope) succeeds.

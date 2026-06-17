@@ -570,6 +570,100 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+func TestGitOpsMacOSUpdateNewHostsDefault(t *testing.T) {
+	cases := []struct {
+		name                          string
+		currentlyStoredUpdateNewHosts optjson.Bool
+		macOSUpdatesYAML              string
+		wantUpdateNewHosts            optjson.Bool
+	}{
+		{
+			name:                          "empty minimum_version and deadline default update_new_hosts to false",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(true),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""`,
+			wantUpdateNewHosts: optjson.SetBool(false),
+		},
+		{
+			name:                          "configured minimum_version and deadline default update_new_hosts to true",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: "2024-03-03"
+    minimum_version: "14.6.1"`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+		{
+			// "Update all new hosts to latest" with no minimum version is a valid config, so an
+			// explicit update_new_hosts: true must be honored even when version/deadline are empty.
+			name:                          "explicit update_new_hosts true is honored without minimum_version or deadline",
+			currentlyStoredUpdateNewHosts: optjson.SetBool(false),
+			macOSUpdatesYAML: `
+  macos_updates:
+    deadline: ""
+    minimum_version: ""
+    update_new_hosts: true`,
+			wantUpdateNewHosts: optjson.SetBool(true),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+				License:       license,
+				KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			})
+
+			// Mock Apple GDMF API (required for validating OS update minimum version settings).
+			mdmtest.StartNewAppleGDMFTestServer(t)
+
+			setupEmptyGitOpsMocks(ds)
+
+			storedUpdateNewHosts := c.currentlyStoredUpdateNewHosts
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.MacOSUpdates.UpdateNewHosts = storedUpdateNewHosts
+				return cfg, nil
+			}
+			savedAppConfig := &fleet.AppConfig{}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = tmpFile.WriteString(`
+controls:` + c.macOSUpdatesYAML + `
+queries:
+policies:
+labels:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+software:
+`)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+			require.Equal(t, c.wantUpdateNewHosts, savedAppConfig.MDM.MacOSUpdates.UpdateNewHosts)
+		})
+	}
+}
+
 // TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
 // `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
 // which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored
@@ -1157,7 +1251,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 			},
 		}, 3, nil, nil
 	}
-	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 		return []fleet.MaintainedApp{
 			{ID: 100, Slug: "zoom/darwin"},
 		}, nil, nil
@@ -3763,6 +3857,7 @@ software:
 	workstations := team("💻 Workstations")
 	iosTeam := team("📱🏢 Company-owned iPhones")
 	ipadTeam := team("🔳🏢 Company-owned iPads")
+	byodTeam := team("📱🔐 Personal mobile devices")
 
 	cases := []struct {
 		name             string
@@ -3818,12 +3913,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3843,6 +3940,7 @@ software:
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 						},
 					},
 				)
@@ -3855,12 +3953,14 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
                                       ios_fleet: "📱🏢 Company-owned iPhones"
                                       ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
@@ -3877,6 +3977,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3892,16 +3993,19 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Foo Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -3918,12 +4022,14 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
 						},
 						{
 							OrganizationName: "Foo Inc.",
+							BYODTeam:         "📱🔐 Personal mobile devices",
 							MacOSTeam:        "💻 Workstations",
 							IOSTeam:          "📱🏢 Company-owned iPhones",
 							IpadOSTeam:       "🔳🏢 Company-owned iPads",
@@ -3940,12 +4046,14 @@ software:
                                   apple_bm_default_team: "💻 Workstations"
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
+				byodTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
@@ -3962,6 +4070,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "📱🔐 Personal mobile devices"
                                       macos_team: "💻 Workstations"
                                       ios_team: "📱🏢 Company-owned iPhones"
                                       ipados_team: "🔳🏢 Company-owned iPads"`),
@@ -3980,6 +4089,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
+                                      byod_team: "No team"
                                       macos_team: "No team"
                                       ios_team: "No team"
                                       ipados_team: "No team"`),
@@ -3999,6 +4109,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
+							BYODTeam:         "No team",
 							MacOSTeam:        "No team",
 							IOSTeam:          "No team",
 							IpadOSTeam:       "No team",
@@ -4035,6 +4146,7 @@ software:
 							MacOSTeam:        "No team",
 							IOSTeam:          "",
 							IpadOSTeam:       "",
+							BYODTeam:         "",
 						},
 					},
 				)
@@ -7163,18 +7275,64 @@ policies:
     query: SELECT 1
     resolution: ""
     platform: linux
-    labels_include_all:
+    labels_include_any:
       - lbl-a
-    labels_exclude_any:
+    labels_include_all:
       - lbl-b
 `)
 	require.NoError(t, err)
 
+	// A policy may combine one include scope with one exclude scope, but not two
+	// include scopes; this should be rejected before any API call is made.
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
-	require.ErrorContains(t, err, "labels_include_all")
-	require.ErrorContains(t, err, "labels_exclude_any")
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
+}
+
+func TestGitOpsPolicyLabelsExcludeAllRequiresPremium(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: premium-policy
+    description: uses premium scope
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_exclude_all:
+      - lbl-a
+`)
+	require.NoError(t, err)
+
+	// labels_exclude_all is a Premium-only scope for policies; a free-tier apply
+	// is rejected with a friendly pre-flight error before any policy is created.
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "premium-policy")
+	require.ErrorContains(t, err, "labels_exclude_all")
+	require.ErrorContains(t, err, "Fleet Premium")
 }
 
 func TestGitOpsScriptsLogging(t *testing.T) {
@@ -7926,4 +8084,57 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 		}, storedEmpty, noTeams, false)
 		assert.NoError(t, err)
 	})
+}
+
+func TestGetLabelUsagePolicyScopes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		policy          fleet.PolicySpec
+		wantErrContains string
+		wantLabels      []string // labels that must be tracked when no error is expected
+	}{
+		{
+			name:       "include_any + exclude_any combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAny: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:       "include_all + exclude_all combined",
+			policy:     fleet.PolicySpec{Name: "p", LabelsIncludeAll: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantLabels: []string{"a", "b"},
+		},
+		{
+			name:            "two include scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsIncludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_include_any or labels_include_all",
+		},
+		{
+			name:            "two exclude scopes rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsExcludeAny: []string{"a"}, LabelsExcludeAll: []string{"b"}},
+			wantErrContains: "at most one of labels_exclude_any or labels_exclude_all",
+		},
+		{
+			name:            "overlap between include and exclude rejected",
+			policy:          fleet.PolicySpec{Name: "p", LabelsIncludeAny: []string{"a"}, LabelsExcludeAll: []string{"a"}},
+			wantErrContains: `label "a" cannot appear in both an include and an exclude list`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			usage, err := getLabelUsage(&spec.GitOps{
+				Policies: []*spec.GitOpsPolicySpec{{PolicySpec: tc.policy}},
+			})
+			if tc.wantErrContains != "" {
+				require.ErrorContains(t, err, tc.wantErrContains)
+				return
+			}
+			require.NoError(t, err)
+			// Both include and exclude labels must be tracked as in-use so a
+			// referenced label can't be silently deleted.
+			for _, l := range tc.wantLabels {
+				require.Contains(t, usage, l)
+			}
+		})
+	}
 }

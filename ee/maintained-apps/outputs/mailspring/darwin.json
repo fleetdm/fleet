@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.21.1",
+      "version": "1.22.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring' AND version_compare(bundle_short_version, '1.21.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring' AND version_compare(bundle_short_version, '1.22.0') < 0);"
       },
-      "installer_url": "https://github.com/Foundry376/Mailspring/releases/download/1.21.1/Mailspring-AppleSilicon.zip",
+      "installer_url": "https://github.com/Foundry376/Mailspring/releases/download/1.22.0/Mailspring-AppleSilicon.zip",
       "install_script_ref": "486cead2",
       "uninstall_script_ref": "d87f7bb0",
-      "sha256": "53cca1ed0b31bb5026a8c555da9f4c9af3471fddb6c8112a580f0eb1095ea024",
+      "sha256": "c1097dd6f520c4e245f0b08014ed24ee544b7990332463b512970d13d0cd8be3",
       "default_categories": [
         "Productivity"
       ]

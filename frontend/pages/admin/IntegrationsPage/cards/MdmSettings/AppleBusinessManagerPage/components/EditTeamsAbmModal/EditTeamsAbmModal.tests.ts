@@ -10,6 +10,7 @@ describe("EditTeamsAbmModal", () => {
     APP_CONTEXT_NO_TEAM_SUMMARY,
     { name: "Team 1", id: 1 },
     { name: "Team 2", id: 2 },
+    { name: "BYOD Fleet", id: 3 },
   ];
 
   describe("getOptions", () => {
@@ -30,11 +31,13 @@ describe("EditTeamsAbmModal", () => {
         ios_team: "Team 1",
         ipados_team: "Team 2",
         macos_team: "Unassigned",
+        byod_team: "BYOD Fleet",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
         ios_fleet_id: 1,
         ipados_fleet_id: 2,
         macos_fleet_id: 0,
+        byod_fleet_id: 3,
       });
     });
   });

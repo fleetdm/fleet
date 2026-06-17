@@ -607,7 +607,15 @@ SELECT
 		,si.version as package_version
 		,si.platform as package_platform
 		,si.url AS package_url
-		,si.install_during_setup as package_install_during_setup
+		,{{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}(CASE
+			WHEN si.platform = 'darwin' THEN si.install_during_setup
+			ELSE EXISTS (
+				SELECT 1 FROM setup_experience_software_installers seti
+				WHERE seti.software_installer_id = si.id
+					AND seti.platform = 'darwin'
+					AND seti.global_or_team_id = si.global_or_team_id
+			)
+		END){{else}}si.install_during_setup{{end}} as package_install_during_setup
 		,si.storage_id as package_storage_id
 		,si.fleet_maintained_app_id
 		,vat.self_service as vpp_app_self_service
@@ -665,8 +673,13 @@ WHERE
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
-		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
-		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}
+		    {{$postfix := printf " AND (si.platform IN (%s) OR (si.extension = 'sh' AND si.platform = 'linux') OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
+		    {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{else}}
+		    {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
+		    {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
+		  {{end}}
 		{{end}}
 		{{if and (hasTeamID $) $.HashSHA256}}
 		  {{$additionalWhere = printf "%s AND si.storage_id = ?" $additionalWhere}}
@@ -767,6 +780,9 @@ GROUP BY
 		"placeholders": func(val string) string {
 			vals := strings.Split(val, ",")
 			return strings.TrimSuffix(strings.Repeat("?,", len(vals)), ",")
+		},
+		"isDarwinOnly": func(platform string) bool {
+			return strings.TrimSpace(strings.ReplaceAll(platform, "macos", "darwin")) == "darwin"
 		},
 		"hasTeamID": func(q fleet.SoftwareTitleListOptions) bool {
 			return q.TeamID != nil

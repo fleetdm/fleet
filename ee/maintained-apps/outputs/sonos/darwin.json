@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "90.0-77070",
+      "version": "90.0.77070",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2' AND version_compare(bundle_short_version, '90.0-77070') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sonos.macController2' AND version_compare(bundle_version, '90.0.77070') < 0);"
       },
       "installer_url": "https://update-software.sonos.com/software/rT0797IawE/Sonos_90.0-77070.dmg",
       "install_script_ref": "85c8c855",

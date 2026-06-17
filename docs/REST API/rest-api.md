@@ -8800,7 +8800,7 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
@@ -8857,8 +8857,6 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
 ### Create fleet-level policy
 
 _Available in Fleet Premium_
-
-> **Experimental feature**. Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 The semantics for creating a fleet policy are the same as for global policies, see [Create policy](#create-policy).
 
@@ -9032,7 +9030,7 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
@@ -9087,8 +9085,6 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
 ### Update fleet-level policy
 
 _Available in Fleet Premium_
-
-> **Experimental feature.** Software related features (like install software policy automation) are undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/fleets/:fleet_id/policies/:policy_id`
 
@@ -11283,8 +11279,6 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 ### Add package
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
@@ -11370,8 +11364,6 @@ labels_exclude_any="QA"
 ```
 
 ### Update package
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11466,8 +11458,6 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ### Update software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
@@ -11506,8 +11496,6 @@ icon="crowdstrike-icon-512x512.png"
 
 ### Download software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Download the icon added via [Update software icon](#update-software-icon) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
@@ -11542,8 +11530,6 @@ Content-Length: 124567
 
 ### Delete software icon
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
@@ -11566,8 +11552,6 @@ Delete a custom icon added via [Update software icon](#update-software-icon). Th
 `Status: 204`
 
 ### List Apple App Store apps
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns the list of Apple App Store (VPP) apps that can be added to the specified fleet. If an app is already added to the fleet, it's excluded from the list.
 
@@ -11619,8 +11603,6 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 ```
 
 ### Add app store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11684,8 +11666,6 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 ```
 
 ### Update app store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -11775,8 +11755,6 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ### List Fleet-maintained apps
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
@@ -11786,8 +11764,13 @@ List available Fleet-maintained apps.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | fleet_id  | integer | query | If specified, each app includes the `software_title_id` if the software has already been added to that fleet.  |
-| page     | integer | query | Page number of the results to fetch.  |
-| per_page | integer | query | Results per page.  |
+| query | string | query | Search query keywords. Searches app name. |
+| order_key | string | query | What to order results by. Currently only `name` is supported. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order. Options are `"asc"` and `"desc"`. Default is `"asc"`. |
+| page     | integer | query | Page number of the results to fetch. Pagination is by app: an app's macOS and Windows entries are counted as one result and always returned on the same page.  |
+| per_page | integer | query | Results (apps) per page.  |
+| platform | string | query | Filter to apps available on a platform. Options are `"darwin"` (macOS) and `"windows"`. |
+| available | boolean | query | If `true`, only return apps that have not yet been added to the fleet. Requires `fleet_id`. |
 
 #### Example
 
@@ -11826,6 +11809,7 @@ List available Fleet-maintained apps.
     },
     ...
   ],
+  "count": 250,
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
@@ -11833,9 +11817,9 @@ List available Fleet-maintained apps.
 }
 ```
 
-### Get Fleet-maintained app
+> `count` is the total number of Fleet-maintained apps matching the query. An app's macOS and Windows versions are counted separately, even though the UI combines them into a single row.
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+### Get Fleet-maintained app
 
 Returns information about the specified Fleet-maintained app.
 
@@ -11874,9 +11858,7 @@ Returns information about the specified Fleet-maintained app.
 }
 ```
 
-### Create Fleet-maintained app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+### Add Fleet-maintained app
 
 _Available in Fleet Premium._
 
@@ -11972,8 +11954,6 @@ icon="app-icon-512x512.png"
 
 ### Download software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/titles/:id/package?alt=media`
@@ -12029,7 +12009,6 @@ Package installs time out after 1 hour.
 
 ### Uninstall software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
 Uninstalls software from a host.
@@ -12052,8 +12031,6 @@ Uninstalls software from a host.
 `Status: 202`
 
 ### Get software install result
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -12090,41 +12067,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
  }
 ```
 
-### Download package
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
-| fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
-| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
-
 ### Delete software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 

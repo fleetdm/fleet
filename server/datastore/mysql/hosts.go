@@ -1431,6 +1431,11 @@ func (ds *Datastore) applyHostFilters(
 		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
+	hostMDMSeenJoin := ""
+	if opt.StatusFilter.IsValid() {
+		hostMDMSeenJoin = hostMDMSeenTimeJoin
+	}
+
 	var depStatusFilter string
 	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
 	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
@@ -1463,6 +1468,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
 	%s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
@@ -1481,6 +1487,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmRecoveryLockStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
+		hostMDMSeenJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
@@ -1652,6 +1659,19 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 	return sql, params
 }
 
+// hostMDMSeenTimeJoin joins on nano enrollment so that the effective last-seen
+// time can fall back to the Apple MDM protocol's last_seen_at
+// for hosts that never check in via osquery (ios/ipados).
+// It uses a dedicated alias (nes) to avoid colliding with the connected-to-Fleet join (ne)
+const hostMDMSeenTimeJoin = `
+	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
+
+// hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
+// seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),
+// then created_at.
+// Requires hostMDMSeenTimeJoin (alias nes) and the host_seen_times join (alias hst) to be present.
+const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes.last_seen_at), COALESCE(nes.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
+
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
 	case fleet.StatusNew:
@@ -1664,7 +1684,8 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, now)
 	case fleet.StatusMIA, fleet.StatusMissing:
-		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
+		// This must stay in sync with the missing_30_days_count computation in GenerateHostStatusStatistics.
+		sql += "AND DATE_ADD(" + hostEffectiveLastSeenExpr + ", INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 		params = append(params, now)
 	}
 	return sql, params
@@ -2140,15 +2161,15 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
+				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
 				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
-			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+`
 			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
@@ -3758,7 +3779,11 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 			-- count of include_all labels this host is a member of
 			SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
 			-- 1 if this host is a member of at least one exclude_any label
-			MAX(CASE WHEN pl.exclude = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude
+			MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude_any,
+			-- count of exclude_all labels on this policy
+			SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS exclude_all_count,
+			-- count of exclude_all labels this host is a member of
+			SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_exclude_all_count
 		FROM policy_labels pl
 		LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
 		GROUP BY pl.policy_id
@@ -3770,7 +3795,9 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	-- Policy has no include_all labels, or host is in all of them
 	AND (COALESCE(pl_agg.include_all_count, 0) = 0 OR pl_agg.host_include_all_count = pl_agg.include_all_count)
 	-- Host is not in any exclude_any label
-	AND COALESCE(pl_agg.host_in_exclude, 0) = 0
+	AND COALESCE(pl_agg.host_in_exclude_any, 0) = 0
+	-- Policy has no exclude_all labels, or host is not in all of them
+	AND (COALESCE(pl_agg.exclude_all_count, 0) = 0 OR pl_agg.host_exclude_all_count < pl_agg.exclude_all_count)
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
 	var policies []*fleet.HostPolicy

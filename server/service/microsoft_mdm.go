@@ -2414,27 +2414,29 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	if !timedOut {
-		// Profile delivery has two stages, each covered by a different query:
+		// Profile delivery has two stages:
 		//
-		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler
-		//    (ListMDMWindowsProfilesToInstallForHost).
+		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler. Rather than just
+		//    listing them and blocking the release, run the per-host reconciler now: it queues any missing desired
+		//    profiles so stage 2 sees them as in-flight rows in the same checkin. This closes the race where a
+		//    freshly-enrolled host would otherwise wait for the cron's next pass.
 		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet delivered to a terminal state
 		//    (GetHostMDMWindowsProfiles).
 		//
-		// We check both so we never release while profiles are pending at either stage. Each management checkin
-		// re-evaluates both queries.
+		// We never release while profiles are pending at either stage. Each management checkin re-evaluates both.
 
-		// Stage 1: profiles the reconciler hasn't picked up yet.
-		toInstall, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP release check")
-		}
-		if len(toInstall) > 0 {
-			return nil, nil
+		// Stage 1: queue any desired profiles the reconciler hasn't picked up yet. An error blocks the release (we
+		// can't know whether desired work is still unqueued); the next checkin retries.
+		if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, device.HostUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile profiles for ESP release check")
 		}
 
-		// Stage 2: profiles queued but still in-flight (pending/verifying).
-		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctx, device.HostUUID)
+		// Stage 2: profiles queued but still in-flight (pending/verifying). Read from the primary: it must see the
+		// rows stage 1 just wrote, and even when stage 1 queued nothing, "nothing to queue" means every desired
+		// profile already has a row on the PRIMARY (possibly written by the previous checkin under a second ago). A
+		// lagging replica could be missing those rows entirely, and a row this read can't see is indistinguishable
+		// from no work, which would release the device early.
+		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
 		}
@@ -3072,6 +3074,14 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 					}
 				}
 			}
+
+			// Queue this host's profiles right away instead of waiting for the cron's next pass (mirrors Apple's
+			// post-enrollment ReconcileProfilesForEnrollingHost). Best-effort: on failure the enrollment still
+			// succeeds and the cron's walk-all pass delivers the profiles.
+			if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, hostUUID); err != nil {
+				svc.logger.WarnContext(ctx, "reconciling profiles after Windows MDM enrollment", "err", err)
+				ctxerr.Handle(ctx, err)
+			}
 		}
 
 	}
@@ -3482,6 +3492,88 @@ var reconcileWindowsProfilesDeliveryCap = 2000
 // var rather than const so tests can override it.
 var reconcileWindowsProfilesScanBudget = 24 * time.Second
 
+// ReconcileWindowsProfilesForEnrollingHost is the per-host reconciler, the Windows mirror of Apple's
+// ReconcileProfilesForEnrollingHost. It is invoked right after a host turns on Windows MDM (so profiles are queued without
+// waiting for the cron's next pass) and from the ESP release check (so a host awaiting setup-experience release has its
+// desired profiles queued before the release decision evaluates in-flight rows). It reuses the shared snapshot loaders,
+// ComputeWindowsReconcileDeltas, and the execute step, so it can't drift from the batched cron reconciler on "what should be
+// installed."
+//
+// Returns nil (no-op) when Windows MDM is disabled or the host isn't an eligible MDM-enrolled Windows host. Errors
+// are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
+func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return nil
+	}
+
+	// Two reads below need the primary (read-your-writes): eligibility, because host_mdm.enrolled was written moments
+	// ago in the enrollment request and a lagging replica would turn the reconcile into a silent no-op; and current
+	// rows, because deltas computed against replica-stale rows would re-enqueue duplicate commands for work queued by
+	// a previous checkin.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+
+	host, err := ds.GetWindowsMDMHostForReconcile(primaryCtx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows mdm host for reconcile")
+	}
+	if host == nil {
+		return nil
+	}
+
+	// Load only profiles for this host's team so the per-host call doesn't scan every profile in the system.
+	teamProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing windows profiles for reconcile by team")
+	}
+
+	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile, 1)
+	profilesWithBrokenLabel := make(map[string]struct{})
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range teamProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(primaryCtx, []string{host.UUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host mdm windows profiles")
+	}
+
+	hosts := []*fleet.WindowsHostReconcileInfo{host}
+	toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+	if len(toInstall) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
+}
+
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
 //
 // It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
@@ -3772,7 +3864,7 @@ func executeWindowsProfileReconcileBatch(
 	}
 
 	// Guard against a race where an admin deletes a profile between the
-	// initial ListMDMWindowsProfilesToInstall/GetMDMWindowsProfilesContents
+	// initial snapshot/GetMDMWindowsProfilesContents
 	// calls above and the per-profile upsert below. If we missed the
 	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
 	// command) for a profile that no longer exists in

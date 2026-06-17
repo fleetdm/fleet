@@ -51,7 +51,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -69,8 +68,6 @@ import (
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -90,7 +87,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -443,6 +439,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
+	config.MDM.ValidateAndroidBatchSize(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -623,45 +620,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
-	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register chart_data_collection schedule")
-		}
-	} else {
-		logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
-	}
-
-	// Perform a cleanup of cron_stats outside of the cronSchedules because the
-	// schedule package uses cron_stats entries to decide whether a schedule will
-	// run or not (see https://github.com/fleetdm/fleet/issues/9486).
-	go func() {
-		cleanupCronStats := func() {
-			logger.DebugContext(ctx, "cleaning up cron_stats")
-			// Datastore.CleanupCronStats should be safe to run by multiple fleet
-			// instances at the same time and it should not be an expensive operation.
-			if err := ds.CleanupCronStats(ctx); err != nil {
-				logger.InfoContext(ctx, "failed to clean up cron_stats", "err", err)
-			}
-		}
-
-		cleanupCronStats()
-
-		cleanUpCronStatsTick := time.NewTicker(1 * time.Hour)
-		defer cleanUpCronStatsTick.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-cleanUpCronStatsTick.C:
-				cleanupCronStats()
-			}
-		}
-	}()
-
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
 	// replicas. No-op when OTEL is disabled.
@@ -669,294 +627,32 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
 	}
 
-	if softwareInstallStore != nil {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUninstallSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
-		}
-
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
-		}
-	}
-
-	if config.Server.FrequentCleanupsEnabled {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register frequent_cleanups schedule")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, carveStore, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
-			)
-		},
-	); err != nil {
-		initFatal(err, "failed to register cleanups_then_aggregations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newQueryResultsCleanupSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register query_results_cleanup schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newUpcomingActivitiesSchedule(ctx, instanceID, ds, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register upcoming_activities_maintenance schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
-	}); err != nil {
-		initFatal(err, "failed to register stats schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-		initFatal(err, "failed to register batch activities schedule")
-	}
-
-	vulnerabilityScheduleDisabled := false
-	if config.Vulnerabilities.DisableSchedule {
-		vulnerabilityScheduleDisabled = true
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
-	}
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
-		vulnerabilityScheduleDisabled = true
-	}
-	if !vulnerabilityScheduleDisabled {
-		// vuln processing by default is run by internal cron mechanism
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
-		}); err != nil {
-			initFatal(err, "failed to register vulnerabilities schedule")
-		}
-	} else {
-		// Register a remote trigger proxy so triggering still works
-		// when the vulnerability schedule runs on a separate server.
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
-		}); err != nil {
-			initFatal(err, "failed to register remote vulnerability trigger")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
-	}); err != nil {
-		initFatal(err, "failed to register automations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
-	}); err != nil {
-		initFatal(err, "failed to register worker integrations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_worker schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_service_discovery schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			redis_key_value.New(redisPool),
-			logger,
-			config.MDM.CertificateProfilesLimit,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newWindowsMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_windows_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
-			config.MDM.AndroidAgent,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_profile_manager schedule")
-	}
-
-	// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMDeviceReconcilerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key,
-			svc.NewActivity,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_device_reconciler schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register migrate_to_per_host_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAPNsPusher(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register APNs pusher schedule")
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-			initFatal(err, "failed to register maintained apps schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.Configure(ctx, ds, config.License.Key, config.MDM.AppleConnectJWT))
-		}); err != nil {
-			initFatal(err, "failed to register refresh vpp app versions schedule")
-		}
-
-		// One-shot backfill for VPP token and app country codes that
-		// predate the country_code column. Fire-and-forget is safe because
-		// the work is idempotent and ctx cancels on shutdown.
-		go vpp.BackfillLegacyCountries(ctx, ds, logger)
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register recovery lock password schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register managed local account rotation schedule")
-		}
-	}
-
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
-		}); err != nil {
-			initFatal(err, "failed to register activities streaming schedule")
-		}
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				if config.Calendar.Periodicity > 0 {
-					config.Calendar.SetAlwaysReloadEvent(true)
-				} else {
-					config.Calendar.Periodicity = 5 * time.Minute
-				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register calendar schedule")
-		}
-	}
-
-	// Start the service that calculates and updates host vitals label membership.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newHostVitalsLabelMembershipSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register host vitals label membership schedule")
-	}
-
-	// Start the service that marks activities as completed.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register batch activity completion checker schedule")
-	}
-
-	logger.InfoContext(ctx, fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
+	startCronSchedules(ctx, cronSchedulesDeps{
+		instanceID:             instanceID,
+		config:                 &config,
+		license:                license,
+		logger:                 logger,
+		cronSchedules:          cronSchedules,
+		ds:                     ds,
+		svc:                    svc,
+		carveStore:             carveStore,
+		enrollHostLimiter:      redisWrapperDS,
+		liveQueryStore:         liveQueryStore,
+		failingPolicySet:       failingPolicySet,
+		redisPool:              redisPool,
+		commander:              apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+		depStorage:             depStorage,
+		softwareInstallStore:   softwareInstallStore,
+		bootstrapPackageStore:  bootstrapPackageStore,
+		softwareTitleIconStore: softwareTitleIconStore,
+		androidSvc:             androidSvc,
+		activitySvc:            activitySvc,
+		acmeSvc:                acmeSvc,
+		chartSvc:               chartSvc,
+		auditLogger:            auditLogger,
+		distributedLock:        distributedLock,
+		initFatal:              initFatal,
+	})
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, logger.With("cron", "async_task"))

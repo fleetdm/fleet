@@ -5,14 +5,43 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import ABetterFinderRename from "./ABetterFinderRename";
 import AbletonLive12Suite from "./AbletonLive12Suite";
 import Abstract from "./Abstract";
+import Acorn from "./Acorn";
 import AcrobatReader from "./AcrobatReader";
+import Activedock from "./Activedock";
+import Activitywatch from "./Activitywatch";
+import Actual from "./Actual";
+import Adguard from "./Adguard";
+import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
+import AffinityDesigner from "./AffinityDesigner";
+import AffinityDesigner1 from "./AffinityDesigner1";
+import AffinityPhoto from "./AffinityPhoto";
+import AffinityPhoto1 from "./AffinityPhoto1";
+import AffinityPublisher from "./AffinityPublisher";
+import AffinityPublisher1 from "./AffinityPublisher1";
+import Airbuddy from "./Airbuddy";
 import Aircall from "./Aircall";
+import Airdroid from "./Airdroid";
+import Airparrot from "./Airparrot";
+import Airserver from "./Airserver";
+import Airtable from "./Airtable";
 import Airtame from "./Airtame";
+import Airy from "./Airy";
+import Akiflow from "./Akiflow";
+import Alacritty from "./Alacritty";
+import Alcove from "./Alcove";
+import Aldente from "./Aldente";
+import Alloy from "./Alloy";
+import AltairGraphqlClient from "./AltairGraphqlClient";
+import AltTab from "./AltTab";
+import AmadeusPro from "./AmadeusPro";
+import Amadine from "./Amadine";
 import AmazonChime from "./AmazonChime";
 import AmazonCorretto21 from "./AmazonCorretto21";
 import AmazonCorretto24 from "./AmazonCorretto24";
@@ -20,26 +49,46 @@ import AmazonCorretto25 from "./AmazonCorretto25";
 import AmazonCorretto26 from "./AmazonCorretto26";
 import AmazonDCV from "./AmazonDCV";
 import AmazonWorkspaces from "./AmazonWorkspaces";
+import Amethyst from "./Amethyst";
+import Amie from "./Amie";
 import AndroidApp from "./AndroidApp";
 import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
+import AngryIpScanner from "./AngryIpScanner";
 import Anka from "./Anka";
 import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import Antigravity from "./Antigravity";
 import AntigravityIde from "./AntigravityIde";
+import Antinote from "./Antinote";
 import AnyDesk from "./AnyDesk";
+import Anydo from "./Anydo";
+import Anytype from "./Anytype";
+import Apidog from "./Apidog";
 import Apparency from "./Apparency";
 import AppCleaner from "./AppCleaner";
+import AppFair from "./AppFair";
+import AppiumInspector from "./AppiumInspector";
 import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
+import Applite from "./Applite";
+import Aptakube from "./Aptakube";
 import Arc from "./Arc";
 import Archaeology from "./Archaeology";
 import ArduinoIde from "./ArduinoIde";
 import Asana from "./Asana";
+import AssetCatalogTinkerer from "./AssetCatalogTinkerer";
+import Atext from "./Atext";
 import Audacity from "./Audacity";
+import AudioHijack from "./AudioHijack";
+import Audiveris from "./Audiveris";
+import Autopsy from "./Autopsy";
 import AvastSecureBrowser from "./AvastSecureBrowser";
+import AviatrixVpnClient from "./AviatrixVpnClient";
+import AwsCli from "./AwsCli";
+import AwsSamCli from "./AwsSamCli";
 import AwsVpnClient from "./AwsVpnClient";
+import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -270,6 +319,7 @@ import Ferdium from "./Ferdium";
 import FetchApp from "./FetchApp";
 import Fig from "./Fig";
 import Figma from "./Figma";
+import Filebeat from "./Filebeat";
 import FileJuicer from "./FileJuicer";
 import FileMakerPro from "./FileMakerPro";
 import Filen from "./Filen";
@@ -416,17 +466,40 @@ import Knime from "./Knime";
 import Knockknock from "./Knockknock";
 import Krisp from "./Krisp";
 import Krita from "./Krita";
+import Lapce from "./Lapce";
+import LassoApp from "./LassoApp";
 import LastPass from "./LastPass";
+import LastWindowQuits from "./LastWindowQuits";
+import Latest from "./Latest";
+import Launchbar from "./Launchbar";
 import LenovoDockManager from "./LenovoDockManager";
 import Lens from "./Lens";
 import LibreOffice from "./LibreOffice";
+import Lightburn from "./Lightburn";
 import Linear from "./Linear";
+import Linearmouse from "./Linearmouse";
+import LingonX from "./LingonX";
 import LinuxOS from "./LinuxOS";
 import LittleSnitch from "./LittleSnitch";
+import Local from "./Local";
+import Localsend from "./Localsend";
+import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import Logseq from "./Logseq";
+import Lookaway from "./Lookaway";
 import Loom from "./Loom";
+import Loop from "./Loop";
+import Loopback from "./Loopback";
+import LoRain from "./LoRain";
+import Losslesscut from "./Losslesscut";
+import LowProfile from "./LowProfile";
 import LuLu from "./LuLu";
+import Lunacy from "./Lunacy";
+import Lunar from "./Lunar";
+import Lunasea from "./Lunasea";
+import Lunatask from "./Lunatask";
+import Lycheeslicer from "./Lycheeslicer";
 import Maccy from "./Maccy";
 import Macdown from "./Macdown";
 import Mace from "./Mace";
@@ -507,16 +580,40 @@ import Museeks from "./Museeks";
 import Musescore from "./Musescore";
 import MxPowerGadget from "./MxPowerGadget";
 import MySqlWorkbench from "./MySqlWorkbench";
+import Nagstamon from "./Nagstamon";
+import NameMangler from "./NameMangler";
+import Naps2 from "./Naps2";
+import NdiTools from "./NdiTools";
+import Neofinder from "./Neofinder";
 import NessusAgent from "./NessusAgent";
+import Netiquette from "./Netiquette";
+import Netnewswire from "./Netnewswire";
+import Netron from "./Netron";
+import Netspot from "./Netspot";
 import Nextcloud from "./Nextcloud";
+import NextcloudTalk from "./NextcloudTalk";
+import Nightfall from "./Nightfall";
+import NitroPdfPro from "./NitroPdfPro";
+import Nocturnal from "./Nocturnal";
 import Nodejs from "./Nodejs";
+import Nordlayer from "./Nordlayer";
 import Nordpass from "./Nordpass";
 import NordVpn from "./NordVpn";
+import NosqlWorkbench from "./NosqlWorkbench";
+import Notchnook from "./Notchnook";
 import Notepad from "./Notepad++";
+import Notepadexe from "./Notepadexe";
+import Notesnook from "./Notesnook";
+import Notesollama from "./Notesollama";
 import Notion from "./Notion";
 import NotionCalendar from "./NotionCalendar";
+import NounProject from "./NounProject";
 import Nova from "./Nova";
+import Novabench from "./Novabench";
+import Nucleo from "./Nucleo";
 import Nudge from "./Nudge";
+import Numi from "./Numi";
+import NvidiaGeforceNow from "./NvidiaGeforceNow";
 import Obs from "./Obs";
 import Obsidian from "./Obsidian";
 import Ocenaudio from "./Ocenaudio";
@@ -716,6 +813,7 @@ import Slicer from "./Slicer";
 import Slidepad from "./Slidepad";
 import Sloth from "./Sloth";
 import Smartsheet from "./Smartsheet";
+import Smartsvn from "./Smartsvn";
 import Smoothscroll from "./Smoothscroll";
 import Smultron from "./Smultron";
 import Snagit from "./Snagit";
@@ -724,6 +822,7 @@ import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
 import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
 import Soulver from "./Soulver";
 import Soundanchor from "./Soundanchor";
@@ -776,24 +875,58 @@ import Syncmate from "./Syncmate";
 import Syncovery from "./Syncovery";
 import SyncthingApp from "./SyncthingApp";
 import SyntaxHighlight from "./SyntaxHighlight";
+import Tabby from "./Tabby";
 import TableauDesktop from "./TableauDesktop";
+import TableauPrep from "./TableauPrep";
 import TablePlus from "./TablePlus";
+import Tabtab from "./Tabtab";
 import Tailscale from "./Tailscale";
+import Taskade from "./Taskade";
+import Taskbar from "./Taskbar";
+import Teacode from "./Teacode";
 import Teams from "./Teams";
 import TeamViewer from "./TeamViewer";
 import Telegram from "./Telegram";
 import TeleportConnect from "./TeleportConnect";
 import Terminal from "./Terminal";
+import Termius from "./Termius";
+import TexLiveUtility from "./TexLiveUtility";
+import Texshop from "./Texshop";
 import TextExpander from "./TextExpander";
+import Thaw from "./Thaw";
 import TheUnarchiver from "./TheUnarchiver";
+import Thorium from "./Thorium";
+import Threema from "./Threema";
+import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
+import Ticktick from "./Ticktick";
+import Tidal from "./Tidal";
+import Tiles from "./Tiles";
+import Timescribe from "./Timescribe";
+import Timing from "./Timing";
 import Todoist from "./Todoist";
+import TopazGigapixelAi from "./TopazGigapixelAi";
+import TopazPhotoAi from "./TopazPhotoAi";
+import TopazVideoAi from "./TopazVideoAi";
+import Topnotch from "./Topnotch";
 import TorBrowser from "./TorBrowser";
 import Tortoisegit from "./Tortoisegit";
 import Tower from "./Tower";
+import Tradingview from "./Tradingview";
+import Transfer from "./Transfer";
+import Transmission from "./Transmission";
 import Transmit from "./Transmit";
+import Trex from "./Trex";
+import TrezorSuite from "./TrezorSuite";
+import Tripmode from "./Tripmode";
 import Tunnelblick from "./Tunnelblick";
+import Tuple from "./Tuple";
+import TwineApp from "./TwineApp";
 import Twingate from "./Twingate";
+import Twobird from "./Twobird";
+import Typeface from "./Typeface";
+import Typinator from "./Typinator";
+import Typora from "./Typora";
 import UaConnect from "./UaConnect";
 import Ukelele from "./Ukelele";
 import UltimakerCura from "./UltimakerCura";
@@ -848,6 +981,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winlogbeat from "./Winlogbeat";
 import Winrar from "./Winrar";
 import Wins from "./Wins";
 import Winscp from "./Winscp";
@@ -904,43 +1038,93 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "7 zip": SevenZip,
   "7-zip": SevenZip,
   "8x8 work": EightXEightWork,
+  "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
   abstract: Abstract,
+  acorn: Acorn,
+  activedock: Activedock,
+  activitywatch: Activitywatch,
+  actual: Actual,
+  adguard: Adguard,
+  adlock: Adlock,
   "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
   "adobe dng converter": AdobeDngConverter,
+  "advanced renamer": AdvancedRenamer,
   affinity: Affinity,
+  "affinity designer": AffinityDesigner1,
+  "affinity designer 2": AffinityDesigner,
+  "affinity photo": AffinityPhoto1,
+  "affinity photo 2": AffinityPhoto,
+  "affinity publisher": AffinityPublisher1,
+  "affinity publisher 2": AffinityPublisher,
+  airbuddy: Airbuddy,
   aircall: Aircall,
+  airdroid: Airdroid,
+  airparrot: Airparrot,
+  airserver: Airserver,
+  airtable: Airtable,
   airtame: Airtame,
+  airy: Airy,
+  akiflow: Akiflow,
+  alacritty: Alacritty,
+  alcove: Alcove,
+  aldente: Aldente,
+  alloy: Alloy,
+  "altair graphql client": AltairGraphqlClient,
+  alttab: AltTab,
+  "amadeus pro": AmadeusPro,
+  amadine: Amadine,
   "amazon chime": AmazonChime,
   "amazon corretto 21": AmazonCorretto21,
   "amazon corretto 24": AmazonCorretto24,
   "amazon corretto 25": AmazonCorretto25,
   "amazon corretto 26": AmazonCorretto26,
+  "amazon corretto jre 8": AmazonCorretto21,
   "amazon dcv": AmazonDCV,
   "amazon workspaces": AmazonWorkspaces,
+  amethyst: Amethyst,
+  amie: Amie,
   "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
+  "angry ip scanner": AngryIpScanner,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
   "antigravity ide": AntigravityIde,
+  antinote: Antinote,
+  "any.do": Anydo,
   anydesk: AnyDesk,
+  anytype: Anytype,
+  apidog: Apidog,
+  "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
+  "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
+  applite: Applite,
+  aptakube: Aptakube,
   arc: Arc,
   archaeology: Archaeology,
   "arduino ide": ArduinoIde,
   asana: Asana,
+  "asset catalog tinkerer": AssetCatalogTinkerer,
+  atext: Atext,
   audacity: Audacity,
+  "audio hijack": AudioHijack,
+  audiveris: Audiveris,
+  autopsy: Autopsy,
   avast: AvastSecureBrowser,
+  "aviatrix vpn client": AviatrixVpnClient,
   "aws client vpn": AwsVpnClient,
+  "aws command line interface": AwsCli,
+  "aws sam command line interface": AwsSamCli,
   "aws vpn client": AwsVpnClient,
-  "azul zulu 25 jdk": AzulZulu25Jdk,
-  "azul zulu 25 jre": AzulZulu25Jre,
+  "axure rp": AxureRp,
+  "azul zulu jdk": AzulZulu25Jdk,
+  "azul zulu jre": AzulZulu25Jre,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
   badgeify: Badgeify,
@@ -1124,6 +1308,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   droplr: Droplr,
   dropshare: Dropshare,
   dropzone: Dropzone,
+  "druva insync": DruvaInSync,
   duckduckgo: Duckduckgo,
   duet: Duet,
   "duo desktop": DuoDesktop,
@@ -1174,6 +1359,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   fig: Fig,
   figma: Figma,
   "file juicer": FileJuicer,
+  filebeat: Filebeat,
   "filemaker pro": FileMakerPro,
   filen: Filen,
   "fing desktop": Fing,
@@ -1316,16 +1502,39 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   knockknock: Knockknock,
   krisp: Krisp,
   krita: Krita,
+  lapce: Lapce,
+  lasso: LassoApp,
+  "last window quits": LastWindowQuits,
   lastpass: LastPass,
+  latest: Latest,
+  launchbar: Launchbar,
   "lenovo dock manager": LenovoDockManager,
   lens: Lens,
   libreoffice: LibreOffice,
+  lightburn: Lightburn,
   linear: Linear,
+  linearmouse: Linearmouse,
+  "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lo-rain": LoRain,
+  local: Local,
+  localsend: Localsend,
+  locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  logseq: Logseq,
+  lookaway: Lookaway,
   loom: Loom,
+  loop: Loop,
+  loopback: Loopback,
+  losslesscut: Losslesscut,
+  "low profile": LowProfile,
   lulu: LuLu,
+  lunacy: Lunacy,
+  lunar: Lunar,
+  lunasea: Lunasea,
+  lunatask: Lunatask,
+  "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
   macdown: Macdown,
@@ -1412,18 +1621,42 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   musescore: Musescore,
   "mx power gadget": MxPowerGadget,
   "mysql workbench": MySqlWorkbench,
+  nagstamon: Nagstamon,
+  "name mangler": NameMangler,
+  naps2: Naps2,
+  "ndi tools": NdiTools,
+  neofinder: Neofinder,
   "nessus agent": NessusAgent,
+  netiquette: Netiquette,
+  netnewswire: Netnewswire,
+  netron: Netron,
+  netspot: Netspot,
   nextcloud: Nextcloud,
+  "nextcloud talk desktop": NextcloudTalk,
+  nightfall: Nightfall,
+  "nitro pdf pro": NitroPdfPro,
+  nocturnal: Nocturnal,
   "node.js": Nodejs,
   "nord vpn": NordVpn,
+  nordlayer: Nordlayer,
   nordpass: Nordpass,
   nordvpn: NordVpn,
+  "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
+  notchnook: Notchnook,
   "notepad++": Notepad,
+  "notepad.exe": Notepadexe,
+  notesnook: Notesnook,
+  notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  "noun project": NounProject,
   nova: Nova,
+  novabench: Novabench,
+  nucleo: Nucleo,
   nudge: Nudge,
+  numi: Numi,
+  "nvidia geforce now": NvidiaGeforceNow,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
@@ -1597,6 +1830,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   secretive: Secretive,
   securesafe: Securesafe,
   selfcontrol: Selfcontrol,
+  "sempliva tiles": Tiles,
   sensei: Sensei,
   "sequel ace": SequelAce,
   session: Session,
@@ -1619,6 +1853,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slidepad: Slidepad,
   sloth: Sloth,
   smartsheet: Smartsheet,
+  smartsvn: Smartsvn,
   smoothscroll: Smoothscroll,
   smultron: Smultron,
   snagit: Snagit,
@@ -1627,6 +1862,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
   sonobus: Sonobus,
+  sonos: Sonos,
   soulver: Soulver,
   "sound control": SoundControl,
   soundanchor: Soundanchor,
@@ -1680,9 +1916,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  tabby: Tabby,
   tableau: TableauDesktop,
+  "tableau prep": TableauPrep,
   tableplus: TablePlus,
+  tabtab: Tabtab,
   tailscale: Tailscale,
+  taskade: Taskade,
+  taskbar: Taskbar,
+  teacode: Teacode,
   teamviewer: TeamViewer,
   telegram: Telegram,
   teleport: TeleportConnect,
@@ -1690,16 +1932,43 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "teleport suite": TeleportConnect,
   "teradici pcoip software client for macos": Pcoipclient,
   terminal: Terminal,
+  termius: Termius,
+  "tex live utility": TexLiveUtility,
+  texshop: Texshop,
   textexpander: TextExpander,
+  thaw: Thaw,
   "the unarchiver": TheUnarchiver,
+  "thorium reader": Thorium,
+  threema: Threema,
+  thumbsup: Thumbsup,
   thunderbird: Thunderbird,
+  ticktick: Ticktick,
+  tidal: Tidal,
+  timescribe: Timescribe,
+  timing: Timing,
   todoist: Todoist,
+  "topaz gigapixel ai": TopazGigapixelAi,
+  "topaz photo ai": TopazPhotoAi,
+  "topaz video ai": TopazVideoAi,
+  topnotch: Topnotch,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
   tower: Tower,
+  "tradingview desktop": Tradingview,
+  transfer: Transfer,
+  transmission: Transmission,
   transmit: Transmit,
+  trex: Trex,
+  "trezor suite": TrezorSuite,
+  tripmode: Tripmode,
   tunnelblick: Tunnelblick,
+  tuple: Tuple,
+  twine: TwineApp,
   twingate: Twingate,
+  twobird: Twobird,
+  typeface: Typeface,
+  typinator: Typinator,
+  typora: Typora,
   "ua connect": UaConnect,
   ukelele: Ukelele,
   "ultimaker cura": UltimakerCura,
@@ -1724,6 +1993,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,
+  "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
   "vpn tracker 365": VpnTracker365,
@@ -1753,6 +2023,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,

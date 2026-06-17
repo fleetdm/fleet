@@ -966,6 +966,18 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
     require_http_message_signature: true
   ```
 
+### auth_sso_rate_limit_per_minute
+
+The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
+
+- Default value: 10
+- Environment variable: `FLEET_AUTH_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  auth:
+    sso_rate_limit_per_minute: 200
+  ```
+
 ## App
 
 ### app_token_key_size
@@ -3522,7 +3534,7 @@ Allows users to add custom Apple MDM profiles for OS updates and FileVault manag
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped Apple [declaration (DDM) profile](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). User-scoped DDM profiles are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
