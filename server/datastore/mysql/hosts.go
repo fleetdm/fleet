@@ -1664,12 +1664,7 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 // for hosts that never check in via osquery (ios/ipados).
 // It uses a dedicated alias (nes) to avoid colliding with the connected-to-Fleet join (ne)
 const hostMDMSeenTimeJoin = `
-	LEFT JOIN (
- 		SELECT device_id, MAX(last_seen_at) AS last_seen_at
- 		FROM nano_enrollments
- 		WHERE type IN ('Device', 'User Enrollment (Device)', 'User')
- 		GROUP BY device_id
- 	) nes ON nes.device_id = h.uuid`
+	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),
