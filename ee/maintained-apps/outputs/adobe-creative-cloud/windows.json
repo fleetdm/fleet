@@ -9,7 +9,7 @@
       "installer_url": "https://prod-rel-ffc-ccm.oobesaas.adobe.com/adobe-ffc-external/core/v1/wam/download?sapCode=KCCC&wamFeature=nuj-live",
       "install_script_ref": "a4660692",
       "uninstall_script_ref": "756b1d8c",
-      "sha256": "c74d99ce367bab6e3b18c9b521c739dde570147d1de04608fcbef6ba59f83efc",
+      "sha256": "fdaffc59a98ff32f50b5991719310cd846742976fe1331a581b8addb41408f04",
       "default_categories": [
         "Productivity"
       ]

@@ -5624,7 +5624,8 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 		ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
 	})
 
-	// skipped for various reasons
+	// previously installed/pending titles are skipped; failed_install and failed_uninstall
+	// are included so install_all re-queues them (matches per-row Retry).
 	installedID, _ := newInstaller("installed", true, nil, nil, noLabels)
 	installedUpdateID, _ := newInstaller("installed-update", true, nil, nil, noLabels)
 	failedID, _ := newInstaller("failed", true, nil, nil, noLabels)
@@ -5658,11 +5659,12 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, pendingID, fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 
-	// no category: only the available titles, returned in alphabetical order by name
+	// no category: only the available titles, returned in alphabetical order by name.
+	// failed_install and failed_uninstall are included so install_all re-queues them.
 	got, categoryName, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil)
 	require.NoError(t, err)
 	require.Nil(t, categoryName)
-	require.Equal(t, []string{"available", "label-in", "uninstalled"}, names(got))
+	require.Equal(t, []string{"available", "failed", "failed-uninstall", "label-in", "uninstalled"}, names(got))
 
 	// scoped to a category: only the in-category title, and the name is returned
 	got, categoryName, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID)

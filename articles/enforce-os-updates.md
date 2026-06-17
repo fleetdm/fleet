@@ -56,6 +56,8 @@ If **Update new hosts to latest** is checked, hosts below the minimum version ar
 
 For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts will always update to the latest version (not the minimum version specified). On already enrolled hosts, updates are only enforced if the host is [below the minimum version](#apple-macos-ios-and-ipados-end-user-experience).
 
+> Rarely, even without OS updates configured, macOS, iOS and iPadOS hosts enrolling via ADE may automatically update during enrollment. This happens when Apple determines the OS version the host is running has a critical bug that may impair MDM enrollment or management. This behavior cannot be controlled by Fleet.
+
 <!--
 
 ### macOS (below version 14.0)

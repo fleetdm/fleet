@@ -5649,3 +5649,96 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		require.Error(t, err, "orphan hsi row remains after GitOps delete")
 	})
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperienceMacOSScriptOnlyPackage() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "macos-sh-test"})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "script.sh",
+		Platform: "linux",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	shTitleID := getSoftwareTitleID(t, s.ds, "script", "sh_packages")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	macosTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+	t.Run("sh appears in macOS listing", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		names := make([]string, 0, len(resp.SoftwareTitles))
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage != nil {
+				names = append(names, title.SoftwarePackage.Name)
+			}
+		}
+		require.Contains(t, names, "script.sh")
+		require.Contains(t, names, "dummy_installer.pkg")
+	})
+
+	t.Run("saving sh for macOS succeeds", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID, macosTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("macOS listing shows sh as selected after save", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		var shSelected, macosSelected bool
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage == nil {
+				continue
+			}
+			if title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				shSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+			if title.SoftwarePackage.Name == "dummy_installer.pkg" && title.SoftwarePackage.InstallDuringSetup != nil {
+				macosSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, shSelected)
+		require.True(t, macosSelected)
+	})
+
+	t.Run("linux tab selection is independent", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "linux",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		var linuxResp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &linuxResp,
+			"platform", "linux", "team_id", fmt.Sprint(team.ID))
+		var linuxShSelected bool
+		for _, title := range linuxResp.SoftwareTitles {
+			if title.SoftwarePackage != nil && title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				linuxShSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, linuxShSelected)
+	})
+}

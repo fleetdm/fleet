@@ -1670,7 +1670,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return tokens, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -1687,6 +1687,8 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	token.IOSDefaultTeamID = nil
 	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
 	token.IPadOSDefaultTeamID = nil
+	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.BYODDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {
 		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
@@ -1726,6 +1728,19 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		token.IPadOSTeam.Name = iPadOSTeam.Name
 		token.IPadOSTeam.ID = *iPadOSTeamID
 		token.IPadOSDefaultTeamID = iPadOSTeamID
+	}
+
+	if byodTeamID != nil && *byodTeamID != 0 {
+		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *byodTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
+			}
+		}
+		token.BYODTeam.Name = byodTeam.Name
+		token.BYODTeam.ID = *byodTeamID
+		token.BYODDefaultTeamID = byodTeamID
 	}
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
