@@ -712,28 +712,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Apple account provisioning (Platform SSO): the IdP client secret is never
 	// persisted in the AppConfig JSON — it's stored encrypted in
 	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
-	// strip it from the config that gets saved. The actual asset
-	// store/preserve/soft-delete happens further down, after the dry-run guard.
+	// strip it from the config that gets saved.
 	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
 	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
-	// In Overwrite mode (GitOps) an omitted or empty section must clear the
-	// feature, so take the incoming section wholesale rather than merging it
-	// onto the stored one.
+
 	if applyOpts.Overwrite {
 		appConfig.MDM.AppleAccountProvisioning = incomingAAP
 	}
-	// A "real" secret is one the caller actually wants stored — not omitted, not
-	// the masked placeholder echoed back by the API/UI.
+
 	incomingSecret := incomingAAP.OAuthIdPClientSecret
 	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
 	newAAPSecret := incomingSecret.Value
 
 	mergedAAP := appConfig.MDM.AppleAccountProvisioning
-	// Never let the secret reach the saved JSON; masking for responses is applied
-	// separately in Obfuscate (keyed on the token URL being present).
 	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
 
-	if mergedAAP.Configured() {
+	// Apple account provisioning is all-or-nothing: the token URL, client ID, and
+	// client secret are only meaningful together, so the config must have all three
+	// set or all three empty — never a partial state that reports as "configured"
+	// but can't run the sign-in flow.
+	tokenURLSet := mergedAAP.OAuthIdPTokenURL.Value != ""
+	clientIDSet := mergedAAP.OAuthIdPClientID.Value != ""
+	switch {
+	case mergedAAP.Configured(): // both public fields set
 		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
 		if aapProvided && !lic.IsPremium() {
 			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
@@ -742,18 +743,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			invalid.Append("mdm.apple_account_provisioning",
 				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 		}
-		// Require https: the client secret is sent to this endpoint, so plaintext
-		// http would leak it.
 		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
 			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
 		}
-		// Require a freshly-supplied secret whenever the token URL changes, so a
-		// caller can't repoint the IdP token endpoint while reusing the stored
-		// secret (which would leak it to the new, possibly hostile, URL).
-		if mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value && !newAAPSecretProvided {
+		switch {
+		case !newAAPSecretProvided && (applyOpts.Overwrite || !oldAAP.Configured()):
 			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
-				"must be provided when changing oauth_idp_token_url")
+				"oauth_idp_client_secret must be set together with oauth_idp_token_url and oauth_idp_client_id")
+		case !newAAPSecretProvided && mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value:
+			// Reusing a stored secret while repointing the IdP token endpoint would
+			// leak it to the new (possibly hostile) URL, so require it be provided.
+			// Similar to CAs and their secrets.
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be provided when changing oauth_idp_token_url")
 		}
+	case tokenURLSet || clientIDSet || newAAPSecretProvided:
+		// Not fully configured, but a field was supplied (one public field without
+		// the other, or a secret on its own) — a partial config.
+		invalid.Append("mdm.apple_account_provisioning",
+			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is

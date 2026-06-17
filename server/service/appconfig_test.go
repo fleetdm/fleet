@@ -1770,11 +1770,12 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 	}
 
 	cases := []struct {
-		name   string
-		tier   string
-		stored fleet.AppleAccountProvisioning
-		body   string
-		want   asserts
+		name      string
+		tier      string
+		stored    fleet.AppleAccountProvisioning
+		body      string
+		overwrite bool // GitOps (overwrite) mode rather than a PATCH
+		want      asserts
 	}{
 		{
 			name: "configure stores secret and masks response",
@@ -1828,13 +1829,69 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			body:   `{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`,
 			want:   asserts{deleted: true},
 		},
+		{
+			name: "public fields without secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, tokenURL, clientID),
+			want: asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name: "only token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`, tokenURL),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only client id rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, clientID),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":%q}}}`, secret),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name:      "gitops with all fields stores secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:      asserts{insertedSecret: new(secret), wantMasked: true},
+		},
+		{
+			name:      "gitops public fields without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			// GitOps is declarative: an already-stored secret does NOT satisfy the
+			// requirement; the secret must be present in the config itself.
+			name:      "gitops reapply without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name:      "gitops omitting section clears secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      `{"mdm":{}}`,
+			want:      asserts{deleted: true},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored)
 
-			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{})
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite})
 			if tc.want.wantErr != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.want.wantErr)
