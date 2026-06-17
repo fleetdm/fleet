@@ -98,6 +98,10 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return parseAndroidProfileValidationError(err)
 	}
 
+	if err := validateAndroidProfileFleetVariables(m.RawJSON, profileKeyMap); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -115,6 +119,46 @@ func parseAndroidProfileValidationError(err error) error {
 
 	// Fallback for any other unexpected errors
 	return errors.New("Invalid JSON payload.")
+}
+
+func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]interface{}) error {
+	found := variables.Find(string(rawJSON))
+	if len(found) == 0 {
+		return nil
+	}
+
+	for _, name := range found {
+		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
+			return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
+		}
+	}
+
+	stringVars := make(map[string]struct{})
+	walkJSONForStringVars(decoded, stringVars)
+	for _, name := range found {
+		if _, ok := stringVars[name]; !ok {
+			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+		}
+	}
+
+	return nil
+}
+
+func walkJSONForStringVars(v interface{}, vars map[string]struct{}) {
+	switch t := v.(type) {
+	case string:
+		for _, name := range variables.Find(t) {
+			vars[name] = struct{}{}
+		}
+	case map[string]interface{}:
+		for _, val := range t {
+			walkJSONForStringVars(val, vars)
+		}
+	case []interface{}:
+		for _, val := range t {
+			walkJSONForStringVars(val, vars)
+		}
+	}
 }
 
 type MDMAndroidProfilePayload struct {
