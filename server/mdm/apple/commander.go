@@ -478,6 +478,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
 			<string>TimeZone</string>
+			<string>IsSupervised</string>
         </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>

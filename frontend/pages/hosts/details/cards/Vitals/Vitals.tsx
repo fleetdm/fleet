@@ -5,8 +5,9 @@ import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
   isAndroid,
-  isIPadOrIPhone,
+  isAppleDevice,
   isChrome,
+  isIPadOrIPhone,
   platformSupportsDiskEncryption,
   DiskEncryptionSupportedPlatform,
 } from "interfaces/platform";
@@ -127,6 +128,7 @@ const Vitals = ({
   toggleMDMStatusModal,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  const isAppleHost = isAppleDevice(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
   const isChromeHost = isChrome(vitalsData.platform);
 
@@ -459,6 +461,24 @@ const Vitals = ({
           ),
         }
       );
+    }
+
+    if (isAppleHost) {
+      vitals.push({
+        sortKey: "Supervised",
+        element: (
+          <DataSet
+            key="supervised"
+            title="Supervised"
+            value={
+              {
+                true: "Yes",
+                false: "No",
+              }[String(vitalsData.supervised)] ?? DEFAULT_EMPTY_CELL_VALUE
+            }
+          />
+        ),
+      });
     }
 
     if (!isIosOrIpadosHost) {

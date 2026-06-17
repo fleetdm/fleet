@@ -5155,6 +5155,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, "iPadOS 17.5.1", host.OSVersion)
 		require.Equal(t, "ff:ff:ff:ff:ff:ff", host.PrimaryMac)
 		require.Equal(t, "iPad13,18", host.HardwareModel)
+		require.Equal(t, new(true), host.Supervised)
 		require.WithinDuration(t, time.Now(), host.DetailUpdatedAt, 1*time.Minute)
 		require.WithinDuration(t, time.Now(), host.LabelUpdatedAt, 1*time.Minute)
 		return nil
@@ -5228,6 +5229,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
                 <string>ff:ff:ff:ff:ff:ff</string>
 				<key>IsMDMLostModeEnabled</key>
 				<true />
+				<key>IsSupervised</key>
+				<true />
         </dict>
         <key>Status</key>
         <string>Acknowledged</string>
@@ -5273,6 +5276,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
                 <string>iPad13,18</string>
                 <key>WiFiMAC</key>
                 <string>ff:ff:ff:ff:ff:ff</string>
+				<key>IsSupervised</key>
+				<true />
         </dict>
         <key>Status</key>
         <string>Acknowledged</string>
@@ -5378,6 +5383,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 		existingModel     = "iPad12,2"       // differs from incoming ProductName so we can detect preservation
 		existingOSVersion = "iPadOS 16.7.10" // differs from incoming OSVersion so we can detect preservation
 	)
+	existingSupervised := new(false) // differs from incoming IsSupervised so we can detect preservation
+
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "UUID"
 
 	rawWithFields := func(fields map[string]string) []byte {
@@ -5409,6 +5416,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			"OSVersion":               `<key>OSVersion</key><string>17.5.1</string>`,
 			"ProductName":             `<key>ProductName</key><string>iPad13,18</string>`,
 			"WiFiMAC":                 `<key>WiFiMAC</key><string>ff:ff:ff:ff:ff:ff</string>`,
+			"IsSupervised":            `<key>IsSupervised</key><true />`,
 		}
 	}
 
@@ -5424,6 +5432,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 		expectOSName        string
 		expectOSVersionRow  string
 		expectOSPlatform    string
+		expectSupervised    *bool
 	}
 
 	cases := []struct {
@@ -5446,6 +5455,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectOSName:        "iPadOS",
 				expectOSVersionRow:  "17.5.1",
 				expectOSPlatform:    "ipados",
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5463,6 +5473,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectOSName:        "iPadOS",
 				expectOSVersionRow:  "17.5.1",
 				expectOSPlatform:    "ipados",
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5480,6 +5491,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectOSName:        "iPadOS",
 				expectOSVersionRow:  "17.5.1",
 				expectOSPlatform:    "ipados",
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5497,6 +5509,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectOSName:        "iPadOS",
 				expectOSVersionRow:  "17.5.1",
 				expectOSPlatform:    "ipados",
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5516,6 +5529,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectOSName:        "iPadOS",
 				expectOSVersionRow:  "17.5.1",
 				expectOSPlatform:    "ipados",
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5530,6 +5544,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectGigsAvailable: 51.26,
 				expectDiskUpdate:    true,
 				expectOSUpdate:      false,
+				expectSupervised:    new(true),
 			},
 		},
 		{
@@ -5541,6 +5556,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				delete(f, "OSVersion")
 				delete(f, "ProductName")
 				delete(f, "WiFiMAC")
+				delete(f, "IsSupervised")
 			},
 			expect: expectations{
 				expectComputerName:  existingHostname,
@@ -5551,6 +5567,25 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectGigsAvailable: 0,
 				expectDiskUpdate:    false,
 				expectOSUpdate:      false,
+				expectSupervised:    existingSupervised,
+			},
+		},
+		{
+			name:   "missing IsSupervised preserves existing value, but still updates host",
+			mutate: func(f map[string]string) { delete(f, "IsSupervised") },
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     "iPadOS 17.5.1",
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     64,
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    true,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+				expectSupervised:    existingSupervised,
 			},
 		},
 	}
@@ -5569,6 +5604,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 					ComputerName:  existingHostname,
 					HardwareModel: existingModel,
 					OSVersion:     existingOSVersion,
+					Supervised:    existingSupervised,
 					Platform:      "ipados",
 					MDM: fleet.MDMHostData{
 						EnrollmentStatus: ptr.String("On (automatic)"), // not Pending; skip lost-mode flow
@@ -5588,6 +5624,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				assert.Equal(t, tc.expect.expectHostname, host.Hostname, "Hostname")
 				assert.Equal(t, tc.expect.expectOSVersion, host.OSVersion, "OSVersion")
 				assert.Equal(t, tc.expect.expectHardwareModel, host.HardwareModel, "HardwareModel")
+				assert.Equal(t, tc.expect.expectSupervised, host.Supervised, "Supervised")
 				assert.InDelta(t, tc.expect.expectGigsTotal, host.GigsTotalDiskSpace, 0.001, "GigsTotalDiskSpace")
 				assert.InDelta(t, tc.expect.expectGigsAvailable, host.GigsDiskSpaceAvailable, 0.001, "GigsDiskSpaceAvailable")
 				return nil

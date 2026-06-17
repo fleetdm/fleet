@@ -5283,6 +5283,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
 	isLostModeEnabled, _ := queryResponses["IsMDMLostModeEnabled"].(bool)
+	if isSupervised, ok := queryResponses["IsSupervised"].(bool); ok {
+		host.Supervised = &isSupervised
+	}
 
 	var missingFields []string
 	if !deviceNameOK {
