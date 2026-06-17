@@ -6,13 +6,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260608070039, Down_20260608070039)
+	MigrationClient.AddMigration(Up_20260617021010, Down_20260617021010)
 }
 
 // Up_20260608070039 adds the supervised column to hosts to track whether
 // Apple devices are supervised. NULL means not applicable (non-Apple) or unknown,
 // 0 means unsupervised, 1 means supervised.
-func Up_20260608070039(tx *sql.Tx) error {
+func Up_20260617021010(tx *sql.Tx) error {
 	if columnExists(tx, "hosts", "supervised") {
 		return nil
 	}
@@ -26,6 +26,6 @@ func Up_20260608070039(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260608070039(tx *sql.Tx) error {
+func Down_20260617021010(tx *sql.Tx) error {
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // 20260608070039_AddSupervisedToHosts_test.go
-func TestUp_20260608070039(t *testing.T) {
+func TestUp_20260617021010(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// applies current migration
