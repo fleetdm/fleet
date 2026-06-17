@@ -715,31 +715,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		switch {
-		case len(dirty) == 1 && dirty["SelfService"]: // only self-service changed; use lighter update function
+		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
-		case len(dirty) == 1 && dirty["PinnedVersion"]:
-			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
-			}
-
-			if *payload.PinnedVersion == "" {
-				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
-				}
-			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.PinnedVersion); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
-			}
-
-			// Do side effects to avoid installs of the inactive version
-			if activeInstallerID != existingInstaller.InstallerID {
-				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
-				}
-			}
-		default:
+		} else {
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -805,12 +785,31 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
+			// a version pin flips the active installer below, so cancel pending installs of the version we pinned away from
+			if dirty["PinnedVersion"] && activeInstallerID != existingInstaller.InstallerID {
+				shouldDoSideEffects = true
+			}
+
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
 			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, shouldDoSideEffects, dirty["Package"]); err != nil {
 				return nil, err
+			}
+		}
+
+		if dirty["PinnedVersion"] {
+			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
+			}
+
+			if *payload.PinnedVersion == "" {
+				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+				}
+			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.PinnedVersion); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
 		}
 

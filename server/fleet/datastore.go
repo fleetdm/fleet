@@ -2669,22 +2669,20 @@ type Datastore interface {
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
-	// the versions are sorted newest-first by semantic version, otherwise by upload time.
+	// the versions will be sorted by their version semver or string.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
-	// SetFleetMaintainedAppActiveInstaller marks installerID as the active version
-	// of the fleet-maintained app (fmaID) for the given team and sets all other
-	// cached versions inactive, re-pointing the title's policies to the active installer.
+	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets
+	// other installers of the title to inactive and repoints policies.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error
 
-	// GetPinnedVersion returns the pinned version expression (a literal version or a
-	// "^major" caret) for the given team and title, or nil if the title is not pinned (Latest).
+	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 
-	// SetPinnedVersion upserts the pinned version expression for the given team and title.
+	// SetPinnedVersion upserts the pinned version for the team and title.
 	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
 
-	// DeletePinnedVersion removes the pin for the given team and title (back to Latest).
+	// DeletePinnedVersion removes the pin for the given team and title.
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
