@@ -13032,7 +13032,7 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	// Look up the title IDs via ListSoftwareTitles.
-	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
 		TeamID:      &team.ID,
