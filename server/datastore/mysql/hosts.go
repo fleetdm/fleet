@@ -2166,14 +2166,14 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
-				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
+				COALESCE(SUM(CASE WHEN hdep.deleted_at IS NULL AND hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+`
 			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s AND hdep.deleted_at IS NULL
+			WHERE %s
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
