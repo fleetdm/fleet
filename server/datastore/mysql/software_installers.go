@@ -4006,7 +4006,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
-		SELECT pinned_version FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
 	`, ptr.ValOrZero(teamID), titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
@@ -4030,7 +4030,7 @@ func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titl
 
 func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
 	_, err := ex.ExecContext(ctx, `
-		INSERT INTO software_title_team_pins (global_or_team_id, title_id, pinned_version)
+		INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
 	`, globalOrTeamID, titleID, version)
@@ -4039,7 +4039,7 @@ func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID 
 
 func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
 	_, err := ex.ExecContext(ctx, `
-		DELETE FROM software_title_team_pins WHERE global_or_team_id = ? AND title_id = ?
+		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
 	`, globalOrTeamID, titleID)
 	return err
 }
