@@ -245,8 +245,8 @@ interface IFleetPartnerships {
 }
 
 export interface IAppleAccountProvisioning {
-  idp_token_url: string;
-  idp_client_id: string;
+  oauth_idp_token_url: string;
+  oauth_idp_client_id: string;
   oauth_idp_client_secret: string;
 }
 

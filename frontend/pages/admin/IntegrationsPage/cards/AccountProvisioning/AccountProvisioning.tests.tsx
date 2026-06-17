@@ -37,8 +37,8 @@ describe("AccountProvisioning", () => {
         {...defaultProps}
         appConfig={createMockConfig({
           apple_account_provisioning: {
-            idp_token_url: "https://example.okta.com/oauth2/v1/token",
-            idp_client_id: "my-client-id",
+            oauth_idp_token_url: "https://example.okta.com/oauth2/v1/token",
+            oauth_idp_client_id: "my-client-id",
             oauth_idp_client_secret: "********",
           },
         })}

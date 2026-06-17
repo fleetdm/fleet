@@ -73,8 +73,8 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     const provisioning = appConfig.apple_account_provisioning;
     if (provisioning) {
       setFormData({
-        tokenUrl: provisioning.idp_token_url,
-        clientId: provisioning.idp_client_id,
+        tokenUrl: provisioning.oauth_idp_token_url,
+        clientId: provisioning.oauth_idp_client_id,
         clientSecret: provisioning.oauth_idp_client_secret,
       });
     }
@@ -115,8 +115,8 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     try {
       await configAPI.update({
         apple_account_provisioning: {
-          idp_token_url: formData.tokenUrl,
-          idp_client_id: formData.clientId,
+          oauth_idp_token_url: formData.tokenUrl,
+          oauth_idp_client_id: formData.clientId,
           ...(secretToSubmit !== undefined && {
             oauth_idp_client_secret: secretToSubmit,
           }),
