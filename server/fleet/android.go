@@ -133,10 +133,14 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 		}
 	}
 
+	keyVars := make(map[string]struct{})
 	stringVars := make(map[string]struct{})
-	walkJSONForStringVars(decoded, stringVars)
+	walkJSONForVars(decoded, keyVars, stringVars)
 	for _, name := range found {
-		if _, ok := stringVars[name]; !ok {
+		if _, inKey := keyVars[name]; inKey {
+			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+		}
+		if _, inStr := stringVars[name]; !inStr {
 			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
 		}
 	}
@@ -144,19 +148,24 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	return nil
 }
 
-func walkJSONForStringVars(v any, vars map[string]struct{}) {
+// walkJSONForVars recursively walks a decoded JSON value and collects fleet
+// variable names found in string values and in map keys separately.
+func walkJSONForVars(v any, keyVars, stringVars map[string]struct{}) {
 	switch t := v.(type) {
 	case string:
 		for _, name := range variables.Find(t) {
-			vars[name] = struct{}{}
+			stringVars[name] = struct{}{}
 		}
 	case map[string]any:
-		for _, val := range t {
-			walkJSONForStringVars(val, vars)
+		for k, val := range t {
+			for _, name := range variables.Find(k) {
+				keyVars[name] = struct{}{}
+			}
+			walkJSONForVars(val, keyVars, stringVars)
 		}
 	case []any:
 		for _, val := range t {
-			walkJSONForStringVars(val, vars)
+			walkJSONForVars(val, keyVars, stringVars)
 		}
 	}
 }

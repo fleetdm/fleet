@@ -41,8 +41,11 @@ func TestUp_20260616222258(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (android_profile_uuid, fleet_variable_id) VALUES (?, ?)`, profUUID, fleetVarID)
 	require.Error(t, err)
 
-	// Verify the CHECK constraint still prevents setting multiple profile UUIDs.
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (android_profile_uuid, apple_profile_uuid, fleet_variable_id) VALUES (?, 'a-fake', ?)`, profUUID, fleetVarID)
+	// Use a real Windows profile so the FK doesn't reject before the CHECK evaluates.
+	winProfUUID := "w-test-profile-uuid"
+	_, err = db.Exec(`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, 'wintest', '<SyncML/>')`, winProfUUID, teamID)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_variables (android_profile_uuid, windows_profile_uuid, fleet_variable_id) VALUES (?, ?, ?)`, profUUID, winProfUUID, fleetVarID)
 	require.Error(t, err)
 
 	// Verify cascade delete works.
