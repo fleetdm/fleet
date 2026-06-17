@@ -64,6 +64,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          FLEET_VEX_FLAGS: ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }}
         run: |
           mkdir trivy-download
           cd trivy-download
@@ -80,7 +81,7 @@ jobs:
             --exit-code=1 \
             --pkg-types=os \
             --severity=CRITICAL \
-            ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }} \
+            $FLEET_VEX_FLAGS \
             --format=json \
             --output=trivy-results-fleet-main.json \
             fleetdm/fleet:main-scan || trivy_exit_code=$?
