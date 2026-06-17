@@ -94,4 +94,4 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-06-17">
 <meta name="articleTitle" value="Fleet 4.87.0 | 800+ new apps, custom OS updates, Android commands, and more...">
-<meta name="articleImageUrl" value="TODO">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.87.0-1600x900@2x.png">
