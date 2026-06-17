@@ -48,11 +48,8 @@ type pssoNonceRequest struct{}
 
 // DecodeBody drains and discards the request body. Apple's AppSSOAgent POSTs a
 // urlencoded grant_type=srv_challenge form to the nonce endpoint, but Fleet
-// needs nothing from it — it just mints a nonce. Draining (rather than leaving
-// it unread) keeps the connection reusable; the reader is already size-limited
-// by the endpointer. The method must exist so the endpoint framework routes the
-// form body here instead of falling through to JSON decoding, which rejects the
-// form as malformed.
+// needs nothing from it — it just mints a nonce. This method must exist so the
+// endpoint framework routes the form body here instead of trying to decode as JSON.
 func (pssoNonceRequest) DecodeBody(_ context.Context, r io.Reader, _ url.Values, _ []*x509.Certificate) error {
 	_, _ = io.Copy(io.Discard, r)
 	return nil
@@ -275,19 +272,14 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 // core (callable from ModifyAppConfig) rather than in ee. The ee service only
 // loads them back, using the standard PEM encodings written below.
 
-// pssoCAValidYears is the lifetime of the self-signed Platform SSO CA. It's
-// minted once, when the feature is first configured, and reused for its whole
-// life — long enough that it never needs rotation during normal operation.
+// pssoCAValidYears is the lifetime of the self-signed Platform SSO CA, matching
+// other CAs in fleet and minted once, when the feature is first configured.
 const pssoCAValidYears = 10
 
-// bootstrapPSSOAssets ensures the Platform SSO signing key and its CA
-// certificate exist in mdm_config_assets, creating whichever is missing. It runs
-// when the feature is configured (covering both the config API and GitOps, which
-// both flow through ModifyAppConfig) and is idempotent: existing assets are never
-// regenerated, so the signing key (published via JWKS) and the CA stay stable
-// across reconfiguration and across disable/re-enable. The CA is self-signed by
-// the signing key — they share one private key — so the CA certificate is the
-// only new asset.
+// bootstrapPSSOAssets ensures the Platform SSO signing key and its CA certificate
+// (which is signed by the signing key) exist in mdm_config_assets. It runs when the
+// feature is configured and is idempotent: existing assets are never regenerated, so
+// the signing key (published via JWKS) and the CA remain stable.
 func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx,
 		[]fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey, fleet.MDMAssetPSSOCACert},
