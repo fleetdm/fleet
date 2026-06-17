@@ -14,7 +14,6 @@ In your agent configuration, add the following [command line flags](https://flee
   carver_start_endpoint: /api/v1/osquery/carve/begin
   carver_continue_endpoint: /api/v1/osquery/carve/block
   carver_block_size: 8000000
-  carver_block_size=8000000
 ```
 
 For the (default) MySQL Backend, the configured `carver_block_size` must be less than the value of
