@@ -1,0 +1,14 @@
+name,version,source,bundle_identifier,release,vendor_old,arch,vendor
+Example macos Software,1.0,apps,com.example.software,Stable,ExampleVendorOld,x86_64,ExampleVendor
+Another macos Software,2.0,apps,com.another.software,Beta,AnotherVendorOld,arm64,AnotherVendor
+Kubernetes Minikube 1.26.0,1.26.0,apps,,,,,
+LibreOffice,7.4.0,apps,,,,,
+Open Ticket Request System (OTRS) ITSM,6.0.32,apps,,,,,
+Open Ticket Request System (OTRS),7.0.40,apps,,,,,
+YugabyteDB,2.1.10,apps,,,,,
+HYPR Workforce Access (WFA),7.7.1,apps,,,,,
+MongoDB,4.4.4,apps,,,,,
+ij_network_tool,4.7.3,apps,,,,,
+Mozilla Thunderbird,115.2.0,apps,,,,,
+Google Chrome,116.0.5845.109,apps,,,,,
+Mozilla Firefox,1.5.2,apps,,,,,
