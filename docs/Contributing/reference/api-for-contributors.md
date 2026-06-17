@@ -766,10 +766,9 @@ None.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The Apple Business (AB) token's ID |
-| macos_fleet_id | integer | body | macOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
-| ios_fleet_id | integer | body | iOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
-| ipados_fleet_id | integer | body | iPadOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
-| byod_fleet_id | integer | body | BYOD (Account Driven User Enrollment) hosts are automatically added to this fleet when they enroll. If not specified, defaults to "Unassigned". |
+| macos_team_id | integer | body | macOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| ios_team_id | integer | body | iOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
 
 #### Example
 
@@ -781,8 +780,7 @@ None.
 {
   "macos_fleet_id": 1,
   "ios_fleet_id": 2,
-  "ipados_fleet_id": 3,
-  "byod_fleet_id": 4
+  "ipados_fleet_id": 3
 }
 ```
 
@@ -801,11 +799,9 @@ None.
   "macos_team": 1,
   "ios_team": 2,
   "ipados_team": 3,
-  "byod_team": 4,
   "macos_fleet": 1,
   "ios_fleet": 2,
-  "ipados_fleet": 3,
-  "byod_fleet": 4
+  "ipados_fleet": 3
 }
 ```
 
@@ -857,11 +853,9 @@ Content-Type: application/octet-stream
   "macos_team": null,
   "ios_team": null,
   "ipados_team": null,
-  "byod_team": null,
   "macos_fleet": null,
   "ios_fleet": null,
-  "ipados_fleet": null,
-  "byod_fleet": null
+  "ipados_fleet": null
 }
 ```
 
