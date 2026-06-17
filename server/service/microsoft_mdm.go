@@ -1591,7 +1591,10 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
 	globalEnrollSecret := secrets[0].Secret
-	addCommandUUID := uuid.NewString()
+	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command (only the Exec
+	// UUID is the queue/command_uuid), so a stray Add-only device response cannot trigger an "unmatched Windows MDM
+	// commands" warning in MDMWindowsSaveResponse.
+	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
 	execCommandUUID := uuid.NewString()
 
 	euaTokenArg := ""
@@ -1653,9 +1656,9 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// back-to-back), so the Exec can be delivered before the Add. The device then runs DownloadInstall on a node
 	// that doesn't exist yet, returns 404, and the install is created-but-never-run (stuck at "Ready") -- an
 	// intermittent fleetd-install failure, most visibly a hung Autopilot ESP. One raw_command guarantees order.
-	// The command_uuid is the Exec's so the install result (the meaningful status) is the one tracked and the
-	// one that acks the queue; the Add's CmdID is harmlessly unmatched (no "unmatched" warning, since the Exec matches).
-	rawCombinedCmd := []byte(string(rawAddCmd) + string(rawExecCmd))
+	// The command_uuid is the Exec's, so the install result (the meaningful status) is the one tracked and the
+	// one that acks the queue. The Add uses a Fleet-internal CmdID (see above) so it is not tracked separately.
+	rawCombinedCmd := slices.Concat(rawAddCmd, rawExecCmd)
 	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
 		RawCommand:   rawCombinedCmd,
