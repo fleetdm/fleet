@@ -4461,6 +4461,13 @@
       "description": "massCode is a code snippets manager for developers."
     },
     {
+      "name": "MASV",
+      "slug": "masv/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.masv.desktop",
+      "description": "MASV is a large file transfer client for media and production workflows."
+    },
+    {
       "name": "Mattermost",
       "slug": "mattermost/darwin",
       "platform": "darwin",

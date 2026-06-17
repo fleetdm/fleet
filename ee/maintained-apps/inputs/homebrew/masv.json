@@ -1,0 +1,9 @@
+{
+  "name": "MASV",
+  "unique_identifier": "io.masv.desktop",
+  "token": "masv",
+  "installer_format": "dmg",
+  "slug": "masv/darwin",
+  "default_categories": ["Productivity"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/masv.json"
+}

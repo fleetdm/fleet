@@ -525,6 +525,7 @@ import Marsedit from "./Marsedit";
 import Marta from "./Marta";
 import Marvel from "./Marvel";
 import Masscode from "./Masscode";
+import Masv from "./Masv";
 import Mattermost from "./Mattermost";
 import Max from "./Max";
 import Meetingbar from "./Meetingbar";
@@ -1560,6 +1561,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "marta file manager": Marta,
   marvel: Marvel,
   masscode: Masscode,
+  masv: Masv,
   mattermost: Mattermost,
   max: Max,
   meetingbar: Meetingbar,

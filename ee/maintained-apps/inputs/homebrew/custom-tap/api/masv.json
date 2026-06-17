@@ -1,0 +1,80 @@
+{
+  "token": "masv",
+  "old_tokens": [],
+  "name": [
+    "MASV"
+  ],
+  "desc": "Large file transfer client for media and production workflows",
+  "homepage": "https://massive.io/",
+  "url": "https://dl.massive.io/MASV.dmg",
+  "url_specs": {},
+  "version": "2.11.5",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": true,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "a26921c38aa9ab97596948451ccd46f5bd40cac4ea279de3d886b537345c1a33",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "quit": "io.masv.desktop"
+        }
+      ]
+    },
+    {
+      "app": [
+        "MASV.app"
+      ],
+      "target": "/Applications/MASV.app"
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Application Support/MASV",
+            "~/Library/Caches/io.masv.desktop",
+            "~/Library/Caches/io.masv.desktop.ShipIt",
+            "~/Library/HTTPStorages/io.masv.desktop",
+            "~/Library/Logs/MASV",
+            "~/Library/Preferences/io.masv.desktop.plist",
+            "~/Library/Saved Application State/io.masv.desktop.savedState"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "11"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/masv.rb",
+  "ruby_source_checksum": {
+    "sha256": "d4e0273cf781b9ede6560596472e318cd1fe82658de42ef04df7cd32f63dbc9e"
+  }
+}
