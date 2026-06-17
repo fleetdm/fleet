@@ -2669,7 +2669,7 @@ type Datastore interface {
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
-	// the versions will be sorted by the version string.
+	// the versions are sorted newest-first by semantic version, otherwise by upload time.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
 	// SetFleetMaintainedAppActiveInstaller marks installerID as the active version

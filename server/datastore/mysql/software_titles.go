@@ -1054,12 +1054,8 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 		SELECT si.id, si.version, si.title_id
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
+		ORDER BY si.title_id, si.uploaded_at DESC
 	`
-	if byVersion {
-		query += ` ORDER BY si.version DESC`
-	} else {
-		query += ` ORDER BY si.title_id, si.uploaded_at DESC`
-	}
 
 	query, args, err := sqlx.In(query, titleIDs, teamID)
 	if err != nil {
@@ -1079,6 +1075,20 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q
 	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
 	for _, row := range rows {
 		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
+	}
+
+	if byVersion {
+		// Sort by semantic version
+		for id := range result {
+			slices.SortFunc(result[id], func(a fleet.FleetMaintainedVersion, b fleet.FleetMaintainedVersion) int {
+				aVersion, aErr := fleet.VersionToSemverVersion(a.Version)
+				bVersion, bErr := fleet.VersionToSemverVersion(b.Version)
+				if aErr != nil || bErr != nil {
+					return strings.Compare(b.Version, a.Version)
+				}
+				return bVersion.Compare(aVersion)
+			})
+		}
 	}
 
 	return result, nil

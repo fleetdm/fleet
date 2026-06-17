@@ -645,12 +645,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.RollbackVersion != nil {
 		if existingInstaller.FleetMaintainedAppID == nil {
 			return nil, &fleet.BadRequestError{
-				Message: `Couldn't update. "version" can be specified for a software title that have a Fleet-maintained app.`,
+				Message: `Couldn't update. "version" can be only specified for a software title that has a Fleet-maintained app.`,
 			}
 		}
 
-		// The pinned-version flow only changes the active version; reject any other field edits in the same request.
-		// dirty is fully populated above, so a non-empty map here means another field was also changed.
 		if len(dirty) > 0 {
 			return nil, &fleet.BadRequestError{
 				Message: `Couldn't update. "version" can't be changed at the same time as other fields.`,
@@ -672,7 +670,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.New(ctx, "no cached versions for Fleet-maintained app")
 		}
 
-		// versions are sorted by version descending, so the first match is the newest.
 		switch {
 		case requestedVersion == "": // Latest
 			activeInstallerID = versions[0].ID
@@ -688,8 +685,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 			if activeInstallerID == 0 {
-				// A caret allows any version up to that major, so when nothing in the major is cached we keep the
-				// newest cached version instead of erroring. The GitOps path does the same.
 				activeInstallerID = versions[0].ID
 			}
 		default: // literal version
@@ -2551,9 +2546,8 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 	}
 
-	// Leave payload.RollbackVersion as the user typed it so the pin expression, including a "^major" caret, is
-	// persisted downstream; callers that match it against a cached version must handle the caret form. For a caret,
-	// hydrate with an empty version so the latest manifest is fetched instead of a specific cached version.
+	// use a temporary string for calling hydrate, so we download the latest manifest but keep the
+	// version in the db later for the auto update cron job
 	hydrateVersion := payload.RollbackVersion
 	if usesCaret {
 		hydrateVersion = ""
@@ -2580,9 +2574,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			// Intentionally use the newest cached version (versions[0]) when the pinned major has no cached
-			// installer (e.g. "^8" while only 7.x is cached): keeping the newest cached version is preferred over
-			// erroring or pinning to an older/previously-active one.
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.

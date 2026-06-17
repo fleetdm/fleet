@@ -33043,6 +33043,25 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Nil(t, p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 
+	// Newest is determined by semantic version, not string order: 10.0 is newer than 4.0 even though it sorts
+	// earlier lexicographically.
+	bumpVersion("10.0", []byte("zoom-10.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	p = getPkg()
+	require.Equal(t, "10.0", p.Version)
+
+	// Pin the older 4.0, then clear to Latest and confirm it resolves to 10.0, not the string-larger "4.0".
+	patchVersion("4.0")
+	p = getPkg()
+	require.Equal(t, "4.0", p.Version)
+	require.Equal(t, new("4.0"), p.PinnedVersion)
+
+	patchVersion("")
+	p = getPkg()
+	require.Equal(t, "10.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
 	// --- Validation ---
 
 	// "version" can't be changed in the same PATCH as another field.
