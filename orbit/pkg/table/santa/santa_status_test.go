@@ -71,7 +71,7 @@ func TestGenerateStatus_ContextCancelBehavesLikeCmdError(t *testing.T) {
 	defer cancel()
 
 	rows, err := GenerateStatus(ctx, table.QueryContext{})
-	require.NoError(t, err) // your code treats cmd failure gracefully
+	require.NoError(t, err) // GenerateStatus treats cmd failure gracefully
 	require.Len(t, rows, 1)
 	require.Equal(t, "0", rows[0]["daemon_reachable"])
 }

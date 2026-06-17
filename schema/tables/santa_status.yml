@@ -10,7 +10,7 @@ examples: |-
   ```
 columns:
   - name: daemon_reachable
-    description: Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the remaining columns are empty.
+    description: Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the remaining columns are NULL.
     required: false
     type: integer
   - name: sync_server
