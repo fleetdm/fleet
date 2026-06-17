@@ -43,7 +43,7 @@ For example: deliver a Wi-Fi profile to all macOS devices (`include_any: macOS`)
 
 GitHub issue: [#32073](https://github.com/fleetdm/fleet/issues/32073)
 
-### macOS local account: standard or no end-user account
+### macOS local account: non-admin (standard) or skip
 
 _Available in Fleet Premium_
 
