@@ -21,7 +21,17 @@ Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/f
 
 _Available in Fleet Premium_
 
-TODO
+Fleet 4.87 adds 800+ new Fleet-maintained apps which brings the total catalog to over 1,250 apps. IT admins can add any of these under **Software > Add software > Fleet-maintained** and deploy with a single click.
+
+Windows gets its biggest catalog expansion yet. Highlights include:
+
+- **Microsoft Office**, **PowerShell**, **PowerToys**, **Power BI**, **Power Automate**, and **SQL Server Management Studio** for Windows-centric environments
+- **Git**, **Node.js**, **Python 3.13 and 3.14**, and **PostgreSQL 15–18** for development teams
+- **Windsurf** and **Kiro** for developers using AI-powered coding IDEs
+- **Dell Command Update** and **Lenovo Dock Manager** for hardware fleet management
+- **Nessus Agent** for vulnerability scanning and **Bitwarden** for password management
+
+New macOS apps include **Kiro**, **Codex**, and **OpenCode** for AI-assisted development, plus hundreds more tools across productivity, design, security, and media.
 
 ### Custom OS update profiles
 
@@ -83,7 +93,8 @@ GitHub issue: [#43757](https://github.com/fleetdm/fleet/issues/43757)
 
 ## Changes
 
-TODO
+- Added 236 new Fleet-maintained apps for Windows, including Microsoft Office, PowerShell, PowerToys, Power BI, Power Automate, SQL Server Management Studio, Microsoft .NET Runtime 8 and 10, Git, Node.js, Python 3.13 and 3.14, PostgreSQL 15–18, Windsurf, Kiro, Dell Command Update, Lenovo Dock Manager, Nessus Agent, Bitwarden, Canva, Miro, Snagit, Tableau Desktop, VirtualBox, TortoiseGit, GitHub Desktop, and more.
+- Added 727 new Fleet-maintained apps for macOS, including Kiro, Codex, OpenCode, Claude DevTools, Granola, Logitune, and hundreds more tools across development, security, productivity, and design.
 
 ## Ready to upgrade?
 
