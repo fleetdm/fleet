@@ -2,8 +2,3 @@
 - Updated policy details page to show automations and labels as a single property. Also changed the layout of policy properties.
 - Added `GET /api/v1/fleet/policies/:id/automation_activities` endpoint to list automation activities for a policy.
 - Added per-host activity log entries when policy automations fail to reach their remote provider (webhook, Google Calendar, and Microsoft conditional access) or when a Jira or Zendesk ticket cannot be created after all retries are exhausted.
-- Added per-host activity log entries when policy automations succeed: webhook queued, Jira or Zendesk ticket created, calendar event created, and single sign-on blocked (Microsoft conditional access).
-- Added per-host activity log entries when policy automations fail to reach their remote provider (webhook, Google Calendar, and Microsoft conditional access) or when a Jira or Zendesk ticket cannot be created after all retries are exhausted.
-- Added per-host activity log entries when policy automations succeed: webhook queued, Jira or Zendesk ticket created, calendar event created, and single sign-on blocked (Microsoft conditional access).
-- Added per-host activity log entries when policy webhook automations fail to reach their remote provider or succeed (webhook queued).
-- Added per-host activity log entries when policy automations succeed: webhook queued, Jira or Zendesk ticket created, calendar event created, and single sign-on blocked (Microsoft conditional access).
