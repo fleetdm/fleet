@@ -719,7 +719,6 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 	// skipauth: This is an unauthenticated public endpoint serving only the
 	// signing public key — there is no caller identity to authorize.
 	svc.authz.SkipAuthorization(ctx)
-
 	settings, err := svc.pssoSettingsIfConfigured(ctx, skipSecret)
 	if err != nil {
 		return nil, err
