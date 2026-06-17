@@ -194,7 +194,7 @@ func registerVulnerabilityCrons(ctx context.Context, deps cronSchedulesDeps) {
 // integrations schedule.
 func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register automations schedule", func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, 5*time.Minute, deps.failingPolicySet)
+		return newAutomationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, 5*time.Minute, deps.failingPolicySet, deps.activitySvc)
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
