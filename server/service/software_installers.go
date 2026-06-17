@@ -56,8 +56,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
-	// Version is the wire-level field for pinning a Fleet-maintained app to a specific cached version. nil means
-	// the field was omitted (leave the active version untouched); a present empty string means "Latest".
+	// Version pins a Fleet-maintained app to a cached version; empty means "Latest", omitted leaves it unchanged.
 	Version *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
@@ -148,8 +147,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.Configuration = []byte(cfg[0])
 	}
 
-	// Only set Version when the field is present so we can distinguish "omitted" (leave the active version
-	// untouched) from a present empty string ("Latest"). Trim whitespace; empty after trimming means "Latest".
+	// Only set Version when the field is present, so an omitted field stays nil and an empty value means "Latest".
 	if versionMultipart, ok := r.MultipartForm.Value["version"]; ok && len(versionMultipart) > 0 {
 		trimmed := strings.TrimSpace(versionMultipart[0])
 		decoded.Version = &trimmed

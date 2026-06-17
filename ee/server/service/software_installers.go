@@ -688,10 +688,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 			if activeInstallerID == 0 {
-				// No cached installer in the pinned major. The Versions modal only offers cached majors, so the
-				// update endpoint rejects this rather than silently pinning a different major. (GitOps instead keeps
-				// the newest cached version — see softwareInstallerPayloadFromSlug.)
-				return nil, fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+				// A caret allows any version up to that major, so when nothing in the major is cached we keep the
+				// newest cached version instead of erroring. The GitOps path does the same.
+				activeInstallerID = versions[0].ID
 			}
 		default: // literal version
 			for _, v := range versions {
@@ -738,7 +737,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			}
 			// If the active version actually changed, cancel in-flight installs/uninstalls of the previously-active
 			// version so hosts don't keep installing what we just pinned away from. No new package file was uploaded,
-			// so existing install stats are kept (wasPackageUpdated=false).
+			// so existing install stats are kept.
 			if activeInstallerID != existingInstaller.InstallerID {
 				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
@@ -834,10 +833,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
-		}
-		// An empty RollbackVersion means "Latest" (no pin), recorded as null; a literal or "^major" string is the pin.
-		if dirty["RollbackVersion"] && *payload.RollbackVersion != "" {
-			activity.PinnedVersion = payload.RollbackVersion
 		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
@@ -2556,12 +2551,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 	}
 
-	// TODO(JK): remove long comment
-	// Leave payload.RollbackVersion untouched so it carries the verbatim pin expression downstream (persisted to
-	// software_title_team_pins by BatchSetSoftwareInstallers). NOTE: it may be a "^major" caret, not just a literal
-	// version — callers that exact-match on RollbackVersion must skip the caret form (today only
-	// BatchSetSoftwareInstallers). Hydrate gets a local "" for caret so it fetches the latest manifest rather than a
-	// specific cached version.
+	// Leave payload.RollbackVersion as the user typed it so the pin expression, including a "^major" caret, is
+	// persisted downstream; callers that match it against a cached version must handle the caret form. For a caret,
+	// hydrate with an empty version so the latest manifest is fetched instead of a specific cached version.
 	hydrateVersion := payload.RollbackVersion
 	if usesCaret {
 		hydrateVersion = ""

@@ -1027,8 +1027,6 @@ func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titl
 	return nil
 }
 
-// setPinnedVersionDB and deletePinnedVersionDB take an executor so they can run on either ds.writer or a
-// transaction (e.g. from BatchSetSoftwareInstallers); callers wrap the returned error with context.
 func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
 	_, err := ex.ExecContext(ctx, `
 		INSERT INTO software_title_team_pins (global_or_team_id, title_id, pinned_version)

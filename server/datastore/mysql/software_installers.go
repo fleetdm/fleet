@@ -674,10 +674,7 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 }
 
 func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error {
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
+	globalOrTeamID := ptr.ValOrZero(teamID)
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, `
@@ -3000,10 +2997,9 @@ WHERE
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
-				// Determine which installer should be "active" for this FMA+team.
-				// A literal RollbackVersion pins that exact cached version; a "^major" caret (or empty) falls through
-				// to the newest just inserted/updated — for caret, softwareInstallerPayloadFromSlug already resolved
-				// and inserted the correct version, so we must not exact-match the caret string here.
+				// Determine which installer should be "active" for this FMA and team. A literal RollbackVersion pins
+				// that exact cached version; a "^major" caret or an empty value falls through to the newest just
+				// inserted version, which the slug resolver already chose, so the caret string must not be matched here.
 				activeInstallerID := installerID
 				if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
 					var pinnedID uint
@@ -3093,8 +3089,8 @@ WHERE
 				}
 
 				// Re-point this title's policies to the active FMA installer. This covers a replaced custom package
-				// and any other cached FMA version that was previously active (e.g. after a version flip), matching
-				// the PATCH path (SetFleetMaintainedAppActiveInstaller) so a policy never points at an inactive installer.
+				// and any other cached FMA version that was previously active, so a policy never points at an inactive
+				// installer. The update endpoint does the same re-pointing.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (

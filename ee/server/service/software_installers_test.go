@@ -548,8 +548,8 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
 				require.NoError(t, err)
-				// RollbackVersion must be left verbatim (not erased for caret) so the verbatim pin expression
-				// survives downstream to BatchSetSoftwareInstallers, which persists it to software_title_team_pins.
+				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
+				// survives downstream and is persisted to software_title_team_pins.
 				require.Equal(t, vt.version, payload.RollbackVersion)
 			}
 		})

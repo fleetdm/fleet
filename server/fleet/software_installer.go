@@ -116,8 +116,7 @@ type SoftwareInstaller struct {
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
-	// PinnedVersion is the version a Fleet-maintained app is pinned to (if not nil).
-	PinnedVersion *string `json:"pinned_version,omitempty" db:"-"`
+	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -694,9 +693,8 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
-	// RollbackVersion pins a Fleet-maintained app to a specific cached version (the wire-level field is "version").
-	// Named RollbackVersion for parity with the GitOps SoftwareInstallerPayload. nil means the field was omitted
-	// (leave the active version untouched); a non-nil empty string means "Latest".
+	// RollbackVersion pins a Fleet-maintained app to a specific cached version; the wire-level field is "version".
+	// nil means the field was omitted, so the active version is left unchanged; a non-nil empty string means "Latest".
 	RollbackVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
