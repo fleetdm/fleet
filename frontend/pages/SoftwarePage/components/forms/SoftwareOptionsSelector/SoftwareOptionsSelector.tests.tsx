@@ -119,8 +119,23 @@ describe("SoftwareOptionsSelector", () => {
       renderComponent(selfServiceEditingProps);
 
       const link = await screen.findByRole("link", { name: /add category/i });
-      expect(link).toHaveAttribute("href", "/software/library/categories");
+      expect(link).toHaveAttribute(
+        "href",
+        "/software/library/categories?fleet_id=1"
+      );
       expect(screen.getByText("to assign software to it.")).toBeInTheDocument();
+    });
+
+    it("includes fleet_id=0 in the Add category link when on no team", async () => {
+      mockServer.use(emptySelfServiceCategoriesHandler);
+
+      renderComponent({ ...selfServiceEditingProps, teamId: 0 });
+
+      const link = await screen.findByRole("link", { name: /add category/i });
+      expect(link).toHaveAttribute(
+        "href",
+        "/software/library/categories?fleet_id=0"
+      );
     });
 
     it("does not render the empty state while categories are loading", () => {
