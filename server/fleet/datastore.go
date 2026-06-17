@@ -1331,9 +1331,7 @@ type Datastore interface {
 	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
 	// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in
-	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key). It uses the same host matching semantics as
-	// EnrollOrbit. It is used to decide whether an orbit re-enrollment (e.g. after a service restart or node key loss) should
-	// be exempt from end user authentication. See https://github.com/fleetdm/fleet/issues/46300.
+	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
 	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error

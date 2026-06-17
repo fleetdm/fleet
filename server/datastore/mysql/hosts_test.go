@@ -11475,10 +11475,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 }
 
 func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
-	// A host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matching by hardware UUID
-	// (Windows path) and by osquery identifier.
+	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
 	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
 		hostUUID := uuid.New().String()
 		_, err := ds.EnrollOrbit(ctx,
@@ -11507,18 +11506,33 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	// A host row that exists but never orbit-enrolled (no orbit node key, e.g. a DEP-pre-created or osquery-only row) must not
 	// be reported as previously orbit-enrolled.
 	t.Run("host exists but never orbit-enrolled", func(t *testing.T) {
-		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-		osqueryID := uuid.New().String()
-		_, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:        "no-orbit",
-			Platform:        "ubuntu",
-			LastEnrolledAt:  dbZeroTime,
-			DetailUpdatedAt: dbZeroTime,
-			OsqueryHostID:   &osqueryID,
-		})
+		h := test.NewHost(t, ds, "no-orbit", "", "no-orbit-key", uuid.New().String(), time.Now())
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: *h.OsqueryHostID, Platform: "ubuntu"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A Windows enrollment must not be matched to an Apple host that shares a hardware serial: HostPreviouslyOrbitEnrolled
+	// forces serial matching off for Windows. Serial matching is enabled here (isMDMEnabled=true) so the skip is provably due
+	// to the Windows guard, not a disabled serial path.
+	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
+		serial := uuid.New().String()
+		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
 		require.NoError(t, err)
 
-		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: osqueryID, Platform: "ubuntu"}, false)
+		// Same serial, different (unmatched) UUID, Windows platform: the serial must be ignored, so no match.
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), HardwareSerial: serial, Platform: "windows"}, true)
 		require.NoError(t, err)
 		require.False(t, got)
 	})

@@ -31677,11 +31677,10 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	})
 }
 
-// TestOrbitReEnrollSkipsEndUserAuth covers issue #46300: once a host has orbit-enrolled, a subsequent re-enrollment (e.g.
-// after a service restart, node key file loss, or osquery DB rebuild) must not prompt for end user authentication again,
-// even if End User Authentication is enabled on the host's team and the host has no IdP association. This grandfathers hosts
-// that enrolled before EUA was enabled. A genuinely new device is still gated (covered by
-// TestOrbitEnrollWithIdPPopulatesDeviceMapping).
+// TestOrbitReEnrollSkipsEndUserAuth covers issue #46300: once a host has orbit-enrolled, a subsequent re-enrollment (e.g. after a
+// service restart, node key file loss, or osquery DB rebuild) must not prompt for end user authentication again, even if End User
+// Authentication is enabled on the host's team and the host has no IdP association. This grandfathers hosts that enrolled before
+// EUA was enabled. A genuinely new device is still gated (covered by TestOrbitEnrollWithIdPPopulatesDeviceMapping).
 func (s *integrationEnterpriseTestSuite) TestOrbitReEnrollSkipsEndUserAuth() {
 	t := s.T()
 	ctx := t.Context()
@@ -31741,6 +31740,11 @@ func (s *integrationEnterpriseTestSuite) TestOrbitReEnrollSkipsEndUserAuth() {
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
 		res.Body.Close()
 		require.NotEmpty(t, orbitResp.OrbitNodeKey, "re-enrollment of an already-enrolled host must not be gated by EUA")
+
+		// The re-enrollment must reuse the existing host row, not create a duplicate.
+		reEnrolledHost, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, hostLite.ID, reEnrolledHost.ID, "re-enrollment must reuse the existing host row, not create a duplicate")
 
 		// Reset team EUA for the next subtest's first enrollment.
 		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
