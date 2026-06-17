@@ -681,8 +681,10 @@ func TestRunMDMCommandCreatesActivity(t *testing.T) {
 		return nil
 	}
 
+	var capturedUser *activity_api.User
 	var capturedActivity activity_api.ActivityDetails
-	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, u *activity_api.User, act activity_api.ActivityDetails) error {
+		capturedUser = u
 		capturedActivity = act
 		return nil
 	}
@@ -711,6 +713,10 @@ func TestRunMDMCommandCreatesActivity(t *testing.T) {
 	assert.Equal(t, "./FooBar", act.RequestType)
 	assert.Equal(t, "windows", act.Platform)
 	assert.NotEmpty(t, act.CommandUUID)
+
+	require.NotNil(t, capturedUser)
+	assert.Equal(t, test.UserAdmin.ID, capturedUser.ID)
+	assert.Equal(t, test.UserAdmin.Email, capturedUser.Email)
 }
 
 // mockAPNSPusher implements nanomdm_push.Pusher for unit tests, returning a
@@ -761,9 +767,11 @@ func TestRunMDMCommandSkipsActivityForFailedHosts(t *testing.T) {
 	}
 
 	var capturedActivities []*fleet.ActivityTypeRanCustomMDMCommand
-	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+	var capturedUsers []*activity_api.User
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, u *activity_api.User, act activity_api.ActivityDetails) error {
 		if a, ok := act.(*fleet.ActivityTypeRanCustomMDMCommand); ok {
 			capturedActivities = append(capturedActivities, a)
+			capturedUsers = append(capturedUsers, u)
 		}
 		return nil
 	}
@@ -790,6 +798,10 @@ func TestRunMDMCommandSkipsActivityForFailedHosts(t *testing.T) {
 	assert.Equal(t, host1.ID, capturedActivities[0].HostID)
 	assert.Equal(t, host1.UUID, capturedActivities[0].HostUUID)
 	assert.Equal(t, "ShutDownDevice", capturedActivities[0].RequestType)
+
+	require.NotNil(t, capturedUsers[0])
+	assert.Equal(t, test.UserAdmin.ID, capturedUsers[0].ID)
+	assert.Equal(t, test.UserAdmin.Email, capturedUsers[0].Email)
 }
 
 func TestRunMDMCommandSetRecoveryLockBlocked(t *testing.T) {
