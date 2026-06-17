@@ -17,11 +17,11 @@ extension AuthenticationViewController {
 
     func registrationPayload(signing: SecKey, encryption: SecKey) -> [String: String] {
         [
-            "deviceUUID": deviceUUID(),
-            "signPubKey": pemRepresentation(of: signing),
-            "encPubKey": pemRepresentation(of: encryption),
-            "signKeyID": keyID(signing),
-            "encKeyID": keyID(encryption),
+            "device_uuid": deviceUUID(),
+            "device_signing_key": pemRepresentation(of: signing),
+            "device_encryption_key": pemRepresentation(of: encryption),
+            "signing_key_id": keyID(signing),
+            "encryption_key_id": keyID(encryption),
         ]
     }
 
@@ -55,35 +55,30 @@ extension AuthenticationViewController {
         return uuid
     }
 
+    // applyLoginConfiguration derives every endpoint from the single BaseURL
+    // key in the profile's ExtensionData — the Fleet server URL, e.g.
+    // https://fleet.example.com. The issuer/audience is its bare hostname,
+    // matching the `iss` claim Fleet mints into login-response id_tokens.
     func applyLoginConfiguration(
         _ mgr: ASAuthorizationProviderExtensionLoginManager
     ) throws {
         let data = mgr.extensionData
-        guard let issuer = data["IssuerHostname"] as? String,
-              let token = (data["TokenEndpoint"] as? String).flatMap(URL.init(string:)),
-              let jwks = (data["JwksEndpoint"] as? String).flatMap(URL.init(string:)),
-              let nonce = (data["NonceEndpoint"] as? String).flatMap(URL.init(string:)),
-              let reg = (data["RegistrationEndpoint"] as? String).flatMap(URL.init(string:))
+        guard let baseString = data["BaseURL"] as? String,
+              let base = URL(string: baseString),
+              let host = base.host
         else { throw NSError(domain: "FleetPSSO", code: -1) }
         let cfg = ASAuthorizationProviderExtensionLoginConfiguration(
             clientID: Bundle.main.bundleIdentifier ?? "",
-            issuer: issuer,
-            tokenEndpointURL: token,
-            jwksEndpointURL: jwks,
-            audience: issuer)
-        cfg.nonceEndpointURL = nonce
-        self.registrationEndpointURL = reg
+            issuer: host,
+            tokenEndpointURL: pssoEndpointURL(base, "token"),
+            jwksEndpointURL: pssoEndpointURL(base, "jwks"),
+            audience: host)
+        cfg.nonceEndpointURL = pssoEndpointURL(base, "nonce")
+        self.registrationEndpointURL = pssoEndpointURL(base, "registration")
         try mgr.saveLoginConfiguration(cfg)
     }
 
-    func registrationStartURL(
-        _ mgr: ASAuthorizationProviderExtensionLoginManager,
-        payload: [String: String]
-    ) -> URL? {
-        guard let base = registrationEndpointURL,
-              var comps = URLComponents(url: base, resolvingAgainstBaseURL: false)
-        else { return nil }
-        comps.queryItems = payload.map { URLQueryItem(name: $0.key, value: $0.value) }
-        return comps.url
+    private func pssoEndpointURL(_ base: URL, _ name: String) -> URL {
+        base.appendingPathComponent("api/mdm/apple/psso/\(name)")
     }
 }

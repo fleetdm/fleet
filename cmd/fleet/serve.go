@@ -65,7 +65,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
-	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -75,6 +74,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -599,24 +599,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
-		}
-		// PSSO POC wiring: attach the Redis-backed nonce store and the OIDC
-		// ROPG IdP client to the ee service. These are wired via setters so
-		// the eeservice.NewService signature doesn't churn for an
-		// optional feature.
-		if eesvc, ok := svc.(*eeservice.Service); ok {
-			eesvc.SetPSSONonceStore(psso.NewRedisNonceStore(redisPool))
-			if cfg := appCfg.PSSOSettings; cfg != nil {
-				eesvc.SetPSSOIdPClient(eeservice.PSSOOIDCROPGClient{
-					TokenURL:     cfg.IdPTokenURL,
-					ClientID:     cfg.IdPClientID,
-					ClientSecret: cfg.IdPClientSecret,
-					Scopes:       cfg.IdPScopes,
-				})
-			}
 		}
 	}
 

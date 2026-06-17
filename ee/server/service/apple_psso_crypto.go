@@ -1,16 +1,16 @@
 package service
 
-// PSSO crypto helpers. Implemented clean-room against Apple's
-// ASAuthorizationProviderExtension* protocol surface and standard JOSE
-// primitives. No third-party PSSO SDK or sample code is referenced.
+// PSSO crypto helpers. Implemented against Apple's ASAuthorizationProviderExtension*
+// protocol surface and standard JOSE primitives.
 //
-// Cryptographic choices for the POC:
-//   - Inbound JWTs from the Mac extension are ES256 (P-256). The kid in the
+// Cryptographic choices:
+//   - Inbound JWTs from the Mac extension are ES256 (P-256). We may need to allow more
+//     algorithms in the future but this is what has been observed today. The kid in the
 //     header points to a PEM stored in mdm_apple_psso_keys.
-//   - JWE responses use ECDH-ES with A256GCM, wrapped to the device's
-//     registered encryption pubkey (resolved from the request's apv).
-//   - key_context blobs are sealed with A256GCM under a key derived from
-//     Fleet's PSSO signing key via HKDF-SHA256 — no per-device server state.
+//   - JWE responses use ECDH-ES with A256GCM, wrapped to the device's registered encryption
+//     pubkey (resolved from the request's apv).
+//   - key_context blobs are sealed with A256GCM under a key derived from Fleet's PSSO signing
+//     key via HKDF-SHA256 — no per-device server state is stored.
 
 import (
 	"context"

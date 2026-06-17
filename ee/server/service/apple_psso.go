@@ -45,8 +45,7 @@ type pssoServiceState struct {
 }
 
 const (
-	pssoSigningCurve = "P-256"
-	pssoSigningAlg   = "ES256"
+	pssoSigningAlg = "ES256"
 
 	// TODO: It's not clear if we need the overall app bundle ID or not either. We'll add it just in case
 	bundleID1 = "com.fleetdm.pssotesting"
@@ -168,32 +167,48 @@ func isAssetNotFound(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }
 
-// SetPSSONonceStore wires the Redis-backed PSSO nonce store. Intended to be
-// called from cmd/fleet right after eeservice.NewService so the POC doesn't
-// have to expand the NewService signature for an optional collaborator.
-func (svc *Service) SetPSSONonceStore(store fleet.PSSONonceStore) {
-	svc.pssoNonceStore = store
+// pssoSettingsIfConfigured returns the PSSO settings from the current
+// AppConfig when the feature is enabled and carries everything the flows
+// need; otherwise it returns nil. Read per request so enabling, disabling,
+// or repointing the IdP takes effect without a server restart.
+func (svc *Service) pssoSettingsIfConfigured(ctx context.Context) (*fleet.PSSOSettings, error) {
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load app config for psso")
+	}
+	s := cfg.PSSOSettings
+	if s == nil || !s.Enabled || s.IssuerURL == "" || s.IdPTokenURL == "" || s.IdPClientID == "" || s.IdPClientSecret == "" {
+		return nil, nil
+	}
+	return s, nil
 }
 
-// SetPSSOIdPClient wires the upstream IdP client (a generic OIDC ROPG
-// client in production, the deterministic stub in tests). Same rationale as
-// SetPSSONonceStore.
-func (svc *Service) SetPSSOIdPClient(client fleet.PSSOIdPClient) {
-	svc.pssoIdPClient = client
-}
+// errPSSONotConfigured is returned from the device-facing endpoints when the
+// feature is disabled or missing required settings. Return it unwrapped (no
+// ctxerr.Wrap) so errors.Is matches on pointer identity.
+var errPSSONotConfigured = &fleet.BadRequestError{Message: "Platform SSO is not configured"}
 
 // pssoNonceTTL is how long an issued nonce remains valid before it's
-// rejected. Five minutes covers both registration (browser round-trip
-// through the upstream IdP) and sign-in (extension immediate use).
+// rejected. Five minutes comfortably covers the extension's immediate
+// nonce→token round trip.
 const pssoNonceTTL = 5 * time.Minute
 
 // PSSONonce mints a fresh 32-byte base64url nonce, persists it with a short
 // TTL via the wired PSSONonceStore, and returns it to the caller. The
-// extension embeds this nonce in subsequent JWT claims to prevent replay.
+// extension embeds this nonce in its next token-request JWT, where it is
+// consumed (single-use) to prevent replay.
 func (svc *Service) PSSONonce(ctx context.Context) (string, error) {
 	// skipauth: This is an unauthenticated endpoint hit by the Mac extension
 	// before any user identity is established.
 	svc.authz.SkipAuthorization(ctx)
+
+	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	if err != nil {
+		return "", err
+	}
+	if settings == nil {
+		return "", errPSSONotConfigured
+	}
 
 	if svc.pssoNonceStore == nil {
 		return "", ctxerr.New(ctx, "psso nonce store not configured")
@@ -210,49 +225,29 @@ func (svc *Service) PSSONonce(ctx context.Context) (string, error) {
 	return nonce, nil
 }
 
-// PSSORegisterBegin builds the redirect URL the Mac extension's WebView
-// should follow to start the upstream IdP's OAuth code flow. The returned URL
-// embeds a fresh server-issued nonce in the `state` parameter so we can
-// detect replay when the extension calls PSSORegisterComplete.
-func (svc *Service) PSSORegisterBegin(ctx context.Context) (string, error) {
-	// skipauth: This is an unauthenticated endpoint hit by the Mac extension's
-	// WebView before user identity exists.
-	svc.authz.SkipAuthorization(ctx)
-
-	cfg, err := svc.ds.AppConfig(ctx)
+// consumePSSORequestNonce enforces the single-use request_nonce on token
+// requests: the JWT must carry a nonce previously issued by PSSONonce, and
+// consuming it must succeed exactly once. Any miss (absent claim, unknown or
+// already-used nonce) rejects the request — this is the anti-replay control
+// for the unauthenticated token endpoint.
+func (svc *Service) consumePSSORequestNonce(ctx context.Context, requestNonce string) error {
+	if requestNonce == "" {
+		return &fleet.BadRequestError{Message: "psso token: missing request_nonce"}
+	}
+	if svc.pssoNonceStore == nil {
+		return ctxerr.New(ctx, "psso nonce store not configured")
+	}
+	ok, err := svc.pssoNonceStore.Consume(ctx, requestNonce)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "load app config for psso register")
+		return ctxerr.Wrap(ctx, err, "consume psso request_nonce")
 	}
-	pcfg := cfg.PSSOSettings
-	if pcfg == nil || pcfg.IdPAuthorizeURL == "" || pcfg.IdPClientID == "" || pcfg.IssuerURL == "" {
-		return "", &fleet.BadRequestError{Message: "PSSO is not configured: idp_authorize_url, idp_client_id, and issuer_url are required"}
+	if !ok {
+		return &fleet.BadRequestError{Message: "psso token: invalid or expired request_nonce"}
 	}
-
-	state, err := svc.PSSONonce(ctx)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "issue psso register state nonce")
-	}
-
-	scopes := pcfg.IdPScopes
-	if scopes == "" {
-		scopes = defaultOIDCScopes
-	}
-
-	params := url.Values{}
-	params.Set("client_id", pcfg.IdPClientID)
-	params.Set("response_type", "code")
-	params.Set("redirect_uri", pcfg.IssuerURL+"/mdm/apple/psso/register")
-	params.Set("scope", scopes)
-	params.Set("state", state)
-
-	sep := "?"
-	if strings.Contains(pcfg.IdPAuthorizeURL, "?") {
-		sep = "&"
-	}
-	return pcfg.IdPAuthorizeURL + sep + params.Encode(), nil
+	return nil
 }
 
-// PSSORegisterComplete consumes the device-key enrollment POST from the Mac
+// PSSORegisterDevice consumes the device-key enrollment POST from the Mac
 // extension: it resolves the enrolled host from the hardware device UUID and
 // persists the device record plus its public key rows.
 //
@@ -260,24 +255,32 @@ func (svc *Service) PSSORegisterBegin(ctx context.Context) (string, error) {
 // simply submits the public halves of its Secure Enclave signing and
 // encryption keys. User identity is established later, on each password login
 // at the token endpoint.
-func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegisterRequest) error {
+func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODeviceRegistrationRequest) error {
 	// skipauth: This is an unauthenticated device-initiated endpoint. The
 	// device proves itself later by signing token requests with the signing
 	// key registered here, verified against the kid.
 	svc.authz.SkipAuthorization(ctx)
 
-	if req.DeviceUUID == "" || req.DeviceSigningKey == "" || req.DeviceEncryptionKey == "" || req.SignKeyID == "" || req.EncKeyID == "" {
-		return &fleet.BadRequestError{Message: "missing required psso register fields"}
+	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	if err != nil {
+		return err
+	}
+	if settings == nil {
+		return errPSSONotConfigured
+	}
+
+	if req.DeviceUUID == "" || req.DeviceSigningKey == "" || req.DeviceEncryptionKey == "" || req.SigningKeyID == "" || req.EncryptionKeyID == "" {
+		return &fleet.BadRequestError{Message: "missing required psso registration fields"}
 	}
 
 	// Reject unparseable key material up front: a bad PEM stored here would
 	// otherwise only surface as opaque verification failures at every
 	// subsequent login.
 	if _, err := parseECPublicKeyPEM([]byte(req.DeviceSigningKey)); err != nil {
-		return &fleet.BadRequestError{Message: "psso register: signing key is not a valid P-256 public key"}
+		return &fleet.BadRequestError{Message: "psso registration: signing key is not a valid P-256 public key"}
 	}
 	if _, err := parseECPublicKeyPEM([]byte(req.DeviceEncryptionKey)); err != nil {
-		return &fleet.BadRequestError{Message: "psso register: encryption key is not a valid P-256 public key"}
+		return &fleet.BadRequestError{Message: "psso registration: encryption key is not a valid P-256 public key"}
 	}
 
 	// PSSO requires a matching enrolled host; the registration is keyed by the
@@ -285,7 +288,7 @@ func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegi
 	host, err := svc.ds.HostByUUID(ctx, req.DeviceUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("psso register: no enrolled host matches device UUID %q", req.DeviceUUID)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("psso registration: no enrolled host matches device UUID %q", req.DeviceUUID)}
 		}
 		return ctxerr.Wrap(ctx, err, "look up host by device uuid")
 	}
@@ -295,12 +298,12 @@ func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegi
 	// alphabet differences between the extension and Apple's framework.
 	keys := []fleet.PSSOKey{
 		{
-			KID:     canonicalizeKID(req.SignKeyID),
+			KID:     canonicalizeKID(req.SigningKeyID),
 			KeyType: fleet.PSSOKeyTypeSigning,
 			PEM:     req.DeviceSigningKey,
 		},
 		{
-			KID:     canonicalizeKID(req.EncKeyID),
+			KID:     canonicalizeKID(req.EncryptionKeyID),
 			KeyType: fleet.PSSOKeyTypeEncryption,
 			PEM:     req.DeviceEncryptionKey,
 		},
@@ -313,12 +316,20 @@ func (svc *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegi
 
 // PSSOToken handles the per-sign-in token endpoint. It parses the inbound
 // signed JWT, looks up the registered device by kid, verifies the signature,
-// then dispatches on the JWT's request_type claim and returns a JWE
-// response in the Apple PSSO format.
+// consumes the request_nonce, then dispatches on the JWT's claims and returns
+// a JWE response in the Apple PSSO format.
 func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error) {
 	// skipauth: This is an unauthenticated device-initiated endpoint; the
 	// JWT signature against a known device signing pubkey is the auth.
 	svc.authz.SkipAuthorization(ctx)
+
+	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		return nil, errPSSONotConfigured
+	}
 
 	if len(jwtBytes) == 0 {
 		return nil, &fleet.BadRequestError{Message: "psso token: empty request body"}
@@ -329,10 +340,17 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 		return nil, err
 	}
 
+	// Every token request, regardless of flow, must present a fresh
+	// single-use nonce. Consume it before dispatching so a replayed JWS is
+	// rejected before any IdP or key work happens.
+	if err := svc.consumePSSORequestNonce(ctx, claims.RequestNonce); err != nil {
+		return nil, err
+	}
+
 	// PSSO v2 Password login: a single grant_type=password round trip carrying
 	// a plaintext password and a jwe_crypto response recipe.
 	if claims.GrantType == pssoGrantTypePassword {
-		return svc.handlePSSOPasswordLogin(ctx, signKey.HostUUID, claims)
+		return svc.handlePSSOPasswordLogin(ctx, settings, signKey.HostUUID, claims)
 	}
 
 	switch claims.RequestType {
@@ -361,20 +379,31 @@ const pssoDefaultTokenTTL = time.Hour
 
 // pssoIDTokenIssuer returns the value the device validates the login-response
 // id_token `iss` claim against. Apple's login configuration derives the issuer
-// from the profile's IssuerHostname — a bare hostname with no scheme — so the
-// configured IssuerURL is reduced to its host.
-func (svc *Service) pssoIDTokenIssuer(ctx context.Context) (string, error) {
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "load app config for psso issuer")
+// from the extension's configured hostname — a bare hostname with no scheme —
+// so the configured IssuerURL is reduced to its host.
+func pssoIDTokenIssuer(settings *fleet.PSSOSettings) string {
+	// Hostname() (not Host) so a non-default port is dropped: the extension
+	// derives the issuer from the BaseURL via Swift's URL.host, which excludes
+	// the port. Returning Host here would mint iss with the port and the device
+	// would reject the id_token on mismatch.
+	if u, err := url.Parse(settings.IssuerURL); err == nil && u.Hostname() != "" {
+		return u.Hostname()
 	}
-	if cfg.PSSOSettings == nil || cfg.PSSOSettings.IssuerURL == "" {
-		return "", ctxerr.New(ctx, "psso issuer_url not configured")
+	return strings.TrimSuffix(settings.IssuerURL, "/")
+}
+
+// pssoIdPClientFromSettings builds the upstream IdP client for the password
+// login flow from the current settings, so config changes apply without a
+// restart. Returns the interface so an alternate backend (e.g. an LDAP bind
+// client for IdPs that reject ROPG) can be selected here later. Tests fake
+// the upstream IdP at the network boundary via PSSOOIDCROPGClient.HTTPClient.
+func pssoIdPClientFromSettings(settings *fleet.PSSOSettings) fleet.PSSOIdPClient {
+	return PSSOOIDCROPGClient{
+		TokenURL:     settings.IdPTokenURL,
+		ClientID:     settings.IdPClientID,
+		ClientSecret: settings.IdPClientSecret,
+		Scopes:       settings.IdPScopes,
 	}
-	if u, err := url.Parse(cfg.PSSOSettings.IssuerURL); err == nil && u.Host != "" {
-		return u.Host, nil
-	}
-	return strings.TrimSuffix(cfg.PSSOSettings.IssuerURL, "/"), nil
 }
 
 // handlePSSOPasswordLogin services a PSSO v2 Password login request. The
@@ -383,10 +412,7 @@ func (svc *Service) pssoIDTokenIssuer(ctx context.Context) (string, error) {
 // Fleet validates the password against the upstream IdP, then returns the
 // resulting OIDC claims as a server-signed JWT wrapped in a JWE encrypted per
 // that recipe.
-func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
-	if svc.pssoIdPClient == nil {
-		return nil, ctxerr.New(ctx, "psso idp client not configured")
-	}
+func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet.PSSOSettings, hostUUID string, claims *pssoTokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso password login: missing jwe_crypto recipe"}
 	}
@@ -402,21 +428,8 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, hostUUID string
 		return nil, &fleet.BadRequestError{Message: "psso password login: missing username or password"}
 	}
 
-	// Best-effort single-use nonce check. request_nonce is the value Fleet
-	// issued from /mdm/apple/psso/nonce that the extension echoes here. It is
-	// not hard-enforced for the POC: the exact nonce the AppSSOAgent replays is
-	// still being confirmed end-to-end, so a miss is logged rather than
-	// rejected to keep password validation testable. Enforce before GA.
-	if claims.RequestNonce != "" && svc.pssoNonceStore != nil {
-		ok, err := svc.pssoNonceStore.Consume(ctx, claims.RequestNonce)
-		if err != nil {
-			svc.logger.WarnContext(ctx, "psso password login: nonce consume error", "err", err)
-		} else if !ok {
-			svc.logger.WarnContext(ctx, "psso password login: request_nonce not recognized", "request_nonce", claims.RequestNonce)
-		}
-	}
-
-	idpClaims, err := svc.pssoIdPClient.ValidatePasswordAndGetClaims(ctx, username, claims.Password)
+	idpClient := pssoIdPClientFromSettings(settings)
+	idpClaims, err := idpClient.ValidatePasswordAndGetClaims(ctx, username, claims.Password)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "psso password validation")
 	}
@@ -432,10 +445,7 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, hostUUID string
 	// mints its own id_token. The device validates: nonce == request nonce,
 	// iss == the profile issuer (hostname, no scheme), aud contains the
 	// clientID, iat in the past, exp in the future.
-	issuer, err := svc.pssoIDTokenIssuer(ctx)
-	if err != nil {
-		return nil, err
-	}
+	issuer := pssoIDTokenIssuer(settings)
 	expiresIn := idpClaims.ExpiresIn
 	if expiresIn <= 0 {
 		expiresIn = int(pssoDefaultTokenTTL.Seconds())
@@ -650,11 +660,21 @@ func (svc *Service) handlePSSOKeyExchange(ctx context.Context, hostUUID string, 
 	return jwe, nil
 }
 
-// PSSOJWKS returns the JWKS JSON with Fleet's PSSO signing public key.
+// PSSOJWKS returns the JWKS JSON with Fleet's PSSO signing public key. When
+// the feature is not configured it returns a 404 (not a 400 like the
+// device-facing endpoints) so the endpoint is indistinguishable from absent.
 func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 	// skipauth: This is an unauthenticated public endpoint serving only the
 	// signing public key — there is no caller identity to authorize.
 	svc.authz.SkipAuthorization(ctx)
+
+	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		return nil, &notFoundError{}
+	}
 
 	key, kid, err := svc.getOrMintPSSOSigningKey(ctx)
 	if err != nil {
@@ -684,11 +704,22 @@ type pssoAASAApps struct {
 
 // PSSOAASA returns the apple-app-site-association JSON Apple's framework
 // uses to validate the extension's authsrv: entitlement against Fleet's
-// hostname.
+// hostname. Returns 404 when the feature is not configured. Note Apple's CDN
+// caches this document for hours, so hosts may see a config change with a
+// 6–24h delay.
 func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 	// skipauth: This is an unauthenticated public endpoint — Apple's
 	// framework fetches it anonymously to validate the extension binding.
 	svc.authz.SkipAuthorization(ctx)
+
+	settings, err := svc.pssoSettingsIfConfigured(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		return nil, &notFoundError{}
+	}
+
 	ids := []string{teamID1 + "." + bundleID1, teamID2 + "." + bundleID1, teamID1 + "." + bundleID2, teamID2 + "." + bundleID2}
 	doc := pssoAASA{
 		WebCredentials: pssoAASAApps{

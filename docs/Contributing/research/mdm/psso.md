@@ -38,8 +38,8 @@ sequenceDiagram
     rect rgb(235, 244, 255)
         Note over User,IdP: Phase 1 — Device registration (once; after enrollment or during Setup Assistant)
         macOS->>Ext: beginDeviceRegistration (provides Secure Enclave signing + encryption keys)
-        Ext->>Ext: Build payload (deviceUUID, signPubKey, encPubKey, signKeyID, encKeyID)
-        Ext->>Fleet: POST /mdm/apple/psso/register (direct URLSession)
+        Ext->>Ext: Build payload (device_uuid, device_signing_key, device_encryption_key, signing_key_id, encryption_key_id)
+        Ext->>Fleet: POST /api/mdm/apple/psso/registration (direct URLSession)
         Fleet->>Fleet: Resolve host by UUID; store device + key IDs
         Fleet-->>Ext: 200 OK
         Ext-->>macOS: completion(.success)
@@ -47,12 +47,12 @@ sequenceDiagram
 
     rect rgb(235, 255, 240)
         Note over User,IdP: Phase 2 — Provision the offline unlock key (PSSO 2.0)
-        macOS->>Fleet: POST /mdm/apple/psso/nonce
+        macOS->>Fleet: POST /api/mdm/apple/psso/nonce
         Fleet-->>macOS: nonce
-        macOS->>Fleet: POST /mdm/apple/psso/token (request_type=key_request, signed JWT)
+        macOS->>Fleet: POST /api/mdm/apple/psso/token (request_type=key_request, signed JWT)
         Fleet->>Fleet: Generate provisioned EC keypair; seal private key into key_context
         Fleet-->>macOS: JWE { certificate (provisioned pubkey), key_context }
-        macOS->>Fleet: POST /mdm/apple/psso/token (request_type=key_exchange, other_publickey + key_context)
+        macOS->>Fleet: POST /api/mdm/apple/psso/token (request_type=key_exchange, other_publickey + key_context)
         Fleet->>Fleet: Recover provisioned private key; key = ECDH(private key, other_publickey)
         Fleet-->>macOS: JWE { key } establishes the unlock key
     end
@@ -60,16 +60,16 @@ sequenceDiagram
     rect rgb(255, 247, 235)
         Note over User,IdP: Phase 3 — Password sign-in and sync (every login / unlock)
         User->>macOS: Enter IdP password
-        macOS->>Fleet: POST /mdm/apple/psso/nonce
+        macOS->>Fleet: POST /api/mdm/apple/psso/nonce
         Fleet-->>macOS: nonce
-        macOS->>Fleet: POST /mdm/apple/psso/token (grant_type=password)<br/>signed JWT: plaintext password + jwe_crypto recipe + nonce
+        macOS->>Fleet: POST /api/mdm/apple/psso/token (grant_type=password)<br/>signed JWT: plaintext password + jwe_crypto recipe + nonce
         Fleet->>Fleet: Verify JWT signature by kid -> device signing key
         Fleet->>IdP: ROPG grant_type=password (username, password)
         alt password valid
             IdP-->>Fleet: id_token, refresh_token, expires_in
             Fleet->>Fleet: Mint Fleet id_token (ES256); wrap as OAuth JSON;<br/>JWE-encrypt to device encryption key (apu/apv)
             Fleet-->>macOS: platformsso-login-response+jwt (JWE)
-            macOS->>Fleet: GET /.well-known/jwks.json
+            macOS->>Fleet: GET /api/mdm/apple/psso/jwks
             Fleet-->>macOS: JWKS (Fleet signing key)
             macOS->>macOS: Decrypt JWE; verify id_token (sig, nonce, iss, aud, exp)
             macOS->>macOS: Sync local account password to the entered password; start SSO session
@@ -98,11 +98,11 @@ Additional backends (LDAP bind, direct-trust flows for IdPs that reject ROPG) sl
 
 ### Enterprise-gated with no-license core stubs
 
-Route registration for `/mdm/apple/psso/*` and the related `.well-known` endpoints lives in `server/service/handler.go` (core). The real implementation lives in `ee/server/service/`; the core build provides stubs that return `fleet.ErrMissingLicense`. This matches the pattern already used by `calendar.go` and the enterprise pieces of `apple_mdm.go`.
+Route registration for `/api/mdm/apple/psso/*` and the AASA document lives in `server/service/handler.go` (core). The real implementation lives in `ee/server/service/`; the core build provides stubs that return `fleet.ErrMissingLicense`. This matches the pattern already used by `calendar.go` and the enterprise pieces of `apple_mdm.go`.
 
-### Endpoint paths follow the SCEP/MDM convention
+### Endpoint paths live under /api/mdm/apple/psso
 
-The PSSO endpoints sit at the root of the URL space — `/mdm/apple/psso/nonce`, `/mdm/apple/psso/register`, `/mdm/apple/psso/token` — with no `/api/` or `/v1/` prefix, matching the existing `/mdm/apple/scep` and `/mdm/apple/mdm` paths Apple devices already talk to. The associated `/.well-known/jwks.json` and `/.well-known/apple-app-site-association` are also served at root, because Apple's frameworks fetch them by spec-defined absolute paths.
+The device-facing PSSO endpoints — `/api/mdm/apple/psso/nonce`, `/api/mdm/apple/psso/registration`, `/api/mdm/apple/psso/token`, and `/api/mdm/apple/psso/jwks` — follow the unversioned device-protocol convention of `/api/mdm/apple/enroll` and are registered on the unauthenticated endpointer (which also caps request body sizes). The JWKS deliberately does not live at `/.well-known/jwks.json`: Apple's framework takes the JWKS URL from the extension's login configuration, so a PSSO-specific path avoids advertising (or colliding with) a server-wide JWKS. Only `/.well-known/apple-app-site-association` remains at root, because Apple's CDN fetches it at a spec-defined absolute path; it stays a raw handler on the root `*http.ServeMux`. (The POC originally served everything at root, SCEP-style — `/mdm/apple/psso/*` — this was revised in #46942.)
 
 ### Nonces in Redis, not MySQL
 
@@ -115,17 +115,13 @@ The nonce store mirrors `server/mdm/acme/internal/redis_nonces_store/` and expos
 
 ### JWKS signing key bootstrap timing (OPEN)
 
-Current placeholder behavior: the JWKS signing key is lazily minted on the first `GET /.well-known/jwks.json` and persisted (encrypted) in `mdm_config_assets` under `MDMAssetPSSOSigningKey`. Alternatives under consideration include minting on `AppConfig.PSSOSettings.Enabled = true`, minting on first device registration, or requiring an explicit `fleetctl psso bootstrap`. The lazy-mint code carries a `TODO`; decision pending.
-
-### No Fleet-side profile generation for the POC
-
-A sample `.mobileconfig` template is shipped at `tools/psso/sample.mobileconfig`. Admins fill in placeholders (Fleet base URL, IdP tenant, extension bundle ID) and upload via Fleet's existing custom-profile delivery. Server-side profile templating (analogous to `ensureFleetProfiles`) is out of scope for the POC. Plenty of customers would not want this functionality, either preferring their own existing PSSO IDP implementation or not using PSSO at all, so this is likely not needed
+Current placeholder behavior: the JWKS signing key is lazily minted on the first `GET /api/mdm/apple/psso/jwks` and persisted (encrypted) in `mdm_config_assets` under `MDMAssetPSSOSigningKey`. Alternatives under consideration include minting on the first time a user enables the feature. The lazy-mint code carries a `TODO`; decision pending.
 
 ### In-tree Swift extension at `apple-sso-extension/`
 
 The Swift sources for the SSO extension live in this repo at `apple-sso-extension/`. Signing and notarization happen out-of-band using the deployer's own Apple Developer ID; Fleet does not ship a signed binary. The hostname declared in the extension's `authsrv:` entitlement must match the hostname served by `/.well-known/apple-app-site-association`.
 
-**Device registration must POST directly (no WKWebView).** `beginDeviceRegistration` submits the device's signing/encryption public keys to `/mdm/apple/psso/register` via a direct `URLSession` POST, and reports `.success` only after Fleet returns 2xx. An earlier implementation routed the POST through a WKWebView navigation-delegate intercept (a holdover from an OAuth-code registration model). That web view isn't functional during Setup Assistant, so with `EnableRegistrationDuringSetup` the POST silently never fired, yet `completion(.success)` was still called unconditionally — the framework then went straight to nonce → token with an unregistered key and the token endpoint 404'd ("PSSOKeyID … not found", surfaced on-device as "Incorrect username or password"). Password-mode registration has no browser step, so the web view was never needed; awaiting the direct POST also guarantees the keys are persisted before the framework proceeds to authentication.
+**Device registration must POST directly (no WKWebView).** `beginDeviceRegistration` submits the device's signing/encryption public keys to `/api/mdm/apple/psso/registration` via a direct `URLSession` POST, and reports `.success` only after Fleet returns 2xx. An earlier implementation routed the POST through a WKWebView navigation-delegate intercept (a holdover from an OAuth-code registration model). That web view isn't functional during Setup Assistant, so with `EnableRegistrationDuringSetup` the POST silently never fired, yet `completion(.success)` was still called unconditionally — the framework then went straight to nonce → token with an unregistered key and the token endpoint 404'd ("PSSOKeyID … not found", surfaced on-device as "Incorrect username or password"). Password-mode registration has no browser step, so the web view was never needed; awaiting the direct POST also guarantees the keys are persisted before the framework proceeds to authentication.
 
 ## Known limitations
 
@@ -133,7 +129,7 @@ The Swift sources for the SSO extension live in this repo at `apple-sso-extensio
 - **AASA requires a public-CA TLS certificate.** Apple's framework silently rejects self-signed certificates when fetching `/.well-known/apple-app-site-association`. Local development requires a real DNS name with a Let's Encrypt cert, or a tunnel such as ngrok or cloudflared.
 - **No device revocation or key rotation in the POC.** Devices register once and stay registered for the life of the row.
 - **Global config only.** PSSO settings live on `AppConfig`; there is no per-team override.
-- **Device registration is unauthenticated in the POC.** `POST /mdm/apple/psso/register` accepts any request that presents a device UUID matching an enrolled host plus a set of public keys; nothing proves the request actually originates from that enrolled device. An attacker who can reach the endpoint and knows (or guesses) an enrolled host's hardware UUID could register their own keys for that host. See "Authenticate registration with a per-device token" below for the planned fix.
+- **Device registration is unauthenticated in the POC.** `POST /api/mdm/apple/psso/registration` accepts any request that presents a device UUID matching an enrolled host plus a set of public keys; nothing proves the request actually originates from that enrolled device. An attacker who can reach the endpoint and knows (or guesses) an enrolled host's hardware UUID could register their own keys for that host. See "Authenticate registration with a per-device token" below for the planned fix.
 
 ## Productionizing steps
 
@@ -177,6 +173,8 @@ These are known-required steps to take the POC to a shippable feature. They are 
 
 **Planned approach.** Resolve the IdP client (and nonce store, if it grows config) from the current `AppConfig` at request time rather than caching a single instance at boot — e.g. construct it per call from the live config, or cache it behind the existing app-config change signal so edits take effect immediately. Pair that with a PSSO settings page in the console and secret masking on the config API. This removes the restart requirement and the hand-edited-SQL workflow entirely.
 
+**Live reload addressed in #46942.** The OIDC ROPG client is now built from the current `AppConfig` on every password login, and the boot-time `SetPSSOIdPClient` wiring was removed from `serve.go` (the setter remains as a test hook). The admin UI and secret masking remain with #46959 / #47127.
+
 ### LDAP identity backend (Google Workspace Secure LDAP)
 
 **Problem / motivation.** The POC validates passwords via OIDC ROPG, but **Google Workspace does not support the OAuth ROPG (`grant_type=password`) flow at all** — so there is no OIDC path to validate a Google user's password server-side. Google's supported mechanism for that is **Secure LDAP**. Adding an LDAP backend therefore isn't just an alternative to ROPG; it's what unlocks Google Workspace as an IdP. The same backend also covers classic LDAP/Active Directory for customers who prefer a directory bind over ROPG.
@@ -186,11 +184,12 @@ These are known-required steps to take the POC to a shippable feature. They are 
 **Implementation touch points.**
 - `ee/server/service/apple_psso_idp_ldap.go` — new `PSSOLDAPClient` implementing the interface (search-then-bind; ~150–250 lines). Adds an LDAP library dependency (`github.com/go-ldap/ldap/v3` — confirm it isn't already vendored; Fleet does not appear to use LDAP today).
 - `server/fleet/apple_psso.go` — add an `IdPType` discriminator (`oidc_ropg` | `ldap`) to `PSSOSettings` and an `LDAP *PSSOLDAPSettings` block (`ServerURL`, `BaseDN`, `UserSearchAttr`, attribute→claim map, and the directory-auth material — see below).
-- `cmd/fleet/serve.go` — switch on `IdPType` when wiring the client instead of always constructing `PSSOOIDCROPGClient` (pairs with the live-reload work under *Admin configuration*).
+- `ee/server/service/apple_psso.go` — `pssoIdPClientFromSettings` switches on `IdPType` instead of always constructing `PSSOOIDCROPGClient`. (The client is already built per request from live settings here, so no `serve.go` wiring is involved.)
 - Secret storage + masking — the Google client certificate/key (and any service bind password) are directory-wide credentials; encrypt at rest via the `mdm_config_assets` pattern and mask on the config API (same write-path work as the IdPClientSecret finding).
-- Tests (extend the stub; integrate against glauth/OpenLDAP or a mocked connection) and a Google Admin console setup doc.
+- Tests (integrate against glauth/OpenLDAP or a mocked connection) and a Google Admin console setup doc.
 
 **Google Secure LDAP specifics.**
+- LDAP support of any flavor has been deferred to a later release
 - Endpoint `ldaps://ldap.google.com:636`, TLS only.
 - **Directory authentication is mutual TLS, not a bind password.** An "LDAP client" is created in the Google Admin console, which issues a client certificate + private key that Fleet presents (`tls.Config.Certificates`). This is the main structural difference from classic LDAP/AD, which uses a service bind DN + password — so the LDAP settings should accommodate both directory-auth styles.
 - The Admin console LDAP client must be granted access to the relevant OUs and permission to verify user credentials; the base DN derives from the domain (e.g. `dc=example,dc=com`).
@@ -219,9 +218,13 @@ The crypto was otherwise found sound: no passwords/refresh-tokens/client-secrets
 
 No PSSO service method consults `cfg.PSSOSettings.Enabled`; the unauthenticated `/mdm/apple/psso/*` surface is live on every licensed instance even when an admin never enabled (or explicitly disabled) PSSO. Gate the device-facing methods (`PSSONonce`, `PSSORegisterComplete`, `PSSOToken`, and arguably JWKS/AASA) on `Enabled` in the service layer so all entry points are covered.
 
+**Addressed in #46942.** Every PSSO service method now checks the live `AppConfig.PSSOSettings` per request (`pssoSettingsIfConfigured`): nonce/registration/token return 400 and JWKS/AASA return 404 when the feature is disabled or incompletely configured.
+
 ### HIGH [deploy] — Unbounded replay of token requests
 
 The verified JWT parse validates `exp`/`nbf` only if present, and inbound request JWTs are not required to carry an `exp` (nor is one enforced). The sole anti-replay control, `request_nonce`, is consumed best-effort — a miss is logged, not rejected (`ee/server/service/apple_psso.go`, `handlePSSOPasswordLogin`). A captured login-request JWS can therefore be replayed indefinitely to re-trigger IdP password validation and yield a fresh valid login-response JWE. This supersedes the milder "best-effort nonce, fix before GA" framing — the practical state is unbounded replay of a credential-validating request. Fix: require a short-lived `exp` (and an `iat` max-age) on inbound JWTs, and hard-enforce single-use `request_nonce` (reject when the store rejects).
+
+**Partially addressed in #46942.** `request_nonce` is now hard-enforced and consumed before dispatch for all token flows (password login, key request, key exchange) — a replayed JWS is rejected. Requiring `exp`/`iat` max-age on inbound JWTs remains open (#47122 covers JWT validation cleanup).
 
 ### HIGH [deploy] — Key replacement on registration enables device takeover
 
@@ -242,10 +245,6 @@ The provisioned private key sealed into `key_context` (key request) is recoverab
 ### MEDIUM [GA] — Ad-hoc CA certificate issuance is sloppy
 
 `issuePSSOProvisionedCertificate` (`ee/server/service/apple_psso.go`) regenerates a self-signed, unconstrained, 10-year signing CA on every key request with fixed serial `1`. Generate the CA once (persist alongside the signing key), use random serials for both CA and leaf, and add EKU/name constraints scoping its use.
-
-### LOW [GA] — No request body-size limit on unauthenticated endpoints
-
-`/token` and `/register` use `r.ParseForm()` / `io.ReadAll` with no cap, and the ROPG client reads the IdP response with `io.ReadAll`. Wrap the handlers with a body-size limit (e.g. 64 KB for a JWS assertion) as the SCEP/MDM endpoints should.
 
 ### LOW [GA] — Hardcoded developer Team/bundle IDs in the AASA
 

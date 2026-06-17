@@ -7,11 +7,8 @@
 		<dict>
 			<key>ExtensionData</key>
 			<dict>
-				<key>IssuerHostname</key>      <string>jordan-fleetdm.ngrok.app</string>
-				<key>NonceEndpoint</key>       <string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/nonce</string>
-				<key>JwksEndpoint</key>        <string>https://jordan-fleetdm.ngrok.app/.well-known/jwks.json</string>
-				<key>TokenEndpoint</key>       <string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/token</string>
-				<key>RegistrationEndpoint</key><string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/register</string>
+				<key>BaseURL</key>
+				<string>https://fleet.example.com</string>
 			</dict>
 			<key>ExtensionIdentifier</key>
 			<string>com.fleetdm.pssotesting.extension</string>
@@ -42,14 +39,14 @@
 			<string>Redirect</string>
 			<key>URLs</key>
 			<array>
-				<string>https://jordan-fleetdm.ngrok.app</string>
+				<string>https://fleet.example.com</string>
 			</array>
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>PlatformSSO Fleet</string>
+	<string>Fleet Platform SSO</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.platformsso.fleet.a72B07D0-2E08-45CE-9423-1FCAFFAEC390</string>
+	<string>com.fleetdm.platformsso.fleet.A72B07D0-2E08-45CE-9423-1FCAFFAEC390</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>

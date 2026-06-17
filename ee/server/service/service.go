@@ -22,14 +22,10 @@ type Service struct {
 	// Constructed on first use of a PSSO method.
 	pssoState pssoServiceState
 
-	// pssoNonceStore is wired post-construction via SetPSSONonceStore so the
-	// existing eeservice.NewService signature doesn't need to change for the
-	// PSSO POC. Required for PSSO nonce/register/token flows.
+	// pssoNonceStore backs the single-use nonces issued and consumed by the
+	// PSSO nonce/token flows. Redis-backed in production; may be nil in
+	// deployments/tests that never exercise PSSO.
 	pssoNonceStore fleet.PSSONonceStore
-
-	// pssoIdPClient validates passwords for the PSSO password login flow.
-	// Wired via SetPSSOIdPClient.
-	pssoIdPClient fleet.PSSOIdPClient
 
 	ds                     fleet.Datastore
 	logger                 *slog.Logger
@@ -72,6 +68,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	pssoNonceStore fleet.PSSONonceStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -99,6 +96,7 @@ func NewService(
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
+		pssoNonceStore:         pssoNonceStore,
 	}
 
 	// Override methods that can't be easily overriden via

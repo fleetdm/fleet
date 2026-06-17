@@ -12,7 +12,7 @@
 		A1000001000000000000A003 /* AuthenticationViewController+PSSO.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */; };
 		A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */; };
 		A1000001000000000000A005 /* FleetPSSOExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1000001000000000000C002 /* FleetPSSOExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */; };
+		A1000001000000000000A006 /* AuthenticationViewController+Networking.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+Networking.swift */; };
 		A1000001000000000000A007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B010 /* Assets.xcassets */; };
 		A1000001000000000000A008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B010 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -50,7 +50,7 @@
 		B1000001000000000000B006 /* FleetPSSO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSO.entitlements; sourceTree = "<group>"; };
 		B1000001000000000000B007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B1000001000000000000B008 /* FleetPSSOExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSOExtension.entitlements; sourceTree = "<group>"; };
-		B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+WebView.swift"; sourceTree = "<group>"; };
+		B1000001000000000000B009 /* AuthenticationViewController+Networking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+Networking.swift"; sourceTree = "<group>"; };
 		C1000001000000000000C001 /* FleetPSSO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FleetPSSO.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1000001000000000000C002 /* FleetPSSOExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FleetPSSOExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1000001000000000000B010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -119,7 +119,7 @@
 				B1000001000000000000B002 /* AuthenticationViewController.swift */,
 				B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */,
 				B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */,
-				B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */,
+				B1000001000000000000B009 /* AuthenticationViewController+Networking.swift */,
 				B1000001000000000000B007 /* Info.plist */,
 				B1000001000000000000B008 /* FleetPSSOExtension.entitlements */,
 			);
@@ -227,7 +227,7 @@
 				A1000001000000000000A002 /* AuthenticationViewController.swift in Sources */,
 				A1000001000000000000A003 /* AuthenticationViewController+PSSO.swift in Sources */,
 				A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */,
-				A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */,
+				A1000001000000000000A006 /* AuthenticationViewController+Networking.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

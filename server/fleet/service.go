@@ -1547,15 +1547,12 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple Platform SSO (PSSO)
 
-	// PSSONonce issues a fresh nonce for the Mac extension to embed in
-	// subsequent registration/token JWTs.
+	// PSSONonce issues a fresh single-use nonce for the Mac extension to
+	// embed in subsequent token-request JWTs.
 	PSSONonce(ctx context.Context) (string, error)
-	// PSSORegisterBegin returns the redirect URL the Mac extension's WebView
-	// should follow to start the upstream IdP's OAuth code flow.
-	PSSORegisterBegin(ctx context.Context) (string, error)
-	// PSSORegisterComplete consumes the code returned by the upstream IdP,
-	// validates the device-key payload, and persists the registration.
-	PSSORegisterComplete(ctx context.Context, req PSSORegisterRequest) error
+	// PSSORegisterDevice validates the device-key payload POSTed by the Mac
+	// extension and persists the registration.
+	PSSORegisterDevice(ctx context.Context, req PSSODeviceRegistrationRequest) error
 	// PSSOToken handles the per-sign-in protocol message: parses the inbound
 	// signed JWT, dispatches on grant_type (password login) or request_type
 	// (key_request / key_exchange), and returns the JWE response body.
