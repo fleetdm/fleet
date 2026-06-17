@@ -605,7 +605,10 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 			RequestType:     result.RequestType,
 			Platform:        result.Platform,
 		}); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "log activity for ran custom mdm command")
+			// Activity logging is best-effort: the command was already enqueued
+			// successfully, so returning an error here could cause clients to retry
+			// and send duplicate MDM commands to devices.
+			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
 		}
 	}
 
