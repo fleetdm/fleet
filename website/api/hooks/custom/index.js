@@ -70,7 +70,6 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
-
       // After "sails-hook-organics" finishes initializing…
       sails.after('hook:organics:loaded', ()=>{
 
