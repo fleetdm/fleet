@@ -476,29 +476,53 @@ func applyAndValidateConditionalAccessOktaFields(
 
 // persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
 // Apple account provisioning IdP client secret in mdm_config_assets so it
-// matches the (already-validated) incoming config. The secret is only
-// soft-deleted when the feature is cleared or the secret genuinely changes:
-//   - configured + a new secret provided: insert, or soft-delete + insert when
-//     the value differs (no-op when unchanged).
-//   - configured + no new secret: preserve the existing secret.
+// matches the (already-validated) incoming config. It reports whether the
+// stored secret actually changed, so re-applying a GitOps config that resends an
+// identical secret is a no-op and emits no activity.
+//   - configured + a new secret provided: store it (replacing any existing
+//     value), reporting changed only when the value actually differs.
+//   - configured + no new secret: preserve the existing secret (unchanged).
 //   - feature cleared (was configured, now isn't): soft-delete the secret.
-func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) error {
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) (changed bool, err error) {
 	switch {
 	case configured && newSecretProvided:
+		current, err := svc.appleAccountProvisioningSecret(ctx)
+		if err != nil {
+			return false, err
+		}
+		if current == secret {
+			return false, nil
+		}
 		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
 			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
 			Value: []byte(secret),
 		}); err != nil {
-			return ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+			return false, ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
 		}
+		return true, nil
 	case !configured && wasConfigured:
 		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
 		}); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+			return false, ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
 		}
+		return true, nil
 	}
-	return nil
+	return false, nil
+}
+
+// appleAccountProvisioningSecret returns the stored Apple account provisioning
+// IdP client secret, or "" if none is stored.
+func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get apple account provisioning idp client secret")
+	}
+	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
@@ -1071,12 +1095,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
 	}
 
-	if err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret); err != nil {
+	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
+	if err != nil {
 		return nil, err
 	}
+	// The IdP client secret never reaches the AppConfig JSON, so a secret-only
+	// change isn't visible in the saved config diff — track it separately.
+	aapChanged := aapSecretChanged ||
+		mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value ||
+		mergedAAP.OAuthIdPClientID.Value != oldAAP.OAuthIdPClientID.Value
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	if aapChanged {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
 	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an

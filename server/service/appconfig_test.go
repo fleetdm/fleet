@@ -25,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1722,19 +1723,22 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		deleted        bool    // DeleteMDMConfigAssetsByName expected
 		wantErr        string  // non-empty => ModifyAppConfig should fail containing this
 		wantMasked     bool    // response secret should be the masked placeholder
+		wantActivity   bool    // edited_account_provisioning activity expected
 	}
 
 	type trackers struct {
 		insertedSecret *string
 		deleted        bool
 		saved          *fleet.AppConfig
+		activityFired  bool
 	}
 
 	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning) (fleet.Service, context.Context, *mock.Store, *trackers) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}})
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 		tr := &trackers{}
@@ -1755,6 +1759,16 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
 		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
 
+		// A configured feature implies a stored secret; report it as `secret` so
+		// resending that value is detected as unchanged.
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			if !stored.Configured() {
+				return nil, newNotFoundError()
+			}
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetAppleAccountProvisioningIdPClientSecret: {Name: fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, Value: []byte(secret)},
+			}, nil
+		}
 		ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 			require.Equal(t, fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, asset.Name)
 			v := string(asset.Value)
@@ -1764,6 +1778,12 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 		ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
 			require.Equal(t, []fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, names)
 			tr.deleted = true
+			return nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if _, ok := act.(fleet.ActivityTypeEditedAccountProvisioning); ok {
+				tr.activityFired = true
+			}
 			return nil
 		}
 		return svc, ctx, ds, tr
@@ -1781,7 +1801,7 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			name: "configure stores secret and masks response",
 			tier: fleet.TierPremium,
 			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
-			want: asserts{insertedSecret: new(secret), wantMasked: true},
+			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
 		},
 		{
 			name: "free tier rejected",
@@ -1813,21 +1833,21 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			tier:   fleet.TierPremium,
 			stored: configuredAAP(),
 			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, "rotated-secret"),
-			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true},
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true},
 		},
 		{
 			name:   "masked secret preserved on unrelated change",
 			tier:   fleet.TierPremium,
 			stored: configuredAAP(),
 			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"new-client-id","oauth_idp_client_secret":%q}}}`, tokenURL, fleet.MaskedPassword),
-			want:   asserts{wantMasked: true}, // neither insert nor delete
+			want:   asserts{wantMasked: true, wantActivity: true}, // client_id changed; secret preserved (neither insert nor delete)
 		},
 		{
 			name:   "clearing config soft-deletes secret",
 			tier:   fleet.TierPremium,
 			stored: configuredAAP(),
 			body:   `{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`,
-			want:   asserts{deleted: true},
+			want:   asserts{deleted: true, wantActivity: true},
 		},
 		{
 			name: "public fields without secret rejected",
@@ -1858,7 +1878,7 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			tier:      fleet.TierPremium,
 			overwrite: true,
 			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
-			want:      asserts{insertedSecret: new(secret), wantMasked: true},
+			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
 		},
 		{
 			name:      "gitops public fields without secret rejected",
@@ -1883,7 +1903,16 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			overwrite: true,
 			stored:    configuredAAP(),
 			body:      `{"mdm":{}}`,
-			want:      asserts{deleted: true},
+			want:      asserts{deleted: true, wantActivity: true},
+		},
+		{
+			// No actual change: same public fields and same secret value. The
+			// stored secret is left untouched and no activity is emitted.
+			name:   "reapply identical config emits no activity",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:   asserts{wantMasked: true}, // no insert, no delete, no activity
 		},
 	}
 
@@ -1897,6 +1926,7 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 				require.Contains(t, err.Error(), tc.want.wantErr)
 				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
 				require.False(t, ds.DeleteMDMConfigAssetsByNameFuncInvoked)
+				require.False(t, tr.activityFired)
 				return
 			}
 			require.NoError(t, err)
@@ -1916,6 +1946,8 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			if tc.want.wantMasked {
 				require.Equal(t, fleet.MaskedPassword, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
 			}
+
+			require.Equal(t, tc.want.wantActivity, tr.activityFired)
 		})
 	}
 }
