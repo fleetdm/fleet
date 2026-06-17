@@ -142,7 +142,7 @@ const SelfServiceCategoriesPage = ({
   const renderHeader = () => (
     <>
       <BackButton text="Back to software library" path={backToLibraryPath} />
-      {!isPrimoMode && (
+      {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
           <TeamsDropdown
             currentUserTeams={userTeams ?? []}
@@ -152,6 +152,8 @@ const SelfServiceCategoriesPage = ({
             includeNoTeams
           />
         </div>
+      ) : (
+        <h1>Self-service categories</h1>
       )}
       <PageDescription
         content={
