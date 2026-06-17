@@ -1065,6 +1065,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.managed_local_account?.password_available ??
           false
         }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
   };

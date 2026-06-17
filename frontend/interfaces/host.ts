@@ -179,6 +179,15 @@ export interface IHostMdmData {
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
+  /**
+   * wipe/lock/clear_passcode_allowed indicate whether the corresponding MDM
+   * commands are permitted for this host based on the AccessRights delivered
+   * in the host's manual (SCEP/ACME) enrollment profile. They are only
+   * populated for the host-details endpoint; absent on list-hosts payloads.
+   */
+  wipe_allowed?: boolean;
+  lock_allowed?: boolean;
+  clear_passcode_allowed?: boolean;
 }
 
 export interface IHostMaintenanceWindow {

@@ -116,9 +116,9 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(
-      screen.queryByText(/Send this to your end users:/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
   });
 
   it("renders enroll url input for android if android mdm is enabled", async () => {

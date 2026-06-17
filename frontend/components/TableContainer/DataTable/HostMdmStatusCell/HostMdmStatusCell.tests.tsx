@@ -33,9 +33,9 @@ describe("HostMdmStatusCell", () => {
     expect(screen.getByText("On (company-owned)")).toBeInTheDocument();
   });
 
-  it("renders 'On (BYOD)' for iOS hosts with personal enrollment", () => {
-    renderCell("ios", "On (personal)");
-    expect(screen.getByText("On (BYOD)")).toBeInTheDocument();
+  it("renders 'On (manual - personal)' for iOS hosts with personal enrollment", () => {
+    renderCell("ios", "On (manual - personal)");
+    expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
   });
 
   it("renders 'Pending' for macOS hosts with pending enrollment", () => {
@@ -44,8 +44,8 @@ describe("HostMdmStatusCell", () => {
   });
 
   it("renders the MDM status for Android hosts", () => {
-    renderCell("android", "On (personal)");
-    expect(screen.getByText("On (BYOD)")).toBeInTheDocument();
+    renderCell("android", "On (manual - personal)");
+    expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
   });
 
   it("renders the MDM status for Windows hosts", () => {

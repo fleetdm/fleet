@@ -1557,7 +1557,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="android"
-          hostMdmEnrollmentStatus="On (personal)"
+          hostMdmEnrollmentStatus="On (manual - personal)"
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1803,7 +1803,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           hostMdmDeviceStatus="unlocked"
           isConnectedToFleetMdm
           hostScriptsEnabled
@@ -1843,7 +1843,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled

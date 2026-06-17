@@ -61,7 +61,7 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 export type MdmEnrollmentStatus =
   | "On (manual)"
   | "On (automatic)"
-  | "On (personal)"
+  | "On (manual - personal)"
   | "On (company-owned)"
   | "Off"
   | "Pending";
@@ -96,8 +96,8 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     displayName: "On (company-owned)",
     filterValue: "automatic",
   },
-  "On (personal)": {
-    displayName: "On (BYOD)",
+  "On (manual - personal)": {
+    displayName: "On (manual - personal)",
     filterValue: "personal",
   },
   Off: {
@@ -302,7 +302,7 @@ export const isEnrolledInMdm = (
   return [
     "On (automatic)",
     "On (manual)",
-    "On (personal)",
+    "On (manual - personal)",
     "On (company-owned)",
   ].includes(hostMdmEnrollmentStatus);
 };
@@ -314,11 +314,13 @@ export const isBYODManualEnrollment = (
 };
 
 /** This checks if the device is enrolled via an Apple ID user enrollment.
- * We refer to that as "account driven user enrollment" */
+ * We refer to that as "account driven user enrollment". Note that this same
+ * status now also covers manual BYOD enrollments (Apple) and Android BYO
+ * (work profile); see issue #23242. */
 export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
-  return enrollmentStatus === "On (personal)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
@@ -335,7 +337,7 @@ export const isAutomaticDeviceEnrollment = (
 
 /** Android BYO (work profile, personally-owned) enrollment. */
 export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
-  return enrollmentStatus === "On (personal)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** Android COBO (company-owned, fully managed) enrollment. */

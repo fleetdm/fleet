@@ -1,15 +1,23 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
 import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 
-const generateUrl = (serverUrl: string, enrollSecret: string) => {
-  return `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
+type EnrollmentType = "personal" | "companyOwned";
+
+const generateUrl = (
+  serverUrl: string,
+  enrollSecret: string,
+  enrollmentType: EnrollmentType
+) => {
+  const base = `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
     enrollSecret
   )}`;
+  return enrollmentType === "personal" ? `${base}&byod=true` : base;
 };
 
 const baseClass = "ios-ipados-panel";
@@ -20,6 +28,11 @@ interface IosIpadosPanelProps {
 
 const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+
+  // Default to "Personal (BYOD)" per #23242 design.
+  const [enrollmentType, setEnrollmentType] = useState<EnrollmentType>(
+    "personal"
+  );
 
   const helpText =
     "When the end user navigates to this URL, the enrollment profile " +
@@ -40,19 +53,43 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
     );
   }
 
-  const url = generateUrl(config.server_settings.server_url, enrollSecret);
+  const url = generateUrl(
+    config.server_settings.server_url,
+    enrollSecret,
+    enrollmentType
+  );
 
   return (
     <div className={baseClass}>
-      <InputField
-        label="Send this to your end users:"
-        enableCopy
-        readOnly
-        inputWrapperClass={`${baseClass}__enroll-link`}
-        name="enroll-link"
-        value={url}
-        helpText={helpText}
-      />
+      <form>
+        <fieldset className="form-field">
+          <Radio
+            name="iosIpadosEnrollmentType"
+            id="iosIpadosPersonal"
+            label="Personal (BYOD)"
+            value="personal"
+            checked={enrollmentType === "personal"}
+            onChange={() => setEnrollmentType("personal")}
+          />
+          <Radio
+            name="iosIpadosEnrollmentType"
+            id="iosIpadosCompanyOwned"
+            label="Company-owned"
+            value="companyOwned"
+            checked={enrollmentType === "companyOwned"}
+            onChange={() => setEnrollmentType("companyOwned")}
+          />
+        </fieldset>
+        <InputField
+          label="Enrollment instructions:"
+          enableCopy
+          readOnly
+          inputWrapperClass={`${baseClass}__enroll-link`}
+          name="enroll-link"
+          value={url}
+          helpText={helpText}
+        />
+      </form>
     </div>
   );
 };

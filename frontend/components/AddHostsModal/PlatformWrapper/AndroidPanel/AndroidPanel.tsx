@@ -66,7 +66,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           <Radio
             name="enrollmentType"
             id="workProfile"
-            label="Work profile"
+            label="Personal (BYOD)"
             value="workProfile"
             checked={enrollmentType === "workProfile"}
             onChange={() => setEnrollmentType("workProfile")}
@@ -74,7 +74,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           <Radio
             name="enrollmentType"
             id="fullyManaged"
-            label="Fully-managed (no work profile)"
+            label="Company-owned (fully-managed)"
             value="fullyManaged"
             checked={enrollmentType === "fullyManaged"}
             onChange={() => setEnrollmentType("fullyManaged")}

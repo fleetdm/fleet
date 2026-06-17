@@ -34,7 +34,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -56,7 +56,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -78,7 +78,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -146,7 +146,7 @@ describe("Vitals Card component", () => {
       public_ip: "203.0.113.1",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
