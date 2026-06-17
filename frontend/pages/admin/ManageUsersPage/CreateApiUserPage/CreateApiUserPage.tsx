@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
@@ -25,7 +24,6 @@ interface ICreateApiUserPageProps {
 
 const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -58,8 +56,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
         if (response.token) {
           setApiKey(response.token);
         } else {
-          renderFlash(
-            "warning-filled",
+          notify.error(
             `${formData.name} has been created, but the API key could not be retrieved. Contact your administrator.`
           );
           router.push(PATHS.ADMIN_USERS);
