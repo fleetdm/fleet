@@ -138,7 +138,7 @@ Fleet is in active communication with EDR vendors to resolve false-positive flag
 
 If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/orbit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
 
-### SLSA provenance attestation 🌶️
+## SLSA provenance attestation 🌶️
 
 Fleet's orbit binaries are built via GitHub Actions and include SLSA (Supply-chain Levels for Software Artifacts) provenance attestations. These attestations allow customers to cryptographically verify that a given binary was produced from a specific GitHub build job and source commit—providing confidence that the binary has not been tampered with.
 
@@ -188,15 +188,15 @@ If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git m
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
-### What MySQL versions are supported?
+## What MySQL versions are supported?
 
 Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
-### What Redis versions are supported?
+## What Redis versions are supported?
 
 Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 on AWS ElastiCache). Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
 
-### What version of the Mac Admins osquery extension is supported?
+## What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
