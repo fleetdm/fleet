@@ -23,6 +23,7 @@ import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
 
 import AddCategoryModal from "./AddCategoryModal";
@@ -228,7 +229,9 @@ const SelfServiceCategoriesPage = ({
         )}
         ListItemComponent={({ listItem }) => (
           <div className={`${baseClass}__row`}>
-            <span className={`${baseClass}__row-name`}>{listItem.name}</span>
+            <div className={`${baseClass}__row-name`}>
+              <TooltipTruncatedText value={listItem.name} />
+            </div>
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button

@@ -102,6 +102,20 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
 
+## Lists & rows
+When rendering free-text fields users typed (`name`, `title`, `label`, `description`, etc.) inside:
+- a `UploadList` `ListItemComponent`,
+- a custom BEM `__row` / list-row flex container with sibling actions/badges, or
+- a `TableContainer` cell holding open-ended text (not enums, IDs, or badges),
+
+wrap the value in `<TooltipTruncatedText value={...} />` and set the immediate parent to `flex: 1; min-width: 0`. Without `min-width: 0`, flex items refuse to shrink below content size and the ellipsis silently no-ops.
+
+Anti-pattern — do NOT do this:
+```tsx
+<span className={`${baseClass}__row-name`}>{item.name}</span>
+```
+Long values overflow the row and push siblings off-screen.
+
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)

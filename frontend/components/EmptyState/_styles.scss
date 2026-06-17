@@ -14,6 +14,10 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
 
 .empty-state {
   position: relative;
+  // Span the full width of the parent regardless of its align-items setting.
+  // Without this, parents using `align-items: flex-start` (or any non-stretch
+  // value) collapse the empty state to its intrinsic content width — see #46370.
+  width: 100%;
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   overflow: hidden;
