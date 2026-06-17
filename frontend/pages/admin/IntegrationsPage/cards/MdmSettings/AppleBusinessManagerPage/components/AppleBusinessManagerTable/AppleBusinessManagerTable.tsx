@@ -32,10 +32,6 @@ const AppleBusinessManagerTable = ({
       )
     : abTokens;
 
-  const handleSearchQueryChange = (query: string) => {
-    setSearchQuery(query);
-  };
-
   const onSelectAction = (action: string, abmToken: IMdmAbToken) => {
     switch (action) {
       case "editTeams":
@@ -59,7 +55,7 @@ const AppleBusinessManagerTable = ({
   );
 
   const onQueryChange = (queryData: ITableQueryData) => {
-    handleSearchQueryChange(queryData.searchQuery);
+    setSearchQuery(queryData.searchQuery);
   };
 
   return (
