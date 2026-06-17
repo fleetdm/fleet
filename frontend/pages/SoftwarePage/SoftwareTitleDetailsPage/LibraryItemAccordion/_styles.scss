@@ -24,6 +24,15 @@
     width: 16px;
     height: 16px;
     flex-shrink: 0;
+
+    svg {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: rotate(0deg);
+    }
+  }
+
+  &__chevron--open svg {
+    transform: rotate(90deg);
   }
 
   &__info {
@@ -163,5 +172,18 @@
     .library-item-accordion__header:hover {
       background: $core-fleet-white;
     }
+  }
+}
+
+.library-item-accordion-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: 8px;
+  overflow: hidden;
+
+  .library-item-accordion:last-child .library-item-accordion__header,
+  .library-item-accordion:last-child .library-item-accordion__panel {
+    border-bottom: 0;
   }
 }

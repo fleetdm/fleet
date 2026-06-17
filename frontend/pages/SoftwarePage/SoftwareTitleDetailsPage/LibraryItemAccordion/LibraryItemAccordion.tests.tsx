@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 
@@ -144,18 +144,42 @@ describe("LibraryItemAccordion", () => {
     expect(screen.getByText("0 failed")).toBeVisible();
   });
 
-  it("renders the Labels heading by default", async () => {
+  it("renders the 'Include any' heading by default", async () => {
     const user = userEvent.setup();
     renderAccordion({ labels: makeLabels(2) });
     await user.click(screen.getByRole("button", { expanded: false }));
-    expect(screen.getByText("Labels")).toBeVisible();
+    expect(screen.getByText("Include any")).toBeVisible();
   });
 
-  it("renders 'Excluded labels' when labelKind is exclude", async () => {
+  it("renders the 'Include all' heading when labelKind is includeAll", async () => {
     const user = userEvent.setup();
-    renderAccordion({ labels: makeLabels(2), labelKind: "exclude" });
+    renderAccordion({ labels: makeLabels(2), labelKind: "includeAll" });
     await user.click(screen.getByRole("button", { expanded: false }));
-    expect(screen.getByText("Excluded labels")).toBeVisible();
+    expect(screen.getByText("Include all")).toBeVisible();
+  });
+
+  it("renders the 'Exclude any' heading when labelKind is excludeAny", async () => {
+    const user = userEvent.setup();
+    renderAccordion({ labels: makeLabels(2), labelKind: "excludeAny" });
+    await user.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByText("Exclude any")).toBeVisible();
+  });
+
+  it("renders a tooltip with the label list when hovering the count badge", async () => {
+    const user = userEvent.setup();
+    const labels = [
+      { id: 1, name: "Design" },
+      { id: 2, name: "Engineering" },
+      { id: 3, name: "IT" },
+    ] as never;
+    renderAccordion({ isLatest: true, labels, labelKind: "includeAll" });
+
+    await user.hover(screen.getByRole("button", { name: "3" }));
+    await waitFor(() => {
+      expect(
+        screen.getByText("Include all: Design, Engineering, IT")
+      ).toBeInTheDocument();
+    });
   });
 
   it("uses callback wiring without errors when no handlers are provided", async () => {

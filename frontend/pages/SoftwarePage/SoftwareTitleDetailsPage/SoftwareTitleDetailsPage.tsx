@@ -9,6 +9,7 @@ import { AxiosError } from "axios";
 import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ISoftwareTitleDetails } from "interfaces/software";
@@ -30,7 +31,12 @@ import TeamsHeader from "components/TeamsHeader";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
-import LibraryItemAccordion from "./LibraryItemAccordion";
+import LibraryItemAccordion, {
+  LibraryItemAccordionList,
+  LibraryItemLabelKind,
+} from "./LibraryItemAccordion";
+import EditSoftwareModal from "./EditSoftwareModal";
+import { getDisplayedSoftwareName } from "../helpers";
 
 const baseClass = "software-title-details-page";
 
@@ -84,6 +90,10 @@ const SoftwareTitleDetailsPage = ({
     autoOpenGitOpsYamlModal || false
   );
 
+  // TODO #47622 preview — page-level state for opening the EditSoftwareModal
+  // from the LibraryItemAccordion. Remove with the preview block.
+  const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
+
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
@@ -111,6 +121,12 @@ const SoftwareTitleDetailsPage = ({
 
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
+
+  // TODO #47622 preview — installer meta used to wire the EditSoftwareModal
+  // from the accordion's label-count click. Remove with the preview block.
+  const installerResult = useSoftwareInstaller(
+    softwareTitle ?? ({} as ISoftwareTitleDetails)
+  );
 
   const onToggleViewYaml = () => {
     setShowViewYamlModal(!showViewYamlModal);
@@ -188,6 +204,82 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
+  // TODO #47622 preview — remove before merging into main.
+  // Renders a single LibraryItemAccordion from the active software_package so
+  // design can review with real data; multi-row rendering lands in #47623.
+  const renderLibraryItemAccordionPreview = (title: ISoftwareTitleDetails) => {
+    const pkg = title.software_package;
+    if (!pkg) return null;
+
+    let labels = pkg.labels_include_any;
+    let labelKind: LibraryItemLabelKind = "includeAny";
+    if (pkg.labels_include_all?.length) {
+      labels = pkg.labels_include_all;
+      labelKind = "includeAll";
+    } else if (pkg.labels_exclude_any?.length) {
+      labels = pkg.labels_exclude_any;
+      labelKind = "excludeAny";
+    }
+
+    const statusPath = (software_status: "installed" | "pending" | "failed") =>
+      getPathWithQueryParams(paths.MANAGE_HOSTS, {
+        software_title_id: softwareId,
+        software_status,
+        fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
+      });
+
+    return (
+      <LibraryItemAccordionList>
+        <LibraryItemAccordion
+          filename={pkg.name}
+          version={pkg.version}
+          addedAt={pkg.uploaded_at}
+          isActive
+          isLatest
+          labels={labels}
+          labelKind={labelKind}
+          installed={pkg.status?.installed ?? 0}
+          pending={
+            (pkg.status?.pending_install ?? 0) +
+            (pkg.status?.pending_uninstall ?? 0)
+          }
+          failed={
+            (pkg.status?.failed_install ?? 0) +
+            (pkg.status?.failed_uninstall ?? 0)
+          }
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          hashSha256={pkg.hash_sha256 ?? null}
+          downloadUrl={pkg.url}
+          onLabelCountClick={() => setShowLibraryEditModal(true)}
+        />
+      </LibraryItemAccordionList>
+    );
+  };
+
+  const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
+    if (!showLibraryEditModal || !installerResult) return null;
+    const { meta } = installerResult;
+    return (
+      <EditSoftwareModal
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        softwareInstaller={meta.softwareInstaller}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onExit={() => setShowLibraryEditModal(false)}
+        installerType={meta.installerType}
+        openViewYamlModal={onToggleViewYaml}
+        isFleetMaintainedApp={meta.isFleetMaintainedApp}
+        isIosOrIpadosApp={meta.isIosOrIpadosApp}
+        name={title.name}
+        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
+        source={title.source}
+        iconUrl={title.icon_url}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
       return <Spinner />;
@@ -206,45 +298,9 @@ const SoftwareTitleDetailsPage = ({
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}
-          {/* TODO #47622 preview — remove before merging into main */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <LibraryItemAccordion
-              filename="GoogleChrome.pkg"
-              version="149.0.7827.54"
-              addedAt={new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()}
-              isActive
-              isLatest
-              labels={
-                [
-                  { id: 1, name: "Engineering" },
-                  { id: 2, name: "Product" },
-                  { id: 3, name: "Quality Assurance" },
-                  { id: 4, name: "Marketing" },
-                  { id: 5, name: "Sales" },
-                  { id: 6, name: "Support" },
-                  { id: 7, name: "Ops" },
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                ] as any
-              }
-              installed={32}
-              pending={5}
-              failed={3}
-              hashSha256="af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7"
-              downloadUrl="https://example.com/installer.pkg"
-            />
-            <LibraryItemAccordion
-              filename="GoogleChrome.pkg"
-              version="148.0.7778.179"
-              addedAt={new Date(
-                Date.now() - 1000 * 60 * 60 * 24 * 20
-              ).toISOString()}
-              isActive={false}
-              installed={0}
-              pending={0}
-              failed={0}
-            />
-          </div>
+          {renderLibraryItemAccordionPreview(softwareTitle)}
           {renderSoftwareInstallerCard(softwareTitle)}
+          {renderLibraryEditModal(softwareTitle)}
         </>
       );
     }

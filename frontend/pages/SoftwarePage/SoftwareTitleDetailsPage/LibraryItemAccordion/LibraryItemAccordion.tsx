@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
@@ -11,7 +12,13 @@ import { stringToClipboard } from "utilities/copy_text";
 
 const baseClass = "library-item-accordion";
 
-export type LibraryItemLabelKind = "include" | "exclude";
+export type LibraryItemLabelKind = "includeAny" | "includeAll" | "excludeAny";
+
+const LABEL_KIND_HEADING: Record<LibraryItemLabelKind, string> = {
+  includeAny: "Include any",
+  includeAll: "Include all",
+  excludeAny: "Exclude any",
+};
 
 export interface ILibraryItemAccordionProps {
   filename: string;
@@ -29,12 +36,17 @@ export interface ILibraryItemAccordionProps {
 
   /** Labels assigned to this version (drives the label-count badge and the expanded Labels row). */
   labels?: ILabelSoftwareTitle[] | null;
-  /** Whether `labels` are include or exclude scoped. Defaults to "include". */
+  /** How `labels` are scoped — matches backend label fields. Defaults to "includeAny". */
   labelKind?: LibraryItemLabelKind;
 
   installed: number;
   pending: number;
   failed: number;
+
+  /** Link targets for the install-status counts. When provided, the count renders as a link. */
+  installedPath?: string;
+  pendingPath?: string;
+  failedPath?: string;
 
   hashSha256?: string | null;
   downloadUrl?: string;
@@ -45,9 +57,6 @@ export interface ILibraryItemAccordionProps {
   onLatestClick?: () => void;
   onPinnedClick?: () => void;
   onLabelCountClick?: () => void;
-  onInstalledClick?: () => void;
-  onPendingClick?: () => void;
-  onFailedClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
 }
@@ -70,10 +79,13 @@ const LibraryItemAccordion = ({
   isLatest,
   isPinned,
   labels,
-  labelKind = "include",
+  labelKind = "includeAny",
   installed,
   pending,
   failed,
+  installedPath,
+  pendingPath,
+  failedPath,
   hashSha256,
   downloadUrl,
   trashDisabled,
@@ -81,9 +93,6 @@ const LibraryItemAccordion = ({
   onLatestClick,
   onPinnedClick,
   onLabelCountClick,
-  onInstalledClick,
-  onPendingClick,
-  onFailedClick,
   onDownloadClick,
   onTrashClick,
 }: ILibraryItemAccordionProps) => {
@@ -113,6 +122,30 @@ const LibraryItemAccordion = ({
 
   const addedAtLabel = formatAddedAt(addedAt);
 
+  const sortedLabelNames = (labels ?? [])
+    .map((l) => l.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  const renderLabelCountTooltip = () => (
+    <>
+      {LABEL_KIND_HEADING[labelKind]}:
+      <br />
+      {sortedLabelNames.map((name, i) => (
+        <React.Fragment key={name}>
+          {name}
+          {i < sortedLabelNames.length - 1 && <br />}
+        </React.Fragment>
+      ))}
+    </>
+  );
+
+  const handleBadgeClick = (handler?: () => void) => (
+    e: React.MouseEvent | React.KeyboardEvent
+  ) => {
+    e.stopPropagation();
+    handler?.();
+  };
+
   const renderHeaderBadges = () => {
     if (!isActive) return null;
 
@@ -122,7 +155,7 @@ const LibraryItemAccordion = ({
           <Button
             variant="text-icon"
             size="small"
-            onClick={onLatestClick}
+            onClick={handleBadgeClick(onLatestClick)}
             className={`${baseClass}__badge-button`}
           >
             <Icon name="refresh" color="ui-fleet-black-75" />
@@ -133,7 +166,7 @@ const LibraryItemAccordion = ({
           <Button
             variant="text-icon"
             size="small"
-            onClick={onPinnedClick}
+            onClick={handleBadgeClick(onPinnedClick)}
             className={`${baseClass}__badge-button`}
           >
             <Icon name="pin" color="ui-fleet-black-75" />
@@ -141,15 +174,23 @@ const LibraryItemAccordion = ({
           </Button>
         )}
         {hasLabelScope && (
-          <Button
-            variant="text-icon"
-            size="small"
-            onClick={onLabelCountClick}
-            className={`${baseClass}__badge-button`}
+          <TooltipWrapper
+            tipContent={renderLabelCountTooltip()}
+            showArrow
+            underline={false}
+            position="top"
+            tipOffset={8}
           >
-            <Icon name="tag" color="ui-fleet-black-75" />
-            <span>{labelCount}</span>
-          </Button>
+            <Button
+              variant="text-icon"
+              size="small"
+              onClick={handleBadgeClick(onLabelCountClick)}
+              className={`${baseClass}__badge-button`}
+            >
+              <Icon name="tag" color="ui-fleet-black-75" />
+              <span>{labelCount}</span>
+            </Button>
+          </TooltipWrapper>
         )}
         {showAllHostsBadge && (
           <span className={`${baseClass}__all-hosts`}>{ALL_HOSTS_LABEL}</span>
@@ -162,7 +203,7 @@ const LibraryItemAccordion = ({
     iconName: "success" | "pending-outline" | "error",
     count: number,
     label: string,
-    onClick?: () => void
+    path?: string
   ) => {
     const content = (
       <>
@@ -173,15 +214,11 @@ const LibraryItemAccordion = ({
       </>
     );
 
-    if (onClick) {
+    if (path) {
       return (
-        <Button
-          variant="text-icon"
-          onClick={onClick}
-          className={`${baseClass}__status-count`}
-        >
+        <Link to={path} className={`${baseClass}__status-count`}>
           {content}
-        </Button>
+        </Link>
       );
     }
     return <div className={`${baseClass}__status-count`}>{content}</div>;
@@ -192,13 +229,14 @@ const LibraryItemAccordion = ({
   const renderLabelsBlock = () => {
     if (!hasLabelScope) return null;
 
-    const heading = labelKind === "exclude" ? "Excluded labels" : "Labels";
-    const names = (labels ?? []).map((l) => l.name).join(", ");
-
     return (
       <div className={`${baseClass}__data-row`}>
-        <p className={`${baseClass}__data-heading`}>{heading}</p>
-        <p className={`${baseClass}__data-value`}>{names}</p>
+        <p className={`${baseClass}__data-heading`}>
+          {LABEL_KIND_HEADING[labelKind]}
+        </p>
+        <p className={`${baseClass}__data-value`}>
+          {sortedLabelNames.join(", ")}
+        </p>
       </div>
     );
   };
@@ -274,11 +312,12 @@ const LibraryItemAccordion = ({
         aria-expanded={isExpanded}
         aria-disabled={!canExpand}
       >
-        <span className={`${baseClass}__chevron`}>
-          <Icon
-            name={isExpanded ? "chevron-down" : "chevron-right"}
-            color="ui-fleet-black-75"
-          />
+        <span
+          className={classnames(`${baseClass}__chevron`, {
+            [`${baseClass}__chevron--open`]: isExpanded,
+          })}
+        >
+          <Icon name="chevron-right" color="ui-fleet-black-75" />
         </span>
         <Graphic name="file-pkg" />
         <div className={`${baseClass}__info`}>
@@ -301,15 +340,15 @@ const LibraryItemAccordion = ({
                 "success",
                 installed,
                 "installed",
-                onInstalledClick
+                installedPath
               )}
               {renderStatusCount(
                 "pending-outline",
                 pending,
                 "pending",
-                onPendingClick
+                pendingPath
               )}
-              {renderStatusCount("error", failed, "failed", onFailedClick)}
+              {renderStatusCount("error", failed, "failed", failedPath)}
             </div>
             <TooltipWrapper
               tipContent={statusCountsTooltip}
