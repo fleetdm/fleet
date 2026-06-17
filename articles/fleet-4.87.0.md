@@ -1,4 +1,4 @@
-# Fleet 4.87.0 | Custom OS updates profiles, Android commands, and more...
+# Fleet 4.87.0 | 800+ new apps, custom OS updates, Android commands, and more...
 
 <div purpose="embedded-content">
    <iframe src="TODO" title="0" allowfullscreen></iframe>
@@ -8,6 +8,7 @@ Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
+- [800+ new Fleet-maintained apps](#800--new-fleet-maintained-apps)
 - [Custom OS update profiles](#custom-os-update-profiles)
 - [Configuration profiles: Include + exclude](#configuration-profiles-include--exclude)
 - [macOS local account: standard or no end-user account](#macos-local-account-standard-or-no-end-user-account)
@@ -15,6 +16,12 @@ Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/f
 - [Android commands: Lock, wipe, & clear passcode](#android-commands-lock-wipe--clear-passcode)
 - [Policy automation continuous retry](#policy-automation-continuous-retry)
 - [Command palette](#command-palette)
+
+### 800+ new Fleet-maintained apps
+
+_Available in Fleet Premium_
+
+TODO
 
 ### Custom OS update profiles
 
@@ -86,5 +93,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-06-17">
-<meta name="articleTitle" value="Fleet 4.87.0 | Command palette, custom DDM profiles, Android commands, and more...">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.87.0-1600x900@2x.png">
+<meta name="articleTitle" value="Fleet 4.87.0 | 800+ new apps, custom OS updates, Android commands, and more...">
+<meta name="articleImageUrl" value="TODO">
