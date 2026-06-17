@@ -2518,6 +2518,37 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	return &host, nil
 }
 
+// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in Fleet
+// and was previously orbit-enrolled (i.e. it has an orbit node key). It mirrors the host matching done by EnrollOrbit so that
+// "a host already exists here" means the same row EnrollOrbit would take over. See https://github.com/fleetdm/fleet/issues/46300.
+func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+	if hostInfo.HardwareUUID == "" {
+		return false, ctxerr.New(ctx, "hardware uuid is empty")
+	}
+
+	serialToMatch := hostInfo.HardwareSerial
+	if hostInfo.Platform == "windows" {
+		// For Windows, don't match by serial number, matching EnrollOrbit's behavior.
+		serialToMatch = ""
+	}
+
+	// reader honors RequirePrimary, which EnrollOrbit's service handler sets, so this stays consistent with the subsequent
+	// enroll within the same request.
+	matched, err := matchHostDuringEnrollment(ctx, ds.reader(ctx), orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
+		hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// No host matches these identifiers: this is a new device (or one moving to a different Fleet server), not a re-enroll.
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "match host for orbit re-enrollment check")
+	default:
+		// Require a previously-set orbit node key so a never-orbit-enrolled row (e.g. a DEP-pre-created host) does not exempt
+		// enrollment from end user authentication.
+		return matched.NodeKeySet, nil
+	}
+}
+
 // EnrollOsquery enrolls the osquery agent to Fleet.
 func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 	enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}

@@ -270,8 +270,27 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+					// prompt for end user authentication again: it would interrupt the user on every restart, and it also
+					// grandfathers hosts that enrolled before end user authentication was enabled (those have no
+					// host_mdm_idp_accounts row). A genuinely new device, or one moved to a different Fleet server (where it
+					// won't be found here), is not matched and is still gated. See https://github.com/fleetdm/fleet/issues/46300.
+					//
+					// Security note: matching by hardware UUID is not a strong identity check, but this does not introduce a new
+					// attack vector. EnrollOrbit already takes over an existing host row on a duplicate-UUID enrollment
+					// regardless of this gate, and hosts that already have an IdP account skip it. Requiring the matched host to
+					// have previously held an orbit node key keeps the exemption to hosts that genuinely enrolled before.
+					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+					if err != nil {
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+					}
+					if !previouslyEnrolled {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
+					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
 		}
