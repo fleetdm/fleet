@@ -654,6 +654,13 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
+			// Anchor relative paths from a nested org_settings file to its own directory;
+			// otherwise they'd later resolve against the main file's baseDir and fail.
+			if orgSettingsTop.Path != nil {
+				orgSettingsDir := filepath.Dir(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
+				reanchorOrgSettingsPaths(result.OrgSettings, orgSettingsDir)
+			}
+
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
@@ -664,6 +671,79 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return multiError
+}
+
+// absPathFrom resolves a relative file path to an absolute one anchored at baseDir.
+// Absolute paths are independent of any baseDir, so a later resolveApplyRelativePath
+// is a guaranteed no-op — this lets paths authored in one gitops file survive being
+// applied under a different file's baseDir.
+func absPathFrom(baseDir, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	if abs, err := filepath.Abs(filepath.Join(baseDir, p)); err == nil {
+		return abs
+	}
+	return filepath.Join(baseDir, p) // fallback: at least anchored
+}
+
+// ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
+// APPLY time to absolute paths against baseDir. Used when controls from
+// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// under a different (global) baseDir — making these paths absolute means the
+// apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
+// the no-team file (e.g. ../lib/...) keep working.
+//
+// Only fields resolved at apply time are touched. Deliberately excluded:
+//   - controls.scripts and macos_settings/windows_settings profiles are already
+//     resolved at parse time against the file's own dir (see parseControls), so
+//     re-resolving here would double-anchor them.
+func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
+	if c.MacOSSetup == nil {
+		return
+	}
+	c.MacOSSetup.MacOSSetupAssistant.Value = absPathFrom(baseDir, c.MacOSSetup.MacOSSetupAssistant.Value)
+	c.MacOSSetup.Script.Value = absPathFrom(baseDir, c.MacOSSetup.Script.Value)
+	for _, sw := range c.MacOSSetup.Software.Value {
+		if sw != nil {
+			sw.PackagePath = absPathFrom(baseDir, sw.PackagePath)
+		}
+	}
+}
+
+// reanchorOrgSettingsPaths rewrites the relative path-bearing fields inside org_settings
+// to be absolute against orgSettingsDir. Without this, paths authored in a nested
+// org_settings file are later resolved against the main file's baseDir.
+func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string) {
+	anchor := func(v string) string {
+		return absPathFrom(orgSettingsDir, v)
+	}
+
+	if orgInfo, ok := orgSettings["org_info"].(map[string]any); ok {
+		for _, key := range []string{"org_logo_path_light_mode", "org_logo_path_dark_mode"} {
+			if s, ok := orgInfo[key].(string); ok && s != "" {
+				orgInfo[key] = anchor(s)
+			}
+		}
+	}
+
+	if rules, ok := orgSettings["yara_rules"].([]any); ok {
+		for _, r := range rules {
+			rule, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := rule["path"].(string); ok && p != "" {
+				rule["path"] = anchor(p)
+			}
+		}
+	}
+
+	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
+		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
+			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+	}
 }
 
 // validateOrgInfoLogo rejects org_info configurations that specify both a path

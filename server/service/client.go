@@ -638,7 +638,7 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				if !opts.DryRun {
-					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
+					if err := c.uploadMacOSSetupAssistant(content, nil, filepath.Base(macosSetup.MacOSSetupAssistant.Value)); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
@@ -1036,7 +1036,7 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"

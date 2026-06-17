@@ -100,6 +100,7 @@ func TestHosts(t *testing.T) {
 		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
@@ -2976,6 +2977,64 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
+}
+
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime verifies that ios/ipados hosts, which never
+// report a host_seen_times entry (no osquery), are not flagged as "missing" when they have recently
+// checked in via the Apple MDM protocol (nano_enrollments.last_seen_at).
+func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// An ios host that enrolled long ago (created_at/detail_updated_at both > 30 days) and never
+	// checks in via osquery, so it has no host_seen_times row. Without the MDM last_seen_at fallback
+	// it would be incorrectly counted as missing.
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "ios-device",
+		UUID:            "ios-device-uuid",
+		HardwareSerial:  "ios-serial",
+		Platform:        "ios",
+		DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	// Backdate created_at and remove the host_seen_times row to mimic a real ios host.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET created_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+	require.NoError(t, err)
+
+	// Recent MDM check-in: device-channel nano enrollment with a fresh last_seen_at.
+	nanoEnroll(t, ds, h, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-1*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	missingFilter := fleet.HostListOptions{StatusFilter: fleet.StatusMissing}
+
+	// With a recent MDM last_seen_at, the host must NOT be counted/listed as missing.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount, "ios host with recent MDM check-in should not be missing")
+
+	hosts, err := ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	assert.Empty(t, hosts, "ios host with recent MDM check-in should not appear in missing list")
+
+	// Stale MDM check-in (> 30 days): the host should now be counted/listed as missing.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at = ? WHERE id = ?`, now.Add(-40*24*time.Hour), h.UUID)
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount, "ios host with stale MDM check-in should be missing")
+
+	hosts, err = ds.ListHosts(ctx, filter, missingFilter)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "ios host with stale MDM check-in should appear in missing list")
+	assert.Equal(t, h.ID, hosts[0].ID)
 }
 
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
