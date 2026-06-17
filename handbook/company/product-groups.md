@@ -396,6 +396,7 @@ The goal of the Auto Patching working group is to reduce the amount of time befo
 - Google Play apps
 - In-house apps (IPAs)
 - End user self-service
+- Scripts
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this working group is `#g-software`.
 
