@@ -196,11 +196,13 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {

@@ -62,7 +62,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
+	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -472,8 +472,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
-		// LabelsIncludeAll and LabelsExcludeAll are premium-only.
-		if (len(policy.LabelsIncludeAll) > 0 || len(policy.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
+		if (len(policy.LabelsIncludeAll) > 0 || len(policy.LabelsExcludeAll) > 0 || len(policy.LabelsIncludeAny) > 0 || len(policy.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

@@ -20778,6 +20778,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
+	// Count is the total number of platform-specific maintained apps: an app's
+	// macOS and Windows entries are counted separately, even though the UI
+	// combines them into a single row. The full unfiltered list returns one row
+	// per app, so the count equals the number of rows returned.
+	require.Equal(t, len(expectedApps), listMAResp.Count)
+
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
 		if c := cmp.Compare(a.Name, b.Name); c != 0 {
 			return c
@@ -20804,6 +20810,23 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
 	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
+
+	// The platform filter narrows the list to apps available on that platform.
+	// Fewer apps ship a Windows installer than a macOS one, so the Windows-only
+	// count is a non-empty strict subset of the full count.
+	var listMAWin listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAWin,
+		"team_id", fmt.Sprint(team.ID),
+		"platform", "windows",
+	)
+	require.NoError(t, listMAWin.Err)
+	require.Positive(t, listMAWin.Count)
+	require.Less(t, listMAWin.Count, listMAResp.Count)
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse

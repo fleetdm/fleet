@@ -1101,9 +1101,8 @@ type HostSummaryPlatform struct {
 // Status calculates the online status of the host
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
-	// GenerateHostStatusStatistics and CountHostsInTargets
+	// GenerateHostStatusStatistics and CountHostsInTargets - it can't stay in sync for MDM join, since that attribute is not available.
 	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
-
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
 		onlineInterval = h.DistributedInterval

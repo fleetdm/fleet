@@ -122,10 +122,13 @@ func SubstituteFleetVarsInAndroidAppConfig(
 	return []byte(contents), nil
 }
 
+// replaceJSONSafe replaces a Fleet variable in contents with a JSON-safe value.
 func replaceJSONSafe(contents, variableName, value string) string {
 	return variables.Replace(contents, variableName, jsonEscapeString(value))
 }
 
+// jsonEscapeString returns value with JSON special characters escaped,
+// suitable for embedding inside a JSON string literal.
 func jsonEscapeString(s string) string {
 	b, _ := json.Marshal(s) // json.Marshal for strings never errors
 	return strings.TrimSuffix(strings.TrimPrefix(string(b), `"`), `"`)

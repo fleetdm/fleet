@@ -2977,7 +2977,7 @@ type Datastore interface {
 	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
-	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt MaintainedAppListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
 	// ClearRemovedFleetMaintainedApps deletes all Fleet-maintained apps that are not in the given
 	// set of slugs.

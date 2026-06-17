@@ -636,7 +636,7 @@ type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
 
 type CountABMTokensFunc func(ctx context.Context) (int, error)
 
-type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint) (*fleet.ABMToken, error)
+type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error)
 
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
@@ -892,7 +892,7 @@ type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fl
 
 type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error)
 
-type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetFleetMaintainedAppFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
@@ -4480,11 +4480,11 @@ func (s *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return s.CountABMTokensFunc(ctx)
 }
 
-func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error) {
 	s.mu.Lock()
 	s.UpdateABMTokenTeamsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID)
+	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID)
 }
 
 func (s *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
@@ -5376,7 +5376,7 @@ func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID
 	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 }
 
-func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
