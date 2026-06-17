@@ -70,6 +70,29 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
+      // Initialize a Google API auth client for the Android Management API proxy.
+      // The googleapis library caches the OAuth2 access_token on a reused client and refreshes it automatically when it expires.
+      if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
+        try {
+          let { google } = require('googleapis');
+          let googleAuth = new google.auth.GoogleAuth({
+            // The pubsub scope is included because creating/deleting an Android enterprise also provisions/removes a Pub/Sub topic and subscription.
+            scopes: [
+              'https://www.googleapis.com/auth/androidmanagement',
+              'https://www.googleapis.com/auth/pubsub',
+            ],
+            credentials: {
+              client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+              private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
+            },
+          });
+          // Acquire the auth client once. Android proxy controllers reuse this shared instance via `sails.googleAuthClient`.
+          sails.googleAuthClient = await googleAuth.getClient();
+        } catch (err) {
+          sails.log.warn('p1: Failed to initialize the shared Google API auth client for the Android Management API. Android proxy endpoints will not function until this is resolved. Error: '+require('util').inspect(err));
+        }
+      }//ﬁ
+
       // After "sails-hook-organics" finishes initializing…
       sails.after('hook:organics:loaded', ()=>{
 
