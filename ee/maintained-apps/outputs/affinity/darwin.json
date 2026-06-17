@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.2.1",
+      "version": "3.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity' AND version_compare(bundle_short_version, '3.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.affinity' AND version_compare(bundle_short_version, '3.2.2') < 0);"
       },
-      "installer_url": "https://affinity-update.s3.amazonaws.com/mac2/retail/Affinity%20Affinity%20Store%204425.zip",
+      "installer_url": "https://affinity-update.s3.amazonaws.com/mac2/retail/Affinity%20Affinity%20Store%204557.zip",
       "install_script_ref": "2a30921a",
       "uninstall_script_ref": "b51875bd",
-      "sha256": "ba2d5c36296ff31bf38410944f228d5b16a6e6e9be7d5e5960057468ff644b69",
+      "sha256": "a93a5fa4d7e3a8728de2286c2a93caa85418de30003794e3d499d64b8e11b366",
       "default_categories": [
         "Productivity"
       ]

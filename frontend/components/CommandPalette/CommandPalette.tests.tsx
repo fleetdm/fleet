@@ -247,7 +247,7 @@ describe("CommandPalette", () => {
   });
 
   describe("Keyboard shortcuts", () => {
-    it("opens the switch-fleet sub-page on Cmd+Shift+F", async () => {
+    it("opens the switch-fleet picker page on Cmd+Shift+F", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
@@ -303,11 +303,11 @@ describe("CommandPalette", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("Escape returns to root from a sub-page instead of closing", async () => {
+    it("Escape returns to root from a picker page instead of closing", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
-      // Navigate into the switch-fleet sub-page
+      // Navigate into the switch-fleet picker page
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
       await waitFor(() => {
         expect(
@@ -324,12 +324,12 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Escape returns to root from a picker sub-page (view-host)", async () => {
+    it("Escape returns to root from a picker page (view-host)", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
       // The root page lists commands; find "View host" and activate it
-      // to reach the view-host sub-page.
+      // to reach the view-host picker page.
       const viewHost = await screen.findByText("View host");
       await user.click(viewHost);
 
@@ -360,7 +360,7 @@ describe("CommandPalette", () => {
       });
     });
 
-    it("Backspace on empty input goes back from a sub-page", async () => {
+    it("Backspace on empty input goes back from a picker page", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
       await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
@@ -421,6 +421,62 @@ describe("CommandPalette", () => {
       expect(
         osSettingsItem?.querySelector(`.command-palette__item-more`)
       ).toBeInTheDocument();
+    });
+
+    it("auto-expands sub-items when a parent is highlighted via arrow keys", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Sub-items hidden initially.
+      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+
+      // Arrow down until OS settings is highlighted (aria-selected="true").
+      // Derive the upper bound from the number of rendered items so this
+      // doesn't silently miss if the list grows or reorders.
+      const itemCount = document.querySelectorAll(`.command-palette__item`)
+        .length;
+      const maxPresses = itemCount + 2;
+      let osSettingsItem: Element | null = null;
+      for (let i = 0; i < maxPresses; i += 1) {
+        osSettingsItem = screen
+          .getByText("OS settings")
+          .closest(`.command-palette__item`);
+        if (osSettingsItem?.getAttribute("aria-selected") === "true") {
+          break;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await user.keyboard("{ArrowDown}");
+      }
+
+      // Assert OS settings actually got selected so a failure here points
+      // at the navigation step, not at the expansion check below.
+      expect(osSettingsItem?.getAttribute("aria-selected")).toBe("true");
+
+      await waitFor(() => {
+        expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      });
+    });
+
+    it("does not auto-expand sub-items when a parent is hovered with the mouse", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      const osSettingsItem = screen
+        .getByText("OS settings")
+        .closest(`.command-palette__item`);
+      expect(osSettingsItem).toBeInTheDocument();
+
+      // Hovering moves cmdk's selected value (selection-follows-pointer)
+      // but must not pop sub-items open — that should only happen on
+      // keyboard nav. The expand/collapse bridge runs through a
+      // useEffect, so wrap the negative assertion in waitFor to make
+      // sure pending effects have flushed before we conclude that
+      // nothing expanded.
+      await user.hover(osSettingsItem!);
+
+      await waitFor(() => {
+        expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+      });
     });
 
     it("expands sub-items on chevron click", async () => {

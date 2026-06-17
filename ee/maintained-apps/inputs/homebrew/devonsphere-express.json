@@ -1,0 +1,10 @@
+{
+  "name": "DEVONsphere Express",
+  "unique_identifier": "com.devon-technologies.sphereexpress",
+  "token": "devonsphere-express",
+  "installer_format": "zip",
+  "slug": "devonsphere-express/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

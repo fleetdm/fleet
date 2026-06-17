@@ -1,6 +1,8 @@
 .add-profile-modal {
   &__modal-content-wrap {
-    margin-top: $pad-large;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
 
     .add-profile__file {
       padding: $pad-medium $pad-large;
@@ -64,8 +66,8 @@
     }
 
     &--title {
-        color: $ui-fleet-black-75;
-        font-weight: $bold;
+      color: $ui-fleet-black-75;
+      font-weight: $bold;
     }
   }
 
@@ -73,124 +75,5 @@
     display: flex;
     justify-content: flex-end;
     gap: $pad-small;
-    padding-top: $pad-medium;
-  }
-
-  &__target {
-    margin: $pad-large 0;
-
-    .react-tabs__tab-panel {
-      display: flex;
-      flex-direction: column;
-      gap: $pad-medium;
-      padding-top: 0;
-    }
-  }
-
-  &__custom-label-chooser {
-    margin-top: $pad-medium;
-  }
-
-  &__description {
-    margin: $pad-medium 0;
-  }
-
-  &__no-labels {
-    display: flex;
-    height: 187px;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-    justify-content: center;
-    text-align: center;
-
-    span {
-      color: $ui-fleet-black-75;
-    }
-
-    &--title {
-      font-size: $small;
-      font-weight: $bold;
-      color: $core-fleet-black !important;
-    }
-
-    &--description {
-      font-size: $xx-small;
-      margin-top: -$pad-xsmall;
-    }
-
-    .button {
-      margin-top: $pad-small;
-    }
-  }
-
-  &__selected-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: $pad-xsmall;
-  }
-
-  &__selected-badge {
-    display: flex;
-    align-items: center;
-    gap: $pad-xxsmall;
-    padding: $pad-xxsmall $pad-small;
-    background-color: $ui-fleet-black-5;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
-    font-size: $xx-small;
-    cursor: pointer;
-    color: $ui-fleet-black-75;
-
-    &:hover {
-      background-color: $ui-fleet-black-10;
-      border-color: $ui-fleet-black-25;
-    }
-  }
-
-  &__checkboxes {
-    display: flex;
-    max-height: 187px;
-    flex-direction: column;
-    border-radius: $border-radius;
-    border: 1px solid $ui-fleet-black-10;
-    overflow-y: auto;
-
-    .loading-spinner {
-      margin: 69.5px auto;
-    }
-  }
-
-  &__label {
-    width: 100%;
-    padding: $pad-small $pad-medium;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-
-    &:not(:last-child) {
-      border-bottom: 1px solid $ui-fleet-black-10;
-    }
-
-    .form-field--checkbox {
-      width: auto;
-    }
-  }
-
-  &__label-name {
-    padding-left: $pad-large;
-  }
-
-  .fleet-checkbox {
-    height: 20px;
-    display: flex;
-    align-items: center;
-
-    &__label {
-      width: 490px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
   }
 }

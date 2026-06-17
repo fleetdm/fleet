@@ -1,0 +1,10 @@
+{
+  "name": "PhotosRevive",
+  "unique_identifier": "com.jeremyvizzini.photosrevive-paddle",
+  "token": "photosrevive",
+  "installer_format": "dmg",
+  "slug": "photosrevive/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

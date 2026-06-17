@@ -1,0 +1,10 @@
+{
+  "name": "3D Slicer",
+  "unique_identifier": "org.slicer.slicer",
+  "token": "slicer",
+  "installer_format": "dmg",
+  "slug": "slicer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

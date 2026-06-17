@@ -1,0 +1,10 @@
+{
+  "name": "Deezer",
+  "unique_identifier": "com.deezer.deezer-desktop",
+  "token": "deezer",
+  "installer_format": "dmg",
+  "slug": "deezer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

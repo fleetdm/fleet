@@ -376,8 +376,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }, [teamUsers?.length, searchString]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(onActionSelection),
-    [onActionSelection]
+    () => generateColumnConfigs(onActionSelection, currentUser),
+    [onActionSelection, currentUser]
   );
 
   if (!isRouteOk) {

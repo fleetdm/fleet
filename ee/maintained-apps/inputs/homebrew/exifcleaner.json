@@ -1,0 +1,10 @@
+{
+  "name": "ExifCleaner",
+  "unique_identifier": "com.exifcleaner",
+  "token": "exifcleaner",
+  "installer_format": "dmg",
+  "slug": "exifcleaner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

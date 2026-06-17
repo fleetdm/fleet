@@ -1,0 +1,10 @@
+{
+  "name": "IntelliDock",
+  "unique_identifier": "app.mightymac.IntelliDock",
+  "token": "intellidock",
+  "installer_format": "dmg",
+  "slug": "intellidock/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
