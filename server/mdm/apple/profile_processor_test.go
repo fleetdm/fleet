@@ -168,7 +168,10 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
-	// Password cache full
+	// Password cache full is a transient condition (NDES caps the number of
+	// outstanding challenges). The profile must NOT be marked failed; it is
+	// deferred and left pending (status untouched) so the next reconcile retries
+	// it instead of landing in a terminal failed state (see #46291).
 	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", scep.NewNDESPasswordCacheFullError("NDES error")
@@ -177,11 +180,8 @@ func TestPreprocessProfileContents(t *testing.T) {
 	populateTargets()
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
-	assert.Contains(t, updatedProfile.Detail, "cached passwords")
-	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
-	assert.Empty(t, targets)
+	assert.Nil(t, updatedProfile, "cache-full must not mark the profile failed")
+	assert.Empty(t, targets, "deferred profile must not be enqueued")
 
 	// Insufficient permissions
 	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
@@ -413,6 +413,107 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 		assert.Contains(t, []string{email, "no variables"}, string(profileContents[profUUID]))
 	}
+}
+
+// TestPreprocessProfileContentsNDESCacheFullDefersBacklog verifies the throttle /
+// self-heal behavior added for https://github.com/fleetdm/fleet/issues/46291: when
+// the NDES password cache fills part-way through a batch, Fleet stops fetching
+// further challenges for the rest of the reconcile pass and DEFERS the remaining
+// hosts (leaving them pending) instead of terminally failing them or continuing to
+// hammer the admin URL. The hosts that did receive a challenge are still enqueued,
+// and the deferred ones are re-selected on the next reconcile run.
+func TestPreprocessProfileContentsNDESCacheFullDefersBacklog(t *testing.T) {
+	ctx := context.Background()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+
+	hostUUIDs := []string{"host-1", "host-2", "host-3", "host-4"}
+	const profUUID = "p1"
+	const cmdUUID = "cmd-1"
+
+	targets := map[string]*fleet.CmdTarget{
+		profUUID: {CmdUUID: cmdUUID, ProfileIdentifier: "com.add.profile", EnrollmentIDs: hostUUIDs},
+	}
+	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostUUIDs))
+	for _, h := range hostUUIDs {
+		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: h, ProfileUUID: profUUID}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: "com.add.profile",
+			HostUUID:          h,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		}
+	}
+	userEnrollmentsToHostUUIDsMap := make(map[string]string)
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		profUUID: []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
+	}
+
+	ndesPassword := "test-password"
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetNDESPassword: {Value: []byte(ndesPassword)},
+		}, nil
+	}
+
+	var failedCalls int
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		failedCalls++
+		return nil
+	}
+	var enqueuedHosts []string
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		for _, p := range payload {
+			enqueuedHosts = append(enqueuedHosts, p.HostUUID)
+		}
+		return nil
+	}
+	var managedCertCount int
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		managedCertCount += len(payload)
+		return nil
+	}
+
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://test-example.com",
+			AdminURL: "https://example.com",
+			Username: "admin",
+			Password: ndesPassword,
+		},
+	}
+
+	// Succeed for the first 2 challenge fetches, then report the cache is full.
+	var fetchCalls int
+	scepConfig := &scep_mock.SCEPConfigService{}
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
+		fetchCalls++
+		if fetchCalls > 2 {
+			return "", scep.NewNDESPasswordCacheFullError("cache full")
+		}
+		return "ndes-challenge", nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	require.NoError(t, err)
+
+	// 2 successful fetches + 1 cache-full signal; after that we stop fetching, so
+	// host-4 is deferred without another admin-URL hit.
+	assert.Equal(t, 3, fetchCalls, "must stop fetching once the cache reports full")
+	// A transient cache-full must not terminally fail any profile.
+	assert.Zero(t, failedCalls, "cache-full must not terminally fail any profile")
+	// The 2 hosts that got a challenge are enqueued; the other 2 are deferred and
+	// left pending for the next reconcile.
+	assert.ElementsMatch(t, []string{"host-1", "host-2"}, enqueuedHosts)
+	assert.Equal(t, 2, managedCertCount)
+	assert.Len(t, targets, 2, "only the hosts with a fresh challenge are enqueued; the rest are deferred")
 }
 
 // TestPreprocessProfileContentsDigiCertUPNMultiHost is a regression test for

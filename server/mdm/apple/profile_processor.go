@@ -179,6 +179,18 @@ func preprocessProfileContents(
 	// need to look it up more than once per host.
 	hostIDForUUIDCache := make(map[string]uint)
 
+	// ndesCacheFull is set once the NDES admin URL reports its password cache is
+	// full during this reconcile pass. NDES only holds a small number of
+	// outstanding (unredeemed) challenge passwords at once (PasswordMax, default
+	// 5), and a password is a transient, retryable resource: slots free up as
+	// devices redeem or as passwords expire. Once the cache is full, every further
+	// fetch this pass would also fail, so we stop requesting new challenges and
+	// defer the remaining NDES profiles to a later reconcile run rather than
+	// hammering the admin URL or terminally failing a large backlog all at once.
+	// This both throttles our fetches to NDES's capacity and lets the backlog
+	// drain gradually over successive runs (see #46291).
+	ndesCacheFull := false
+
 	var addedTargets map[string]*fleet.CmdTarget
 	for profUUID, target := range targets {
 		contents, ok := profileContents[profUUID]
@@ -352,6 +364,11 @@ func preprocessProfileContents(
 
 			hostContents := contentsStr
 			failed := false
+			// deferred is set when this host's profile cannot be rendered right now
+			// but should be retried on a later reconcile (e.g. the NDES password cache
+			// is full). Unlike failed, it leaves the profile status untouched (NULL) so
+			// it is re-selected next run instead of landing in a terminal failed state.
+			deferred := false
 
 		fleetVarLoop:
 			for _, fleetVar := range fleetVars {
@@ -365,10 +382,30 @@ func preprocessProfileContents(
 						}
 						ndesConfig = groupedCAs.NDESSCEP
 					}
+					if ndesCacheFull {
+						// The NDES password cache filled earlier in this reconcile pass.
+						// Defer this host (leave its status NULL) so it is retried on a
+						// later run once slots free up, instead of issuing a fetch that we
+						// know would fail or terminally failing the profile.
+						deferred = true
+						break fleetVarLoop
+					}
 					logger.DebugContext(ctx, "fetching NDES challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
+						// A full password cache is a transient, retryable condition: NDES
+						// caps the number of outstanding challenges, and slots free up as
+						// devices redeem or passwords expire. Don't burn the profile's retry
+						// or mark it failed; defer it and stop fetching more challenges this
+						// pass so the backlog drains over successive reconcile runs (#46291).
+						if errors.As(err, &scep.NDESPasswordCacheFullError{}) {
+							ndesCacheFull = true
+							deferred = true
+							logger.WarnContext(ctx, "NDES password cache full; deferring remaining NDES profiles to a later reconcile",
+								"host_uuid", hostUUID, "profile_uuid", profUUID)
+							break fleetVarLoop
+						}
 						detail := scep.NDESChallengeErrorToDetail(err)
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:        target.CmdUUID,
@@ -631,7 +668,7 @@ func preprocessProfileContents(
 					// This was handled in the above switch statement, so we should never reach this case
 				}
 			}
-			if !failed {
+			if !failed && !deferred {
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,
