@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.2.0",
+      "version": "12.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken' AND version_compare(bundle_short_version, '12.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken' AND version_compare(bundle_short_version, '12.2.1') < 0);"
       },
-      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/12.2.0/GitKraken-v12.2.0.zip",
+      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/12.2.1/GitKraken-v12.2.1.zip",
       "install_script_ref": "f20ab23e",
       "uninstall_script_ref": "da9e6343",
-      "sha256": "02c72a630065f5144ae6f80fd01892581fc286bec7c397d90574cae2d80e3396",
+      "sha256": "a9b9ffe38f9eb0f14bbbfdfd0b450c8447adee1500c38eb89acac2569599b641",
       "default_categories": [
         "Developer tools"
       ]

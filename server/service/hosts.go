@@ -3252,11 +3252,13 @@ func (svc *Service) OSVersions(
 		})
 	}
 
-	// Total count BEFORE pagination
-	count = len(osVersions.OSVersions)
+	filtered := filterOSVersions(osVersions.OSVersions, opts)
+
+	// Total count BEFORE pagination but AFTER filtering.
+	count = len(filtered)
 
 	// Paginate first
-	paged, meta := paginateOSVersions(osVersions.OSVersions, opts)
+	paged, meta := paginateOSVersions(filtered, opts)
 
 	// Pull vulnerabilities ONLY for the paginated slice, as the full list slows
 	// response times down significantly with many CVEs.
@@ -3299,6 +3301,22 @@ func (svc *Service) OSVersions(
 		CountsUpdatedAt: osVersions.CountsUpdatedAt,
 		OSVersions:      paged,
 	}, count, meta, nil
+}
+
+// filterOSVersions checks the MatchQuery and filters on the platform name.
+// MatchQuery can be a comma-separated list of platform names.
+func filterOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
+	if opts.MatchQuery == "" {
+		return slice
+	}
+
+	var filtered []fleet.OSVersion
+	for _, osVersion := range slice {
+		if strings.Contains(strings.ToLower(opts.MatchQuery), strings.ToLower(osVersion.Platform)) {
+			filtered = append(filtered, osVersion)
+		}
+	}
+	return filtered
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {

@@ -11,6 +11,7 @@
   }
 
   &__premium-card {
+    align-self: stretch;
     background-color: $ui-off-white;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
@@ -52,6 +53,11 @@
   }
 
   &__row-name {
+    // flex: 1 + min-width: 0 lets the child TooltipTruncatedText shrink and
+    // ellipsize. Without min-width: 0, flex items refuse to go below their
+    // content's intrinsic size, defeating overflow: hidden.
+    flex: 1;
+    min-width: 0;
     font-size: $x-small;
     color: $core-fleet-black;
   }

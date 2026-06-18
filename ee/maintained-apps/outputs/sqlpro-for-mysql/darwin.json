@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.85",
+      "version": "2026.173",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.mysql';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.mysql' AND version_compare(bundle_short_version, '2026.85') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.mysql' AND version_compare(bundle_short_version, '2026.173') < 0);"
       },
-      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/mysql/SQLProMySQL.2026.85.app.zip",
+      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/mysql/SQLProMySQL.2026.173.app.zip",
       "install_script_ref": "66c30559",
       "uninstall_script_ref": "b47afd53",
-      "sha256": "3bd130051b818f5ed75ca3cd064a0172fac230462873328bcf507a3bfa5f8806",
+      "sha256": "fdd7029f0fcfa49c289915e59ba4e4255f14af718249f2f85842fed8c3df179a",
       "default_categories": [
         "Developer tools"
       ]

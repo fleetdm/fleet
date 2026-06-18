@@ -1157,6 +1157,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				tok.MacOSDefaultTeamID = nil
 				tok.IOSDefaultTeamID = nil
 				tok.IPadOSDefaultTeamID = nil
+				tok.BYODDefaultTeamID = nil
 				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 				}
@@ -1972,7 +1973,7 @@ func (svc *Service) validateABMAssignments(
 		tok.MacOSDefaultTeamID = &team.ID
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
-
+		tok.BYODDefaultTeamID = &team.ID
 		return []*fleet.ABMToken{tok}, nil
 	}
 
@@ -2004,12 +2005,13 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.BYODDefaultTeamID = nil
 			tokensByName[token.OrganizationName] = token
 		}
 
 		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
-			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
 					return nil, nil
@@ -2025,6 +2027,7 @@ func (svc *Service) validateABMAssignments(
 			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
 			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
 			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tok.BYODDefaultTeamID = teamsByName[bm.BYODTeam]
 			tokensToSave = append(tokensToSave, tok)
 		}
 

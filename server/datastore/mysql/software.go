@@ -6953,7 +6953,9 @@ FROM software_categories
 WHERE team_id = ?
 ORDER BY name
 `
-	var categories []fleet.SoftwareCategory
+	// Non-nil so the JSON response serializes as `[]` rather than `null` when a
+	// team has no categories.
+	categories := []fleet.SoftwareCategory{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}

@@ -7107,6 +7107,13 @@
       "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
     },
     {
+      "name": "Spokenly",
+      "slug": "spokenly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.spokenly",
+      "description": "Spokenly is a dictation and transcription app with AI-powered editing."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",

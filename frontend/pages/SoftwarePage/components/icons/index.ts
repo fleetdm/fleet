@@ -836,6 +836,7 @@ import SpitfireAudio from "./SpitfireAudio";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Splice from "./Splice";
+import Spokenly from "./Spokenly";
 import Spotify from "./Spotify";
 import Spyder from "./Spyder";
 import Sqlectron from "./Sqlectron";
@@ -1875,6 +1876,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   splice: Splice,
+  spokenly: Spokenly,
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
