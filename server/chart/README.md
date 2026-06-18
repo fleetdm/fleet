@@ -401,7 +401,7 @@ roaring encoding.
 Crucially, it backfills in the mode that **matches the dataset's
 `SampleStrategy`** so the data looks like what production would eventually produce:
 
-- **Accumulate datasets** (uptime, policy) → 24 independent hourly rows per day,
+- **Accumulate datasets** (uptime) → 24 independent hourly rows per day,
   each a fresh random sample, each bounded to its single hour.
 - **Snapshot datasets** (cve) → per-entity state-segment rows: most entities get one
   long open row, a small fraction "flip" on day boundaries to produce closed
