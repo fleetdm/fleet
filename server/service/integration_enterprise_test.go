@@ -32954,3 +32954,92 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
 }
+
+func (s *integrationEnterpriseTestSuite) TestResetHostPolicy() {
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "darwin", "darwin")
+	host1, host2 := hosts[0], hosts[1]
+
+	// --- global policy, two failing hosts ---
+	createGlobalResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-host-test-global",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createGlobalResp)
+	globalPolicy := createGlobalResp.Policy
+	require.NotZero(t, globalPolicy.ID)
+
+	for _, h := range []*fleet.Host{host1, host2} {
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			h,
+			map[uint]*bool{globalPolicy.ID: new(false)},
+		), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	}
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, uint(2), getResp.Policy.FailingHostCount)
+
+	// Reset only host1's result for the policy.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", globalPolicy.ID, host1.ID), nil, http.StatusOK)
+
+	// After re-aggregating, only host2 remains failing.
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, uint(1), getResp.Policy.FailingHostCount)
+
+	// reset_host_policy is a host-only activity: it appears on the host's activity
+	// timeline and is kept out of the global feed. Global policy emits team_id/fleet_id: -1.
+	expectedGlobalDetails := fmt.Sprintf(
+		`{"host_id":%d,"host_display_name":"%s","policy_id":%d,"policy_name":"reset-host-test-global","team_id":-1,"fleet_id":-1}`,
+		host1.ID, host1.DisplayName(), globalPolicy.ID,
+	)
+	s.lastHostActivityMatches(host1.ID, "reset_host_policy", expectedGlobalDetails, 0)
+	s.lastActivityOfTypeDoesNotMatch("reset_host_policy", expectedGlobalDetails, 0)
+
+	// --- team policy ---
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-host-policy-team"})
+	require.NoError(t, err)
+
+	createTeamResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name:  "reset-host-test-team",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createTeamResp)
+	teamPolicy := createTeamResp.Policy
+	require.NotZero(t, teamPolicy.ID)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2,
+		map[uint]*bool{teamPolicy.ID: new(false)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, uint(1), getResp.Policy.FailingHostCount)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", teamPolicy.ID, host2.ID), nil, http.StatusOK)
+
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, uint(0), getResp.Policy.FailingHostCount)
+
+	// Activity carries the team fields and lands on the host's timeline.
+	s.lastHostActivityMatches(host2.ID, "reset_host_policy", fmt.Sprintf(
+		`{"host_id":%d,"host_display_name":"%s","policy_id":%d,"policy_name":"reset-host-test-team","team_id":%d,"fleet_id":%d,"team_name":"reset-host-policy-team","fleet_name":"reset-host-policy-team"}`,
+		host2.ID, host2.DisplayName(), teamPolicy.ID, team.ID, team.ID,
+	), 0)
+
+	// 404 for a nonexistent host. Derive an ID guaranteed not to exist by deleting an
+	// existing host (host1 is done being used) and reusing its now-free ID, rather than
+	// hardcoding one that could collide with a real host as the suite's DB grows.
+	require.NoError(t, s.ds.DeleteHost(ctx, host1.ID))
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset?host_id=%d", globalPolicy.ID, host1.ID), nil, http.StatusNotFound)
+}

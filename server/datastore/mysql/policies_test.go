@@ -100,6 +100,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"ResetPolicy", testResetPolicy},
+		{"ResetHostPolicy", testResetHostPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8741,7 +8742,9 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 	})
 
 	// --- action ---
-	require.NoError(t, ds.ResetPolicy(ctx, policy.ID))
+	reset, err := ds.ResetPolicy(ctx, policy.ID, nil)
+	require.NoError(t, err)
+	require.True(t, reset, "policy-wide reset always reports reset=true")
 
 	// policy_membership for policy must be empty.
 	var memberCount int
@@ -8785,4 +8788,117 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'other-script-1'`)
 	})
 	require.Equal(t, 3, attemptNum, "other policy attempt_number must be untouched")
+}
+
+func testResetHostPolicy(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Two hosts that both have a result for the policy.
+	host1 := test.NewHost(t, ds, "rhp-host1", "1.1.1.1", "uuid-rhp-host1", "node-key-rhp-host1", time.Now())
+	host2 := test.NewHost(t, ds, "rhp-host2", "1.1.1.2", "uuid-rhp-host2", "node-key-rhp-host2", time.Now())
+
+	// Policy we'll reset for host1, plus a second policy to prove scoping.
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  t.Name(),
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	otherPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  t.Name() + "-other",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	// Seed membership: host1 + host2 on policy, host1 on otherPolicy.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (?,?,0),(?,?,1),(?,?,1)`,
+			policy.ID, host1.ID,
+			policy.ID, host2.ID,
+			otherPolicy.ID, host1.ID,
+		)
+		return err
+	})
+
+	// script_contents row to satisfy FK on host_script_results.
+	checksum := md5.Sum([]byte(t.Name())) //nolint:gosec // md5 only for test fixture
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			checksum[:], "echo test",
+		)
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+
+	// Automation attempt rows: host1/policy (to be reset), host2/policy and
+	// host1/otherPolicy (must be untouched).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, policy_id, attempt_number) VALUES
+				(?,'rhp-h1-policy',?,'out',0,?,2),
+				(?,'rhp-h2-policy',?,'out',0,?,4),
+				(?,'rhp-h1-other',?,'out',0,?,3)`,
+			host1.ID, scriptContentID, policy.ID,
+			host2.ID, scriptContentID, policy.ID,
+			host1.ID, scriptContentID, otherPolicy.ID,
+		)
+		return err
+	})
+
+	// --- action: reset host1's result for policy only ---
+	reset, err := ds.ResetPolicy(ctx, policy.ID, &host1.ID)
+	require.NoError(t, err)
+	require.True(t, reset, "host had a result, so reset must report true")
+
+	// host1's membership for policy is gone; host2's remains.
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`, policy.ID, host1.ID)
+	})
+	require.Equal(t, 0, count, "host1 membership for policy must be deleted")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`, policy.ID, host2.ID)
+	})
+	require.Equal(t, 1, count, "host2 membership for policy must be untouched")
+
+	// host1's membership for the other policy is untouched.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`, otherPolicy.ID, host1.ID)
+	})
+	require.Equal(t, 1, count, "host1 membership for other policy must be untouched")
+
+	// host1's attempt for policy reset to 0; the other two untouched.
+	var attemptNum int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNum,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'rhp-h1-policy'`)
+	})
+	require.Equal(t, 0, attemptNum, "host1 policy attempt_number must be reset")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNum,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'rhp-h2-policy'`)
+	})
+	require.Equal(t, 4, attemptNum, "host2 policy attempt_number must be untouched")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNum,
+			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'rhp-h1-other'`)
+	})
+	require.Equal(t, 3, attemptNum, "host1 other-policy attempt_number must be untouched")
+
+	// Resetting host1 again (it no longer has a result for the policy) is a no-op
+	// and must report reset=false so callers can skip emitting an activity.
+	reset, err = ds.ResetPolicy(ctx, policy.ID, &host1.ID)
+	require.NoError(t, err)
+	require.False(t, reset, "resetting a host with no result for the policy must report false")
 }

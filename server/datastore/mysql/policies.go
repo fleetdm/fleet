@@ -367,11 +367,34 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	return &policy, nil
 }
 
-// ResetPolicy clears a policy's pass/fail results: it wipes all policy_membership
-// rows and policy_stats rows for the policy and resets automation retry attempts.
-// This is the same cleanup performed when a policy's query is modified.
-func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
+// ResetPolicy clears a policy's pass/fail results. When hostID is nil it resets the
+// policy across all hosts (wiping policy_membership and policy_stats and resetting
+// automation retry attempts, identical to a query-change side-effect). When hostID is
+// set it resets only that host's result: it deletes the host's policy_membership row
+// for the policy and resets that host's automation retry attempts for the policy.
+//
+// It returns whether anything was actually reset. For a per-host reset this is false
+// when the host had no result for the policy (no policy_membership row to delete);
+// callers can use this to skip emitting an activity for a no-op. A policy-wide reset
+// always reports true.
+func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) (bool, error) {
+	reset := true
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if hostID != nil {
+			res, err := tx.ExecContext(ctx,
+				`DELETE FROM policy_membership WHERE host_id = ? AND policy_id = ?`, *hostID, policyID,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host policy membership")
+			}
+			rows, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "rows affected deleting host policy membership")
+			}
+			reset = rows > 0
+			return resetHostPolicyAutomationAttempts(ctx, tx, *hostID, []uint{policyID})
+		}
+
 		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reset policy automation attempts")
 		}
@@ -379,9 +402,9 @@ func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 		// when removing all memberships, so "" is fine.
 		return cleanupPolicy(ctx, tx, tx, policyID, "", true, true, ds.logger)
 	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "resetting policy")
+		return false, ctxerr.Wrap(ctx, err, "resetting policy")
 	}
-	return nil
+	return reset, nil
 }
 
 // SavePolicy updates some fields of the given policy on the datastore.
@@ -459,22 +482,29 @@ func (ds *Datastore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Conte
 		return nil
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
-		}
-		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host script attempts")
-		}
-		q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
-		}
-		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "reset host install attempts")
-		}
-		return nil
+		return resetHostPolicyAutomationAttempts(ctx, tx, hostID, policyIDs)
 	})
+}
+
+// resetHostPolicyAutomationAttempts marks the host's prior script and software install
+// attempts (across the given policies) as "old sequence" by setting attempt_number=0,
+// so the next attempt restarts the sequence at 1.
+func resetHostPolicyAutomationAttempts(ctx context.Context, db sqlx.ExtContext, hostID uint, policyIDs []uint) error {
+	q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
+	}
+	if _, err := db.ExecContext(ctx, q, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host script attempts")
+	}
+	q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
+	}
+	if _, err := db.ExecContext(ctx, q, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset host install attempts")
+	}
+	return nil
 }
 
 // resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions

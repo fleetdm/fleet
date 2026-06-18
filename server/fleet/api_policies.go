@@ -107,6 +107,9 @@ func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 
 type ResetPolicyRequest struct {
 	PolicyID uint `url:"policy_id"`
+	// HostID, when set, scopes the reset to a single host's result for the policy
+	// instead of resetting the policy's results across all hosts.
+	HostID *uint `query:"host_id,optional"`
 }
 
 type ResetPolicyResponse struct {

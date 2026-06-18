@@ -949,9 +949,14 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
-	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
-	// and resets automation retry attempts, identical to a query-change side-effect.
-	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicy clears a policy's pass/fail results. When hostID is nil it resets the
+	// policy across all hosts (wiping policy_membership, policy_stats, and automation
+	// retry attempts, identical to a query-change side-effect). When hostID is set it
+	// resets only that host's result for the policy.
+	//
+	// It returns whether anything was actually reset. A per-host reset reports false
+	// when the host had no result for the policy; a policy-wide reset always reports true.
+	ResetPolicy(ctx context.Context, policyID uint, hostID *uint) (bool, error)
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)

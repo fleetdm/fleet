@@ -462,7 +462,7 @@ type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPol
 
 type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
-type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+type ResetPolicyFunc func(ctx context.Context, policyID uint, hostID *uint) error
 
 type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
 
@@ -3881,11 +3881,11 @@ func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Poli
 	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
-func (s *Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (s *Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	s.mu.Lock()
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetPolicyFunc(ctx, policyID)
+	return s.ResetPolicyFunc(ctx, policyID, hostID)
 }
 
 func (s *Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {

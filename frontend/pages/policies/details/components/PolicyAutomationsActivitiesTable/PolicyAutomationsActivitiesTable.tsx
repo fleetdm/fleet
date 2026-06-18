@@ -40,6 +40,12 @@ const DEFAULT_SORT_DIRECTION: OrderDirection = "desc";
 
 type StatusFilter = NonNullable<IGetPolicyAutomationActivitiesParams["status"]>;
 
+// What a pending reset applies to: the whole policy (from the table header) or a
+// single host (from a specific run). Drives both the API scope and modal copy.
+type ResetTarget =
+  | { type: "policy" }
+  | { type: "host"; hostId: number; hostDisplayName: string };
+
 const STATUS_FILTER_OPTIONS: CustomOptionType[] = [
   { label: "All", value: "" },
   { label: "Successful", value: "success" },
@@ -78,10 +84,8 @@ const PolicyAutomationsActivitiesTable = ({
     selectedActivity,
     setSelectedActivity,
   ] = useState<IPolicyAutomationActivity | null>(null);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetHostDisplayName, setResetHostDisplayName] = useState<
-    string | undefined
-  >(undefined);
+  // null when no reset modal is open.
+  const [resetTarget, setResetTarget] = useState<ResetTarget | null>(null);
 
   const { data, isLoading, isError } = useQuery<
     IPolicyAutomationActivitiesResponse,
@@ -111,13 +115,17 @@ const PolicyAutomationsActivitiesTable = ({
   );
 
   const { mutateAsync: resetPolicy, isLoading: isResetting } = useMutation(
-    () => policiesAPI.reset(policyId),
+    (target: ResetTarget) =>
+      policiesAPI.reset(
+        policyId,
+        target.type === "host" ? target.hostId : undefined
+      ),
     {
       onSuccess: () => {
         renderFlash("success", "Policy reset successfully.");
         queryClient.invalidateQueries(["policyAutomationActivities", policyId]);
         queryClient.invalidateQueries(["policy", policyId]);
-        setShowResetModal(false);
+        setResetTarget(null);
       },
       onError: () => {
         renderFlash("error", "Couldn't reset policy. Please try again.");
@@ -153,16 +161,17 @@ const PolicyAutomationsActivitiesTable = ({
   );
 
   const onClickResetPolicy = useCallback(() => {
-    setResetHostDisplayName(undefined);
-    setShowResetModal(true);
+    setResetTarget({ type: "policy" });
   }, []);
 
-  // The reset is always policy-wide; the host name is only used to make the
-  // confirmation copy concrete when the reset is opened from a specific run.
   const onResetFromActivity = useCallback(() => {
-    setResetHostDisplayName(selectedActivity?.host_display_name);
+    if (!selectedActivity) return;
+    setResetTarget({
+      type: "host",
+      hostId: selectedActivity.host_id,
+      hostDisplayName: selectedActivity.host_display_name,
+    });
     setSelectedActivity(null);
-    setShowResetModal(true);
   }, [selectedActivity]);
 
   const isFiltered = searchQuery !== "" || statusFilter !== "";
@@ -266,15 +275,19 @@ const PolicyAutomationsActivitiesTable = ({
           onResetPolicy={canResetPolicy ? onResetFromActivity : undefined}
         />
       )}
-      {showResetModal && (
+      {resetTarget && (
         <PolicyResetModal
           policy={policy}
-          hostDisplayName={resetHostDisplayName}
+          hostDisplayName={
+            resetTarget.type === "host"
+              ? resetTarget.hostDisplayName
+              : undefined
+          }
           currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
-          onSubmit={resetPolicy}
-          onCancel={() => setShowResetModal(false)}
+          onSubmit={() => resetPolicy(resetTarget)}
+          onCancel={() => setResetTarget(null)}
         />
       )}
     </div>

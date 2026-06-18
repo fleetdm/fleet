@@ -670,7 +670,10 @@ func TestResetPolicyAuth(t *testing.T) {
 			ds.PolicyFunc = func(_ context.Context, id uint) (*fleet.Policy, error) {
 				return &fleet.Policy{PolicyData: fleet.PolicyData{ID: id, TeamID: tt.policyTeamID}}, nil
 			}
-			ds.ResetPolicyFunc = func(_ context.Context, _ uint) error { return nil }
+			ds.ResetPolicyFunc = func(_ context.Context, _ uint, _ *uint) (bool, error) { return true, nil }
+			ds.HostLiteByIDFunc = func(_ context.Context, id uint) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: id}, nil
+			}
 
 			opts := &TestServerOpts{}
 			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
@@ -679,9 +682,23 @@ func TestResetPolicyAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user})
 
-			err := svc.ResetPolicy(ctx, policyID)
+			// Authorization is identical for the policy-wide reset and the
+			// per-host reset, so exercise both shapes through the same matrix.
+			err := svc.ResetPolicy(ctx, policyID, nil)
 			checkAuthErr(t, tt.shouldFailWrite, err)
-			if !tt.shouldFailWrite {
+			if tt.shouldFailWrite {
+				require.False(t, ds.ResetPolicyFuncInvoked, "datastore must not be written when authorization is denied")
+			} else {
+				require.True(t, ds.ResetPolicyFuncInvoked)
+			}
+
+			ds.ResetPolicyFuncInvoked = false
+			hostID := uint(123)
+			err = svc.ResetPolicy(ctx, policyID, &hostID)
+			checkAuthErr(t, tt.shouldFailWrite, err)
+			if tt.shouldFailWrite {
+				require.False(t, ds.ResetPolicyFuncInvoked, "datastore must not be written when authorization is denied")
+			} else {
 				require.True(t, ds.ResetPolicyFuncInvoked)
 			}
 		})
@@ -699,7 +716,7 @@ func TestResetPolicyNotFound(t *testing.T) {
 	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	err := svc.ResetPolicy(ctx, 999)
+	err := svc.ResetPolicy(ctx, 999, nil)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 }
@@ -713,7 +730,10 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		ds.PolicyFunc = func(_ context.Context, id uint) (*fleet.Policy, error) {
 			return &fleet.Policy{PolicyData: fleet.PolicyData{ID: id, Name: policyName, TeamID: teamID}}, nil
 		}
-		ds.ResetPolicyFunc = func(_ context.Context, _ uint) error { return nil }
+		ds.ResetPolicyFunc = func(_ context.Context, _ uint, _ *uint) (bool, error) { return true, nil }
+		ds.HostLiteByIDFunc = func(_ context.Context, id uint) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: id, Hostname: "test-host"}, nil
+		}
 		opts := &TestServerOpts{}
 		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
@@ -733,7 +753,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, nil))
 		require.True(t, ds.ResetPolicyFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
@@ -755,7 +775,7 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.ResetPolicy(ctx, policyID))
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, nil))
 		require.True(t, ds.ResetPolicyFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
@@ -766,5 +786,40 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 		require.NotNil(t, act.TeamID)
 		require.Equal(t, int64(0), *act.TeamID)
 		require.Nil(t, act.TeamName)
+	})
+
+	t.Run("per-host reset emits reset_host_policy", func(t *testing.T) {
+		ds, svc, ctx, opts := newSvc(nil)
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			capturedActivity = a
+			return nil
+		}
+
+		hostID := uint(55)
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, &hostID))
+		require.True(t, ds.ResetPolicyFuncInvoked)
+		require.True(t, ds.HostLiteByIDFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+		act, ok := capturedActivity.(fleet.ActivityTypeResetHostPolicy)
+		require.True(t, ok)
+		require.Equal(t, hostID, act.HostID)
+		require.Equal(t, "test-host", act.HostDisplayName)
+		require.Equal(t, policyID, act.PolicyID)
+		require.Equal(t, policyName, act.PolicyName)
+		require.NotNil(t, act.TeamID)
+		require.Equal(t, int64(-1), *act.TeamID)
+	})
+
+	t.Run("per-host reset with nothing to reset emits no activity", func(t *testing.T) {
+		ds, svc, ctx, opts := newSvc(nil)
+		// Datastore reports the host had no result for the policy.
+		ds.ResetPolicyFunc = func(_ context.Context, _ uint, _ *uint) (bool, error) { return false, nil }
+
+		hostID := uint(55)
+		require.NoError(t, svc.ResetPolicy(ctx, policyID, &hostID))
+		require.True(t, ds.ResetPolicyFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked, "no activity for a no-op reset")
 	})
 }

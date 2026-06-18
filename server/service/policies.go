@@ -58,11 +58,11 @@ func (svc Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Pol
 
 func resetPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ResetPolicyRequest)
-	err := svc.ResetPolicy(ctx, req.PolicyID)
+	err := svc.ResetPolicy(ctx, req.PolicyID, req.HostID)
 	return fleet.ResetPolicyResponse{Err: err}, nil
 }
 
-func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	// Load first to authorize against the policy's actual team.
 	policy, err := svc.ds.Policy(ctx, policyID)
 	if err != nil {
@@ -71,10 +71,6 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 	}
 	if err := svc.authz.Authorize(ctx, policy, fleet.ActionWrite); err != nil {
 		return err
-	}
-
-	if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset policy")
 	}
 
 	var activityTeamID *int64
@@ -98,12 +94,44 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 		}
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetPolicy{
+	// When a host is specified, load it up front so we can validate it exists (404)
+	// and include its display name in the activity.
+	var host *fleet.HostLite
+	if hostID != nil {
+		host, err = svc.ds.HostLiteByID(ctx, *hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "loading host")
+		}
+	}
+
+	reset, err := svc.ds.ResetPolicy(ctx, policyID, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy")
+	}
+	// Nothing was reset (e.g. the host had no result for the policy): skip the
+	// activity so we don't record a no-op.
+	if !reset {
+		return nil
+	}
+
+	// A per-host reset and a policy-wide reset emit different activities.
+	var activity fleet.ActivityDetails = fleet.ActivityTypeResetPolicy{
 		ID:       policy.ID,
 		Name:     policy.Name,
 		TeamID:   activityTeamID,
 		TeamName: teamName,
-	}); err != nil {
+	}
+	if host != nil {
+		activity = fleet.ActivityTypeResetHostPolicy{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			PolicyID:        policy.ID,
+			PolicyName:      policy.Name,
+			TeamID:          activityTeamID,
+			TeamName:        teamName,
+		}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for policy reset")
 	}
 	return nil

@@ -161,6 +161,27 @@ func (a ActivityTypeResetPolicy) ActivityName() string {
 	return "reset_policy"
 }
 
+type ActivityTypeResetHostPolicy struct {
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	PolicyID        uint    `json:"policy_id"`
+	PolicyName      string  `json:"policy_name"`
+	TeamID          *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamName        *string `json:"team_name,omitempty" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeResetHostPolicy) ActivityName() string {
+	return "reset_host_policy"
+}
+
+func (a ActivityTypeResetHostPolicy) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeResetHostPolicy) HostOnly() bool {
+	return true
+}
+
 type ActivityTypeAppliedSpecPolicy struct {
 	Policies []*PolicySpec `json:"policies"`
 }

@@ -680,7 +680,7 @@ type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint,
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
 
-type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+type ResetPolicyFunc func(ctx context.Context, policyID uint, hostID *uint) (bool, error)
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -7544,11 +7544,11 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemov
 	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 }
 
-func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint) error {
+func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) (bool, error) {
 	s.mu.Lock()
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetPolicyFunc(ctx, policyID)
+	return s.ResetPolicyFunc(ctx, policyID, hostID)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
