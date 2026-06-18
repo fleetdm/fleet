@@ -1,0 +1,14 @@
+{
+  "name": "Electrum",
+  "slug": "electrum/windows",
+  "package_identifier": "Electrum.Electrum",
+  "unique_identifier": "Electrum",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/electrum_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/electrum_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

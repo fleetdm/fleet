@@ -16935,9 +16935,9 @@ func (s *integrationTestSuite) TestListHostReports() {
 	})
 }
 
-// TestLabelScopePremiumGate verifies that the include_all scope fields is
-// premium-gated on all entry points for the free-tier (core) server, while
-// existing free-tier label fields (policy include/exclude_any) still work.
+// TestLabelScopePremiumGate verifies that all policy label scope fields
+// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
+// every entry point for the free-tier (core) server.
 func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	t := s.T()
 
@@ -16946,33 +16946,37 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
 	lbl := lblResp.Label
 
-	// LabelsIncludeAll on Global/TeamPolicyRequest is tagged `premium:"true"`, so
-	// the endpoint decoder rejects with 400 before reaching the service handler.
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "premium-gated-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAll: []string{lbl.Name},
-	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	// All policy label scope fields on GlobalPolicyRequest are tagged
+	// `premium:"true"`, so the endpoint decoder rejects with 400 before reaching
+	// the service handler.
+	for _, req := range []fleet.GlobalPolicyRequest{
+		{Name: "premium-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "premium-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "premium-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "premium-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	}
 
-	// Free-tier should still allow creating a policy with LabelsIncludeAny (existing field).
+	// A policy without any label scope can still be created on free-tier.
 	var freeOK fleet.GlobalPolicyResponse
 	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "free-include-any-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAny: []string{lbl.Name},
+		Name:  "free-no-labels-" + t.Name(),
+		Query: "SELECT 1",
 	}, http.StatusOK, &freeOK)
 	require.NotNil(t, freeOK.Policy)
 
-	// Free-tier should reject PATCHing a policy to add LabelsIncludeAll (middleware → 400).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: []string{lbl.Name}},
-	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
-
-	s.DoRaw("PATCH",
-		fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID),
-		fmt.Appendf(nil, `{"labels_include_any":[%q]}`, lbl.Name),
-		http.StatusOK,
-	)
+	// Free-tier should reject PATCHing a policy to add any label scope (middleware → 400).
+	for _, payload := range []fleet.ModifyPolicyPayload{
+		{LabelsIncludeAll: []string{lbl.Name}},
+		{LabelsIncludeAny: []string{lbl.Name}},
+		{LabelsExcludeAll: []string{lbl.Name}},
+		{LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+			ModifyPolicyPayload: payload,
+		}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+	}
 
 	for _, payload := range []fleet.QueryPayload{
 		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
@@ -16983,13 +16987,16 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 
 	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
 	// so the gate fires at the service layer and returns 402 (PaymentRequired).
-	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
-		Specs: []*fleet.PolicySpec{{
-			Name:             "spec-premium-gate-" + t.Name(),
-			Query:            "SELECT 1",
-			LabelsIncludeAll: []string{lbl.Name},
-		}},
-	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	for _, spec := range []*fleet.PolicySpec{
+		{Name: "spec-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "spec-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "spec-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "spec-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{spec},
+		}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	}
 
 	// Same for QuerySpec.
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{

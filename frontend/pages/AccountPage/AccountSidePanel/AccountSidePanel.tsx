@@ -55,6 +55,21 @@ const AccountSidePanel = ({
     getVersionData();
   }, []);
 
+  // Keep the radio selection in sync when the theme is changed elsewhere
+  // (command palette "Toggle dark mode", OS media query when on system).
+  // utilities/theme dispatches `fleet-theme-change` on every applied
+  // change — re-read the mode rather than trusting `detail.dark`, since
+  // dark/light alone can't disambiguate "Dark" from "System (dark)".
+  useEffect(() => {
+    const onThemeChange = () => {
+      setThemeModeState(getThemeMode());
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () => {
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+    };
+  }, []);
+
   const {
     global_role: globalRole,
     updated_at: updatedAt,

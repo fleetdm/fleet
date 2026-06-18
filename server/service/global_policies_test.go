@@ -485,7 +485,7 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 		return labels, nil
 	}
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	testAdmin := fleet.User{
 		ID:         1,
@@ -517,6 +517,42 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 	})
 
 	require.Error(t, err)
+}
+
+func TestApplyPolicySpecsLabelScopeRequiresPremium(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{"foo": {Name: "foo", ID: 1}}, nil
+	}
+
+	// Free license.
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	for name, spec := range map[string]*fleet.PolicySpec{
+		"labels_include_any": {Name: "p", Query: "SELECT 1", LabelsIncludeAny: []string{"foo"}},
+		"labels_include_all": {Name: "p", Query: "SELECT 1", LabelsIncludeAll: []string{"foo"}},
+		"labels_exclude_any": {Name: "p", Query: "SELECT 1", LabelsExcludeAny: []string{"foo"}},
+		"labels_exclude_all": {Name: "p", Query: "SELECT 1", LabelsExcludeAll: []string{"foo"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{spec})
+			require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		})
+	}
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
 
 func TestApplyPolicySpecsDefaultType(t *testing.T) {

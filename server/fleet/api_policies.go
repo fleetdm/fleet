@@ -12,9 +12,9 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 }
 
@@ -162,9 +162,9 @@ type TeamPolicyRequest struct {
 	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
 	SoftwareTitleID              *uint    `json:"software_title_id"`
 	ScriptID                     *uint    `json:"script_id"`
-	LabelsIncludeAny             []string `json:"labels_include_any"`
+	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny             []string `json:"labels_exclude_any"`
+	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`

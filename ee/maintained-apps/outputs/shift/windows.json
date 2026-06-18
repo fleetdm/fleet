@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.6.4.1231",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Shift' AND publisher = 'Shift Technologies, Inc.' AND version_compare(version, '9.6.4.1231') < 0);"
+      },
+      "installer_url": "https://updates.tryshift.com/v9.6.4/stable/shift-v9.6.4.1231-stable-x64.exe",
+      "install_script_ref": "fbf50bbc",
+      "uninstall_script_ref": "c5cc1d5a",
+      "sha256": "cd6320b8d0c0ae2cb2f8587eeed2e12abcf5820c3faa4ee0e1f99dd06a265c25",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "c5cc1d5a": "# Locate the uninstall entry in the registry and run it silently.\n\n$displayNameLike = \"Shift*\"\n$publisher = \"Shift Technologies, Inc.\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\ntry {\n    $uninstallString = $uninstall.UninstallString\n\n    # Parse the uninstaller executable path from the UninstallString.\n    if ($uninstallString -match '^\"([^\"]+)\"') {\n        $uninstallExe = $matches[1]\n    } elseif ($uninstallString -match '^(.+?\\.exe)') {\n        $uninstallExe = $matches[1]\n    } else {\n        $uninstallExe = $uninstallString\n    }\n\n    # Determine the install directory for cleanup.\n    $installDir = $uninstall.InstallLocation\n    if (-not $installDir -or -not (Test-Path $installDir)) {\n        $installDir = Split-Path $uninstallExe -Parent\n    }\n\n    $uninstallArgs = @(\"/VERYSILENT\", \"/NORESTART\")\n\n    Write-Host \"Uninstall command: $uninstallExe\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallExe\n        ArgumentList = $uninstallArgs\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    if ($installDir -and (Test-Path $installDir)) {\n        Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "fbf50bbc": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}
