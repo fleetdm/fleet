@@ -926,6 +926,8 @@ type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOs
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
 
+type HostPreviouslyOrbitEnrolledFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error)
+
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
@@ -3461,6 +3463,9 @@ type DataStore struct {
 
 	EnrollOrbitFunc        EnrollOrbitFunc
 	EnrollOrbitFuncInvoked bool
+
+	HostPreviouslyOrbitEnrolledFunc        HostPreviouslyOrbitEnrolledFunc
+	HostPreviouslyOrbitEnrolledFuncInvoked bool
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
@@ -8393,6 +8398,13 @@ func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnrollOrbitFunc(ctx, opts...)
+}
+
+func (s *DataStore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+	s.mu.Lock()
+	s.HostPreviouslyOrbitEnrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostPreviouslyOrbitEnrolledFunc(ctx, hostInfo, isMDMEnabled)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {

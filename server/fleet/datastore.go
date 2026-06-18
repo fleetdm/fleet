@@ -1330,6 +1330,10 @@ type Datastore interface {
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
 	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
+	// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in
+	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
+	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
+
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
