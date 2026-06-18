@@ -160,7 +160,7 @@ will be disabled and/or hidden in the UI.
           // Get an access token
           await sails.googleAuthClient.getAccessToken();
         } catch (err) {
-          sails.log.warn('p1: Failed to initialize the shared Google API auth client for the Android Management API. Android proxy endpoints will not function until this is resolved. Error: '+err);
+          throw new Error('Failed to initialize the shared Google API auth client for the Android proxy endpoints. Error: '+err);
         }
       }//ﬁ
 
