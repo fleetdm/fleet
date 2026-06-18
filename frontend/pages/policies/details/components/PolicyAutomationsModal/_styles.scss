@@ -1,0 +1,12 @@
+.policy-automations-modal {
+  &__automations {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__footer-text {
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+  }
+}

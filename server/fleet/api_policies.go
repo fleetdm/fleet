@@ -318,6 +318,7 @@ type ListPolicyAutomationActivitiesRequest struct {
 type ListPolicyAutomationActivitiesResponse struct {
 	Activities []*PolicyAutomationActivity `json:"activities"`
 	Meta       *PaginationMetadata         `json:"meta"`
+	Count      uint                        `json:"count"`
 	Err        error                       `json:"error,omitempty"`
 }
 
