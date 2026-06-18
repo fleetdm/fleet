@@ -40,14 +40,12 @@ type pssoServiceState struct {
 const (
 	pssoSigningAlg = "ES256"
 
-	// TODO: It's not clear if we need the overall app bundle ID or not either. We'll add it just in case
-	bundleID1 = "com.fleetdm.pssotesting"
-	bundleID2 = "com.fleetdm.pssotesting.extension"
+	// The host app bundle ID is included alongside the extension's just in case;
+	// PSSO validates against the extension, but listing both is harmless.
+	appBundleID       = "com.fleetdm.fleet-desktop"
+	extensionBundleID = "com.fleetdm.fleet-desktop.pssoextension"
 
-	// TODO:  Not sure if I actually need to use the team or my private user one so we'll define
-	// both for now...
-	teamID1 = "5K28R5ZUK5"
-	teamID2 = "B34KW9D28L"
+	fleetTeamID = "8VBZ3948LU"
 )
 
 // getPSSOSigningKey loads Fleet's PSSO signing key from mdm_config_assets,
@@ -742,11 +740,11 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 	return json.Marshal(jwks)
 }
 
-// pssoAASAEntry mirrors the apple-app-site-association shape Apple's
-// framework consumes for PSSO. Only webcredentials.apps is required.
+// pssoAASA mirrors the apple-app-site-association shape Apple's framework
+// consumes for PSSO. PSSO validates the extension's authsrv: entitlement, so
+// only the authsrv service is needed (webcredentials is for password autofill).
 type pssoAASA struct {
-	WebCredentials pssoAASAApps `json:"webcredentials"`
-	AuthSrv        pssoAASAApps `json:"authsrv"`
+	AuthSrv pssoAASAApps `json:"authsrv"`
 }
 
 type pssoAASAApps struct {
@@ -771,11 +769,8 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 		return nil, &notFoundError{}
 	}
 
-	ids := []string{teamID1 + "." + bundleID1, teamID2 + "." + bundleID1, teamID1 + "." + bundleID2, teamID2 + "." + bundleID2}
+	ids := []string{fleetTeamID + "." + appBundleID, fleetTeamID + "." + extensionBundleID}
 	doc := pssoAASA{
-		WebCredentials: pssoAASAApps{
-			Apps: ids,
-		},
 		AuthSrv: pssoAASAApps{
 			Apps: ids,
 		},

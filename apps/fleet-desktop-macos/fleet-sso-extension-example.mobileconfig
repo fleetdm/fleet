@@ -11,7 +11,7 @@
 				<string>https://fleet.example.com</string>
 			</dict>
 			<key>ExtensionIdentifier</key>
-			<string>com.fleetdm.pssotesting.extension</string>
+			<string>com.fleetdm.fleet-desktop.pssoextension</string>
 			<key>PayloadDisplayName</key>
 			<string>Fleet Extensible Single Sign-On</string>
 			<key>PayloadIdentifier</key>
@@ -34,7 +34,7 @@
 			<key>ScreenLockedBehavior</key>
 			<string>DoNotHandle</string>
 			<key>TeamIdentifier</key>
-			<string>5K28R5ZUK5</string>
+			<string>8VBZ3948LU</string>
 			<key>Type</key>
 			<string>Redirect</string>
 			<key>URLs</key>
