@@ -1042,6 +1042,7 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
+WHERE path NOT LIKE '%%.app/Contents/%%'
 UNION
 SELECT
   name AS name,
