@@ -1033,8 +1033,8 @@ type Service interface {
 	// CountABMTokens counts the ABM tokens in Fleet.
 	CountABMTokens(ctx context.Context) (int, error)
 
-	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
-	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
+	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
 
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error

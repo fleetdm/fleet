@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "151.0.1",
+      "version": "152.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '151.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.thunderbird' AND version_compare(bundle_short_version, '152.0') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/151.0.1/mac/en-US/Thunderbird%20151.0.1.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/152.0/mac/en-US/Thunderbird%20152.0.dmg",
       "install_script_ref": "7cfa15ee",
       "uninstall_script_ref": "88749f85",
-      "sha256": "161efae828f7cb85acc7e7490c88042a22c0867f3c6bb616b73319bea834a378",
+      "sha256": "42ac9a908831d8fb32c85dbd484a8d31106dd9fee950be5b43565dcf8303ea7f",
       "default_categories": [
         "Productivity"
       ]

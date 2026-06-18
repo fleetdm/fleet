@@ -171,6 +171,22 @@ type MDMAppleABMAssignmentInfo struct {
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+}
+
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
+	if m.MacOSTeam == removedTeamName {
+		m.MacOSTeam = ""
+	}
+	if m.IOSTeam == removedTeamName {
+		m.IOSTeam = ""
+	}
+	if m.IpadOSTeam == removedTeamName {
+		m.IpadOSTeam = ""
+	}
+	if m.BYODTeam == removedTeamName {
+		m.BYODTeam = ""
+	}
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents a user definition of the association

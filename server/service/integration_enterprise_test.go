@@ -31795,6 +31795,90 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	})
 }
 
+// TestOrbitReEnrollSkipsEndUserAuth covers issue #46300: once a host has orbit-enrolled, a subsequent re-enrollment (e.g. after a
+// service restart, node key file loss, or osquery DB rebuild) must not prompt for end user authentication again, even if End User
+// Authentication is enabled on the host's team and the host has no IdP association. This grandfathers hosts that enrolled before
+// EUA was enabled. A genuinely new device is still gated (covered by TestOrbitEnrollWithIdPPopulatesDeviceMapping).
+func (s *integrationEnterpriseTestSuite) TestOrbitReEnrollSkipsEndUserAuth() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team with End User Authentication DISABLED, so the first enrollment succeeds without an SSO prompt and the
+	// host gets an orbit node key (the "previously enrolled" state).
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	enrollSecret := t.Name() + "-secret"
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
+
+	var caps fleet.CapabilityMap
+	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
+	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
+
+	runFlow := func(t *testing.T, platform, platformLike string) {
+		hostUUID := uuid.New().String()
+		enrollBody, err := json.Marshal(fleet.EnrollOrbitRequest{
+			EnrollSecret:   enrollSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: uuid.New().String(),
+			Hostname:       strings.ReplaceAll(t.Name(), "/", "-") + ".local",
+			Platform:       platform,
+			PlatformLike:   platformLike,
+			HardwareModel:  "TestModel",
+		})
+		require.NoError(t, err)
+
+		// First enrollment with EUA disabled: succeeds and stores an orbit node key.
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		var orbitResp enrollOrbitResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotZero(t, hostLite.ID)
+
+		// Now enable End User Authentication on the team. EnrollOrbit reads team config via TeamLite (not in the cached
+		// layer), so this direct write is visible to the running server immediately.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		// Re-enroll the same host. There is no IdP association, so before the fix this returned END_USER_AUTH_REQUIRED. The
+		// host is already orbit-enrolled, so enrollment must now succeed without prompting.
+		res = s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		orbitResp = enrollOrbitResponse{}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey, "re-enrollment of an already-enrolled host must not be gated by EUA")
+
+		// The re-enrollment must reuse the existing host row, not create a duplicate.
+		reEnrolledHost, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, hostLite.ID, reEnrolledHost.ID, "re-enrollment must reuse the existing host row, not create a duplicate")
+
+		// Reset team EUA for the next subtest's first enrollment.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+	}
+
+	t.Run("linux", func(t *testing.T) {
+		runFlow(t, "ubuntu", "debian")
+	})
+
+	t.Run("windows", func(t *testing.T) {
+		runFlow(t, "windows", "")
+	})
+}
+
 // TestOrbitEnrollWithEUAToken covers the Windows MSI EUA-token branch in
 // EnrollOrbit (the `case platform == "windows" && euaToken != ""` arm of the
 // End User Auth switch in server/service/orbit.go). This is the flow Fleet

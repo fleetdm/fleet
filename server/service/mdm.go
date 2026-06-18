@@ -46,6 +46,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-sql-driver/mysql"
 )
@@ -2216,7 +2217,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls, androidProfiles)
 	if err != nil {
 		return err
 	}
@@ -2376,6 +2377,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
+	androidProfiles map[int]*fleet.MDMAndroidConfigProfile,
 ) (map[string][]string, error) {
 	var err error
 
@@ -2413,6 +2415,12 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		}
 		if len(declVars) > 0 {
 			profileVarsByProfIdentifier[fleet.MDMAppleDeclarationUUIDPrefix+p.Identifier] = declVars
+		}
+	}
+	for _, p := range androidProfiles {
+		androidVars := variables.Find(string(p.RawJSON))
+		if len(androidVars) > 0 {
+			profileVarsByProfIdentifier[fleet.MDMAndroidProfileUUIDPrefix+p.Name] = androidVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil

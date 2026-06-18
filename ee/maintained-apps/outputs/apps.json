@@ -7107,6 +7107,13 @@
       "description": "Splice is a tool to browse and preview sounds from Splice’s entire catalog."
     },
     {
+      "name": "Spokenly",
+      "slug": "spokenly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.spokenly",
+      "description": "Spokenly is a dictation and transcription app with AI-powered editing."
+    },
+    {
       "name": "Spotify",
       "slug": "spotify/darwin",
       "platform": "darwin",
@@ -8106,6 +8113,20 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vivaldi.Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/windows",
+      "platform": "windows",
+      "unique_identifier": "Vivaldi",
+      "description": "Vivaldi is a customizable, privacy-focused web browser built on Chromium."
     },
     {
       "name": "Vivid",

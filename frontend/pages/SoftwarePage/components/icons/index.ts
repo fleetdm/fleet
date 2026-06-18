@@ -836,6 +836,7 @@ import SpitfireAudio from "./SpitfireAudio";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Splice from "./Splice";
+import Spokenly from "./Spokenly";
 import Spotify from "./Spotify";
 import Spyder from "./Spyder";
 import Sqlectron from "./Sqlectron";
@@ -949,6 +950,7 @@ import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
@@ -1875,6 +1877,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   splice: Splice,
+  spokenly: Spokenly,
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
@@ -1990,6 +1993,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,

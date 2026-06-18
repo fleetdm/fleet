@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "14.1.1.13156",
+      "version": "14.2.0.13656",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN' AND version_compare(bundle_short_version, '14.1.1.13156') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.expressvpn.ExpressVPN' AND version_compare(bundle_short_version, '14.2.0.13656') < 0);"
       },
-      "installer_url": "https://www.expressvpn.works/clients/mac/expressvpn-macos-universal-14.1.1.13156_release.zip",
+      "installer_url": "https://www.expressvpn.works/clients/mac/expressvpn-macos-universal-14.2.0.13656_release.zip",
       "install_script_ref": "c5afbbfa",
       "uninstall_script_ref": "50188cf7",
-      "sha256": "b954a07bde7413436dfc38fe8dcc26e684dc0ed3fbc27e2bfcfae496019dd75d",
+      "sha256": "17d4f67c581ac4cb184ce3bc9fec51bb16f6da88f6ced87589fed266ae0468d6",
       "default_categories": [
         "Productivity"
       ]
