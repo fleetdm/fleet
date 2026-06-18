@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sync/atomic"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -226,61 +224,65 @@ func TestSplitHostMap(t *testing.T) {
 }
 
 func TestMakeAndroidAppAvailableBatching(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		var callCount atomic.Int32
-		var totalHosts atomic.Int32
+	ds := new(mock.Store)
 
-		androidModule := &mockAndroidModule{
-			addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-				callCount.Add(1)
-				totalHosts.Add(int32(len(hostUUIDs))) //nolint:gosec // test with small host counts
-				return make(map[string]*android.MDMAndroidPolicyRequest), nil
-			},
+	// 5 hosts in scope
+	ds.GetIncludedHostUUIDMapForAppStoreAppFunc = func(ctx context.Context, appTeamID uint) (map[string]string, error) {
+		hosts := make(map[string]string, 5)
+		for i := range 5 {
+			hosts[fmt.Sprintf("host-%d", i)] = fmt.Sprintf("host-%d", i)
 		}
+		return hosts, nil
+	}
+	ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
+		return nil, nil // no config, no variables
+	}
 
-		ds := new(mock.Store)
-		// 5 hosts in scope
-		ds.GetIncludedHostUUIDMapForAppStoreAppFunc = func(ctx context.Context, appTeamID uint) (map[string]string, error) {
-			hosts := make(map[string]string, 5)
-			for i := range 5 {
-				hosts[fmt.Sprintf("host-%d", i)] = fmt.Sprintf("host-%d", i)
-			}
-			return hosts, nil
+	var jobs []*fleet.Job
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = uint(len(jobs) + 1)
+		jobs = append(jobs, job)
+		return job, nil
+	}
+
+	w := &SoftwareWorker{
+		Datastore:        ds,
+		AndroidModule:    &mockAndroidModule{},
+		Log:              slog.New(slog.DiscardHandler),
+		AndroidBatchSize: 2, // batch size of 2 → 3 batches (2+2+1)
+	}
+
+	err := w.makeAndroidAppAvailable(t.Context(), "com.example.app", 1, "enterprises/test", false)
+	require.NoError(t, err)
+
+	// Phase 1 should queue 3 batch jobs (2+2+1 hosts), no AMAPI calls.
+	require.Len(t, jobs, 3, "expected 3 batch jobs queued")
+
+	// Verify staggered delays: 0s, 60s, 120s
+	for i, job := range jobs {
+		var args softwareWorkerArgs
+		require.NoError(t, json.Unmarshal(*job.Args, &args))
+		require.Equal(t, makeAndroidAppAvailableBatchTask, args.Task)
+		require.Equal(t, "com.example.app", args.ApplicationID)
+		require.Equal(t, "enterprises/test", args.EnterpriseName)
+
+		if i == 0 {
+			require.True(t, job.NotBefore.IsZero(), "first batch should have no delay")
+		} else {
+			expectedDelay := time.Duration(i) * androidSoftwareInstallStaggerInterval
+			require.WithinDuration(t, time.Now().Add(expectedDelay), job.NotBefore, 5*time.Second,
+				"batch %d should be delayed by %s", i, expectedDelay)
 		}
-		ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
-			return nil, nil
-		}
+	}
 
-		w := &SoftwareWorker{
-			Datastore:        ds,
-			AndroidModule:    androidModule,
-			Log:              slog.New(slog.DiscardHandler),
-			AndroidBatchSize: 2, // batch size of 2 → 3 batches (2+2+1)
-		}
-
-		ctx := t.Context()
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- w.makeAndroidAppAvailable(ctx, "com.example.app", 1, "enterprises/test", false)
-		}()
-
-		// First batch runs immediately.
-		synctest.Wait()
-		require.Equal(t, int32(1), callCount.Load(), "first batch should run immediately")
-
-		// Advance past first stagger interval → second batch.
-		time.Sleep(androidSoftwareInstallStaggerInterval)
-		synctest.Wait()
-		require.Equal(t, int32(2), callCount.Load(), "second batch after first sleep")
-
-		// Advance past second stagger interval → third batch.
-		time.Sleep(androidSoftwareInstallStaggerInterval)
-		synctest.Wait()
-		require.Equal(t, int32(3), callCount.Load(), "third batch after second sleep")
-
-		require.NoError(t, <-errCh)
-		require.Equal(t, int32(5), totalHosts.Load(), "all 5 hosts processed")
-	})
+	// Count total hosts across all batches
+	totalHosts := 0
+	for _, job := range jobs {
+		var args softwareWorkerArgs
+		require.NoError(t, json.Unmarshal(*job.Args, &args))
+		totalHosts += len(args.HostUUIDToPolicyID)
+	}
+	require.Equal(t, 5, totalHosts, "all 5 hosts should be distributed across batches")
 }
 
 func TestQueueBulkSetAndroidAppsAvailableForHostsChunking(t *testing.T) {
