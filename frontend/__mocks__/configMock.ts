@@ -234,6 +234,9 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       secrets: true,
     },
   },
+  agent_settings: {
+    fleetd_base_url: "",
+  },
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

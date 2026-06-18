@@ -234,6 +234,9 @@ export interface IConfig {
       sender_domain: string;
     };
   };
+  agent_settings: {
+    fleetd_base_url?: string;
+  };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;

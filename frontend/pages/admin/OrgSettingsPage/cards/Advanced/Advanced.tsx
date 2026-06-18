@@ -18,6 +18,7 @@ import ServerAuthenticationSection from "./components/ServerAuthenticationSectio
 interface IAdvancedConfigFormData {
   ssoUserURL: string;
   mdmAppleServerURL: string;
+  fleetdBaseURL: string;
   domain: string;
   verifySSLCerts: boolean;
   enableStartTLS?: boolean;
@@ -40,6 +41,7 @@ interface IAdvancedConfigFormErrors {
   mdmAppleServerURL?: string | null;
   domain?: string | null;
   hostExpiryWindow?: string | null;
+  fleetdBaseURL?: string | null;
 }
 
 export interface IAdvancedSectionProps {
@@ -54,6 +56,7 @@ export interface IAdvancedSectionProps {
 const validateFormData = ({
   ssoUserURL,
   mdmAppleServerURL,
+  fleetdBaseURL,
   domain,
   hostExpiryWindow,
   enableHostExpiry,
@@ -82,6 +85,16 @@ const validateFormData = ({
     errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
+  if (!fleetdBaseURL) {
+    delete errors.fleetdBaseURL;
+  } else if (
+    !validUrl({
+      url: fleetdBaseURL,
+    })
+  ) {
+    errors.fleetdBaseURL = "Fleet Agent base URL is not a valid URL";
+  }
+
   if (!domain) {
     delete errors.domain;
   } else if (!validUrl({ url: domain })) {
@@ -107,6 +120,7 @@ const Advanced = ({
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
     ssoUserURL: appConfig.sso_settings?.sso_server_url || "",
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
+    fleetdBaseURL: appConfig.agent_settings?.fleetd_base_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -213,6 +227,9 @@ const Advanced = ({
           uptime: !formData.disableHostsActive,
           vulnerabilities: !formData.disableVulnerabilities,
         },
+      },
+      agent_settings: {
+        fleetd_base_url: formData.fleetdBaseURL,
       },
     };
     try {

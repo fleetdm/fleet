@@ -780,6 +780,8 @@ type AppConfig struct {
 	// if any legacy settings were set in the raw JSON.
 	didUnmarshalLegacySettings []string
 
+	AgentSettings AgentSettings `json:"agent_settings"`
+
 	// ///////////////////////////////////////////////////////////////
 	// WARNING: If you add or change fields of this struct make sure
 	// it's taken into account in the AppConfig Clone implementation!
@@ -1417,6 +1419,10 @@ type Features struct {
 type HistoricalDataSettings struct {
 	Uptime          bool `json:"uptime"`
 	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+type AgentSettings struct {
+	FleetdBaseURL string `json:"fleetd_base_url"`
 }
 
 // Enabled returns whether collection is enabled for the given internal

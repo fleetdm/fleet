@@ -3,6 +3,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink/CustomLink";
 
 import { IAdvancedSectionProps } from "../../Advanced";
 
@@ -16,6 +17,7 @@ const ServerAuthenticationSection = ({
   const {
     ssoUserURL,
     mdmAppleServerURL,
+    fleetdBaseURL,
     domain,
     verifySSLCerts,
     enableStartTLS,
@@ -65,6 +67,39 @@ const ServerAuthenticationSection = ({
           )}
         />
       )}
+      <GitOpsModeTooltipWrapper
+        position="left"
+        isInputField
+        renderChildren={(disableChildren) => (
+          <InputField
+            disabled={disableChildren}
+            label="Fleet Agent base URL"
+            onChange={onInputChange}
+            onBlur={onInputBlur}
+            name="fleetdBaseURL"
+            value={fleetdBaseURL}
+            parseTarget
+            error={formErrors.fleetdBaseURL}
+            tooltip={
+              !disableChildren &&
+              "Update this URL if you want your hosts to download the Fleet Agent (Fleetd) from this URL. If not configured, hosts will use the official URL of download.fleetdm.com."
+            }
+            helpText={
+              <>
+                {" "}
+                Specified server must follow official directory structure and
+                naming conventions.{" "}
+                <CustomLink
+                  url="https://fleetdm.com/thedocs"
+                  text="Learn more"
+                  newTab
+                  multiline
+                />{" "}
+              </>
+            }
+          />
+        )}
+      />
       <InputField
         label="Domain"
         onChange={onInputChange}

@@ -227,6 +227,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Scripts:           appConfig.Scripts,
 			GitOpsConfig:      appConfig.GitOpsConfig,
 			ConditionalAccess: appConfig.ConditionalAccess,
+			AgentSettings:     appConfig.AgentSettings,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
