@@ -61,10 +61,9 @@ const InstallAllInCategoryButton = ({
     return null;
   }
 
-  // count === 0 only survives the early-return when a batch is in flight, so
-  // disabled means exactly that case. When count > 0 we always allow the
-  // click: `install_all` skips items already in INSTALLED_OR_IN_FLIGHT, so a
-  // second click during a batch only queues whatever is still eligible.
+  // `count === 0` only reaches this line during an in-flight batch (the
+  // early-return handles count=0 with no batch). That's the one and only
+  // state where the button renders disabled.
   const isDisabled = uninstalledCount === 0;
   const label =
     uninstalledCount === 0
