@@ -462,6 +462,14 @@ func TestValidateIdentifier(t *testing.T) {
 		// Apple profiles must resend via ResendHostCertificateProfile so the retry
 		// counter is reset and a fresh challenge is fetched (see #46291), not via the
 		// generic ResendHostMDMProfile which would resend the stale command bytes.
+		//
+		// This asserts the routing decision only. The end-to-end self-heal (blanked
+		// command_uuid -> reconcile re-renders -> fresh NDES challenge + new
+		// challenge_retrieved_at) relies on the reconcile path referenced in
+		// validateIdentifier's comment: server/mdm/apple/reconcile.go
+		// (ComputeReconcileDeltas selects Status==nil installs) and
+		// server/mdm/apple/profile_processor.go (FleetVarNDESSCEPChallenge re-fetch +
+		// BulkUpsertMDMManagedCertificates).
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)

@@ -366,8 +366,12 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if status == "" {
 			status = "null"
 		}
-		// FIXME: MDM client will report a failed status for the profile when we return bad request, which consumes the sole retry attempt.
-		// Seems like we should proactively use ResendHostCertificateProfile here too?
+		// Unlike the challenge-expiry path below (which now requeues via
+		// ResendHostCertificateProfile, see #46291), we intentionally do NOT requeue here:
+		// a non-pending status means Fleet's DB already advanced this profile (e.g. it was
+		// re-sent or moved to verifying/verified) and the host is simply redeeming an
+		// outdated command. We expect a fresh certificate request once the profile updates
+		// on the host, so proactively resending here would fight with the current state.
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
 			hostUUID, profileUUID)}
 	}
@@ -388,13 +392,20 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// Returning a bad request makes the MDM client mark the profile failed, which
 			// consumes the profile's automatic retry. For Apple profiles we resend via
 			// ResendHostCertificateProfile (rather than the generic ResendHostMDMProfile),
-			// which resets the retry counter and blanks the command UUID so the reconcile
-			// cron re-evaluates the profile variables and fetches a fresh challenge instead
-			// of resending the stale, already-expired command bytes. This lets the host
-			// self-heal rather than landing in a terminal failed state (see #46291).
+			// which resets the retry counter and blanks the command UUID. Blanking the
+			// command UUID forces the reconcile cron to re-render the profile from scratch
+			// rather than re-enqueue the stale, already-expired command bytes: the NULL
+			// status re-selects the profile for install (server/mdm/apple/reconcile.go,
+			// ComputeReconcileDeltas: OperationType==Install && Status==nil), and
+			// preprocessProfileContents re-fetches a fresh NDES challenge and upserts a new
+			// challenge_retrieved_at (server/mdm/apple/profile_processor.go, the
+			// FleetVarNDESSCEPChallenge case + BulkUpsertMDMManagedCertificates). This lets
+			// the host self-heal rather than landing in a terminal failed state (see #46291).
 			//
-			// ResendHostCertificateProfile only operates on host_mdm_apple_profiles, so
-			// Windows profiles continue to use the generic resend.
+			// Known limitation: ResendHostCertificateProfile only operates on
+			// host_mdm_apple_profiles, so Windows NDES profiles fall back to the generic
+			// ResendHostMDMProfile and remain subject to the single-retry trap. Tracked as a
+			// follow-up; out of scope for the macOS issue reported in #46291.
 			if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
 				if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 					return "", ctxerr.Wrap(ctx, err, "resending host mdm certificate profile")
@@ -402,6 +413,19 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			} else if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
+			// Log the requeue. Because each expiry resets retries, a host that chronically
+			// checks in more than NDESChallengeInvalidAfter after the profile is built will
+			// re-fetch a fresh NDES challenge on every reconcile instead of going terminal.
+			// That is the intended self-heal behavior, but it also means a backlog of
+			// chronically-late hosts can repeatedly hit the (Okta/WAF-fronted) NDES admin URL,
+			// so we surface it here for operators monitoring SCEP admin-URL load.
+			svc.debugLogger.WarnContext(ctx, "dynamic SCEP challenge expired before device redemption; requeuing profile with a fresh challenge",
+				"host_uuid", hostUUID,
+				"profile_uuid", profileUUID,
+				"ca_type", fleet.CAConfigNDES,
+				"challenge_retrieved_at", challengeRetrievedAt,
+				"challenge_invalid_after", NDESChallengeInvalidAfter.String(),
+			)
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
 		scepURL = groupedCAs.NDESSCEP.URL
