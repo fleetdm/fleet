@@ -88,18 +88,21 @@ func fixEmbeddedScanTitles(tx *sql.Tx) (map[int64]*fixEmbeddedTitleInfo, error) 
 func fixEmbeddedLoadFMANamesDarwin(tx *sql.Tx) (map[string]string, error) {
 	rows, err := tx.Query(`SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("querying FMA names: %w", err)
 	}
 	defer rows.Close()
 	out := make(map[string]string)
 	for rows.Next() {
 		var id, name string
 		if err := rows.Scan(&id, &name); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scanning FMA row: %w", err)
 		}
 		out[id] = name
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating FMA rows: %w", err)
+	}
+	return out, nil
 }
 
 // Mirrors preInsertSoftwareInventory's precedence in server/datastore/mysql/software.go.
