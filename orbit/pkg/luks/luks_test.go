@@ -1,9 +1,12 @@
 package luks
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -349,4 +352,121 @@ func TestDetectEncryptionType(t *testing.T) {
 			require.Equal(t, tc.want, DetectEncryptionType(tc.dump))
 		})
 	}
+}
+
+func TestIsSnapdManaged(t *testing.T) {
+	cases := []struct {
+		name string
+		dump *LuksDump
+		want bool
+	}{
+		{name: "nil dump", dump: nil, want: false},
+		{name: "no tokens", dump: &LuksDump{}, want: false},
+		{
+			name: "systemd tpm2 only is not snapd-managed",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: systemdTPM2Type}}},
+			want: false,
+		},
+		{
+			name: "snapd fde token",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: "ubuntu-fde"}}},
+			want: true,
+		},
+		{
+			name: "snapd fde token mixed case",
+			dump: &LuksDump{Tokens: map[string]Token{"0": {Type: "Ubuntu-FDE-hook"}}},
+			want: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, IsSnapdManaged(tc.dump))
+		})
+	}
+}
+
+func TestParseRecoveryKey(t *testing.T) {
+	key, err := parseRecoveryKey("Recovery key: 55055-39320-64491-48436-47667-15525-36879-32875\n")
+	require.NoError(t, err)
+	require.Equal(t, "55055-39320-64491-48436-47667-15525-36879-32875", key)
+
+	_, err = parseRecoveryKey("no key here")
+	require.Error(t, err)
+}
+
+func TestRecoveryKeyListed(t *testing.T) {
+	out := "Name\ndefault-recovery\nfleet-escrow\n"
+	require.True(t, recoveryKeyListed(out, "fleet-escrow"))
+	require.True(t, recoveryKeyListed(out, "default-recovery"))
+	require.False(t, recoveryKeyListed(out, "other-key"))
+}
+
+type fakeEscrower struct {
+	responses []LuksResponse
+	err       error
+}
+
+func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
+	f.responses = append(f.responses, r)
+	return f.err
+}
+
+type fakeSnapdFDE struct {
+	recoveryKey  string
+	ensureErr    error
+	removeCalled bool
+}
+
+func (f *fakeSnapdFDE) Detect(ctx context.Context) (bool, error) { return true, nil }
+func (f *fakeSnapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	return f.recoveryKey, f.ensureErr
+}
+
+func (f *fakeSnapdFDE) RemoveFleetRecoveryKey(ctx context.Context) error {
+	f.removeCalled = true
+	return nil
+}
+
+func TestRunRecoveryKeyEscrow(t *testing.T) {
+	ctx := context.Background()
+	const recoveryKey = "55055-39320-64491-48436-47667-15525-36879-32875"
+
+	t.Run("success escrows the recovery key with no salt or key slot", func(t *testing.T) {
+		escrower := &fakeEscrower{}
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower)
+
+		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, escrower.responses, 1)
+		resp := escrower.responses[0]
+		assert.Equal(t, fleet.LUKSKeyTypeRecoveryKey, resp.KeyType)
+		assert.Equal(t, recoveryKey, resp.Passphrase)
+		assert.Empty(t, resp.Salt)
+		assert.Nil(t, resp.KeySlot)
+		assert.Empty(t, resp.Err)
+		assert.False(t, snapd.removeCalled)
+	})
+
+	t.Run("reports a client error when key creation fails", func(t *testing.T) {
+		escrower := &fakeEscrower{}
+		snapd := &fakeSnapdFDE{ensureErr: errors.New("snap-tpmctl boom")}
+		lr := New(escrower)
+
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		require.Len(t, escrower.responses, 1)
+		resp := escrower.responses[0]
+		assert.Equal(t, fleet.LUKSKeyTypeRecoveryKey, resp.KeyType)
+		assert.Empty(t, resp.Passphrase)
+		assert.NotEmpty(t, resp.Err)
+		assert.False(t, snapd.removeCalled)
+	})
+
+	t.Run("rolls back the key when escrow to the server fails", func(t *testing.T) {
+		escrower := &fakeEscrower{err: errors.New("network down")}
+		snapd := &fakeSnapdFDE{recoveryKey: recoveryKey}
+		lr := New(escrower)
+
+		require.Error(t, lr.runRecoveryKeyEscrow(ctx, snapd))
+		assert.True(t, snapd.removeCalled)
+	})
 }

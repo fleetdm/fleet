@@ -75,7 +75,7 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 	randomBits := base64.StdEncoding.EncodeToString([]byte(uuid.New().String()))
 	var keySlot uint = 1
 
-	_, err = ds.SaveLUKSData(ctx, hostOne, randomBits, randomBits, keySlot)
+	_, err = ds.SaveLUKSData(ctx, hostOne, randomBits, randomBits, &keySlot)
 	require.NoError(t, err)
 
 	// Try to delete a non-existent LUKS key

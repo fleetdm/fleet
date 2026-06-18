@@ -65,6 +65,19 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
+	// silently and needs neither cryptsetup nor a desktop dialog. Detect it
+	// first and take that path when present.
+	snapd := newSnapdFDE()
+	isSnapd, err := snapd.Detect(ctx)
+	if err != nil {
+		log.Debug().Err(err).Msg("detecting snapd-managed FDE; falling back to passphrase escrow")
+	}
+	if isSnapd {
+		log.Debug().Msg("escrowing snapd-managed recovery key")
+		return lr.runRecoveryKeyEscrow(ctx, snapd)
+	}
+
 	if !isInstalled("cryptsetup") {
 		return errors.New("cryptsetup is not installed")
 	}
@@ -414,6 +427,107 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	}
 
 	return nil
+}
+
+const (
+	snapBinary       = "snap"
+	snapTPMCtlBinary = "snap-tpmctl"
+)
+
+// snapTPMCtl is the production SnapdFDE implementation. It shells out to
+// snapd's `snap`/`snap-tpmctl` tooling to manage TPM-backed FDE recovery keys.
+//
+// NOTE: the exact snap-tpmctl subcommands and output format must be validated
+// on real Ubuntu 26 hardware; see the issue's verification items. The logic is
+// isolated behind the SnapdFDE interface so it can be adjusted without touching
+// the (unit-tested) escrow orchestration.
+type snapTPMCtl struct{}
+
+func newSnapdFDE() SnapdFDE { return &snapTPMCtl{} }
+
+func (s *snapTPMCtl) Detect(ctx context.Context) (bool, error) {
+	// snapd ships on all modern Ubuntu, so its presence alone is not a signal.
+	// Confirm the root volume is LUKS2 and managed by snapd's secboot stack
+	// before doing anything heavier (such as installing snap-tpmctl). Plain or
+	// systemd-cryptenroll volumes are handled by the legacy passphrase path.
+	if !isInstalled(snapBinary) {
+		return false, nil
+	}
+
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		// No LUKS root partition found; nothing for us to manage.
+		log.Debug().Err(err).Msg("no LUKS root disk found while detecting snapd FDE")
+		return false, nil
+	}
+
+	dump, err := GetLuksDump(ctx, devicePath)
+	if err != nil {
+		return false, fmt.Errorf("inspecting LUKS metadata: %w", err)
+	}
+
+	if !IsSnapdManaged(dump) {
+		return false, nil
+	}
+
+	// Confirmed snapd-managed FDE: ensure the management tool is available.
+	if !isInstalled(snapTPMCtlBinary) {
+		if err := installSnapTPMCtl(ctx); err != nil {
+			return false, fmt.Errorf("installing %s: %w", snapTPMCtlBinary, err)
+		}
+	}
+
+	return true, nil
+}
+
+func (s *snapTPMCtl) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	// Create a dedicated Fleet-owned recovery key in its own named slot so the
+	// user's install-time default-recovery key is never disturbed. If a prior
+	// (partial) run already created it, regenerate it so we escrow a known value.
+	verb := "create-recovery-key"
+	if recoveryKeyExists(ctx, FleetRecoveryKeyName) {
+		verb = "regenerate-recovery-key"
+	}
+
+	out, err := runSnapTPMCtl(ctx, verb, FleetRecoveryKeyName)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", verb, err)
+	}
+	return parseRecoveryKey(out)
+}
+
+func (s *snapTPMCtl) RemoveFleetRecoveryKey(ctx context.Context) error {
+	if !recoveryKeyExists(ctx, FleetRecoveryKeyName) {
+		return nil
+	}
+	if _, err := runSnapTPMCtl(ctx, "remove-recovery-key", FleetRecoveryKeyName); err != nil {
+		return fmt.Errorf("removing recovery key: %w", err)
+	}
+	return nil
+}
+
+func runSnapTPMCtl(ctx context.Context, args ...string) (string, error) {
+	out, err := exec.CommandContext(ctx, snapTPMCtlBinary, args...).CombinedOutput() // #nosec G204
+	if err != nil {
+		return "", fmt.Errorf("running %s %v: %w (%s)", snapTPMCtlBinary, args, err, strings.TrimSpace(string(out)))
+	}
+	return string(out), nil
+}
+
+func installSnapTPMCtl(ctx context.Context) error {
+	if err := exec.CommandContext(ctx, snapBinary, "install", snapTPMCtlBinary).Run(); err != nil {
+		return fmt.Errorf("snap install %s: %w", snapTPMCtlBinary, err)
+	}
+	return nil
+}
+
+func recoveryKeyExists(ctx context.Context, name string) bool {
+	out, err := runSnapTPMCtl(ctx, "list-recovery-keys")
+	if err != nil {
+		log.Debug().Err(err).Msg("listing snapd recovery keys")
+		return false
+	}
+	return recoveryKeyListed(out, name)
 }
 
 // isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0

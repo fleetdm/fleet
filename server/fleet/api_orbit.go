@@ -224,12 +224,30 @@ func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNo
 // Post Orbit LUKS (Linux disk encryption) data
 /////////////////////////////////////////////////////////////////////////////////
 
+// LUKS key type values reported by orbit in OrbitPostLUKSRequest.KeyType. An
+// empty value is treated as LUKSKeyTypePassphrase for backward compatibility
+// with older orbit agents that predate TPM-backed FDE support.
+const (
+	// LUKSKeyTypePassphrase is a Fleet-generated passphrase added to a
+	// dedicated LUKS key slot (the legacy path). It carries a Salt and a
+	// numeric KeySlot.
+	LUKSKeyTypePassphrase = "passphrase"
+	// LUKSKeyTypeRecoveryKey is a snapd/secboot-managed recovery key escrowed
+	// from a host using TPM-backed full-disk encryption (e.g. Ubuntu 26). It
+	// has no Salt and no numeric KeySlot because snapd owns the key slots.
+	LUKSKeyTypeRecoveryKey = "recovery_key"
+)
+
 type OrbitPostLUKSRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	Passphrase   string `json:"passphrase"`
 	Salt         string `json:"salt"`
 	KeySlot      *uint  `json:"key_slot"`
 	ClientError  string `json:"client_error"`
+	// KeyType identifies how the escrowed secret unlocks the volume. Empty or
+	// LUKSKeyTypePassphrase means the legacy passphrase-in-a-key-slot path;
+	// LUKSKeyTypeRecoveryKey means a TPM-backed FDE recovery key (no Salt/KeySlot).
+	KeyType string `json:"key_type"`
 }
 
 func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
