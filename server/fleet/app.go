@@ -809,7 +809,7 @@ func (c *AppConfig) Obfuscate() {
 	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
 	// whenever the feature is configured (token URL present implies a stored
 	// secret), so the API never leaks it but still signals it's set.
-	if c.MDM.AppleAccountProvisioning.Configured() {
+	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
 		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
 	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
