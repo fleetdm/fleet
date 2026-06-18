@@ -259,4 +259,45 @@ describe("GitOpsModeTooltipWrapper", () => {
       expect(screen.getByRole("tooltip")).toBeInTheDocument();
     });
   });
+
+  // When the wrapped content is a group (multiple fields/controls) rather than a single
+  // field, keep whole-wrapper anchoring so hovering any control still shows the tooltip.
+  it("keeps whole-wrapper anchoring for grouped content with multiple controls", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          isTeamAdmin: false,
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "a.b.cc",
+            },
+          },
+        },
+      },
+    });
+
+    const { user } = render(
+      <GitOpsModeTooltipWrapper
+        position="left"
+        renderChildren={(disableChildren) => (
+          <div>
+            <Checkbox disabled={disableChildren} name="first" value={false}>
+              First option
+            </Checkbox>
+            <Checkbox disabled={disableChildren} name="second" value={false}>
+              Second option
+            </Checkbox>
+          </div>
+        )}
+      />
+    );
+
+    // Hovering the second control (not the first) still shows the tooltip.
+    await user.hover(screen.getByText("Second option"));
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    });
+  });
 });

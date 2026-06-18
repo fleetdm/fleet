@@ -41,14 +41,21 @@ const GitOpsModeTooltipWrapper = ({
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
 
   const wrapperRef = useRef<HTMLSpanElement>(null);
-  const [hasFirstRow, setHasFirstRow] = useState(false);
+  const [hasSingleFieldRow, setHasSingleFieldRow] = useState(false);
   // Prefix makes this a valid CSS id selector (lodash uniqueId returns a bare number).
   const wrapperId = useMemo(() => uniqueId(`${baseClass}-`), []);
 
   useLayoutEffect(() => {
-    setHasFirstRow(
-      !!wrapperRef.current?.querySelector(FIRST_ROW_PARTS.join(", "))
+    // Only re-anchor when the wrapped content is a single FormField (its root element is the
+    // `.form-field`, as rendered by Checkbox/InputField/Dropdown) with exactly one label
+    // row. Groups (e.g. a fieldset of radios + a checkbox wrapped in a div) and non-field
+    // content (buttons, icon rows) keep whole-wrapper anchoring so hovering anywhere still
+    // shows the tooltip.
+    const root = wrapperRef.current?.firstElementChild;
+    const rows = wrapperRef.current?.querySelectorAll(
+      FIRST_ROW_PARTS.join(", ")
     );
+    setHasSingleFieldRow(!!root?.matches(".form-field") && rows?.length === 1);
   }, []);
 
   if (!gitOpsModeEnabled) {
@@ -66,9 +73,9 @@ const GitOpsModeTooltipWrapper = ({
   });
 
   // Anchor to the field's first row so the arrow points at the label regardless of input,
-  // help-text, or tooltip-content height. Falls back to the whole wrapper for non-field
-  // content (buttons, icon rows), preserving the previous centered behavior there.
-  const anchorSelect = hasFirstRow
+  // help-text, or tooltip-content height. Falls back to the whole wrapper otherwise,
+  // preserving the previous centered, hover-anywhere behavior.
+  const anchorSelect = hasSingleFieldRow
     ? FIRST_ROW_PARTS.map((part) => `#${wrapperId} ${part}`).join(", ")
     : `#${wrapperId}`;
 
