@@ -62,6 +62,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -144,7 +145,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
-						cronLog,
+						cronLog, &fleetmock.MockActivityService{},
 					)
 					return calendarSchedule, err
 				}
