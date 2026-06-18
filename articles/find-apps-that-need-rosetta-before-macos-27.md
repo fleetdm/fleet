@@ -116,5 +116,5 @@ Start the audit while macOS 26 and macOS 27 still run Rosetta. That gives you a 
 <meta name="authorGitHubUsername" value="kc9wwh">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-06-18">
-<meta name="articleImageUrl" value="../website/assets/images/find-rosetta-apps-before-macos-27-1200x627@2x">
+<meta name="articleImageUrl" value="../website/assets/images/find-rosetta-apps-before-macos-27-1200x627@2x.jpg">
 <meta name="description" value="Find which Mac apps need Rosetta across your fleet with osquery and Fleet, before macOS 27 removes it on upgrade.">
