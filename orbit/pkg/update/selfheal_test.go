@@ -1,7 +1,6 @@
 package update
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,7 +49,6 @@ func TestRemoveTarget(t *testing.T) {
 func TestCheckExec(t *testing.T) {
 	t.Parallel()
 
-	// Use the current platform so CheckExec doesn't skip with a cross-platform no-op.
 	platform := map[string]string{
 		"darwin":  "macos",
 		"linux":   "linux",
@@ -84,25 +82,6 @@ func TestCheckExec(t *testing.T) {
 				Channel:         "stable",
 				TargetFile:      "osqueryd",
 				CustomCheckExec: func(string) error { return nil },
-			}},
-		}}
-		require.NoError(t, u.CheckExec(target))
-	})
-
-	t.Run("cross-platform target is a no-op", func(t *testing.T) {
-		otherPlatform := "linux"
-		if runtime.GOOS == "linux" {
-			otherPlatform = "windows"
-		}
-		u := &Updater{opt: Options{
-			RootDirectory: t.TempDir(),
-			Targets: Targets{target: TargetInfo{
-				Platform:   otherPlatform,
-				Channel:    "stable",
-				TargetFile: "osqueryd",
-				CustomCheckExec: func(string) error {
-					return errors.New("should not be called for cross-platform target")
-				},
 			}},
 		}}
 		require.NoError(t, u.CheckExec(target))

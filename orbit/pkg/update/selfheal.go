@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -14,41 +12,16 @@ import (
 // same check applied to freshly downloaded targets (the target's CustomCheckExec
 // if set, otherwise running it with --help).
 //
-// It returns nil for targets that can't be verified on the current
-// platform/arch (e.g. when cross-building packages). A non-nil error means the
-// on-disk executable failed to run (corrupt/truncated download, crash on
-// startup, etc.) and the caller should self-heal by re-downloading it.
+// A non-nil error means the on-disk executable failed to run (corrupt/truncated
+// download, crash on startup, etc.) and the caller should self-heal by
+// re-downloading it.
 //
-// NOTE: this duplicates the platform/arch guards in checkExec on purpose:
-// checkExec verifies a freshly downloaded archive (and is on the critical
-// download path), whereas CheckExec verifies the already-installed executable.
+// Unlike the download-path checkExec, this needs no platform/arch guards: it
+// only runs in orbit, which loads targets matching the host OS/arch.
 func (u *Updater) CheckExec(target string) error {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return fmt.Errorf("load local target %s: %w", target, err)
-	}
-
-	platformGOOS, err := goosFromPlatform(localTarget.Info.Platform)
-	if err != nil {
-		return err
-	}
-	if platformGOOS != runtime.GOOS {
-		// Can't verify a binary for another OS (happens when cross-building packages).
-		return nil
-	}
-	platformGOARCH, err := goarchFromPlatform(localTarget.Info.Platform)
-	if err != nil {
-		return err
-	}
-	var containsArch bool
-	for _, arch := range platformGOARCH {
-		if arch == runtime.GOARCH {
-			containsArch = true
-		}
-	}
-	if !containsArch && len(os.Args) > 0 && strings.HasSuffix(os.Args[0], "fleetctl") {
-		// Can't reliably execute a cross-architecture binary (happens when cross-building).
-		return nil
 	}
 
 	if localTarget.Info.CustomCheckExec != nil {
