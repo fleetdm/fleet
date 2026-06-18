@@ -52,7 +52,23 @@ const InstallAllInCategoryButton = ({
     }
   }, [deviceToken, categoryId, onSuccess, renderFlash]);
 
-  const isDisabled = hasInProgressInCategory || uninstalledCount === 0;
+  // Hide the button entirely when there's nothing eligible AND nothing already
+  // running. With a previous install_all batch still in flight, keep the button
+  // visible without the "(0)" suffix — re-clicking is safe on the backend
+  // (in-flight items are skipped) and lets the user queue any newly-eligible
+  // items without waiting out the first batch.
+  if (uninstalledCount === 0 && !hasInProgressInCategory) {
+    return null;
+  }
+
+  // Only render disabled in the "no actionable items, but a prior batch is
+  // still running" branch. When count > 0 we always allow the click — the BE
+  // dedupes against in-flight items.
+  const isDisabled = uninstalledCount === 0;
+  const label =
+    uninstalledCount === 0
+      ? "Install all"
+      : `Install all (${uninstalledCount})`;
 
   return (
     <>
@@ -63,7 +79,7 @@ const InstallAllInCategoryButton = ({
         disabled={isDisabled}
       >
         <Icon name="install" color="ui-fleet-black-75" />
-        Install all ({uninstalledCount})
+        {label}
       </Button>
       {showModal && (
         <InstallAllInCategoryModal
