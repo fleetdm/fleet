@@ -876,7 +876,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	// cleanup app config references for the team being deleted
-	if orgNames != nil && len(orgNames) > 0 {
+	if len(orgNames) > 0 {
 		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get app config")
