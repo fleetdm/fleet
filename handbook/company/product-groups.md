@@ -1188,7 +1188,7 @@ All participants are expected to review the user story and associated designs an
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI), REST API or YAML.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
 
-User stories in the current design sprint are always reviewed first during design reviews. Bugs are discussed in [Bug bash](#bug-bash) meetings.
+User stories in the current design sprint are always reviewed first during design reviews.
 
 For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
 
@@ -1209,10 +1209,6 @@ Here are some tips for making this meeting effective:
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
-
-### Bug bash
-
-Bug bash meetings are conducted semiweekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors, usually Product Designers.  These meetings concentrate on bug fixes. The goal is to review bug fixes and ensure that [new bugs are triaged](https://fleetdm.com/handbook/product-design#triage-new-bugs).
 
 ### User story reviews
 
