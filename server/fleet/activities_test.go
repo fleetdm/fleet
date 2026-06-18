@@ -161,6 +161,27 @@ func TestFailedPolicyAutomationActivities(t *testing.T) {
 		assert.EqualValues(t, 500, got["status_code"])
 		assert.Equal(t, "internal server error", got["error_response"])
 	})
+
+	t.Run("conditional access", func(t *testing.T) {
+		act := ActivityTypeFailedAutomationConditionalAccess{
+			PolicyID:      15,
+			HostIDList:    []uint{43},
+			StatusCode:    500,
+			ErrorResponse: "500: upstream error",
+		}
+
+		assert.Equal(t, "failed_automation_conditional_access", act.ActivityName())
+		assert.Equal(t, []uint{43}, act.HostIDs())
+		assert.True(t, act.WasFromAutomation())
+
+		b, err := json.Marshal(act)
+		require.NoError(t, err)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal(b, &got))
+		assert.EqualValues(t, 15, got["policy_id"])
+		assert.EqualValues(t, 500, got["status_code"])
+		assert.Equal(t, "500: upstream error", got["error_response"])
+	})
 }
 
 func TestSuccessPolicyAutomationActivities(t *testing.T) {
@@ -221,61 +242,6 @@ func TestSuccessPolicyAutomationActivities(t *testing.T) {
 		_, hasStatus := got["status_code"]
 		assert.False(t, hasStatus)
 	})
-}
-
-func TestFailedPolicyAutomationActivities(t *testing.T) {
-	t.Run("conditional access", func(t *testing.T) {
-		act := ActivityTypeFailedAutomationConditionalAccess{
-			PolicyID:      15,
-			HostIDList:    []uint{43},
-			StatusCode:    500,
-			ErrorResponse: "500: upstream error",
-		}
-
-		assert.Equal(t, "failed_automation_conditional_access", act.ActivityName())
-		assert.Equal(t, []uint{43}, act.HostIDs())
-		assert.True(t, act.WasFromAutomation())
-
-		b, err := json.Marshal(act)
-		require.NoError(t, err)
-		var got map[string]any
-		require.NoError(t, json.Unmarshal(b, &got))
-		assert.EqualValues(t, 15, got["policy_id"])
-		assert.EqualValues(t, 500, got["status_code"])
-		assert.Equal(t, "500: upstream error", got["error_response"])
-	})
-}
-
-func TestSuccessPolicyAutomationActivities(t *testing.T) {
-	// assertNoHostIDsOrPolicyName fails if the marshaled details leak the
-	// host ID list or a policy name (both are intentionally omitted; hosts
-	// live one-per-row in activity_host_past).
-	assertNoHostIDsOrPolicyName := func(t *testing.T, got map[string]any) {
-		t.Helper()
-		_, hasHostIDs := got["host_ids"]
-		assert.False(t, hasHostIDs)
-		_, hasPolicyName := got["policy_name"]
-		assert.False(t, hasPolicyName)
-	}
-
-	t.Run("calendar event ran", func(t *testing.T) {
-		act := ActivityTypeRanAutomationCalendarEvent{
-			PolicyID:   14,
-			HostIDList: []uint{42},
-		}
-
-		assert.Equal(t, "ran_automation_calendar_event", act.ActivityName())
-		assert.Equal(t, []uint{42}, act.HostIDs())
-		assert.True(t, act.WasFromAutomation())
-
-		b, err := json.Marshal(act)
-		require.NoError(t, err)
-		var got map[string]any
-		require.NoError(t, json.Unmarshal(b, &got))
-		assert.EqualValues(t, 14, got["policy_id"])
-		assertNoHostIDsOrPolicyName(t, got)
-	})
-
 	t.Run("single sign-on blocked", func(t *testing.T) {
 		act := ActivityTypeRanAutomationConditionalAccess{
 			PolicyID:   15,
