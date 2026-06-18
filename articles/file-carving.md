@@ -17,7 +17,7 @@ In your agent configuration, add the following [command line flags](https://flee
 ```
 
 For the (default) MySQL Backend, the configured `carver_block_size` must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB (`67108864`).
 
 For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
@@ -39,13 +39,13 @@ File carves are initiated with live reports. Run live report using the `carves` 
 For example, to extract the `/etc/hosts` file on a host with hostname `mac-workstation`:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
 The globbing syntax is also supported to carve entire directories or more:
 
 ```sh
-fleetctl query --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
+fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
 ```
 
 ## Retrieve carves
@@ -97,7 +97,7 @@ You can report on the status of carves through queries to the `carves` table.
 The details provided by
 
 ```sh
-fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
+fleetctl report --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
 
 can be helpful to debug carving problems.
