@@ -493,6 +493,9 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			Configuration: asJSONString(plistXML),
 		}, http.StatusOK, &addResp)
 
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 		// macOS install path requires fleetd enrollment.
 		macHost, macDev := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		setOrbitEnrollment(t, macHost, s.ds)
@@ -502,7 +505,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		// Drain the InstallFleetd command queued by enrollment.
 		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
-		checkInstallFleetdCommandSent(t, macDev, true)
+		checkInstallFleetdCommandSent(t, acResp, macDev, true)
 
 		raw := string(installAndCaptureCmd(t, macHost, macDev,
 			titleIDFor(adamMac, fleet.MacOSPlatform),

@@ -901,6 +901,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 		var seenDeclarativeManagement bool
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
+		cfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -915,7 +917,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
 				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL()) {
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL)) {
 				fleetdCmd = &fullCmd
 			} else if cmd.Command.RequestType == "InstallProfile" {
 				installProfileCmd = &fullCmd
@@ -2130,6 +2132,8 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 		s.awaitTriggerProfileSchedule(t)
 
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
+		cfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -2143,7 +2147,7 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
 				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL()) {
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL)) {
 				fleetdCmd = &fullCmd
 			} else if cmd.Command.RequestType == "InstallProfile" {
 				installProfileCmd = &fullCmd

@@ -1,4 +1,4 @@
-// pacakge fleetdbase contains functions to interact with downloads.fleetdm.com
+// package fleetdbase contains functions to interact with downloads.fleetdm.com
 package fleetdbase
 
 import (
@@ -19,7 +19,10 @@ type Metadata struct {
 	Version          string `json:"version"`
 }
 
-func getBaseURL() string {
+func getBaseURL(configBaseURL string) string {
+	if configBaseURL != "" {
+		return configBaseURL
+	}
 	devURL := dev_mode.Env("FLEET_DEV_DOWNLOAD_FLEETDM_URL")
 	if devURL != "" {
 		return devURL
@@ -27,8 +30,8 @@ func getBaseURL() string {
 	return "https://download.fleetdm.com"
 }
 
-func GetMetadata() (*Metadata, error) {
-	baseURL := getBaseURL()
+func GetMetadata(configBaseURL string) (*Metadata, error) {
+	baseURL := getBaseURL(configBaseURL)
 	rawURL := fmt.Sprintf("%s/stable/meta.json", baseURL)
 
 	parsedURL, err := url.Parse(rawURL)
@@ -54,7 +57,7 @@ func GetMetadata() (*Metadata, error) {
 	return &meta, nil
 }
 
-func GetPKGManifestURL() string {
-	baseURL := getBaseURL()
+func GetPKGManifestURL(configBaseURL string) string {
+	baseURL := getBaseURL(configBaseURL)
 	return fmt.Sprintf("%s/stable/fleetd-base-manifest.plist", baseURL)
 }

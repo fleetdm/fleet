@@ -11328,6 +11328,9 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -11338,7 +11341,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.awaitRunAppleMDMWorkerSchedule()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
 	// it should still get the command to install fleetd if turns on MDM.
@@ -11351,7 +11354,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.awaitRunAppleMDMWorkerSchedule()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 }
 
 func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
@@ -13632,7 +13635,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Len(t, listCmdResp.Results, commandsSent)
 }
 
-func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+func checkInstallFleetdCommandSent(t *testing.T, cfg appConfigResponse, mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
 	foundInstallFleetdCommand := false
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
@@ -13654,7 +13657,7 @@ func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDM
 		if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 			foundInstallFleetdCommand = true
 			require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-			require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+			require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL))
 		}
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
@@ -14296,12 +14299,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, selfServiceDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, selfServiceDevice, true)
 	selfServiceToken := "selfservicetoken"
 	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
@@ -15039,6 +15042,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		return res
 	}
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	// Set up VPP token
 	orgName := "Fleet Device Management Inc."
 	token := "mycooltoken"
@@ -15065,11 +15071,11 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice2, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice2, true)
 	key := setOrbitEnrollment(t, mdmHost2, s.ds)
 	mdmHost2.OrbitNodeKey = &key
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -15901,6 +15907,9 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	signedReqBody, err := signedData.Finish()
 	require.NoError(t, err)
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
 
@@ -16023,7 +16032,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.awaitRunAppleMDMWorkerSchedule()
-			checkInstallFleetdCommandSent(t, mdmDevice, true)
+			checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			require.Nil(t, hostByIdentifierResp.Host.TeamID)
@@ -16044,7 +16053,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.awaitRunAppleMDMWorkerSchedule()
-			checkInstallFleetdCommandSent(t, mdmDevice, false)
+			checkInstallFleetdCommandSent(t, acResp, mdmDevice, false)
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
 			require.NotNil(t, hostByIdentifierResp.Host.TeamID)
@@ -16061,7 +16070,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.awaitRunAppleMDMWorkerSchedule()
-			checkInstallFleetdCommandSent(t, mdmDevice, true)
+			checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			account, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), resp.Host.UUID)
@@ -16089,7 +16098,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
 			s.awaitRunAppleMDMWorkerSchedule()
-			checkInstallFleetdCommandSent(t, mdmDevice, true)
+			checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
@@ -19261,11 +19270,14 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new(t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
 		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -19491,11 +19503,14 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new(t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
 		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -20492,13 +20507,16 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
 	require.NoError(t, resp.Err)
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	key := setOrbitEnrollment(t, mdmHost, s.ds)
 	mdmHost.OrbitNodeKey = &key
 
 	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, true)
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)

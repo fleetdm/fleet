@@ -13,11 +13,15 @@ import (
 func TestGetBaseURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-testing.fleetdm.com", t)
-		require.Equal(t, "https://download-testing.fleetdm.com", getBaseURL())
+		require.Equal(t, "https://download-testing.fleetdm.com", getBaseURL(""))
 	})
 
 	t.Run("without env variable", func(t *testing.T) {
-		require.Equal(t, "https://download.fleetdm.com", getBaseURL())
+		require.Equal(t, "https://download.fleetdm.com", getBaseURL(""))
+	})
+
+	t.Run("with configURL", func(t *testing.T) {
+		require.Equal(t, "https://download.test.com", getBaseURL("https://download.test.com"))
 	})
 }
 
@@ -40,7 +44,7 @@ func TestGetMetadata(t *testing.T) {
 	t.Cleanup(server.Close)
 	dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
-	meta, err := GetMetadata()
+	meta, err := GetMetadata("")
 	require.NoError(t, err)
 	require.Equal(t, expectedMetadata, meta)
 }
@@ -48,7 +52,7 @@ func TestGetMetadata(t *testing.T) {
 func TestGetMetadataErrorScenarios(t *testing.T) {
 	t.Run("invalid URL", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "://invalid-url", t)
-		_, err := GetMetadata()
+		_, err := GetMetadata("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid URL")
 	})
@@ -60,7 +64,7 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 		t.Cleanup(server.Close)
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
-		_, err := GetMetadata()
+		_, err := GetMetadata("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unexpected status code")
 	})
@@ -75,7 +79,7 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 		t.Cleanup(server.Close)
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL, t)
 
-		_, err := GetMetadata()
+		_, err := GetMetadata("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to decode response")
 	})
@@ -84,10 +88,14 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 func TestGetPKGManifestURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-test.fleetdm.com", t)
-		require.Equal(t, "https://download-test.fleetdm.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL())
+		require.Equal(t, "https://download-test.fleetdm.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL(""))
 	})
 
 	t.Run("without env variable", func(t *testing.T) {
-		require.Equal(t, "https://download.fleetdm.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL())
+		require.Equal(t, "https://download.fleetdm.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL(""))
+	})
+
+	t.Run("with configURL", func(t *testing.T) {
+		require.Equal(t, "https://download.test.com/stable/fleetd-base-manifest.plist", GetPKGManifestURL("https://download.test.com"))
 	})
 }

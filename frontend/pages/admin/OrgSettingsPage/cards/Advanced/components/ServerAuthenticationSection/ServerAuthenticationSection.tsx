@@ -82,7 +82,7 @@ const ServerAuthenticationSection = ({
             error={formErrors.fleetdBaseURL}
             tooltip={
               !disableChildren &&
-              "Update this URL if you want your hosts to download the Fleet Agent (Fleetd) from this URL. If not configured, hosts will use the official URL of download.fleetdm.com."
+              "Update this URL if you want your hosts to download the Fleet Agent (Fleetd) from this URL. If not configured, hosts will use the official URL provided by Fleet."
             }
             helpText={
               <>

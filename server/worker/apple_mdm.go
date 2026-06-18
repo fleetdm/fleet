@@ -563,7 +563,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, error) {
-	manifestURL := fleetdbase.GetPKGManifestURL()
+	cfg, err := a.Datastore.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	manifestURL := fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL)
 	cmdUUID := uuid.New().String()
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err

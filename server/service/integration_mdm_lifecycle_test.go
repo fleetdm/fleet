@@ -927,6 +927,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	ackAllCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, wantFleetdInstall, wantBootstrapInstall bool) int {
 		var count int
 		var foundFleetdInstall, foundBootstrapInstall bool
+		cfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -944,7 +946,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 			switch cmd.Command.RequestType {
 			case "InstallEnterpriseApplication":
 				if murl := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; murl != nil {
-					require.Contains(t, *murl, fleetdbase.GetPKGManifestURL())
+					require.Contains(t, *murl, fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL))
 					foundFleetdInstall = true
 				} else {
 					manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest
@@ -1425,6 +1427,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
 	hwModel := "iPad13,16"
 	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 		s.server.URL,
@@ -1433,7 +1438,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	)
 	require.NoError(t, mdmDevice.Enroll())
 	s.awaitRunAppleMDMWorkerSchedule()
-	checkInstallFleetdCommandSent(t, mdmDevice, false)
+	checkInstallFleetdCommandSent(t, acResp, mdmDevice, false)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 1)
