@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "14.4.8",
+      "version": "14.4.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.peterborgapps.Smultron14';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.peterborgapps.Smultron14' AND version_compare(bundle_short_version, '14.4.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.peterborgapps.Smultron14' AND version_compare(bundle_short_version, '14.4.9') < 0);"
       },
       "installer_url": "https://www.peterborgapps.com/downloads/Smultron14.zip",
       "install_script_ref": "ec7c60f9",

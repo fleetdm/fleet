@@ -1701,6 +1701,49 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	return overrideCfg.fallbackServerOverridesConfig
 }
 
+// getComponentWithSelfHeal resolves a component target via the updater and
+// self-heals from a corrupt binary.
+//
+// After downloading/locating the target it verifies the installed executable
+// can run (CheckExec runs it with --help, or the target's CustomCheckExec). If
+// it fails to run for any reason (e.g. a truncated TUF download/extraction that
+// fails to fork/exec or execs and crashes), it removes the on-disk artifacts,
+// re-downloads from TUF, and re-verifies. Without this, orbit records the bad
+// path as last-known-good and crash-loops on it forever (see
+// https://github.com/fleetdm/fleet/issues/47552).
+func getComponentWithSelfHeal(updater *update.Updater, target string) (*update.LocalTarget, error) {
+	localTarget, err := updater.Get(target)
+	if err != nil {
+		return nil, err
+	}
+
+	checkErr := updater.CheckExec(target)
+	if checkErr == nil {
+		return localTarget, nil
+	}
+
+	// The installed binary failed to run (e.g. a truncated TUF
+	// download/extraction that fails to fork/exec, or that execs and then
+	// crashes). Whatever the cause, it's unusable, so remove the on-disk
+	// artifacts, re-download from TUF, and re-verify. Self-heal is a single
+	// attempt: if the re-downloaded binary still fails the exec check we return
+	// the error rather than crash-looping on it forever.
+	log.Error().Err(checkErr).Str("target", target).Msg("component binary failed exec check, self-healing")
+	if err := updater.RemoveTarget(target); err != nil {
+		return nil, fmt.Errorf("self-heal remove %s: %w", target, err)
+	}
+	localTarget, err = updater.Get(target)
+	if err != nil {
+		return nil, fmt.Errorf("self-heal re-download %s: %w", target, err)
+	}
+	if err := updater.CheckExec(target); err != nil {
+		return nil, fmt.Errorf("%s still failing exec check after self-heal: %w", target, err)
+	}
+	log.Info().Str("target", target).Msg("component self-heal succeeded")
+
+	return localTarget, nil
+}
+
 // getFleetdComponentPaths returns the paths of the fleetd components.
 // If the path to the component cannot be fetched using the updater (e.g. channel doesn't exist yet)
 // then it will use the fallbackCfg's paths (if set).
@@ -1761,7 +1804,7 @@ func getFleetdComponentPaths(
 	}
 
 	// osqueryd
-	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
+	osquerydLocalTarget, err := getComponentWithSelfHeal(updater, constant.OsqueryTUFTargetName)
 	if err != nil {
 		if fallbackCfg.OsquerydPath == "" {
 			log.Info().Err(err).Msgf("get %s target failed", constant.OsqueryTUFTargetName)
@@ -1775,7 +1818,7 @@ func getFleetdComponentPaths(
 
 	// Fleet Desktop
 	if c.Bool("fleet-desktop") {
-		fleetDesktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
+		fleetDesktopLocalTarget, err := getComponentWithSelfHeal(updater, constant.DesktopTUFTargetName)
 		if err != nil {
 			if fallbackCfg.DesktopPath == "" {
 				log.Info().Err(err).Msgf("get %s target failed", constant.DesktopTUFTargetName)

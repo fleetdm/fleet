@@ -1330,6 +1330,10 @@ type Datastore interface {
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
 	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
+	// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in
+	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
+	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
+
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -2084,6 +2088,10 @@ type Datastore interface {
 	// - the tokens used to create each of the DEP hosts in that team.
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
+
+	// GetABMTokensAssociatedWithTeam returns the ABM organization names
+	// where one of the default_team_ids matches the given teamID.
+	GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error)
 
 	// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
 	// require MDM to be processed, for when MDM is turned off for the host (or
