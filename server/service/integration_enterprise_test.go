@@ -32930,12 +32930,24 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 	}
+	// requireLastPinActivity asserts the latest activity is an edited_software with want as pinned_version.
+	// Marshaling want renders a pin as "1.0"/"^2" and a cleared pin (nil) as null, so no branching is needed.
+	requireLastPinActivity := func(want *string) {
+		pinnedVersion, err := json.Marshal(want)
+		require.NoError(t, err)
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
+			`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "self_service": false, `+
+				`"software_title": "Zoom Workplace (X64)", "software_package": "zoom.msi", "software_icon_url": null, `+
+				`"software_title_id": %d, "software_display_name": "", "pinned_version": %s}`,
+			team.ID, team.ID, team.Name, team.Name, titleID, pinnedVersion), 0)
+	}
 
 	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---
 
 	// Rollback to an older cached version. The install policy is re-pointed to the now-active installer; the patch
 	// policy is title-scoped and stays put.
 	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
 	require.Equal(t, "1.0", p.Version)
 	require.Equal(t, new("1.0"), p.PinnedVersion)
@@ -32944,6 +32956,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
+	requireLastPinActivity(new("^2"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
@@ -32951,6 +32964,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")
+	requireLastPinActivity(new("^9"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^9"), p.PinnedVersion)
@@ -32958,6 +32972,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Empty clears the pin row, back to Latest.
 	patchVersion("")
+	requireLastPinActivity(nil)
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
@@ -32980,6 +32995,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Last write wins: a GitOps apply with no version resets a prior UI pin back to Latest.
 	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
 	require.Equal(t, "1.0", p.Version)
 	require.Equal(t, new("1.0"), p.PinnedVersion)
@@ -32995,6 +33011,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	// A caret pin tracks a newly released minor in the pinned major: releasing 2.5 under "^2" moves the active
 	// version forward to 2.5.
 	patchVersion("^2")
+	requireLastPinActivity(new("^2"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
@@ -33059,11 +33076,13 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Pin the older 4.0, then clear to Latest and confirm it resolves to 10.0, not the string-larger "4.0".
 	patchVersion("4.0")
+	requireLastPinActivity(new("4.0"))
 	p = getPkg()
 	require.Equal(t, "4.0", p.Version)
 	require.Equal(t, new("4.0"), p.PinnedVersion)
 
 	patchVersion("")
+	requireLastPinActivity(nil)
 	p = getPkg()
 	require.Equal(t, "10.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
