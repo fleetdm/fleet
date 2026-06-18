@@ -720,15 +720,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
 		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
-			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload.TeamID, payload.TitleID, *existingInstaller.FleetMaintainedAppID, activeInstallerID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "setting active Fleet-maintained app installer")
-			}
-
-			if *payload.PinnedVersion == "" {
-				if err := svc.ds.DeletePinnedVersion(ctx, payload.TeamID, payload.TitleID); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
-				}
-			} else if err := svc.ds.SetPinnedVersion(ctx, payload.TeamID, payload.TitleID, *payload.PinnedVersion); err != nil {
+			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
 

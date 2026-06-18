@@ -673,15 +673,18 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 	return nil
 }
 
-func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error {
-	globalOrTeamID := ptr.ValOrZero(teamID)
+func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
+	if payload.PinnedVersion == nil {
+		return ctxerr.New(ctx, "pinned version is required to set the active Fleet-maintained app installer")
+	}
+	tmID := ptr.ValOrZero(payload.TeamID)
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE software_installers
 			SET is_active = (id = ?)
-			WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
-		`, installerID, globalOrTeamID, fmaID); err != nil {
+			WHERE global_or_team_id = ? AND title_id = ?
+		`, activeInstallerID, tmID, payload.TitleID); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting active fleet-maintained app installer")
 		}
 
@@ -691,8 +694,17 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, t
 				SELECT id FROM software_installers
 				WHERE global_or_team_id = ? AND title_id = ? AND id != ?
 			)
-		`, installerID, globalOrTeamID, titleID, installerID); err != nil {
+		`, activeInstallerID, tmID, payload.TitleID, activeInstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
+		}
+
+		// record the pin in the same transaction; an empty version clears it (Latest)
+		if *payload.PinnedVersion == "" {
+			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+			}
+		} else if err := setPinnedVersionDB(ctx, tx, tmID, payload.TitleID, *payload.PinnedVersion); err != nil {
+			return ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 		}
 
 		return nil

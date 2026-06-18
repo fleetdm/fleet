@@ -2672,9 +2672,9 @@ type Datastore interface {
 	// the versions will be sorted by their version semver or string.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
-	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets
-	// other installers of the title to inactive and repoints policies.
-	SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error
+	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets other installers of the title
+	// to inactive, repoints policies, and records or clears the pinned version.
+	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)

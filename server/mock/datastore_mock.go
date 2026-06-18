@@ -1566,7 +1566,7 @@ type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, 
 
 type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error)
 
-type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error
+type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
 type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 
@@ -10655,11 +10655,11 @@ func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, tea
 	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID, byVersion)
 }
 
-func (s *DataStore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, teamID *uint, titleID uint, fmaID uint, installerID uint) error {
+func (s *DataStore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
 	s.mu.Lock()
 	s.SetFleetMaintainedAppActiveInstallerFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetFleetMaintainedAppActiveInstallerFunc(ctx, teamID, titleID, fmaID, installerID)
+	return s.SetFleetMaintainedAppActiveInstallerFunc(ctx, payload, activeInstallerID)
 }
 
 func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
