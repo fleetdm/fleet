@@ -42,7 +42,7 @@ For example, to extract the `/etc/hosts` file on a host with hostname `mac-works
 fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path = "/etc/hosts"'
 ```
 
-The globbing syntax is also supported to carve entire directories or more:
+Glob syntax is also supported to carve entire directories or more:
 
 ```sh
 fleetctl report --hosts mac-workstation --query 'SELECT * FROM carves WHERE carve = 1 AND path LIKE "/etc/%%"'
@@ -70,9 +70,9 @@ fleetctl get carve --stdout 3 | tar -x
 
 ## Expiration
 
-Carve contents remain available for 24 hours after the first data is provided from the Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
+Carve contents remain available for 24 hours after the first data is provided from Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
 
-The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
+The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to set up a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
 ## Alternative carving backends
 
@@ -94,13 +94,12 @@ If you're testing file carving locally with the docker-compose environment, the 
 
 You can report on the status of carves through queries to the `carves` table.
 
-The details provided by
+You can debug carving problems with:
 
 ```sh
 fleetctl report --labels 'All Hosts' --query 'SELECT * FROM carves'
 ```
 
-can be helpful to debug carving problems.
 
 ### Ensure `carver_block_size` is set appropriately
 
