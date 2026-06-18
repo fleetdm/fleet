@@ -798,6 +798,7 @@ func TestRunMDMCommandSkipsActivityForFailedHosts(t *testing.T) {
 	assert.Equal(t, host1.ID, capturedActivities[0].HostID)
 	assert.Equal(t, host1.UUID, capturedActivities[0].HostUUID)
 	assert.Equal(t, "ShutDownDevice", capturedActivities[0].RequestType)
+	assert.Equal(t, "darwin", capturedActivities[0].Platform)
 
 	require.NotNil(t, capturedUsers[0])
 	assert.Equal(t, test.UserAdmin.ID, capturedUsers[0].ID)

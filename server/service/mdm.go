@@ -611,7 +611,7 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 			HostUUID:        h.UUID,
 			CommandUUID:     result.CommandUUID,
 			RequestType:     result.RequestType,
-			Platform:        result.Platform,
+			Platform:        commandPlatform,
 		}); err != nil {
 			// Activity logging is best-effort: the command was already enqueued
 			// successfully, so returning an error here could cause clients to retry
