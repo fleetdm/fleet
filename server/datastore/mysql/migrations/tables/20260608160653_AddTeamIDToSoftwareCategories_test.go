@@ -69,7 +69,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"Developer tools": "🧰 Developer tools",
 		"Productivity":    "💻 Productivity",
 		"Security":        "🔐 Security",
-		"Utilities":       "🛟 Support",
+		"Utilities":       "🛠️ Utilities",
 	}
 	for oldName, newName := range expectedRenames {
 		oldID, ok := preID[oldName]
@@ -88,7 +88,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"🧰 Developer tools",
 		"💻 Productivity",
 		"🔐 Security",
-		"🛟 Support",
+		"🛠️ Utilities",
 	}
 
 	// Both teams have all 6 defaults in canonical order with sequential IDs.

@@ -22495,12 +22495,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
 		},
 		{
-			desc:       "valid categories 3 - Security and Support",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
+			desc:       "valid categories 3 - Security and Utilities",
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛠️ Utilities"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛠️ Utilities"}),
 		},
 		{
 			// omitted categories (unset) fall back to the FMA's manifest default
