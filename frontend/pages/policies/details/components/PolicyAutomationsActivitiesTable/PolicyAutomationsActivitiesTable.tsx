@@ -152,6 +152,17 @@ const PolicyAutomationsActivitiesTable = ({
     []
   );
 
+  const onClickResetPolicy = useCallback(() => {
+    setResetHostDisplayName(undefined);
+    setShowResetModal(true);
+  }, []);
+
+  const onResetFromActivity = useCallback(() => {
+    setResetHostDisplayName(selectedActivity?.host_display_name);
+    setSelectedActivity(null);
+    setShowResetModal(true);
+  }, [selectedActivity]);
+
   const isFiltered = searchQuery !== "" || statusFilter !== "";
 
   const renderEmptyState = useCallback(() => {
@@ -172,7 +183,7 @@ const PolicyAutomationsActivitiesTable = ({
   }, [isFiltered]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(setSelectedActivity),
+    () => generateColumnConfigs(baseClass, setSelectedActivity),
     []
   );
 
@@ -194,13 +205,7 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button
-                variant="inverse"
-                onClick={() => {
-                  setResetHostDisplayName(undefined);
-                  setShowResetModal(true);
-                }}
-              >
+              <Button variant="inverse" onClick={onClickResetPolicy}>
                 Reset policy
                 <Icon name="refresh" />
               </Button>
@@ -253,15 +258,7 @@ const PolicyAutomationsActivitiesTable = ({
         <PolicyAutomationActivityDetailsModal
           activity={selectedActivity}
           onCancel={() => setSelectedActivity(null)}
-          onResetPolicy={
-            canResetPolicy
-              ? () => {
-                  setResetHostDisplayName(selectedActivity?.host_display_name);
-                  setSelectedActivity(null);
-                  setShowResetModal(true);
-                }
-              : undefined
-          }
+          onResetPolicy={canResetPolicy ? onResetFromActivity : undefined}
         />
       )}
       {showResetModal && (

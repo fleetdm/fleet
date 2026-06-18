@@ -119,9 +119,8 @@ export const mapAutomationRows = (
   return rows;
 };
 
-/** Read-only summary of the automations currently configured on a policy:
- *  the "Automations" header, a row per active automation (or an empty state),
- *  and the footer text explaining when they run. */
+/** Read-only list of the automations currently configured on a policy: one row
+ *  per active automation, or an empty state when there are none. */
 const PolicyAutomationsList = ({
   storedPolicy,
   currentAutomatedPolicies,
@@ -138,12 +137,16 @@ const PolicyAutomationsList = ({
   }
 
   return (
-    <div className={`${baseClass}__list`}>
+    <div className={baseClass}>
       {automationRows.map((row) => (
         <div key={`${row.type}-${row.name}`} className={`${baseClass}__row`}>
           <div className={`${baseClass}__row-name`}>
             {row.isSoftware ? (
-              <SoftwareIcon name={row.iconName ?? row.name} url={row.iconUrl} size="small" />
+              <SoftwareIcon
+                name={row.iconName ?? row.name}
+                url={row.iconUrl}
+                size="small"
+              />
             ) : (
               row.graphicName && (
                 <Graphic

@@ -20,9 +20,8 @@ type ITableHeaderProps = IHeaderProps<IPolicyAutomationActivity>;
 type ITableStringCellProps = IStringCellProps<IPolicyAutomationActivity>;
 type ICellProps = CellProps<IPolicyAutomationActivity>;
 
-const baseClass = "policy-automations-activities-table";
-
 const generateColumnConfigs = (
+  baseClass: string,
   onShowDetails: (activity: IPolicyAutomationActivity) => void
 ): ITableConfig[] => [
   {

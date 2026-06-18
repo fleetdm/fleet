@@ -28,13 +28,13 @@ const PolicyAutomationsModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        <div className="policy-automations-list">
+        <div className={`${baseClass}__automations`}>
           <PolicyAutomationsList
             storedPolicy={storedPolicy}
             currentAutomatedPolicies={currentAutomatedPolicies}
             otherAutomationType={otherAutomationType}
           />
-          <p className="policy-automations-list__footer-text">
+          <p className={`${baseClass}__footer-text`}>
             {storedPolicy.continuous_automations_enabled ? (
               <>
                 Software and script automations run <b>every time</b> Fleet

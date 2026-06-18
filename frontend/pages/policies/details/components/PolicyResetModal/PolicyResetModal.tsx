@@ -9,7 +9,7 @@ import { mapAutomationRows } from "pages/policies/components/PolicyAutomationsLi
 const baseClass = "policy-reset-modal";
 
 interface IPolicyResetModalProps {
-  policy?: IPolicy;
+  policy: IPolicy;
   hostDisplayName?: string;
   currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
@@ -28,7 +28,6 @@ const PolicyResetModal = ({
   onCancel,
 }: IPolicyResetModalProps): JSX.Element => {
   const hasAutomations =
-    !!policy &&
     mapAutomationRows(policy, currentAutomatedPolicies, otherAutomationType)
       .length > 0;
 
@@ -41,17 +40,17 @@ const PolicyResetModal = ({
           next check in.
         </p>
         <div>
-          <span>
-            {hasAutomations
-              ? "Automations will re-run if the host fails the policy:"
-              : "Automations will re-run if the host fails the policy."}
-          </span>
-          {policy && hasAutomations && (
-            <PolicyAutomationsList
-              storedPolicy={policy}
-              currentAutomatedPolicies={currentAutomatedPolicies}
-              otherAutomationType={otherAutomationType}
-            />
+          {hasAutomations ? (
+            <>
+              <span>Automations will re-run if the host fails the policy:</span>
+              <PolicyAutomationsList
+                storedPolicy={policy}
+                currentAutomatedPolicies={currentAutomatedPolicies}
+                otherAutomationType={otherAutomationType}
+              />
+            </>
+          ) : (
+            <span>Automations will re-run if the host fails the policy.</span>
           )}
         </div>
         <div className="modal-cta-wrap">
