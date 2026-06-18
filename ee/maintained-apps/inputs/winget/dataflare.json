@@ -1,0 +1,12 @@
+{
+  "name": "Dataflare",
+  "slug": "dataflare/windows",
+  "package_identifier": "Dataflare.Dataflare",
+  "unique_identifier": "Dataflare",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dataflare_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dataflare_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

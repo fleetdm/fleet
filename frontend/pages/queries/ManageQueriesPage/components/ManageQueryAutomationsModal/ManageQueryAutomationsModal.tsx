@@ -230,7 +230,7 @@ const ManageQueryAutomationsModal = ({
           onClick={togglePreviewDataModal}
           className={`${baseClass}__preview-data`}
         >
-          Preview data
+          Example data
         </Button>
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper

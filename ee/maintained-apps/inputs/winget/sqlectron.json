@@ -1,0 +1,12 @@
+{
+  "name": "Sqlectron",
+  "slug": "sqlectron/windows",
+  "package_identifier": "sqlectron.sqlectron-gui",
+  "unique_identifier": "sqlectron",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/sqlectron_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/sqlectron_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

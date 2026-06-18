@@ -46,6 +46,8 @@ type HostOptions struct {
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
 	FromMDMMigration        bool
+	// TeamID is currently only used for resetApple to assign the host to the correct team for account driven enrollments.
+	TeamID *uint
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -157,6 +159,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 		HardwareSerial: opts.HardwareSerial,
 		HardwareModel:  opts.HardwareModel,
 		Platform:       opts.Platform,
+		TeamID:         opts.TeamID,
 	}
 
 	// FIXME: Why skip this step if we're in the middle of a SCEP renewal?
