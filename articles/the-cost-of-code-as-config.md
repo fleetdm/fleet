@@ -105,7 +105,7 @@ The best workflow is the one your whole team can still run after you're gone. Ev
 
 ## See it live
 
-The quickest way to see this in detail is to inspect our [it-and-security](../it-and-security) folder to review the config, then download the [fleetctl](https://fleetdm.com/download) CLI and run `fleetctl new` to generate the GitOps scaffold. If you’d like help getting started, two good next steps are:
+The quickest way to see this in detail is to inspect our [it-and-security](https://github.com/fleetdm/fleet/tree/main/it-and-security) folder to review the config, then download the [fleetctl](https://fleetdm.com/download) CLI and run `fleetctl new` to generate the GitOps scaffold. If you’d like help getting started, two good next steps are:
 
 - [**Get a demo**](https://fleetdm.com/contact)**.**  We'll walk through how Config-as-Code and GitOps Exceptions would work in your environment.
 - [**Join a GitOps training session**](https://fleetdm.com/gitops-workshop)**.** Learn to manage configuration as code: set up apps, configs, reports, and policies in Git, review changes with pull requests, and deploy through CI in our hands‑on workshop..
@@ -116,5 +116,5 @@ The quickest way to see this in detail is to inspect our [it-and-security](../it
 <meta name="authorFullName" value="Henry Stamerjohann">
 <meta name="authorGitHubUsername" value="headmin">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-06-17">
+<meta name="publishedOn" value="2026-06-18">
 <meta name="description" value="The most sustainable config-as-code strategy is one your entire team can manage, even without relying on a dedicated specialist.">
