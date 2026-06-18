@@ -74,6 +74,22 @@ describe("SoftwareFilters", () => {
     );
   });
 
+  it("shows a validation error when no category is selected", () => {
+    render(<SoftwareFilters {...baseProps} categories={[]} />);
+
+    expect(
+      screen.getByText("Select at least one software category.")
+    ).toBeInTheDocument();
+  });
+
+  it("does not show the category error when a category is selected", () => {
+    render(<SoftwareFilters {...baseProps} categories={["os"]} />);
+
+    expect(
+      screen.queryByText("Select at least one software category.")
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps Advanced options collapsed until toggled", async () => {
     const { user } = render(<SoftwareFilters {...baseProps} />);
 

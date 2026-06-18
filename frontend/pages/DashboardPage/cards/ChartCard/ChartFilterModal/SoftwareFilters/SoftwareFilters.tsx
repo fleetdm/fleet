@@ -16,7 +16,7 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
-import { getEpssError } from "./helpers";
+import { getEpssError, NO_CATEGORIES_MSG } from "./helpers";
 
 const baseClass = "software-filters";
 
@@ -139,6 +139,11 @@ const SoftwareFilters = ({
             {cat.label}
           </Checkbox>
         ))}
+        {categories.length === 0 && (
+          <div className={`${baseClass}__categories-error`} role="alert">
+            {NO_CATEGORIES_MSG}
+          </div>
+        )}
       </div>
 
       <div className={`${baseClass}__kev`}>

@@ -23,10 +23,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 import SoftwareFilters from "./SoftwareFilters";
 import {
-  EPSS_RANGE_INVALID_MSG,
-  hasEpssErrors,
+  getSoftwareFilterApplyError,
   isEpssActive,
-  isEpssRangeInvalid,
 } from "./SoftwareFilters/helpers";
 
 const baseClass = "chart-filter-modal";
@@ -254,11 +252,13 @@ const ChartFilterModal = ({
   // Inner host include/exclude tab.
   const tabIndex = hostFilterMode === "include" ? 1 : 0;
 
-  // Block Apply on invalid EPSS input; surface the reason as a tooltip.
-  const applyDisabled = isCVE && hasEpssErrors(epssMin, epssMax);
-  const applyTooltip = isEpssRangeInvalid(epssMin, epssMax)
-    ? EPSS_RANGE_INVALID_MSG
-    : "Enter EPSS values from 0 to 100.";
+  // Block Apply when the Software tab is invalid — no category selected or bad
+  // EPSS input — and surface the reason as a tooltip.
+  const applyError = isCVE
+    ? getSoftwareFilterApplyError(softwareFilters, epssMin, epssMax)
+    : null;
+  const applyDisabled = applyError !== null;
+  const applyTooltip = applyError ?? "";
 
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>

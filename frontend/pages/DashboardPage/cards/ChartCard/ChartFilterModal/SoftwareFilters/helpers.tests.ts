@@ -1,9 +1,13 @@
 import {
   EPSS_RANGE_HELP,
+  EPSS_RANGE_HELP_MSG,
+  EPSS_RANGE_INVALID_MSG,
   getEpssError,
+  getSoftwareFilterApplyError,
   hasEpssErrors,
   isEpssActive,
   isEpssRangeInvalid,
+  NO_CATEGORIES_MSG,
 } from "./helpers";
 
 describe("SoftwareFilters helpers", () => {
@@ -61,6 +65,32 @@ describe("SoftwareFilters helpers", () => {
     it("is active when min > 0 or max < 100", () => {
       expect(isEpssActive("1", "100")).toBe(true);
       expect(isEpssActive("0", "99")).toBe(true);
+    });
+  });
+
+  describe("getSoftwareFilterApplyError", () => {
+    it("blocks Apply when no category is selected", () => {
+      expect(getSoftwareFilterApplyError([], "", "")).toBe(NO_CATEGORIES_MSG);
+      // The category error takes precedence over EPSS errors.
+      expect(getSoftwareFilterApplyError([], "10", "5")).toBe(
+        NO_CATEGORIES_MSG
+      );
+    });
+
+    it("returns null when at least one category is selected and EPSS is valid", () => {
+      expect(getSoftwareFilterApplyError(["os"], "", "")).toBeNull();
+      expect(
+        getSoftwareFilterApplyError(["os", "adobe"], "5", "90")
+      ).toBeNull();
+    });
+
+    it("surfaces EPSS errors once a category is selected", () => {
+      expect(getSoftwareFilterApplyError(["os"], "10", "5")).toBe(
+        EPSS_RANGE_INVALID_MSG
+      );
+      expect(getSoftwareFilterApplyError(["os"], "-1", "")).toBe(
+        EPSS_RANGE_HELP_MSG
+      );
     });
   });
 });
