@@ -344,7 +344,9 @@ describe("SelfServiceCategoriesPage", () => {
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
-    await user.click(screen.getByRole("button", { name: "Delete 🛠️ Utilities" }));
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     const deleteBtn = within(modal).getByRole("button", { name: /^Delete$/ });
@@ -412,7 +414,9 @@ describe("SelfServiceCategoriesPage", () => {
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
-    await user.click(screen.getByRole("button", { name: "Delete 🛠️ Utilities" }));
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
@@ -487,7 +491,9 @@ describe("SelfServiceCategoriesPage", () => {
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
     await screen.findByText("🛠️ Utilities");
-    await user.click(screen.getByRole("button", { name: "Delete 🛠️ Utilities" }));
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
 
     const modal = await getOpenModal();
     expect(
