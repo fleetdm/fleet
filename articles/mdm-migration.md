@@ -106,7 +106,7 @@ Then, scroll down to the **Mobile device management (MDM)** section of the Dashb
 
 _Available in Fleet Premium_
 
-When migrating hosts that enroll manually from a previous MDM, end users must log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
+When migrating hosts via manual enrollment profile, end users must log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
 
 To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet.
 
