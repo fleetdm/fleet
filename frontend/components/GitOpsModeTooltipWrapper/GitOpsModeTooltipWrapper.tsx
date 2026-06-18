@@ -1,10 +1,10 @@
 import classnames from "classnames";
-import TooltipWrapper, {
-  ITooltipWrapper,
-} from "components/TooltipWrapper/TooltipWrapper";
+import { uniqueId } from "lodash";
+import { ITooltipWrapper } from "components/TooltipWrapper/TooltipWrapper";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IGitOpsExceptions } from "interfaces/config";
-import React from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 interface IGitOpsModeTooltipWrapper {
@@ -23,6 +23,13 @@ interface IGitOpsModeTooltipWrapper {
 
 const baseClass = "gitops-mode-tooltip-wrapper";
 
+// The label/control row of a wrapped FormField. FormField renders the label as a
+// direct-child <label> for inputs/dropdowns, and a checkbox's control row is also a
+// direct-child <label>. The help text is a <span class="form-field__help-text"> and is
+// intentionally never matched, so the tooltip anchors at the label rather than the
+// geometric center of label + input + help text.
+const FIRST_ROW_PARTS = [".form-field__label", ".form-field > label"];
+
 const GitOpsModeTooltipWrapper = ({
   position = "top",
   tipOffset,
@@ -32,6 +39,17 @@ const GitOpsModeTooltipWrapper = ({
   isInputField = false,
 }: IGitOpsModeTooltipWrapper) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
+
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const [hasFirstRow, setHasFirstRow] = useState(false);
+  // Prefix makes this a valid CSS id selector (lodash uniqueId returns a bare number).
+  const wrapperId = useMemo(() => uniqueId(`${baseClass}-`), []);
+
+  useLayoutEffect(() => {
+    setHasFirstRow(
+      !!wrapperRef.current?.querySelector(FIRST_ROW_PARTS.join(", "))
+    );
+  }, []);
 
   if (!gitOpsModeEnabled) {
     return <>{renderChildren()}</>;
@@ -47,18 +65,31 @@ const GitOpsModeTooltipWrapper = ({
     [`${baseClass}--inputfield`]: isInputField,
   });
 
+  // Anchor to the field's first row so the arrow points at the label regardless of input,
+  // help-text, or tooltip-content height. Falls back to the whole wrapper for non-field
+  // content (buttons, icon rows), preserving the previous centered behavior there.
+  const anchorSelect = hasFirstRow
+    ? FIRST_ROW_PARTS.map((part) => `#${wrapperId} ${part}`).join(", ")
+    : `#${wrapperId}`;
+
   return (
-    <TooltipWrapper
-      className={wrapperClass}
-      position={position}
-      tipOffset={tipOffset}
-      tipContent={tipContent}
-      underline={false}
-      showArrow
-      fixedPositionStrategy={fixedPositionStrategy}
-    >
+    <span ref={wrapperRef} id={wrapperId} className={wrapperClass}>
       {renderChildren(true)}
-    </TooltipWrapper>
+      <ReactTooltip5
+        className={`${baseClass}__tip-text`}
+        anchorSelect={anchorSelect}
+        place={position}
+        offset={tipOffset ?? 5}
+        opacity={1}
+        disableStyleInjection
+        clickable
+        delayShow={250}
+        delayHide={250}
+        positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
+      >
+        {tipContent}
+      </ReactTooltip5>
+    </span>
   );
 };
 
