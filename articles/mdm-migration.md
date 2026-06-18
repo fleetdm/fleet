@@ -112,7 +112,7 @@ To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-For hosts that enroll automatically, via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key.
+For hosts that enroll via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key on the next host vitals refetch.
 
 ### How to turn on disk encryption
 
