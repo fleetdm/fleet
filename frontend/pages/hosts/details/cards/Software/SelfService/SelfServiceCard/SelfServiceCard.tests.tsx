@@ -322,8 +322,7 @@ describe("SelfServiceCard", () => {
   // `install_all` skips items already in INSTALLED_OR_IN_FLIGHT, so a second
   // click only queues whatever's still eligible. The button stays enabled
   // whenever count > 0. See #47855.
-  it("keeps the install-all button enabled when an item in the category is in-progress and there are still uninstalled items", async () => {
-    const props = createTestProps({
+  it("keeps the install-all button enabled when an item is in progress and there are still uninstalled items", async () => {
       enhancedSoftware: [
         {
           ...createMockDeviceSoftware({ name: "uninstalled-app" }),
