@@ -456,4 +456,3 @@ the DSN falls back to the standard `FLEET_MYSQL_*` env vars. See
 > out-of-process and can't import the internal mysql package. If you change the
 > storage format or those constants in `internal/mysql/data.go`, update the tools to
 > match.
-</invoke>
