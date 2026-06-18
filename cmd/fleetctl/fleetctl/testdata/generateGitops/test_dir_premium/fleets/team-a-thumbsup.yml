@@ -209,10 +209,10 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
-    version: 1.2.3
+    version: "1.2.3"
   - self_service: true
     slug: fma3/windows
-    version: ^123
+    version: "^123"
   packages:
   - categories:
     - Browsers
