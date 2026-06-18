@@ -224,6 +224,47 @@ sequenceDiagram
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
 
+#### TPM-backed FDE (Ubuntu 26 and later)
+
+Newer Ubuntu releases offer TPM-backed full-disk encryption. The volume is still LUKS2/dm-crypt
+underneath, but the LUKS key is sealed to the TPM and the disk unlocks automatically at boot, so by
+default there is **no user passphrase**. snapd (via secboot) owns the LUKS key slots.
+
+This means Fleet cannot escrow a key by adding a key slot with `cryptsetup luksAddKey` as it does for
+the passphrase flow above: an externally added slot is untracked by snapd and can be removed when
+snapd re-seals the key (for example on a kernel update). Instead, orbit detects that the volume is
+snapd-managed (by inspecting the LUKS2 tokens) and escrows a dedicated, Fleet-owned snapd recovery
+key created in its own named slot (`fleet-escrow`), leaving the user's install-time recovery key
+untouched.
+
+Because the disk auto-unlocks and there is no passphrase to collect, this happens **silently with no
+end-user dialog**. orbit reports `key_type: "recovery_key"` in the escrow request
+(`POST /api/fleet/orbit/luks_data`); recovery keys have no salt or key slot, so those columns are
+empty/null in `host_disk_encryption_keys`. The escrowed recovery key is revealed to admins through
+the same Host details flow as other platforms.
+
+```mermaid
+sequenceDiagram
+        actor Admin
+        participant fleet as Fleet server
+        participant host as Linux Host (TPM FDE)
+        participant fleetd as orbit
+        participant snapd as snapd / snap-tpmctl
+        actor user as End User
+        user->>host: Enable TPM-backed FDE during OS installation
+        Admin->>fleet: Enable disk encryption
+        host->>fleet: Enroll in Fleet
+        fleetd->>fleet: request vitals queries
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data including encryption status
+        fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed
+        fleetd->>snapd: Detect snapd-managed FDE (LUKS2 tokens)
+        fleetd->>snapd: Create Fleet-owned recovery key (fleet-escrow slot)
+        snapd->>fleetd: Return recovery key
+        fleetd->>fleet: Encrypt and send recovery key<br>(key_type: recovery_key, no salt/key slot)
+        fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
+```
+
 ## Key storage and security
 
 Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is
