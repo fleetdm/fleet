@@ -2085,7 +2085,7 @@ type Datastore interface {
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
 
-	// GetABMTokensAssociatedWithTeam returns the ABM tokens
+	// GetABMTokensAssociatedWithTeam returns the ABM organization names
 	// where one of the default_team_ids matches the given teamID.
 	GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error)
 
