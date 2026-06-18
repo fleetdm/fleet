@@ -69,10 +69,10 @@ describe("InstallAllInCategoryButton", () => {
     ).not.toBeInTheDocument();
   });
 
-  // Per BE confirmation (install_all dedupes against in-flight items), re-
-  // clicking during a batch is safe — so when there are still actionable items
-  // we keep the button enabled instead of forcing the user to wait out the
-  // first batch. See #39018.
+  // `install_all` skips items already in INSTALLED_OR_IN_FLIGHT, so a second
+  // click during a batch only queues whatever is still eligible. The button
+  // stays enabled whenever there's something actionable to click. See #47855
+  // for the full visibility/count/enabled rules.
   it("stays enabled when count > 0 even if an install_all batch is in flight", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(

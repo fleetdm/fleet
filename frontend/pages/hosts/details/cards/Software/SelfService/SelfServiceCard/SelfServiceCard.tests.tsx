@@ -319,12 +319,11 @@ describe("SelfServiceCard", () => {
     });
   });
 
-  // BE confirmed install_all dedupes against in-flight items (#39018), so the
-  // button stays enabled while a prior batch is processing — the user can
-  // queue any remaining eligible items without waiting.
+  // `install_all` skips items already in INSTALLED_OR_IN_FLIGHT, so a second
+  // click only queues whatever's still eligible. The button stays enabled
+  // whenever count > 0. See #47855.
   it("keeps the install-all button enabled when an item in the category is in-progress and there are still uninstalled items", async () => {
     const props = createTestProps({
-      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 42 },
       enhancedSoftware: [
         {
           ...createMockDeviceSoftware({ name: "uninstalled-app" }),
