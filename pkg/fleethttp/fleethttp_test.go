@@ -130,11 +130,11 @@ func TestAlwaysBlockedIPs(t *testing.T) {
 		{"127.0.0.2", true},
 		{"169.254.169.254", true}, // AWS IMDS
 		{"169.254.0.1", true},
-		{"::1", true},            // IPv6 loopback
-		{"fe80::1", true},        // IPv6 link-local
-		{"8.8.8.8", false},       // public
-		{"10.0.0.1", false},      // RFC 1918 -- not in always-blocked
-		{"192.168.1.1", false},   // RFC 1918 -- not in always-blocked
+		{"::1", true},          // IPv6 loopback
+		{"fe80::1", true},      // IPv6 link-local
+		{"8.8.8.8", false},     // public
+		{"10.0.0.1", false},    // RFC 1918 -- not in always-blocked
+		{"192.168.1.1", false}, // RFC 1918 -- not in always-blocked
 	}
 	for _, c := range cases {
 		t.Run(c.ip, func(t *testing.T) {
@@ -157,10 +157,10 @@ func TestPrivateNetworkCIDRs(t *testing.T) {
 		{"172.31.255.255", true},
 		{"192.168.1.1", true},
 		{"0.0.0.0", true},
-		{"fc00::1", true},        // IPv6 unique local
-		{"8.8.8.8", false},       // public
-		{"1.1.1.1", false},       // public
-		{"172.32.0.1", false},    // just outside 172.16.0.0/12
+		{"fc00::1", true},     // IPv6 unique local
+		{"8.8.8.8", false},    // public
+		{"1.1.1.1", false},    // public
+		{"172.32.0.1", false}, // just outside 172.16.0.0/12
 	}
 	for _, c := range cases {
 		t.Run(c.ip, func(t *testing.T) {
@@ -188,8 +188,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		setBlockingMode(t, BlockingFull)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 		assert.Contains(t, err.Error(), "127.0.0.1")
 	})
 
@@ -198,8 +197,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		setBlockingMode(t, BlockingPrivateAllowed)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 	})
 
 	t.Run("not blocked when blocking is not enabled", func(t *testing.T) {
@@ -251,8 +249,7 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		setBlockingMode(t, BlockingFull)
 		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
 		_, err := dialFn(t.Context(), "tcp", "localhost:9999")
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 		assert.Contains(t, err.Error(), "localhost resolves to")
 	})
 }
