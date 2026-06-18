@@ -736,19 +736,20 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Reset policy results
 
-Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report.
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
 
 `POST /api/v1/fleet/policies/:policy_id/reset`
 
 #### Parameters
 
-| Name      | Type    | In   | Description                    |
-| --------- | ------- | ---- | ------------------------------ |
-| policy_id | integer | path | **Required.** The policy's ID. |
+| Name      | Type    | In   | Description                                                                                   |
+| --------- | ------- | ---- | --------------------------------------------------------------------------------------------- |
+| policy_id | integer | path | **Required.** The policy's ID.                                                                |
+| host_id   | integer | query | When set, resets only this host's result for the policy instead of resetting all hosts.      |
 
 #### Example
 
-`POST /api/v1/fleet/policies/42/reset`
+`POST /api/v1/fleet/policies/123/reset?host_id=42`
 
 ##### Default response
 
