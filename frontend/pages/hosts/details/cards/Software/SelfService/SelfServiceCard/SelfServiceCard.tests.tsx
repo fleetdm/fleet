@@ -323,6 +323,7 @@ describe("SelfServiceCard", () => {
   // click only queues whatever's still eligible. The button stays enabled
   // whenever count > 0. See #47855.
   it("keeps the install-all button enabled when an item is in progress and there are still uninstalled items", async () => {
+    const props = createTestProps({
       enhancedSoftware: [
         {
           ...createMockDeviceSoftware({ name: "uninstalled-app" }),
