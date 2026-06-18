@@ -127,10 +127,8 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 		return nil
 	}
 
-	for _, name := range found {
-		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
-			return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
-		}
+	if name := FindUnsupportedAndroidFleetVar(string(rawJSON)); name != "" {
+		return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
 	}
 
 	keyVars := make(map[string]struct{})
@@ -249,8 +247,20 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
+// FindUnsupportedAndroidFleetVar returns the name of the first $FLEET_VAR_*
+// token in content that is not in the Android allow-list, or "" if all are
+// supported.
+func FindUnsupportedAndroidFleetVar(content string) string {
+	for _, name := range variables.Find(content) {
+		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
+			return name
+		}
+	}
+	return ""
+}
+
 // FleetVarsSupportedInAndroidAppConfig is the allow-list of Fleet variables that
-// can appear in an Android managed app configuration JSON.
+// can appear in an Android managed app configuration or configuration profile JSON.
 var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
@@ -301,11 +311,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
 	}
 
-	for _, name := range variables.Find(string(config)) {
-		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
-			return &BadRequestError{
-				Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
-			}
+	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
+		return &BadRequestError{
+			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
 		}
 	}
 
