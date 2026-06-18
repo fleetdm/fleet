@@ -2334,6 +2334,9 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		{name: "UPN stale check-in before enrollment (wipe)", seenOffset: -20 * 24 * time.Hour, wantPresent: false},
 		{name: "UPN fresh check-in after enrollment", seenOffset: time.Minute, wantPresent: true},
 		{name: "UPN check-in within grace before enrollment", seenOffset: -fleetdPresenceGracePeriod / 2, wantPresent: true},
+		// Exactly on the threshold (seen_time == created_at - grace) must count as present: the check is inclusive
+		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
+		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
 		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
 	}
 

@@ -1541,7 +1541,7 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 					// so a host that has not checked in since re-enrollment gets the fleetd install (re)enqueued.
 					// seen_time only moves forward, so once fleetd checks in after install this stays true.
 					isPresent = orbitInfo.Version != "" &&
-						host.SeenTime.After(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
+						!host.SeenTime.Before(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
 				}
 			}
 		}
