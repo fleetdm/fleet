@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -103,6 +104,9 @@ func pssoBootstrapMock(store map[fleet.MDMAssetName]fleet.MDMConfigAsset) *mock.
 		}
 		if len(out) == 0 {
 			return nil, pssoTestNotFoundError{}
+		}
+		if len(out) < len(names) {
+			return out, errors.New("partial result")
 		}
 		return out, nil
 	}

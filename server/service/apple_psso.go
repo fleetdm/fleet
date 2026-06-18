@@ -291,10 +291,19 @@ func bootstrapPSSOAssets(ctx context.Context, ds fleet.Datastore) error {
 		return ctxerr.Wrap(ctx, err, "load psso assets")
 	}
 
-	_, haveKey := assets[fleet.MDMAssetPSSOSigningKey]
-	_, haveCA := assets[fleet.MDMAssetPSSOCACert]
+	haveKey := false
+	haveCA := false
+	if assets != nil {
+		_, haveKey = assets[fleet.MDMAssetPSSOSigningKey]
+		_, haveCA = assets[fleet.MDMAssetPSSOCACert]
+	}
 	if haveKey && haveCA {
 		return nil
+	}
+
+	// Throw an error because this is an inconsistent state - the CA was created apparently with a different signing key?
+	if haveCA && !haveKey {
+		return ctxerr.New(ctx, "psso ca certificate exists but signing key is missing")
 	}
 
 	signingKey, err := pssoSigningKeyFromAssets(assets)
