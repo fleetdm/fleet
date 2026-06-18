@@ -12,28 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsExecCorruptionErr(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"nil", nil, false},
-		{"generic", errors.New("some transient error"), false},
-		{"enoexec wrapped", fmt.Errorf("fork/exec foo: %w", syscall.ENOEXEC), true},
-		{"enoexec stringified", errors.New("fork/exec foo: exec format error"), true},
-		{"malformed mach-o", errors.New("fork/exec foo: malformed Mach-o file"), true},
-		{"win32", errors.New("fork/exec foo.exe: %1 is not a valid Win32 application."), true},
-		{"file not found", os.ErrNotExist, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, IsExecCorruptionErr(tc.err))
-		})
-	}
-}
-
 func TestRemoveTarget(t *testing.T) {
 	t.Parallel()
 
@@ -96,7 +74,6 @@ func TestCheckExec(t *testing.T) {
 		}}
 		err := u.CheckExec(target)
 		require.Error(t, err)
-		require.True(t, IsExecCorruptionErr(err))
 	})
 
 	t.Run("healthy binary passes", func(t *testing.T) {
@@ -166,13 +143,12 @@ func TestCheckExecRealBinary(t *testing.T) {
 		require.NoError(t, u.CheckExec(target))
 	})
 
-	t.Run("corrupt binary surfaces a corruption error", func(t *testing.T) {
+	t.Run("corrupt binary fails the exec check", func(t *testing.T) {
 		// Non-executable garbage (no shebang, not a valid Mach-O/ELF/PE) fails to
 		// fork/exec with a format error on every platform: ENOEXEC ("exec format
 		// error") on Linux/macOS, ERROR_BAD_EXE_FORMAT on Windows.
 		require.NoError(t, os.WriteFile(execPath, []byte("\x00\x01\x02not a binary"), 0o755)) // #nosec G306
 		err := u.CheckExec(target)
 		require.Error(t, err)
-		require.True(t, IsExecCorruptionErr(err), "expected corruption error, got: %v", err)
 	})
 }

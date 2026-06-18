@@ -1,50 +1,14 @@
 package update
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/rs/zerolog/log"
 )
-
-// IsExecCorruptionErr reports whether err indicates that an executable on disk
-// is corrupt (e.g. truncated or otherwise malformed), as opposed to a transient
-// runtime failure.
-//
-// These are the errors observed when orbit fork/execs a binary that was
-// corrupted during a TUF download/extraction (see
-// https://github.com/fleetdm/fleet/issues/47552). A corrupt binary fails to
-// exec the same way on every restart, so without self-healing orbit crash-loops
-// on it forever.
-func IsExecCorruptionErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	// Linux: "exec format error" (ENOEXEC) for a truncated or wrong-format binary.
-	// We check both the error chain and the message, because some callers
-	// stringify the error and break the chain.
-	if errors.Is(err, syscall.ENOEXEC) {
-		return true
-	}
-	msg := err.Error()
-	switch {
-	// Linux: ENOEXEC message ("exec format error").
-	case strings.Contains(msg, "exec format error"):
-		return true
-	// macOS: the Go runtime reports a malformed Mach-O binary as "malformed Mach-o file".
-	case strings.Contains(msg, "malformed Mach-o"):
-		return true
-	// Windows: ERROR_BAD_EXE_FORMAT surfaces as "is not a valid Win32 application".
-	case strings.Contains(msg, "not a valid Win32 application"):
-		return true
-	}
-	return false
-}
 
 // CheckExec verifies that the target's installed executable can run, using the
 // same check applied to freshly downloaded targets (the target's CustomCheckExec
@@ -52,8 +16,8 @@ func IsExecCorruptionErr(err error) bool {
 //
 // It returns nil for targets that can't be verified on the current
 // platform/arch (e.g. when cross-building packages). A non-nil error means the
-// on-disk executable failed to run; use IsExecCorruptionErr to distinguish a
-// corrupt binary from a transient failure.
+// on-disk executable failed to run (corrupt/truncated download, crash on
+// startup, etc.) and the caller should self-heal by re-downloading it.
 //
 // NOTE: this duplicates the platform/arch guards in checkExec on purpose:
 // checkExec verifies a freshly downloaded archive (and is on the critical
@@ -113,8 +77,8 @@ func (u *Updater) CheckExec(target string) error {
 // Removing the archive (not just the extracted directory) forces a fresh
 // download from TUF rather than re-extracting a possibly-corrupt archive.
 //
-// This is used to self-heal from a corrupt component binary that fails to
-// fork/exec (see IsExecCorruptionErr).
+// This is used to self-heal from a component binary that fails its exec check
+// (a corrupt/truncated download that won't fork/exec or crashes on startup).
 func (u *Updater) RemoveTarget(target string) error {
 	localTarget, err := u.localTarget(target)
 	if err != nil {

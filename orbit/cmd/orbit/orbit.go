@@ -1705,14 +1705,12 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 // self-heals from a corrupt binary.
 //
 // After downloading/locating the target it verifies the installed executable
-// can run. If the executable is corrupt (e.g. a truncated TUF download that
-// fails to fork/exec with "malformed Mach-o file"), it removes the corrupt
-// on-disk artifacts, re-downloads from TUF, and re-verifies. Without this,
-// orbit records the bad path as last-known-good and crash-loops on it forever
-// (see https://github.com/fleetdm/fleet/issues/47552).
-//
-// A non-corruption exec failure (e.g. transient) is logged but not healed: the
-// target is returned as-is so the caller behaves as before.
+// can run (CheckExec runs it with --help, or the target's CustomCheckExec). If
+// it fails to run for any reason (e.g. a truncated TUF download/extraction that
+// fails to fork/exec or execs and crashes), it removes the on-disk artifacts,
+// re-downloads from TUF, and re-verifies. Without this, orbit records the bad
+// path as last-known-good and crash-loops on it forever (see
+// https://github.com/fleetdm/fleet/issues/47552).
 func getComponentWithSelfHeal(updater *update.Updater, target string) (*update.LocalTarget, error) {
 	localTarget, err := updater.Get(target)
 	if err != nil {
@@ -1723,12 +1721,14 @@ func getComponentWithSelfHeal(updater *update.Updater, target string) (*update.L
 	if checkErr == nil {
 		return localTarget, nil
 	}
-	if !update.IsExecCorruptionErr(checkErr) {
-		log.Warn().Err(checkErr).Str("target", target).Msg("component exec check failed (not corruption), continuing")
-		return localTarget, nil
-	}
 
-	log.Error().Err(checkErr).Str("target", target).Msg("component binary is corrupt, self-healing")
+	// The installed binary failed to run (e.g. a truncated TUF
+	// download/extraction that fails to fork/exec, or that execs and then
+	// crashes). Whatever the cause, it's unusable, so remove the on-disk
+	// artifacts, re-download from TUF, and re-verify. Self-heal is a single
+	// attempt: if the re-downloaded binary still fails the exec check we return
+	// the error rather than crash-looping on it forever.
+	log.Error().Err(checkErr).Str("target", target).Msg("component binary failed exec check, self-healing")
 	if err := updater.RemoveTarget(target); err != nil {
 		return nil, fmt.Errorf("self-heal remove %s: %w", target, err)
 	}
