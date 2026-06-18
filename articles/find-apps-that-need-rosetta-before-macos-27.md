@@ -1,6 +1,6 @@
 # Find apps that need Rosetta before macOS 27
 
-Apple is closing the door on Rosetta 2\. macOS 27, due in fall 2026, runs only on Apple silicon and removes Rosetta 2 during the upgrade if it was already installed. Users can reinstall it on demand, but macOS 27 is the last release with full Rosetta support. macOS 28, expected in fall 2027, drops it for almost every app. Apple laid out this timeline at WWDC 2026\. See [Apple's Rosetta documentation](https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment) for the details.
+Apple is closing the door on Rosetta 2\. macOS 27, due in fall 2026, runs only on Apple silicon and removes Rosetta 2 during the upgrade if it was already installed. Users can reinstall it on demand, but macOS 27 is the last release with full Rosetta support. macOS 28, expected in fall 2027, drops it for almost every app. Apple committed to this timeline at WWDC 2025 and confirmed the macOS 27 specifics at WWDC 2026. See [Apple's Rosetta documentation](https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment) for the details.
 
 If your fleet runs any Intel-only Mac apps, find them now. You have a full release cycle to test replacements before the apps stop working. This post covers three ways to find Rosetta-dependent apps with osquery and Fleet, and two mistakes that will give you wrong answers.
 
@@ -9,6 +9,8 @@ If your fleet runs any Intel-only Mac apps, find them now. You have a full relea
 An app needs Rosetta when its executable is Intel-only. On an Apple silicon Mac, a binary with an `x86_64` slice and no `arm64` slice runs under Rosetta. A universal binary carries both slices and runs native. An Apple silicon-native binary carries only `arm64`.
 
 So the question for each app is simple: does its executable include an `arm64` slice? If not, it needs Rosetta.
+
+One edge case to keep in mind: a universal app can still need Rosetta if it loads Intel-only frameworks, plugins, or helper binaries. The methods below check the main executable, so apps with Intel-only plugins inside a universal host (common in audio production tools) may pass the audit but still fail under macOS 28.
 
 ## What does not work: the app bundle
 
@@ -104,10 +106,10 @@ done
 
 ## Turn this into a fleet-wide check
 
-Add the `processes` and `mdfind` queries to Fleet as scheduled queries or policies, then review the results across your Apple silicon hosts. Once you know which apps need Rosetta, you have two jobs before macOS 27 reaches your fleet:
+Save the `processes` and `mdfind` queries in Fleet to inventory Intel-only apps across your Apple silicon hosts. If you also want a yes/no compliance signal you can automate against, add a policy that inverts the question: for example, a policy that fails when Rosetta is missing, or when any Intel-only apps remain in `/Applications`. Once you know which apps need Rosetta, you have two jobs before macOS 27 reaches your fleet:
 
 1. Decide which Intel-only apps to keep. Replace the rest with native or universal builds.
-2. For the apps you keep, reinstall Rosetta after the macOS 27 upgrade, since the upgrade removes it. Script the reinstall with `softwareupdate --install-rosetta --agree-to-license` and deploy it through Fleet.
+2. For the apps you keep, you'll need to reinstall Rosetta after the macOS 27 upgrade. Use Fleet's policy automation to handle this without manual steps: write a policy that fails when Rosetta is missing on macOS 27, then attach the reinstall script (`softwareupdate --install-rosetta --agree-to-license`) as the policy's automated remediation. Fleet runs the script on every host that fails the policy, and stops once the host passes.
 
 Start the audit while macOS 26 and macOS 27 still run Rosetta. That gives you a full release cycle to test replacements before macOS 28 removes it.
 
