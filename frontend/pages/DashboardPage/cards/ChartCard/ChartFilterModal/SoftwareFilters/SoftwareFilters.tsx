@@ -16,6 +16,7 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { getEpssError, NO_CATEGORIES_MSG } from "./helpers";
 
 const baseClass = "software-filters";
@@ -172,7 +173,18 @@ const SoftwareFilters = ({
         <div className={`${baseClass}__advanced`}>
           <div className={`${baseClass}__epss`}>
             <h3 className={`${baseClass}__section-title`}>
-              Probability of exploit
+              <TooltipWrapper
+                tooltipClass={`${baseClass}__tooltip-text`}
+                tipContent={
+                  <>
+                    The probability that this vulnerability will be exploited in
+                    the next 30 days (EPSS probability). <br />
+                    This data is reported by FIRST.org.
+                  </>
+                }
+              >
+                Probability of exploit
+              </TooltipWrapper>
             </h3>
             <p className={`${baseClass}__section-help`}>
               EPSS probabilities range from 0 to 100%.

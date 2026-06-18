@@ -114,4 +114,8 @@
     font-size: $x-small;
     color: $ui-fleet-black-50;
   }
+
+  &__tooltip-text {
+    text-align: center;
+  }
 }
