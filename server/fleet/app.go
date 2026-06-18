@@ -1442,8 +1442,10 @@ type Features struct {
 // as 0–100 (the frontend converts to 0–1 only when calling the chart API).
 //
 // Every field is optional (nil = "not set, use the frontend default"). A
-// present-but-empty SoftwareFilters slice is meaningful: it means "no
-// categories", distinct from nil.
+// present SoftwareFilters slice must list at least one category: a
+// present-but-empty slice is rejected by Validate, because on the chart read
+// path an empty selection collapses to "all categories" and so can never
+// produce the empty chart it implies.
 type VulnExposureFilterSettings struct {
 	SoftwareFilters        *[]string `json:"software_filters,omitempty"`
 	CVSSMin                *float64  `json:"cvss_min,omitempty"`
@@ -1599,6 +1601,13 @@ func (v *VulnExposureFilterSettings) Validate(prefix string, invalid *InvalidArg
 	}
 
 	if v.SoftwareFilters != nil {
+		// An empty list is rejected rather than treated as "no categories":
+		// on the chart read path an empty selection is indistinguishable from
+		// "no filter" and resolves to all categories, so it can never produce
+		// the empty chart it implies. Require at least one category instead.
+		if len(*v.SoftwareFilters) == 0 {
+			invalid.Append(key("software_filters"), "must include at least one software category (valid values: os, browsers, office, adobe)")
+		}
 		for _, c := range *v.SoftwareFilters {
 			if _, ok := vulnExposureSoftwareCategories[c]; !ok {
 				invalid.Append(key("software_filters"), fmt.Sprintf("invalid software category %q (valid values: os, browsers, office, adobe)", c))

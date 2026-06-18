@@ -203,6 +203,16 @@ func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
 		require.Contains(t, err.Error(), "epss_min")
 		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
 	})
+
+	t.Run("premium rejects an empty software_filters list", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":[]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.Contains(t, err.Error(), "at least one")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
 }
 
 // TestVersion tests that all users can access the version endpoint.

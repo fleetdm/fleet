@@ -44,9 +44,10 @@ func TestVulnExposureFilterSettingsValidate(t *testing.T) {
 			errContains: []string{"software_filters", "bogus"},
 		},
 		{
-			name:    "explicit empty software_filters is valid (means none)",
-			in:      &VulnExposureFilterSettings{SoftwareFilters: &[]string{}},
-			wantErr: false,
+			name:        "explicit empty software_filters is rejected (must select at least one)",
+			in:          &VulnExposureFilterSettings{SoftwareFilters: &[]string{}},
+			wantErr:     true,
+			errContains: []string{"software_filters", "at least one"},
 		},
 		{
 			name:        "cvss out of range",
