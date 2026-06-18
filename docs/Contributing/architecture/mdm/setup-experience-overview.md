@@ -28,6 +28,10 @@ Windows enrollment goes through the Enrollment Status Page (ESP). Setup experien
 
 Linux has no MDM, so there is no MDM command path at all. Setup experience starts when orbit calls `/api/fleet/orbit/setup_experience/init` on boot, and the same 30s polling loop drives software installs (no scripts).
 
+### macOS
+
+When Fleet processes a `TokenUpdate` request with `AwaitingConfiguration==true` for ADE enrollments, which indicates a host waiting for commands during setup assistant, it enqueues MDM items (profiles, bootstrap package, orbit installer, account configuration) as MDM commands in the nanomdm command queue and software and scripts in the unified queue. Manual enrollments, ADE enrollments without AwaitingConfiguration=true(e.g. `sudo profiles renew -type enrollment`), and AB MDM migration enrollments do not enqueue Setup Experience items, only profiles and an orbit install.
+
 ### iOS/iPadOS
 
 iOS and iPadOS don't run orbit, so there is no polling loop, no `init` endpoint and no step-by-step display. Fleet only enqueues VPP apps for setup experience items on the first `TokenUpdate`. The release worker on the Fleet server polls internally until every item is done before sending `DeviceConfigured` to exit Setup Assistant for ADE-enrolling devices. Devices that manually enroll via profile or Account-Driven User Enrollment will see setup experience apps install in the background after enrollment 
