@@ -3,8 +3,10 @@ import React from "react";
 import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { PolicyAutomationsList } from "pages/policies/components";
-import { mapAutomationRows } from "pages/policies/components/PolicyAutomationsList/PolicyAutomationsList";
+import {
+  PolicyAutomationsList,
+  mapAutomationRows,
+} from "pages/policies/components";
 
 const baseClass = "policy-reset-modal";
 

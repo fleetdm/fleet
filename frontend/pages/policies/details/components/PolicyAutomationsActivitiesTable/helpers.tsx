@@ -1,5 +1,8 @@
 import { ActivityType } from "interfaces/activity";
-import { IPolicyAutomationActivity } from "interfaces/policy";
+import {
+  IPolicyAutomationActivity,
+  PolicyAutomationActivityStatus,
+} from "interfaces/policy";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
@@ -47,6 +50,13 @@ export const getAutomationRunDisplayName = (
       return failed ? "Automation failed" : "Automation ran";
   }
 };
+
+/** Status icon paired with an automation outcome: a red outline for failures,
+ *  a green one for successes. */
+export const getAutomationStatusIconName = (
+  status: PolicyAutomationActivityStatus
+): "error-outline" | "success-outline" =>
+  status === "error" ? "error-outline" : "success-outline";
 
 /**
  * Text shown in the "Details" column (and the modal's primary block): the

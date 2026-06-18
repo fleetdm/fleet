@@ -157,6 +157,8 @@ const PolicyAutomationsActivitiesTable = ({
     setShowResetModal(true);
   }, []);
 
+  // The reset is always policy-wide; the host name is only used to make the
+  // confirmation copy concrete when the reset is opened from a specific run.
   const onResetFromActivity = useCallback(() => {
     setResetHostDisplayName(selectedActivity?.host_display_name);
     setSelectedActivity(null);
@@ -188,6 +190,9 @@ const PolicyAutomationsActivitiesTable = ({
   );
 
   const count = data?.count ?? 0;
+  // Hide the count and filter/search controls in the unfiltered empty state, so
+  // a policy that has never run an automation shows just the reset action.
+  const showControls = count > 0 || isFiltered;
 
   if (isError) {
     return <DataError description="Could not load automation runs." />;
@@ -198,7 +203,7 @@ const PolicyAutomationsActivitiesTable = ({
       <div className={`${baseClass}__header`}>
         <h2 className={`${baseClass}__title`}>Automation runs</h2>
         <div className={`${baseClass}__controls-row`}>
-          {(count > 0 || isFiltered) && (
+          {showControls && (
             <span className={`${baseClass}__count`}>
               {count} {pluralize(count, "run")}
             </span>
@@ -210,7 +215,7 @@ const PolicyAutomationsActivitiesTable = ({
                 <Icon name="refresh" />
               </Button>
             )}
-            {(count > 0 || isFiltered) && (
+            {showControls && (
               <>
                 <DropdownWrapper
                   name="automation-status-filter"

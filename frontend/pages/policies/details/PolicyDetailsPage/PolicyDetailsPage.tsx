@@ -389,7 +389,7 @@ const PolicyDetailsPage = ({
           <Button variant="link" onClick={openAutomationsModal}>
             {firstAutomation.isSoftware && (
               <SoftwareIcon
-                name={firstAutomation.name}
+                name={firstAutomation.iconName ?? firstAutomation.name}
                 url={firstAutomation.iconUrl}
                 size="small"
               />

@@ -13,7 +13,11 @@ import Icon from "components/Icon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import { getAutomationRunDisplayName, getDetailOutputText } from "./helpers";
+import {
+  getAutomationRunDisplayName,
+  getAutomationStatusIconName,
+  getDetailOutputText,
+} from "./helpers";
 
 type ITableConfig = Column<IPolicyAutomationActivity>;
 type ITableHeaderProps = IHeaderProps<IPolicyAutomationActivity>;
@@ -35,10 +39,9 @@ const generateColumnConfigs = (
     accessor: (row) => row.type,
     Cell: (cellProps: ICellProps) => {
       const activity = cellProps.row.original;
-      const isError = activity.status === "error";
       return (
         <div className={`${baseClass}__automation-cell`}>
-          <Icon name={isError ? "error-outline" : "success-outline"} />
+          <Icon name={getAutomationStatusIconName(activity.status)} />
           <TooltipTruncatedText value={getAutomationRunDisplayName(activity)} />
         </div>
       );

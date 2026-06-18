@@ -15,6 +15,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   getAutomationRunDisplayName,
+  getAutomationStatusIconName,
   getDetailOutputText,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -68,9 +69,7 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon
-                name={status === "error" ? "error-outline" : "success-outline"}
-              />
+              <Icon name={getAutomationStatusIconName(status)} />
               {getAutomationRunDisplayName(activity)}
             </span>
           }
