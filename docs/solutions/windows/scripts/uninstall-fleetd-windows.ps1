@@ -198,7 +198,7 @@ function Main {
       Write-Host "Removal process started: $($proc.Id)."
     }
   } catch {
-    Write-Error "Error calling UnregisterDeviceWithManagement: $_"
+    Write-Error "Error running fleetd unenrollment script: $_"
     exit 1
   }
 }
