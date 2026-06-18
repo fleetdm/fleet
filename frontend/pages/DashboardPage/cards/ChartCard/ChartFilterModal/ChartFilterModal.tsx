@@ -386,19 +386,23 @@ const ChartFilterModal = ({
             </TabList>
             <TabPanel>{renderHostFilters()}</TabPanel>
             <TabPanel>
-              <SoftwareFilters
-                currentTeamId={currentTeamId}
-                categories={softwareFilters}
-                knownExploit={knownExploit}
-                epssMin={epssMin}
-                epssMax={epssMax}
-                excludeCVEs={excludeCVEs}
-                setCategories={setSoftwareFilters}
-                setKnownExploit={setKnownExploit}
-                setEpssMin={setEpssMin}
-                setEpssMax={setEpssMax}
-                setExcludeCVEs={setExcludeCVEs}
-              />
+              {/* Wrap in __form so the Software tab gets the same bottom
+                  spacing before the action buttons as the Hosts tab. */}
+              <div className={`${baseClass}__form`}>
+                <SoftwareFilters
+                  currentTeamId={currentTeamId}
+                  categories={softwareFilters}
+                  knownExploit={knownExploit}
+                  epssMin={epssMin}
+                  epssMax={epssMax}
+                  excludeCVEs={excludeCVEs}
+                  setCategories={setSoftwareFilters}
+                  setKnownExploit={setKnownExploit}
+                  setEpssMin={setEpssMin}
+                  setEpssMax={setEpssMax}
+                  setExcludeCVEs={setExcludeCVEs}
+                />
+              </div>
             </TabPanel>
           </Tabs>
         </TabNav>
