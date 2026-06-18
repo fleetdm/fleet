@@ -440,7 +440,7 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.Equal(t, "https://ndes.example.com/scep", scepURL)
 	})
 
-	t.Run("NDES challenge expired triggers requeue", func(t *testing.T) {
+	t.Run("NDES challenge expired triggers requeue for Apple profile", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
@@ -459,9 +459,16 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		// Apple profiles must resend via ResendHostCertificateProfile so the retry
+		// counter is reset and a fresh challenge is fetched (see #46291), not via the
+		// generic ResendHostMDMProfile which would resend the stale command bytes.
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
+			return nil
+		}
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			t.Errorf("ResendHostMDMProfile should not be called for Apple NDES profiles")
 			return nil
 		}
 		svc := newTestService(ds)
@@ -470,8 +477,48 @@ func TestValidateIdentifier(t *testing.T) {
 		_, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "challenge password has expired")
+		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		assert.False(t, ds.ResendHostMDMProfileFuncInvoked)
+	})
+
+	t.Run("NDES challenge expired triggers requeue for Windows profile", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		pendingStatus := fleet.MDMDeliveryPending
+		expiredTime := time.Now().Add(-58 * time.Minute) // Expired (>57 minutes)
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &pendingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		// ResendHostCertificateProfile only operates on host_mdm_apple_profiles, so
+		// Windows profiles must continue to use the generic ResendHostMDMProfile.
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			return nil
+		}
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			t.Errorf("ResendHostCertificateProfile should not be called for Windows NDES profiles")
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge=true
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "challenge password has expired")
 		assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
-		ds.ResendHostMDMProfileFuncInvoked = false
+		assert.False(t, ds.ResendHostCertificateProfileFuncInvoked)
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -822,7 +869,7 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			return errors.New("resend failed")
 		}
 		svc := newTestService(ds)
@@ -830,7 +877,7 @@ func TestValidateIdentifier(t *testing.T) {
 		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "resending host mdm profile")
+		assert.Contains(t, err.Error(), "resending host mdm certificate profile")
 	})
 
 	t.Run("default CA name is NDES", func(t *testing.T) {

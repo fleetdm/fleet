@@ -384,7 +384,22 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+			//
+			// Returning a bad request makes the MDM client mark the profile failed, which
+			// consumes the profile's automatic retry. For Apple profiles we resend via
+			// ResendHostCertificateProfile (rather than the generic ResendHostMDMProfile),
+			// which resets the retry counter and blanks the command UUID so the reconcile
+			// cron re-evaluates the profile variables and fetches a fresh challenge instead
+			// of resending the stale, already-expired command bytes. This lets the host
+			// self-heal rather than landing in a terminal failed state (see #46291).
+			//
+			// ResendHostCertificateProfile only operates on host_mdm_apple_profiles, so
+			// Windows profiles continue to use the generic resend.
+			if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+				if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
+					return "", ctxerr.Wrap(ctx, err, "resending host mdm certificate profile")
+				}
+			} else if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}

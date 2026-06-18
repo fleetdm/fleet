@@ -1,0 +1,1 @@
+- Fixed an issue where macOS hosts using dynamic SCEP (NDES) could land in a terminal `failed` state with "challenge password has expired" and not recover on their own. An expired challenge now resends the Apple profile with a reset retry counter and a freshly fetched challenge, so affected hosts self-heal instead of requiring a manual reissue.
