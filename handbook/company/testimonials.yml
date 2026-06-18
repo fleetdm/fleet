@@ -296,7 +296,7 @@
   productCategories: [Device management, Software management]
 - quote: We use Fleet Device Management. Basically, osquery is the answer.
   quoteAuthorName: Ed Merrett
-  quoteAuthorProfileImageFilename:
+  quoteAuthorProfileImageFilename: testimonial-author-ed-merrett-50x50@2x.png
   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7473001724425732097?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7472995294640222210%2Curn%3Ali%3Aactivity%3A7473001724425732097%29
   quoteAuthorJobTitle: Director, Security & TechOps @ Harmonic Security
   productCategories: [Observability]
