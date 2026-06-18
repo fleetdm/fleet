@@ -18,45 +18,9 @@ func Up_20260618124430(tx *sql.Tx) error {
 		return fmt.Errorf("loading FMA names: %w", err)
 	}
 
-	rows, err := tx.Query(`
-		SELECT st.id, st.name, st.bundle_identifier, s.name
-		FROM software_titles st
-		JOIN software s ON s.title_id = st.id
-		WHERE st.source = 'apps'
-		  AND st.bundle_identifier IS NOT NULL
-		  AND st.bundle_identifier != ''
-		ORDER BY st.id
-	`)
+	titles, err := fixEmbeddedScanTitles(tx)
 	if err != nil {
-		return fmt.Errorf("scanning macOS app titles: %w", err)
-	}
-
-	type titleInfo struct {
-		currentName string
-		bundleID    string
-		siblings    map[string]struct{}
-	}
-	titles := make(map[int64]*titleInfo)
-
-	for rows.Next() {
-		var titleID int64
-		var currentName, bundleID, softwareName string
-		if err := rows.Scan(&titleID, &currentName, &bundleID, &softwareName); err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("scanning title row: %w", err)
-		}
-		t, ok := titles[titleID]
-		if !ok {
-			t = &titleInfo{currentName: currentName, bundleID: bundleID, siblings: make(map[string]struct{})}
-			titles[titleID] = t
-		}
-		t.siblings[softwareName] = struct{}{}
-	}
-	if err := rows.Close(); err != nil {
-		return fmt.Errorf("closing title rows: %w", err)
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating title rows: %w", err)
+		return err
 	}
 
 	updateStmt, err := tx.Prepare(`UPDATE software_titles SET name = ? WHERE id = ? AND name != ?`)
@@ -78,6 +42,47 @@ func Up_20260618124430(tx *sql.Tx) error {
 		}
 	}
 	return nil
+}
+
+type fixEmbeddedTitleInfo struct {
+	currentName string
+	bundleID    string
+	siblings    map[string]struct{}
+}
+
+func fixEmbeddedScanTitles(tx *sql.Tx) (map[int64]*fixEmbeddedTitleInfo, error) {
+	rows, err := tx.Query(`
+		SELECT st.id, st.name, st.bundle_identifier, s.name
+		FROM software_titles st
+		JOIN software s ON s.title_id = st.id
+		WHERE st.source = 'apps'
+		  AND st.bundle_identifier IS NOT NULL
+		  AND st.bundle_identifier != ''
+		ORDER BY st.id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("scanning macOS app titles: %w", err)
+	}
+	defer rows.Close()
+
+	titles := make(map[int64]*fixEmbeddedTitleInfo)
+	for rows.Next() {
+		var titleID int64
+		var currentName, bundleID, softwareName string
+		if err := rows.Scan(&titleID, &currentName, &bundleID, &softwareName); err != nil {
+			return nil, fmt.Errorf("scanning title row: %w", err)
+		}
+		t, ok := titles[titleID]
+		if !ok {
+			t = &fixEmbeddedTitleInfo{currentName: currentName, bundleID: bundleID, siblings: make(map[string]struct{})}
+			titles[titleID] = t
+		}
+		t.siblings[softwareName] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating title rows: %w", err)
+	}
+	return titles, nil
 }
 
 func fixEmbeddedLoadFMANamesDarwin(tx *sql.Tx) (map[string]string, error) {
