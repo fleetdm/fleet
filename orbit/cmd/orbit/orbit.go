@@ -1701,6 +1701,49 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	return overrideCfg.fallbackServerOverridesConfig
 }
 
+// getComponentWithSelfHeal resolves a component target via the updater and
+// self-heals from a corrupt binary.
+//
+// After downloading/locating the target it verifies the installed executable
+// can run. If the executable is corrupt (e.g. a truncated TUF download that
+// fails to fork/exec with "malformed Mach-o file"), it removes the corrupt
+// on-disk artifacts, re-downloads from TUF, and re-verifies. Without this,
+// orbit records the bad path as last-known-good and crash-loops on it forever
+// (see https://github.com/fleetdm/fleet/issues/47552).
+//
+// A non-corruption exec failure (e.g. transient) is logged but not healed: the
+// target is returned as-is so the caller behaves as before.
+func getComponentWithSelfHeal(updater *update.Updater, target string) (*update.LocalTarget, error) {
+	localTarget, err := updater.Get(target)
+	if err != nil {
+		return nil, err
+	}
+
+	checkErr := updater.CheckExec(target)
+	if checkErr == nil {
+		return localTarget, nil
+	}
+	if !update.IsExecCorruptionErr(checkErr) {
+		log.Warn().Err(checkErr).Str("target", target).Msg("component exec check failed (not corruption), continuing")
+		return localTarget, nil
+	}
+
+	log.Error().Err(checkErr).Str("target", target).Msg("component binary is corrupt, self-healing")
+	if err := updater.RemoveTarget(target); err != nil {
+		return nil, fmt.Errorf("self-heal remove %s: %w", target, err)
+	}
+	localTarget, err = updater.Get(target)
+	if err != nil {
+		return nil, fmt.Errorf("self-heal re-download %s: %w", target, err)
+	}
+	if err := updater.CheckExec(target); err != nil {
+		return nil, fmt.Errorf("%s still failing exec check after self-heal: %w", target, err)
+	}
+	log.Info().Str("target", target).Msg("component self-heal succeeded")
+
+	return localTarget, nil
+}
+
 // getFleetdComponentPaths returns the paths of the fleetd components.
 // If the path to the component cannot be fetched using the updater (e.g. channel doesn't exist yet)
 // then it will use the fallbackCfg's paths (if set).
@@ -1761,7 +1804,7 @@ func getFleetdComponentPaths(
 	}
 
 	// osqueryd
-	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
+	osquerydLocalTarget, err := getComponentWithSelfHeal(updater, constant.OsqueryTUFTargetName)
 	if err != nil {
 		if fallbackCfg.OsquerydPath == "" {
 			log.Info().Err(err).Msgf("get %s target failed", constant.OsqueryTUFTargetName)
@@ -1775,7 +1818,7 @@ func getFleetdComponentPaths(
 
 	// Fleet Desktop
 	if c.Bool("fleet-desktop") {
-		fleetDesktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
+		fleetDesktopLocalTarget, err := getComponentWithSelfHeal(updater, constant.DesktopTUFTargetName)
 		if err != nil {
 			if fallbackCfg.DesktopPath == "" {
 				log.Info().Err(err).Msgf("get %s target failed", constant.DesktopTUFTargetName)
