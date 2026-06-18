@@ -237,7 +237,7 @@ module.exports.custom = {
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
-    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw'// « API endpoint display names in the Fleet UI (API-only users)
+    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw',// « API endpoint display names in the Fleet UI (API-only users)
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': ['allenhouchins'],
