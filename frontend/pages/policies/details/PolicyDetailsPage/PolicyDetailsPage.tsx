@@ -43,6 +43,7 @@ import PolicyLabelModal, {
   IPolicyLabelModalProps,
 } from "../components/PolicyLabelModal";
 import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
+import PolicyAutomationsActivitiesTable from "../components/PolicyAutomationsActivitiesTable";
 
 type ILabelModalData = Pick<
   IPolicyLabelModalProps,
@@ -388,7 +389,7 @@ const PolicyDetailsPage = ({
           <Button variant="link" onClick={openAutomationsModal}>
             {firstAutomation.isSoftware && (
               <SoftwareIcon
-                name={firstAutomation.name}
+                name={firstAutomation.iconName ?? firstAutomation.name}
                 url={firstAutomation.iconUrl}
                 size="small"
               />
@@ -497,6 +498,14 @@ const PolicyDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       {isLoading ? <Spinner /> : renderHeader()}
+      {!isLoading && !apiError && storedPolicy && (
+        <PolicyAutomationsActivitiesTable
+          policy={storedPolicy}
+          currentAutomatedPolicies={currentAutomatedPolicies}
+          otherAutomationType={otherAutomationType}
+          canResetPolicy={canEditPolicy}
+        />
+      )}
       {showQueryModal && (
         <ShowQueryModal
           query={lastEditedQueryBody}

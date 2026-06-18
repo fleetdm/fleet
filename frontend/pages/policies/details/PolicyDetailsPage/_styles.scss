@@ -40,11 +40,6 @@
     }
   }
 
-  // Override DataSet 4px gap to 8px for all instances on this page
-  .data-set {
-    gap: $pad-small;
-  }
-
   &__author-info {
     display: flex;
     align-items: center;
@@ -62,6 +57,10 @@
   }
 
   &__details {
+    .data-set {
+      gap: $pad-small;
+    }
+
     display: flex;
     flex-direction: column;
     gap: $pad-medium;

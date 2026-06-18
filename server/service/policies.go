@@ -119,10 +119,14 @@ func listPolicyAutomationActivitiesEndpoint(ctx context.Context, request any, sv
 	if err != nil {
 		return fleet.ListPolicyAutomationActivitiesResponse{Err: err}, nil
 	}
-	return fleet.ListPolicyAutomationActivitiesResponse{
+	resp := fleet.ListPolicyAutomationActivitiesResponse{
 		Activities: activities,
 		Meta:       meta,
-	}, nil
+	}
+	if meta != nil {
+		resp.Count = meta.TotalResults
+	}
+	return resp, nil
 }
 
 func (svc Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {

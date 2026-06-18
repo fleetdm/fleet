@@ -28,11 +28,26 @@ const PolicyAutomationsModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        <PolicyAutomationsList
-          storedPolicy={storedPolicy}
-          currentAutomatedPolicies={currentAutomatedPolicies}
-          otherAutomationType={otherAutomationType}
-        />
+        <div className={`${baseClass}__automations`}>
+          <PolicyAutomationsList
+            storedPolicy={storedPolicy}
+            currentAutomatedPolicies={currentAutomatedPolicies}
+            otherAutomationType={otherAutomationType}
+          />
+          <p className={`${baseClass}__footer-text`}>
+            {storedPolicy.continuous_automations_enabled ? (
+              <>
+                Software and script automations run <b>every time</b> Fleet
+                receives a failing response.
+                <br />
+                All other automations run on a host&apos;s first failure, or
+                when a host&apos;s response changes from pass to fail.
+              </>
+            ) : (
+              "Automations run on a host's first failure, or when a host's response changes from pass to fail."
+            )}
+          </p>
+        </div>
         <div className="modal-cta-wrap">
           <Button onClick={onClose}>Done</Button>
         </div>
