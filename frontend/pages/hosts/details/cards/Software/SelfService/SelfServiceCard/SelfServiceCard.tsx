@@ -232,7 +232,8 @@ const SelfServiceCard = ({
       })
     : softwareInSelectedCategory;
 
-  // The button is shown in the "All" filter and in any selected category. On
+  // The button is shown on desktop in the "All" filter and in any selected
+  // category. On
   // "All", `categoryId` is undefined; the click posts to install_all without a
   // category_id query param and the BE installs every eligible (uninstalled,
   // not-in-progress) self-service item. Visibility, count, and disabled state
