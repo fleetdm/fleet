@@ -925,7 +925,7 @@ Get details of the certificate authority.
 
 ### List certificate templates
 
-List certificate added to Fleet. Currently, they can only be added via GitOps.
+List certificates added to Fleet.
 
 `GET /api/v1/fleet/certificates`
 
@@ -6551,6 +6551,8 @@ Deletes the label specified by ID.
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
 - [Batch-resend configuration profile](#batch-resend-configuration-profile)
+- [Resend configuration profile by Fleet Desktop token](#resend-configuration-profile-by-fleet-desktop-token)
+
 
 
 ### Create configuration profile
@@ -7933,7 +7935,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
 
 This endpoint returns the results for a specific custom MDM command.
 
@@ -10364,7 +10366,16 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 ### Cancel batch script
 
-`POST /scripts/batch/abc-def/cancel`
+`POST /api/v1/fleet/scripts/batch/:batch_execution_id/cancel`
+
+#### Example
+
+`POST /api/v1/fleet/scripts/batch/abc-def/cancel`
+
+##### Default response
+
+`Status: 200`
+
 
 ### Create script
 
@@ -12133,7 +12144,9 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
-If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
+If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a `204` status code is returned.
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
 
 #### Parameters
 
@@ -12141,8 +12154,6 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 |---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
 | cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
 | fleet_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts. |
-
-`GET /api/v1/fleet/vulnerabilities/:cve`
 
 #### Example
 
