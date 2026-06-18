@@ -18,7 +18,7 @@ To remove fleetd from a Mac:
 
 To remove fleetd from a Windows device:
 
-1. Download the [Windows uninstall script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1).
+1. Download the [Windows uninstall script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1). This script turns off MDM and uninstalls fleetd.
 2. Open **PowerShell** as administrator (right-click and select **Run as administrator**).
 3. Navigate to where you saved the script: `cd C:\path\to\your\script`
 4. Run the script: `.\uninstall-fleetd-windows.ps1`
