@@ -160,7 +160,10 @@ In the Google Admin console:
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. If MDM is turned on, turn it off. If you're unenrolling a Windows host, you can skip to step 3 (uninstall Fleet's agent). For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
+2. If MDM is turned on, turn it off:
+  - Windows: Skip to step 3 (Uninstall Fleet's agent).
+  - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
+  - iOS/iPadOS & Android: On the **Host details** page, select **Actions > Unenroll**.
 
 3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
