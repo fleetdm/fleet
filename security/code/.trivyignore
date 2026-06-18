@@ -10,3 +10,15 @@ CVE-2020-28469
 # When packaging linux files, we do not use global permissions. Manually verified that packed fleet-osquery files do not have group/global write permissions.
 
 CVE-2023-32698
+
+# 2026/06/18 — github.com/docker/docker is no longer used directly by Fleet; the
+# upgrade-test client was migrated to github.com/moby/moby/client. docker/docker
+# remains as an indirect transitive dep through go-sysinfo (via elastic apm),
+# which only references `api/types` definitions. None of these CVEs affect the
+# Docker daemon code paths, which Fleet does not compile or run. Moby v29+ (the
+# fixed line) is published under a new module path (github.com/moby/moby/v2),
+# so the indirect dep cannot be bumped without changes upstream in go-sysinfo.
+
+CVE-2026-34040
+CVE-2026-41567
+CVE-2026-42306
