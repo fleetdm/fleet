@@ -253,6 +253,32 @@ const SoftwareTitleDetailsPage = ({
           hashSha256={pkg.hash_sha256 ?? null}
           downloadUrl={pkg.url}
           onLabelCountClick={() => setShowLibraryEditModal(true)}
+          onLabelsClick={() => setShowLibraryEditModal(true)}
+        />
+        <LibraryItemAccordion
+          filename="example-package-v2-really-long-package-name-to-see-what-happens-responsive-design.pkg"
+          version="2.0.0"
+          addedAt="2024-01-01T12:00:00Z"
+          isActive={false}
+          isLatest={false}
+          labels={labels}
+          labelKind={labelKind}
+          installed={pkg.status?.installed ?? 0}
+          pending={
+            (pkg.status?.pending_install ?? 0) +
+            (pkg.status?.pending_uninstall ?? 0)
+          }
+          failed={
+            (pkg.status?.failed_install ?? 0) +
+            (pkg.status?.failed_uninstall ?? 0)
+          }
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          hashSha256={pkg.hash_sha256 ?? null}
+          downloadUrl={pkg.url}
+          onLabelCountClick={() => setShowLibraryEditModal(true)}
+          onLabelsClick={() => setShowLibraryEditModal(true)}
         />
       </LibraryItemAccordionList>
     );

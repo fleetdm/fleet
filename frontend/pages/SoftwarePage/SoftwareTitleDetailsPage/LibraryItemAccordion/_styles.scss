@@ -17,6 +17,11 @@
     &:hover {
       background: $ui-off-white;
     }
+
+    &:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+    }
   }
 
   &__chevron {
@@ -72,6 +77,17 @@
     gap: $pad-xsmall;
   }
 
+  // Non-clickable variant of the label badge (rendered when the viewer can't
+  // edit software). Matches the size="small" text-icon Button visually so the
+  // header doesn't shift when the click affordance is removed.
+  &__badge-button--static {
+    padding: $pad-xsmall $pad-small;
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    white-space: nowrap;
+  }
+
   &__all-hosts {
     font-size: $xx-small;
     color: $ui-fleet-black-75;
@@ -79,16 +95,24 @@
 
   &__panel {
     display: flex;
-    gap: $pad-xxlarge;
     align-items: stretch;
     padding: $pad-large;
     background: $ui-off-white;
     border-bottom: 1px solid $ui-fleet-black-10;
+
+    // Asymmetric gaps: 3rem between status and details, 1rem between details
+    // and actions. `gap` can't differ per pair in flex, so use margins.
+    > :nth-child(1) {
+      margin-right: 3rem;
+    }
+    > :nth-child(2) {
+      margin-right: 1rem;
+    }
   }
 
   &__status-column {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: $pad-xlarge;
     padding-right: $pad-medium;
     border-right: 1px solid $ui-fleet-black-10;
@@ -106,6 +130,20 @@
     gap: $pad-small;
     font-size: $x-small;
     color: $ui-fleet-black-75;
+  }
+
+  // The info-outline tooltip sits inline at the end of the first status row.
+  // TooltipWrapper's inner element is block-level by default, which drops the
+  // icon onto the text baseline; force it to a centered inline-flex so the
+  // info icon shares a vertical center with the "x installed" icon.
+  &__status-counts-info {
+    margin-left: $pad-medium;
+    align-items: center;
+
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 
   &__details-column {
@@ -133,14 +171,20 @@
     font-size: $x-small;
     color: $ui-fleet-black-75;
     margin: 0;
-    word-break: break-all;
   }
 
   &__hash-row {
     display: flex;
     align-items: center;
-    gap: $pad-small;
     position: relative;
+    min-width: 0;
+  }
+
+  &__hash {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    min-width: 0;
+    flex: 0 1 auto;
   }
 
   &__copy-button {
@@ -159,14 +203,35 @@
     flex-shrink: 0;
   }
 
+  // The inactive-row tooltip wraps the full-width header button; override the
+  // default inline-flex so the button keeps its row layout.
+  &__inactive-tooltip {
+    display: flex;
+
+    .component__tooltip-wrapper__element {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: normal;
+    }
+  }
+
   &--inactive {
     .library-item-accordion__header {
       cursor: default;
     }
 
+    // `opacity` creates a stacking context that drags tooltip popups down
+    // with it. Apply opacity only to elements that don't host a tooltip;
+    // grey the rest via `color` so any popups inside still render at full
+    // opacity.
     .library-item-accordion__chevron,
-    .library-item-accordion__info {
+    .graphic {
       opacity: 0.5;
+    }
+
+    .library-item-accordion__filename,
+    .library-item-accordion__sub {
+      color: $ui-fleet-black-50;
     }
 
     .library-item-accordion__header:hover {
@@ -181,6 +246,28 @@
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   overflow: hidden;
+
+  // Match each header's corner radius to its position in the list so the
+  // focus-visible outline (drawn just inside the header) stays flush with
+  // the list's rounded clip.
+  .library-item-accordion:first-child .library-item-accordion__header {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  // Only round the last header's bottom corners when it sits flush against
+  // the list's bottom edge — i.e. when its panel isn't expanded below it.
+  .library-item-accordion:last-child:not(.library-item-accordion--expanded)
+    .library-item-accordion__header {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .library-item-accordion:last-child.library-item-accordion--expanded
+    .library-item-accordion__panel {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
 
   .library-item-accordion:last-child .library-item-accordion__header,
   .library-item-accordion:last-child .library-item-accordion__panel {

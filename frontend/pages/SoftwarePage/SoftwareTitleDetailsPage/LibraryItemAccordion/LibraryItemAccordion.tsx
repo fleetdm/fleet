@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
-import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { stringToClipboard } from "utilities/copy_text";
+import { internationalTimeFormat } from "utilities/helpers";
 
 const baseClass = "library-item-accordion";
 
@@ -28,6 +31,12 @@ export interface ILibraryItemAccordionProps {
 
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
+
+  /** Gates the inactive-row hover tooltip ("Select Actions > Versions and pin
+   * this version to rollback."). Mirrors `canEditSoftware` elsewhere in this
+   * area — users without edit access can't reach Actions > Versions, so the
+   * hint would point at a menu they can't use. Defaults to true. */
+  canEditSoftware?: boolean;
 
   /** Show the "Latest" badge-button. Mutually exclusive with isPinned. */
   isLatest?: boolean;
@@ -57,6 +66,9 @@ export interface ILibraryItemAccordionProps {
   onLatestClick?: () => void;
   onPinnedClick?: () => void;
   onLabelCountClick?: () => void;
+  /** Click on the labels list in the expanded panel — opens the edit software
+   * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
+  onLabelsClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
 }
@@ -76,6 +88,7 @@ const LibraryItemAccordion = ({
   version,
   addedAt,
   isActive,
+  canEditSoftware = true,
   isLatest,
   isPinned,
   labels,
@@ -93,6 +106,7 @@ const LibraryItemAccordion = ({
   onLatestClick,
   onPinnedClick,
   onLabelCountClick,
+  onLabelsClick,
   onDownloadClick,
   onTrashClick,
 }: ILibraryItemAccordionProps) => {
@@ -122,13 +136,20 @@ const LibraryItemAccordion = ({
 
   const addedAtLabel = formatAddedAt(addedAt);
 
+  const inactiveTooltip = (
+    <>
+      Select <strong>Actions &gt; Versions</strong> and pin this version to
+      rollback.
+    </>
+  );
+
   const sortedLabelNames = (labels ?? [])
     .map((l) => l.name)
     .sort((a, b) => a.localeCompare(b));
 
   const renderLabelCountTooltip = () => (
-    <>
-      {LABEL_KIND_HEADING[labelKind]}:
+    <div style={{ textAlign: "center" }}>
+      <strong>{LABEL_KIND_HEADING[labelKind]}:</strong>
       <br />
       {sortedLabelNames.map((name, i) => (
         <React.Fragment key={name}>
@@ -136,7 +157,7 @@ const LibraryItemAccordion = ({
           {i < sortedLabelNames.length - 1 && <br />}
         </React.Fragment>
       ))}
-    </>
+    </div>
   );
 
   const handleBadgeClick = (handler?: () => void) => (
@@ -181,15 +202,24 @@ const LibraryItemAccordion = ({
             position="top"
             tipOffset={8}
           >
-            <Button
-              variant="text-icon"
-              size="small"
-              onClick={handleBadgeClick(onLabelCountClick)}
-              className={`${baseClass}__badge-button`}
-            >
-              <Icon name="tag" color="ui-fleet-black-75" />
-              <span>{labelCount}</span>
-            </Button>
+            {canEditSoftware ? (
+              <Button
+                variant="text-icon"
+                size="small"
+                onClick={handleBadgeClick(onLabelCountClick)}
+                className={`${baseClass}__badge-button`}
+              >
+                <Icon name="tag" color="ui-fleet-black-75" />
+                <span>{labelCount}</span>
+              </Button>
+            ) : (
+              <span
+                className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
+              >
+                <Icon name="tag" color="ui-fleet-black-75" />
+                <span>{labelCount}</span>
+              </span>
+            )}
           </TooltipWrapper>
         )}
         {showAllHostsBadge && (
@@ -203,25 +233,26 @@ const LibraryItemAccordion = ({
     iconName: "success" | "pending-outline" | "error",
     count: number,
     label: string,
-    path?: string
+    path?: string,
+    trailing?: React.ReactNode
   ) => {
-    const content = (
-      <>
-        <Icon name={iconName} />
-        <span>
-          {count} {label}
-        </span>
-      </>
-    );
+    const text = `${count} ${label}`;
 
-    if (path) {
-      return (
-        <Link to={path} className={`${baseClass}__status-count`}>
-          {content}
-        </Link>
-      );
-    }
-    return <div className={`${baseClass}__status-count`}>{content}</div>;
+    return (
+      <div className={`${baseClass}__status-count`}>
+        <Icon name={iconName} />
+        {path ? (
+          <CustomLink
+            url={path}
+            text={text}
+            className={`${baseClass}__status-count-link`}
+          />
+        ) : (
+          <span>{text}</span>
+        )}
+        {trailing}
+      </div>
+    );
   };
 
   const statusCountsTooltip = <>Counts show installs for this version only.</>;
@@ -234,9 +265,11 @@ const LibraryItemAccordion = ({
         <p className={`${baseClass}__data-heading`}>
           {LABEL_KIND_HEADING[labelKind]}
         </p>
-        <p className={`${baseClass}__data-value`}>
-          {sortedLabelNames.join(", ")}
-        </p>
+        <TruncatedTextList
+          className={`${baseClass}__data-value`}
+          items={sortedLabelNames}
+          onClick={canEditSoftware ? onLabelsClick : undefined}
+        />
       </div>
     );
   };
@@ -248,9 +281,11 @@ const LibraryItemAccordion = ({
       <div className={`${baseClass}__data-row`}>
         <p className={`${baseClass}__data-heading`}>Hash</p>
         <div className={`${baseClass}__hash-row`}>
-          <p className={`${baseClass}__data-value ${baseClass}__hash`}>
-            {hashSha256}
-          </p>
+          <TooltipTruncatedText
+            className={`${baseClass}__hash`}
+            value={hashSha256}
+          />
+
           <Button
             variant="icon"
             iconStroke
@@ -272,7 +307,6 @@ const LibraryItemAccordion = ({
     const trashButton = (
       <Button
         variant="icon"
-        iconStroke
         disabled={trashDisabled}
         onClick={onTrashClick}
         ariaLabel="Delete this version"
@@ -298,6 +332,53 @@ const LibraryItemAccordion = ({
     return trashButton;
   };
 
+  const headerButton = (
+    <button
+      type="button"
+      className={`${baseClass}__header`}
+      onClick={toggleExpanded}
+      aria-expanded={isExpanded}
+      aria-disabled={!canExpand}
+      tabIndex={canExpand ? 0 : -1}
+    >
+      <span
+        className={classnames(`${baseClass}__chevron`, {
+          [`${baseClass}__chevron--open`]: isExpanded,
+        })}
+      >
+        <Icon name="chevron-right" color="ui-fleet-black-75" />
+      </span>
+      <Graphic name="file-pkg" />
+      <div className={`${baseClass}__info`}>
+        <TooltipTruncatedText
+          className={`${baseClass}__filename`}
+          value={filename}
+          disableTooltip={!isActive}
+        />
+        <span className={`${baseClass}__sub`}>
+          {version}
+          {addedAtLabel && (
+            <>
+              {" "}
+              &middot;{" "}
+              <TooltipWrapper
+                tipContent={internationalTimeFormat(new Date(addedAt))}
+                showArrow
+                underline={false}
+                position="top"
+                tipOffset={8}
+                disableTooltip={!isActive}
+              >
+                {addedAtLabel}
+              </TooltipWrapper>
+            </>
+          )}
+        </span>
+      </div>
+      <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
+    </button>
+  );
+
   return (
     <div
       className={classnames(baseClass, {
@@ -305,32 +386,21 @@ const LibraryItemAccordion = ({
         [`${baseClass}--expanded`]: isExpanded,
       })}
     >
-      <button
-        type="button"
-        className={`${baseClass}__header`}
-        onClick={toggleExpanded}
-        aria-expanded={isExpanded}
-        aria-disabled={!canExpand}
-      >
-        <span
-          className={classnames(`${baseClass}__chevron`, {
-            [`${baseClass}__chevron--open`]: isExpanded,
-          })}
+      {isActive ? (
+        headerButton
+      ) : (
+        <TooltipWrapper
+          className={`${baseClass}__inactive-tooltip`}
+          tipContent={inactiveTooltip}
+          showArrow
+          underline={false}
+          position="top"
+          tipOffset={8}
+          disableTooltip={!canEditSoftware}
         >
-          <Icon name="chevron-right" color="ui-fleet-black-75" />
-        </span>
-        <Graphic name="file-pkg" />
-        <div className={`${baseClass}__info`}>
-          <span className={`${baseClass}__filename`}>{filename}</span>
-          <span className={`${baseClass}__sub`}>
-            {version}
-            {addedAtLabel && <> &middot; {addedAtLabel}</>}
-          </span>
-        </div>
-        <div className={`${baseClass}__header-right`}>
-          {renderHeaderBadges()}
-        </div>
-      </button>
+          {headerButton}
+        </TooltipWrapper>
+      )}
 
       {isExpanded && (
         <div className={`${baseClass}__panel`}>
@@ -340,7 +410,17 @@ const LibraryItemAccordion = ({
                 "success",
                 installed,
                 "installed",
-                installedPath
+                installedPath,
+                <TooltipWrapper
+                  className={`${baseClass}__status-counts-info`}
+                  tipContent={statusCountsTooltip}
+                  showArrow
+                  underline={false}
+                  position="top"
+                  tipOffset={8}
+                >
+                  <Icon name="info-outline" color="ui-fleet-black-50" />
+                </TooltipWrapper>
               )}
               {renderStatusCount(
                 "pending-outline",
@@ -350,15 +430,6 @@ const LibraryItemAccordion = ({
               )}
               {renderStatusCount("error", failed, "failed", failedPath)}
             </div>
-            <TooltipWrapper
-              tipContent={statusCountsTooltip}
-              showArrow
-              underline={false}
-              position="top"
-              tipOffset={8}
-            >
-              <Icon name="info-outline" color="ui-fleet-black-50" />
-            </TooltipWrapper>
           </div>
 
           <div className={`${baseClass}__details-column`}>
@@ -370,7 +441,6 @@ const LibraryItemAccordion = ({
             {downloadUrl && (
               <Button
                 variant="icon"
-                iconStroke
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}

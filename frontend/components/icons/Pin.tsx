@@ -10,17 +10,17 @@ interface IPinProps {
 const Pin = ({ color = "ui-fleet-black-75", size = "medium" }: IPinProps) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       fill="none"
       viewBox="0 0 16 16"
-      xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M9.293.293a1 1 0 0 1 1.414 0l5 5a1 1 0 0 1-1.414 1.414l-.293-.293-2.793 2.793a3 3 0 0 1-.879 2.328l-.586.586a1 1 0 0 1-1.414 0L6.5 9.914l-4.793 4.793a1 1 0 0 1-1.414-1.414L5.086 8.5 3.172 6.586a1 1 0 0 1 0-1.414l.586-.586a3 3 0 0 1 2.328-.879L8.879 1A1 1 0 0 1 9.293.293Z"
         fill={COLORS[color]}
+        fillRule="evenodd"
+        d="M12.724.346a1.18 1.18 0 0 0-1.667 0L7.722 3.68a.83.83 0 0 1-.864.194l-1.695-.618a1.1 1.1 0 0 0-1.15.254L2.834 4.689c-.46.46-.46 1.206 0 1.667l2.573 2.57-5.061 5.061a1.178 1.178 0 1 0 1.667 1.667l5.06-5.06 2.573 2.572c.46.46 1.206.46 1.667 0l1.178-1.18c.301-.299.4-.748.254-1.149l-.618-1.695a.83.83 0 0 1 .195-.864l3.332-3.335c.461-.46.461-1.206 0-1.667z"
+        clipRule="evenodd"
       />
     </svg>
   );

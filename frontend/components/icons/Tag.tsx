@@ -10,17 +10,17 @@ interface ITagProps {
 const Tag = ({ color = "ui-fleet-black-75", size = "medium" }: ITagProps) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       fill="none"
       viewBox="0 0 16 16"
-      xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M1 1a1 1 0 0 1 1-1h5.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-5.586 5.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V1Zm4 4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
         fill={COLORS[color]}
+        fillRule="evenodd"
+        d="M.609 8.04a2.08 2.08 0 0 0 0 2.94l4.41 4.411a2.08 2.08 0 0 0 2.94 0l7.432-7.431c.417-.417.637-.991.606-1.58l-.27-5.124a1.04 1.04 0 0 0-.983-.983L9.62.003a2.08 2.08 0 0 0-1.58.606zM10.9 5.1a1.56 1.56 0 1 0 2.205-2.205A1.56 1.56 0 0 0 10.9 5.1"
+        clipRule="evenodd"
       />
     </svg>
   );
