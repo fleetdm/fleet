@@ -47,7 +47,7 @@ GitHub issue: [#38802](https://github.com/fleetdm/fleet/issues/38802)
 
 _Available in Fleet Premium_
 
-Configuration profiles now support combining the **Include any** label targeting, a host receives a profile if it matches any label in the include list, with the new **Exclude any** option. This way, IT admins can define broad include sets and carve out specific subsets without writing complex label queries.
+Configuration profiles now support combining the **Include any** label targeting, a host receives a profile if it matches any label in the include list, with the new **Exclude any** option. This way, IT admins can define broad inclusions and exclude specific hosts without writing complex label queries.
 
 For example: deliver a Wi-Fi profile to all macOS devices (`include_any: macOS`) while excluding hosts tagged "Guest" or "Loaner." Both options work across all platforms: macOS, iOS, iPadOS, Windows, and Android.
 
