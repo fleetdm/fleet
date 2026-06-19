@@ -29,7 +29,9 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
 		{"SoftwareTitleRenamingWindows", testSoftwareTitleRenamingWindows},
 		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
-		{"UpsertMaintainedAppUpdatesSoftware", testUpsertMaintainedAppUpdatesSoftware},
+		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
+		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
+		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
 	}
 
 	for _, c := range cases {
@@ -873,7 +875,7 @@ func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Hello", sw[1].Name)
 }
 
-func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
+func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Create a host to associate software with
@@ -935,6 +937,11 @@ func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// The upsert alone does not rename anything; the reconcile pass (run once per
+	// sync) does. com.microsoft.VSCode maps to a single FMA name, so it is renamed
+	// via the unambiguous-identifier pass.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
 	// Verify software entries were updated to use the FMA canonical name
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &softwareNames,
@@ -951,7 +958,7 @@ func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, "Microsoft Visual Studio Code", titleName)
 
-	// Verify upserting the same FMA again doesn't cause issues (idempotent)
+	// Verify upserting the same FMA again and reconciling doesn't cause issues (idempotent)
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Microsoft Visual Studio Code",
 		Slug:             "visual-studio-code/darwin",
@@ -959,6 +966,7 @@ func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "com.microsoft.VSCode",
 	})
 	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// Names should still be the FMA canonical name
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -990,14 +998,188 @@ func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "com.example.someapp", // Same identifier but different platform
 	})
 	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// The darwin software should NOT have been renamed
+	// The darwin software should NOT have been renamed (reconcile only matches
+	// darwin FMAs against macOS bundle identifiers).
 	var someAppName string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &someAppName,
 			`SELECT name FROM software WHERE bundle_identifier = 'com.example.someapp'`)
 	})
 	require.Equal(t, "Some App", someAppName)
+}
+
+// testReconcileSoftwareNamesSharedIdentifier covers the Firefox / Firefox ESR
+// case: two FMAs sharing one bundle identifier (org.mozilla.firefox). The
+// reconcile pass must NOT guess a canonical name from the shared identifier
+// alone, but MUST use the specific FMA a title was added with when that link
+// exists.
+func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Ford Prefect", "ford@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Firefox"})
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "firefox-host",
+		Platform:        "darwin",
+		OsqueryHostID:   new("ff-osquery-id"),
+		NodeKey:         new("ff-node-key"),
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	// Two FMAs that share the same macOS bundle identifier.
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox",
+		Slug:             "firefox/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox ESR",
+		Slug:             "firefox@esr/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	// A host reports Firefox via osquery (name "Firefox.app"), with no FMA added.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Firefox.app", Version: "120.0", Source: "apps", BundleIdentifier: "org.mozilla.firefox"},
+	})
+	require.NoError(t, err)
+
+	titleName := func() string {
+		var name string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &name,
+				`SELECT name FROM software_titles WHERE bundle_identifier = 'org.mozilla.firefox'`)
+		})
+		return name
+	}
+
+	// Ingestion must not have guessed a canonical name for the shared identifier.
+	require.Equal(t, "Firefox.app", titleName())
+
+	// Reconciling must leave it alone: with no FMA installer link and an ambiguous
+	// identifier, there is no single correct name. (Regression test for the bug
+	// where the title flipped to "Mozilla Firefox ESR" depending on sync order.)
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Firefox.app", titleName())
+
+	// Now the user adds the Firefox (non-ESR) FMA. This links the existing title
+	// to a specific FMA via software_installers.fleet_maintained_app_id. The
+	// install reuses the existing title (matched by bundle identifier), so the
+	// name is still "Firefox.app" until reconcile runs.
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Mozilla Firefox",
+		TeamID:               &team.ID,
+		Source:               "apps",
+		InstallScript:        "nothing",
+		Filename:             "Firefox.dmg",
+		UserID:               user.ID,
+		Platform:             string(fleet.MacOSPlatform),
+		BundleIdentifier:     "org.mozilla.firefox",
+		FleetMaintainedAppID: &firefox.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// The install reuses the existing osquery title, so the name is unchanged
+	// until reconcile runs.
+	require.Equal(t, "Firefox.app", titleName())
+
+	// Reconcile now resolves the ambiguity via the installer link and renames the
+	// title (and software inventory) to the specific FMA the user added.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Mozilla Firefox", titleName())
+
+	var softwareName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &softwareName,
+			`SELECT name FROM software WHERE title_id = ? AND bundle_identifier = 'org.mozilla.firefox'`, titleID)
+	})
+	require.Equal(t, "Mozilla Firefox", softwareName)
+}
+
+// testListAvailableAppsSharedIdentifier verifies that adding one of two FMAs
+// that share a bundle identifier (Firefox) does not mark its sibling (Firefox
+// ESR) as added in the maintained-apps list.
+func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Arthur Dent", "arthur@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 42"})
+	require.NoError(t, err)
+
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox",
+		Slug:             "firefox/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	esr, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox ESR",
+		Slug:             "firefox@esr/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	titleIDFor := func(appID uint) *uint {
+		apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{})
+		require.NoError(t, err)
+		for _, a := range apps {
+			if a.ID == appID {
+				return a.TitleID
+			}
+		}
+		t.Fatalf("app %d not found in list", appID)
+		return nil
+	}
+
+	// Before adding anything, neither shows as added.
+	require.Nil(t, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
+
+	// Add the Firefox (non-ESR) FMA, linked via fleet_maintained_app_id.
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Mozilla Firefox",
+		TeamID:               &team.ID,
+		Source:               "apps",
+		InstallScript:        "nothing",
+		Filename:             "Firefox.dmg",
+		UserID:               user.ID,
+		Platform:             string(fleet.MacOSPlatform),
+		BundleIdentifier:     "org.mozilla.firefox",
+		FleetMaintainedAppID: &firefox.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Firefox is now added; Firefox ESR must remain available (not added), even
+	// though it shares the same bundle identifier.
+	require.Equal(t, &titleID, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
+
+	// The "available only" filter must still surface ESR but hide Firefox.
+	availApps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID,
+		fleet.MaintainedAppListOptions{AvailableOnly: true})
+	require.NoError(t, err)
+	var slugs []string
+	for _, a := range availApps {
+		slugs = append(slugs, a.Slug)
+	}
+	require.Contains(t, slugs, "firefox@esr/darwin")
+	require.NotContains(t, slugs, "firefox/darwin")
 }
 
 func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
@@ -1043,5 +1225,29 @@ func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
 
 	// Windows identifier should not be present
 	_, ok := names["Microsoft Visual Studio Code"]
+	require.False(t, ok)
+
+	// Add two darwin FMAs sharing one bundle identifier (Firefox / Firefox ESR).
+	// The shared identifier is ambiguous, so it must be omitted entirely rather
+	// than resolving to whichever name was inserted last.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox",
+		Slug:             "firefox/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Mozilla Firefox ESR",
+		Slug:             "firefox@esr/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	names, err = ds.GetFMANamesByIdentifier(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 2) // still only the two unambiguous identifiers
+	_, ok = names["org.mozilla.firefox"]
 	require.False(t, ok)
 }

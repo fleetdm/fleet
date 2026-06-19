@@ -33,8 +33,6 @@ ON DUPLICATE KEY UPDATE
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-
 		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
 		if err != nil {
@@ -42,39 +40,6 @@ ON DUPLICATE KEY UPDATE
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
-
-		// For darwin apps, update existing software_titles and software entries
-		// to use the FMA canonical name. This ensures consistency when an FMA
-		// is added for software that was previously ingested with osquery-reported names.
-		//
-		// We only run these UPDATEs when the FMA was actually inserted or modified.
-		// MySQL's ON DUPLICATE KEY UPDATE returns RowsAffected:
-		//   0 = duplicate key, no changes (existing FMA with same values)
-		//   1 = new row inserted
-		//   2 = duplicate key, values changed
-		// Skip if RowsAffected == 0 since nothing changed.
-		rowsAffected, _ := res.RowsAffected()
-		if app.Platform == "darwin" && app.UniqueIdentifier != "" && rowsAffected > 0 {
-			_, err = tx.ExecContext(ctx, `
-				UPDATE software_titles
-				SET name = ?
-				WHERE bundle_identifier = ?
-					AND name != ?
-			`, app.Name, app.UniqueIdentifier, app.Name)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update software_titles names for FMA")
-			}
-
-			_, err = tx.ExecContext(ctx, `
-				UPDATE software
-				SET name = ?
-				WHERE bundle_identifier = ?
-					AND name != ?
-			`, app.Name, app.UniqueIdentifier, app.Name)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update software names for FMA")
-			}
-		}
 
 		return nil
 	})
@@ -86,6 +51,95 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
+// ReconcileMaintainedAppSoftwareNames normalizes the names of macOS
+// software_titles (and the matching software inventory rows) so they use the
+// canonical Fleet-maintained app name instead of the osquery- or
+// installer-reported name (e.g. "Code" -> "Microsoft Visual Studio Code").
+//
+// It is called once per maintained-apps sync (hourly), is set-based, and is
+// idempotent, so it self-heals: a row that already matches is left untouched.
+//
+// Because an FMA's unique_identifier (the macOS bundle identifier) is NOT unique
+// across the FMA list — Firefox and Firefox ESR both report org.mozilla.firefox,
+// LibreOffice and a future LibreOffice-still would share org.libreoffice.script —
+// renaming purely by bundle identifier is ambiguous and would clobber titles with
+// whichever sibling FMA was synced last. To stay correct it renames in two passes:
+//
+//  1. Precise: a title that was added via a specific FMA is linked through
+//     software_installers.fleet_maintained_app_id. When that link resolves to a
+//     single FMA name, use it — this disambiguates shared identifiers because we
+//     know exactly which FMA the user added, and it repairs titles previously
+//     mislabeled by the old blind-rename behavior.
+//
+//  2. Heuristic: for titles not added via an FMA (osquery-detected, custom
+//     installer, VPP), fall back to matching by bundle identifier, but ONLY when
+//     that identifier maps to exactly one FMA name. Shared identifiers are skipped
+//     entirely, since there is no single correct canonical name.
+func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
+	// titleNameByFMA maps each software_title to the canonical name of the single
+	// darwin FMA it was added with, resolved through its installer link
+	// (software_installers.fleet_maintained_app_id). A title linked to
+	// differently-named FMAs (e.g. Firefox on one team, Firefox ESR on another,
+	// sharing one global title) is excluded by the HAVING clause, since we cannot
+	// pick a single name for it. Grouping to one row per title also keeps the
+	// UPDATEs below from fanning out over a title's per-team installer rows.
+	const titleNameByFMA = `
+		SELECT si.title_id, MIN(fma.name) AS name
+		FROM software_installers si
+		JOIN fleet_maintained_apps fma
+			ON fma.id = si.fleet_maintained_app_id AND fma.platform = 'darwin'
+		GROUP BY si.title_id
+		HAVING COUNT(DISTINCT fma.name) = 1`
+
+	// unambiguousByIdentifier is the set of darwin bundle identifiers that map to
+	// exactly one FMA name. Identifiers shared by differently-named FMAs (Firefox /
+	// Firefox ESR) are excluded by the HAVING clause and never auto-renamed.
+	const unambiguousByIdentifier = `
+		SELECT unique_identifier, MIN(name) AS name
+		FROM fleet_maintained_apps
+		WHERE platform = 'darwin'
+		GROUP BY unique_identifier
+		HAVING COUNT(DISTINCT name) = 1`
+
+	updates := []struct {
+		label string
+		stmt  string
+	}{
+		// Pass 1 (precise): rename titles linked to a single FMA via their installer.
+		{"software_titles by installer link", `
+			UPDATE software_titles st
+				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = st.id
+			SET st.name = fma.name
+			WHERE st.name <> fma.name`},
+		{"software by installer link", `
+			UPDATE software s
+				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = s.title_id
+			SET s.name = fma.name
+			WHERE s.name <> fma.name`},
+
+		// Pass 2 (heuristic): rename rows matched by an unambiguous bundle identifier.
+		{"software_titles by bundle identifier", `
+			UPDATE software_titles st
+				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = st.bundle_identifier
+			SET st.name = fma.name
+			WHERE st.name <> fma.name`},
+		{"software by bundle identifier", `
+			UPDATE software s
+				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = s.bundle_identifier
+			SET s.name = fma.name
+			WHERE s.name <> fma.name`},
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, u := range updates {
+			if _, err := tx.ExecContext(ctx, u.stmt); err != nil {
+				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: %s", u.label)
+			}
+		}
+		return nil
+	})
+}
+
 // fleetMaintainedAppsTeamJoin is the FROM clause plus the LEFT JOIN that
 // determines, for a given team, whether each Fleet-maintained app has already
 // been added (via a software installer or VPP app). team_titles.id is non-NULL
@@ -94,7 +148,7 @@ ON DUPLICATE KEY UPDATE
 const fleetMaintainedAppsTeamJoin = `
 			FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform, si.fleet_maintained_app_id
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -111,10 +165,21 @@ const fleetMaintainedAppsTeamJoin = `
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles
-				ON team_titles.unique_identifier = fma.unique_identifier
+				-- When the title was added via a specific FMA, match that exact app by
+				-- its installer link. This disambiguates FMAs that share a bundle
+				-- identifier (e.g. Firefox vs Firefox ESR): adding Firefox must not mark
+				-- Firefox ESR as added.
+				ON team_titles.fleet_maintained_app_id = fma.id
+				-- Otherwise (detected-only, custom installer, or VPP), the title is not
+				-- tied to a specific FMA, so fall back to matching by bundle identifier.
+				OR (
+					team_titles.fleet_maintained_app_id IS NULL
+					AND team_titles.unique_identifier = fma.unique_identifier
+				)
 				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
 				OR (
-					team_titles.platform = fma.platform
+					team_titles.fleet_maintained_app_id IS NULL
+					AND team_titles.platform = fma.platform
 					AND fma.platform = 'windows'
 					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
 					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
@@ -297,7 +362,16 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 }
 
 func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
-	query := `SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`
+	// Only return identifiers that map to exactly one FMA name. A bundle
+	// identifier shared by differently-named FMAs (e.g. org.mozilla.firefox for
+	// both Firefox and Firefox ESR) has no single canonical name, so it is
+	// omitted here and callers fall back to the osquery-reported name.
+	query := `
+		SELECT unique_identifier, MIN(name) AS name
+		FROM fleet_maintained_apps
+		WHERE platform = 'darwin'
+		GROUP BY unique_identifier
+		HAVING COUNT(DISTINCT name) = 1`
 
 	rows, err := ds.reader(ctx).QueryContext(ctx, query)
 	if err != nil {

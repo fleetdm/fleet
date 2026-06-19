@@ -3011,9 +3011,19 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
+	// ReconcileMaintainedAppSoftwareNames normalizes macOS software_titles and
+	// software inventory rows to use the canonical Fleet-maintained app name. It is
+	// called once per maintained-apps sync, is set-based and idempotent (so it
+	// self-heals), and is ambiguity-aware: titles added via a specific FMA are
+	// renamed via their installer link, while titles matched only by bundle
+	// identifier are renamed only when that identifier maps to a single FMA name.
+	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
+
 	// GetFMANamesByIdentifier returns a map of unique_identifier -> canonical name
-	// for all Fleet-maintained apps on macOS. This is used during software ingestion
-	// to use the FMA name instead of the osquery-reported name.
+	// for Fleet-maintained apps on macOS. This is used during software ingestion to
+	// use the FMA name instead of the osquery-reported name. Identifiers shared by
+	// differently-named FMAs (e.g. Firefox and Firefox ESR) are omitted, since no
+	// single canonical name applies.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
