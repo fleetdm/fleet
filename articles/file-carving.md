@@ -16,7 +16,7 @@ In your agent configuration, add the following [command line flags](https://flee
   carver_block_size: 8000000
 ```
 
-The configured `carver_block_size` must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB (`67108864`).
+The configured `carver_block_size` must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) is 64MB (`67108864`).
 
 For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
