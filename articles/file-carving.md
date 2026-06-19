@@ -1,6 +1,6 @@
 # File carving
 
-Fleet supports file carving which allows you to request files (and sets of files) and their full contents from hosts.
+Fleet supports file carving, which allows you to request files (and sets of files) and their full contents from hosts.
 
 File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s-3-file-carving-backend).
 
