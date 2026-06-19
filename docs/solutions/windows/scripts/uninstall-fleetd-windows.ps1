@@ -1,4 +1,22 @@
-# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+# Please don't delete. This script is referenced in the guides here:
+#   - https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm
+#   - https://fleetdm.com/guides/how-to-uninstall-fleetd
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class MdmRegistration
+{
+    [DllImport("mdmregistration.dll", SetLastError = true)]
+    public static extern int UnregisterDeviceWithManagement(IntPtr pDeviceID);
+
+    public static int UnregisterDevice()
+    {
+        return UnregisterDeviceWithManagement(IntPtr.Zero);
+    }
+}
+"@ -Language CSharp
 
 function Test-Administrator
 {
@@ -66,7 +84,7 @@ function Force-Remove-Orbit {
         return
       }
     }
-    
+
     # Write success log
     "Fleetd successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
   }
@@ -89,18 +107,16 @@ function Main {
       Exit -1
     }
 
-    Write-Host "About to uninstall fleetd..."
-
     if ($args[0] -eq "remove") {
       # "remove" is received as argument to the script when called as the
       # sub-process that will actually remove the fleet agent.
 
       # Log the start of removal process
       "Starting removal process at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
-      
+
       # sleep to give time to fleetd to send the script results to Fleet
       Start-Sleep -Seconds 20
-      
+
       if (Force-Remove-Orbit) {
         Write-Host "fleetd was uninstalled."
         Exit 0
@@ -109,26 +125,81 @@ function Main {
         Exit -1
       }
     } else {
+      # Turn off MDM first so Fleet cannot re-enable it before fleetd is removed.
+
+      # Check 1: Fleet-specific enrollment (ProviderID + EnrollmentState)
+      $enrollmentKey = Get-Item -Path HKLM:\SOFTWARE\Microsoft\Enrollments\* -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object {$_.ProviderID -eq 'Fleet'} | Where-Object {$_.EnrollmentState -match '1|3|6|13'}
+      $mdmEnrolled = $null -ne $enrollmentKey
+
+      # Check 2: fallback via DiscoveryServiceFullURL
+      $enrollmentsPath = "HKLM:\SOFTWARE\Microsoft\Enrollments"
+      if (-not $mdmEnrolled) {
+          if (Test-Path $enrollmentsPath) {
+              $enrollmentKeys = Get-ChildItem -Path $enrollmentsPath -ErrorAction SilentlyContinue
+              foreach ($key in $enrollmentKeys) {
+                  if ($null -ne (Get-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction SilentlyContinue)) {
+                      $mdmEnrolled = $true
+                      break
+                  }
+              }
+          }
+      }
+
+      if ($mdmEnrolled) {
+          $result = [MdmRegistration]::UnregisterDevice()
+
+          if ($result -ne 0) {
+              throw "UnregisterDeviceWithManagement failed with error code: $result"
+          }
+
+          Write-Host "Device unregistration called successfully."
+
+          $clearedCount = 0
+
+          if (Test-Path $enrollmentsPath) {
+              $enrollmentKeys = Get-ChildItem -Path $enrollmentsPath -ErrorAction SilentlyContinue
+
+              foreach ($key in $enrollmentKeys) {
+                  if ($null -ne (Get-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction SilentlyContinue)) {
+                      try {
+                          Remove-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction Stop
+                          $clearedCount++
+                          Write-Host "Cleared DiscoveryServiceFullURL from enrollment key: $($key.PSChildName)"
+                      } catch {
+                          Write-Warning "Failed to clear DiscoveryServiceFullURL from $($key.PSChildName): $_"
+                      }
+                  }
+              }
+          }
+
+          if ($clearedCount -gt 0) {
+              Write-Host "Cleared DiscoveryServiceFullURL from $clearedCount enrollment key(s)."
+          } else {
+              Write-Host "Turning off MDM completed. The UnregisterDeviceWithManagement API automatically cleared the registry values."
+          }
+      } else {
+          Write-Host "MDM is not turned on. Skipping MDM unregistration."
+      }
+
       # when this script is executed from fleetd, it does not immediately
       # remove the agent. Instead, it starts a new detached process that
       # will do the actual removal.
-      
+
       Write-Host "Removing fleetd, system will be unenrolled in 20 seconds..."
       Write-Host "Executing detached child process"
-      
+
       $execName = $MyInvocation.ScriptName
       $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "`"$execName`"", "remove"
-      
+
       # Log the process ID
       "Started removal process with ID: $($proc.Id) at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
-      
+
       Start-Sleep -Seconds 5 # give time to process to start running
       Write-Host "Removal process started: $($proc.Id)."
     }
   } catch {
-    Write-Host "Error: Entry point"
-    Write-Host "$(Resolve-Error-Detailed)"
-    Exit -1
+    Write-Error "Error running fleetd unenrollment script: $_"
+    exit 1
   }
 }
 
