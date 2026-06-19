@@ -126,18 +126,6 @@ Anyone is free to contribute to the free or paid features of the project. We are
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
 
-## Why is my EDR flagging the fleetd agent (orbit)?
-
-EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
-
-It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet; endpoint agents from many vendors encounter the same heuristic-based false positives.
-
-<!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
-
-Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
-
-If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/orbit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
-
 ## SLSA provenance attestation 🌶️
 
 Fleet's orbit binaries are built via GitHub Actions and include SLSA (Supply-chain Levels for Software Artifacts) provenance attestations. These attestations allow customers to cryptographically verify that a given binary was produced from a specific GitHub build job and source commit—providing confidence that the binary has not been tampered with.
