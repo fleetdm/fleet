@@ -16,11 +16,9 @@ In your agent configuration, add the following [command line flags](https://flee
   carver_block_size: 8000000
 ```
 
-For the (default) MySQL Backend, the configured `carver_block_size` must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB (`67108864`).
+The configured `carver_block_size` must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB (`67108864`).
 
-For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the
-[constraints of S3's multipart
+For the S3-compatible backend, `carver_block_size` must be set to at least 5MiB (`5242880`) due to the [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
 Compression of the carve contents can be enabled with the `carver_compression` flag. When used, the carve results will be compressed with [Zstandard](https://facebook.github.io/zstd/) compression.
@@ -86,7 +84,7 @@ Configure the following:
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
 - `FLEET_S3_REGION=localhost` or any non-empty string otherwise Fleet will attempt to derive the region.
 
-If you're testing file carving locally with the docker-compose environment, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
+If you're testing file carving locally, the `--dev` flag on Fleet server will automatically point carves to the local RustFS container and write to the `carves-dev` bucket (created automatically) without needing to set additional configuration.
 
 ## Troubleshooting
 
@@ -103,15 +101,12 @@ fleetctl report --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 ### Ensure `carver_block_size` is set appropriately
 
-`carver_block_size` is an option that sets the size of each part of a file carve that Fleet's agent (fleetd)
-sends to the Fleet server.
+`carver_block_size` is an option that sets the size of each part of a file carve that Fleet's agent (fleetd) sends to the Fleet server.
 
-When using the MySQL backend (default), this value must be less than the `max_allowed_packet`
-setting in MySQL. If it is too large, MySQL will reject the writes.
+When using the MySQL backend (default), this value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
 
 When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
-sizes are rejected. Additionally, [S3
-limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
+sizes are rejected. Additionally, [S3 limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
 parts to 10,000.
 
 The value must be small enough that HTTP requests do not time out.
