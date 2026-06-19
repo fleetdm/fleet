@@ -36,6 +36,11 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func healthzHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok\n"))
+}
+
 // requireAPIOnlyUser REFUSES to start unless FLEET_API_KEY belongs to an API-only
 // Fleet user. API-only users have no UI session, carry their own audit identity,
 // and — via Fleet's per-user role/team scoping — can be locked down to exactly
@@ -127,6 +132,7 @@ func main() {
 	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
 	handler = mcpRouteGuard(handler)
 	handler = limitBodyMiddleware(handler)
+
 	// SSE throttle.
 	// MCP_RATE_LIMIT_MODE selects "global" (one shared bucket; right behind a proxy/WAF)
 	// or "ip" (one bucket per TCP peer — never reads the spoofable X-Forwarded-For).
@@ -135,7 +141,12 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 	logrus.Infof("rate limiting: %s mode", config.RateLimitMode)
+
 	handler = rl.Middleware(handler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthzHandler)
+	mux.Handle("/", handler)
+
 	// Explicit timeouts defeat Slowloris-style header/body starvation attacks
 	// that pin connections to the server. ReadHeaderTimeout is the most
 	// important — http.ListenAndServe leaves it as zero (unbounded). SSE
@@ -144,7 +155,7 @@ func main() {
 	// the request body once the headers are in.
 	httpServer := &http.Server{
 		Addr:              ":" + config.Port,
-		Handler:           handler,
+		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      0, // SSE streams are long-lived; rely on idle/read timeouts

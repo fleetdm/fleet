@@ -265,6 +265,7 @@ This means Claude Desktop will surface a confirmation prompt before either tool 
 
 The MCP holds the operator's `FLEET_API_KEY` which is admin-scoped on the target Fleet — compromise of the MCP gives an attacker full host inventory access plus arbitrary osquery against every enrolled device. Defenses:
 
+- **Terminate TLS in front (the SSE listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, run it behind a TLS-terminating layer: **Render's edge already does this**; for a self-hosted / private-network deployment, put a reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
 - **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the admin token to an on-path attacker.
 - **Secret-from-file support.** `FLEET_API_KEY_FILE` and `MCP_AUTH_TOKEN_FILE` read the token from disk so it never appears in process env (`ps`), shell history, or `claude_desktop_config.json` (which is readable by your UID and lands in Time Machine backups). When both `_FILE` and direct env are set, `_FILE` wins. Recommended for production.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
@@ -294,6 +295,7 @@ The MCP holds the operator's `FLEET_API_KEY` which is admin-scoped on the target
    - `FLEET_API_KEY` — Fleet API token (or `FLEET_API_KEY_FILE` pointing at a Render Secret File)
    - `MCP_AUTH_TOKEN` — generate with `openssl rand -hex 32` (or `MCP_AUTH_TOKEN_FILE`)
 5. `PORT` is injected automatically by Render — no action needed.
+6. Health check: point Render's (or any orchestrator's) probe at **`GET /healthz`** — it returns `200 ok` unauthenticated and bypasses the rate limiter, so it stays green under load.
 
 Leave **`MCP_RATE_LIMIT_MODE` at its default (`global`)** on Render — don't set `ip`. Render fronts the service with its own edge (TLS termination, sets `X-Forwarded-For`, coarse platform DDoS protection), so every request's `RemoteAddr` is Render's proxy; `ip` mode would collapse all clients into one bucket. `global` reads no client value, so no `X-Forwarded-For` / proxy-hop config is needed. Render offers no configurable per-IP rate limiter — for real per-client throttling, put a WAF / API gateway (e.g. Cloudflare) in front.
 
