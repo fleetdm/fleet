@@ -314,7 +314,12 @@ const EditQueryPage = ({
     try {
       await queryAPI.update(queryId, updatedQuery);
       notify.success("Report updated.");
-      refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
+      router.push(
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {
+          host_id: location.query.host_id,
+          fleet_id: location.query.fleet_id,
+        })
+      );
     } catch (updateError) {
       console.error(updateError);
       const reason = getErrorReason(updateError);

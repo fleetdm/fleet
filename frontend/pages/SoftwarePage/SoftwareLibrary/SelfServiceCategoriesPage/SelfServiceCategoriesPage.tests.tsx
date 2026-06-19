@@ -84,10 +84,18 @@ describe("SelfServiceCategoriesPage", () => {
       },
     });
 
-    render(<SelfServiceCategoriesPage {...baseProps} />);
+    const { container } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
     expect(
       screen.getByText("This feature is included in Fleet Premium.")
+    ).toBeInTheDocument();
+    // Fleet Free has no concept of teams — the dropdown must be hidden, and
+    // a static page title takes its place.
+    expect(
+      container.querySelector(".team-dropdown-wrapper")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Self-service categories" })
     ).toBeInTheDocument();
   });
 
@@ -333,7 +341,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("flashes an error and re-enables the Delete button when delete fails", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }]),
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }]),
       deleteSelfServiceCategoryErrorHandler
     );
     const render = createCustomRenderer({
@@ -343,8 +351,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     const deleteBtn = within(modal).getByRole("button", { name: /^Delete$/ });
@@ -404,7 +414,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("closes the Delete modal when Cancel is clicked", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }])
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }])
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -413,8 +423,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
@@ -477,7 +489,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("deletes a category on confirm", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }]),
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }]),
       deleteSelfServiceCategoryHandler
     );
     const render = createCustomRenderer({
@@ -487,8 +499,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
 
     const modal = await getOpenModal();
     expect(

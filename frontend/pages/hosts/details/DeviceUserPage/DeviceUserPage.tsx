@@ -114,6 +114,9 @@ interface IDeviceUserPageProps {
     pathname: string;
     query: {
       vulnerable?: string;
+      exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -833,6 +836,7 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseHostSoftwareQueryParams(location.query)}
                     isMyDevicePage
+                    isPremiumTier={isPremiumTier}
                     platform={host.platform}
                     hostTeamId={host.team_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}

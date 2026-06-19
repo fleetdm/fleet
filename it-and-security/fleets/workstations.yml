@@ -62,6 +62,9 @@ agent_options:
     watchdog_utilization_limit: 130
     # --- macOS FIM ---
     enable_file_events: true
+    # --- macOS EndpointSecurity tables (requires Full Disk Access for osqueryd) ---
+    disable_endpointsecurity: false       # enables es_process_events
+    disable_endpointsecurity_fim: false   # enables es_process_file_events
     # --- Linux process + socket auditing via the audit framework ---
     disable_audit: false
     audit_allow_process_events: true
@@ -145,8 +148,6 @@ controls:
     grace_period_days: 2
   scripts:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
-    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
-    - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh

@@ -187,17 +187,16 @@ const CalendarEventsModal = forwardRef<
                   helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
                   disabled={!formData.enabled || gitOpsModeEnabled}
                 />
-                <RevealButton
-                  isShowing={showExamplePayload}
-                  className={`${baseClass}__show-example-payload-toggle`}
-                  hideText="Hide example payload"
-                  showText="Show example payload"
-                  caretPosition="after"
-                  onClick={() => setShowExamplePayload(!showExamplePayload)}
-                  disabled={!formData.enabled}
-                />
-                {showExamplePayload && renderExamplePayload()}
               </div>
+              <RevealButton
+                isShowing={showExamplePayload}
+                className={`${baseClass}__show-example-payload-toggle`}
+                hideText="Example payload"
+                showText="Example payload"
+                caretPosition="after"
+                onClick={() => setShowExamplePayload(!showExamplePayload)}
+              />
+              {showExamplePayload && renderExamplePayload()}
             </>
           )}
         </div>

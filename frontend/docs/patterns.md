@@ -127,8 +127,7 @@ interface ISoftwareCountResponse {
 // *FormData instead, even for programmatic request bodies (e.g.
 // IDeleteQueriesFormData). One consistent suffix is easier to follow than
 // asking each dev to judge "is this form-driven enough?"
-// *PreviewPayload is fine for outgoing webhook shapes (matches the
-// "Preview payload" UI terminology).
+// *PreviewPayload is fine for outgoing webhook shapes.
 ```
 
 ## Utilities
@@ -148,12 +147,17 @@ export default {
 }
 ```
 
-### Display names for software titles
+### Software titles
 
 Software titles have two fields that look like a name:
 
 - `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
 - `display_name` — an optional custom name set per fleet by an admin
+
+Render the label from the resolved display name, but pass the **raw** `name` to
+`<SoftwareIcon>` — the icon matcher only knows raw, well-known names.
+
+#### Display name
 
 **Never render `name` directly in the UI.** Always route software names through
 `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
@@ -178,6 +182,41 @@ The same rule applies to any object shape that carries both fields
 `IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
 expectation: "All software names displayed by UI is ran through
 getDisplayedSoftwareName."
+
+#### Icons
+
+`<SoftwareIcon name={...}>` uses the `name` prop for **fallback icon matching**
+via `getMatchedSoftwareIcon({ name, source })` when `icon_url` is null. That
+matcher only knows the raw, well-known names (`notion`, `microsoft.companyportal`,
+etc.). If you pass it a resolved display name like `getDisplayedSoftwareName(...)`
+or `display_name || name`, an admin who renames the title to anything not in the
+match table will lose the icon to a generic fallback. Fleet-maintained apps are
+the highest-risk surface because they have no `icon_url` — they depend
+entirely on name matching. See #47123.
+
+When you have both fields, pass the raw `name` to the icon and the resolved
+name to the label:
+
+```tsx
+// good — icon matches against raw name, label shows resolved display name
+const displayName = getDisplayedSoftwareName(title.name, title.display_name);
+<>
+  <SoftwareIcon name={title.name} source={title.source} url={title.icon_url} />
+  {displayName}
+</>
+
+// bad — admin renames break the icon match for FMAs and other matched titles
+<SoftwareIcon name={displayName} ... />
+```
+
+When the data has been flattened into a single `name` field upstream (e.g. for a
+row object or table-cell renderer), carry the raw name alongside it as a
+separate field (`iconName`, `rawName`, etc.) and feed THAT to `<SoftwareIcon>`.
+See `frontend/pages/policies/ManagePoliciesPage/helpers.tsx`'s
+`ISoftwareAutomationData.iconName` for the established pattern.
+
+`SoftwareNameCell` already does this internally — when you can use it, prefer
+it over hand-rolling icon + label rendering.
 
 ## Components
 
@@ -911,8 +950,86 @@ At a bare minimum, critical bugs released involving the UI will have automated t
 
 ## Security considerations
 
-We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When absolutely necessary to
-use this prop, we make sure to sanitize any user-defined input to it with `DOMPurify.sanitize`
+### Sanitization for `dangerouslySetInnerHTML`
+
+We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When the
+prop is necessary, sanitize any user-defined input with one of the approved
+helpers below.
+
+- `DOMPurify.sanitize(html, options)` — for rendering arbitrary HTML. Configure
+  allowed tags and attributes explicitly at the call site, for example
+  `{ ADD_ATTR: ["target"] }`.
+- [`syntaxHighlight(value)`](../utilities/helpers.tsx) — for rendering JSON or
+  code previews. The function HTML-escapes `&`, `<`, and `>` in the
+  JSON-stringified output before wrapping tokens in `<span class="…">`, so the
+  only markup it emits is a span with a fixed set of class names: `key`,
+  `string`, `number`, `boolean`, `null`. Pass a value to JSON-serialize (object,
+  array, or primitive), not a pre-built string of user content. The function
+  calls `JSON.stringify` on its input before highlighting, so a pre-built
+  string defeats the purpose of using it. See `ExampleWebhookUrlPayloadModal`
+  or `HostStatusWebhookPreviewModal` for representative call sites.
+- [`ClickableUrls`](../components/ClickableUrls/ClickableUrls.tsx) — for
+  rendering user-provided text that may contain URLs as clickable links. It
+  replaces URL-looking substrings with anchors (`target="_blank"` and
+  `rel="noreferrer"`), then sanitizes the resulting HTML with
+  `DOMPurify.sanitize` (assumes the input is text, not pre-built HTML) before
+  rendering. Use it instead of constructing anchor HTML by hand when the source
+  is user-provided text.
+
+### Other frontend security considerations
+
+Beyond the sanitization rules above, the following considerations apply across
+the frontend.
+
+Today:
+
+- URL handling: treat any user-controlled value used in `href`, `window.open`,
+  or `router.push`/`router.replace` as untrusted. Route to a known internal path
+  and pass user data as URL params rather than building a full URL from a user
+  value.
+- Logging: `no-console` is disabled to support local debugging, but clean up
+  `console.log` statements before merging. Do not log access tokens, session
+  identifiers, or full response bodies that may contain user PII.
+- Dependency review: when a pull request adds an entry to `package.json`,
+  confirm the package is well-maintained, that the name is not a typosquat of a
+  more popular package, and that the version pinned is consistent with the
+  surrounding ecosystem.
+
+Candidates for future work:
+
+- Add an ESLint rule or `CODEOWNERS` gate on new uses of
+  `dangerouslySetInnerHTML` so a reviewer must consciously opt into each new
+  occurrence.
+- Inventory existing uses of `dangerouslySetInnerHTML` and migrate any that can
+  render through React directly.
+- Reduce direct `localStorage` writes for values with a security implication.
+  Prefer in-memory state for short-lived sensitive values.
+
+### Frontend pitfalls in AI-assisted code
+
+Fleet engineers are expected to use AI coding tools as part of their daily
+workflow (see [AI tooling](https://fleetdm.com/handbook/engineering#ai-tooling)
+and [AI usage guidelines](https://fleetdm.com/handbook/company/communications#ai-usage-guidelines)).
+You own the code you submit, AI-assisted or otherwise. The handbook covers the
+general principle; this section lists frontend pitfalls that AI tools produce
+often enough to warrant a deliberate check on every diff:
+
+- `dangerouslySetInnerHTML` introduced for user-controlled content without an in-diff
+  sanitizer. If the prop is added and the same change does not also pass the
+  input through `DOMPurify.sanitize`, `syntaxHighlight`, or `ClickableUrls`,
+  request a sanitizer before approving.
+- Dynamic code execution: `eval`, `new Function`, and `setTimeout` or
+  `setInterval` invoked with string arguments have no legitimate place in
+  product code.
+- New runtime dependencies. Flag any added entry in `package.json` for the
+  dependency-review pass above, even when the surrounding change appears
+  unrelated.
+- Permissive URL construction in anchors, `window.open` calls, or router pushes
+  that interpolate user-controlled values without going through the approved
+  helpers above.
+
+See [`.claude/rules/fleet-frontend.md`](../../.claude/rules/fleet-frontend.md)
+for the LLM-targeted summary of these rules.
 
 ## Other
 

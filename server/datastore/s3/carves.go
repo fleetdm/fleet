@@ -156,6 +156,14 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	cleanCount := 0
 	var retErr error
 	for _, carve := range nonExpiredCarves {
+		// A carve whose multipart upload has not completed yet has no listable
+		// object in S3 (ListObjectsV2 does not return in-progress multipart
+		// uploads), so skip it to avoid expiring a carve that is still
+		// uploading. Such a carve would otherwise become permanently
+		// undownloadable.
+		if !carve.BlocksComplete() {
+			continue
+		}
 		if _, ok := carveKeys[c.generateS3Key(carve)]; !ok {
 			carve.Expired = true
 			if uerr := c.UpdateCarve(ctx, carve); uerr != nil {

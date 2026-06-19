@@ -1688,17 +1688,17 @@ WHERE hmap.command_uuid = ?
 }
 
 func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	// Reads the persisted flag, not the config profile's mobileconfig: on a
+	// RemoveProfile ack the config profile is already deleted.
 	const stmt = `
 SELECT
-	h.id              AS host_id,
-	h.platform        AS platform,
-	hmap.profile_uuid AS profile_uuid,
-	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+	h.id                  AS host_id,
+	h.platform            AS platform,
+	hmap.profile_uuid     AS profile_uuid,
+	hmap.has_acme_payload AS has_acme_payload
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
-	JOIN mdm_apple_configuration_profiles mac
-		ON mac.profile_uuid = hmap.profile_uuid
 WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
@@ -2274,7 +2274,7 @@ func batchSetProfileVariableAssociationsDB(
 	case platform == "windows":
 		columnName = "windows_profile_uuid"
 	case platform == "android":
-		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
+		columnName = "android_profile_uuid"
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}

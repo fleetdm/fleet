@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { IVariableFormData } from "interfaces/variables";
-import { hasStatusKey } from "interfaces/errors";
+import { hasStatusKey, getErrorReason } from "interfaces/errors";
 import variablesAPI from "services/entities/variables";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { notify } from "components/ToastNotification";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
 
@@ -70,6 +72,21 @@ const AddCustomVariableModal = ({
           notify.error("A variable with this name already exists.", {
             response: error,
           });
+        } else if (
+          getErrorReason(error).includes("Missing required private key")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t save. Please configure a private key.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>,
+            { response: error }
+          );
         } else {
           notify.error(
             "An error occurred while saving the variable. Please try again.",

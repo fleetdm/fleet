@@ -66,6 +66,7 @@ Use the `useTeamIdParam` hook for team-scoped pages:
 Use react-router, not `window.location` / `window.history`. Direct window mutation desyncs react-router's location state.
 - Read query params from `location.query`, not `URLSearchParams(window.location.search)`.
 - Mutate the URL with `router.replace`/`router.push` or `browserHistory.replace`/`.push`, not `window.history.replaceState`.
+- Internal `<CustomLink>` (and any `router.push` / `<Link>`) to a fleet-scoped route MUST preserve the current fleet via `getPathWithQueryParams(PATHS.X, { fleet_id: teamId })`. Linking to the bare path drops fleet context and lands the user on the wrong fleet. Applies to any path that reads `fleet_id` from the query string (most `/software`, `/hosts`, `/policies`, `/queries`, `/controls` routes). `getPathWithQueryParams` filters undefined/null, so pass `teamId` directly — `fleet_id=0` (No team) is a valid, intentional value and must be preserved.
 
 ## Notifications
 - Use `renderFlash(alertType, message)` from `NotificationContext`
@@ -73,8 +74,11 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 - Use `renderMultiFlash()` for batch operations
 
 ## XSS Prevention
-- ALWAYS sanitize user-generated HTML with `DOMPurify.sanitize(html, options)` before `dangerouslySetInnerHTML`
-- Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+- ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
+  - `DOMPurify.sanitize(html, options)` — arbitrary HTML. Configure allowed tags/attributes explicitly: `{ ADD_ATTR: ["target"] }`
+  - `syntaxHighlight(value)` from `frontend/utilities/helpers.tsx` — JSON/code previews. Input must be a value to JSON-serialize (object/array/primitive), not a pre-built string of user content
+  - `ClickableUrls` from `frontend/components/ClickableUrls/` — plain text that may contain URLs, rendered as clickable links
+- See `frontend/docs/patterns.md#security-considerations` for full guidance, including frontend pitfalls common in AI-assisted code
 
 ## String Utilities
 Use helpers from `frontend/utilities/strings/stringUtils.ts`:
@@ -83,8 +87,13 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
-## Software titles — display name
+## Software titles
+
+### Display name
 Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+
+### Icons
+`<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.
 
 ## Styling (SCSS + BEM)
 - Define `const baseClass = "component-name"` at the top of the component
@@ -93,6 +102,14 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
+
+## Lists & rows
+User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
+
+Anti-pattern:
+```tsx
+<span className={`${baseClass}__row-name`}>{item.name}</span>
+```
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

@@ -1,0 +1,10 @@
+{
+  "name": "Loop",
+  "unique_identifier": "com.MrKai77.Loop",
+  "token": "loop",
+  "installer_format": "zip",
+  "slug": "loop/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

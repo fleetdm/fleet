@@ -451,6 +451,9 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
+	// CleanupWindowsMDMPendingDeleteProfiles garbage-collects retained deleted-Windows-profile content once no host_mdm_windows_profiles
+	// row still references the profile (reference-counted).
+	CleanupWindowsMDMPendingDeleteProfiles(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
 	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
 	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
@@ -940,11 +943,15 @@ type Datastore interface {
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	PolicyLite(ctx context.Context, id uint) (*PolicyLite, error)
+	ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter TeamFilter, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
+	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
+	// and resets automation retry attempts, identical to a query-change side-effect.
+	ResetPolicy(ctx context.Context, policyID uint) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
@@ -1326,6 +1333,10 @@ type Datastore interface {
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
 	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
+
+	// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in
+	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
+	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -1998,6 +2009,9 @@ type Datastore interface {
 	// its unique name (the organization name).
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
 
+	// GetABMTokenByUniqueToken retrieves the ABM token by its enrollment_url_token value.
+	GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*ABMToken, error)
+
 	// SaveABMToken updates the ABM token using the provided struct.
 	SaveABMToken(ctx context.Context, tok *ABMToken) error
 
@@ -2078,6 +2092,10 @@ type Datastore interface {
 	// - the tokens used to create each of the DEP hosts in that team.
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
+
+	// GetABMTokensAssociatedWithTeam returns the ABM organization names
+	// where one of the default_team_ids matches the given teamID.
+	GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error)
 
 	// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
 	// require MDM to be processed, for when MDM is turned off for the host (or
@@ -2285,37 +2303,17 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// ListMDMWindowsProfilesToInstall returns all the profiles that should
-	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
+	// rules as the batched reconciler's host listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
+	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
 
-	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
-	// be installed for a specific host.
-	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
+	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the reconcile snapshot's profile loader: it loads only
+	// profiles for the host's team (team_id=0 is its own "no team" scope).
+	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
 
-	// ListMDMWindowsProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_windows_profiles`
-	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
-	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
-	// host UUIDs. The cron uses this to bound per-tick work; see
-	// ReconcileWindowsProfiles.
-	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
-
-	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
-	// (sorted ascending) where host_uuid > afterHostUUID and the host has
-	// any pending Windows MDM profile reconciliation work. Used by the
-	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
-	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
+	// host UUID.
+	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
 	// used by the Windows MDM reconciliation cron to bound per-tick work.
@@ -2991,7 +2989,7 @@ type Datastore interface {
 	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
-	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt MaintainedAppListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
 	// ClearRemovedFleetMaintainedApps deletes all Fleet-maintained apps that are not in the given
 	// set of slugs.
@@ -3128,7 +3126,18 @@ type Datastore interface {
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
 	// the list of profiles to apply and the list of profiles to remove.
-	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+	// When cursor is non-empty, only hosts with host_uuid > cursor are
+	// considered. When batchSize > 0, at most batchSize distinct hosts are
+	// returned.
+	ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+
+	// GetMDMAndroidReconcileCursor returns the persisted host_uuid cursor
+	// used by the Android MDM reconciliation cron to bound per-tick work.
+	GetMDMAndroidReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAndroidReconcileCursor persists the host_uuid cursor used by
+	// the Android MDM reconciliation cron. See GetMDMAndroidReconcileCursor.
+	SetMDMAndroidReconcileCursor(ctx context.Context, cursor string) error
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.
@@ -3449,6 +3458,17 @@ type Datastore interface {
 	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
 	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
 	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
+
+	// InsertADUEEnrollmentChallenge generates and inserts a new challenge for Apple Device User Enrollment (ADUE) enrollment,
+	// associated with the given ABM token ID (if nil = unassigned) and MDM IdP account UUID, and with the specified expiration duration.
+	// Returns the generated challenge string.
+	InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error)
+	// GetADUEEnrollmentChallenge retrieves the ADUE enrollment challenge by its challenge value.
+	GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
+	// ConsumeADUEEnrollmentChallenge, consumes (used_at=NOW()) the challenge row, so it can't be re-used.
+	ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*ADUEEnrollmentChallenge, error)
+	// CleanupExpiredADUEEnrollmentChallenges deletes enrollment challenges expired more than 1 day ago.
+	CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error
 }
 
 type AndroidDatastore interface {

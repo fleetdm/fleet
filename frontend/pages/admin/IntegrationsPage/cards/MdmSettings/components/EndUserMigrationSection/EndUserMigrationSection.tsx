@@ -244,7 +244,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           variant="inverse"
           onClick={toggleExamplePayloadModal}
         >
-          Preview payload
+          Example payload
         </Button>
         <GitOpsModeTooltipWrapper
           tipOffset={8}

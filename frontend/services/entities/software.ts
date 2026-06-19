@@ -132,6 +132,11 @@ export interface ISoftwareFleetMaintainedAppsQueryParams {
   order_direction?: "asc" | "desc";
   page?: number;
   per_page?: number;
+  /** Filter to apps available on a given platform. Uses the API's platform
+   * vocabulary ("darwin"/"windows"), not the UI's ("macos"/"windows"). */
+  platform?: "darwin" | "windows";
+  /** When true, only return apps not yet added to the fleet ("Hide added apps"). */
+  available?: boolean;
 }
 
 export interface ISoftwareFleetMaintainedAppsResponse {

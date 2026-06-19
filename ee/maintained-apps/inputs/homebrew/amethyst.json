@@ -1,0 +1,10 @@
+{
+  "name": "Amethyst",
+  "unique_identifier": "com.amethyst.Amethyst",
+  "token": "amethyst",
+  "installer_format": "zip",
+  "slug": "amethyst/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

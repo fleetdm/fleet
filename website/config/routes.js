@@ -643,6 +643,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /security-and-control': {
+    action: 'view-security-and-control',
+    locals: {
+      pageTitleForMeta: 'Security & control',
+      pageDescriptionForMeta: 'Control what belongs on your devices and detect vulnerabilities automatically.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -1365,7 +1373,7 @@ module.exports.routes = {
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
-  'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
+  'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
 
   // Sitemap

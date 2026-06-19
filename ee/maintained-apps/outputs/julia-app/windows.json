@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.12.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Julia %' AND publisher = 'Julia Language' AND version_compare(version, '1.12.6') < 0);"
+      },
+      "installer_url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.12/julia-1.12.6-win64.exe",
+      "install_script_ref": "8e29c74d",
+      "uninstall_script_ref": "69908c21",
+      "sha256": "de2d50f23995d71c224423a4872673a4e9be2c9676fc975cd90b25fc3a5e6cb6",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "69908c21": "# Locates Julia's Inno Setup uninstaller from the registry and runs it silently.\n\n$displayName = \"Julia\"\n$publisher = \"Julia Language\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\ntry {\n    $app = $null\n    foreach ($p in $paths) {\n        $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n            ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName *\") -and\n            ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n        }\n        if ($items) { $app = $items | Select-Object -First 1; break }\n    }\n\n    if (-not $app -or -not $app.UninstallString) {\n        Write-Host \"Uninstall entry not found\"\n        Exit 0\n    }\n\n    $uninstallString = $app.UninstallString\n    $exePath = $null\n    if ($uninstallString -match '^\"([^\"]+)\"') {\n        $exePath = $matches[1]\n    } elseif ($uninstallString -match '^(.+?\\.exe)') {\n        $exePath = $matches[1]\n    }\n\n    if (-not $exePath -or -not (Test-Path $exePath)) {\n        Write-Host \"Error: Could not locate uninstaller executable\"\n        Exit 1\n    }\n\n    $installDir = $app.InstallLocation\n    if (-not $installDir -or -not (Test-Path $installDir)) {\n        $installDir = Split-Path -Parent $exePath\n    }\n\n    $argumentList = @(\"/VERYSILENT\", \"/NORESTART\")\n\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # Only sweep leftovers on a successful uninstall, and never a root/short path\n    if ($exitCode -eq 0 -and $installDir) {\n        $resolvedDir = $null\n        try { $resolvedDir = (Resolve-Path -LiteralPath $installDir -ErrorAction Stop).Path } catch { $resolvedDir = $null }\n        if ($resolvedDir -and ($resolvedDir -match '^[A-Za-z]:\\\\') -and ((($resolvedDir.TrimEnd('\\')) -split '\\\\').Count -ge 3) -and (Test-Path -LiteralPath $resolvedDir)) {\n            Remove-Item -LiteralPath $resolvedDir -Recurse -Force -ErrorAction SilentlyContinue\n        }\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "8e29c74d": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Julia ships as an Inno Setup installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}
