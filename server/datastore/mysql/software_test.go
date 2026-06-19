@@ -12973,7 +12973,7 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	var emojiProductivity, emojiSecurity fleet.SoftwareCategory
 	for _, c := range seeded {
 		switch c.Name {
-		case "💻 Productivity":
+		case "🖥️ Productivity":
 			emojiProductivity = c
 		case "🔐 Security":
 			emojiSecurity = c
