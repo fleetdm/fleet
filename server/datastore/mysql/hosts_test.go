@@ -178,6 +178,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
@@ -11530,6 +11531,76 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
+	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(false),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: hostUUID,
+				Platform:     "windows",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: hostUUID, Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	// An unknown device (no matching row) is not reported as previously enrolled: it is a new enrollment, or a host moving to
+	// a different Fleet server.
+	t.Run("unknown host", func(t *testing.T) {
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), Platform: "windows"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A host row that exists but never orbit-enrolled (no orbit node key, e.g. a DEP-pre-created or osquery-only row) must not
+	// be reported as previously orbit-enrolled.
+	t.Run("host exists but never orbit-enrolled", func(t *testing.T) {
+		h := test.NewHost(t, ds, "no-orbit", "", "no-orbit-key", uuid.New().String(), time.Now())
+
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{HardwareUUID: *h.OsqueryHostID, Platform: "ubuntu"}, false)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// A Windows enrollment must not be matched to an Apple host that shares a hardware serial: HostPreviouslyOrbitEnrolled
+	// forces serial matching off for Windows. Serial matching is enabled here (isMDMEnabled=true) so the skip is provably due
+	// to the Windows guard, not a disabled serial path.
+	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
+		serial := uuid.New().String()
+		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   uuid.New().String(),
+				HardwareSerial: serial,
+				Platform:       "darwin",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Same serial, different (unmatched) UUID, Windows platform: the serial must be ignored, so no match.
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: uuid.New().String(), HardwareSerial: serial, Platform: "windows"}, true)
+		require.NoError(t, err)
+		require.False(t, got)
+	})
+
+	// An empty hardware UUID is an error (orbit always sends one).
+	t.Run("empty hardware uuid", func(t *testing.T) {
+		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
+		require.Error(t, err)
+	})
 }
 
 func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {

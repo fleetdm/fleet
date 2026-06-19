@@ -1514,6 +1514,10 @@ func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.Syn
 	})
 }
 
+// fleetdPresenceGracePeriod is how far before the current MDM enrollment's created_at an orbit/osquery check-in still
+// counts as "fleetd present". It absorbs a relaxed agent check-in interval.
+const fleetdPresenceGracePeriod = 90 * time.Second
+
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed.
 // The enrolled device is resolved upstream (by isTrustedRequest) and threaded
 // in to avoid a duplicate lookup on every session-start alert.
@@ -1533,7 +1537,11 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
 				}
 				if orbitInfo != nil {
-					isPresent = orbitInfo.Version != ""
+					// Require a recent orbit/osquery check-in (seen_time at/after the enrollment, minus a grace window)
+					// so a host that has not checked in since re-enrollment gets the fleetd install (re)enqueued.
+					// seen_time only moves forward, so once fleetd checks in after install this stays true.
+					isPresent = orbitInfo.Version != "" &&
+						!host.SeenTime.Before(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
 				}
 			}
 		}
@@ -1591,7 +1599,9 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
 	globalEnrollSecret := secrets[0].Secret
-	addCommandUUID := uuid.NewString()
+	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
+	// the important one, and we only track that.
+	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
 	execCommandUUID := uuid.NewString()
 
 	euaTokenArg := ""
@@ -1647,23 +1657,17 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 </Exec>
 `)
 
-	// TODO: add ability to batch-enqueue multiple commands at the same time
-	addFleetdCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  addCommandUUID,
-		RawCommand:   rawAddCmd,
-		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
-	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
-	}
-
-	execFleetCmd := &fleet.MDMWindowsCommand{
+	// Deliver the Add and Exec as a SINGLE command so they ride in one SyncML body with Add textually before Exec. As
+	// two separate queued commands they can be reordered when they are applied in the same second, we must manually
+	// guarantee the ordering.
+	rawCombinedCmd := slices.Concat(rawAddCmd, rawExecCmd)
+	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
-		RawCommand:   rawExecCmd,
+		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
 	}
 
 	return nil

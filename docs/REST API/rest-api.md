@@ -797,8 +797,6 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 
 ### Update certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
 When editing a CA, specify one object and only its fields that you want to update.
@@ -836,8 +834,6 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 `Status: 200`
 
 ### List certificate authorities (CAs)
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/certificate_authorities`
 
@@ -893,8 +889,6 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 
 ### Get certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Get details of the certificate authority.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
@@ -931,7 +925,7 @@ Get details of the certificate authority.
 
 ### List certificate templates
 
-List certificate added to Fleet. Currently, they can only be added via GitOps.
+List certificates added to Fleet.
 
 `GET /api/v1/fleet/certificates`
 
@@ -1080,8 +1074,6 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 ```
 
 ### Delete certificate authority (CA)
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 When the CA is deleted, the issued certificates will remain on existing hosts.
 
@@ -6559,11 +6551,11 @@ Deletes the label specified by ID.
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
 - [Batch-resend configuration profile](#batch-resend-configuration-profile)
+- [Resend configuration profile by Fleet Desktop token](#resend-configuration-profile-by-fleet-desktop-token)
+
 
 
 ### Create configuration profile
-
-> **Experimental feature**. Deploying Windows SCEP profile is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 > [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -7497,8 +7489,6 @@ The summary can optionally be filtered by fleet ID.
 
 ### Update setup experience
 
-> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/setup_experience`
@@ -7945,7 +7935,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
 
 This endpoint returns the results for a specific custom MDM command.
 
@@ -8290,8 +8280,6 @@ None.
 
 
 ### Get Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Get info about Android Enterprise that's connected to Fleet.
 
@@ -10378,7 +10366,16 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 ### Cancel batch script
 
-`POST /scripts/batch/abc-def/cancel`
+`POST /api/v1/fleet/scripts/batch/:batch_execution_id/cancel`
+
+#### Example
+
+`POST /api/v1/fleet/scripts/batch/abc-def/cancel`
+
+##### Default response
+
+`Status: 200`
+
 
 ### Create script
 
@@ -11911,8 +11908,6 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 ### Create Android web app
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](#add-app-store-app) to Fleet.
@@ -12149,7 +12144,9 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
-If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
+If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a `204` status code is returned.
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
 
 #### Parameters
 
@@ -12157,8 +12154,6 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 |---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
 | cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
 | fleet_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts. |
-
-`GET /api/v1/fleet/vulnerabilities/:cve`
 
 #### Example
 

@@ -2040,7 +2040,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 		},
 		{
-			"fleet variable in android config is ignored",
+			"unsupported fleet variable in android config is rejected",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
@@ -2048,17 +2048,17 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{
 				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
 			},
-			"",
+			"Fleet variable",
 			false,
 		},
 		{
-			"fleet variable in android config is ignored",
+			"supported fleet variable in android config is accepted",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_HOST_UUID", nil).RawJSON},
 			},
 			"",
 			false,

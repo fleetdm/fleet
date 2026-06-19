@@ -174,6 +174,21 @@ type MDMAppleABMAssignmentInfo struct {
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
+	if m.MacOSTeam == removedTeamName {
+		m.MacOSTeam = ""
+	}
+	if m.IOSTeam == removedTeamName {
+		m.IOSTeam = ""
+	}
+	if m.IpadOSTeam == removedTeamName {
+		m.IpadOSTeam = ""
+	}
+	if m.BYODTeam == removedTeamName {
+		m.BYODTeam = ""
+	}
+}
+
 // MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
