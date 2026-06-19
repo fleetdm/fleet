@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -7,7 +7,6 @@ import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
-import { NotificationContext } from "context/notification";
 import classNames from "classnames";
 
 import deviceUserAPI, {
@@ -41,7 +40,6 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import FlashMessage from "components/FlashMessage";
 import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
 
@@ -136,8 +134,6 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
-
-  const { notification, hideFlash } = useContext(NotificationContext);
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -946,12 +942,6 @@ const DeviceUserPage = ({
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}
-      <FlashMessage
-        fullWidth
-        notification={notification}
-        onRemoveFlash={hideFlash}
-        pathname={location.pathname}
-      />
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
