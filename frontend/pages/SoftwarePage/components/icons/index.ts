@@ -161,6 +161,8 @@ import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
 import Cheetah3D from "./Cheetah3D";
+import ChefWorkstation from "./ChefWorkstation";
+import CherryKeys from "./CherryKeys";
 import CherryStudio from "./CherryStudio";
 import Chime from "./Chime";
 import Choosy from "./Choosy";
@@ -207,6 +209,7 @@ import Cork from "./Cork";
 import CotEditor from "./CotEditor";
 import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
+import CriblEdge from "./CriblEdge";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
 import Crystalfetch from "./Crystalfetch";
@@ -1198,6 +1201,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
   cheetah3d: Cheetah3D,
+  "chef workstation": ChefWorkstation,
+  "cherry keys": CherryKeys,
   "cherry studio": CherryStudio,
   chime: Chime,
   choosy: Choosy,
@@ -1242,6 +1247,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cork: Cork,
   coteditor: CotEditor,
   crashplan: CrashPlan,
+  "cribl edge": CriblEdge,
   crossover: Crossover,
   cryptomator: Cryptomator,
   crystalfetch: Crystalfetch,
