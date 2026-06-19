@@ -1,8 +1,20 @@
 name: Build Fleet Desktop (macOS)
 
-# Builds the native macOS Fleet Desktop app (apps/fleet-desktop-macos/), code signs
-# and notarizes it with Fleet's Developer ID certificates, and uploads the signed
+# Builds the native macOS Fleet Desktop app (apps/fleet-desktop-macos/) and its
+# embedded Platform SSO extension (FleetPSSOExtension.appex), code signs and
+# notarizes them with Fleet's Developer ID certificates, and uploads the signed
 # .pkg as a workflow artifact. No GitHub Release is created.
+#
+# The app and extension carry managed Associated Domains entitlements
+# (com.apple.developer.associated-domains{,.mdm-managed}). Those are restricted
+# entitlements: codesign only honors them when a Developer ID provisioning
+# profile that grants them is embedded in the bundle. The profiles are provided
+# as base64 repo secrets (never committed) and embedded at sign time — see the
+# README's "Signing secrets" section.
+#
+# This workflow always signs and notarizes. If the certs or provisioning
+# profiles are unavailable (e.g. a fork PR that can't read secrets), it fails
+# loudly rather than producing an unsigned artifact.
 
 on:
   push:
@@ -36,6 +48,8 @@ env:
   # of Fleet's macOS artifacts (orbit Fleet Desktop, fleetd-base.pkg).
   APPLICATION_SIGNING_IDENTITY_SHA1: 604D877399AAEB7630A78B84F288E2D28A2EDE42
   INSTALLER_SIGNING_IDENTITY_SHA1: 4608F71FB42E1845C7FC9B2D2B6A7A8D11BBD940
+  # Embedded SSO extension bundle (relative to Fleet Desktop.app/Contents).
+  APPEX_REL_PATH: PlugIns/FleetPSSOExtension.appex
 
 jobs:
   build:
@@ -52,7 +66,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build app and create pkg
+      - name: Build app (with embedded extension) and create pkg
         run: |
           chmod +x build.sh build-pkg.sh
           ./build-pkg.sh
@@ -69,7 +83,7 @@ jobs:
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
-          # Developer ID Application certificate — signs the .app (codesign).
+          # Developer ID Application certificate — signs the .app/.appex (codesign).
           echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > application.p12
           security import application.p12 -k build.keychain -P "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           rm application.p12
@@ -82,24 +96,71 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -vv
 
-      - name: Code sign app
+      - name: Embed provisioning profiles
+        env:
+          APPLE_FLEET_DESKTOP_APP_PROFILE_B64: ${{ secrets.APPLE_FLEET_DESKTOP_APP_PROFILE_B64 }}
+          APPLE_PSSO_EXT_PROFILE_B64: ${{ secrets.APPLE_PSSO_EXT_PROFILE_B64 }}
         run: |
-          BINARY_PATH="build/Fleet Desktop.app/Contents/MacOS/FleetDesktop"
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
 
-          # Sign the universal binary first, then the bundle (no --deep).
+          if [ -z "$APPLE_FLEET_DESKTOP_APP_PROFILE_B64" ] || [ -z "$APPLE_PSSO_EXT_PROFILE_B64" ]; then
+            echo "::error::Missing provisioning profile secrets (APPLE_FLEET_DESKTOP_APP_PROFILE_B64 / APPLE_PSSO_EXT_PROFILE_B64). The app and extension carry restricted Associated Domains entitlements that codesign cannot honor without them."
+            exit 1
+          fi
+
+          # Developer ID profiles authorizing the restricted entitlements.
+          echo "$APPLE_PSSO_EXT_PROFILE_B64" | base64 --decode > "$APPEX/Contents/embedded.provisionprofile"
+          echo "$APPLE_FLEET_DESKTOP_APP_PROFILE_B64" | base64 --decode > "$APP/Contents/embedded.provisionprofile"
+
+      - name: Verify profiles authorize the signing certificate
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          # AMFI requires the signing certificate to be listed in the embedded
+          # profile's DeveloperCertificates, or it SIGKILLs the app at launch.
+          # codesign, Gatekeeper, and notarization all pass regardless — so
+          # without this check a profile cut against the wrong cert produces a
+          # signed, notarized pkg that silently won't launch. Even two certs from
+          # the same team will result in a broken, unusable app - they must be the
+          # same cert
+          check='import sys,plistlib,hashlib; pl=plistlib.loads(sys.stdin.buffer.read()); h=[hashlib.sha1(bytes(c)).hexdigest().upper() for c in pl.get("DeveloperCertificates",[])]; print("  authorizes:",h); sys.exit(0 if sys.argv[1].upper() in h else 1)'
+          for prof in "$APPEX/Contents/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"; do
+            echo "Checking $prof"
+            if ! security cms -D -i "$prof" | python3 -c "$check" "$APPLICATION_SIGNING_IDENTITY_SHA1"; then
+              echo "::error::$prof does not authorize signing certificate $APPLICATION_SIGNING_IDENTITY_SHA1. AMFI will SIGKILL the app at launch (notarization does NOT catch this). Regenerate the Developer ID provisioning profile selecting that certificate."
+              exit 1
+            fi
+          done
+
+      - name: Code sign app and extension
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          # Sign inside-out: the embedded extension first, then the host app.
+          # Each bundle is sealed with its own entitlements + embedded profile.
           codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
-            --options runtime --timestamp "$BINARY_PATH"
-          codesign --verify --verbose "$BINARY_PATH"
+            --options runtime --timestamp "$APPEX/Contents/MacOS/FleetPSSOExtension"
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp \
+            --entitlements FleetPSSOExtension/FleetPSSOExtension.entitlements "$APPEX"
 
           codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
-            --options runtime --timestamp "build/Fleet Desktop.app"
+            --options runtime --timestamp "$APP/Contents/MacOS/FleetDesktop"
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp \
+            --entitlements FleetDesktop/FleetDesktop.entitlements "$APP"
 
-          codesign --verify --deep --strict --verbose=2 "build/Fleet Desktop.app"
-          codesign --display --verbose=4 "build/Fleet Desktop.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=4 "$APP"
+          codesign --display --entitlements - "$APPEX"
 
       - name: Rebuild pkg with signed app
         run: |
-          # build-pkg.sh reuses the already-signed app (ditto preserves the signature).
+          # build-pkg.sh reuses the already-signed app (ditto preserves the
+          # signature and the embedded, signed appex).
           ./build-pkg.sh
 
       - name: Sign pkg
@@ -156,6 +217,7 @@ jobs:
           spctl --assess --type install --verbose "$PKG_PATH"
 
       - name: Cleanup keychain
+        if: always()
         run: security delete-keychain build.keychain || true
 
       - name: Upload pkg artifact

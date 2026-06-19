@@ -11,7 +11,7 @@
 				<string>https://fleet.example.com</string>
 			</dict>
 			<key>ExtensionIdentifier</key>
-			<string>com.fleetdm.pssotesting.extension</string>
+			<string>com.fleetdm.fleet-desktop.pssoextension</string>
 			<key>PayloadDisplayName</key>
 			<string>Fleet Extensible Single Sign-On</string>
 			<key>PayloadIdentifier</key>
@@ -34,7 +34,7 @@
 			<key>ScreenLockedBehavior</key>
 			<string>DoNotHandle</string>
 			<key>TeamIdentifier</key>
-			<string>5K28R5ZUK5</string>
+			<string>8VBZ3948LU</string>
 			<key>Type</key>
 			<string>Redirect</string>
 			<key>URLs</key>
@@ -42,6 +42,36 @@
 				<string>https://fleet.example.com</string>
 			</array>
 		</dict>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.associated-domains</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.associated-domains.4D68D4CF-1250-4FF4-AFFB-1176DB539C49</string>
+			<key>PayloadUUID</key>
+			<string>d77b6a04-6527-4333-1010-46422e8a5844</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Configuration</key>
+			<array>
+			<dict>
+			<key>ApplicationIdentifier</key>
+			<string>8VBZ3948LU.com.fleetdm.fleet-desktop</string>
+			<key>AssociatedDomains</key>
+			<array>
+			<string>authsrv:fleet.example.com</string>
+			</array>
+			</dict>
+			<dict>
+			<key>ApplicationIdentifier</key>
+			<string>8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension</string>
+			<key>AssociatedDomains</key>
+			<array>
+			<string>authsrv:fleet.example.com</string>
+			</array>
+			</dict>
+			</array>
+		</dict>
+
 	</array>
 	<key>PayloadDisplayName</key>
 	<string>Fleet Platform SSO</string>
