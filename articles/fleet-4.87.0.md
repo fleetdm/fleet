@@ -81,7 +81,7 @@ GitHub issue: [#41683](https://github.com/fleetdm/fleet/issues/41683)
 
 _Available in Fleet Premium_
 
-A new **Run automation on every failure** option lets IT admins trigger software install or script run automations every time a host fails a policy check, not just the first time. If a host falls back out of compliance after an initial remediation or the initial rememdiation fails, Fleet automatically runs the fix again without manual intervention. 
+A new **Run automation on every failure** option lets IT admins trigger software installation or script-run automations every time a host fails a policy check, not just the first time. If a host falls back out of compliance after an initial remediation or the initial remediation fails, Fleet automatically runs the fix again without manual intervention. 
 
 GitHub issue: [#42651](https://github.com/fleetdm/fleet/issues/42651)
 
