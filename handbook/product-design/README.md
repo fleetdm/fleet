@@ -27,7 +27,7 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
-1. [Company direction](https://docs.google.com/document/d/1aVZ_eAiUjq1pdltR5ckwcbOXKB0DMzmboWZlegqJXDk/edit?tab=t.0) — the strategic "why"
+1. [Company direction](https://docs.google.com/document/d/1aVZ_eAiUjq1pdltR5ckwcbOXKB0DMzmboWZlegqJXDk/edit?tab=t.0) — the strategic "why". Up to Fleet's CEO.
 2. [Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment) — what's mature today and where we're investing
 3. [Near-term roadmap](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) — features planned for upcoming quarters
 4. [Release planning](https://github.com/orgs/fleetdm/projects/87/views/10) — stories planned for the current and upcoming releases
