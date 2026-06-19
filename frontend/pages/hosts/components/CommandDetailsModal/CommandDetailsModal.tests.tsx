@@ -37,6 +37,14 @@ describe("GetIconName", () => {
     expect(GetIconName("101")).toEqual("pending-outline");
   });
 
+  it("returns pending-outline for Windows 199 status (upper pending boundary)", () => {
+    expect(GetIconName("199")).toEqual("pending-outline");
+  });
+
+  it("returns success for Windows 399 status (upper success boundary)", () => {
+    expect(GetIconName("399")).toEqual("success");
+  });
+
   it("returns warning for an unknown status", () => {
     expect(GetIconName("unknown")).toEqual("warning");
   });
