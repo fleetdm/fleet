@@ -352,7 +352,7 @@ func testFindOnlineMobileDisabledEnrollment(t *testing.T, tdb *testutils.TestDB,
 	// enabled enrollments, so a device that just checked out must NOT count as
 	// online even though its last_seen_at is recent.
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 1, platform: "ios", omitSeenTime: true, nanoLastSeen: mobileRecent(now)},                    // 0: online (enabled)
+		{teamID: 1, platform: "ios", omitSeenTime: true, nanoLastSeen: mobileRecent(now)},                     // 0: online (enabled)
 		{teamID: 1, platform: "ios", omitSeenTime: true, nanoLastSeen: mobileRecent(now), nanoDisabled: true}, // 1: offline (disabled, last_seen_at bumped on checkout)
 	})
 
