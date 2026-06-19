@@ -13052,12 +13052,18 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	alphaID := titleByName("alpha")
 	scriptID := titleByName("zzz-installer")
 
+	bravoID := titleByName("bravo")
+
 	// Set display names that reorder the titles:
-	//   alpha              -> "Zulu"        (should sort last)
-	//   bravo              -> no display name (falls back to "bravo")
-	//   zzz-installer       -> "AAA Script"  (should sort first despite filename)
+	//   alpha         -> "Zulu"        (should sort last)
+	//   bravo         -> ""            (empty string, NULLIF falls back to "bravo")
+	//   zzz-installer -> "AAA Script"  (should sort first despite filename)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, alphaID, "Zulu"); err != nil {
+			return err
+		}
+		// Explicitly set empty display name to exercise the NULLIF(display_name, '') fallback.
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, bravoID, ""); err != nil {
 			return err
 		}
 		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, scriptID, "AAA Script")
