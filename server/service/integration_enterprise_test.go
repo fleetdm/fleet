@@ -13557,7 +13557,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		expectedPayload := *payload
-		expectedPayload.Categories = []string{"🌎 Browsers", "💻 Productivity"}
+		expectedPayload.Categories = []string{"🌎 Browsers", "🖥️ Productivity"}
 		expectedPayload.SelfService = true
 		checkSoftwareInstaller(t, s.ds, payload)
 
@@ -21057,7 +21057,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, []string{"💻 Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
+	require.Equal(t, []string{"🖥️ Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -22492,20 +22492,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		},
 		{
 			desc:       "valid categories 2",
-			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
+			categories: optjson.SetSlice([]string{"👬 Communication", "🖥️ Productivity"}),
 		},
 		{
-			desc:       "valid categories 3 - Security and Support",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
+			desc:       "valid categories 3 - Security and Utilities",
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛠️ Utilities"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛠️ Utilities"}),
 		},
 		{
 			// omitted categories (unset) fall back to the FMA's manifest default
 			desc:                 "omitted categories use FMA default",
-			fmaDefaultCategories: []string{"💻 Productivity"},
+			fmaDefaultCategories: []string{"🖥️ Productivity"},
 		},
 		{
 			// an explicitly empty categories list sets zero categories (no manifest default)
@@ -26506,7 +26506,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
-		expectedPayload.Categories = []string{"💻 Productivity", "🌎 Browsers"}
+		expectedPayload.Categories = []string{"🖥️ Productivity", "🌎 Browsers"}
 
 		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
 		require.NoError(t, err)
