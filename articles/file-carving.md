@@ -70,7 +70,7 @@ fleetctl get carve --stdout 3 | tar -x
 
 ## Expiration
 
-Carve contents remain available for 24 hours after the first data is provided from Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database and the carve is marked as "expired".
+Carve contents remain available for 24 hours after the first data is provided from Fleet's agent (fleetd). After this time, the carve contents are cleaned from the database, and the carve is marked as "expired".
 
 The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to set up a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
