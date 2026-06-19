@@ -295,7 +295,7 @@ const HostDetailsPage = ({
     null
   );
   const [activityCommandDetails, setActivityCommandDetails] = useState<{
-    host_uuid?: string;
+    host_uuid: string;
     command_uuid: string;
     actor_full_name?: string;
   } | null>(null);
@@ -907,13 +907,18 @@ const HostDetailsPage = ({
             },
           });
           break;
-        case ActivityType.RanCustomMdmCommand:
+        case ActivityType.RanCustomMdmCommand: {
+          const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
+          if (!details?.command_uuid || !resolvedHostUuid) {
+            break;
+          }
           setActivityCommandDetails({
-            command_uuid: details?.command_uuid || "",
-            host_uuid: details?.host_uuid,
+            command_uuid: details.command_uuid,
+            host_uuid: resolvedHostUuid,
             actor_full_name,
           });
           break;
+        }
         default: // do nothing
       }
     },

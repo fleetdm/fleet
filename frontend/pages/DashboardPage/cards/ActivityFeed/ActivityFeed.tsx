@@ -329,13 +329,17 @@ const ActivityFeed = ({
           },
         });
         break;
-      case ActivityType.RanCustomMdmCommand:
+      case ActivityType.RanCustomMdmCommand: {
+        if (!details?.command_uuid) {
+          break;
+        }
         setMdmCommandActivityDetails({
-          command_uuid: details?.command_uuid || "",
+          command_uuid: details.command_uuid,
           host_uuid: details?.host_uuid,
           actor_full_name,
         });
         break;
+      }
       default:
         break;
     }
