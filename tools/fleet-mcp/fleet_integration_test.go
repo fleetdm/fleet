@@ -292,13 +292,14 @@ func TestRateLimiterMiddleware_BurstThen429(t *testing.T) {
 }
 
 func TestNewRateLimiter(t *testing.T) {
-	if _, err := newRateLimiter(RateLimitModeGlobal); err != nil {
+	ctx := t.Context()
+	if _, err := newRateLimiter(ctx, RateLimitModeGlobal); err != nil {
 		t.Errorf("global mode: unexpected error %v", err)
 	}
-	if _, err := newRateLimiter(RateLimitModeIP); err != nil {
+	if _, err := newRateLimiter(ctx, RateLimitModeIP); err != nil {
 		t.Errorf("ip mode: unexpected error %v", err)
 	}
-	if _, err := newRateLimiter("bogus"); err == nil {
+	if _, err := newRateLimiter(ctx, "bogus"); err == nil {
 		t.Error("unknown mode: want error, got nil")
 	}
 }
@@ -308,7 +309,7 @@ func TestNewRateLimiter(t *testing.T) {
 // (RemoteAddr) — X-Forwarded-For is ignored, so it can't be rotated to mint
 // fresh buckets.
 func TestPerIPRateLimiter_IndependentBucketsIgnoresXFF(t *testing.T) {
-	rl := newPerIPRateLimiter(1, 1) // burst 1 so the 2nd hit from one IP always 429s in-instant
+	rl := newPerIPRateLimiter(t.Context(), 1, 1) // burst 1 so the 2nd hit from one IP always 429s in-instant
 	allowed := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { allowed++ })
 	h := rl.Middleware(next)

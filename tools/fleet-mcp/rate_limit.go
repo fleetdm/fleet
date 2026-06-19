@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -54,12 +55,12 @@ type rateLimiter interface {
 	Middleware(next http.Handler) http.Handler
 }
 
-func newRateLimiter(mode string) (rateLimiter, error) {
+func newRateLimiter(ctx context.Context, mode string) (rateLimiter, error) {
 	switch mode {
 	case RateLimitModeGlobal:
 		return newGlobalRateLimiter(defaultGlobalRatePerSec, defaultGlobalBurst), nil
 	case RateLimitModeIP:
-		return newPerIPRateLimiter(defaultPerIPRatePerSec, defaultPerIPBurst), nil
+		return newPerIPRateLimiter(ctx, defaultPerIPRatePerSec, defaultPerIPBurst), nil
 	default:
 		return nil, fmt.Errorf("invalid MCP_RATE_LIMIT_MODE %q (want %q or %q)", mode, RateLimitModeGlobal, RateLimitModeIP)
 	}
@@ -104,13 +105,13 @@ type perIPRateLimiter struct {
 	visitors map[string]*ipVisitor
 }
 
-func newPerIPRateLimiter(rps rate.Limit, burst int) *perIPRateLimiter {
+func newPerIPRateLimiter(ctx context.Context, rps rate.Limit, burst int) *perIPRateLimiter {
 	rl := &perIPRateLimiter{
 		rps:      rps,
 		burst:    burst,
 		visitors: make(map[string]*ipVisitor),
 	}
-	go rl.sweepLoop()
+	go rl.sweepLoop(ctx)
 	return rl
 }
 
@@ -141,17 +142,22 @@ func (rl *perIPRateLimiter) limiterFor(ip string) *rate.Limiter {
 }
 
 // sweepLoop periodically evicts idle per-IP buckets to bound memory.
-func (rl *perIPRateLimiter) sweepLoop() {
+func (rl *perIPRateLimiter) sweepLoop(ctx context.Context) {
 	t := time.NewTicker(perIPSweepInterval)
 	defer t.Stop()
-	for range t.C {
-		rl.mu.Lock()
-		for ip, v := range rl.visitors {
-			if time.Since(v.lastSeen) > perIPIdleTTL {
-				delete(rl.visitors, ip)
+	for {
+		select {
+		case <-ctx.Done(): // shut down with the server (and lets tests stop it cleanly)
+			return
+		case <-t.C:
+			rl.mu.Lock()
+			for ip, v := range rl.visitors {
+				if time.Since(v.lastSeen) > perIPIdleTTL {
+					delete(rl.visitors, ip)
+				}
 			}
+			rl.mu.Unlock()
 		}
-		rl.mu.Unlock()
 	}
 }
 

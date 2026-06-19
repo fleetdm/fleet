@@ -130,7 +130,7 @@ func main() {
 	// SSE throttle.
 	// MCP_RATE_LIMIT_MODE selects "global" (one shared bucket; right behind a proxy/WAF)
 	// or "ip" (one bucket per TCP peer — never reads the spoofable X-Forwarded-For).
-	rl, err := newRateLimiter(config.RateLimitMode)
+	rl, err := newRateLimiter(ctx, config.RateLimitMode)
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}

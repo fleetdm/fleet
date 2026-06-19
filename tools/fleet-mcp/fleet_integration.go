@@ -180,8 +180,9 @@ func validateFleetBaseURL(rawURL string) error {
 	}
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		// Can't resolve at startup (air-gapped / DNS not ready) — don't block.
-		return nil
+		// Fail closed: if the host can't be resolved we can't rule out a
+		// link-local/metadata target, so refuse rather than start unverified.
+		return fmt.Errorf("FLEET_BASE_URL host %q could not be resolved at startup: %w", host, err)
 	}
 	for _, ip := range ips {
 		if err := check(ip); err != nil {
@@ -204,7 +205,8 @@ func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("whoami: HTTP %d", resp.StatusCode)
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami: %s", fleetErrMsg(resp.StatusCode, errBody))
 	}
 	var body struct {
 		User struct {
