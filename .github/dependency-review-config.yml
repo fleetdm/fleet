@@ -1,0 +1,18 @@
+# Configuration for actions/dependency-review-action.
+#
+# allow-ghsas: advisories we have triaged as not-applicable to Fleet's runtime.
+# Add entries with a comment explaining why each is safe to ignore.
+allow-ghsas:
+  # All of the following advisories affect the Docker daemon (dockerd), which
+  # Fleet does not compile or ship. github.com/docker/docker is only an
+  # indirect transitive dependency via go-sysinfo (under elastic apm), which
+  # references api/types definitions only. The fixed line (Moby v29+) ships
+  # under a new module path (github.com/moby/moby/v2) and cannot be reached
+  # without changes upstream in go-sysinfo. Direct use of the Docker client
+  # in test/upgrade/fleet_test.go was migrated to github.com/moby/moby/client
+  # in #47872. See security/code/.trivyignore for the equivalent Trivy entries.
+  - GHSA-x744-4wpc-v9h2  # Moby AuthZ plugin bypass (CVE-2026-34040)
+  - GHSA-x86f-5xw2-fm2r  # PUT containers/{id}/archive executes container binary on host (CVE-2026-41567)
+  - GHSA-rg2x-37c3-w2rh  # docker cp bind mount redirection (CVE-2026-42306)
+  - GHSA-pxq6-2prw-chj9  # Plugin privilege validation off-by-one
+  - GHSA-vp62-88p7-qqf5  # docker cp symlink swap creates empty files on host
