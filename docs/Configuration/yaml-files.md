@@ -417,6 +417,11 @@ controls:
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
+    enable_managed_local_account: true
+    create_local_admin_account_platforms:
+        - macos
+        - windows
+    end_user_local_account_type: "admin"
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -496,6 +501,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 - `enable_managed_local_account` specifies whether or not to create a local admin managed account on macOS and Windows hosts (default: `false`).
+- `create_local_admin_account_platforms` is an array of platforms to enable managed local account. Valid values: `macos`, `windows`. Defaults to `["macos"]`.
 - `end_user_local_account_type` specifies the end user account type. `enable_managed_local_account` must be set to `true`. (default: `admin`).
 
 #### Example
