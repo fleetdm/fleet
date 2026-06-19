@@ -65,6 +65,20 @@ func TestListPolicyAutomationActivities(t *testing.T) {
 		ds.ListPolicyAutomationActivitiesFuncInvoked = false
 	})
 
+	t.Run("team observer sees inherited global policy", func(t *testing.T) {
+		// A team-scoped user can read a global (inherited) policy; host scoping to
+		// their fleet happens in the datastore via the team filter. This exercises
+		// the policy.rego clause that lets team roles read global policies, distinct
+		// from the own-team-policy clause above.
+		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleObserver}},
+		}})
+		_, _, err := svc.ListPolicyAutomationActivities(userCtx, 1, fleet.ListOptions{}, "")
+		require.NoError(t, err)
+		require.True(t, ds.ListPolicyAutomationActivitiesFuncInvoked)
+		ds.ListPolicyAutomationActivitiesFuncInvoked = false
+	})
+
 	t.Run("team observer cannot see other fleet policy", func(t *testing.T) {
 		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 99}, Role: fleet.RoleObserver}},

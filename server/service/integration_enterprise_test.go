@@ -19046,6 +19046,133 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 1, attemptCounts.NullCount, "should have exactly 1 row with attempt_number IS NULL (pending)")
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptActivitiesAcrossRetries() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Saved script on the team (darwin host => non-.ps1 name so it isn't skipped).
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "failing-policy-script.sh",
+		ScriptContents: "echo failing",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Team policy with the script as its failing-policy automation.
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	var modifyResp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+		},
+	}, http.StatusOK, &modifyResp)
+	policy, err = s.ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy.ScriptID)
+	require.Equal(t, script.ID, *policy.ScriptID)
+
+	submitPolicyResult := func(passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host, map[uint]*bool{policy.ID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+	// execution_id of the currently-pending (no exit code yet) script run, if any.
+	getPendingExecutionID := func() string {
+		var execIDs []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &execIDs, `
+				SELECT execution_id FROM host_script_results
+				WHERE host_id = ? AND policy_id = ? AND exit_code IS NULL
+				ORDER BY id ASC
+			`, host.ID, policy.ID)
+		})
+		if len(execIDs) == 0 {
+			return ""
+		}
+		return execIDs[0]
+	}
+	submitScriptResult := func(execID string, exitCode int) {
+		var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": %d, "output": "fail output"}`, *host.OrbitNodeKey, execID, exitCode)),
+			http.StatusOK, &orbitPostScriptResp)
+	}
+
+	// Drive MaxPolicyAutomationRetries failing attempts. Each failed result records
+	// a ran_script activity and queues the next retry (a NEW execution_id), up to the
+	// cap. The policy stays failing for the host, so retries keep firing.
+	submitPolicyResult(false)
+	var execIDs []string
+	for i := range fleet.MaxPolicyAutomationRetries {
+		var execID string
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			execID = getPendingExecutionID()
+			assert.NotEmpty(c, execID, "a script run should be queued for attempt %d", i+1)
+		}, 5*time.Second, 100*time.Millisecond)
+		require.NotContains(t, execIDs, execID, "each retry must be a distinct execution")
+		execIDs = append(execIDs, execID)
+		submitScriptResult(execID, 1) // non-zero exit = failure
+	}
+	require.Len(t, execIDs, fleet.MaxPolicyAutomationRetries)
+
+	ranScriptType := fleet.ActivityTypeRanScript{}.ActivityName()
+
+	// The automation activities endpoint returns one ran_script row per attempt for
+	// this host — multiple entries, not just the latest.
+	var listResp fleet.ListPolicyAutomationActivitiesResponse
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		listResp = fleet.ListPolicyAutomationActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d/automation_activities", policy.ID),
+			nil, http.StatusOK, &listResp)
+		ranScript := 0
+		for _, a := range listResp.Activities {
+			if a.Type == ranScriptType {
+				ranScript++
+			}
+		}
+		assert.Equal(c, fleet.MaxPolicyAutomationRetries, ranScript, "one ran_script activity per retry attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Every ran_script row is for this host, marked as an error outcome, and is a
+	// distinct activity (one per execution).
+	seen := make(map[uint]struct{})
+	for _, a := range listResp.Activities {
+		if a.Type != ranScriptType {
+			continue
+		}
+		require.Equal(t, host.ID, a.HostID)
+		require.Equal(t, "error", a.Status)
+		seen[a.ID] = struct{}{}
+	}
+	require.Len(t, seen, fleet.MaxPolicyAutomationRetries, "each retry attempt is a distinct activity")
+}
+
 func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	t := s.T()
 	ctx := context.Background()

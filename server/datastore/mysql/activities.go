@@ -1582,9 +1582,6 @@ const policyAutomationCols = `
     ap.id,
     ap.created_at,
     ap.activity_type,
-    ap.user_id,
-    ap.user_name   AS name,
-    ap.user_email,
     ap.fleet_initiated,
     ap.details,
     ahp.host_id,
@@ -1797,7 +1794,7 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
-	var activities []*fleet.PolicyAutomationActivity
+	activities := []*fleet.PolicyAutomationActivity{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, listSQL, listArgs...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select policy automation activities")
 	}

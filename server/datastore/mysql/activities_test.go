@@ -2417,6 +2417,11 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		require.Len(t, activities, 10)
 		for _, a := range activities {
 			require.NotZero(t, a.HostID)
+			// Policy automation activities are always Fleet-initiated; actor fields
+			// are not selected and must be absent (nil) so they're omitted from JSON.
+			require.Nil(t, a.ActorID)
+			require.Nil(t, a.ActorFullName)
+			require.Nil(t, a.ActorEmail)
 		}
 	})
 
@@ -2498,6 +2503,8 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host_alpha"}), "")
 		require.NoError(t, err)
 		require.Empty(t, activities)
+		// An empty result set must be a non-nil slice so it marshals as [] (not null).
+		require.NotNil(t, activities)
 	})
 
 	t.Run("team filter scopes hosts", func(t *testing.T) {
