@@ -137,6 +137,11 @@ $max-width: 2560px;
 
   .custom-link {
     color: inherit;
+
+    .external-link-icon__outline,
+    .external-link-icon__arrow {
+      stroke: $ui-fleet-black-50;
+    }
   }
 }
 
