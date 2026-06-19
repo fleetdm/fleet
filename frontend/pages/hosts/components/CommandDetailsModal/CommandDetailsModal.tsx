@@ -23,23 +23,31 @@ import Button from "components/buttons/Button";
 const baseClass = "command-details-modal";
 
 export const GetIconName = (status: string): IconNames => {
+  // Apple MDM status strings
   switch (status) {
     case "Error":
-      return "error";
     case "CommandFormatError":
       return "error";
     case "Acknowledged":
       return "success";
     case "Pending":
-      return "pending-outline";
     case "NotNow":
       return "pending-outline";
-
     default:
-      // FIXME: update for other platforms and design appropriate default handling for unknown
-      // statuses; for now, just return warning icon to indicate unknown state
-      return "warning";
+      break;
   }
+  // Windows OMA-DM status codes (numeric strings): 101 = pending, 200-399 = ran, 400+ = failed
+  const code = parseInt(status, 10);
+  if (!Number.isNaN(code)) {
+    if (code >= 400) return "error";
+    if (code >= 200) return "success";
+    return "pending-outline";
+  }
+  return "warning";
+};
+
+export const getVerbForCommandStatus = (status: string): string => {
+  return GetIconName(status) === "error" ? "failed to run" : "ran";
 };
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {

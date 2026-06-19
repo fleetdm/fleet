@@ -450,6 +450,29 @@ export const formatScriptNameForActivityItem = (name: string | undefined) => {
   );
 };
 
+export const getMdmCommandDisplayName = (
+  requestType: string | undefined
+): string => {
+  if (!requestType) return "";
+  const segments = requestType.split("/");
+  const lastSegment = segments[segments.length - 1];
+  return segments.length > 1 ? `...${lastSegment}` : requestType;
+};
+
+export const formatMdmCommandNameForActivityItem = (
+  requestType: string | undefined
+) => {
+  const displayName = getMdmCommandDisplayName(requestType);
+  if (!displayName) {
+    return <>a custom MDM command</>;
+  }
+  return (
+    <>
+      <b>{displayName}</b> as a custom MDM command
+    </>
+  );
+};
+
 export const generateRole = (
   teams: ITeam[],
   globalRole: UserRole | null
