@@ -18,7 +18,7 @@ Neither road is wrong. But they don't cost the same to travel, and the differenc
 
 ## What Terraform brings along
 
-Using Terraform for device management means focusing to apply the broad set of primary resources it controls rather than on just a few fragmented device-level details. That's not a criticism of the tool. It's simply what the tool and provider is build for. The conceptual surface includes:
+Using Terraform for device management means taking on the full set of concerns the tool was designed for, not just the device-level objects you're trying to change. That's not a criticism of the tool. It's simply what the tool and provider are built for. The conceptual surface includes:
 
 - **Providers.** Each platform needs at least one provider to source, version-pin, authenticate, and keep current. In the Jamf world, full coverage can mean running two side by side: the community Jamf Pro provider for classic configuration and the Jamf Platform Terraform provider, published by Jamf Concepts under an open-source license, for modern features, bridged by a data source that translates one object's ID into another's. The Workspace ONE UEM provider, by contrast, is still in tech preview and scoped to macOS management today.  
 - **State.** Terraform maintains a state file that maps your HCL to real-world objects. That file has to be stored, secured, locked, and backed up, usually in a remote backend. Mishandled state operations can orphan or delete real resources, and the state may contain secrets you don't want exposed.
