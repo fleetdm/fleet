@@ -9,7 +9,14 @@ const defaultEndpointsPerPage = 50
 // fleetMCPInstructions is the server-level system prompt advertised to MCP
 // clients (Claude Desktop, Cursor, etc.) via the `initialize` response. It
 // mandates the schema-first workflow that prevents the most common class of
-// silent-zero-row bug: assuming column types when writing osquery SQL.
+// silent-zero-row bug (assuming column types when writing osquery SQL) and
+// directs the client to confirm write operations with the operator first.
+//
+// NOTE: these are advisory instructions to a cooperating LLM client, not a
+// server-enforced control. A prompt-injected or non-cooperating client (or any
+// caller driving the tools over raw JSON-RPC) can ignore them — the real bounds
+// on writes are the FLEET_API_KEY's Fleet role (an observer token => Fleet 403s
+// the writes) and agent-side osquery `--disable_tables`.
 const fleetMCPInstructions = `Fleet MCP — host management and live osquery on managed devices.
 
 CRITICAL WORKFLOW for any tool that takes a 'sql' argument (run_live_query, create_saved_query):
@@ -18,6 +25,11 @@ CRITICAL WORKFLOW for any tool that takes a 'sql' argument (run_live_query, crea
 2. For any table you reference, verify column NAMES and TYPES against the schema response. If a needed table is not in the curated list, call get_osquery_schema(tables="table1,table2") for full canonical coverage.
 3. Pay attention to column TYPE in the schema response. Many osquery columns are 'text' even when their values look numeric (e.g. windows_update_history.result_code is text with values like 'Succeeded' / 'Failed', NOT integer codes). Comparing a text column against an unquoted integer literal silently returns zero rows.
 4. prepare_live_query already returns the schema for the inferred platform — use it as a single 'preview targets + schema' call, then pass the same filter args to run_live_query.
+
+WRITE OPERATIONS (run_live_query, create_saved_query): these send SQL to the Fleet API — run_live_query executes it live on managed devices, create_saved_query persists it. BEFORE calling either tool:
+- Show the operator the exact SQL and the full target scope (the resolved host_ids / label / 'fleet', or "ALL hosts" if unscoped) that will be sent to the POST endpoint.
+- Ask for explicit confirmation and wait for it. Do not call the tool until the operator confirms.
+- Never auto-approve, and never batch multiple writes behind one confirmation — confirm each write separately.
 
 Schema freshness: the in-memory schema is refreshed periodically from https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json (the JSON behind https://fleetdm.com/tables). If you suspect a schema mismatch — e.g. fleet docs show a column the response is missing — call refresh_osquery_schema and try again.
 

@@ -33,17 +33,26 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// checkTokenPosture logs the Fleet principal behind FLEET_API_KEY and the
-// resulting MCP "mode" (read-only vs write-capable), and warns when the token
-// is over-privileged or not an API-only user.
-// The MCP's capability mirrors the token's Fleet role.
+// checkTokenPosture verifies the Fleet principal behind FLEET_API_KEY and
+// REFUSES to start unless it is an API-only Fleet user. An API-only user has no
+// UI session, carries its own audit identity, and — via Fleet's per-user
+// role/team scoping — can be locked down to exactly the endpoints (and
+// teams/fleets) the MCP needs. Requiring it adds a Fleet-side authorization
+// boundary on top of the MCP's own bearer auth.
+//
+// It also logs the resolved role and warns when the token is write-capable (can
+// create/run live queries on hosts). Write-capability is a separate axis, left
+// to the operator's choice of Fleet role, so it stays a warning.
+//
+// Fails closed: if WhoAmI can't confirm the principal (Fleet unreachable or
+// token invalid) we refuse to start rather than run with an unverified token —
+// the MCP is non-functional without a reachable Fleet anyway.
 func checkTokenPosture(fleetClient *FleetClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	id, err := fleetClient.WhoAmI(ctx)
 	if err != nil {
-		logrus.Debugf("skipping Fleet token posture check (could not reach /api/v1/fleet/me): %v", err)
-		return
+		logrus.Fatalf("could not verify FLEET_API_KEY via GET /api/v1/fleet/me (%v) — the MCP requires a reachable Fleet and an API-only token to start", err)
 	}
 
 	// Resolve the token's privilege from its global role OR its per-fleet roles.
@@ -55,7 +64,7 @@ func checkTokenPosture(fleetClient *FleetClient) {
 	logrus.Infof("Fleet token identity: %s (%s, api_only=%t) — %s mode", id.Email, roleDesc, id.APIOnly, mode)
 
 	if !id.APIOnly {
-		logrus.Warn("FLEET_API_KEY is a UI user, not an API-only user — prefer a dedicated API-only Fleet user (no UI access, its own audit identity, long-lived token)")
+		logrus.Fatalf("FLEET_API_KEY must belong to an API-only Fleet user, but %s is a UI user — refusing to start. Create one with `fleetctl user create --api-only` (no UI session, its own audit identity, scoped to only the endpoints/teams the MCP needs) and use its API token.", id.Email)
 	}
 	if writeCapable {
 		logrus.Warnf("FLEET_API_KEY is write-capable (%s): the MCP can create queries and run live queries (arbitrary osquery) on hosts it can reach. Use an observer-only token to run the MCP read-only.", roleDesc)
@@ -124,12 +133,14 @@ func main() {
 	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
 	handler = mcpRouteGuard(handler)
 	handler = limitBodyMiddleware(handler)
-	// Global token-bucket throttle: a single shared bucket bounds burst floods /
-	// request amplification without per-client IP attribution (the MCP is
-	// single-tenant, so there's no per-client fairness to provide, and keying on
-	// X-Forwarded-For behind a proxy is a footgun). Brute force of MCP_AUTH_TOKEN
-	// is handled by the token-strength check above, not by rate.
-	rl := newGlobalRateLimiter(defaultGlobalRatePerSec, defaultGlobalBurst)
+	// SSE throttle.
+	// MCP_RATE_LIMIT_MODE selects "global" (one shared bucket; right behind a proxy/WAF)
+	// or "ip" (one bucket per TCP peer — never reads the spoofable X-Forwarded-For).
+	rl, err := newRateLimiter(config.RateLimitMode)
+	if err != nil {
+		logrus.Fatalf("%v", err)
+	}
+	logrus.Infof("rate limiting: %s mode", config.RateLimitMode)
 	handler = rl.Middleware(handler)
 	// Explicit timeouts defeat Slowloris-style header/body starvation attacks
 	// that pin connections to the server. ReadHeaderTimeout is the most

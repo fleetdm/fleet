@@ -291,6 +291,63 @@ func TestRateLimiterMiddleware_BurstThen429(t *testing.T) {
 	}
 }
 
+func TestNewRateLimiter(t *testing.T) {
+	if _, err := newRateLimiter(RateLimitModeGlobal); err != nil {
+		t.Errorf("global mode: unexpected error %v", err)
+	}
+	if _, err := newRateLimiter(RateLimitModeIP); err != nil {
+		t.Errorf("ip mode: unexpected error %v", err)
+	}
+	if _, err := newRateLimiter("bogus"); err == nil {
+		t.Error("unknown mode: want error, got nil")
+	}
+}
+
+// TestPerIPRateLimiter verifies the two properties that make per-IP mode safe:
+// (1) each client IP gets an independent bucket, and (2) the key is the TCP peer
+// (RemoteAddr) — X-Forwarded-For is ignored, so it can't be rotated to mint
+// fresh buckets.
+func TestPerIPRateLimiter_IndependentBucketsIgnoresXFF(t *testing.T) {
+	rl := newPerIPRateLimiter(1, 1) // burst 1 so the 2nd hit from one IP always 429s in-instant
+	allowed := 0
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { allowed++ })
+	h := rl.Middleware(next)
+
+	send := func(remoteAddr, xff string) int {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.RemoteAddr = remoteAddr
+		if xff != "" {
+			req.Header.Set("X-Forwarded-For", xff)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// IP A: first allowed, second (same IP, different ephemeral port) throttled.
+	if c := send("203.0.113.10:5000", ""); c != http.StatusOK {
+		t.Fatalf("A req1 = %d, want 200", c)
+	}
+	if c := send("203.0.113.10:5001", ""); c != http.StatusTooManyRequests {
+		t.Fatalf("A req2 = %d, want 429", c)
+	}
+	// IP B has its own bucket — still allowed while A is throttled.
+	if c := send("198.51.100.20:6000", ""); c != http.StatusOK {
+		t.Fatalf("B req1 = %d, want 200", c)
+	}
+	// IP A with rotating X-Forwarded-For stays throttled — the limiter keys on
+	// the TCP peer, not the spoofable header.
+	if c := send("203.0.113.10:5002", "1.2.3.4"); c != http.StatusTooManyRequests {
+		t.Fatalf("A + spoofed XFF = %d, want 429 (XFF must be ignored)", c)
+	}
+	if c := send("203.0.113.10:5003", "5.6.7.8"); c != http.StatusTooManyRequests {
+		t.Fatalf("A + rotating XFF = %d, want 429 (XFF must be ignored)", c)
+	}
+	if allowed != 2 { // only A's first and B's first
+		t.Errorf("next called %d times, want 2", allowed)
+	}
+}
+
 func TestValidateCVEID(t *testing.T) {
 	cases := []struct {
 		in      string
