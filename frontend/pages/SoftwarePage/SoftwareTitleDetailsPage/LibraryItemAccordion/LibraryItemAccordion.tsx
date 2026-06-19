@@ -51,10 +51,16 @@ export interface ILibraryItemAccordionProps {
    * hint would point at a menu they can't use. Defaults to true. */
   canEditSoftware?: boolean;
 
-  /** Show the "Latest" badge-button. Mutually exclusive with isPinned. */
+  /** Show the "Latest" badge-button. Mutually exclusive with isPinned and
+   * isMajorVersionPinned. */
   isLatest?: boolean;
-  /** Show the "Pinned" badge-button. Mutually exclusive with isLatest. */
+  /** Show the "Pinned" badge-button (exact-version pin). Mutually exclusive
+   * with isLatest and isMajorVersionPinned. */
   isPinned?: boolean;
+  /** Show the "Major version" badge-button (`^N` major-version pin). Same pin
+   * icon as `isPinned`, distinct label. Mutually exclusive with isLatest and
+   * isPinned. */
+  isMajorVersionPinned?: boolean;
 
   /** Labels assigned to this version (drives the label-count badge and the expanded Labels row). */
   labels?: ILabelSoftwareTitle[] | null;
@@ -65,10 +71,12 @@ export interface ILibraryItemAccordionProps {
   pending: number;
   failed: number;
 
-  /** Link targets for the install-status counts. When provided, the count renders as a link. */
-  installedPath?: string;
-  pendingPath?: string;
-  failedPath?: string;
+  /** Link targets for the install-status counts. Every count renders as a
+   * link to the corresponding hosts filter — there is no plain-text fallback,
+   * since the production page always builds these from the title id. */
+  installedPath: string;
+  pendingPath: string;
+  failedPath: string;
 
   hashSha256?: string | null;
   downloadUrl?: string;
@@ -78,6 +86,7 @@ export interface ILibraryItemAccordionProps {
 
   onLatestClick?: () => void;
   onPinnedClick?: () => void;
+  onMajorVersionPinnedClick?: () => void;
   onLabelCountClick?: () => void;
   /** Click on the labels list in the expanded panel — opens the edit software
    * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
@@ -101,6 +110,7 @@ const LibraryItemAccordion = ({
   canEditSoftware = true,
   isLatest,
   isPinned,
+  isMajorVersionPinned,
   labels,
   labelKind = "includeAny",
   installed,
@@ -115,6 +125,7 @@ const LibraryItemAccordion = ({
   trashDisabledTooltip,
   onLatestClick,
   onPinnedClick,
+  onMajorVersionPinnedClick,
   onLabelCountClick,
   onLabelsClick,
   onDownloadClick,
@@ -126,7 +137,9 @@ const LibraryItemAccordion = ({
   const labelCount = labels?.length ?? 0;
   const hasLabelScope = labelCount > 0;
   const showAllHostsBadge =
-    isActive && !hasLabelScope && (isLatest || isPinned);
+    isActive &&
+    !hasLabelScope &&
+    (isLatest || isPinned || isMajorVersionPinned);
 
   const canExpand = isActive;
   const isExpanded = canExpand && expanded;
@@ -202,6 +215,17 @@ const LibraryItemAccordion = ({
             <span>Pinned</span>
           </Button>
         )}
+        {isMajorVersionPinned && (
+          <Button
+            variant="text-icon"
+            size="small"
+            onClick={handleBadgeClick(onMajorVersionPinnedClick)}
+            className={`${baseClass}__badge-button`}
+          >
+            <Icon name="pin" color="ui-fleet-black-75" />
+            <span>Major version</span>
+          </Button>
+        )}
         {hasLabelScope && (
           <TooltipWrapper
             tipContent={renderLabelCountTooltip()}
@@ -247,36 +271,28 @@ const LibraryItemAccordion = ({
     count: number,
     label: string,
     iconTooltip: React.ReactNode,
-    path?: string,
+    path: string,
     trailing?: React.ReactNode
-  ) => {
-    const text = `${count} ${label}`;
-
-    return (
-      <div className={`${baseClass}__status-count`}>
-        <TooltipWrapper
-          tipContent={iconTooltip}
-          showArrow
-          underline={false}
-          position="top"
-          tipOffset={8}
-          clickable={false}
-        >
-          <Icon name={iconName} />
-        </TooltipWrapper>
-        {path ? (
-          <CustomLink
-            url={path}
-            text={text}
-            className={`${baseClass}__status-count-link`}
-          />
-        ) : (
-          <span>{text}</span>
-        )}
-        {trailing}
-      </div>
-    );
-  };
+  ) => (
+    <div className={`${baseClass}__status-count`}>
+      <TooltipWrapper
+        tipContent={iconTooltip}
+        showArrow
+        underline={false}
+        position="top"
+        tipOffset={8}
+        clickable={false}
+      >
+        <Icon name={iconName} />
+      </TooltipWrapper>
+      <CustomLink
+        url={path}
+        text={`${count} ${label}`}
+        className={`${baseClass}__status-count-link`}
+      />
+      {trailing}
+    </div>
+  );
 
   const statusCountsTooltip = (
     <>
@@ -415,10 +431,8 @@ const LibraryItemAccordion = ({
         isLatestFmaVersion={isLatestFmaVersion}
         isScriptPackage={isScriptPackage}
         androidPlayStoreId={androidPlayStoreId}
-        // Hash is intentionally shown in the expanded panel only.
-        sha256={null}
         hideInstallerType
-        disableTitleTooltip={!isActive}
+        disableTooltips={!isActive}
       />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
     </button>

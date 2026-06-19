@@ -4,10 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
+import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import LibraryItemAccordion, {
   ILibraryItemAccordionProps,
 } from "./LibraryItemAccordion";
+
+const statusPath = (software_status: "installed" | "pending" | "failed") =>
+  getPathWithQueryParams(paths.MANAGE_HOSTS, {
+    software_title_id: 123,
+    software_status,
+    fleet_id: 0,
+  });
 
 const baseProps: ILibraryItemAccordionProps = {
   filename: "GoogleChrome.pkg",
@@ -17,6 +26,9 @@ const baseProps: ILibraryItemAccordionProps = {
   installed: 32,
   pending: 5,
   failed: 3,
+  installedPath: statusPath("installed"),
+  pendingPath: statusPath("pending"),
+  failedPath: statusPath("failed"),
   hashSha256:
     "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
   downloadUrl: "https://example.com/installer.pkg",

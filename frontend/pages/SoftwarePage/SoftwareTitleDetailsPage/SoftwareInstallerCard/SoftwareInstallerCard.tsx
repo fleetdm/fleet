@@ -208,7 +208,6 @@ const SoftwareInstallerCard = ({
     isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
-    sha256,
     androidPlayStoreId,
     patchPolicy,
     automaticInstallPolicies,
@@ -282,7 +281,6 @@ const SoftwareInstallerCard = ({
               installerType={installerType}
               version={version}
               addedTimestamp={addedTimestamp}
-              sha256={sha256}
               isFma={isFleetMaintainedApp}
               isLatestFmaVersion={isLatestFmaVersion}
               isScriptPackage={isScriptPackage}

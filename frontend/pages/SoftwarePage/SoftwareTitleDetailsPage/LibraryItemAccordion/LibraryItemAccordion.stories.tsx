@@ -1,6 +1,8 @@
 import { Meta, StoryObj } from "@storybook/react";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
+import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import LibraryItemAccordion from "./LibraryItemAccordion";
 
@@ -8,6 +10,13 @@ const labels7: ILabelSoftwareTitle[] = Array.from({ length: 7 }, (_, i) => ({
   id: i + 1,
   name: `Label ${i + 1}`,
 })) as ILabelSoftwareTitle[];
+
+const statusPath = (software_status: "installed" | "pending" | "failed") =>
+  getPathWithQueryParams(paths.MANAGE_HOSTS, {
+    software_title_id: 123,
+    software_status,
+    fleet_id: 0,
+  });
 
 const meta: Meta<typeof LibraryItemAccordion> = {
   title: "Pages/SoftwareTitleDetailsPage/LibraryItemAccordion",
@@ -22,6 +31,9 @@ const meta: Meta<typeof LibraryItemAccordion> = {
     installed: 32,
     pending: 5,
     failed: 3,
+    installedPath: statusPath("installed"),
+    pendingPath: statusPath("pending"),
+    failedPath: statusPath("failed"),
     hashSha256:
       "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
     downloadUrl: "https://example.com/installer.pkg",

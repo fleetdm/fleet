@@ -26,25 +26,4 @@
     font-size: $xx-small;
     align-items: center;
   }
-
-  &__sha256 {
-    display: flex;
-    align-items: center;
-    margin: -$pad-small 0; // Remove vertical padding but keep clickable area
-  }
-
-  &__copy-overlay {
-    display: flex;
-    position: relative;
-    left: -95px;
-  }
-
-  &__sha-copy-button {
-    display: flex;
-    align-items: center;
-  }
-
-  &__copy-message {
-    @include copy-message;
-  }
 }
