@@ -4,7 +4,6 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
 import {
   IPolicy,
   IStoredPolicyResponse,
@@ -12,9 +11,7 @@ import {
 } from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
 import {
-  API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
-  APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
@@ -114,25 +111,6 @@ const PolicyDetailsPage = ({
   } = useContext(AppContext);
 
   const {
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryResolution,
-    lastEditedQueryBody,
-    lastEditedQueryPlatform,
-    setLastEditedQueryId,
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setLastEditedQueryPlatform,
-    setLastEditedQueryLabelsIncludeAny,
-    setLastEditedQueryLabelsIncludeAll,
-    setLastEditedQueryLabelsExcludeAny,
-    setPolicyTeamId,
-  } = useContext(PolicyContext);
-
-  const {
     isRouteOk,
     teamIdForApi,
     isTeamMaintainerOrTeamAdmin,
@@ -169,30 +147,6 @@ const PolicyDetailsPage = ({
     refetchOnWindowFocus: false,
     retry: false,
     select: (data: IStoredPolicyResponse) => data.policy,
-    onSuccess: (returnedPolicy) => {
-      setLastEditedQueryId(returnedPolicy.id);
-      setLastEditedQueryName(returnedPolicy.name);
-      setLastEditedQueryDescription(returnedPolicy.description);
-      setLastEditedQueryBody(returnedPolicy.query);
-      setLastEditedQueryResolution(returnedPolicy.resolution);
-      setLastEditedQueryCritical(returnedPolicy.critical);
-      setLastEditedQueryPlatform(returnedPolicy.platform);
-      setLastEditedQueryLabelsIncludeAny(
-        returnedPolicy.labels_include_any || []
-      );
-      setLastEditedQueryLabelsIncludeAll(
-        returnedPolicy.labels_include_all || []
-      );
-      setLastEditedQueryLabelsExcludeAny(
-        returnedPolicy.labels_exclude_any || []
-      );
-      const deNulledTeamId = returnedPolicy.team_id ?? undefined;
-      setPolicyTeamId(
-        deNulledTeamId === API_ALL_TEAMS_ID
-          ? APP_CONTEXT_ALL_TEAMS_ID
-          : deNulledTeamId
-      );
-    },
     onError: (error) => handlePageError(error),
   });
 
@@ -286,8 +240,8 @@ const PolicyDetailsPage = ({
   };
 
   const renderPlatforms = (): JSX.Element | null => {
-    if (!lastEditedQueryPlatform) return null;
-    const platforms = lastEditedQueryPlatform
+    if (!storedPolicy?.platform) return null;
+    const platforms = storedPolicy.platform
       .split(",")
       .map((p) => p.trim())
       .filter((p): p is Platform => p in PLATFORM_DISPLAY_NAMES);
@@ -348,12 +302,12 @@ const PolicyDetailsPage = ({
   };
 
   const renderResolution = () => {
-    if (!lastEditedQueryResolution) return null;
+    if (!storedPolicy?.resolution) return null;
     return (
       <DataSet
         className={`${baseClass}__resolve`}
         title="Resolve"
-        value={lastEditedQueryResolution}
+        value={storedPolicy.resolution}
         multiline
       />
     );
@@ -413,7 +367,7 @@ const PolicyDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__policy-name`}>
-                  {lastEditedQueryName}
+                  {storedPolicy?.name}
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."
@@ -430,7 +384,7 @@ const PolicyDetailsPage = ({
                 </h1>
                 <PageDescription
                   className={`${baseClass}__policy-description`}
-                  content={lastEditedQueryDescription}
+                  content={storedPolicy?.description}
                 />
               </div>
               <div className={`${baseClass}__action-button-container`}>
@@ -508,7 +462,7 @@ const PolicyDetailsPage = ({
       )}
       {showQueryModal && (
         <ShowQueryModal
-          query={lastEditedQueryBody}
+          query={storedPolicy?.query}
           onCancel={() => setShowQueryModal(false)}
         />
       )}
