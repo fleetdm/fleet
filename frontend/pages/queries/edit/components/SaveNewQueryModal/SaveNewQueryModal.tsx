@@ -22,7 +22,7 @@ import {
 
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
@@ -38,7 +38,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import RevealButton from "components/buttons/RevealButton";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
@@ -51,7 +51,7 @@ export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
-  saveQuery: (formData: ICreateQueryRequestBody) => void;
+  saveQuery: (formData: ICreateQueryFormData) => void;
   toggleSaveNewQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
@@ -238,7 +238,6 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          ignore1password
         />
         <InputField
           name="description"
@@ -315,7 +314,7 @@ const SaveNewQueryModal = ({
         />
         {platformSelector.render()}
         {isPremiumTier && (
-          <TargetLabelSelector
+          <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
             selectedCustomTarget={selectedCustomTarget}
             customTargetOptions={customTargetOptions}

@@ -1,4 +1,4 @@
-FROM golang:1.26.2-alpine3.23@sha256:80fbb8f9b2fa541a7d34378f1ad10f4f1c433817c4ed39ddb3e2f3ec3e961271
+FROM golang:1.26.4-alpine3.23@sha256:f23e8b227fb4493eabe03bede4d5a32d04092da71962f1fb79b5f7d1e6c2a17f
 ARG TAG
 RUN go install github.com/fleetdm/fleet/v4/tools/mdm/migration/mdmproxy@${TAG}
 

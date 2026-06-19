@@ -25,6 +25,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"vivaldi/darwin":                {VivaldiDMGInstaller},
 	"warp/darwin":                   {WarpDirectInstaller},
 	"android-studio/darwin":         {AndroidStudioVersionShortener},
 	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},
@@ -39,7 +40,11 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"mysqlworkbench/darwin":         {MySQLWorkbenchVersionTransformer},
 	"lens/darwin":                   {LensVersionTransformer},
 	"grammarly-desktop/darwin":      {GrammarlyDesktopVersionShortener},
+	"logitune/darwin":               {LogiTunePKGInstaller},
 	"anka-virtualization/darwin":    {AnkaVersionShortener},
+	"pd/darwin":                     {PdVersionTransformer},
+	"sonos/darwin":                  {SonosVersionTransformer},
+	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
@@ -76,6 +81,17 @@ func ZoomPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMA
 	// Override installer URL to use Zoom's Universal PKG installer instead of Homebrew's DMG
 	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://zoom.us/client/latest/ZoomInstallerIT.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func LogiTunePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use Logitech's enterprise PKG installer instead of Homebrew's DMG,
+	// which only contains a GUI installer app with no silent mode.
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://software.vc.logitech.com/downloads/tune/LogiTuneInstaller.pkg"
 	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
 	app.SHA256 = "no_check"
 

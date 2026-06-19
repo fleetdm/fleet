@@ -1,0 +1,10 @@
+{
+  "name": "Clocker",
+  "unique_identifier": "com.abhishek.Clocker",
+  "token": "clocker",
+  "installer_format": "zip",
+  "slug": "clocker/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

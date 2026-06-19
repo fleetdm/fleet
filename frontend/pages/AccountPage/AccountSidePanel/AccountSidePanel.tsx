@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import { IUser } from "interfaces/user";
-import { IVersionData } from "interfaces/version";
+import { IVersionResponse } from "interfaces/version";
 
 import { AppContext } from "context/app";
 
@@ -14,12 +14,7 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import {
-  generateRole,
-  generateTeam,
-  greyCell,
-  readableDate,
-} from "utilities/helpers";
+import { generateRole, generateTeam, readableDate } from "utilities/helpers";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -36,7 +31,7 @@ const AccountSidePanel = ({
   onGetApiToken,
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
-  const [versionData, setVersionData] = useState<IVersionData>();
+  const [versionData, setVersionData] = useState<IVersionResponse>();
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
     getThemeMode()
   );
@@ -58,6 +53,21 @@ const AccountSidePanel = ({
     };
 
     getVersionData();
+  }, []);
+
+  // Keep the radio selection in sync when the theme is changed elsewhere
+  // (command palette "Toggle dark mode", OS media query when on system).
+  // utilities/theme dispatches `fleet-theme-change` on every applied
+  // change — re-read the mode rather than trusting `detail.dark`, since
+  // dark/light alone can't disambiguate "Dark" from "System (dark)".
+  useEffect(() => {
+    const onThemeChange = () => {
+      setThemeModeState(getThemeMode());
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () => {
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+    };
   }, []);
 
   const {
@@ -115,20 +125,7 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && (
-        <DataSet
-          title="Fleets"
-          value={
-            <span
-              className={`${
-                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
-              }`}
-            >
-              {teamsText}
-            </span>
-          }
-        />
-      )}
+      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
       <DataSet title="Role" value={roleText} />
       {isPremiumTier && config && (
         <DataSet

@@ -22,6 +22,13 @@ RUN cd xar-xar-1.6.1/xar && patch < ../../patch.txt && autoconf && ./configure &
 
 FROM debian:trixie-slim@sha256:f6e2cfac5cf956ea044b4bd75e6397b4372ad88fe00908045e9a0d21712ae3ba
 
+LABEL maintainer="Fleet Developers"
+LABEL org.opencontainers.image.vendor="Fleet Device Management Inc."
+LABEL org.opencontainers.image.title="bomutils"
+LABEL org.opencontainers.image.source="https://github.com/fleetdm/fleet"
+LABEL org.opencontainers.image.url="https://fleetdm.com"
+LABEL org.opencontainers.image.documentation="https://fleetdm.com/docs"
+
 RUN apt-get update && dpkg --add-architecture i386 && apt-get upgrade -y && apt-get install -y --no-install-recommends libxml2 ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/bin /usr/bin/
 COPY --from=builder /usr/local/bin /usr/local/bin/

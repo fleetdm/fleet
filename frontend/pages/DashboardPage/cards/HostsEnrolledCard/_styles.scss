@@ -23,7 +23,7 @@
   // Note: recharts portals tick labels out of .recharts-cartesian-axis into a
   // .recharts-zIndex-layer_* group, so we target via .recharts-wrapper.
   .recharts-wrapper text {
-    fill: $ui-fleet-black-75;
+    fill: $ui-fleet-black-50;
   }
 
   // Pointer cursor only on rows with hosts. The component adds these classes
@@ -50,6 +50,11 @@
 
   &__tooltip-value {
     font-weight: $bold;
+  }
+
+  &__tooltip-share {
+    margin-top: $pad-xsmall;
+    opacity: 0.8;
   }
 
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,

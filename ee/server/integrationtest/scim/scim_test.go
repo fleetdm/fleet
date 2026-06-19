@@ -8,7 +8,7 @@ import (
 
 	"github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -41,7 +41,7 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, []string{
+			defer mysqltest.TruncateTables(t, s.DS, []string{
 				"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
 				"scim_user_group", "scim_last_request",
 			}...)

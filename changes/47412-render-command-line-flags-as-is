@@ -1,0 +1,1 @@
+* Fixed the agent settings YAML editor (global and fleet-level) hiding `command_line_flags` behind a comment when set to `{}` or `null` — those values now render as-is, since they have special semantics (they clear all local osquery flags on hosts).

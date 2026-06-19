@@ -1,0 +1,8 @@
+{
+  "name": "MindManager",
+  "unique_identifier": "com.mindjet.mindmanager.25",
+  "token": "mindmanager",
+  "installer_format": "dmg",
+  "slug": "mindmanager/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -64,12 +64,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
 		}
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" &&
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual &&
 			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
@@ -114,6 +114,25 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 				ctx, fleet.NewInvalidArgumentError(
 					"host_id", "Couldn't lock host. To lock, deploy the fleetd agent with --enable-scripts and refetch host vitals.",
 				),
+			)
+		}
+
+	case "android":
+		// Lock is supported for BYO and COBO. The Android Service.LockAndroidHost call enforces
+		// that the host is enrolled (svc.ds.AndroidHostLiteByHostUUID -> NotFound otherwise).
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return "", ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		}
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+		if !connected {
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
 			)
 		}
 
@@ -263,7 +282,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
 			}
@@ -301,6 +320,12 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 				),
 			)
 		}
+
+	case "android":
+		if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate android wipe request")
+		}
+		requireMDM = true
 
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
@@ -396,6 +421,11 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		}, host.FleetPlatform()); err != nil {
 			return "", err
 		}
+	case "android":
+		if err := svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for android")
+		}
+		activity.ViewPIN = false
 	}
 
 	if err := svc.NewActivity(
@@ -527,6 +557,11 @@ func (svc *Service) enqueueWipeHostRequest(
 		}, host.FleetPlatform()); err != nil {
 			return err
 		}
+
+	case "android":
+		if err := svc.androidModule.WipeAndroidHost(ctx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for android")
+		}
 	}
 
 	if err := svc.NewActivity(
@@ -535,6 +570,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		fleet.ActivityTypeWipedHost{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.FleetPlatform(),
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")

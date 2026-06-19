@@ -173,6 +173,62 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
 
+	// Test Python version sanitizer - recovers marketing version from the name
+	// (registry DisplayName "Python 3.14.5 (64-bit)" with DisplayVersion
+	// "3.14.5150.0").
+	pythonWin := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWin, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5", pythonWin.Version)
+
+	// Test Python sanitizer handles the .0 micro collapse (3.14.0 -> "3.14.150.0")
+	pythonWinDotZero := &fleet.Software{
+		Name:    "Python 3.14.0 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWinDotZero, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.0", pythonWinDotZero.Version)
+
+	// Test Python sanitizer normalizes the component MSI ARP entries (which the
+	// python.org installer registers alongside the bundle, all sharing the same
+	// bogus DisplayVersion) to the same marketing version as the bundle, so a
+	// single install doesn't appear in inventory under two different versions.
+	for _, componentName := range []string{
+		"Python 3.14.5 Core Interpreter (64-bit)",
+		"Python 3.14.5 Standard Library (64-bit)",
+		"Python 3.14.5 Executables (64-bit)",
+		"Python 3.14.5 Tcl/Tk (64-bit)",
+		"Python 3.14.5 pip Bootstrap (64-bit)",
+		"Python 3.14.5 Development Libraries (64-bit)",
+		"Python 3.14.5 Documentation (64-bit)",
+		"Python 3.14.5 Utility Scripts (64-bit)",
+	} {
+		pythonComponent := &fleet.Software{
+			Name:    componentName,
+			Source:  "programs",
+			Vendor:  "Python Software Foundation",
+			Version: "3.14.5150.0",
+		}
+		MutateSoftwareOnIngestion(t.Context(), pythonComponent, slog.New(slog.DiscardHandler))
+		assert.Equal(t, "3.14.5", pythonComponent.Version, "component %q", componentName)
+	}
+
+	// Test Python sanitizer doesn't touch non-PSF software named like Python
+	notPython := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5150.0", notPython.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
@@ -2131,6 +2187,17 @@ func TestDirectDiskEncryption(t *testing.T) {
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+// TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken guards against reintroducing
+// the user_uuid predicate that caused https://github.com/fleetdm/fleet/issues/45369.
+// In the post-ADE window the disk_encryption.user_uuid column can be empty while
+// FileVault is on; filtering on it makes the host appear unencrypted and blocks
+// recovery-key escrow until the user logs out/in.
+func TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken(t *testing.T) {
+	require.NotContains(t, usesMacOSDiskEncryptionQuery, "user_uuid",
+		"usesMacOSDiskEncryptionQuery must not filter on user_uuid; see issue #45369")
+	require.Contains(t, usesMacOSDiskEncryptionQuery, "filevault_status = 'on'")
+}
+
 func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 	ds := new(mock.Store)
 	var gotEncrypted bool
@@ -2776,9 +2843,10 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
@@ -2855,7 +2923,8 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
 
@@ -2938,9 +3007,10 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 3)
 
 		// We expect that the ingest function will deduplicate certs based on SHA1+username

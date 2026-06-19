@@ -36,6 +36,19 @@ func TestWingetVersionManifestDirs(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "0.9.6", got[0].GetName())
 	assert.Equal(t, "0.20.4", got[1].GetName())
+
+	// Legacy year-only folders (e.g. Microsoft.Office keeps "2010" alongside
+	// its current "16.0.x" versions) must be excluded so they don't outrank
+	// real versions in the descending version sort.
+	in = []*github.RepositoryContent{
+		dir("2010"),
+		dir("16.0.19822.20114"),
+		dir("16.0.19929.20062"),
+	}
+	got = wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "16.0.19822.20114", got[0].GetName())
+	assert.Equal(t, "16.0.19929.20062", got[1].GetName())
 }
 
 func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
@@ -342,10 +355,11 @@ func TestIngestValidations(t *testing.T) {
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.ps1"), []byte(testUninstallScriptContents), 0644))
 
 	cases := []struct {
-		name     string
-		wantErr  string
-		inputApp inputApp
-		cfg      serverConfig
+		name                string
+		wantErr             string
+		wantPatchedContains string
+		inputApp            inputApp
+		cfg                 serverConfig
 	}{
 		{
 			name:    "valid",
@@ -360,6 +374,57 @@ func TestIngestValidations(t *testing.T) {
 				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
 				InstallerType:       "msi",
 				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name: "use display version for patch",
+			// PackageVersion is "1.0" but the registry DisplayVersion is
+			// "1.0.150.0"; the patch policy must compare against the latter.
+			wantPatchedContains: "version_compare(version, '1.0.150.0')",
+			inputApp: inputApp{
+				Name:                      "Foo",
+				UniqueIdentifier:          "Foo",
+				PackageIdentifier:         "Foo",
+				InstallerArch:             "x64",
+				Slug:                      "foo/windows",
+				InstallScriptPath:         path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:       path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:             "msi",
+				InstallerScope:            "machine",
+				UseDisplayVersionForPatch: true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+				displayVersion:    "1.0.150.0",
+			},
+		},
+		{
+			name:    "use display version for patch with no display version",
+			wantErr: "no DisplayVersion found",
+			inputApp: inputApp{
+				Name:                      "Foo",
+				UniqueIdentifier:          "Foo",
+				PackageIdentifier:         "Foo",
+				InstallerArch:             "x64",
+				Slug:                      "foo/windows",
+				InstallScriptPath:         path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:       path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:             "msi",
+				InstallerScope:            "machine",
+				UseDisplayVersionForPatch: true,
 			},
 			cfg: serverConfig{
 				productCode:       "{ABCDEF}",
@@ -407,12 +472,15 @@ func TestIngestValidations(t *testing.T) {
 				githubClient: gc,
 			}
 
-			_, err = i.ingestOne(ctx, c.inputApp)
+			out, err := i.ingestOne(ctx, c.inputApp)
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				return
 			}
 			require.NoError(t, err)
+			if c.wantPatchedContains != "" {
+				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
+			}
 		})
 	}
 }
@@ -424,6 +492,7 @@ type serverConfig struct {
 	installerArch     string
 	installerProdCode string
 	upgradeCode       string
+	displayVersion    string
 }
 
 func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
@@ -444,7 +513,7 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 				Scope:          cfg.installerScope,
 				PackageVersion: "1.0",
 				AppsAndFeaturesEntries: []appsAndFeaturesEntries{
-					{UpgradeCode: cfg.upgradeCode},
+					{UpgradeCode: cfg.upgradeCode, DisplayVersion: cfg.displayVersion},
 				},
 				Installers: []installer{
 					{

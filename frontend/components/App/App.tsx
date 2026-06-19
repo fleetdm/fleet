@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
 
+import PATHS from "router/paths";
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
@@ -18,7 +19,7 @@ import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
 import mdmAppleBMAPI, {
-  IGetAbmTokensResponse,
+  IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
@@ -115,18 +116,18 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     },
   });
 
-  // Get the ABM tokens
-  useQuery<IGetAbmTokensResponse, AxiosError>(
-    ["abm_tokens"],
+  // Get the Apple Business (AB) tokens
+  useQuery<IGetAbTokensResponse, AxiosError>(
+    ["ab_tokens"],
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: ({ abm_tokens }) => {
-        abm_tokens.length &&
+      onSuccess: ({ ab_tokens }) => {
+        ab_tokens.length &&
           setABMExpiry({
-            earliestExpiry: getEarliestExpiry(abm_tokens),
-            needsAbmTermsRenewal: abm_tokens.some(
+            earliestExpiry: getEarliestExpiry(ab_tokens),
+            needsAbmTermsRenewal: ab_tokens.some(
               (token) => token.terms_expired
             ),
           });
@@ -210,7 +211,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
-        window.location.href = "/login";
+        window.location.href = PATHS.LOGIN;
       }
     }
     return true;

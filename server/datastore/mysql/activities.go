@@ -14,6 +14,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1369,13 +1370,18 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
+	const getHostStmt = `
 SELECT
-	uuid, team_id, platform, hardware_serial
+	h.uuid,
+	h.team_id,
+	h.platform,
+	h.hardware_serial,
+	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 FROM
-	hosts
+	hosts h
+	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
-	id = ?
+	h.id = ?
 `
 
 	const insNanoQueueStmt = `
@@ -1400,15 +1406,15 @@ ORDER BY
 		return nil
 	}
 
-	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID           string `db:"uuid"`
-		TeamID         *uint  `db:"team_id"`
-		Platform       string `db:"platform"`
-		HardwareSerial string `db:"hardware_serial"`
+		UUID                 string `db:"uuid"`
+		TeamID               *uint  `db:"team_id"`
+		Platform             string `db:"platform"`
+		HardwareSerial       string `db:"hardware_serial"`
+		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
 	}
 
 	// insert the host in-house app row
@@ -1486,9 +1492,15 @@ WHERE
 	insValues := make([]string, 0, len(pending))
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
+		// Mint inside this tx so the token rolls back with the nano_commands
+		// row on activation failure.
+		token := uuid.NewString()
+		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
+		}
 		manifestURL := fmt.Sprintf(
-			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -1498,10 +1510,11 @@ WHERE
 			cfg = substituted
 		}
 		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
-			CommandUUID:   p.ExecutionID,
-			HostPlatform:  hostData.Platform,
-			ManifestURL:   manifestURL,
-			Configuration: cfg,
+			CommandUUID:      p.ExecutionID,
+			HostPlatform:     hostData.Platform,
+			ManifestURL:      manifestURL,
+			Configuration:    cfg,
+			IsUserEnrollment: hostData.IsPersonalEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)

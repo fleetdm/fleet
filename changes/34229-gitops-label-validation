@@ -1,1 +1,0 @@
-* Fixed `fleetctl gitops` silently accepting labels with invalid parameter combinations (e.g. manual labels with query/criteria/platform).

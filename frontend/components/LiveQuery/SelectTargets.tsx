@@ -285,7 +285,13 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
-  }, [targetedHosts, targetedLabels, targetedTeams, setSelectedTargets]);
+    // `setSelectedTargets` comes from the (unmemoized) QueryContext, so it's a
+    // new function reference on every render. Including it here would re-run
+    // this effect every render, which dispatches a context update and causes an
+    // infinite render loop ("Maximum update depth exceeded"), freezing the
+    // Select targets UI (e.g. the X to remove a host stops responding).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetedHosts, targetedLabels, targetedTeams]);
 
   useEffect(() => {
     labelsSummary && setLabels(parseLabels(labelsSummary));

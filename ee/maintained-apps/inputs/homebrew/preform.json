@@ -1,0 +1,10 @@
+{
+  "name": "PreForm",
+  "unique_identifier": "com.formlabs.PreForm",
+  "token": "preform",
+  "installer_format": "dmg",
+  "slug": "preform/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "digiKam",
+  "unique_identifier": "org.digiKam",
+  "token": "digikam",
+  "installer_format": "pkg",
+  "slug": "digikam/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

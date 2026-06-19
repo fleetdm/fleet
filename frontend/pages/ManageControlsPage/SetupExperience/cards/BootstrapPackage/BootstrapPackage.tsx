@@ -220,7 +220,14 @@ const BootstrapPackage = ({
         <EmptyState
           variant="form"
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          info={
+            <>
+              Turn on MDM and automatic enrollment to deploy a custom bootstrap
+              package.
+              <br />
+              Supported on macOS.
+            </>
+          }
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on

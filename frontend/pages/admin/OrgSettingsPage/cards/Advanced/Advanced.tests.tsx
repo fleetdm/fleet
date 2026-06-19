@@ -1,6 +1,6 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import createMockConfig from "__mocks__/configMock";
 
@@ -15,6 +15,7 @@ const renderAdvanced = (
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
+    license: { ...baseConfig.license, tier: "premium" },
     features: {
       ...baseConfig.features,
       historical_data:
@@ -23,7 +24,10 @@ const renderAdvanced = (
   };
   const handleSubmit =
     overrides.handleSubmit ?? jest.fn().mockResolvedValue(true);
-  const utils = renderWithSetup(
+  const render = createCustomRenderer({
+    context: { app: { isPremiumTier: true } },
+  });
+  const utils = render(
     <Advanced
       appConfig={config}
       handleSubmit={handleSubmit}
@@ -38,24 +42,34 @@ describe("Advanced settings — Activity & data retention", () => {
   it("renders the new section heading and both checkboxes", () => {
     renderAdvanced();
     expect(screen.getByText("Activity & data retention")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeInTheDocument();
     expect(
-      screen.getByLabelText(/Disable vulnerabilities/i)
+      screen.getByLabelText(/Hosts online historical reporting/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Vulnerability exposure historical reporting/i)
     ).toBeInTheDocument();
   });
 
-  it("starts with both checkboxes unchecked when collection is enabled", () => {
+  it("starts with both checkboxes checked when collection is enabled", () => {
     renderAdvanced();
-    expect(screen.getByLabelText(/Disable hosts online/i)).not.toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Hosts online historical reporting/i)
+    ).toBeChecked();
+    expect(
+      screen.getByLabelText(/Vulnerability exposure historical reporting/i)
+    ).toBeChecked();
   });
 
-  it("starts with the checkbox checked when collection is disabled in config", () => {
+  it("starts with the checkbox unchecked when collection is disabled in config", () => {
     renderAdvanced({
       historicalData: { uptime: false, vulnerabilities: true },
     });
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Hosts online historical reporting/i)
+    ).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Vulnerability exposure historical reporting/i)
+    ).toBeChecked();
   });
 
   it("submits without confirmation when no dataset is being newly disabled", async () => {

@@ -47,15 +47,6 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-## Go-To-Market tools
-
-Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
-
-Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
-
-To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
-
-
 ## Customer support service level objectives (SLOs)
 
 **Fleet Free:**
@@ -80,6 +71,15 @@ To request approval for a new GTM tool/functionality, [create a GitHub issue](ht
 **Emergency (P0) request communications:**
 
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
+
+
+## Go-To-Market tools
+
+Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
+
+Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
+
+To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
 
 
 ## GTM strategy
@@ -109,23 +109,6 @@ When you reach out to a prospect or customer, make sure you're the right person:
 - **🐋 "Sales-ready" prospect**: The rep (AE) determines the best way to contact the prospective customer, which is often the Solutions Consultant reaching out to help.
 - **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
 - **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
-
-  
-### Outbound messaging experimentation and tracking
-
-Our outbound motion for Solution Specialists is intentionally experimental and evolving. Rather than locking into a single script or sequence, we actively test different messaging approaches and learn from real conversations.
-
-The [Outbound pivot tracking spreadsheet (confidential)](https://docs.google.com/spreadsheets/d/1VjJTrldUpJTZTLg0Xz2B9dZ-D8vYZNhGVMSYBxOxqEA/edit?gid=0#gid=0) is used to track:
-	•	the initial outreach approach
-	•	how we build toward an ask
-	•	where and how we pivot to a meeting request
-	•	the exact wording used at the pivot point
-	•	the outcome and post-mortem notes
-
-The goal is not perfect attribution or rigid process. The goal is to:
-	•	identify which messaging patterns create momentum
-	•	understand when a prospect signals readiness for a call
-	•	refine how and when we transition from curiosity to a meeting ask
 
 
 ### Programs
@@ -165,7 +148,10 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 #### Events
 
-It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
+
+> Want to propose an event:  
+> Add a row to the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc) and fill in all necessary information.
 
 
 ### Field event follow-up
@@ -209,6 +195,14 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
 
+##### Request swag
+
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
+1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
+2. Provide order details (e.g. expected shirt size, name, and shipping details).
+3. Decide if you'd like to include a personalized message and attach it to the issue.
+
+
 #### Video
 
 Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
@@ -234,7 +228,7 @@ ADRs research accounts to ensure there's a practical need Fleet can solve before
 
 ## Warm-up actions
 
-Warm-up actions are that Fleet will take at any point in time to help move the psychological progress of contacts on any account.
+Warm-up actions are actions that will take at any point in time to help move the psychological progress of contacts on any account.
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 
@@ -340,9 +334,6 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
-## Quoting
-
-
 ### Create a quote
 
 Navigate to the opportunity you are creating a quote for, then follow the steps below.
@@ -405,6 +396,21 @@ Navigate to the account you would like to label as a "Top target". Edit the acco
 > Once you check the "Top target" box, the "Target tier" field will appear. You can split your target accounts into 3 different tiers. "Tier 1" being the best, "Tier 3" being the least priority but still worth calling out.
 
 
+### Fill out the "Pre-meeting context" field
+
+After a meeting is booked, the Solutions Specialist is responsible for filling out the **"Pre-meeting context"** field on the Salesforce opportunity before the meeting takes place.
+
+To fill out this field:
+
+1. Reach out to the prospect who set the meeting (e.g. via email or LinkedIn) to gather additional context about what they're hoping to get out of the call.
+2. Ask about their current environment, key pain points, and any specific goals or topics they want to cover.
+3. Navigate to the Salesforce opportunity and edit the **"Pre-meeting context"** field.
+4. Summarize the context you gathered from the prospect and save the record.
+
+This helps the full meeting team arrive prepared and aligned on the prospect's priorities.
+
+
+
 ## Signatures
 
 
@@ -430,6 +436,11 @@ First, log into DocuSign (credentials in 1Password) and route the agreement to t
 Once the signature SLA has expired you can [contact Finance](https://fleetdm.com/handbook/finance#contact-us) to follow up. 
 
 
+## Vendor questionnaires 
+
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+
+
 ### Fleet's vendor collateral
 
 Use the following steps to send Fleet's vendor collateral to a prospect or customer:
@@ -441,11 +452,6 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 > Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🚂 :help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
 
 
-### Vendor questionnaires 
-
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
-
-
 ## Slide decks
 
 The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
@@ -455,7 +461,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
 - [Fleet for CISOs](https://docs.google.com/presentation/d/17PUAqa63jTb5yFT3hGg3F5mgGyPtUmg8OlTGyxS6vLI/edit?slide=id.g3d28ee536a1_2_0#slide=id.g3d28ee536a1_2_0)
-- Fleet for CIOs _(work in progress)_
+- [Fleet for CIOs](https://docs.google.com/presentation/d/14GpQs83B_nxTe2hbf2eOJDU6i0OaGnNvXSX7b47boBA/edit?slide=id.g3e7bfd82431_0_29#slide=id.g3e7bfd82431_0_29)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
 
 

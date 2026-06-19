@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 )
 
@@ -29,16 +30,21 @@ type HostFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" per the
+	// product's standard online predicate: host_seen_times.seen_time falls
+	// within the host's own check-in interval (LEAST of distributed_interval
+	// and config_tls_refresh, plus a 60-second grace period that mirrors
+	// fleet.OnlineIntervalBuffer). Hosts without a host_seen_times row —
+	// iOS, iPadOS, and Android devices, which only check in via MDM — are
+	// excluded. Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
-	// underlying joins: a host's software/OS row transitions when it upgrades
-	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map. Unresolved-only is
+	// implicit in the underlying joins: a host's software/OS row transitions
+	// when it upgrades past the vulnerable version, so the join naturally
+	// stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
 
 	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
 	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
@@ -51,14 +57,15 @@ type Datastore interface {
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of
-	// each strategy.
+	// each strategy. Bitmaps are passed in op form (*roaring.Bitmap); the
+	// datastore serializes via chart.BitmapToBlob at the storage boundary.
 	RecordBucketData(
 		ctx context.Context,
 		dataset string,
 		bucketStart time.Time,
 		bucketSize time.Duration,
 		strategy api.SampleStrategy,
-		entityBitmaps map[string][]byte,
+		entityBitmaps map[string]*roaring.Bitmap,
 	) error
 
 	// GetSCDData returns per-bucket distinct-host counts for a dataset over the
@@ -69,7 +76,7 @@ type Datastore interface {
 	//   - Snapshot: for each entity, pick the row active at bucketEnd, then OR
 	//     across entities ("state as of the end of the bucket").
 	// filterMask is always applied via bitmap AND — callers build it via
-	// GetHostIDsForFilter + chart.HostIDsToBlob, usually through a cache.
+	// GetHostIDsForFilter + chart.NewBitmap, usually through a cache.
 	// The entity filter is applied via entity_id IN.
 	GetSCDData(
 		ctx context.Context,
@@ -77,7 +84,7 @@ type Datastore interface {
 		startDate, endDate time.Time,
 		bucketSize time.Duration,
 		strategy api.SampleStrategy,
-		filterMask []byte,
+		filterMask *roaring.Bitmap,
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
@@ -104,5 +111,5 @@ type Datastore interface {
 	// dataset in id-order with `batchSize`-row pages, computing
 	// chart.BlobANDNOT(host_bitmap, mask) and writing the result back via
 	// UPDATE. Used by the per-fleet scrub worker.
-	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error
+	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
 }

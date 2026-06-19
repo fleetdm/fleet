@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -729,7 +730,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 }
 
 func TestUsersWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -742,7 +743,7 @@ func TestUsersWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -885,7 +886,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 }
 
 func TestPerformRequiredPasswordReset(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -936,7 +937,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 }
 
 func TestResetPassword(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
@@ -1001,7 +1002,7 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 }
 
 func TestAuthenticatedUser(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1853,7 +1854,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 
-	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+	t.Run("PerformRequiredPasswordReset clears reset tokens and sessions", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1881,7 +1882,9 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil
 		}
 
+		var destroyedSessionsForUserID uint
 		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
 			return nil
 		}
 
@@ -1891,6 +1894,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
 		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
 
-		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called for required password reset")
+		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 }

@@ -226,7 +226,11 @@ const InstallSoftware = ({
       />
       <PageDescription
         variant="right-panel"
-        content="Install software on hosts that automatically enroll to Fleet."
+        content={
+          selectedPlatform === "windows" || selectedPlatform === "linux"
+            ? "Install software on hosts that enroll to Fleet."
+            : "Install software on hosts that automatically enroll to Fleet."
+        }
       />
       <SetupExperienceContentContainer>
         {isLoadingConfig ? (
