@@ -65,7 +65,7 @@ GitHub issue: [#41781](https://github.com/fleetdm/fleet/issues/41781)
 
 _Available in Fleet Premium_
 
-IT admins can now create custom software categories to bucket applications by team, role, or proejct (e.g. "Product development") so end users can get fully set up for their projects. End users see an **Install all in category** button that installs all apps in a category, in alphanumeric order, with a single click.
+IT admins can now create custom software categories to bucket applications by team, role, or project (e.g., "Product development") so end users can get fully set up for their projects. End users see an **Install all in category** button that installs all apps in a category, in alphanumeric order, with a single click.
 
 GitHub issue: [#39018](https://github.com/fleetdm/fleet/issues/39018)
 
