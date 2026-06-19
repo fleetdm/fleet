@@ -3376,6 +3376,13 @@
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
     },
     {
+      "name": "Groove OmniDialer",
+      "slug": "groove-omnidialer/windows",
+      "platform": "windows",
+      "unique_identifier": "Groove OmniDialer",
+      "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
       "name": "Nota Gyazo GIF",
       "slug": "gyazo/darwin",
       "platform": "darwin",
