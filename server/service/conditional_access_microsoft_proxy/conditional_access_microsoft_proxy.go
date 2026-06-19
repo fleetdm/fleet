@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
@@ -209,7 +210,7 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("post request failed: %s", resp.Status)
+		return newStatusError(resp)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -239,7 +240,7 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("get request failed: %s", resp.Status)
+		return newStatusError(resp)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -290,6 +291,36 @@ type notFoundError struct{}
 
 func (e *notFoundError) Error() string {
 	return "not found"
+}
+
+// StatusError is returned for a non-2xx response from the MS proxy. It carries
+// the HTTP status code and response body so callers can surface the remote
+// error response.
+type StatusError struct {
+	Code    int
+	RespErr string
+}
+
+func (e *StatusError) Error() string {
+	if e.RespErr == "" {
+		return fmt.Sprintf("%d", e.Code)
+	}
+	return fmt.Sprintf("%d: %s", e.Code, e.RespErr)
+}
+
+// StatusCode returns the remote HTTP status code.
+func (e *StatusError) StatusCode() int { return e.Code }
+
+// Body returns the remote response body.
+func (e *StatusError) Body() string { return e.RespErr }
+
+// newStatusError reads up to str.MaxErrorResponseBytes of the response body
+// and returns a StatusError. When the body is larger the stored string ends
+// with " [truncated]".
+func newStatusError(resp *http.Response) *StatusError {
+	lr := io.LimitReader(resp.Body, str.MaxErrorResponseBytes+1)
+	bodyBytes, _ := io.ReadAll(lr)
+	return &StatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(string(bodyBytes))}
 }
 
 func (e *notFoundError) IsNotFound() bool {

@@ -1,2 +1,5 @@
 export { default as PatchAutomationCta } from "./PatchAutomationCta";
-export { default as PolicyAutomationsList } from "./PolicyAutomationsList";
+export {
+  default as PolicyAutomationsList,
+  mapAutomationRows,
+} from "./PolicyAutomationsList";
