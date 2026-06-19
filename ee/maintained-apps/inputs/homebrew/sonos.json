@@ -1,5 +1,5 @@
 {
-  "name": "Sonos S2",
+  "name": "Sonos",
   "unique_identifier": "com.sonos.macController2",
   "token": "sonos",
   "installer_format": "dmg",

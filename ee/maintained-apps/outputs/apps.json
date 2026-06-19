@@ -8570,11 +8570,11 @@
       "description": "Sonos S1 is a controller for Gen 1 Sonos products."
     },
     {
-      "name": "Sonos S2",
+      "name": "Sonos",
       "slug": "sonos/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sonos.macController2",
-      "description": "Sonos S2 is a tool to control your Sonos system."
+      "description": "Sonos is an app to set up and control Sonos wireless speakers and home audio systems."
     },
     {
       "name": "Studio 3T",
