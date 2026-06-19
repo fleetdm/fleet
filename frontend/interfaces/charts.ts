@@ -14,6 +14,40 @@ export interface IDataSet {
   relativeScale?: boolean;
 }
 
+// CVE chart software categories. Values must match the backend api.CVECategory*
+// keys. The "os" category covers operating-system vulnerabilities and the Linux
+// kernel. Descriptions mirror the Figma sub-labels.
+export const CVE_SOFTWARE_CATEGORIES = [
+  {
+    value: "os",
+    label: "Operating system (OS)",
+    tooltipLabel: "OS",
+    description: "",
+  },
+  {
+    value: "browsers",
+    label: "Browsers",
+    tooltipLabel: "browsers",
+    description: "Google Chrome, Safari, Mozilla Firefox, Brave, and Opera",
+  },
+  {
+    value: "office",
+    label: "Microsoft Office",
+    tooltipLabel: "Microsoft Office",
+    description: "Word, Excel, PowerPoint, and Outlook",
+  },
+  {
+    value: "adobe",
+    label: "Adobe",
+    tooltipLabel: "Adobe",
+    description: "Acrobat, Flash, and Shockwave Player",
+  },
+] as const;
+
+export const ALL_CVE_SOFTWARE_CATEGORY_VALUES = CVE_SOFTWARE_CATEGORIES.map(
+  (c) => c.value as string
+);
+
 export interface IFormattedDataPoint {
   timestamp: string;
   label: string;
