@@ -150,7 +150,7 @@ const ScriptDetailsModal = ({
       const file = new File([content], filename);
       FileSaver.saveAs(file);
     } catch {
-      notify.error("Couldn’t Download. Please try again.");
+      notify.error("Couldn’t download. Please try again.");
     }
   };
 

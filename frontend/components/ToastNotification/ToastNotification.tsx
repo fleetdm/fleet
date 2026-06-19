@@ -10,6 +10,12 @@ const baseClass = "toast-notification";
 const SUCCESS_DURATION = 5000;
 const ERROR_DURATION = Infinity;
 
+// Fallback copy for error toasts called with an empty message. Error helpers
+// (getErrorReason/getErrorMessage) return "" for errors they can't parse — e.g.
+// a network error — so without this the toast would render with no message,
+// just the raw-response panel. Keeps every error toast meaningful.
+const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
+
 // Max number of visible toasts at the same time.
 const VISIBLE_TOASTS = 10;
 
@@ -249,13 +255,21 @@ export const notify: INotify = {
   },
   error: (message, options) => {
     const id = options?.id ?? nextToastId();
+    // Fall back to generic copy when the caller passes an empty/blank message
+    // so the toast is never just an icon + raw-response panel.
+    const resolvedMessage =
+      message === null ||
+      message === undefined ||
+      (typeof message === "string" && message.trim() === "")
+        ? GENERIC_ERROR_MESSAGE
+        : message;
     const { detail, detailLabel } = resolveDetailProps(options);
     setTimeout(() => {
       toast.custom(
         (sonnerId) => (
           <ToastCard
             variant="error"
-            message={message}
+            message={resolvedMessage}
             detail={detail}
             detailLabel={detailLabel}
             toastId={sonnerId}
