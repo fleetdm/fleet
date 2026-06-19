@@ -157,31 +157,13 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		return nil
 	}
 
-	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get android app configuration")
-	}
-
-	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
-
-	if needsPerHostSubstitution {
-		batchIdx := 0
-		for hostUUID := range hosts {
-			singleHost := map[string]string{hostUUID: hosts[hostUUID]}
-			delay := time.Duration(batchIdx) * androidSoftwareInstallStaggerInterval
-			if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, singleHost, enterpriseName, appConfigChanged, delay); err != nil {
-				return ctxerr.Wrapf(ctx, err, "queue per-host batch for host %s", hostUUID)
-			}
-			batchIdx++
-		}
-	} else {
-		// No variables: batch hosts normally.
-		batches := splitHostMap(hosts, v.AndroidBatchSize)
-		for i, batch := range batches {
-			delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
-			if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
-				return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
-			}
+	// Queue staggered batch jobs. The phase-2 handler handles per-host
+	// variable substitution within each batch, so we always chunk the same way.
+	batches := splitHostMap(hosts, v.AndroidBatchSize)
+	for i, batch := range batches {
+		delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
+		if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
 		}
 	}
 
@@ -201,19 +183,30 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
 
 	if needsPerHostSubstitution {
+		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
+		for uuid := range hostUUIDToPolicyID {
+			hostUUIDs = append(hostUUIDs, uuid)
+		}
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}
+		hostDetails, err := v.Datastore.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch fetch host details for variable substitution")
+		}
+		hostByUUID := make(map[string]*fleet.Host, len(hostDetails))
+		for _, h := range hostDetails {
+			hostByUUID[h.UUID] = h
+		}
+
 		for hostUUID := range hostUUIDToPolicyID {
-			androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-			if err != nil {
-				if fleet.IsNotFound(err) {
-					continue // host deleted since the job was queued
-				}
-				return ctxerr.Wrapf(ctx, err, "get android host for variable substitution (host %s)", hostUUID)
+			h, ok := hostByUUID[hostUUID]
+			if !ok {
+				continue // host deleted since the job was queued
 			}
 
 			subHost := profiles.AndroidAppConfigSubstitutionHost{
-				UUID:           androidHost.Host.UUID,
-				HardwareSerial: androidHost.Host.HardwareSerial,
-				Platform:       androidHost.Host.Platform,
+				UUID:           h.UUID,
+				HardwareSerial: h.HardwareSerial,
+				Platform:       h.Platform,
 			}
 			substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
 			if err != nil {

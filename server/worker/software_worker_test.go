@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -283,6 +284,94 @@ func TestMakeAndroidAppAvailableBatching(t *testing.T) {
 		totalHosts += len(args.HostUUIDToPolicyID)
 	}
 	require.Equal(t, 5, totalHosts, "all 5 hosts should be distributed across batches")
+}
+
+func TestMakeAndroidAppAvailableBatchNoVars(t *testing.T) {
+	var addAppsCalled bool
+	var capturedHosts map[string]string
+
+	androidModule := &mockAndroidModule{
+		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			addAppsCalled = true
+			capturedHosts = hostUUIDs
+			result := make(map[string]*android.MDMAndroidPolicyRequest)
+			for uuid := range hostUUIDs {
+				result[uuid] = &android.MDMAndroidPolicyRequest{PolicyVersion: sql.Null[int64]{V: 42, Valid: true}}
+			}
+			return result, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
+		return nil, nil // no config
+	}
+
+	var pendingConfigs []string
+	ds.SetAndroidAppInstallPendingApplyConfigFunc = func(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+		pendingConfigs = append(pendingConfigs, hostUUID)
+		return nil
+	}
+
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	hosts := map[string]string{"host-1": "host-1", "host-2": "host-2"}
+	err := w.makeAndroidAppAvailableBatch(t.Context(), "com.example.app", 1, hosts, "enterprises/test", true)
+	require.NoError(t, err)
+
+	require.True(t, addAppsCalled, "should call AddAppsToAndroidPolicy")
+	require.Equal(t, hosts, capturedHosts, "all hosts should be sent in one call")
+	require.Len(t, pendingConfigs, 2, "appConfigChanged=true should update both hosts")
+}
+
+func TestMakeAndroidAppAvailableBatchWithVars(t *testing.T) {
+	var addAppsCalls int
+	var capturedConfigs []string
+
+	androidModule := &mockAndroidModule{
+		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+			addAppsCalls++
+			if len(appPolicies) > 0 {
+				capturedConfigs = append(capturedConfigs, string(appPolicies[0].ManagedConfiguration))
+			}
+			result := make(map[string]*android.MDMAndroidPolicyRequest)
+			for uuid := range hostUUIDs {
+				result[uuid] = &android.MDMAndroidPolicyRequest{PolicyVersion: sql.Null[int64]{V: 1, Valid: true}}
+			}
+			return result, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	// Config with a fleet variable
+	ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
+		return []byte(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID"}}`), nil
+	}
+	// Batch fetch returns two hosts with different UUIDs
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			hosts = append(hosts, &fleet.Host{UUID: uuid, Platform: "android", HardwareSerial: "SN-" + uuid})
+		}
+		return hosts, nil
+	}
+	ds.SetAndroidAppInstallPendingApplyConfigFunc = func(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+		return nil
+	}
+
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	hosts := map[string]string{"uuid-aaa": "uuid-aaa", "uuid-bbb": "uuid-bbb"}
+	err := w.makeAndroidAppAvailableBatch(t.Context(), "com.example.app", 1, hosts, "enterprises/test", false)
+	require.NoError(t, err)
+
+	// Per-host substitution: one AMAPI call per host
+	require.Equal(t, 2, addAppsCalls, "should call AddAppsToAndroidPolicy once per host")
+
+	// Each call should have the host's UUID substituted in, not the literal variable
+	for _, cfg := range capturedConfigs {
+		require.NotContains(t, cfg, "$FLEET_VAR_HOST_UUID", "variable should be substituted")
+	}
 }
 
 func TestQueueBulkSetAndroidAppsAvailableForHostsChunking(t *testing.T) {

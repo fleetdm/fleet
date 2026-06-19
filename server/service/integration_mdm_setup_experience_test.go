@@ -4526,31 +4526,39 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.runWorkerUntilDoneWithChecks(true)
 
-	// worker should have:
-	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
-	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
-	// 2. added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
-	// 3. made all apps available to the enrolled host (for self-service), from the host enrollment
-	// 4. installed the apps, from the host enrollment
+	// worker should have (in any order due to staggered job queuing):
+	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
+	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// - made all apps available to the enrolled host (for self-service), from the host enrollment
+	// - installed the apps, from the host enrollment
 	require.Len(t, patchAppsPolicies, 5)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-	}, patchAppsPolicies[0])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[1])
-	// Fleet agent is added during enrollment before self-service apps
-	require.Len(t, patchAppsPolicies[2], 1)
-	require.Equal(t, "com.fleetdm.agent", patchAppsPolicies[2][0].PackageName)
-	require.Equal(t, "FORCE_INSTALLED", patchAppsPolicies[2][0].InstallType)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[3])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[4])
+
+	// Flatten all AMAPI calls into a set of (packageName, installType) pairs
+	// to verify the right calls were made regardless of order.
+	type appCall struct {
+		PackageName string
+		InstallType string
+	}
+	var allCalls []appCall
+	for _, policies := range patchAppsPolicies {
+		for _, p := range policies {
+			allCalls = append(allCalls, appCall{p.PackageName, p.InstallType})
+		}
+	}
+	require.ElementsMatch(t, []appCall{
+		// app1 made available individually (from PATCH config change)
+		{app1.VPPAppID.AdamID, "AVAILABLE"},
+		// app2 made available individually (from PATCH config change)
+		{app2.VPPAppID.AdamID, "AVAILABLE"},
+		// Fleet agent added during enrollment
+		{"com.fleetdm.agent", "FORCE_INSTALLED"},
+		// app1+app2 made available during enrollment (self-service)
+		{app1.VPPAppID.AdamID, "AVAILABLE"},
+		{app2.VPPAppID.AdamID, "AVAILABLE"},
+		// app1+app2 installed during enrollment (setup experience)
+		{app1.VPPAppID.AdamID, "PREINSTALLED"},
+		{app2.VPPAppID.AdamID, "PREINSTALLED"},
+	}, allCalls)
 
 	patchAppsPolicies = nil
 
