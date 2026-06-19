@@ -97,7 +97,9 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 //     grace period.
 //   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
 //     they use their MDM activity signal — the most recent of
-//     nano_enrollments.last_seen_at (bumped on every MDM check-in) and
+//     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
+//     considered for enabled enrollments since last_seen_at is also bumped when
+//     an enrollment is disabled on checkout) and
 //     host_seen_times.seen_time, falling back to detail_updated_at (the
 //     neverTimestamp sentinel treated as null) — within mobileOnlineWindowSeconds
 //     of `now`. There is deliberately no created_at fallback: a freshly enrolled
@@ -108,6 +110,7 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 		FROM hosts h
 			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.enabled = 1
 				AND ne.type IN ('Device', 'User Enrollment (Device)')
 		WHERE (
 			(

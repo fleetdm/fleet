@@ -34,6 +34,7 @@ func TestFindOnlineHostIDs(t *testing.T) {
 		{"AndroidOnlineViaDetailUpdatedAt", testFindOnlineAndroidOnline},
 		{"AndroidOfflineWhenDetailNever", testFindOnlineAndroidNever},
 		{"MobileNeverCheckedInExcluded", testFindOnlineMobileNeverCheckedIn},
+		{"MobileDisabledEnrollmentExcluded", testFindOnlineMobileDisabledEnrollment},
 		{"MobileDisabledFleetExcluded", testFindOnlineMobileDisabledFleet},
 	}
 	for _, c := range cases {
@@ -57,6 +58,10 @@ func TestFindOnlineHostIDs(t *testing.T) {
 // hosts, nanoLastSeen seeds a nano_enrollments row (the Apple MDM check-in
 // signal) and detailUpdatedAt overrides hosts.detail_updated_at (the Android
 // status-report signal); leave either zero to omit it.
+//
+// nanoDisabled seeds the nano_enrollments row with enabled = 0 (simulating a
+// device that checked out, which also bumps last_seen_at). The default is an
+// enabled enrollment.
 type hostSeed struct {
 	teamID              uint // 0 means NULL
 	seenTime            time.Time
@@ -64,6 +69,7 @@ type hostSeed struct {
 	omitSeenTime        bool
 	platform            string
 	nanoLastSeen        time.Time
+	nanoDisabled        bool
 	detailUpdatedAt     time.Time
 }
 
@@ -96,7 +102,7 @@ func seedHosts(t *testing.T, tdb *testutils.TestDB, entries []hostSeed) []uint {
 		// detail_updated_at defaults to the sentinel so it never spuriously
 		// makes a host look freshly active; a non-zero detailUpdatedAt (the
 		// Android status-report signal) overrides it.
-		var detailArg any = "2000-01-01 00:00:00"
+		var detailArg any = neverTimestamp
 		if !e.detailUpdatedAt.IsZero() {
 			detailArg = e.detailUpdatedAt
 		}
@@ -129,10 +135,14 @@ func seedHosts(t *testing.T, tdb *testutils.TestDB, entries []hostSeed) []uint {
 			_, err = tdb.DB.ExecContext(ctx,
 				`INSERT INTO nano_devices (id, authenticate) VALUES (?, ?)`, uuid, "auth")
 			require.NoError(t, err)
+			enabled := 1
+			if e.nanoDisabled {
+				enabled = 0
+			}
 			_, err = tdb.DB.ExecContext(ctx, `
-				INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
-				VALUES (?, ?, 'Device', 'topic', 'magic', 'hex', ?)`,
-				uuid, uuid, e.nanoLastSeen)
+				INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at, enabled)
+				VALUES (?, ?, 'Device', 'topic', 'magic', 'hex', ?, ?)`,
+				uuid, uuid, e.nanoLastSeen, enabled)
 			require.NoError(t, err)
 		}
 		ids = append(ids, hostID)
@@ -332,6 +342,23 @@ func testFindOnlineMobileNeverCheckedIn(t *testing.T, tdb *testutils.TestDB, ds 
 	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
 	require.NoError(t, err)
 	assert.Empty(t, got)
+}
+
+func testFindOnlineMobileDisabledEnrollment(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC().Truncate(time.Second)
+	// Disabling an enrollment (e.g. on checkout) sets nano_enrollments.enabled = 0
+	// AND bumps last_seen_at to CURRENT_TIMESTAMP. The predicate only joins
+	// enabled enrollments, so a device that just checked out must NOT count as
+	// online even though its last_seen_at is recent.
+	ids := seedHosts(t, tdb, []hostSeed{
+		{teamID: 1, platform: "ios", omitSeenTime: true, nanoLastSeen: mobileRecent(now)},                    // 0: online (enabled)
+		{teamID: 1, platform: "ios", omitSeenTime: true, nanoLastSeen: mobileRecent(now), nanoDisabled: true}, // 1: offline (disabled, last_seen_at bumped on checkout)
+	})
+
+	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{ids[0]}, got)
 }
 
 func testFindOnlineMobileDisabledFleet(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {

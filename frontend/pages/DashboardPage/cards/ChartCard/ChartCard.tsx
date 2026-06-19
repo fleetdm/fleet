@@ -206,8 +206,8 @@ const ChartCard = ({
           <br />
           <br />
           iOS, iPadOS, and Android hosts are excluded by default; include them
-          from the filter settings. Locked iOS and iPadOS hosts count as online
-          as long as they have power and an internet connection.
+          in the filter settings. Locked iOS and iPadOS hosts count as online as
+          long as they have power and an internet connection.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
