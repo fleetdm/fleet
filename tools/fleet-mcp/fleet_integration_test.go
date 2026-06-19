@@ -258,7 +258,7 @@ func TestBearerAuthMiddleware(t *testing.T) {
 }
 
 func TestRateLimiterMiddleware_BurstThen429(t *testing.T) {
-	rl := newIPRateLimiter(1, 2) // 2-token bucket, 1 rps refill
+	rl := newGlobalRateLimiter(1, 2) // global 2-token bucket, 1 rps refill
 	allowed := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { allowed++ })
 	h := rl.Middleware(next)
@@ -297,16 +297,16 @@ func TestValidateCVEID(t *testing.T) {
 		wantErr bool
 	}{
 		{"CVE-2026-12345", false},
-		{"CVE-1999-0001", false},     // 4-digit minimum
+		{"CVE-1999-0001", false},      // 4-digit minimum
 		{"  CVE-2026-12345  ", false}, // trims
 		{"", true},
 		{"   ", true},
-		{"cve-2026-12345", true},   // case-sensitive
-		{"CVE-26-12345", true},     // year too short
-		{"CVE-2026-123", true},     // suffix too short
-		{"CVE-2026-12345x", true},  // trailing junk
-		{"CVE-2026", true},         // missing suffix
-		{"<script>", true},         // injection-shaped junk
+		{"cve-2026-12345", true},  // case-sensitive
+		{"CVE-26-12345", true},    // year too short
+		{"CVE-2026-123", true},    // suffix too short
+		{"CVE-2026-12345x", true}, // trailing junk
+		{"CVE-2026", true},        // missing suffix
+		{"<script>", true},        // injection-shaped junk
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
@@ -401,5 +401,84 @@ func TestGetHostsForCVE_PaginatesTitles(t *testing.T) {
 	}
 	if got := titlesCalls.Load(); got != 2 {
 		t.Errorf("expected 2 titles pages (100 + 30 short page), got %d", got)
+	}
+}
+
+func TestValidateFleetBaseURL(t *testing.T) {
+	cases := []struct {
+		name    string
+		url     string
+		wantErr bool
+		why     string
+	}{
+		// Allowed — the MCP's legitimate targets.
+		{"loopback IPv4", "https://127.0.0.1:8080", false, "localhost dev Fleet"},
+		{"loopback IPv4 http", "http://127.0.0.1:8080", false, "localhost dev Fleet"},
+		{"loopback IPv6", "https://[::1]:8080", false, "localhost dev Fleet"},
+		{"localhost hostname", "https://localhost:8080", false, "resolves to loopback"},
+		{"private 10.x", "https://10.0.0.5:8080", false, "internal Fleet on a private network"},
+		{"private 192.168.x", "https://192.168.1.10", false, "internal Fleet"},
+		{"private 172.16.x", "https://172.16.0.1", false, "internal Fleet"},
+		{"public IP", "https://93.184.216.34", false, "a hosted Fleet on a public IP"},
+
+		// Blocked — link-local / cloud metadata (no legit Fleet lives here).
+		{"AWS/Azure IMDS", "https://169.254.169.254", true, "cloud-metadata endpoint — would leak the token"},
+		{"link-local IPv4 range", "http://169.254.1.1", true, "169.254.0.0/16 link-local"},
+		{"link-local IPv6 fe80", "https://[fe80::1]", true, "fe80::/10 link-local"},
+		{"link-local multicast", "http://224.0.0.1", true, "224.0.0.0/24 link-local multicast"},
+
+		// Blocked — malformed / wrong scheme.
+		{"non-http scheme", "ftp://10.0.0.1", true, "must be http(s)"},
+		{"missing host", "http://", true, "no host"},
+		{"empty string", "", true, "no scheme/host"},
+		{"unparseable URL", "http://[", true, "url.Parse error"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateFleetBaseURL(tc.url)
+			if (err != nil) != tc.wantErr {
+				verb := "allowed"
+				if tc.wantErr {
+					verb = "blocked"
+				}
+				t.Errorf("validateFleetBaseURL(%q) err=%v; expected %s (%s)", tc.url, err, verb, tc.why)
+			}
+		})
+	}
+}
+
+// TestFleetIdentityPrivilege documents how the startup posture check classifies
+// each kind of token — including FLEET-scoped users (global_role null), whose
+// roles live in the fleets/teams array. Only a token that is observer-only
+// (globally or across all its fleets) is "read-only"; anything else is
+// write-capable and the check warns.
+func TestFleetIdentityPrivilege(t *testing.T) {
+	cases := []struct {
+		name        string
+		id          FleetIdentity
+		wantWrite   bool
+		wantDescHas string
+	}{
+		{"global admin", FleetIdentity{GlobalRole: "admin"}, true, "global_role=admin"},
+		{"global maintainer", FleetIdentity{GlobalRole: "maintainer"}, true, "global_role=maintainer"},
+		{"global observer", FleetIdentity{GlobalRole: "observer"}, false, "global_role=observer"},
+		{"global observer_plus", FleetIdentity{GlobalRole: "observer_plus"}, true, "observer_plus"}, // can run live queries → write-capable
+		{"fleet admin", FleetIdentity{Fleets: []FleetRole{{"Workstations", "admin"}}}, true, "Workstations=admin"},
+		{"fleet maintainer", FleetIdentity{Fleets: []FleetRole{{"Servers", "maintainer"}}}, true, "Servers=maintainer"},
+		{"fleet observer only", FleetIdentity{Fleets: []FleetRole{{"Workstations", "observer"}}}, false, "Workstations=observer"},
+		{"mixed fleet roles", FleetIdentity{Fleets: []FleetRole{{"A", "observer"}, {"B", "maintainer"}}}, true, "B=maintainer"},
+		{"no roles at all", FleetIdentity{}, false, "no global or fleet role"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			desc, write := tc.id.privilege()
+			if write != tc.wantWrite {
+				t.Errorf("privilege() writeCapable=%v, want %v (desc=%q)", write, tc.wantWrite, desc)
+			}
+			if !strings.Contains(desc, tc.wantDescHas) {
+				t.Errorf("privilege() desc=%q, want it to contain %q", desc, tc.wantDescHas)
+			}
+		})
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -146,6 +147,147 @@ func isLoopbackURL(rawURL string) bool {
 	}
 	host := u.Hostname() // strips port if present
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
+// validateFleetBaseURL rejects a FLEET_BASE_URL that resolves to a link-local /
+// cloud-metadata address (169.254.0.0/16, fe80::/10). Sending the admin Fleet
+// API token to such a host has no legitimate use and is the MCP-side analog of
+// the SSRF that PR #46463 blocks for the Fleet server.
+// Loopback and private addresses are intentionally allowed
+// (the MCP's normal target is a localhost or internal Fleet).
+func validateFleetBaseURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid FLEET_BASE_URL %q: %w", rawURL, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("FLEET_BASE_URL must use http or https, got %q", rawURL)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("FLEET_BASE_URL %q has no host", rawURL)
+	}
+	check := func(ip net.IP) error {
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf(
+				"FLEET_BASE_URL host %s is a link-local/cloud-metadata address (169.254.0.0/16 or fe80::/10); "+
+					"refusing to start so the Fleet API token is not sent there", ip)
+		}
+		return nil
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return check(ip)
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		// Can't resolve at startup (air-gapped / DNS not ready) — don't block.
+		return nil
+	}
+	for _, ip := range ips {
+		if err := check(ip); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FleetRole is one fleet-scoped role held by the token's user. ("Fleets" are the
+// product term for what Fleet's API still calls "teams"; the /me response field
+// is `teams`.) Populated when the user has no global role.
+type FleetRole struct {
+	Fleet string // fleet (team) name
+	Role  string
+}
+
+// FleetIdentity is the Fleet principal that FLEET_API_KEY authenticates as,
+// resolved from GET /api/v1/fleet/me. Used for the startup token-posture check.
+type FleetIdentity struct {
+	Email      string
+	GlobalRole string      // "admin", "maintainer", "observer", … or "" when fleet-scoped
+	Fleets     []FleetRole // populated for fleet-scoped users (global_role null)
+	APIOnly    bool
+}
+
+// privilege summarizes the token's Fleet role(s) for logging and reports whether
+// the token can create queries / run live queries on hosts. Fleet makes
+// global_role and fleet roles mutually exclusive, so a global role wins; for a
+// fleet-scoped user every fleet role is considered. Anything other than a plain
+// "observer" is treated as write-capable (observer is the only role that can
+// neither create saved queries nor run ad-hoc live queries).
+func (id *FleetIdentity) privilege() (desc string, writeCapable bool) {
+	if id.GlobalRole != "" {
+		return "global_role=" + id.GlobalRole, id.GlobalRole != "observer"
+	}
+	if len(id.Fleets) == 0 {
+		return "no global or fleet role", false
+	}
+	parts := make([]string, 0, len(id.Fleets))
+	for _, f := range id.Fleets {
+		parts = append(parts, f.Fleet+"="+f.Role)
+		if f.Role != "observer" {
+			writeCapable = true
+		}
+	}
+	return "fleets=[" + strings.Join(parts, ", ") + "]", writeCapable
+}
+
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY via GET /api/v1/fleet/me.
+// Best-effort: callers use it only for a startup posture check and must tolerate
+// an error (offline / transient Fleet).
+func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("whoami request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("whoami: HTTP %d", resp.StatusCode)
+	}
+	var body struct {
+		User struct {
+			Email      string  `json:"email"`
+			GlobalRole *string `json:"global_role"`
+			APIOnly    bool    `json:"api_only"`
+			Teams      []struct {
+				Name string `json:"name"`
+				Role string `json:"role"`
+			} `json:"teams"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("whoami decode: %w", err)
+	}
+	id := &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}
+	if body.User.GlobalRole != nil {
+		id.GlobalRole = *body.User.GlobalRole
+	}
+	for _, t := range body.User.Teams {
+		if t.Role != "" {
+			id.Fleets = append(id.Fleets, FleetRole{Fleet: t.Name, Role: t.Role})
+		}
+	}
+	return id, nil
+}
+
+// fleetErrMsg renders a Fleet API error for return to the MCP client/LLM
+// without leaking the raw response body, which can carry an internal request
+// UUID and echoed input (finding E). Prefers the top-level "message" field;
+// falls back to a bounded snippet.
+func fleetErrMsg(status int, body []byte) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Message != "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, parsed.Message)
+	}
+	snippet := strings.TrimSpace(string(body))
+	if snippet == "" {
+		return fmt.Sprintf("Fleet API returned HTTP %d", status)
+	}
+	if len(snippet) > 120 {
+		snippet = snippet[:120] + "…"
+	}
+	return fmt.Sprintf("Fleet API returned HTTP %d: %s", status, snippet)
 }
 
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
@@ -643,25 +785,6 @@ func (fc *FleetClient) GetLabels(ctx context.Context) ([]Label, error) {
 	}
 
 	return result.Labels, nil
-}
-
-// GetFleetConfig retrieves the Fleet server configuration.
-func (fc *FleetClient) GetFleetConfig(ctx context.Context) (map[string]interface{}, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/config", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fleet config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get fleet config: status code %d", resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode fleet config: %w", err)
-	}
-	return result, nil
 }
 
 // GetEndpointsWithAggregations returns the platform breakdown for the entire
@@ -1526,7 +1649,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to create saved query: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("failed to create saved query: %s", fleetErrMsg(resp.StatusCode, bodyBytes))
 	}
 
 	var result struct {
@@ -1813,7 +1936,7 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ad hoc query failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ad hoc query failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var adHoc AdHocQueryResponse
@@ -1900,7 +2023,7 @@ func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sq
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("live query run failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("live query run failed: %s", fleetErrMsg(resp.StatusCode, body))
 	}
 
 	var runResp MultiQueryRunResponse

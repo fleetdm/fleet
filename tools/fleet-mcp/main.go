@@ -17,6 +17,11 @@ import (
 // memory-exhaustion attacks via oversized POST bodies.
 const maxRequestBodyBytes = 1 << 20 // 1 MiB
 
+// minMCPAuthTokenLen is the minimum accepted length for MCP_AUTH_TOKEN. A
+// high-entropy token is the real brute-force defense; 32 chars is trivially met
+// by the documented `openssl rand -hex 32` (64 chars).
+const minMCPAuthTokenLen = 32
+
 // limitBodyMiddleware caps r.Body so handlers downstream cannot accidentally
 // buffer arbitrarily large payloads from a hostile client.
 func limitBodyMiddleware(next http.Handler) http.Handler {
@@ -26,6 +31,35 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// checkTokenPosture logs the Fleet principal behind FLEET_API_KEY and the
+// resulting MCP "mode" (read-only vs write-capable), and warns when the token
+// is over-privileged or not an API-only user.
+// The MCP's capability mirrors the token's Fleet role.
+func checkTokenPosture(fleetClient *FleetClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	id, err := fleetClient.WhoAmI(ctx)
+	if err != nil {
+		logrus.Debugf("skipping Fleet token posture check (could not reach /api/v1/fleet/me): %v", err)
+		return
+	}
+
+	// Resolve the token's privilege from its global role OR its per-fleet roles.
+	roleDesc, writeCapable := id.privilege()
+	mode := "read-only"
+	if writeCapable {
+		mode = "write-capable (can create/run live queries on hosts)"
+	}
+	logrus.Infof("Fleet token identity: %s (%s, api_only=%t) — %s mode", id.Email, roleDesc, id.APIOnly, mode)
+
+	if !id.APIOnly {
+		logrus.Warn("FLEET_API_KEY is a UI user, not an API-only user — prefer a dedicated API-only Fleet user (no UI access, its own audit identity, long-lived token)")
+	}
+	if writeCapable {
+		logrus.Warnf("FLEET_API_KEY is write-capable (%s): the MCP can create queries and run live queries (arbitrary osquery) on hosts it can reach. Use an observer-only token to run the MCP read-only.", roleDesc)
+	}
 }
 
 func main() {
@@ -38,11 +72,17 @@ func main() {
 	if strings.TrimSpace(config.FleetBaseURL) == "" {
 		logrus.Fatalf("FLEET_BASE_URL is required but is not set")
 	}
+	if err := validateFleetBaseURL(config.FleetBaseURL); err != nil {
+		logrus.Fatalf("%v", err)
+	}
 	if strings.TrimSpace(config.FleetAPIKey) == "" {
 		logrus.Fatalf("FLEET_API_KEY is required but is not set")
 	}
 	if strings.TrimSpace(config.MCPAuthToken) == "" {
 		logrus.Fatalf("MCP_AUTH_TOKEN is required at startup for all transports, including stdio, but is not set")
+	}
+	if len(config.MCPAuthToken) < minMCPAuthTokenLen {
+		logrus.Fatalf("MCP_AUTH_TOKEN is too weak (%d chars; need at least %d). Generate one with `openssl rand -hex 32`.", len(config.MCPAuthToken), minMCPAuthTokenLen)
 	}
 
 	// Stderr is required for stdio transport — logs must not corrupt the JSON-RPC stdout stream.
@@ -52,6 +92,9 @@ func main() {
 	logrus.Info("starting Fleet MCP server")
 
 	fleetClient := NewFleetClient(config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile)
+
+	// Surface the Fleet token's privilege at startup.
+	checkTokenPosture(fleetClient)
 
 	// Best-effort cleanup of any fleet-mcp-temp-* saved queries left over from
 	// previous runs whose DELETE failed. Synchronous so any temporary cleanup
@@ -81,12 +124,12 @@ func main() {
 	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
 	handler = mcpRouteGuard(handler)
 	handler = limitBodyMiddleware(handler)
-	// Per-IP token-bucket throttle: defends against bearer-token brute force
-	// and burst floods that would otherwise amplify into Fleet API quota
-	// exhaustion. Bucket size + refill rate are sized so normal MCP traffic
-	// (a handful of tools/call requests per second) sails through, while a
-	// flooder gets 429-throttled.
-	rl := newIPRateLimiter(defaultPerIPRatePerSec, defaultPerIPBurst)
+	// Global token-bucket throttle: a single shared bucket bounds burst floods /
+	// request amplification without per-client IP attribution (the MCP is
+	// single-tenant, so there's no per-client fairness to provide, and keying on
+	// X-Forwarded-For behind a proxy is a footgun). Brute force of MCP_AUTH_TOKEN
+	// is handled by the token-strength check above, not by rate.
+	rl := newGlobalRateLimiter(defaultGlobalRatePerSec, defaultGlobalBurst)
 	handler = rl.Middleware(handler)
 	// Explicit timeouts defeat Slowloris-style header/body starvation attacks
 	// that pin connections to the server. ReadHeaderTimeout is the most

@@ -24,7 +24,7 @@ Both **SSE** (Server-Sent Events) and **stdio** transports are supported. The sa
 
 ## Tools
 
-The server exposes 18 tools across three domains: **hosts**, **queries**, and **policies/vulnerabilities**.
+The server exposes 19 tools across three domains: **hosts**, **queries**, and **policies/vulnerabilities**. Two of them (`create_saved_query`, `run_live_query`) are mutating — they run arbitrary osquery on devices, so scope the Fleet API token accordingly (see [Security model](#security-model)).
 
 ### Hosts
 
@@ -87,7 +87,7 @@ Configure the server using environment variables or a `.env` file (in the same d
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://dogfood.fleetdm.com` |
-| `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). May alternatively be supplied via `FLEET_API_KEY_FILE`. |
+| `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). May alternatively be supplied via `FLEET_API_KEY_FILE`. **Use the least-privileged Fleet role that covers your tools:** an **observer** / observer-plus token is enough for all read-only tools. `create_saved_query` and `run_live_query` need a role that can create queries / run live queries — only grant that when you actually use those tools. With an observer token, Fleet itself rejects (403) the mutating calls, so the MCP is effectively read-only. An admin token makes a leaked credential equivalent to arbitrary osquery on every device. |
 | `FLEET_API_KEY_FILE` | *(optional)* | Path to a file containing the Fleet API token. Preferred over `FLEET_API_KEY` for production: keeps the admin token out of process env (`ps`), shell history, and `claude_desktop_config.json` (readable by your UID, lands in Time Machine backups). When both are set, `_FILE` wins. |
 | `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32`. **The server refuses to start without it on every transport (including stdio).** In SSE mode the server validates the token on every request and rate-limits each client IP to 20 requests/sec (burst 60); in stdio mode the token still must be set but is not checked at runtime (the client launches the binary as a local subprocess). May alternatively be supplied via `MCP_AUTH_TOKEN_FILE`. |
 | `MCP_AUTH_TOKEN_FILE` | *(optional)* | Path to a file containing the MCP auth token. Same pattern as `FLEET_API_KEY_FILE`. |
@@ -210,7 +210,7 @@ Stdio mode runs the binary directly as a subprocess — no network port, no TLS 
 
    Use an **absolute path** for `command`. Relative paths and `~` are not expanded.
 
-4. **Fully quit and relaunch Claude Desktop** (`Cmd+Q`, not just close-window). The 18 Fleet tools will appear in your context.
+4. **Fully quit and relaunch Claude Desktop** (`Cmd+Q`, not just close-window). The 19 Fleet tools will appear in your context.
 
 ### Smoke-test stdio mode without Claude Desktop
 
@@ -249,7 +249,7 @@ Every tool here ships with explicit MCP annotations:
 - `idempotentHint` — does repeating the call have the same effect?
 - `openWorldHint` — does it talk to a remote system, or only consult in-binary data?
 
-Without these, Claude Desktop conservatively gates every tool behind destructive-action review and may collapse the surface to a single tool. The 16 read-only tools are annotated `readOnly=true, destructive=false, idempotent=true` so the AI agent can use them freely.
+Without these, Claude Desktop conservatively gates every tool behind destructive-action review and may collapse the surface to a single tool. The 17 read-only tools are annotated `readOnly=true, destructive=false, idempotent=true` so the AI agent can use them freely. **Note:** these annotations are advisory hints honored by well-behaved clients (e.g. Claude Desktop prompts before the two destructive tools) — they are not a server-side control. The real control is the privilege of the `FLEET_API_KEY` role (use a least-privilege/observer token; see [Security model](#security-model)).
 
 **Two tools are explicitly destructive and require user approval in MCP clients:**
 
@@ -266,7 +266,11 @@ The MCP holds the operator's `FLEET_API_KEY` which is admin-scoped on the target
 
 - **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the admin token to an on-path attacker.
 - **Secret-from-file support.** `FLEET_API_KEY_FILE` and `MCP_AUTH_TOKEN_FILE` read the token from disk so it never appears in process env (`ps`), shell history, or `claude_desktop_config.json` (which is readable by your UID and lands in Time Machine backups). When both `_FILE` and direct env are set, `_FILE` wins. Recommended for production.
-- **Per-IP rate limit on SSE transport.** Token-bucket limiter (default 20 req/sec, burst 60) defeats brute force against `MCP_AUTH_TOKEN` and amplification of authenticated requests into Fleet API quota. Stale visitor entries swept every minute, 10-minute TTL. Returns `429 Too Many Requests` with `Retry-After: 1` on overflow. Honors `X-Forwarded-For` first entry for Render-style deployments — direct exposure without a trusted proxy is not recommended.
+- **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
+- **Global rate limit on SSE (a local flood backstop, not a security control).** A single **global** token-bucket (burst 100, 25 req/sec) protects the MCP process from a request flood and keeps it from amplifying load onto Fleet; it returns `429 Too Many Requests` with `Retry-After: 1` on overflow. It deliberately does **not** key on client IP / `X-Forwarded-For` (the MCP is single-tenant — no per-client fairness to provide — and trusting XFF behind a proxy is a spoofing footgun). Real per-client throttling, if ever wanted, belongs at a WAF / API gateway in front (e.g. Cloudflare); Render's edge supplies the client IP and coarse platform DDoS protection but no configurable per-IP limiter.
+- **Read vs write mode = the token's Fleet role.** The MCP acts with exactly the role of `FLEET_API_KEY` (it has no mode of its own): an **observer** token → read-only mode (Fleet 403s `create_saved_query` / `run_live_query`); a **maintainer/admin** token → write mode. At startup the MCP calls `GET /api/v1/fleet/me`, logs the detected identity + mode, and **warns** if the token isn't API-only or is write-capable — accounting for **global *and* per-fleet roles**, so a fleet admin/maintainer is flagged too (warn-only — it never blocks startup). Recommended: a dedicated **API-only** Fleet user with the **lowest role** your tools need.
+- **Live queries run arbitrary osquery (scope the token).** `run_live_query` / `create_saved_query` dispatch arbitrary osquery to devices — exactly like Fleet's own UI / `fleetctl` / live-query REST API, which the MCP proxies. Tables such as `curl` / `curl_certificate` / `carves` can make outbound requests or exfiltrate file content from a managed device (e.g. cloud-metadata credentials). **This is a Fleet/osquery capability, not specific to the MCP** — the MCP does not (and should not) special-case it. The MCP-layer control is a **least-privilege `FLEET_API_KEY`** (an observer token → Fleet rejects live queries entirely). To remove the capability everywhere (UI, `fleetctl`, scheduled, MCP), disable the tables on the osquery agent: `--disable_tables=curl,curl_certificate,carves,yara,yara_events` via fleetd/orbit agent options.
+- **Link-local `FLEET_BASE_URL` refused.** The server refuses to start if `FLEET_BASE_URL` resolves to a link-local/cloud-metadata address (`169.254.0.0/16`, `fe80::/10`), so the Fleet API token is never sent to a metadata endpoint.
 - **Body size cap on SSE transport.** `http.MaxBytesReader` caps every incoming request body at 1 MiB. Hostile clients cannot OOM the MCP via oversized JSON-RPC payloads.
 - **HTTP server timeouts.** `ReadHeaderTimeout=10s`, `ReadTimeout=30s`, `IdleTimeout=120s` defeat Slowloris-style header/body starvation.
 - **Saved-query sweeper at startup.** Any `fleet-mcp-temp-*` saved queries left over from previous runs (whose deferred DELETE failed during a crash or 5xx) are deleted on the next MCP boot. Temp query names use `crypto/rand` suffixes so concurrent invocations cannot collide.
@@ -287,7 +291,7 @@ The MCP holds the operator's `FLEET_API_KEY` which is admin-scoped on the target
    - `MCP_AUTH_TOKEN` — generate with `openssl rand -hex 32` (or `MCP_AUTH_TOKEN_FILE`)
 5. `PORT` is injected automatically by Render — no action needed.
 
-Render terminates TLS at its proxy and sets `X-Forwarded-For`, so the per-IP rate limiter sees real client IPs. If you deploy elsewhere without a trusted proxy, the `X-Forwarded-For` header is attacker-controlled and rate limiting can be bypassed — terminate TLS at a known proxy or accept the limitation.
+The MCP's rate limiter is **global** (not per-client), so no `X-Forwarded-For` / proxy-hop configuration is needed. Render fronts the service with its own edge (TLS termination, sets `X-Forwarded-For`, coarse platform DDoS protection) but does **not** offer a configurable per-IP rate limiter — if you want real per-client throttling, put a WAF / API gateway (e.g. Cloudflare) in front.
 
 ## Development
 
@@ -298,7 +302,7 @@ tools/fleet-mcp/
   main.go                  # entrypoint, flag parsing, transport selection, http.Server timeouts, body-size cap
   config.go                # env-var loading + FLEET_API_KEY_FILE / MCP_AUTH_TOKEN_FILE secret resolution
   auth.go                  # bearer-auth middleware (SSE)
-  rate_limit.go            # per-IP token-bucket throttle (SSE)
+  rate_limit.go            # global token-bucket throttle (SSE)
   route_guard.go           # SSE route allow-list
   fleet_integration.go     # FleetClient — wraps Fleet REST API. Every method takes ctx context.Context as first param.
   mcp_server.go            # SetupMCPServer orchestrator
