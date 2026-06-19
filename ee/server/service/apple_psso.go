@@ -41,7 +41,8 @@ const (
 	pssoSigningAlg = "ES256"
 
 	// The host app bundle ID is included alongside the extension's just in case;
-	// PSSO validates against the extension, but listing both is harmless.
+	// PSSO validates against the extension, but listing both is harmless and matches
+	// what the IdPs analyzed do.
 	appBundleID       = "com.fleetdm.fleet-desktop"
 	extensionBundleID = "com.fleetdm.fleet-desktop.pssoextension"
 
@@ -741,8 +742,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 }
 
 // pssoAASA mirrors the apple-app-site-association shape Apple's framework
-// consumes for PSSO. PSSO validates the extension's authsrv: entitlement, so
-// only the authsrv service is needed (webcredentials is for password autofill).
+// consumes for PSSO. PSSO validates the extension's authsrv: entitlement.
 type pssoAASA struct {
 	AuthSrv pssoAASAApps `json:"authsrv"`
 }
