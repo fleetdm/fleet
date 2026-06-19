@@ -238,14 +238,14 @@ Under Fleet's Apple Developer team (`8VBZ3948LU`, the team that owns the pinned 
    - `com.fleetdm.fleet-desktop` (host app)
    - `com.fleetdm.fleet-desktop.pssoextension` (extension)
 2. Enable the **Associated Domains** and **MDM Managed Associated Domains** capabilities on both App IDs.
-3. Create a **Developer ID** provisioning profile (distribution, platform macOS) for each App ID.
+3. Create a **Developer ID** provisioning profile (distribution, platform macOS) for each App ID. **Select the same Developer ID Application certificate that CI signs with** — SHA-1 `604D877399AAEB7630A78B84F288E2D28A2EDE42` (the identity pinned in the workflow). Fleet has more than one "Developer ID Application: Fleet Device Management Inc" certificate; a profile generated against the wrong one will sign and **notarize successfully but get SIGKILLed by AMFI at launch**, because AMFI requires the signing cert to appear in the profile's `DeveloperCertificates`. The `Verify profiles authorize the signing certificate` workflow step guards against this.
 4. base64-encode each downloaded `.provisionprofile` and store them as `APPLE_FLEET_DESKTOP_APP_PROFILE_B64` and `APPLE_PSSO_EXT_PROFILE_B64`:
    ```bash
    base64 -i FleetDesktop_DeveloperID.provisionprofile | pbcopy   # → APPLE_FLEET_DESKTOP_APP_PROFILE_B64
    base64 -i FleetPSSOExtension_DeveloperID.provisionprofile | pbcopy  # → APPLE_PSSO_EXT_PROFILE_B64
    ```
 
-Re-encode and update the secrets when a profile expires or the signing certificate is rotated. To confirm a profile grants the expected entitlements, dump it with `security cms -D -i <profile>.provisionprofile`.
+Re-encode and update the secrets when a profile expires or the signing certificate is rotated. To inspect a profile — its entitlements and, crucially, the certs it authorizes — dump it with `security cms -D -i <profile>.provisionprofile`; the `DeveloperCertificates` array must contain the CI signing cert above.
 
 ## License
 

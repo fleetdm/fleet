@@ -109,10 +109,30 @@ jobs:
             exit 1
           fi
 
-          # Developer ID profiles authorizing the restricted entitlements. codesign
-          # validates the profile against the entitlements file at sign time.
+          # Developer ID profiles authorizing the restricted entitlements.
           echo "$APPLE_PSSO_EXT_PROFILE_B64" | base64 --decode > "$APPEX/Contents/embedded.provisionprofile"
           echo "$APPLE_FLEET_DESKTOP_APP_PROFILE_B64" | base64 --decode > "$APP/Contents/embedded.provisionprofile"
+
+      - name: Verify profiles authorize the signing certificate
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          # AMFI requires the signing certificate to be listed in the embedded
+          # profile's DeveloperCertificates, or it SIGKILLs the app at launch.
+          # codesign, Gatekeeper, and notarization all pass regardless — so
+          # without this check a profile cut against the wrong cert produces a
+          # signed, notarized pkg that silently won't launch. Even two certs from
+          # the same team will result in a broken, unusable app - they must be the
+          # same cert
+          check='import sys,plistlib,hashlib; pl=plistlib.loads(sys.stdin.buffer.read()); h=[hashlib.sha1(bytes(c)).hexdigest().upper() for c in pl.get("DeveloperCertificates",[])]; print("  authorizes:",h); sys.exit(0 if sys.argv[1].upper() in h else 1)'
+          for prof in "$APPEX/Contents/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"; do
+            echo "Checking $prof"
+            if ! security cms -D -i "$prof" | python3 -c "$check" "$APPLICATION_SIGNING_IDENTITY_SHA1"; then
+              echo "::error::$prof does not authorize signing certificate $APPLICATION_SIGNING_IDENTITY_SHA1. AMFI will SIGKILL the app at launch (notarization does NOT catch this). Regenerate the Developer ID provisioning profile selecting that certificate."
+              exit 1
+            fi
+          done
 
       - name: Code sign app and extension
         run: |
