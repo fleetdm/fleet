@@ -5743,15 +5743,9 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
 }
 
-// testSummaryUpcomingPerHostNoDropout is a regression test for the OR-dominance
-// drop-out bug fixed alongside the perf rewrite of GetSummaryHostSoftwareInstalls
-// (issue #47839). When a host has two queued upcoming installs for the same
-// installer where one row has the lower priority and a *different* row has the
-// later created_at, the old self anti-join's
-// `(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)` predicate made
-// each row dominate the other, so neither survived and the host dropped out of
-// the counts entirely. The window-function rewrite ranks deterministically and
-// keeps exactly one row per (host, activity_type).
+// A host with two queued installs for the same installer (one lower priority,
+// the other later created_at) must still be counted once: the old OR-based
+// anti-join let each row dominate the other and dropped the host entirely.
 func testSummaryUpcomingPerHostNoDropout(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
