@@ -42,7 +42,7 @@ SET name = CASE name
 	WHEN 'Browsers'         THEN '🌎 Browsers'
 	WHEN 'Communication'    THEN '👬 Communication'
 	WHEN 'Developer tools'  THEN '🧰 Developer tools'
-	WHEN 'Productivity'     THEN '💻 Productivity'
+	WHEN 'Productivity'     THEN '🖥️ Productivity'
 	WHEN 'Security'         THEN '🔐 Security'
 	WHEN 'Utilities'        THEN '🛠️ Utilities'
 	ELSE name
@@ -74,7 +74,7 @@ ORDER BY t.id, FIELD(sc.name,
 	'🌎 Browsers',
 	'👬 Communication',
 	'🧰 Developer tools',
-	'💻 Productivity',
+	'🖥️ Productivity',
 	'🔐 Security',
 	'🛠️ Utilities')
 `); err != nil {

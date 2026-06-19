@@ -67,7 +67,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"Browsers":        "🌎 Browsers",
 		"Communication":   "👬 Communication",
 		"Developer tools": "🧰 Developer tools",
-		"Productivity":    "💻 Productivity",
+		"Productivity":    "🖥️ Productivity",
 		"Security":        "🔐 Security",
 		"Utilities":       "🛠️ Utilities",
 	}
@@ -86,7 +86,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"🌎 Browsers",
 		"👬 Communication",
 		"🧰 Developer tools",
-		"💻 Productivity",
+		"🖥️ Productivity",
 		"🔐 Security",
 		"🛠️ Utilities",
 	}
@@ -139,8 +139,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	require.NoError(t, db.Get(&inHouseLinkedCatID,
 		`SELECT software_category_id FROM in_house_app_software_categories WHERE in_house_app_id = ?`,
 		inHouseAppA))
-	require.Equal(t, teamARows[3].ID, inHouseLinkedCatID, "team A in-house app should link to team A's 💻 Productivity")
-	require.Equal(t, "💻 Productivity", teamARows[3].Name)
+	require.Equal(t, teamARows[3].ID, inHouseLinkedCatID, "team A in-house app should link to team A's 🖥️ Productivity")
+	require.Equal(t, "🖥️ Productivity", teamARows[3].Name)
 
 	assertLinkGone := func(query string, parentID uint, label string) {
 		var dummy uint

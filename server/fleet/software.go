@@ -897,7 +897,7 @@ var DefaultSelfServiceCategoryNames = []string{
 	"🌎 Browsers",
 	"👬 Communication",
 	"🧰 Developer tools",
-	"💻 Productivity",
+	"🖥️ Productivity",
 	"🔐 Security",
 	"🛠️ Utilities",
 }
@@ -909,7 +909,7 @@ var LegacySoftwareCategoryNames = map[string]string{
 	"Browsers":        "🌎 Browsers",
 	"Communication":   "👬 Communication",
 	"Developer tools": "🧰 Developer tools",
-	"Productivity":    "💻 Productivity",
+	"Productivity":    "🖥️ Productivity",
 	"Security":        "🔐 Security",
 	"Utilities":       "🛠️ Utilities",
 }
