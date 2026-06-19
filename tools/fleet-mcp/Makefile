@@ -1,8 +1,11 @@
 # Fleet MCP — dev/test helpers. Run from tools/fleet-mcp/.
 #
 # The MCP reads these (the binary auto-loads a .env in this dir, or export them):
-#   FLEET_BASE_URL, FLEET_API_KEY, MCP_AUTH_TOKEN
-#   FLEET_TLS_SKIP_VERIFY=true   # only for a localhost dev Fleet with a self-signed cert
+#   FLEET_BASE_URL, FLEET_API_KEY, MCP_AUTH_TOKEN (>=32 chars)
+#   FLEET_API_KEY must belong to an API-only Fleet user, else the binary refuses
+#     to start (see README "API-only token required").
+#   FLEET_TLS_SKIP_VERIFY=true     # only for a localhost dev Fleet with a self-signed cert
+#   MCP_RATE_LIMIT_MODE=global|ip  # optional, SSE only (default global)
 # Quickest setup:  cp .env.example .env  &&  edit it  (.env is gitignored).
 #
 # Usage:
@@ -48,14 +51,18 @@ call: build
 	rm -f $$err; \
 	printf '%s\n' "$$out" | if command -v jq >/dev/null 2>&1; then jq -Rr 'fromjson? | select(.id==2) | (.result.content[0].text // .result // .)'; else grep '"id":2'; fi
 
-# List the tools the server registers.
+# List the tools the server registers. Surfaces a startup error (e.g. a
+# non-API-only token or unreachable Fleet) instead of printing nothing.
 tools: build
-	@printf '%s\n' '$(INIT)' '$(INITED)' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-	  | $(BIN) -transport stdio 2>/dev/null \
-	  | if command -v jq >/dev/null 2>&1; then jq -Rr 'fromjson? | select(.id==2) | .result.tools[].name'; else grep '"id":2'; fi
+	@err=$$(mktemp); \
+	out=$$(printf '%s\n' '$(INIT)' '$(INITED)' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+	  | $(BIN) -transport stdio 2>$$err); \
+	if [ -z "$$out" ]; then echo "no response — startup error:"; cat $$err; rm -f $$err; exit 1; fi; \
+	rm -f $$err; \
+	printf '%s\n' "$$out" | if command -v jq >/dev/null 2>&1; then jq -Rr 'fromjson? | select(.id==2) | .result.tools[].name'; else grep '"id":2'; fi
 
-# Run the startup token-posture check: the binary logs identity + warnings to
-# stderr, then exits on stdin EOF.
+# Run the startup token check: the binary verifies FLEET_API_KEY is an API-only
+# user (logs it, or refuses) on stderr, then exits on stdin EOF.
 posture: build
 	@$(BIN) -transport stdio </dev/null
 

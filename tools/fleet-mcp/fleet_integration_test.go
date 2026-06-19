@@ -504,38 +504,3 @@ func TestValidateFleetBaseURL(t *testing.T) {
 		})
 	}
 }
-
-// TestFleetIdentityPrivilege documents how the startup posture check classifies
-// each kind of token — including FLEET-scoped users (global_role null), whose
-// roles live in the fleets/teams array. Only a token that is observer-only
-// (globally or across all its fleets) is "read-only"; anything else is
-// write-capable and the check warns.
-func TestFleetIdentityPrivilege(t *testing.T) {
-	cases := []struct {
-		name        string
-		id          FleetIdentity
-		wantWrite   bool
-		wantDescHas string
-	}{
-		{"global admin", FleetIdentity{GlobalRole: "admin"}, true, "global_role=admin"},
-		{"global maintainer", FleetIdentity{GlobalRole: "maintainer"}, true, "global_role=maintainer"},
-		{"global observer", FleetIdentity{GlobalRole: "observer"}, false, "global_role=observer"},
-		{"global observer_plus", FleetIdentity{GlobalRole: "observer_plus"}, true, "observer_plus"}, // can run live queries → write-capable
-		{"fleet admin", FleetIdentity{Fleets: []FleetRole{{"Workstations", "admin"}}}, true, "Workstations=admin"},
-		{"fleet maintainer", FleetIdentity{Fleets: []FleetRole{{"Servers", "maintainer"}}}, true, "Servers=maintainer"},
-		{"fleet observer only", FleetIdentity{Fleets: []FleetRole{{"Workstations", "observer"}}}, false, "Workstations=observer"},
-		{"mixed fleet roles", FleetIdentity{Fleets: []FleetRole{{"A", "observer"}, {"B", "maintainer"}}}, true, "B=maintainer"},
-		{"no roles at all", FleetIdentity{}, false, "no global or fleet role"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			desc, write := tc.id.privilege()
-			if write != tc.wantWrite {
-				t.Errorf("privilege() writeCapable=%v, want %v (desc=%q)", write, tc.wantWrite, desc)
-			}
-			if !strings.Contains(desc, tc.wantDescHas) {
-				t.Errorf("privilege() desc=%q, want it to contain %q", desc, tc.wantDescHas)
-			}
-		})
-	}
-}

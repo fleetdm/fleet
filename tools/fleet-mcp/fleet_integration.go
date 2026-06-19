@@ -191,49 +191,12 @@ func validateFleetBaseURL(rawURL string) error {
 	return nil
 }
 
-// FleetRole is one fleet-scoped role held by the token's user. ("Fleets" are the
-// product term for what Fleet's API still calls "teams"; the /me response field
-// is `teams`.) Populated when the user has no global role.
-type FleetRole struct {
-	Fleet string // fleet (team) name
-	Role  string
-}
-
-// FleetIdentity is the Fleet principal that FLEET_API_KEY authenticates as,
-// resolved from GET /api/v1/fleet/me. Used for the startup token-posture check.
 type FleetIdentity struct {
-	Email      string
-	GlobalRole string      // "admin", "maintainer", "observer", … or "" when fleet-scoped
-	Fleets     []FleetRole // populated for fleet-scoped users (global_role null)
-	APIOnly    bool
+	Email   string
+	APIOnly bool
 }
 
-// privilege summarizes the token's Fleet role(s) for logging and reports whether
-// the token can create queries / run live queries on hosts. Fleet makes
-// global_role and fleet roles mutually exclusive, so a global role wins; for a
-// fleet-scoped user every fleet role is considered. Anything other than a plain
-// "observer" is treated as write-capable (observer is the only role that can
-// neither create saved queries nor run ad-hoc live queries).
-func (id *FleetIdentity) privilege() (desc string, writeCapable bool) {
-	if id.GlobalRole != "" {
-		return "global_role=" + id.GlobalRole, id.GlobalRole != "observer"
-	}
-	if len(id.Fleets) == 0 {
-		return "no global or fleet role", false
-	}
-	parts := make([]string, 0, len(id.Fleets))
-	for _, f := range id.Fleets {
-		parts = append(parts, f.Fleet+"="+f.Role)
-		if f.Role != "observer" {
-			writeCapable = true
-		}
-	}
-	return "fleets=[" + strings.Join(parts, ", ") + "]", writeCapable
-}
-
-// WhoAmI resolves the Fleet user behind FLEET_API_KEY via GET /api/v1/fleet/me.
-// Best-effort: callers use it only for a startup posture check and must tolerate
-// an error (offline / transient Fleet).
+// WhoAmI resolves the Fleet user behind FLEET_API_KEY.
 func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/me", nil)
 	if err != nil {
@@ -245,34 +208,17 @@ func (fc *FleetClient) WhoAmI(ctx context.Context) (*FleetIdentity, error) {
 	}
 	var body struct {
 		User struct {
-			Email      string  `json:"email"`
-			GlobalRole *string `json:"global_role"`
-			APIOnly    bool    `json:"api_only"`
-			Teams      []struct {
-				Name string `json:"name"`
-				Role string `json:"role"`
-			} `json:"teams"`
+			Email   string `json:"email"`
+			APIOnly bool   `json:"api_only"`
 		} `json:"user"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("whoami decode: %w", err)
 	}
-	id := &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}
-	if body.User.GlobalRole != nil {
-		id.GlobalRole = *body.User.GlobalRole
-	}
-	for _, t := range body.User.Teams {
-		if t.Role != "" {
-			id.Fleets = append(id.Fleets, FleetRole{Fleet: t.Name, Role: t.Role})
-		}
-	}
-	return id, nil
+	return &FleetIdentity{Email: body.User.Email, APIOnly: body.User.APIOnly}, nil
 }
 
-// fleetErrMsg renders a Fleet API error for return to the MCP client/LLM
-// without leaking the raw response body, which can carry an internal request
-// UUID and echoed input (finding E). Prefers the top-level "message" field;
-// falls back to a bounded snippet.
+// fleetErrMsg renders a Fleet API error without leaking the raw response body
 func fleetErrMsg(status int, body []byte) string {
 	var parsed struct {
 		Message string `json:"message"`

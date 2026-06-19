@@ -33,16 +33,13 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// checkTokenPosture verifies the Fleet principal behind FLEET_API_KEY and
-// REFUSES to start unless it is an API-only Fleet user. An API-only user has no
-// UI session, carries its own audit identity, and — via Fleet's per-user
-// role/team scoping — can be locked down to exactly the endpoints (and
-// teams/fleets) the MCP needs. Requiring it adds a Fleet-side authorization
-// boundary on top of the MCP's own bearer auth.
-//
-// It also logs the resolved role and warns when the token is write-capable (can
-// create/run live queries on hosts). Write-capability is a separate axis, left
-// to the operator's choice of Fleet role, so it stays a warning.
+// checkTokenPosture REFUSES to start unless FLEET_API_KEY belongs to an API-only
+// Fleet user. API-only users have no UI session, carry their own audit identity,
+// and — via Fleet's per-user role/team scoping — can be locked down to exactly
+// the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side
+// authorization boundary on top of the MCP's own bearer auth. What each Fleet
+// role can actually do (read vs create/run live queries) is documented in the
+// README, not inferred here.
 //
 // Fails closed: if WhoAmI can't confirm the principal (Fleet unreachable or
 // token invalid) we refuse to start rather than run with an unverified token —
@@ -54,21 +51,10 @@ func checkTokenPosture(fleetClient *FleetClient) {
 	if err != nil {
 		logrus.Fatalf("could not verify FLEET_API_KEY via GET /api/v1/fleet/me (%v) — the MCP requires a reachable Fleet and an API-only token to start", err)
 	}
-
-	// Resolve the token's privilege from its global role OR its per-fleet roles.
-	roleDesc, writeCapable := id.privilege()
-	mode := "read-only"
-	if writeCapable {
-		mode = "write-capable (can create/run live queries on hosts)"
-	}
-	logrus.Infof("Fleet token identity: %s (%s, api_only=%t) — %s mode", id.Email, roleDesc, id.APIOnly, mode)
-
 	if !id.APIOnly {
 		logrus.Fatalf("FLEET_API_KEY must belong to an API-only Fleet user, but %s is a UI user — refusing to start. Create one with `fleetctl user create --api-only` (no UI session, its own audit identity, scoped to only the endpoints/teams the MCP needs) and use its API token.", id.Email)
 	}
-	if writeCapable {
-		logrus.Warnf("FLEET_API_KEY is write-capable (%s): the MCP can create queries and run live queries (arbitrary osquery) on hosts it can reach. Use an observer-only token to run the MCP read-only.", roleDesc)
-	}
+	logrus.Infof("FLEET_API_KEY verified: API-only Fleet user %s", id.Email)
 }
 
 func main() {
@@ -102,7 +88,6 @@ func main() {
 
 	fleetClient := NewFleetClient(config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile)
 
-	// Surface the Fleet token's privilege at startup.
 	checkTokenPosture(fleetClient)
 
 	// Best-effort cleanup of any fleet-mcp-temp-* saved queries left over from
