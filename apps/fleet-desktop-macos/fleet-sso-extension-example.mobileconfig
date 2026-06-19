@@ -49,8 +49,18 @@
 			<string>com.apple.associated-domains.4D68D4CF-1250-4FF4-AFFB-1176DB539C49</string>
 			<key>PayloadUUID</key>
 			<string>d77b6a04-6527-4333-1010-46422e8a5844</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>Configuration</key>
 			<array>
+			<dict>
+			<key>ApplicationIdentifier</key>
+			<string>8VBZ3948LU.com.fleetdm.fleet-desktop</string>
+			<key>AssociatedDomains</key>
+			<array>
+			<string>authsrv:fleet.example.com</string>
+			</array>
+			</dict>
 			<dict>
 			<key>ApplicationIdentifier</key>
 			<string>8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension</string>
