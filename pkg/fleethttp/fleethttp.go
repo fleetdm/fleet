@@ -241,8 +241,13 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		opt(&to)
 	}
 
-	// make sure to start from DefaultTransport to inherit its sane defaults
-	tr := http.DefaultTransport.(*http.Transport).Clone()
+	// Start from DefaultTransport to inherit its sane defaults. Guard the type
+	// assertion in case a test replaces DefaultTransport with a non-*Transport.
+	dt, ok := http.DefaultTransport.(*http.Transport)
+	if !ok || dt == nil {
+		dt = &http.Transport{}
+	}
+	tr := dt.Clone()
 	if to.tlsConf != nil {
 		tr.TLSClientConfig = to.tlsConf
 	}
