@@ -334,6 +334,33 @@ describe("getAutomationsForPolicy", () => {
     expect(result[0].name).toBe("Chrome.app");
   });
 
+  it("normalizes known awkward titles via getDisplayedSoftwareName", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Microsoft.CompanyPortal",
+        software_title_id: 42,
+      },
+    });
+    expect(result[0].name).toBe("Company Portal");
+  });
+
+  it("preserves the raw install_software.name as iconName for fallback icon matching (regression: #47123)", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Zoom",
+        display_name: "Custom Renamed App",
+        software_title_id: 42,
+      },
+    });
+    expect(result[0]).toMatchObject({
+      type: "software",
+      name: "Custom Renamed App",
+      iconName: "Zoom",
+    });
+  });
+
   it("returns script automation with file name", () => {
     const result = getAutomationsForPolicy({
       ...basePolicy,

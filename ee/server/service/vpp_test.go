@@ -38,7 +38,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			return &fleet.AppConfig{}, nil
 		}
 		t.Run("dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -51,7 +51,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			require.ErrorContains(t, err, "could not retrieve vpp token")
 		})
 		t.Run("not dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -66,7 +66,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
-		ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 			return nil, nil
 		}
 
@@ -78,7 +78,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 
 		for _, pkg := range fleetAgentPackages {
 			t.Run(pkg+" dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -91,7 +91,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 				require.ErrorContains(t, err, "The Fleet agent cannot be added manually")
 			})
 			t.Run(pkg+" not dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -316,7 +316,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 			CountryCode: "us",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, _ []string) ([]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
 	}
 
@@ -328,7 +328,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	const adamID = "1107542306"
-	_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 		{
 			AppStoreID:       adamID,
 			LabelsExcludeAny: []string{},

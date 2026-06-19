@@ -151,6 +151,33 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	return result, nil
 }
 
+// macOSTopLevelApplicationTitleIDs returns the set of software title IDs that
+// have at least one macOS app installed at the top level of the /Applications
+// folder on the given host (e.g. /Applications/Foo.app). Nested helper apps,
+// system apps, and user-local apps are excluded.
+func (ds *Datastore) macOSTopLevelApplicationTitleIDs(ctx context.Context, hostID uint) (map[uint]struct{}, error) {
+	const stmt = `
+		SELECT DISTINCT s.title_id
+		FROM host_software_installed_paths hsip
+		JOIN software s ON s.id = hsip.software_id
+		WHERE hsip.host_id = ?
+			AND s.source = 'apps'
+			AND hsip.installed_path LIKE '/Applications/%'
+			AND hsip.installed_path NOT LIKE '/Applications/%/%'
+			AND s.title_id IS NOT NULL`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select macos top-level application title ids")
+	}
+
+	set := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set, nil
+}
+
 // hostSoftwareInstalledPathsDelta returns what should be inserted and deleted to keep the
 // 'host_software_installed_paths' table in-sync with the osquery reported query results.
 // 'reported' is a set of 'installed_path-software.UniqueStr' strings, built from the osquery
@@ -1670,20 +1697,17 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Only optimize if:
 	// 1. We're listing all software (not filtering by HostID)
 	// 2. We're ordering by hosts_count only (covering index requirement)
-	// 3. We're not filtering by CVE fields
-	// 4. We're not searching (which requires CVE join)
-	// 5. We're not using multi-column sorts (e.g., "name,id")
+	// 3. We're not using multi-column sorts (e.g., "name,id")
 	//
 	// The covering index optimization only works when ordering by hosts_count
 	// because the inner query uses a covering index scan that only includes
 	// (team_id, global_stats, hosts_count DESC, software_id). This dramatically
 	// improves performance.
+	//
+	// Filters (VulnerableOnly / KnownExploit / MinimumCVSS / MaximumCVSS /
+	// MatchQuery) are now supported in the inner query via EXISTS pushdown —
+	// see buildOptimizedListSoftwareSQL.
 	return opts.HostID == nil &&
-		!opts.VulnerableOnly &&
-		opts.MinimumCVSS == 0 &&
-		opts.MaximumCVSS == 0 &&
-		!opts.KnownExploit &&
-		opts.ListOptions.MatchQuery == "" &&
 		orderKey == "hosts_count" &&
 		!isMultiColumnSort(opts.ListOptions.OrderKey)
 }
@@ -1743,6 +1767,54 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	default:
 		innerSQL += " WHERE shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *opts.TeamID)
+	}
+
+	// Filter pushdown: when the caller requests vulnerable software, a CISA
+	// known exploit, a CVSS range, or a search, push these into the inner
+	// query as semi-joins so they prune candidate rows BEFORE pagination
+	// instead of expanding row count via outer JOIN+GROUP BY (as the goqu
+	// fallback does). The covering index scan on idx_software_host_counts_
+	// team_global_hosts_desc still drives the query; each EXISTS probe uses
+	// idx_software_cve_cve / unq_software_id_cve / idx_cve_meta_exploit /
+	// idx_cve_meta_cvss_score from #45415.
+	if opts.VulnerableOnly || opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+		needsCVEMeta := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+		innerSQL += ` AND EXISTS (
+			SELECT 1 FROM software_cve sc`
+		if needsCVEMeta {
+			innerSQL += ` INNER JOIN cve_meta cm ON cm.cve = sc.cve`
+			if opts.KnownExploit {
+				innerSQL += ` AND cm.cisa_known_exploit = 1`
+			}
+			if opts.MinimumCVSS > 0 {
+				innerSQL += ` AND cm.cvss_score >= ?`
+				args = append(args, opts.MinimumCVSS)
+			}
+			if opts.MaximumCVSS > 0 {
+				innerSQL += ` AND cm.cvss_score <= ?`
+				args = append(args, opts.MaximumCVSS)
+			}
+		}
+		innerSQL += ` WHERE sc.software_id = shc.software_id)`
+	}
+
+	// Search filter (matches the semantics of the goqu fallback):
+	// software must have a software_titles row, and any of name / version /
+	// title name / one of its CVEs must match the LIKE pattern.
+	if match := opts.ListOptions.MatchQuery; match != "" {
+		pattern := likePattern(match)
+		innerSQL += ` AND EXISTS (
+			SELECT 1 FROM software s
+			INNER JOIN software_titles st ON st.id = s.title_id
+			WHERE s.id = shc.software_id
+			  AND (
+				s.name LIKE ?
+				OR s.version LIKE ?
+				OR st.name LIKE ?
+				OR EXISTS (SELECT 1 FROM software_cve sc WHERE sc.software_id = s.id AND sc.cve LIKE ?)
+			  )
+		)`
+		args = append(args, pattern, pattern, pattern, pattern)
 	}
 
 	// software_id is the secondary key to make ordering deterministic
@@ -6007,6 +6079,37 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
+	// Filter to apps installed at the top level of the macOS /Applications
+	// folder. Ignored for non-macOS hosts. Pruning the in-memory maps (rather
+	// than the SQL) keeps the count and main queries consistent and applies
+	// uniformly across software, VPP, and in-house apps.
+	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
+		qualifyingTitleIDs, err := ds.macOSTopLevelApplicationTitleIDs(ctx, host.ID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "filter macos applications")
+		}
+		for titleID := range bySoftwareTitleID {
+			if _, ok := qualifyingTitleIDs[titleID]; !ok {
+				delete(bySoftwareTitleID, titleID)
+			}
+		}
+		for softwareID, s := range bySoftwareID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(bySoftwareID, softwareID)
+			}
+		}
+		for adamID, s := range byVPPAdamID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(byVPPAdamID, adamID)
+			}
+		}
+		for inHouseID, s := range byInHouseID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(byInHouseID, inHouseID)
+			}
+		}
+	}
+
 	var softwareTitleIDs []uint
 	for softwareTitleID := range bySoftwareTitleID {
 		softwareTitleIDs = append(softwareTitleIDs, softwareTitleID)
@@ -6843,25 +6946,107 @@ WHERE hvsi.host_id = ? AND st.id IN (?)
 	return nil
 }
 
-func (ds *Datastore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
-	stmt := `INSERT INTO software_categories (name) VALUES (?)`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, name)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new software category")
+func (ds *Datastore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+	const stmt = `
+SELECT id, name, team_id, created_at, updated_at
+FROM software_categories
+WHERE team_id = ?
+ORDER BY name
+`
+	// Non-nil so the JSON response serializes as `[]` rather than `null` when a
+	// team has no categories.
+	categories := []fleet.SoftwareCategory{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}
-
-	r, _ := res.LastInsertId()
-	id := uint(r) //nolint:gosec // dismiss G115
-	return &fleet.SoftwareCategory{Name: name, ID: id}, nil
+	return categories, nil
 }
 
-func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error) {
+func (ds *Datastore) SoftwareCategory(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+	return getSoftwareCategoryDB(ctx, ds.reader(ctx), id)
+}
+
+func (ds *Datastore) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	const stmt = `INSERT INTO software_categories (name, team_id) VALUES (?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, name, teamID)
+	if err != nil {
+		if IsDuplicate(err) {
+			err = alreadyExists("SoftwareCategory", name)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "new software category")
+	}
+	id, _ := res.LastInsertId()
+	return getSoftwareCategoryDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
+}
+
+func (ds *Datastore) BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error {
+	return batchNewSoftwareCategoriesDB(ctx, ds.writer(ctx), teamID, names)
+}
+
+func batchNewSoftwareCategoriesDB(ctx context.Context, q sqlx.ExtContext, teamID uint, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(names)), ", ")
+	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders
+	args := make([]any, 0, len(names)*2)
+	for _, name := range names {
+		args = append(args, name, teamID)
+	}
+	if _, err := q.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch new software categories")
+	}
+	return nil
+}
+
+func (ds *Datastore) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	const stmt = `UPDATE software_categories SET name = ? WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, id); err != nil {
+		if IsDuplicate(err) {
+			err = alreadyExists("SoftwareCategory", name)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "update software category")
+	}
+	return getSoftwareCategoryDB(ctx, ds.writer(ctx), id)
+}
+
+func (ds *Datastore) DeleteSoftwareCategory(ctx context.Context, id uint) error {
+	const stmt = `DELETE FROM software_categories WHERE id = ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software category")
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("SoftwareCategory").WithID(id))
+	}
+	return nil
+}
+
+func getSoftwareCategoryDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.SoftwareCategory, error) {
+	const stmt = `
+SELECT id, name, team_id, created_at, updated_at
+FROM software_categories
+WHERE id = ?
+`
+	var category fleet.SoftwareCategory
+	if err := sqlx.GetContext(ctx, q, &category, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareCategory").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get software category")
+	}
+	return &category, nil
+}
+
+func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
 	if len(names) == 0 {
 		return []uint{}, nil
 	}
+	names = fleet.TranslateLegacySoftwareCategoryNames(names)
 
-	stmt := `SELECT id FROM software_categories WHERE name IN (?)`
-	stmt, args, err := sqlx.In(stmt, names)
+	stmt := `SELECT id FROM software_categories WHERE team_id = ? AND name IN (?)`
+	stmt, args, err := sqlx.In(stmt, teamID, names)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category ids")
 	}
@@ -6876,29 +7061,30 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	return ids, nil
 }
 
-// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
-// Only categories that exist in the database are included in the map.
-func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
+// Only categories that exist in the database are included in the map, but outdated default categories that were renamed
+// get matched to their new names.
+func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
 
-	stmt := `SELECT id, name FROM software_categories WHERE name IN (?)`
-	stmt, args, err := sqlx.In(stmt, names)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category name to id map")
-	}
-
-	var categories []fleet.SoftwareCategory
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+	// order by name so that we match category IDs consistently
+	stmt := `SELECT id, name FROM software_categories WHERE team_id = ? ORDER BY name ASC`
+	var rows []fleet.SoftwareCategory
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
 	}
 
-	result := make(map[string]uint, len(categories))
-	for _, cat := range categories {
-		result[cat.Name] = cat.ID
+	result := make(map[string]uint, len(names))
+	for _, n := range names {
+		for _, r := range rows {
+			if fleet.SoftwareCategoryReferenceMatches(n, r.Name) {
+				result[n] = r.ID
+				break
+			}
+		}
 	}
-
 	return result, nil
 }
 

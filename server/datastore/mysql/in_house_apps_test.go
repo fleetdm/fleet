@@ -38,6 +38,7 @@ func TestInHouseApps(t *testing.T) {
 		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
 		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
 		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
+		{"InHouseAppInstallTokens", testInHouseAppInstallTokens},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -852,8 +853,8 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 
 	// change ipa2 self-service and add categories
 	ipa2.SelfService = !ipa2.SelfService
-	ipa2.Categories = []string{"Communication", "Productivity"}
-	catIDs, err := ds.GetSoftwareCategoryIDs(ctx, ipa2.Categories)
+	ipa2.Categories = []string{"👬 Communication", "🖥️ Productivity"}
+	catIDs, err := ds.GetSoftwareCategoryIDs(ctx, team.ID, ipa2.Categories)
 	require.NoError(t, err)
 	ipa2.CategoryIDs = catIDs
 
@@ -1989,4 +1990,88 @@ func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.want, got)
 		})
 	}
+}
+
+func testInHouseAppInstallTokens(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	t.Run("create and read back round-trip", func(t *testing.T) {
+		token := uuid.NewString()
+		require.NoError(t, ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), token, 42, 3, 7))
+
+		meta, err := ds.GetInHouseAppInstallTokenMetadata(ctx, token)
+		require.NoError(t, err)
+		require.Equal(t, token, meta.Token)
+		require.EqualValues(t, 42, meta.SoftwareTitleID)
+		require.EqualValues(t, 3, meta.TeamID)
+		require.EqualValues(t, 7, meta.HostID)
+		require.WithinDuration(t, time.Now().UTC().Add(fleet.InHouseAppInstallTokenTTL), meta.ExpiresAt, time.Minute)
+	})
+
+	t.Run("unknown token reports not found", func(t *testing.T) {
+		_, err := ds.GetInHouseAppInstallTokenMetadata(ctx, uuid.NewString())
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected NotFound, got %v", err)
+	})
+
+	t.Run("expired token reports not found", func(t *testing.T) {
+		token := uuid.NewString()
+		require.NoError(t, ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), token, 1, 0, 1))
+
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE in_house_app_install_tokens SET expires_at = ? WHERE token = ?`,
+			time.Now().UTC().Add(-1*time.Hour), token,
+		)
+		require.NoError(t, err)
+
+		_, err = ds.GetInHouseAppInstallTokenMetadata(ctx, token)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected NotFound, got %v", err)
+	})
+
+	t.Run("cleanup deletes only expired", func(t *testing.T) {
+		fresh := uuid.NewString()
+		expired := uuid.NewString()
+		require.NoError(t, ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), fresh, 1, 0, 1))
+		require.NoError(t, ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), expired, 1, 0, 1))
+
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE in_house_app_install_tokens SET expires_at = ? WHERE token = ?`,
+			time.Now().UTC().Add(-1*time.Hour), expired,
+		)
+		require.NoError(t, err)
+
+		n, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, n, int64(1))
+
+		_, err = ds.GetInHouseAppInstallTokenMetadata(ctx, fresh)
+		require.NoError(t, err)
+
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM in_house_app_install_tokens WHERE token = ?`, expired))
+		require.Zero(t, count)
+	})
+
+	t.Run("duplicate token rejected by primary key", func(t *testing.T) {
+		token := uuid.NewString()
+		require.NoError(t, ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), token, 1, 0, 1))
+		err := ds.CreateInHouseAppInstallToken(ctx, ds.writer(ctx), token, 2, 1, 2)
+		require.Error(t, err)
+	})
+
+	t.Run("mint inside transaction rolls back with the tx", func(t *testing.T) {
+		token := uuid.NewString()
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, 1, 0, 1); err != nil {
+				return err
+			}
+			return sql.ErrConnDone // force rollback
+		})
+		require.Error(t, err)
+
+		_, err = ds.GetInHouseAppInstallTokenMetadata(ctx, token)
+		require.True(t, fleet.IsNotFound(err))
+	})
 }

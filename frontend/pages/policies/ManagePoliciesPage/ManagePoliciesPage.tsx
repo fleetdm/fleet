@@ -48,7 +48,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import AutomationsButton from "components/buttons/AutomationsButton";
 
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
@@ -285,6 +285,7 @@ const ManagePolicyPage = ({
   const {
     data: globalPoliciesCount,
     isFetching: isFetchingGlobalCount,
+    isError: isErrorGlobalPoliciesCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
@@ -342,6 +343,7 @@ const ManagePolicyPage = ({
   const {
     data: teamPoliciesCountResponse,
     isFetching: isFetchingTeamCountMergeInherited,
+    isError: isErrorTeamPoliciesCount,
     refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
@@ -383,7 +385,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: isRouteOk && canAddOrDeletePolicies,
+      enabled: isRouteOk,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -396,7 +398,7 @@ const ManagePolicyPage = ({
     Error
   >(["teams", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
     // Enable for all teams including "No team" (teamIdForApi === 0)
-    enabled: isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
+    enabled: isRouteOk && teamIdForApi !== undefined,
     staleTime: 5000,
   });
   const teamConfig = teamData?.team;
@@ -615,6 +617,38 @@ const ManagePolicyPage = ({
       (teamPoliciesCountResponse?.inherited_policy_count ?? 0);
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
+
+  // Open the Manage automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate the in-page button
+  // uses — the param alone must not surface a privileged modal to
+  // non-admins or when there's nothing to automate. Wait for the
+  // relevant count query to settle (data OR error) so
+  // `hasPoliciesToAutomate` is meaningful; then always strip the param
+  // so a refresh doesn't reopen and the URL doesn't get stuck if the
+  // count call errored.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    const countSettled = isAllTeamsSelected
+      ? globalPoliciesCount !== undefined || isErrorGlobalPoliciesCount
+      : teamPoliciesCountResponse !== undefined || isErrorTeamPoliciesCount;
+    if (!countSettled) return;
+    if (canEditAutomationsSettings && hasPoliciesToAutomate) {
+      setShowAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    canEditAutomationsSettings,
+    hasPoliciesToAutomate,
+    isAllTeamsSelected,
+    globalPoliciesCount,
+    teamPoliciesCountResponse,
+    isErrorGlobalPoliciesCount,
+    isErrorTeamPoliciesCount,
+  ]);
 
   const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
   // Inherited (global) policies are listed in team views, but their webhook
@@ -846,16 +880,10 @@ const ManagePolicyPage = ({
   let automationsButton = null;
   if (canEditAutomationsSettings) {
     automationsButton = (
-      <Button
-        className={`${baseClass}__automations-button`}
+      <AutomationsButton
         onClick={toggleAutomationsModal}
         disabled={!hasPoliciesToAutomate}
-        variant="inverse"
-      >
-        <>
-          <Icon name="settings" /> Automations
-        </>
-      </Button>
+      />
     );
     if (!hasPoliciesToAutomate) {
       const tipContent =

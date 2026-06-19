@@ -265,7 +265,7 @@ The Autopilot service may need a few minutes to sync after the device record cle
 
 ## Turn off Windows MDM
 
-1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) from Fleet on all your Windows hosts.
+1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1) from Fleet on all your Windows hosts. Note that this script will also remove fleetd from the hosts.
 
 2. Head to **Settings > Integrations > MDM**.
 

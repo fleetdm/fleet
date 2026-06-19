@@ -13,6 +13,7 @@ import {
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS_UI_MAP,
+  MdmEnrollmentStatus,
   MdmProfileStatus,
   IMdmProfile,
   MdmEnrollmentFilterValue,
@@ -20,6 +21,7 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { SoftwareAggregateStatus } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
   HOSTS_QUERY_PARAMS,
@@ -29,6 +31,7 @@ import {
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
 import {
+  MDM_STATUS_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PLATFORM_TYPE_ICONS,
   isPlatformLabelNameFromAPI,
@@ -352,11 +355,10 @@ const HostsFilterBlock = ({
     if (!softwareDetails) return null;
 
     const { name, display_name, version } = softwareDetails;
-    let label = display_name || name;
+    let label = getDisplayedSoftwareName(name, display_name);
     if (version) {
       label += ` ${version}`;
     }
-    label = label.trim() || "Unknown software";
 
     const clearParams = [
       "software_id",
@@ -402,45 +404,20 @@ const HostsFilterBlock = ({
   const renderMDMEnrollmentFilterBlock = () => {
     if (!mdmEnrollmentStatus) return null;
 
+    const matchedStatus = Object.entries(MDM_ENROLLMENT_STATUS_UI_MAP).find(
+      ([, v]) => v.filterValue === mdmEnrollmentStatus
+    );
     const label = `MDM status: ${
-      Object.values(MDM_ENROLLMENT_STATUS_UI_MAP).find(
-        (status) => status.filterValue === mdmEnrollmentStatus
-      )?.displayName
+      matchedStatus?.[1].displayName ?? mdmEnrollmentStatus
     }`;
-
-    // More narrow tooltip than other MDM tooltip
-    const MDM_STATUS_PILL_TOOLTIP: Record<string, React.ReactNode> = {
-      automatic: (
-        <span>
-          MDM was turned on <br />
-          automatically. IT admins <br />
-          can block end users <br />
-          from turning MDM off.
-        </span>
-      ),
-      manual: (
-        <span>
-          MDM was turned on <br />
-          manually. End users <br />
-          can turn MDM off.
-        </span>
-      ),
-      unenrolled: undefined, // no tooltip specified
-      pending: (
-        <span>
-          Hosts ordered using Apple <br />
-          Business (AB). <br />
-          They will automatically enroll <br />
-          to Fleet and turn on MDM <br />
-          when they&apos;re unboxed.
-        </span>
-      ),
-    };
+    const apiStatus = matchedStatus?.[0] as MdmEnrollmentStatus | undefined;
 
     return (
       <FilterPill
         label={label}
-        tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
+        tooltipDescription={
+          apiStatus ? MDM_STATUS_TOOLTIP[apiStatus] : undefined
+        }
         onClear={() => handleClearFilter(["mdm_enrollment_status"])}
       />
     );

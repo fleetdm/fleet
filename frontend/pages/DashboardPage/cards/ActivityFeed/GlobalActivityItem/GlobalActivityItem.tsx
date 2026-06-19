@@ -1547,6 +1547,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  installedAllSelfServiceSoftware: (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    if (categoryName) {
+      return (
+        <>
+          {" "}
+          <b>End user</b> selected the <b>Install all</b> option in the
+          self-service <b>{categoryName}</b> category.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        <b>End user</b> installed all the software in self-service.
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -1734,7 +1752,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         canceled <b>{title}</b> install on <b>{hostName}</b>
         {fromSetupExperience
-          ? " during setup experience. End user was asked to restart."
+          ? " during setup experience. End user was asked to restart"
           : ""}
         .
       </>
@@ -2453,6 +2471,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity);
     }
+    case ActivityType.InstalledAllSelfServiceSoftware: {
+      return TAGGED_TEMPLATES.installedAllSelfServiceSoftware(activity);
+    }
     case ActivityType.UninstalledSoftware: {
       return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
@@ -2639,6 +2660,9 @@ const GlobalActivityItem = ({
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
         return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+      case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function

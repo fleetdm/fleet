@@ -1,0 +1,1 @@
+* Fixed a bug where the "Add custom variable" modal would clear entered values when switching focus to another browser tab or application window.

@@ -105,6 +105,16 @@ const Modal = ({
     return undefined;
   }, [onEnter]);
 
+  useEffect(() => {
+    const onWindowBlur = () => {
+      isDownOnBackgroundRef.current = false;
+    };
+    window.addEventListener("blur", onWindowBlur);
+    return () => {
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, []);
+
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
     [`${baseClass}__closing`]: isClosing,

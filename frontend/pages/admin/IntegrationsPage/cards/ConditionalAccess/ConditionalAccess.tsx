@@ -28,7 +28,6 @@ import DataError from "components/DataError";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -343,12 +342,6 @@ const ConditionalAccess = () => {
     setProviderToDelete("okta");
   };
 
-  const onBypassDisabledChange = ({
-    value,
-  }: IInputFieldParseTarget<boolean>) => {
-    setBypassDisabled(value);
-  };
-
   const handleSaveBypassSettings = async (evt: React.FormEvent) => {
     evt.preventDefault();
     setIsUpdatingBypass(true);
@@ -547,28 +540,23 @@ const ConditionalAccess = () => {
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
             <Checkbox
-              onChange={onBypassDisabledChange}
+              onChange={() => setBypassDisabled(!bypassDisabled)}
               name="bypassDisabled"
-              value={bypassDisabled}
-              parseTarget
+              value={!bypassDisabled}
             >
               <TooltipWrapper
                 tipContent={
                   <>
-                    Disables bypassing Okta conditional access for non-critical
-                    policies.{" "}
-                    <em>
-                      (Default: <strong>Off</strong>)
-                    </em>
-                    <br />
-                    <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.
+                    in audit logs. Critical policies can never be bypassed.{" "}
+                    <em>
+                      (Default: <strong>On</strong>)
+                    </em>
                   </>
                 }
                 showArrow={false}
               >
-                Disable bypass
+                Bypass for non-critical policies
               </TooltipWrapper>
             </Checkbox>
             <Button

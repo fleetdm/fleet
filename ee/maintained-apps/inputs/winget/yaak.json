@@ -1,0 +1,13 @@
+{
+  "name": "Yaak",
+  "slug": "yaak/windows",
+  "package_identifier": "Yaak.app",
+  "unique_identifier": "Yaak",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "program_publisher": "Yaak",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/yaak_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/yaak_uninstall.ps1"
+}

@@ -35,8 +35,6 @@ We’re pleased to announce the introduction of the Admin, Maintainer, and Obser
 ## API-only users
 **Available in Fleet Core, Fleet Basic**
 
-![API-only users](../website/assets/images/articles/fleet-4.0.0-4-600x337@2x.gif)
-
 You can now create users that can only access the Fleet API and `fleetctl` CLI tool. This allows you to generate as many automation or bot users as you like without having to think about who and which accounts can access the Fleet UI. API-only users can currently be created by adding the `--api_only` flag to the `fleetctl user create` command. Look for this ability to come to the Fleet UI in a future release of Fleet.
 
 ---
