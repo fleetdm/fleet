@@ -37,7 +37,7 @@ New macOS apps include **Kiro**, **Codex**, and **OpenCode** for AI-assisted dev
 
 _Available in Fleet Premium_
 
-Fleet now supports deploying custom [Declarative Device Management (DDM) Software Update enforcement](https://github.com/apple/device-management/blob/release/declarative/declarations/configurations/softwareupdate.enforcement.specific.yaml) declarations on macOS, iOS, and iPadOS, as well as custom Windows profiles using the [Windows Update CSPs](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update). This gives IT admins full control over OS update enforcement including the exact enforcement deadline time.
+Fleet now supports deploying custom [Declarative Device Management (DDM) Software Update enforcement](https://github.com/apple/device-management/blob/release/declarative/declarations/configurations/softwareupdate.enforcement.specific.yaml) declarations on macOS, iOS, and iPadOS, as well as custom Windows profiles using the [Windows Update CSPs](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update). This gives IT admins full control over OS update enforcement, including the exact enforcement deadline time.
 
 Fleet enforces mutual exclusion with its built-in OS update controls: configuring both returns a clear error so nothing conflicts silently.
 
