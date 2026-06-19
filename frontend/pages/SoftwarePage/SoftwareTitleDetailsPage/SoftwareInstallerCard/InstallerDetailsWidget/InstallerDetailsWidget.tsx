@@ -84,7 +84,9 @@ interface IInstallerDetailsWidgetProps {
    * truncation, FMA "change in Actions > Edit" hint, App Store "Updated every
    * hour", Android Play Store link, "Fleet couldn't read the version", and the
    * `addedAt` formatted-time tooltip). Used by inactive LibraryItemAccordion
-   * rows where the entire row is non-interactive. */
+   * rows, whose outer wrapper already shows the rollback hover tooltip — Fleet
+   * UI avoids stacking two tooltips on the same hover target across the app,
+   * so the widget's tooltips have to defer to the row-level one. */
   disableTooltips?: boolean;
 }
 

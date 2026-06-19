@@ -26,7 +26,7 @@ const meta: Meta<typeof LibraryItemAccordion> = {
     version: "149.0.7827.54",
     addedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     isActive: true,
-    isLatest: true,
+    badgeState: "latest",
     labels: labels7,
     installed: 32,
     pending: 5,
@@ -59,21 +59,25 @@ export const Expanded: Story = {
 
 export const LatestActive: Story = {
   args: {
-    isLatest: true,
-    isPinned: false,
+    badgeState: "latest",
   },
 };
 
 export const PinnedActive: Story = {
   args: {
-    isLatest: false,
-    isPinned: true,
+    badgeState: "pinned",
+  },
+};
+
+export const MajorVersionPinnedActive: Story = {
+  args: {
+    badgeState: "majorVersion",
   },
 };
 
 export const AllHostsNoLabels: Story = {
   args: {
-    isLatest: true,
+    badgeState: "latest",
     labels: [],
   },
 };
@@ -81,8 +85,7 @@ export const AllHostsNoLabels: Story = {
 export const Inactive: Story = {
   args: {
     isActive: false,
-    isLatest: false,
-    isPinned: false,
+    badgeState: undefined,
     labels: [],
     version: "148.0.7778.179",
     addedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),

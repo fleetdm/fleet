@@ -1,7 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { noop } from "lodash";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
@@ -72,34 +71,62 @@ describe("LibraryItemAccordion", () => {
     expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
   });
 
-  it("renders the Latest badge when isLatest is true", () => {
-    renderAccordion({ isLatest: true });
+  it("renders the Latest badge when badgeState is 'latest'", () => {
+    renderAccordion({ badgeState: "latest" });
     expect(screen.getByRole("button", { name: "Latest" })).toBeVisible();
   });
 
-  it("renders the Pinned badge when isPinned is true", () => {
-    renderAccordion({ isPinned: true });
+  it("renders the Pinned badge when badgeState is 'pinned'", () => {
+    renderAccordion({ badgeState: "pinned" });
     expect(screen.getByRole("button", { name: "Pinned" })).toBeVisible();
   });
 
+  it("renders the Major version badge when badgeState is 'majorVersion'", () => {
+    renderAccordion({ badgeState: "majorVersion" });
+    expect(screen.getByRole("button", { name: "Major version" })).toBeVisible();
+  });
+
+  it("renders no badge when badgeState is undefined", () => {
+    renderAccordion({ badgeState: undefined });
+    expect(
+      screen.queryByRole("button", { name: "Latest" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Pinned" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Major version" })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the label-count badge when labels are scoped", () => {
-    renderAccordion({ isLatest: true, labels: makeLabels(7) });
+    renderAccordion({ badgeState: "latest", labels: makeLabels(7) });
     expect(screen.getByRole("button", { name: "7" })).toBeVisible();
   });
 
   it("renders 'All hosts' instead of the label-count when no labels are scoped", () => {
-    renderAccordion({ isLatest: true, labels: [] });
+    renderAccordion({ badgeState: "latest", labels: [] });
     expect(screen.getByText("All hosts")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /^\d+$/ })
     ).not.toBeInTheDocument();
   });
 
+  it("renders 'All hosts' when badgeState is 'majorVersion' with no scoped labels", () => {
+    renderAccordion({ badgeState: "majorVersion", labels: [] });
+    expect(screen.getByText("All hosts")).toBeVisible();
+  });
+
+  it("does not render 'All hosts' when badgeState is undefined (no badge means no fallback)", () => {
+    renderAccordion({ badgeState: undefined, labels: [] });
+    expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
   it("hides all badges and the chevron interaction when inactive", async () => {
     const user = userEvent.setup();
     renderAccordion({
       isActive: false,
-      isLatest: true,
+      badgeState: "latest",
       labels: makeLabels(3),
     });
 
@@ -184,21 +211,131 @@ describe("LibraryItemAccordion", () => {
       { id: 2, name: "Engineering" },
       { id: 3, name: "IT" },
     ] as never;
-    renderAccordion({ isLatest: true, labels, labelKind: "includeAll" });
+    renderAccordion({ badgeState: "latest", labels, labelKind: "includeAll" });
 
     await user.hover(screen.getByRole("button", { name: "3" }));
+    // Tooltip renders the heading inside a `<strong>` and the names as
+    // sibling text nodes separated by `<br/>`. RTL can't match the
+    // individual text nodes (they aren't elements), so assert against the
+    // parent container's combined textContent — which preserves order but
+    // strips the `<br/>` whitespace.
     await waitFor(() => {
-      expect(
-        screen.getByText("Include all: Design, Engineering, IT")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Include all:")).toBeInTheDocument();
     });
+    const tooltipDiv =
+      screen.getByText("Include all:").parentElement ?? document.body;
+    expect(tooltipDiv).toHaveTextContent(/Design.*Engineering.*IT/);
   });
 
-  it("uses callback wiring without errors when no handlers are provided", async () => {
+  it.each([
+    ["latest", "Latest"],
+    ["pinned", "Pinned"],
+    ["majorVersion", "Major version"],
+  ] as const)(
+    "fires onBadgeClick when the %s badge is clicked",
+    async (state, label) => {
+      const onBadgeClick = jest.fn();
+      const user = userEvent.setup();
+      renderAccordion({ badgeState: state, onBadgeClick });
+
+      await user.click(screen.getByRole("button", { name: label }));
+      expect(onBadgeClick).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it("does not propagate badge clicks to the header expand toggle", async () => {
+    const onBadgeClick = jest.fn();
+    const user = userEvent.setup();
+    renderAccordion({ badgeState: "latest", onBadgeClick });
+
+    // The header would expand if the click bubbled — verify it stays collapsed.
+    await user.click(screen.getByRole("button", { name: "Latest" }));
+    expect(onBadgeClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
+  });
+
+  it("fires onLabelCountClick when the label-count badge is clicked", async () => {
+    const onLabelCountClick = jest.fn();
+    const user = userEvent.setup();
+    renderAccordion({
+      badgeState: "latest",
+      labels: makeLabels(4),
+      onLabelCountClick,
+    });
+
+    await user.click(screen.getByRole("button", { name: "4" }));
+    expect(onLabelCountClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the label-count as static (non-button) when canEditSoftware is false", () => {
+    renderAccordion({
+      badgeState: "latest",
+      labels: makeLabels(4),
+      canEditSoftware: false,
+    });
+    expect(screen.queryByRole("button", { name: "4" })).not.toBeInTheDocument();
+    // The static span still displays the count.
+    expect(screen.getByText("4")).toBeVisible();
+  });
+
+  it("fires onDownloadClick when the download button is clicked", async () => {
+    const onDownloadClick = jest.fn();
+    const user = userEvent.setup();
+    renderAccordion({ onDownloadClick });
+
+    await user.click(screen.getByRole("button", { expanded: false }));
+    await user.click(
+      screen.getByRole("button", { name: "Download installer" })
+    );
+    expect(onDownloadClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the download button when downloadUrl is not provided", async () => {
+    const user = userEvent.setup();
+    renderAccordion({ downloadUrl: undefined });
+
+    await user.click(screen.getByRole("button", { expanded: false }));
+    expect(
+      screen.queryByRole("button", { name: "Download installer" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders status counts as links when expanded", async () => {
     const user = userEvent.setup();
     renderAccordion();
+
     await user.click(screen.getByRole("button", { expanded: false }));
 
-    expect(() => noop()).not.toThrow();
+    const installedLink = screen.getByRole("link", { name: /32 installed/ });
+    expect(installedLink).toHaveAttribute("href", statusPath("installed"));
+    expect(screen.getByRole("link", { name: /5 pending/ })).toHaveAttribute(
+      "href",
+      statusPath("pending")
+    );
+    expect(screen.getByRole("link", { name: /3 failed/ })).toHaveAttribute(
+      "href",
+      statusPath("failed")
+    );
+  });
+
+  it("does not throw when the row is rendered with no handlers and interactive elements are clicked", async () => {
+    const user = userEvent.setup();
+    renderAccordion({
+      badgeState: "latest",
+      labels: makeLabels(2),
+      // intentionally no onBadgeClick / onLabelCountClick / onDownloadClick /
+      // onTrashClick — exercising the optional-callback no-op paths
+    });
+
+    await user.click(screen.getByRole("button", { name: "Latest" }));
+    await user.click(screen.getByRole("button", { name: "2" }));
+    await user.click(screen.getByRole("button", { expanded: false }));
+    await user.click(
+      screen.getByRole("button", { name: "Download installer" })
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Delete this version" })
+    );
+    // The test passes if none of the above throw.
   });
 });

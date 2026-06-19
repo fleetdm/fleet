@@ -67,10 +67,10 @@ interface ILibraryItemAccordionListDemoProps {
   /** Number of fake labels assigned to every row. 0 = no scoped labels
    * (falls back to the "All hosts" badge on active rows). */
   labelCount: number;
-  /** Which badge the active row(s) display. Overrides the per-row hard-coded
-   * `isLatest` / `isPinned` / `isMajorVersionPinned` from each story.
-   * `pinned` → "Pinned" badge (pin icon). `majorVersion` → "Major version"
-   * badge (same pin icon, distinct label). */
+  /** Which badge the active row(s) display. Injected into every active
+   * accordion child via `cloneElement` — each story doesn't need to set
+   * `badgeState` itself. `pinned` → "Pinned" badge (pin icon). `majorVersion`
+   * → "Major version" badge (same pin icon, distinct label). */
   badgeState: BadgeState;
   children?: React.ReactNode;
 }
@@ -98,18 +98,9 @@ const flattenFragments = (nodes: React.ReactNode): React.ReactElement[] => {
   return out;
 };
 
-const badgeOverridesFor = (state: BadgeState) => {
-  switch (state) {
-    case "latest":
-      return { isLatest: true, isPinned: false, isMajorVersionPinned: false };
-    case "pinned":
-      return { isLatest: false, isPinned: true, isMajorVersionPinned: false };
-    case "majorVersion":
-      return { isLatest: false, isPinned: false, isMajorVersionPinned: true };
-    default:
-      return {};
-  }
-};
+// Each control-panel option maps directly to one `badgeState` value — no
+// boolean toggling, the prop is its own discriminated union now.
+const badgeOverridesFor = (state: BadgeState) => ({ badgeState: state });
 
 // Realistic hosts-filter URLs so the install-status counts render as
 // CustomLinks (and the hrefs look like what the production page builds via
@@ -229,7 +220,6 @@ export const PinnedToMajorVersion: Story = {
           isFma
           isLatestFmaVersion
           isActive
-          isPinned
           installed={32}
           pending={5}
           failed={3}
@@ -285,7 +275,6 @@ export const AndroidFmaSingleVersion: Story = {
         installerType="app-store"
         androidPlayStoreId="com.android.chrome"
         isActive
-        isLatest
         installed={18}
         pending={2}
         failed={1}
@@ -308,7 +297,6 @@ export const MacCustomPackageMultipleVersions: Story = {
           addedAt={daysAgo(2)}
           installerType="package"
           isActive
-          isLatest
           installed={47}
           pending={3}
           failed={1}
@@ -354,7 +342,6 @@ export const WindowsCustomPackageMultipleVersions: Story = {
           addedAt={daysAgo(3)}
           installerType="package"
           isActive
-          isLatest
           installed={28}
           pending={4}
           failed={2}
@@ -405,7 +392,6 @@ export const WindowsMixedCustomAndFma: Story = {
           isFma
           isLatestFmaVersion
           isActive
-          isLatest
           installed={54}
           pending={6}
           failed={2}
@@ -465,7 +451,6 @@ export const MacOSMixedCustomAndFma: Story = {
           isFma
           isLatestFmaVersion
           isActive
-          isLatest
           installed={87}
           pending={4}
           failed={2}
@@ -522,7 +507,6 @@ export const AppStoreVppSingleVersion: Story = {
         addedAt={daysAgo(2)}
         installerType="app-store"
         isActive
-        isLatest
         installed={42}
         pending={3}
         failed={0}
@@ -549,7 +533,6 @@ export const IOSInHouseIpaMultipleVersions: Story = {
           addedAt={daysAgo(4)}
           installerType="package"
           isActive
-          isLatest
           installed={36}
           pending={2}
           failed={1}
@@ -597,7 +580,6 @@ export const IOSMixedVppAndInHouseIpa: Story = {
           addedAt={daysAgo(2)}
           installerType="app-store"
           isActive
-          isLatest
           installed={64}
           pending={5}
           failed={1}

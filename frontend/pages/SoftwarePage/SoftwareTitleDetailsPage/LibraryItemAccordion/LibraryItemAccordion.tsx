@@ -16,6 +16,11 @@ const baseClass = "library-item-accordion";
 
 export type LibraryItemLabelKind = "includeAny" | "includeAll" | "excludeAny";
 
+/** Which status badge the active row renders, if any. `undefined` (the
+ * default) renders no badge. The three states are mutually exclusive by
+ * construction — the type system, not prop comments, enforces this. */
+export type LibraryItemBadgeState = "latest" | "pinned" | "majorVersion";
+
 const LABEL_KIND_HEADING: Record<LibraryItemLabelKind, string> = {
   includeAny: "Include any",
   includeAll: "Include all",
@@ -51,16 +56,11 @@ export interface ILibraryItemAccordionProps {
    * hint would point at a menu they can't use. Defaults to true. */
   canEditSoftware?: boolean;
 
-  /** Show the "Latest" badge-button. Mutually exclusive with isPinned and
-   * isMajorVersionPinned. */
-  isLatest?: boolean;
-  /** Show the "Pinned" badge-button (exact-version pin). Mutually exclusive
-   * with isLatest and isMajorVersionPinned. */
-  isPinned?: boolean;
-  /** Show the "Major version" badge-button (`^N` major-version pin). Same pin
-   * icon as `isPinned`, distinct label. Mutually exclusive with isLatest and
-   * isPinned. */
-  isMajorVersionPinned?: boolean;
+  /** Which status badge the active row renders. `"latest"` → "Latest" with a
+   * refresh icon. `"pinned"` → "Pinned" with a pin icon. `"majorVersion"` →
+   * "Major version" with the same pin icon, distinct label. `undefined` →
+   * no badge. Inactive rows never render a badge regardless. */
+  badgeState?: LibraryItemBadgeState;
 
   /** Labels assigned to this version (drives the label-count badge and the expanded Labels row). */
   labels?: ILabelSoftwareTitle[] | null;
@@ -84,9 +84,11 @@ export interface ILibraryItemAccordionProps {
   trashDisabled?: boolean;
   trashDisabledTooltip?: React.ReactNode;
 
-  onLatestClick?: () => void;
-  onPinnedClick?: () => void;
-  onMajorVersionPinnedClick?: () => void;
+  /** Click handler for whichever badge is rendered per `badgeState`. The
+   * consumer can branch on `badgeState` inside the callback if it needs to
+   * differentiate (e.g. exact vs major-version pin); the row itself fires the
+   * same callback for all three. */
+  onBadgeClick?: () => void;
   onLabelCountClick?: () => void;
   /** Click on the labels list in the expanded panel — opens the edit software
    * modal. Wired as a CustomLink-style underline button via TruncatedTextList. */
@@ -108,9 +110,7 @@ const LibraryItemAccordion = ({
   isScriptPackage = false,
   isActive,
   canEditSoftware = true,
-  isLatest,
-  isPinned,
-  isMajorVersionPinned,
+  badgeState,
   labels,
   labelKind = "includeAny",
   installed,
@@ -123,9 +123,7 @@ const LibraryItemAccordion = ({
   downloadUrl,
   trashDisabled,
   trashDisabledTooltip,
-  onLatestClick,
-  onPinnedClick,
-  onMajorVersionPinnedClick,
+  onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
   onDownloadClick,
@@ -137,9 +135,7 @@ const LibraryItemAccordion = ({
   const labelCount = labels?.length ?? 0;
   const hasLabelScope = labelCount > 0;
   const showAllHostsBadge =
-    isActive &&
-    !hasLabelScope &&
-    (isLatest || isPinned || isMajorVersionPinned);
+    isActive && !hasLabelScope && badgeState !== undefined;
 
   const canExpand = isActive;
   const isExpanded = canExpand && expanded;
@@ -193,33 +189,33 @@ const LibraryItemAccordion = ({
 
     return (
       <div className={`${baseClass}__badges`}>
-        {isLatest && (
+        {badgeState === "latest" && (
           <Button
             variant="text-icon"
             size="small"
-            onClick={handleBadgeClick(onLatestClick)}
+            onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
           >
             <Icon name="refresh" color="ui-fleet-black-75" />
             <span>Latest</span>
           </Button>
         )}
-        {isPinned && (
+        {badgeState === "pinned" && (
           <Button
             variant="text-icon"
             size="small"
-            onClick={handleBadgeClick(onPinnedClick)}
+            onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
           >
             <Icon name="pin" color="ui-fleet-black-75" />
             <span>Pinned</span>
           </Button>
         )}
-        {isMajorVersionPinned && (
+        {badgeState === "majorVersion" && (
           <Button
             variant="text-icon"
             size="small"
-            onClick={handleBadgeClick(onMajorVersionPinnedClick)}
+            onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
           >
             <Icon name="pin" color="ui-fleet-black-75" />
@@ -432,6 +428,13 @@ const LibraryItemAccordion = ({
         isScriptPackage={isScriptPackage}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
+        // Inactive rows wrap the entire header button in the
+        // `inactiveTooltip` ("Select Actions > Versions and pin this version
+        // to rollback."), which is the only hover affordance the row should
+        // surface. Suppressing the widget's own tooltips (title truncation,
+        // version chip, addedAt, Play Store) avoids stacking a second tooltip
+        // on top of that one — Fleet UI avoids rendering two tooltips on the
+        // same hover target across the app.
         disableTooltips={!isActive}
       />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>

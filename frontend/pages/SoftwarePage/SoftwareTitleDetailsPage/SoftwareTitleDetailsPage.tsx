@@ -259,7 +259,7 @@ const SoftwareTitleDetailsPage = ({
             }
             isScriptPackage={isScriptPackage}
             isActive
-            isLatest
+            badgeState="latest"
             labels={labels}
             labelKind={kind}
             installed={appStore.status?.installed ?? 0}
@@ -287,7 +287,7 @@ const SoftwareTitleDetailsPage = ({
           isLatestFmaVersion={isLatestFmaVersion}
           isScriptPackage={isScriptPackage}
           isActive
-          isLatest
+          badgeState="latest"
           labels={labels}
           labelKind={kind}
           installed={pkg.status?.installed ?? 0}
@@ -315,7 +315,6 @@ const SoftwareTitleDetailsPage = ({
           isLatestFmaVersion={isLatestFmaVersion}
           isScriptPackage={isScriptPackage}
           isActive={false}
-          isLatest={false}
           labels={labels}
           labelKind={kind}
           installed={pkg.status?.installed ?? 0}
