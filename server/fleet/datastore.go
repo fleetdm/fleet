@@ -943,11 +943,15 @@ type Datastore interface {
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	PolicyLite(ctx context.Context, id uint) (*PolicyLite, error)
+	ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter TeamFilter, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
+	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
+	// and resets automation retry attempts, identical to a query-change side-effect.
+	ResetPolicy(ctx context.Context, policyID uint) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)

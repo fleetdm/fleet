@@ -333,7 +333,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("flashes an error and re-enables the Delete button when delete fails", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }]),
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }]),
       deleteSelfServiceCategoryErrorHandler
     );
     const render = createCustomRenderer({
@@ -343,8 +343,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     const deleteBtn = within(modal).getByRole("button", { name: /^Delete$/ });
@@ -402,7 +404,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("closes the Delete modal when Cancel is clicked", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }])
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }])
     );
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -411,8 +413,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
     const modal = await getOpenModal();
 
     await user.click(within(modal).getByRole("button", { name: /Cancel/ }));
@@ -476,7 +480,7 @@ describe("SelfServiceCategoriesPage", () => {
 
   it("deletes a category on confirm", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }]),
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }]),
       deleteSelfServiceCategoryHandler
     );
     const render = createCustomRenderer({
@@ -486,8 +490,10 @@ describe("SelfServiceCategoriesPage", () => {
 
     const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
-    await screen.findByText("🛟 Support");
-    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    await screen.findByText("🛠️ Utilities");
+    await user.click(
+      screen.getByRole("button", { name: "Delete 🛠️ Utilities" })
+    );
 
     const modal = await getOpenModal();
     expect(
