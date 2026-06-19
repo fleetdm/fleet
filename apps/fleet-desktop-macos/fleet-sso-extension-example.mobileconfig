@@ -31,6 +31,8 @@
 				<key>EnableRegistrationDuringSetup</key>
 				<true/>
 			</dict>
+			<key>RegistrationToken</key>
+			<string>$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN</string>
 			<key>ScreenLockedBehavior</key>
 			<string>DoNotHandle</string>
 			<key>TeamIdentifier</key>

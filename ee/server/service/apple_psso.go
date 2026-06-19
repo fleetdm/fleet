@@ -24,6 +24,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	jose "github.com/go-jose/go-jose/v3"
 )
 
@@ -330,8 +331,26 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 		return errPSSONotConfigured
 	}
 
-	if req.DeviceUUID == "" || req.DeviceSigningKey == "" || req.DeviceEncryptionKey == "" || req.SigningKeyID == "" || req.EncryptionKeyID == "" {
+	if req.DeviceSigningKey == "" || req.DeviceEncryptionKey == "" || req.SigningKeyID == "" || req.EncryptionKeyID == "" {
 		return &fleet.BadRequestError{Message: "missing required psso registration fields"}
+	}
+	if req.RegistrationToken == "" {
+		return &fleet.BadRequestError{Message: "psso registration: missing registration token"}
+	}
+
+	// The registration token is what authenticates the device: it is a
+	// Fleet-signed JWT delivered in the configuration profile and bound to a
+	// specific host. Verify it with Fleet's PSSO signing key and take the host
+	// UUID from the token's subject — the device-reported DeviceUUID is not
+	// trusted for identity (an unauthenticated caller who guesses an enrolled
+	// host's hardware UUID must not be able to register keys for it).
+	signingKey, _, err := svc.getPSSOSigningKey(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load psso signing key for registration token validation")
+	}
+	hostUUID, err := regtoken.Validate(req.RegistrationToken, &signingKey.PublicKey, time.Now())
+	if err != nil {
+		return &fleet.BadRequestError{Message: "psso registration: invalid registration token", InternalErr: err}
 	}
 
 	// Reject unparseable key material up front: a bad PEM stored here would
@@ -345,11 +364,11 @@ func (svc *Service) PSSORegisterDevice(ctx context.Context, req fleet.PSSODevice
 	}
 
 	// PSSO requires a matching enrolled host; the registration is keyed by the
-	// host's UUID.
-	host, err := svc.ds.HostByUUID(ctx, req.DeviceUUID)
+	// host UUID carried in the (validated) registration token.
+	host, err := svc.ds.HostByUUID(ctx, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("psso registration: no enrolled host matches device UUID %q", req.DeviceUUID)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("psso registration: no enrolled host matches device UUID %q", hostUUID)}
 		}
 		return ctxerr.Wrap(ctx, err, "look up host by device uuid")
 	}

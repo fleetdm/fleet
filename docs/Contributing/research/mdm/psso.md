@@ -38,7 +38,7 @@ sequenceDiagram
     rect rgb(235, 244, 255)
         Note over User,IdP: Phase 1 — Device registration (once; after enrollment or during Setup Assistant)
         macOS->>Ext: beginDeviceRegistration (provides Secure Enclave signing + encryption keys)
-        Ext->>Ext: Build payload (device_uuid, device_signing_key, device_encryption_key, signing_key_id, encryption_key_id)
+        Ext->>Ext: Build payload (registration token, device_signing_key, device_encryption_key, signing_key_id, encryption_key_id)
         Ext->>Fleet: POST /api/mdm/apple/psso/registration (direct URLSession)
         Fleet->>Fleet: Resolve host by UUID; store device + key IDs
         Fleet-->>Ext: 200 OK
@@ -127,53 +127,8 @@ The Swift sources for the SSO extension live in this repo at `apps/fleet-desktop
 
 - **OIDC ROPG has provider-specific limitations.** Okta: ROPG must be explicitly enabled on the application and the app must be Native or Service type. Entra: MFA-required users and federated (AD FS) users cannot authenticate via ROPG. These are upstream constraints, not Fleet bugs. Customers in those configurations need an alternative `PSSOIdPClient` backend (LDAP bind or a direct-trust flow).
 - **AASA requires a public-CA TLS certificate.** Apple's framework silently rejects self-signed certificates when fetching `/.well-known/apple-app-site-association`. Local development requires a real DNS name with a Let's Encrypt cert, or a tunnel such as ngrok or cloudflared.
-- **No device revocation or key rotation in the POC.** Devices register once and stay registered for the life of the row.
 - **Global config only.** PSSO settings live on `AppConfig`; there is no per-team override.
-- **Device registration is unauthenticated in the POC.** `POST /api/mdm/apple/psso/registration` accepts any request that presents a device UUID matching an enrolled host plus a set of public keys; nothing proves the request actually originates from that enrolled device. An attacker who can reach the endpoint and knows (or guesses) an enrolled host's hardware UUID could register their own keys for that host. See "Authenticate registration with a per-device token" below for the planned fix.
-
-## Productionizing steps
-
-These are known-required steps to take the POC to a shippable feature. They are intentionally deferred, not forgotten.
-
-### Update apple-app-site-association and associated domains
-
-**Problem.** Right now Apple-App-Site-Associated and AssociatedDomains are hardcoded serverside and in the bundle. Real customers would likely need an AssociatedDomains payload and we'd use different AASA team identifiers, and possibly different bundle identifiers
-
-### Wire up build for CI and distribution
-
-**Problem.** Right now this is configured to build locally and likely only runs on allowlisted developer macs. CI may require changes to build scripts. Distribution may require changes to certificates and entitlements.
-
-### Authenticate registration with a per-device token (Fleet variable)
-
-**Problem.** Registration is currently unauthenticated (see Known limitations). Apple's `com.apple.extensiblesso` payload defines a `RegistrationToken` key — "the token this device uses for registration with Platform SSO ... for silent registration with the Identity Provider" — that exists precisely to close this gap: the MDM server places a secret in the profile, the framework hands it to the extension at registration, and the IdP validates it.
-
-**Planned approach.** Rather than build Fleet-side per-device profile *generation* (the `ensureFleetProfiles` lifecycle, deliberately out of scope for the POC), mint the token through Fleet's existing profile-variable substitution. Introduce a `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` variable that the admin places in the `RegistrationToken` key of the single, manually-uploaded `.mobileconfig`. Fleet substitutes a unique value **per host, at profile-send time**, in `server/mdm/apple/profile_processor.go` — the same point where, and the same way that, the custom-SCEP proxy already mints a per-host challenge via `ds.NewChallenge` and validates it when the device later presents it. PSSO registration is the identical shape: mint/persist a per-host token at send time → substitute → validate at `/register`.
-
-**Benefits beyond authentication.** Because Fleet mints the token against a known `host_id`, the token *is* the host binding. `PSSORegisterComplete` can resolve `host_id` from the token instead of trusting the device-supplied UUID via `HostLiteByIdentifier`, removing a second trust assumption.
-
-**Implementation touch points.**
-- `server/fleet/mdm.go` — add the `FleetVarName` constant and its regexp.
-- `server/mdm/apple/profile_processor.go` — add a substitution switch case that mints/looks up the per-host token.
-- `server/service/apple_mdm.go` — add the variable to `fleetVarsSupportedInAppleConfigProfiles` so upload validation accepts it.
-- `ee/server/service/apple_psso.go` — validate the presented token in `PSSORegisterComplete` and derive `host_id` from it.
-- Storage + migration, and tests.
-
-**Open decisions.**
-- *Storage:* a dedicated table (`mdm_apple_psso_registration_tokens`, PK `host_id`) versus reusing Fleet's generic `challenges` store the way custom-SCEP does. The latter adds essentially no new schema but needs its row shape confirmed to support a clean host binding.
-- *Lifecycle:* mint-once-and-reuse (so profile re-sends don't rotate a token mid-flight) versus rotate-on-resend.
-- *Consumption:* single-use (consume at registration) versus durable (validate without consuming, friendlier to re-registration).
-
-### Admin configuration: UI and live reload of IdP settings
-
-**Problem.** PSSO configuration currently has two POC-only rough edges that customers won't accept:
-
-1. **No admin UI.** PSSO settings live on `AppConfig.PSSOSettings` and are set either by hand-editing the `app_config_json` row or via `PATCH /api/v1/fleet/config`. There is no UI surface. Customers expect to configure the IdP connection (token/authorize URLs, client ID/secret, scopes) from the Fleet console like every other integration, with the client secret masked on read (the `IdPClientSecret` masking TODO in `server/fleet/apple_psso.go` is part of this).
-
-2. **The IdP client is built once at boot.** `cmd/fleet/serve.go` constructs `PSSOOIDCROPGClient` from `appCfg.PSSOSettings` during server startup and wires it via `SetPSSOIdPClient`. Changing PSSO settings — even through the API — has no effect until the server is restarted, and if settings are absent at boot the client stays nil and the token endpoint fails with "psso idp client not configured." A self-hosted admin can restart; a Fleet Cloud customer cannot, and nobody should have to.
-
-**Planned approach.** Resolve the IdP client (and nonce store, if it grows config) from the current `AppConfig` at request time rather than caching a single instance at boot — e.g. construct it per call from the live config, or cache it behind the existing app-config change signal so edits take effect immediately. Pair that with a PSSO settings page in the console and secret masking on the config API. This removes the restart requirement and the hand-edited-SQL workflow entirely.
-
-**Live reload addressed in #46942.** The OIDC ROPG client is now built from the current `AppConfig` on every password login, and the boot-time `SetPSSOIdPClient` wiring was removed from `serve.go` (the setter remains as a test hook). The admin UI and secret masking remain with #46959 / #47127.
+- **Device registration requires a Fleet-signed registration token.** `POST /api/mdm/apple/psso/registration` now requires the `RegistrationToken` JWT minted by Fleet and delivered in the configuration profile; the host identity is taken from the token's subject, not from the device-supplied UUID. See "Authenticate registration with a per-device token" below for the implemented design. The token has a long (5-year) lifetime and is not revocable on its own, but registration also requires the host to still be enrolled, which bounds the exposure.
 
 ### LDAP identity backend (Google Workspace Secure LDAP)
 
@@ -203,24 +158,6 @@ These are known-required steps to take the POC to a shippable feature. They are 
 **Limitations to document.**
 - **No refresh token / silent renewal.** LDAP has no `refresh_token`/`expires_in`; `PSSOClaims` already treats those as optional and `handlePSSOPasswordLogin` degrades gracefully (mints an opaque token, default TTL), but silent SSO renewal can't happen without the password — renewal requires a re-prompt. Acceptable (PSSO re-authenticates periodically) but degraded vs. OIDC.
 - **MFA bypass.** A raw LDAP bind ignores MFA/conditional access, the same limitation class as the ROPG caveat above.
-
-## Security review findings
-
-A security review of the POC (covering the implementation and these productionizing plans) produced the findings below. They are ordered by severity and tagged **[deploy]** (must fix before any real-world deployment, including pilots) or **[GA]** (POC-acceptable, fix before general availability). Items that overlap an existing Productionizing/Known-limitations entry are cross-referenced.
-
-The crypto was otherwise found sound: no passwords/refresh-tokens/client-secrets in logs or errors; SQL fully parameterized; JWE GCM nonces random with the protected header as AAD; `canonicalizeKID` consistent across store and lookup (no key aliasing); attacker-supplied `other_publickey` is curve-validated via `crypto/ecdh`; clean-room provenance intact (JOSE primitives only, no third-party PSSO SDK).
-
-### HIGH [deploy] — Key replacement on registration enables device takeover
-
-Compounds the unauthenticated-registration limitation. `SetOrUpdatePSSODevice` (`server/datastore/mysql/apple_psso.go`) deletes a host's existing `key_ids` and inserts the caller's on a plain upsert. The `IOPlatformUUID` is not secret (it appears in osquery results, MDM inventory, logs), so an unauthenticated attacker who knows it can *overwrite* a legitimate device's registered signing/encryption keys and then drive `/token` as that host. The planned per-device registration token closes the spoofing primitive, but the key-replacement semantics are a separate decision: once a host has a registration, require the per-host token to match before replacing keys, and log/emit an activity on key replacement (rotation vs. takeover).
-
-### LOW [GA] — Hardcoded developer Team/bundle IDs in the AASA
-
-`teamID*`/`bundleID*` constants (`ee/server/service/apple_psso.go`) are baked into the public, always-served `apple-app-site-association`. They leak Fleet-developer identifiers and mis-bind for any deployer using their own signing identity. Make them config-driven before GA.
-
-### INFORMATIONAL — Upstream `id_token` signature is not verified
-
-`parseOIDCIDTokenClaims` reads the IdP `id_token` without signature verification. Acceptable: it arrives directly from the IdP over TLS in the same response (a structured response, not a cross-trust assertion) — *provided* the SSRF/TLS hardening above holds.
 
 ## Pointers
 

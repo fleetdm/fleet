@@ -74,15 +74,20 @@ type PSSONonceStore interface {
 // PSSODeviceRegistrationRequest carries the device-key enrollment the Mac
 // extension POSTs to the PSSO registration endpoint. In Password mode this is
 // a pure key registration: the extension generates Secure Enclave signing +
-// encryption keypairs and submits the public halves plus their kids and the
-// hardware device UUID. User identity is established later, at each password
-// login on the token endpoint.
+// encryption keypairs and submits the public halves plus their kids. User
+// identity is established later, at each password login on the token endpoint.
+//
+// RegistrationToken is the Fleet-signed JWT delivered to the extension via the
+// configuration profile's RegistrationToken key; it authenticates the device
+// and binds the registration to a specific host (its subject). The host UUID is
+// derived from the token.
 type PSSODeviceRegistrationRequest struct {
 	DeviceUUID          string `json:"device_uuid"`
 	DeviceSigningKey    string `json:"device_signing_key"`
 	DeviceEncryptionKey string `json:"device_encryption_key"`
 	SigningKeyID        string `json:"signing_key_id"`
 	EncryptionKeyID     string `json:"encryption_key_id"`
+	RegistrationToken   string `json:"registration_token"`
 }
 
 // AppleAccountProvisioning is the macOS local account provisioning / Platform

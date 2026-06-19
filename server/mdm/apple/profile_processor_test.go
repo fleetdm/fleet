@@ -997,3 +997,89 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		})
 	}
 }
+
+func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	svc := scep.NewSCEPConfigService(logger, nil)
+	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+
+	const hostUUID = "host-1"
+	const cmdUUID = "cmd-1"
+	placeholder := "$" + fleet.HostSecretPrefix + fleet.HostSecretPSSODeviceRegistrationToken
+
+	newHostProfilesMap := func() map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload {
+		m := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, 1)
+		m[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.fleetdm.platformsso",
+			HostUUID:          hostUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		}
+		return m
+	}
+
+	t.Run("only variable short-circuits the per-host split", func(t *testing.T) {
+		ds := new(mock.Store)
+		bulkUpsertCalled := false
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+			bulkUpsertCalled = true
+			return nil
+		}
+
+		targets := map[string]*fleet.CmdTarget{
+			"p1": {CmdUUID: cmdUUID, ProfileIdentifier: "com.fleetdm.platformsso", EnrollmentIDs: []string{hostUUID}},
+		}
+		profileContents := map[string]mobileconfig.Mobileconfig{
+			"p1": []byte("<string>" + fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix() + "</string>"),
+		}
+
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		require.NoError(t, err)
+
+		// The original target is preserved (no per-host fan-out, no new temp UUIDs).
+		require.Len(t, targets, 1)
+		require.Contains(t, targets, "p1")
+		require.Equal(t, cmdUUID, targets["p1"].CmdUUID)
+		require.False(t, bulkUpsertCalled, "host profiles should not be re-keyed for the short-circuited profile")
+
+		// The variable resolved to the host-secret placeholder on the shared content.
+		require.Equal(t, "<string>"+placeholder+"</string>", string(profileContents["p1"]))
+		require.NotContains(t, string(profileContents["p1"]), "FLEET_VAR_")
+	})
+
+	t.Run("mixed with a host-specific variable still fans out and keeps the placeholder", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+			return nil
+		}
+
+		targets := map[string]*fleet.CmdTarget{
+			"p1": {CmdUUID: cmdUUID, ProfileIdentifier: "com.fleetdm.platformsso", EnrollmentIDs: []string{hostUUID}},
+		}
+		profileContents := map[string]mobileconfig.Mobileconfig{
+			"p1": []byte("<string>" + fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix() + "</string><string>" + fleet.FleetVarHostUUID.WithPrefix() + "</string>"),
+		}
+
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		require.NoError(t, err)
+
+		// The original target is replaced by a per-host target.
+		require.NotContains(t, targets, "p1")
+		require.Len(t, targets, 1)
+		var tempUUID string
+		for k := range targets {
+			tempUUID = k
+		}
+		hostContents := string(profileContents[tempUUID])
+		require.Contains(t, hostContents, placeholder)
+		require.Contains(t, hostContents, hostUUID)
+		require.NotContains(t, hostContents, "FLEET_VAR_")
+	})
+}

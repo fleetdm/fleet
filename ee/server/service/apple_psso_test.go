@@ -2,6 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"log/slog"
 	"testing"
 	"time"
@@ -10,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -153,4 +159,109 @@ func TestPSSO_NonceIssuedAndConsumedWhenConfigured(t *testing.T) {
 	// And the claim is required at all.
 	err = svc.consumePSSORequestNonce(ctx, "")
 	require.Error(t, err)
+}
+
+func mustECPublicKeyPEM(t *testing.T) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	der, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+}
+
+func TestPSSORegisterDevice_RequiresValidToken(t *testing.T) {
+	const hostUUID = "A72B07D0-2E08-45CE-9423-1FCAFFAEC390"
+
+	fleetKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	fleetKeyDER, err := x509.MarshalECPrivateKey(fleetKey)
+	require.NoError(t, err)
+	fleetKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: fleetKeyDER})
+
+	devSigning := mustECPublicKeyPEM(t)
+	devEncryption := mustECPublicKeyPEM(t)
+
+	newSvc := func(t *testing.T) (*Service, context.Context, *mock.Store) {
+		svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
+		ds := svc.ds.(*mock.Store)
+		ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			out := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+			for _, n := range names {
+				switch n {
+				case fleet.MDMAssetAppleAccountProvisioningIdPClientSecret:
+					out[n] = fleet.MDMConfigAsset{Name: n, Value: []byte("client-secret")}
+				case fleet.MDMAssetPSSOSigningKey:
+					out[n] = fleet.MDMConfigAsset{Name: n, Value: fleetKeyPEM}
+				}
+			}
+			return out, nil
+		}
+		ds.HostByUUIDFunc = func(_ context.Context, uuid string) (*fleet.Host, error) {
+			if uuid != hostUUID {
+				return nil, &testNotFoundError{}
+			}
+			return &fleet.Host{UUID: uuid}, nil
+		}
+		return svc, ctx, ds
+	}
+
+	validReq := func(token string) fleet.PSSODeviceRegistrationRequest {
+		return fleet.PSSODeviceRegistrationRequest{
+			DeviceUUID:          hostUUID,
+			DeviceSigningKey:    devSigning,
+			DeviceEncryptionKey: devEncryption,
+			SigningKeyID:        "sign-kid",
+			EncryptionKeyID:     "enc-kid",
+			RegistrationToken:   token,
+		}
+	}
+
+	t.Run("valid token registers and derives host from the token subject", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t)
+		var storedUUID string
+		var storedKeys []fleet.PSSOKey
+		ds.SetOrUpdatePSSODeviceFunc = func(_ context.Context, uuid string, keys []fleet.PSSOKey) error {
+			storedUUID = uuid
+			storedKeys = keys
+			return nil
+		}
+
+		token, err := regtoken.Mint(fleetKey, hostUUID, time.Now())
+		require.NoError(t, err)
+
+		require.NoError(t, svc.PSSORegisterDevice(ctx, validReq(token)))
+		require.True(t, ds.SetOrUpdatePSSODeviceFuncInvoked)
+		require.Equal(t, hostUUID, storedUUID)
+		require.Len(t, storedKeys, 2)
+	})
+
+	t.Run("missing token is rejected", func(t *testing.T) {
+		svc, ctx, _ := newSvc(t)
+		err := svc.PSSORegisterDevice(ctx, validReq(""))
+		require.ErrorContains(t, err, "missing registration token")
+	})
+
+	t.Run("token signed by another key is rejected", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t)
+		otherKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		token, err := regtoken.Mint(otherKey, hostUUID, time.Now())
+		require.NoError(t, err)
+
+		err = svc.PSSORegisterDevice(ctx, validReq(token))
+		require.ErrorContains(t, err, "invalid registration token")
+		require.False(t, ds.SetOrUpdatePSSODeviceFuncInvoked)
+	})
+
+	t.Run("token bound to a non-enrolled host is rejected", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t)
+		token, err := regtoken.Mint(fleetKey, "11111111-2222-3333-4444-555555555555", time.Now())
+		require.NoError(t, err)
+
+		err = svc.PSSORegisterDevice(ctx, validReq(token))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "no enrolled host")
+		require.False(t, ds.SetOrUpdatePSSODeviceFuncInvoked)
+	})
 }
