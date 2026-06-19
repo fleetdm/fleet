@@ -1,0 +1,1 @@
+- Improved `fleetctl` to detect when SSO is enabled on the Fleet server and display a helpful message directing users to authenticate using an API token instead of email and password.

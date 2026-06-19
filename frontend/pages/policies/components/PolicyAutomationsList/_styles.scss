@@ -1,19 +1,8 @@
 .policy-automations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  max-width: 600px;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: 8px;
   font-size: $x-small;
-
-  &__header {
-    color: $core-fleet-black;
-    font-weight: $bold;
-  }
-
-  &__list {
-    max-width: 600px;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 8px;
-  }
 
   &__row {
     display: flex;
@@ -52,10 +41,7 @@
     padding: 0 $pad-large;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
+    font-size: $x-small;
     color: $ui-fleet-black-50;
-  }
-
-  &__footer-text {
-    color: $ui-fleet-black-75;
   }
 }

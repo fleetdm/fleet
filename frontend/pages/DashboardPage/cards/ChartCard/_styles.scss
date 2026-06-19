@@ -366,6 +366,13 @@
       fill: var(--level-5);
       background-color: var(--level-5);
     }
+
+    // The current timeframe (the slot we're still collecting data for) gets a
+    // visible outline. Declared after the level rules so it overrides the
+    // level-0 stroke at equal specificity.
+    &--current {
+      stroke: $ui-fleet-black-50;
+    }
   }
 }
 

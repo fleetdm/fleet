@@ -225,11 +225,28 @@ func (v *SoftwareWorker) makeAndroidAppAvailablePerHost(
 		hostByUUID[h.UUID] = h
 	}
 
+	// TODO(#47543): refactor to use staggered job queuing instead of in-job sleep.
+	batchSize := v.AndroidBatchSize
+	if batchSize <= 0 {
+		batchSize = len(hostByUUID)
+	}
+	hostCount := 0
 	for hostUUID := range hosts {
 		h, ok := hostByUUID[hostUUID]
 		if !ok {
 			continue // host may have been deleted since the job was queued
 		}
+
+		if hostCount > 0 && hostCount%batchSize == 0 {
+			timer := time.NewTimer(androidSoftwareInstallStaggerInterval)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctxerr.Wrap(ctx, ctx.Err(), "context done between batches")
+			case <-timer.C:
+			}
+		}
+		hostCount++
 
 		subHost := profiles.AndroidAppConfigSubstitutionHost{
 			UUID:           h.UUID,

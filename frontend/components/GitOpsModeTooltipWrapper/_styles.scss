@@ -1,19 +1,23 @@
 .gitops-mode-tooltip-wrapper {
+  // Arrow styles target the nested react-tooltip via descendant selectors (mirrors the
+  // shared TooltipWrapper, which this component no longer delegates to).
+  @include tooltip5-arrow-styles;
+  display: inline-flex;
+
   &__tooltip-content {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
-  &--inputfield {
-    .component__tooltip-wrapper__element {
-      width: 100%;
-    }
+  &__tip-text {
+    @include tooltip-text;
+    cursor: default;
   }
 
-  .component__tooltip-wrapper {
-    &__tip-text {
-      cursor: default;
-    }
+  // Inputs/dropdowns must stretch to full width.
+  &--inputfield {
+    display: block;
+    width: 100%;
   }
 }
