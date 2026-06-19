@@ -30,7 +30,7 @@ import (
 //     deployment, where it isolates a single noisy/compromised client without
 //     throttling everyone else. It deliberately does NOT read X-Forwarded-For:
 //     the TCP source address of an established connection can't be spoofed,
-//     whereas XFF is client-supplied and was the Finding C bypass. Trade-off:
+//     whereas XFF is client-supplied and can be spoofed. Trade-off:
 //     behind a reverse proxy every request's RemoteAddr is the proxy's IP, so
 //     all clients collapse into one bucket — this fails SAFE (over-throttles,
 //     never under-throttles). Use "global" there instead.
