@@ -189,11 +189,14 @@ func TestPSSO_KeyContextRoundTrip(t *testing.T) {
 
 	provisioned, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	sealed, err := sealKeyContext(provisioned, kcKey)
+	const hostUUID = "ABCD-1234-host-uuid"
+	sealed, err := sealKeyContext(provisioned, hostUUID, pssoKeyPurposeUserUnlock, kcKey)
 	require.NoError(t, err)
 
-	got, err := openKeyContext(sealed, kcKey)
+	kc, got, err := openKeyContext(sealed, kcKey)
 	require.NoError(t, err)
+	assert.Equal(t, hostUUID, kc.HostUUID)
+	assert.Equal(t, pssoKeyPurposeUserUnlock, kc.KeyPurpose)
 	want, err := x509.MarshalECPrivateKey(provisioned)
 	require.NoError(t, err)
 	gotDER, err := x509.MarshalECPrivateKey(got)
@@ -205,7 +208,51 @@ func TestPSSO_KeyContextRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	otherKC, err := deriveKeyContextKey(other)
 	require.NoError(t, err)
-	_, err = openKeyContext(sealed, otherKC)
+	_, _, err = openKeyContext(sealed, otherKC)
+	require.Error(t, err)
+}
+
+// TestPSSO_InboundJWTAlgorithmPinned confirms the token endpoint accepts only
+// ES256-signed device JWTs: an HS256 or "none" token presenting the same kid is
+// rejected, closing the alg-confusion path.
+func TestPSSO_InboundJWTAlgorithmPinned(t *testing.T) {
+	deviceKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	spki, err := x509.MarshalPKIXPublicKey(&deviceKey.PublicKey)
+	require.NoError(t, err)
+	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: spki})
+
+	const kid = "device-signing-kid"
+	ds := new(mock.DataStore)
+	svc := &Service{ds: ds, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	ds.GetPSSOKeyFunc = func(_ context.Context, _ string) (*fleet.PSSOKey, error) {
+		return &fleet.PSSOKey{KID: kid, HostUUID: "host", KeyType: fleet.PSSOKeyTypeSigning, PEM: string(pubPEM)}, nil
+	}
+
+	signed := func(method jwt.SigningMethod, key any) string {
+		tok := jwt.NewWithClaims(method, &pssoTokenClaims{RequestType: pssoRequestKey})
+		tok.Header["kid"] = kid
+		s, err := tok.SignedString(key)
+		require.NoError(t, err)
+		return s
+	}
+
+	// A valid ES256 token from the registered device verifies.
+	claims, gotKey, err := svc.parsePSSOInboundJWT(t.Context(), []byte(signed(jwt.SigningMethodES256, deviceKey)))
+	require.NoError(t, err)
+	assert.Equal(t, pssoRequestKey, claims.RequestType)
+	assert.Equal(t, fleet.PSSOKeyTypeSigning, gotKey.KeyType)
+
+	// An HS256 token sharing the same kid is rejected (alg confusion).
+	_, _, err = svc.parsePSSOInboundJWT(t.Context(), []byte(signed(jwt.SigningMethodHS256, []byte("attacker-secret"))))
+	require.Error(t, err)
+
+	// An unsigned ("none") token is rejected.
+	none := jwt.NewWithClaims(jwt.SigningMethodNone, &pssoTokenClaims{RequestType: pssoRequestKey})
+	none.Header["kid"] = kid
+	noneStr, err := none.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	require.NoError(t, err)
+	_, _, err = svc.parsePSSOInboundJWT(t.Context(), []byte(noneStr))
 	require.Error(t, err)
 }
 

@@ -113,9 +113,9 @@ The nonce store mirrors `server/mdm/acme/internal/redis_nonces_store/` and expos
 - `mdm_apple_psso_devices` — primary key `host_id`, stores the device's signing and encryption public keys (PEM), the negotiated KeyExchangeKey, and registration/update timestamps.
 - `mdm_apple_psso_key_ids` — primary key `kid`, foreign key `host_id`, plus `key_type` and `pem`. The extension references keys by SHA-256 hash of the public key, so the server needs an index keyed by that hash to resolve incoming requests back to a device.
 
-### JWKS signing key bootstrap timing (OPEN)
+### JWKS signing key bootstrap
 
-Current placeholder behavior: the JWKS signing key is lazily minted on the first `GET /api/mdm/apple/psso/jwks` and persisted (encrypted) in `mdm_config_assets` under `MDMAssetPSSOSigningKey`. Alternatives under consideration include minting on the first time a user enables the feature. The lazy-mint code carries a `TODO`; decision pending.
+The signing key(`MDMAssetPSSOSigningKey`) and the self-signed PSSO CA (`MDMAssetPSSOCACert`, backed by the same private key) are created once, the first time the feature is configured, via `bootstrapPSSOAssets` in `ModifyAppConfig` (covering the config API and GitOps). The bootstrap is idempotent and never regenerates existing assets, so the JWKS key and CA stay stable across reconfiguration and disable/re-enable.
 
 ### In-tree Swift extension at `apple-sso-extension/`
 
@@ -210,41 +210,9 @@ A security review of the POC (covering the implementation and these productioniz
 
 The crypto was otherwise found sound: no passwords/refresh-tokens/client-secrets in logs or errors; SQL fully parameterized; JWE GCM nonces random with the protected header as AAD; `canonicalizeKID` consistent across store and lookup (no key aliasing); attacker-supplied `other_publickey` is curve-validated via `crypto/ecdh`; clean-room provenance intact (JOSE primitives only, no third-party PSSO SDK).
 
-### CRITICAL [deploy] — IdP client secret disclosed via the config API
-
-`AppConfig.Obfuscate()` (`server/fleet/app.go`) masks SMTP/Jira/Zendesk/etc. secrets but has no case for `PSSOSettings`, so `GET /api/v1/fleet/config` returns `psso_settings.idp_client_secret` in cleartext to any caller with config read. A low-privilege user could lift the upstream IdP OAuth client credentials and use them directly against the customer's tenant. This is a live disclosure on the existing endpoint, not the cosmetic "mask in the UI" task framed under *Admin configuration* above. Fix: add a `PSSOSettings` case to `Obfuscate()`, and mirror the SMTP "keep existing secret when the client submits the mask" logic on the config write path so a PATCH echoing `********` doesn't clobber the stored secret.
-
-### HIGH [deploy] — `PSSOSettings.Enabled` is never enforced
-
-No PSSO service method consults `cfg.PSSOSettings.Enabled`; the unauthenticated `/mdm/apple/psso/*` surface is live on every licensed instance even when an admin never enabled (or explicitly disabled) PSSO. Gate the device-facing methods (`PSSONonce`, `PSSORegisterComplete`, `PSSOToken`, and arguably JWKS/AASA) on `Enabled` in the service layer so all entry points are covered.
-
-**Addressed in #46942.** Every PSSO service method now checks the live `AppConfig.PSSOSettings` per request (`pssoSettingsIfConfigured`): nonce/registration/token return 400 and JWKS/AASA return 404 when the feature is disabled or incompletely configured.
-
-### HIGH [deploy] — Unbounded replay of token requests
-
-The verified JWT parse validates `exp`/`nbf` only if present, and inbound request JWTs are not required to carry an `exp` (nor is one enforced). The sole anti-replay control, `request_nonce`, is consumed best-effort — a miss is logged, not rejected (`ee/server/service/apple_psso.go`, `handlePSSOPasswordLogin`). A captured login-request JWS can therefore be replayed indefinitely to re-trigger IdP password validation and yield a fresh valid login-response JWE. This supersedes the milder "best-effort nonce, fix before GA" framing — the practical state is unbounded replay of a credential-validating request. Fix: require a short-lived `exp` (and an `iat` max-age) on inbound JWTs, and hard-enforce single-use `request_nonce` (reject when the store rejects).
-
-**Partially addressed in #46942.** `request_nonce` is now hard-enforced and consumed before dispatch for all token flows (password login, key request, key exchange) — a replayed JWS is rejected. Requiring `exp`/`iat` max-age on inbound JWTs remains open (#47122 covers JWT validation cleanup).
-
 ### HIGH [deploy] — Key replacement on registration enables device takeover
 
 Compounds the unauthenticated-registration limitation. `SetOrUpdatePSSODevice` (`server/datastore/mysql/apple_psso.go`) deletes a host's existing `key_ids` and inserts the caller's on a plain upsert. The `IOPlatformUUID` is not secret (it appears in osquery results, MDM inventory, logs), so an unauthenticated attacker who knows it can *overwrite* a legitimate device's registered signing/encryption keys and then drive `/token` as that host. The planned per-device registration token closes the spoofing primitive, but the key-replacement semantics are a separate decision: once a host has a registration, require the per-host token to match before replacing keys, and log/emit an activity on key replacement (rotation vs. takeover).
-
-### HIGH [GA] — Inbound JWT algorithm not pinned
-
-`parsePSSOInboundJWT` (`ee/server/service/apple_psso_crypto.go`) calls `jwt.ParseWithClaims` without `jwt.WithValidMethods` and the keyfunc returns the EC key without asserting `token.Method`. Not exploitable as written (golang-jwt v4's type assertions reject HS/`none` against an `*ecdsa.PublicKey`), but it is one refactor away from an alg-confusion forgery. Fix: pass `jwt.WithValidMethods([]string{"ES256"})` and assert `*jwt.SigningMethodECDSA` in the keyfunc. Cheap hardening.
-
-### MEDIUM [deploy] — ROPG client is an SSRF / credential-redirection sink
-
-`idp_token_url` comes from admin-controlled `AppConfig` and is POSTed to with the user's plaintext password. There is no scheme/host validation, so whoever can edit config (or a future settings UI lacking validation) can point it at an internal address and harvest passwords. Validate `https://` and a non-internal host at config-write time, and confirm `fleethttp.NewClient()` enforces TLS verification for this client. Pair this validation with the live-reload work under *Admin configuration*.
-
-### MEDIUM [GA → now-active] — `key_context` is not bound to device or expiry
-
-The provisioned private key sealed into `key_context` (key request) is recoverable by any registered device replaying any captured `key_context`, and the blob carries no TTL (its payload `exp` is advisory and not re-checked on exchange). It is also sealed under a key HKDF-derived from the long-lived PSSO signing key, so signing-key rotation/re-mint silently invalidates all outstanding contexts, and a signing-key leak compromises every context ever issued (no forward secrecy). **Note:** the review rated this deferrable on the assumption the key-request/key-exchange path was not exercised by the Password flow — that is no longer true; the unlock-key exchange now runs during Password-mode registration, so treat this as active. Fix: bind `key_context` to the device `kid` and an expiry inside the sealed plaintext (e.g. as AAD), and reject on open if mismatched or expired.
-
-### MEDIUM [GA] — Ad-hoc CA certificate issuance is sloppy
-
-`issuePSSOProvisionedCertificate` (`ee/server/service/apple_psso.go`) regenerates a self-signed, unconstrained, 10-year signing CA on every key request with fixed serial `1`. Generate the CA once (persist alongside the signing key), use random serials for both CA and leaf, and add EKU/name constraints scoping its use.
 
 ### LOW [GA] — Hardcoded developer Team/bundle IDs in the AASA
 

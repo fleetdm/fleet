@@ -1775,6 +1775,12 @@ func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
 			tr.insertedSecret = &v
 			return nil
 		}
+		// Configuring the feature triggers bootstrapPSSOAssets, which mints and
+		// inserts the PSSO signing key + CA. The secret assertions don't touch
+		// these, so a no-op stub is enough to keep the bootstrap from panicking.
+		ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, _ []fleet.MDMConfigAsset, _ sqlx.ExtContext) error {
+			return nil
+		}
 		ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
 			require.Equal(t, []fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, names)
 			tr.deleted = true

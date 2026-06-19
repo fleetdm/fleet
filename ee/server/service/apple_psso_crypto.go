@@ -132,9 +132,16 @@ func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*
 		return nil, nil, ctxerr.Wrap(ctx, err, "parse device signing pubkey")
 	}
 
-	tok, err := jwt.ParseWithClaims(string(jwtBytes), &pssoTokenClaims{}, func(*jwt.Token) (any, error) {
+	// Pin the algorithm to ES256 (the only alg the Secure Enclave-backed
+	// extension signs with) and assert the ECDSA method in the keyfunc. Without
+	// this, a future refactor returning a non-EC key could open an alg-confusion
+	// forgery path even though golang-jwt's type assertions currently prevent it.
+	tok, err := jwt.ParseWithClaims(string(jwtBytes), &pssoTokenClaims{}, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
+			return nil, fmt.Errorf("psso jwt: unexpected signing method %q", t.Method.Alg())
+		}
 		return pub, nil
-	})
+	}, jwt.WithValidMethods([]string{pssoSigningAlg}))
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "verify psso jwt signature")
 	}
@@ -312,6 +319,7 @@ func encodeApplePartyInfo(fields ...[]byte) []byte {
 	var b []byte
 	var l [4]byte
 	for _, f := range fields {
+		//nolint:gosec // dismiss G115, party-info fields are small (labels, 65-byte EC points, nonces), never near 2^32
 		binary.BigEndian.PutUint32(l[:], uint32(len(f)))
 		b = append(b, l[:]...)
 		b = append(b, f...)
@@ -438,32 +446,70 @@ func deriveKeyContextKey(signingKey *ecdsa.PrivateKey) ([]byte, error) {
 	return deriveSessionKey(ikm, []byte("fleetdm-psso-key-context-v1"))
 }
 
-// sealKeyContext encrypts a provisioned EC private key into the opaque,
-// base64 key_context returned in a key-request response.
-func sealKeyContext(provisioned *ecdsa.PrivateKey, kcKey []byte) (string, error) {
+// pssoKeyPurposeUserUnlock is the only key purpose Fleet provisions today: the
+// offline FileVault/keychain unlock key. It's recorded in the sealed key_context
+// so key exchange can validate it and future purposes can be distinguished.
+const pssoKeyPurposeUserUnlock = "user_unlock"
+
+// pssoKeyContext is the plaintext sealed into the opaque key_context blob that
+// rides between a key request and its matching key exchange. Binding the host
+// UUID lets key exchange reject a context replayed by, or fetched onto, any
+// device other than the one it was issued to; key_purpose leaves room to
+// provision other key types later without reusing a context across purposes.
+type pssoKeyContext struct {
+	HostUUID       string `json:"host_uuid"`
+	KeyPurpose     string `json:"key_purpose"`
+	ProvisionedKey string `json:"provisioned_key"` // base64 (std) DER of the EC private key
+}
+
+// sealKeyContext seals the provisioned EC private key, bound to the device and
+// key purpose, into the opaque base64 key_context returned in a key-request
+// response.
+func sealKeyContext(provisioned *ecdsa.PrivateKey, hostUUID, keyPurpose string, kcKey []byte) (string, error) {
 	der, err := x509.MarshalECPrivateKey(provisioned)
 	if err != nil {
 		return "", err
 	}
-	blob, err := buildSymmetricJWE(der, kcKey)
+	plaintext, err := json.Marshal(pssoKeyContext{
+		HostUUID:       hostUUID,
+		KeyPurpose:     keyPurpose,
+		ProvisionedKey: base64.StdEncoding.EncodeToString(der),
+	})
+	if err != nil {
+		return "", err
+	}
+	blob, err := buildSymmetricJWE(plaintext, kcKey)
 	if err != nil {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(blob), nil
 }
 
-// openKeyContext reverses sealKeyContext, recovering the provisioned private
-// key the device echoed back in a key-exchange request.
-func openKeyContext(keyContext string, kcKey []byte) (*ecdsa.PrivateKey, error) {
+// openKeyContext reverses sealKeyContext, returning the sealed context metadata
+// (for the caller to validate device/purpose binding) and the recovered
+// provisioned private key the device echoed back in a key-exchange request.
+func openKeyContext(keyContext string, kcKey []byte) (*pssoKeyContext, *ecdsa.PrivateKey, error) {
 	blob, err := base64.StdEncoding.DecodeString(keyContext)
 	if err != nil {
-		return nil, fmt.Errorf("decode key_context: %w", err)
+		return nil, nil, fmt.Errorf("decode key_context: %w", err)
 	}
-	der, err := decryptSymmetricBlob(blob, kcKey)
+	plaintext, err := decryptSymmetricBlob(blob, kcKey)
 	if err != nil {
-		return nil, fmt.Errorf("decrypt key_context: %w", err)
+		return nil, nil, fmt.Errorf("decrypt key_context: %w", err)
 	}
-	return x509.ParseECPrivateKey(der)
+	var kc pssoKeyContext
+	if err := json.Unmarshal(plaintext, &kc); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal key_context: %w", err)
+	}
+	der, err := base64.StdEncoding.DecodeString(kc.ProvisionedKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decode key_context provisioned_key: %w", err)
+	}
+	key, err := x509.ParseECPrivateKey(der)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse key_context provisioned_key: %w", err)
+	}
+	return &kc, key, nil
 }
 
 // computeECDHShared returns the raw ECDH shared secret (P-256 X coordinate, 32
@@ -577,7 +623,7 @@ func decryptSymmetricBlob(blob []byte, sessionKey []byte) ([]byte, error) {
 // Fleet's PSSO signing key. Used to wrap payloads that must be authenticated
 // as coming from Fleet (e.g. claims responses).
 func (svc *Service) signServerJWT(ctx context.Context, claims jwt.Claims) ([]byte, error) {
-	key, kid, err := svc.getOrMintPSSOSigningKey(ctx)
+	key, kid, err := svc.getPSSOSigningKey(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load signing key for psso server jwt")
 	}
