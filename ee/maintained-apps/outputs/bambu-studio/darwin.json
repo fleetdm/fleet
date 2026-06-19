@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "02.07.01.57",
+      "version": "02.07.01.62",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.07.01.57') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.07.01.62') < 0);"
       },
-      "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.07.01.57/Bambu_Studio_mac-v02.07.01.57-20260601165745.dmg",
+      "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.07.01.62/Bambu_Studio_mac-v02.07.01.62-20260616174358.dmg",
       "install_script_ref": "57b12f2b",
       "uninstall_script_ref": "012866aa",
-      "sha256": "ef7d2b4b693fae95fef6caee40787d86ca90081251882a55c367b85c6dfc00a9",
+      "sha256": "1e54c25aefc5249d56b63711cf773bed56f14430aafcc34340cd4894aef15896",
       "default_categories": [
         "Productivity"
       ]
