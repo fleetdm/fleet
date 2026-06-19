@@ -1612,18 +1612,18 @@
       "description": "Clop is an image, video and clipboard optimiser."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
       "unique_identifier": "Cloudflare One Client",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
       "name": "Eltima CloudMounter",
