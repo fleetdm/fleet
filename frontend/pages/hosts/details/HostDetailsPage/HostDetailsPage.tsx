@@ -1914,7 +1914,9 @@ const HostDetailsPage = ({
                         </span>
                       ) : (
                         <span>
-                          <b>{activityCommandDetails.actor_full_name}</b>
+                          {activityCommandDetails.actor_full_name && (
+                            <b>{activityCommandDetails.actor_full_name}</b>
+                          )}
                           {` ${getVerbForCommandStatus(result.status)} `}
                           {formatMdmCommandNameForActivityItem(
                             result.request_type

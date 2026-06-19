@@ -540,7 +540,9 @@ const ActivityFeed = ({
                     </span>
                   ) : (
                     <span>
-                      <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      {mdmCommandActivityDetails.actor_full_name && (
+                        <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      )}
                       {` ${getVerbForCommandStatus(result.status)} `}
                       {formatMdmCommandNameForActivityItem(result.request_type)}
                       {" on "}

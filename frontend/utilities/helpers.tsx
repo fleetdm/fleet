@@ -456,7 +456,7 @@ export const getMdmCommandDisplayName = (
   if (!requestType) return "";
   const segments = requestType.split("/");
   const lastSegment = segments[segments.length - 1];
-  return segments.length > 1 ? `...${lastSegment}` : requestType;
+  return segments.length > 1 ? `.../${lastSegment}` : requestType;
 };
 
 export const formatMdmCommandNameForActivityItem = (
