@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -33,7 +36,7 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// checkTokenPosture REFUSES to start unless FLEET_API_KEY belongs to an API-only
+// requireAPIOnlyUser REFUSES to start unless FLEET_API_KEY belongs to an API-only
 // Fleet user. API-only users have no UI session, carry their own audit identity,
 // and — via Fleet's per-user role/team scoping — can be locked down to exactly
 // the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side
@@ -44,8 +47,8 @@ func limitBodyMiddleware(next http.Handler) http.Handler {
 // Fails closed: if WhoAmI can't confirm the principal (Fleet unreachable or
 // token invalid) we refuse to start rather than run with an unverified token —
 // the MCP is non-functional without a reachable Fleet anyway.
-func checkTokenPosture(fleetClient *FleetClient) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func requireAPIOnlyUser(ctx context.Context, fleetClient *FleetClient) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	id, err := fleetClient.WhoAmI(ctx)
 	if err != nil {
@@ -61,6 +64,12 @@ func main() {
 	transport := flag.String("transport", "sse", "Transport protocol: 'sse' or 'stdio'")
 	seed := flag.Bool("seed", false, "Seed Fleet with standard saved queries and exit")
 	flag.Parse()
+
+	// Root context cancelled on SIGINT/SIGTERM, so the startup checks and the
+	// serving loop shut down gracefully (e.g. on a Render redeploy's SIGTERM)
+	// rather than being hard-killed mid-request.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	config := LoadConfig()
 
@@ -88,12 +97,12 @@ func main() {
 
 	fleetClient := NewFleetClient(config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile)
 
-	checkTokenPosture(fleetClient)
+	requireAPIOnlyUser(ctx, fleetClient)
 
 	// Best-effort cleanup of any fleet-mcp-temp-* saved queries left over from
 	// previous runs whose DELETE failed. Synchronous so any temporary cleanup
 	// failures show up immediately in startup logs; errors are logged not fatal.
-	fleetClient.SweepLeftoverTempQueries(context.Background())
+	fleetClient.SweepLeftoverTempQueries(ctx)
 
 	if *seed {
 		SeedFleet(config, fleetClient)
@@ -105,7 +114,7 @@ func main() {
 	if *transport == "stdio" {
 		logrus.Info("transport: stdio")
 		stdioServer := server.NewStdioServer(mcpServer)
-		if err := stdioServer.Listen(context.Background(), os.Stdin, os.Stdout); err != nil {
+		if err := stdioServer.Listen(ctx, os.Stdin, os.Stdout); err != nil && !errors.Is(err, context.Canceled) {
 			logrus.Fatalf("server error: %v", err)
 		}
 		return
@@ -141,7 +150,18 @@ func main() {
 		WriteTimeout:      0, // SSE streams are long-lived; rely on idle/read timeouts
 		IdleTimeout:       120 * time.Second,
 	}
-	if err := httpServer.ListenAndServe(); err != nil {
-		logrus.Fatalf("server error: %v", err)
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logrus.Fatalf("server error: %v", err)
+		}
+	}()
+
+	// Block until SIGINT/SIGTERM, then drain in-flight requests gracefully.
+	<-ctx.Done()
+	logrus.Info("shutting down")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		logrus.Errorf("graceful shutdown failed: %v", err)
 	}
 }
