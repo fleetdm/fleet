@@ -47,7 +47,18 @@ export const GetIconName = (status: string): IconNames => {
 };
 
 export const getVerbForCommandStatus = (status: string): string => {
-  return GetIconName(status) === "error" ? "failed to run" : "ran";
+  const icon = GetIconName(status);
+  switch (icon) {
+    case "error":
+      return "failed to run";
+    case "success":
+      return "ran";
+    case "pending-outline":
+      return "sent";
+    default:
+      // unknown status
+      return "sent";
+  }
 };
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
