@@ -23,6 +23,15 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
+### Product roadmap
+
+Fleet's roadmap flows in this order (from highest to lowest fidelity):
+
+1. [Company direction](https://docs.google.com/document/d/1aVZ_eAiUjq1pdltR5ckwcbOXKB0DMzmboWZlegqJXDk/edit?tab=t.0) — the strategic "why"
+2. [Product maturity assessment](https://fleetdm.com/handbook/company/product-maturity-assessment) — what's mature today and where we're investing
+3. [Near-term roadmap](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) — features planned for upcoming quarters
+4. [Release planning](https://github.com/orgs/fleetdm/projects/87/views/10) — stories planned for the current and upcoming releases
+
 ### Triage new requests
 
 The Head of Product Design is responsible for going through the inbox on the [drafting board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [working group](https://fleetdm.com/handbook/company/product-groups#working-groups) label.
