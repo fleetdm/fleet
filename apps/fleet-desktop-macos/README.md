@@ -89,7 +89,7 @@ From that it derives, under `/api/mdm/apple/psso/`:
 - `POST /token`        — password login / key request / key exchange
 - `GET  /jwks`         — Fleet's PSSO signing public key
 
-The server fleet server also serves an Apple App Site Association file at `https://<hostname>/.well-known/apple-app-site-association` containing an `authsrv` entry naming the extension's `<TeamID>.<BundleID>` — i.e. `8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension`.
+The Fleet server also serves an Apple App Site Association file at `https://<hostname>/.well-known/apple-app-site-association` containing an `authsrv` entry naming the extension's `<TeamID>.<BundleID>` — i.e. `8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension`.
 
 Because the same generic, CI-built extension must work against *any* Fleet server, the associated domain is **not** baked into the binary. Instead:
 
