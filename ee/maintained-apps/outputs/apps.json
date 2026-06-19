@@ -5021,6 +5021,13 @@
       "description": "NDI Tools is a set of tools and plugins for NDI."
     },
     {
+      "name": "ndOffice",
+      "slug": "ndoffice/windows",
+      "platform": "windows",
+      "unique_identifier": "NetDocuments ndOffice",
+      "description": "ndOffice is a Microsoft Office integration for NetDocuments, a cloud-based document, email, and records management service."
+    },
+    {
       "name": "NeoFinder",
       "slug": "neofinder/darwin",
       "platform": "darwin",

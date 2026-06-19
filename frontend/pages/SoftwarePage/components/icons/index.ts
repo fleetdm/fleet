@@ -587,6 +587,7 @@ import Nagstamon from "./Nagstamon";
 import NameMangler from "./NameMangler";
 import Naps2 from "./Naps2";
 import NdiTools from "./NdiTools";
+import Ndoffice from "./Ndoffice";
 import Neofinder from "./Neofinder";
 import NessusAgent from "./NessusAgent";
 import Netiquette from "./Netiquette";
@@ -1633,6 +1634,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "name mangler": NameMangler,
   naps2: Naps2,
   "ndi tools": NdiTools,
+  ndoffice: Ndoffice,
   neofinder: Neofinder,
   "nessus agent": NessusAgent,
   netiquette: Netiquette,
