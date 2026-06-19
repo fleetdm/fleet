@@ -870,6 +870,37 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+
+	// cleanup app config references for the team being deleted
+	if len(orgNames) > 0 {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		updated := false
+		for _, orgName := range orgNames {
+			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
+				if token.OrganizationName != orgName {
+					// no-op for this org name/token combo
+					continue
+				}
+
+				token.CleanRemovedTeam(name)
+				appCfg.MDM.AppleBusinessManager.Value[i] = token
+				updated = true
+			}
+		}
+		if updated {
+			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+				return ctxerr.Wrap(ctx, err, "save app config")
+			}
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}

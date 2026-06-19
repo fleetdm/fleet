@@ -12382,6 +12382,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
 	require.NoError(t, err)
 
+	// Add CVSS scores and exploit metadata so the severity filters have data to match against.
+	// "bar" has one critical, actively-exploited CVE and one low-severity CVE, so it should match
+	// both a critical filter and a low filter (matches if ANY CVE is in range).
+	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: "CVE-bar-1234", CVSSScore: new(float64(9.5)), CISAKnownExploit: new(true)},
+		{CVE: "CVE-bar-5678", CVSSScore: new(float64(3.0)), CISAKnownExploit: new(false)},
+	}))
+
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
 	require.Len(t, getHostSw.Software, 1)
@@ -12639,6 +12647,93 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
+
+	// =========================================
+	// vulnerability severity filters on the device-authenticated "My device" software endpoint
+	// =========================================
+	//
+	// "bar" has two CVEs: CVE-bar-1234 (CVSS 9.5, actively exploited) and CVE-bar-5678 (CVSS 3.0).
+	// "foo" has no vulnerabilities. The host also has the (not installed) "ruby" installer, which
+	// must never appear in the inventory-only device responses below.
+	deviceSoftware := func(t *testing.T, query string) getDeviceSoftwareResponse {
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+query, nil, http.StatusOK)
+		defer res.Body.Close()
+		var resp getDeviceSoftwareResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+
+	// vulnerable=true returns only software with vulnerabilities.
+	resp := deviceSoftware(t, "vulnerable=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	require.Equal(t, 1, resp.Count)
+
+	// min_cvss_score is inclusive: 9.5 is returned for min_cvss_score=9.5 (the critical band edge).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.5")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a min above all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.6")
+	require.Empty(t, resp.Software)
+	require.Equal(t, 0, resp.Count)
+
+	// max_cvss_score is inclusive: a low max still matches the low-severity CVE (3.0).
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a max below all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=2.9")
+	require.Empty(t, resp.Software)
+
+	// min + max together apply both bounds (range filter).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=1&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// min == max returns only CVEs scored exactly that value (3.0 matches, 5.0 does not).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=3.0&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=5.0&max_cvss_score=5.0")
+	require.Empty(t, resp.Software)
+
+	// min > max yields an empty result, not a server error.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=8&max_cvss_score=2")
+	require.Empty(t, resp.Software)
+
+	// a title with multiple CVEs of differing scores appears under BOTH a low and a critical
+	// filter (matches if ANY CVE is in range).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.0&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit=true returns only software with a CISA known-exploited CVE.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit combined with a range that only covers the non-exploited CVE returns nothing,
+	// since the exploited CVE (9.5) is outside the 0.1-3.9 band.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Empty(t, resp.Software)
+
+	// filters combine with the search query: "foo" has no vulnerabilities so it is filtered out.
+	resp = deviceSoftware(t, "vulnerable=true&query=foo")
+	require.Empty(t, resp.Software)
+	resp = deviceSoftware(t, "vulnerable=true&query=bar")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// severity filters require vulnerable=true; otherwise the request is rejected with 422.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+premiumFilter, nil, http.StatusUnprocessableEntity)
+		require.NoError(t, res.Body.Close())
+	}
 }
 
 func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {
@@ -13462,7 +13557,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		expectedPayload := *payload
-		expectedPayload.Categories = []string{"🌎 Browsers", "💻 Productivity"}
+		expectedPayload.Categories = []string{"🌎 Browsers", "🖥️ Productivity"}
 		expectedPayload.SelfService = true
 		checkSoftwareInstaller(t, s.ds, payload)
 
@@ -20683,6 +20778,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
+	// Count is the total number of platform-specific maintained apps: an app's
+	// macOS and Windows entries are counted separately, even though the UI
+	// combines them into a single row. The full unfiltered list returns one row
+	// per app, so the count equals the number of rows returned.
+	require.Equal(t, len(expectedApps), listMAResp.Count)
+
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
 		if c := cmp.Compare(a.Name, b.Name); c != 0 {
 			return c
@@ -20709,6 +20810,23 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
 	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
+
+	// The platform filter narrows the list to apps available on that platform.
+	// Fewer apps ship a Windows installer than a macOS one, so the Windows-only
+	// count is a non-empty strict subset of the full count.
+	var listMAWin listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAWin,
+		"team_id", fmt.Sprint(team.ID),
+		"platform", "windows",
+	)
+	require.NoError(t, listMAWin.Err)
+	require.Positive(t, listMAWin.Count)
+	require.Less(t, listMAWin.Count, listMAResp.Count)
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse
@@ -20939,7 +21057,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, []string{"💻 Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
+	require.Equal(t, []string{"🖥️ Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -22374,20 +22492,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		},
 		{
 			desc:       "valid categories 2",
-			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
+			categories: optjson.SetSlice([]string{"👬 Communication", "🖥️ Productivity"}),
 		},
 		{
-			desc:       "valid categories 3 - Security and Support",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
+			desc:       "valid categories 3 - Security and Utilities",
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛠️ Utilities"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛠️ Utilities"}),
 		},
 		{
 			// omitted categories (unset) fall back to the FMA's manifest default
 			desc:                 "omitted categories use FMA default",
-			fmaDefaultCategories: []string{"💻 Productivity"},
+			fmaDefaultCategories: []string{"🖥️ Productivity"},
 		},
 		{
 			// an explicitly empty categories list sets zero categories (no manifest default)
@@ -26388,7 +26506,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
-		expectedPayload.Categories = []string{"💻 Productivity", "🌎 Browsers"}
+		expectedPayload.Categories = []string{"🖥️ Productivity", "🌎 Browsers"}
 
 		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
 		require.NoError(t, err)
@@ -27406,7 +27524,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		Version:         "99.0.0",
 		StorageID:       computeSHA([]byte(installerContent)),
 		SelfService:     true,
-		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		Title:           "Cloudflare One Client", // windows installer, so Fleet does software title matching on this field
 		InstallScript:   "install",
 		UninstallScript: "uninstall",
 		Source:          "programs",
@@ -27626,7 +27744,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"],
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"],
 			"warp should be rolled back to v2.0")
 		require.Equal(t, "3.0", activeVersions["Zoom Workplace (X64)"],
 			"zoom should remain at v3.0 (not rolled back)")
@@ -27652,7 +27770,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		for _, tl := range multiTitlesResp.SoftwareTitles {
 			activeVersions[tl.Name] = tl.SoftwarePackage.Version
 		}
-		require.Equal(t, "2.0", activeVersions["Cloudflare WARP"], "warp should still be at v2.0")
+		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"], "warp should still be at v2.0")
 		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
 	})
 
@@ -31666,6 +31784,90 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 			"host_emails must be populated after the post-EnrollOrbit reconcile (issue #45066)")
 		require.Equal(t, idpEmail, dms[0].Email)
 		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+	}
+
+	t.Run("linux", func(t *testing.T) {
+		runFlow(t, "ubuntu", "debian")
+	})
+
+	t.Run("windows", func(t *testing.T) {
+		runFlow(t, "windows", "")
+	})
+}
+
+// TestOrbitReEnrollSkipsEndUserAuth covers issue #46300: once a host has orbit-enrolled, a subsequent re-enrollment (e.g. after a
+// service restart, node key file loss, or osquery DB rebuild) must not prompt for end user authentication again, even if End User
+// Authentication is enabled on the host's team and the host has no IdP association. This grandfathers hosts that enrolled before
+// EUA was enabled. A genuinely new device is still gated (covered by TestOrbitEnrollWithIdPPopulatesDeviceMapping).
+func (s *integrationEnterpriseTestSuite) TestOrbitReEnrollSkipsEndUserAuth() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team with End User Authentication DISABLED, so the first enrollment succeeds without an SSO prompt and the
+	// host gets an orbit node key (the "previously enrolled" state).
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	enrollSecret := t.Name() + "-secret"
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
+
+	var caps fleet.CapabilityMap
+	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
+	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
+
+	runFlow := func(t *testing.T, platform, platformLike string) {
+		hostUUID := uuid.New().String()
+		enrollBody, err := json.Marshal(fleet.EnrollOrbitRequest{
+			EnrollSecret:   enrollSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: uuid.New().String(),
+			Hostname:       strings.ReplaceAll(t.Name(), "/", "-") + ".local",
+			Platform:       platform,
+			PlatformLike:   platformLike,
+			HardwareModel:  "TestModel",
+		})
+		require.NoError(t, err)
+
+		// First enrollment with EUA disabled: succeeds and stores an orbit node key.
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		var orbitResp enrollOrbitResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotZero(t, hostLite.ID)
+
+		// Now enable End User Authentication on the team. EnrollOrbit reads team config via TeamLite (not in the cached
+		// layer), so this direct write is visible to the running server immediately.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		// Re-enroll the same host. There is no IdP association, so before the fix this returned END_USER_AUTH_REQUIRED. The
+		// host is already orbit-enrolled, so enrollment must now succeed without prompting.
+		res = s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		orbitResp = enrollOrbitResponse{}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey, "re-enrollment of an already-enrolled host must not be gated by EUA")
+
+		// The re-enrollment must reuse the existing host row, not create a duplicate.
+		reEnrolledHost, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, hostLite.ID, reEnrolledHost.ID, "re-enrollment must reuse the existing host row, not create a duplicate")
+
+		// Reset team EUA for the next subtest's first enrollment.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
 	}
 
 	t.Run("linux", func(t *testing.T) {

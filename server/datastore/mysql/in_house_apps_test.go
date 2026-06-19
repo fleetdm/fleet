@@ -853,7 +853,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 
 	// change ipa2 self-service and add categories
 	ipa2.SelfService = !ipa2.SelfService
-	ipa2.Categories = []string{"👬 Communication", "💻 Productivity"}
+	ipa2.Categories = []string{"👬 Communication", "🖥️ Productivity"}
 	catIDs, err := ds.GetSoftwareCategoryIDs(ctx, team.ID, ipa2.Categories)
 	require.NoError(t, err)
 	ipa2.CategoryIDs = catIDs

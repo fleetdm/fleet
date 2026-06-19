@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.20.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience' AND version_compare(version, '3.20.2') < 0);"
+      },
+      "installer_url": "https://dy9cqqaswpltd.cloudfront.net/NoSQL%20Workbench-win-3.20.2.exe",
+      "install_script_ref": "1aa3b9df",
+      "uninstall_script_ref": "077a0b5d",
+      "sha256": "3c62a9e4f54ba47397eb7de8da7e0aa08a66b42f9113491d6b58a8148fa2a1c1",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "077a0b5d": "# Uninstall script for NoSQL Workbench (NSIS / electron-builder)\n$softwareName = \"NoSQL Workbench\"\n$publisher = \"DynamoDB Developer Experience\"\n\n$hkcuKeys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n$hklmKeys = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n$key = $null\nforeach ($scope in @($hkcuKeys, $hklmKeys)) {\n  $key = Get-ChildItem -Path $scope -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n    } | Select-Object -First 1\n  if ($key) { break }\n}\n\nif (-not $key) {\n  Write-Host \"Uninstall entry not found for '$softwareName'\"\n  Exit 0\n}\n\n$uninstallString = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n$exePath = $null\nif ($uninstallString -match '^\"([^\"]+)\"') {\n  $exePath = $matches[1]\n} elseif ($uninstallString -match '^(.+?\\.exe)') {\n  $exePath = $matches[1]\n}\n\nif (-not $exePath) {\n  Write-Host \"Could not parse uninstall executable from: $uninstallString\"\n  Exit 1\n}\n\n$installDir = $key.InstallLocation\nif (-not $installDir -or -not (Test-Path $installDir)) {\n  $installDir = Split-Path -Parent $exePath\n}\n\n# NSIS / electron-builder silent uninstall\n$argumentList = @(\"/S\", \"_?=$installDir\")\n\n$process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($installDir -and (Test-Path $installDir)) {\n  Remove-Item -Path $installDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "1aa3b9df": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# NoSQL Workbench uses an NSIS (nullsoft) installer; /allusers for machine scope\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = \"/S /allusers\"\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -16,6 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -298,13 +301,50 @@ func (r *profileReconciler) sendHostProfiles(
 		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 	}
 
+	hostProfilesContents, varSubErr := substituteProfileVarsForHost(ctx, r.DS, hostUUID, profilesContents)
+	if varSubErr != nil {
+		if !errors.Is(varSubErr, profiles.ErrUnresolvableAndroidAppConfigVar) {
+			return nil, ctxerr.Wrapf(ctx, varSubErr, "substitute fleet vars for host %s", hostUUID)
+		}
+		var varErr *profiles.UnresolvableAndroidAppConfigVarError
+		detail := varSubErr.Error()
+		if errors.As(varSubErr, &varErr) && varErr.Detail != "" {
+			detail = varErr.Detail
+		}
+		for _, prof := range profilesToMerge {
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+				HostUUID:      hostUUID,
+				Status:        &fleet.MDMDeliveryFailed,
+				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:   prof.ProfileUUID,
+				ProfileName:   prof.ProfileName,
+				Checksum:      prof.Checksum,
+				Detail:        detail,
+			}
+		}
+		for _, prof := range profilesToRemove {
+			status := fleet.MDMDeliveryPending
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+				HostUUID:         hostUUID,
+				Status:           &status,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				ProfileUUID:      prof.ProfileUUID,
+				ProfileName:      prof.ProfileName,
+				Checksum:         prof.Checksum,
+				RequestFailCount: setFailCount,
+			}
+		}
+		appendWithheld()
+		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
+	}
+
 	// merge the profiles in order, keeping track of what profile overrides what
 	// other one.
 	settingFromProfile := make(map[string]string)   // setting name -> "winning" profile UUID
 	overriddenSettings := make(map[string][]string) // profile UUID -> overridden setting names
 	var finalJSON map[string]json.RawMessage
 	for _, prof := range profilesToMerge {
-		content, ok := profilesContents[prof.ProfileUUID]
+		content, ok := hostProfilesContents[prof.ProfileUUID]
 		if !ok {
 			// should never happen
 			return nil, ctxerr.Errorf(ctx, "missing content for profile %s", prof.ProfileUUID)
@@ -637,4 +677,50 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	}
 
 	return nil
+}
+
+func substituteProfileVarsForHost(
+	ctx context.Context,
+	ds fleet.Datastore,
+	hostUUID string,
+	profilesContents map[string]json.RawMessage,
+) (map[string]json.RawMessage, error) {
+	if len(profilesContents) == 0 {
+		return profilesContents, nil
+	}
+
+	hasVars := false
+	for _, content := range profilesContents {
+		if variables.ContainsBytes(content) {
+			hasVars = true
+			break
+		}
+	}
+	if !hasVars {
+		return profilesContents, nil
+	}
+
+	androidHost, err := ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get android host for variable substitution (host %s)", hostUUID)
+	}
+	subHost := profiles.AndroidAppConfigSubstitutionHost{
+		UUID:           androidHost.Host.UUID,
+		HardwareSerial: androidHost.Host.HardwareSerial,
+		Platform:       androidHost.Host.Platform,
+	}
+
+	result := make(map[string]json.RawMessage, len(profilesContents))
+	for profUUID, content := range profilesContents {
+		if !variables.ContainsBytes(content) {
+			result[profUUID] = content
+			continue
+		}
+		substituted, err := profiles.SubstituteFleetVarsInAndroidAppConfig(ctx, ds, content, subHost)
+		if err != nil {
+			return nil, err
+		}
+		result[profUUID] = substituted
+	}
+	return result, nil
 }

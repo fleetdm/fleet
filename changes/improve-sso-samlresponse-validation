@@ -1,2 +1,0 @@
-* Improved SAMLResponse validation by rejecting large responses, deeply nested documents, or documents with too many nodes.
-* Added rate limiting to the SSO callback endpoint.
