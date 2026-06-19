@@ -65,6 +65,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetSoftwareTitlesForInstallAll", testGetSoftwareTitlesForInstallAll},
+		{"SummaryUpcomingPerHostNoDropout", testSummaryUpcomingPerHostNoDropout},
 	}
 
 	for _, c := range cases {
@@ -5740,4 +5741,66 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
+}
+
+// testSummaryUpcomingPerHostNoDropout is a regression test for the OR-dominance
+// drop-out bug fixed alongside the perf rewrite of GetSummaryHostSoftwareInstalls
+// (issue #47839). When a host has two queued upcoming installs for the same
+// installer where one row has the lower priority and a *different* row has the
+// later created_at, the old self anti-join's
+// `(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)` predicate made
+// each row dominate the other, so neither survived and the host dropped out of
+// the counts entirely. The window-function rewrite ranks deterministically and
+// keeps exactly one row per (host, activity_type).
+func testSummaryUpcomingPerHostNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+	// Don't auto-activate; we want both rows to sit in upcoming_activities.
+	ds.testActivateSpecificNextActivities = []string{"-"}
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install",
+		UninstallScript: "uninstall",
+		InstallerFile:   tfr,
+		StorageID:       "dropout-storage",
+		Filename:        "dropout.pkg",
+		Title:           "Dropout App",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Insert two upcoming software_install rows for the same host+installer that
+	// cross-dominate under the old OR predicate: row B has the lower priority,
+	// row A has the later created_at.
+	insertUpcoming := func(execID string, priority int, createdOffsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities
+	(host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES
+	(?, ?, 1, 'software_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, createdOffsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities
+	(upcoming_activity_id, software_installer_id, software_title_id)
+VALUES (?, ?, ?)`, uaID, installerID, titleID)
+		require.NoError(t, err)
+	}
+	insertUpcoming("dropout-B", -1, 0)  // lower priority, earlier created_at
+	insertUpcoming("dropout-A", 0, 100) // higher priority, later created_at
+
+	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerID)
+	require.NoError(t, err)
+	// The host must be counted exactly once (not dropped, not double-counted).
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{PendingInstall: 1}, *summary)
 }
