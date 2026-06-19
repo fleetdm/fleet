@@ -53,7 +53,7 @@ software:
 
 There's no separate assignment object, no ID to resolve, and no reference graph to reason about. A reviewer reads the diff and understands it immediately: this group is defined by IdP department, and this app now goes to it.
 
-The Terraform equivalent does the same job, but the structure is heavier. A smart group is its own resource, the thing being scoped references the group by an ID, and in the modern Jamf case you may first need a data source to translate the group's classic ID into the UUID another resource expects. Assignments live in nested blocks, and groups are probably referenced as raw UUID strings rather than readable names. It works, and works well. But a reviewer needs to understand HCL, resource references, and the plan output to know what the change will actually do.
+The Terraform equivalent does the same job, but the structure is heavier. A smart group is its own resource, and the thing being scoped references that group by ID rather than by name. Assignments live in nested blocks, and groups are typically addressed by numeric IDs or UUIDs rather than the readable names you'd use in YAML.
 
 The gap isn't really about line count. It's about how much you need to know before the diff makes sense.
 
