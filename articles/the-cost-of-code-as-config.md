@@ -65,7 +65,7 @@ When you evaluate a config-as-code approach, the most useful question isn't "wha
 
 This matters most for teams without a dedicated platform-engineering function, which is most IT teams. For those teams the setup cost of the built-in approach is minimal: "install the CLI, generate a starter repo, add a pipeline step, and place assets in a clear folder structure." The setup cost of the Terraform approach is a project: choose and pin providers, stand up remote state with locking, design a module and variable layout, build import flows for what already exists, and train people to read plans without fear. Both get you to config-as-code. One gets you there this week, with the whole team able to follow along.
 
-## You don't have to go all in on day one
+## You don't have to go all in on day one: GitOps exceptions
 
 There's a quieter objection underneath all of this, and it's the one that stops a lot of teams before they start: config-as-code feels like an all-or-nothing commitment. The moment you point a GitOps workflow at your instance, the repository becomes the source of truth, and anything you change in the GUI gets reverted on the next run. For a team that wants the benefits of GitOps but isn't ready to move *everything* into Git yet, that's a real deterrent. Most adoption stories don't begin with the whole estate in version control. They begin with one or two things, and a lot of nervousness about the rest.
 
