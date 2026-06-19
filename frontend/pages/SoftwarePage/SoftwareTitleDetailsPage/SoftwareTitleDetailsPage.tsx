@@ -12,6 +12,7 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
+import { ILabelSoftwareTitle } from "interfaces/label";
 import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
@@ -205,21 +206,12 @@ const SoftwareTitleDetailsPage = ({
   };
 
   // TODO #47622 preview — remove before merging into main.
-  // Renders a single LibraryItemAccordion from the active software_package so
-  // design can review with real data; multi-row rendering lands in #47623.
+  // Renders a single LibraryItemAccordion from the active software_package or
+  // app_store_app so design can review with real data; multi-row rendering
+  // lands in #47623.
   const renderLibraryItemAccordionPreview = (title: ISoftwareTitleDetails) => {
     const pkg = title.software_package;
-    if (!pkg) return null;
-
-    let labels = pkg.labels_include_any;
-    let labelKind: LibraryItemLabelKind = "includeAny";
-    if (pkg.labels_include_all?.length) {
-      labels = pkg.labels_include_all;
-      labelKind = "includeAll";
-    } else if (pkg.labels_exclude_any?.length) {
-      labels = pkg.labels_exclude_any;
-      labelKind = "excludeAny";
-    }
+    const appStore = title.app_store_app;
 
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -228,16 +220,76 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
+    const installerMeta = installerResult?.meta;
+    const isFma = installerMeta?.isFleetMaintainedApp ?? false;
+    const isLatestFmaVersion = installerMeta?.isLatestFmaVersion ?? false;
+    const isScriptPackage = installerResult?.cardInfo.isScriptPackage ?? false;
+
+    interface ILabeledSource {
+      labels_include_any: ILabelSoftwareTitle[] | null;
+      labels_include_all: ILabelSoftwareTitle[] | null;
+      labels_exclude_any: ILabelSoftwareTitle[] | null;
+    }
+    interface IPickedLabels {
+      labels: ILabelSoftwareTitle[] | null;
+      kind: LibraryItemLabelKind;
+    }
+    const pickLabels = (source: ILabeledSource): IPickedLabels => {
+      if (source.labels_include_all?.length) {
+        return { labels: source.labels_include_all, kind: "includeAll" };
+      }
+      if (source.labels_exclude_any?.length) {
+        return { labels: source.labels_exclude_any, kind: "excludeAny" };
+      }
+      return { labels: source.labels_include_any, kind: "includeAny" };
+    };
+
+    if (appStore) {
+      const { labels, kind } = pickLabels(appStore);
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      return (
+        <LibraryItemAccordionList>
+          <LibraryItemAccordion
+            filename={appStore.name}
+            version={appStore.latest_version}
+            addedAt={appStore.created_at}
+            installerType="app-store"
+            androidPlayStoreId={
+              isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+            }
+            isScriptPackage={isScriptPackage}
+            isActive
+            isLatest
+            labels={labels}
+            labelKind={kind}
+            installed={appStore.status?.installed ?? 0}
+            pending={appStore.status?.pending ?? 0}
+            failed={appStore.status?.failed ?? 0}
+            installedPath={statusPath("installed")}
+            pendingPath={statusPath("pending")}
+            failedPath={statusPath("failed")}
+            onLabelCountClick={() => setShowLibraryEditModal(true)}
+            onLabelsClick={() => setShowLibraryEditModal(true)}
+          />
+        </LibraryItemAccordionList>
+      );
+    }
+
+    if (!pkg) return null;
+    const { labels, kind } = pickLabels(pkg);
     return (
       <LibraryItemAccordionList>
         <LibraryItemAccordion
           filename={pkg.name}
           version={pkg.version}
           addedAt={pkg.uploaded_at}
+          isFma={isFma}
+          isLatestFmaVersion={isLatestFmaVersion}
+          isScriptPackage={isScriptPackage}
           isActive
           isLatest
           labels={labels}
-          labelKind={labelKind}
+          labelKind={kind}
           installed={pkg.status?.installed ?? 0}
           pending={
             (pkg.status?.pending_install ?? 0) +
@@ -259,10 +311,13 @@ const SoftwareTitleDetailsPage = ({
           filename="example-package-v2-really-long-package-name-to-see-what-happens-responsive-design.pkg"
           version="2.0.0"
           addedAt="2024-01-01T12:00:00Z"
+          isFma={isFma}
+          isLatestFmaVersion={isLatestFmaVersion}
+          isScriptPackage={isScriptPackage}
           isActive={false}
           isLatest={false}
           labels={labels}
-          labelKind={labelKind}
+          labelKind={kind}
           installed={pkg.status?.installed ?? 0}
           pending={
             (pkg.status?.pending_install ?? 0) +

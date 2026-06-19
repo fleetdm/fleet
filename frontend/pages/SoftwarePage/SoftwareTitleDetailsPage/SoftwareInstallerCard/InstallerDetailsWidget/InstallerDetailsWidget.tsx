@@ -25,9 +25,12 @@ const baseClass = "installer-details-widget";
 
 interface IInstallerNameProps {
   name: string;
+  /** When true, suppress the truncation tooltip — used in contexts (e.g. inactive
+   * LibraryItemAccordion rows) where the row itself is non-interactive. */
+  disableTooltip?: boolean;
 }
 
-const InstallerName = ({ name }: IInstallerNameProps) => {
+const InstallerName = ({ name, disableTooltip }: IInstallerNameProps) => {
   const titleRef = React.useRef<HTMLDivElement>(null);
   const isTruncated = useCheckTruncatedElement(titleRef);
 
@@ -36,7 +39,7 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
       tipContent={name}
       position="top"
       underline={false}
-      disableTooltip={!isTruncated}
+      disableTooltip={disableTooltip || !isTruncated}
       showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
@@ -76,6 +79,13 @@ interface IInstallerDetailsWidgetProps {
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
   customDetails?: string;
+  /** Suppress the leading installer-type label ("Custom package", "App Store (VPP)",
+   * etc.). Used when the widget is embedded somewhere that already conveys the type
+   * (e.g. LibraryItemAccordion, where the icon + container do the same work). */
+  hideInstallerType?: boolean;
+  /** Suppress the title's truncation tooltip. Used by inactive LibraryItemAccordion
+   * rows where the row itself is non-interactive. */
+  disableTitleTooltip?: boolean;
 }
 
 const InstallerDetailsWidget = ({
@@ -90,6 +100,8 @@ const InstallerDetailsWidget = ({
   isScriptPackage,
   androidPlayStoreId,
   customDetails,
+  hideInstallerType = false,
+  disableTitleTooltip = false,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -123,40 +135,25 @@ const InstallerDetailsWidget = ({
       return <>{customDetails}</>;
     }
 
-    const renderVersionInfo = () => {
+    // Renders just the version chip (or null when hidden). The leading " · "
+    // separator is added by the caller so that callers who suppress the
+    // preceding type label don't get a stray middot.
+    const renderVersionChip = (): React.ReactNode => {
       // Hide version info from script package and Android Play Store web apps
       if (isScriptPackage || isAndroidWebApp(androidPlayStoreId)) {
         return null;
       }
 
-      let versionInfo = <span>{version}</span>;
-
-      if (isFma) {
-        versionInfo = (
-          <TooltipWrapper
-            tipContent={
-              <span>
-                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
-                software.
-              </span>
-            }
-          >
-            <span>
-              {version} {isLatestFmaVersion ? "(latest)" : ""}
-            </span>
-          </TooltipWrapper>
-        );
-      }
-      if (installerType === "app-store") {
-        versionInfo = (
-          <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-            <span>{version}</span>
-          </TooltipWrapper>
+      if (androidPlayStoreId) {
+        return (
+          <AndroidLatestVersionWithTooltip
+            androidPlayStoreId={androidPlayStoreId}
+          />
         );
       }
 
       if (!version) {
-        versionInfo = (
+        return (
           <TooltipWrapper
             tipContent={
               <span>
@@ -180,86 +177,106 @@ const InstallerDetailsWidget = ({
         );
       }
 
-      if (androidPlayStoreId) {
-        versionInfo = (
-          <AndroidLatestVersionWithTooltip
-            androidPlayStoreId={androidPlayStoreId}
-          />
+      if (isFma) {
+        return (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
+                software.
+              </span>
+            }
+          >
+            <span>
+              {version} {isLatestFmaVersion ? "(latest)" : ""}
+            </span>
+          </TooltipWrapper>
         );
       }
 
-      return <> &bull; {versionInfo}</>;
+      if (installerType === "app-store") {
+        return (
+          <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+            <span>{version}</span>
+          </TooltipWrapper>
+        );
+      }
+
+      return <span>{version}</span>;
     };
 
-    const renderTimeStamp = () =>
+    const renderTimeStampChip = (): React.ReactNode =>
       addedTimestamp ? (
-        <>
-          {" "}
-          &bull;{" "}
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(addedTimestamp))}
+          underline={false}
+        >
+          {addedFromNow(addedTimestamp)}
+        </TooltipWrapper>
+      ) : null;
+
+    const renderSha256Chip = (): React.ReactNode => {
+      return sha256 ? (
+        <span className={`${baseClass}__sha256`}>
           <TooltipWrapper
-            tipContent={internationalTimeFormat(new Date(addedTimestamp))}
+            tipContent={<>The software&apos;s SHA-256 hash.</>}
+            position="top"
+            showArrow
             underline={false}
           >
-            {addedFromNow(addedTimestamp)}
+            {sha256.slice(0, 7)}&hellip;
           </TooltipWrapper>
-        </>
-      ) : (
-        ""
-      );
-
-    const renderSha256 = () => {
-      return sha256 ? (
-        <>
-          {" "}
-          &bull;{" "}
-          <span className={`${baseClass}__sha256`}>
-            <TooltipWrapper
-              tipContent={<>The software&apos;s SHA-256 hash.</>}
-              position="top"
-              showArrow
-              underline={false}
+          <div className={`${baseClass}__sha-copy-button`}>
+            <Button
+              variant="icon"
+              size="small"
+              iconStroke
+              onClick={onCopySha256}
             >
-              {sha256.slice(0, 7)}&hellip;
-            </TooltipWrapper>
-            <div className={`${baseClass}__sha-copy-button`}>
-              <Button
-                variant="icon"
-                size="small"
-                iconStroke
-                onClick={onCopySha256}
-              >
-                <Icon name="copy" />
-              </Button>
-            </div>
-            <div className={`${baseClass}__copy-overlay`}>
-              {copyMessage && (
-                <div
-                  className={`${baseClass}__copy-message`}
-                >{`${copyMessage} `}</div>
-              )}
-            </div>
-          </span>
-        </>
-      ) : (
-        ""
-      );
+              <Icon name="copy" />
+            </Button>
+          </div>
+          <div className={`${baseClass}__copy-overlay`}>
+            {copyMessage && (
+              <div
+                className={`${baseClass}__copy-message`}
+              >{`${copyMessage} `}</div>
+            )}
+          </div>
+        </span>
+      ) : null;
     };
 
-    return (
-      <>
-        {renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)}
-        {renderVersionInfo()}
-        {renderTimeStamp()}
-        {renderSha256()}
-      </>
-    );
+    const parts: React.ReactNode[] = [];
+    if (!hideInstallerType) {
+      parts.push(
+        renderInstallerDisplayText(installerType, isFma, androidPlayStoreId)
+      );
+    }
+    const versionChip = renderVersionChip();
+    if (versionChip) parts.push(versionChip);
+    const timeStampChip = renderTimeStampChip();
+    if (timeStampChip) parts.push(timeStampChip);
+    const sha256Chip = renderSha256Chip();
+    if (sha256Chip) parts.push(sha256Chip);
+
+    return parts.map((part, i) => (
+      // eslint-disable-next-line react/no-array-index-key
+      <React.Fragment key={i}>
+        {i > 0 && <> &bull; </>}
+        {part}
+      </React.Fragment>
+    ));
   };
 
   return (
     <div className={classNames}>
       {renderIcon()}
       <div className={`${baseClass}__info`}>
-        <InstallerName name={softwareName} />
+        <InstallerName
+          name={softwareName}
+          disableTooltip={disableTitleTooltip}
+        />
         <div className={`${baseClass}__details`}>{renderDetails()}</div>
       </div>
     </div>

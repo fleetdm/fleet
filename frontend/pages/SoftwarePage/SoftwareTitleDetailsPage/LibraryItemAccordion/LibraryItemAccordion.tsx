@@ -1,17 +1,16 @@
 import React, { useState } from "react";
 import classnames from "classnames";
-import { formatDistanceToNow } from "date-fns";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
+import { InstallerType } from "interfaces/software";
+import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 import { stringToClipboard } from "utilities/copy_text";
-import { internationalTimeFormat } from "utilities/helpers";
 
 const baseClass = "library-item-accordion";
 
@@ -24,10 +23,24 @@ const LABEL_KIND_HEADING: Record<LibraryItemLabelKind, string> = {
 };
 
 export interface ILibraryItemAccordionProps {
+  /** Software title display name (or package filename for custom packages). */
   filename: string;
-  version: string;
+  version?: string | null;
   /** ISO timestamp. Rendered as "Added X ago". */
   addedAt: string;
+
+  /** Drives the file/store icon and the version-row treatment.
+   * - "package" (default): file-pkg graphic, plain version text
+   * - "app-store" without `androidPlayStoreId`: Apple App Store icon, version + "Updated every hour." tooltip
+   * - "app-store" with `androidPlayStoreId`: Play Store icon, "Latest" + Play Store link tooltip (web apps hide the version entirely) */
+  installerType?: InstallerType;
+  /** Play Store package id (e.g. `com.android.chrome`). Presence implies an Android app. */
+  androidPlayStoreId?: string;
+  /** Fleet-maintained app — switches the version tooltip to the "Actions > Edit" hint. */
+  isFma?: boolean;
+  isLatestFmaVersion?: boolean;
+  /** Hide the version entirely (script-only packages). */
+  isScriptPackage?: boolean;
 
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
@@ -75,18 +88,15 @@ export interface ILibraryItemAccordionProps {
 
 const ALL_HOSTS_LABEL = "All hosts";
 
-const formatAddedAt = (addedAt: string) => {
-  const parsed = new Date(addedAt);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-  return `Added ${formatDistanceToNow(parsed, { addSuffix: true })}`;
-};
-
 const LibraryItemAccordion = ({
   filename,
   version,
   addedAt,
+  installerType = "package",
+  androidPlayStoreId,
+  isFma = false,
+  isLatestFmaVersion,
+  isScriptPackage = false,
   isActive,
   canEditSoftware = true,
   isLatest,
@@ -133,8 +143,6 @@ const LibraryItemAccordion = ({
       .catch(() => setCopyMessage("Copy failed"));
     setTimeout(() => setCopyMessage(""), 1000);
   };
-
-  const addedAtLabel = formatAddedAt(addedAt);
 
   const inactiveTooltip = (
     <>
@@ -223,7 +231,12 @@ const LibraryItemAccordion = ({
           </TooltipWrapper>
         )}
         {showAllHostsBadge && (
-          <span className={`${baseClass}__all-hosts`}>{ALL_HOSTS_LABEL}</span>
+          <span
+            className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
+          >
+            <Icon name="tag" color="ui-fleet-black-75" />
+            <span>{ALL_HOSTS_LABEL}</span>
+          </span>
         )}
       </div>
     );
@@ -233,6 +246,7 @@ const LibraryItemAccordion = ({
     iconName: "success" | "pending-outline" | "error",
     count: number,
     label: string,
+    iconTooltip: React.ReactNode,
     path?: string,
     trailing?: React.ReactNode
   ) => {
@@ -240,7 +254,16 @@ const LibraryItemAccordion = ({
 
     return (
       <div className={`${baseClass}__status-count`}>
-        <Icon name={iconName} />
+        <TooltipWrapper
+          tipContent={iconTooltip}
+          showArrow
+          underline={false}
+          position="top"
+          tipOffset={8}
+          clickable={false}
+        >
+          <Icon name={iconName} />
+        </TooltipWrapper>
         {path ? (
           <CustomLink
             url={path}
@@ -255,7 +278,41 @@ const LibraryItemAccordion = ({
     );
   };
 
-  const statusCountsTooltip = <>Counts show installs for this version only.</>;
+  const statusCountsTooltip = (
+    <>
+      Latest status from policy automation,
+      <br />
+      setup experience, or manual install.
+    </>
+  );
+
+  const installedIconTooltip = (
+    <>
+      Software is installed on these hosts
+      <br />
+      (install script finished with exit code 0).
+      <br />
+      Currently, if the software is uninstalled,
+      <br />
+      the &quot;Installed&quot; status won&apos;t be updated.
+    </>
+  );
+
+  const pendingIconTooltip = (
+    <>
+      Fleet is installing/uninstalling or will
+      <br />
+      do so when the host comes online.
+    </>
+  );
+
+  const failedIconTooltip = (
+    <>
+      These hosts failed to install/uninstall
+      <br />
+      software. Click on a host to view error(s).
+    </>
+  );
 
   const renderLabelsBlock = () => {
     if (!hasLabelScope) return null;
@@ -348,33 +405,21 @@ const LibraryItemAccordion = ({
       >
         <Icon name="chevron-right" color="ui-fleet-black-75" />
       </span>
-      <Graphic name="file-pkg" />
-      <div className={`${baseClass}__info`}>
-        <TooltipTruncatedText
-          className={`${baseClass}__filename`}
-          value={filename}
-          disableTooltip={!isActive}
-        />
-        <span className={`${baseClass}__sub`}>
-          {version}
-          {addedAtLabel && (
-            <>
-              {" "}
-              &middot;{" "}
-              <TooltipWrapper
-                tipContent={internationalTimeFormat(new Date(addedAt))}
-                showArrow
-                underline={false}
-                position="top"
-                tipOffset={8}
-                disableTooltip={!isActive}
-              >
-                {addedAtLabel}
-              </TooltipWrapper>
-            </>
-          )}
-        </span>
-      </div>
+      <InstallerDetailsWidget
+        className={`${baseClass}__installer-details`}
+        softwareName={filename}
+        installerType={installerType}
+        version={version}
+        addedTimestamp={addedAt}
+        isFma={isFma}
+        isLatestFmaVersion={isLatestFmaVersion}
+        isScriptPackage={isScriptPackage}
+        androidPlayStoreId={androidPlayStoreId}
+        // Hash is intentionally shown in the expanded panel only.
+        sha256={null}
+        hideInstallerType
+        disableTitleTooltip={!isActive}
+      />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
     </button>
   );
@@ -410,6 +455,7 @@ const LibraryItemAccordion = ({
                 "success",
                 installed,
                 "installed",
+                installedIconTooltip,
                 installedPath,
                 <TooltipWrapper
                   className={`${baseClass}__status-counts-info`}
@@ -426,9 +472,16 @@ const LibraryItemAccordion = ({
                 "pending-outline",
                 pending,
                 "pending",
+                pendingIconTooltip,
                 pendingPath
               )}
-              {renderStatusCount("error", failed, "failed", failedPath)}
+              {renderStatusCount(
+                "error",
+                failed,
+                "failed",
+                failedIconTooltip,
+                failedPath
+              )}
             </div>
           </div>
 

@@ -40,23 +40,11 @@
     transform: rotate(90deg);
   }
 
-  &__info {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
+  // Embedded InstallerDetailsWidget takes the remaining horizontal space
+  // between the chevron and the badges, and shrinks gracefully on narrow rows.
+  &__installer-details {
     flex: 1 1 auto;
     min-width: 0;
-  }
-
-  &__filename {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
-  }
-
-  &__sub {
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
   }
 
   &__header-right {
@@ -86,11 +74,6 @@
     font-weight: $bold;
     color: $ui-fleet-black-75;
     white-space: nowrap;
-  }
-
-  &__all-hosts {
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
   }
 
   &__panel {
@@ -130,6 +113,15 @@
     gap: $pad-small;
     font-size: $x-small;
     color: $ui-fleet-black-75;
+
+    // TooltipWrapper's inner element is block-level by default with line-height
+    // whitespace, so the arrow centers on that taller box and reads as pointing
+    // below the icon. Force inline-flex/center so the anchor box matches the
+    // icon's visual bounds. Mirrors __status-counts-info below.
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 
   // The info-outline tooltip sits inline at the end of the first status row.
@@ -225,12 +217,13 @@
     // grey the rest via `color` so any popups inside still render at full
     // opacity.
     .library-item-accordion__chevron,
-    .graphic {
+    .installer-details-widget .graphic,
+    .installer-details-widget .software-icon {
       opacity: 0.5;
     }
 
-    .library-item-accordion__filename,
-    .library-item-accordion__sub {
+    .installer-details-widget__title,
+    .installer-details-widget__details {
       color: $ui-fleet-black-50;
     }
 
