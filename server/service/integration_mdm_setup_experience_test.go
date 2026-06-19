@@ -4533,32 +4533,38 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// - installed the apps, from the host enrollment
 	require.Len(t, patchAppsPolicies, 5)
 
-	// Flatten all AMAPI calls into a set of (packageName, installType) pairs
-	// to verify the right calls were made regardless of order.
 	type appCall struct {
-		PackageName string
-		InstallType string
+		PackageName          string
+		InstallType          string
+		ManagedConfiguration string
 	}
-	var allCalls []appCall
+	var appCalls []appCall
+	var fleetAgentCount int
 	for _, policies := range patchAppsPolicies {
 		for _, p := range policies {
-			allCalls = append(allCalls, appCall{p.PackageName, p.InstallType})
+			if p.PackageName == "com.fleetdm.agent" {
+				fleetAgentCount++
+				require.Equal(t, "FORCE_INSTALLED", p.InstallType)
+				require.Contains(t, string(p.ManagedConfiguration), "server_url")
+				require.Contains(t, string(p.ManagedConfiguration), "host_uuid")
+				continue
+			}
+			appCalls = append(appCalls, appCall{p.PackageName, p.InstallType, string(p.ManagedConfiguration)})
 		}
 	}
+	require.Equal(t, 1, fleetAgentCount, "fleet agent should be added exactly once")
 	require.ElementsMatch(t, []appCall{
 		// app1 made available individually (from PATCH config change)
-		{app1.VPPAppID.AdamID, "AVAILABLE"},
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
 		// app2 made available individually (from PATCH config change)
-		{app2.VPPAppID.AdamID, "AVAILABLE"},
-		// Fleet agent added during enrollment
-		{"com.fleetdm.agent", "FORCE_INSTALLED"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
 		// app1+app2 made available during enrollment (self-service)
-		{app1.VPPAppID.AdamID, "AVAILABLE"},
-		{app2.VPPAppID.AdamID, "AVAILABLE"},
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
 		// app1+app2 installed during enrollment (setup experience)
-		{app1.VPPAppID.AdamID, "PREINSTALLED"},
-		{app2.VPPAppID.AdamID, "PREINSTALLED"},
-	}, allCalls)
+		{app1.VPPAppID.AdamID, "PREINSTALLED", "1"},
+		{app2.VPPAppID.AdamID, "PREINSTALLED", "2"},
+	}, appCalls)
 
 	patchAppsPolicies = nil
 

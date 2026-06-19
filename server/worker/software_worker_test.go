@@ -325,14 +325,16 @@ func TestMakeAndroidAppAvailableBatchNoVars(t *testing.T) {
 }
 
 func TestMakeAndroidAppAvailableBatchWithVars(t *testing.T) {
-	var addAppsCalls int
-	var capturedConfigs []string
+	// Capture per-host AMAPI calls: host UUID → rendered managed config
+	capturedConfigByHost := make(map[string]string)
 
 	androidModule := &mockAndroidModule{
 		addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-			addAppsCalls++
-			if len(appPolicies) > 0 {
-				capturedConfigs = append(capturedConfigs, string(appPolicies[0].ManagedConfiguration))
+			// Each call should target exactly one host (per-host substitution)
+			require.Len(t, hostUUIDs, 1)
+			require.Len(t, appPolicies, 1)
+			for uuid := range hostUUIDs {
+				capturedConfigByHost[uuid] = string(appPolicies[0].ManagedConfiguration)
 			}
 			result := make(map[string]*android.MDMAndroidPolicyRequest)
 			for uuid := range hostUUIDs {
@@ -343,11 +345,9 @@ func TestMakeAndroidAppAvailableBatchWithVars(t *testing.T) {
 	}
 
 	ds := new(mock.Store)
-	// Config with a fleet variable
 	ds.GetAndroidAppConfigurationByAppTeamIDFunc = func(ctx context.Context, appTeamID uint) ([]byte, error) {
 		return []byte(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID"}}`), nil
 	}
-	// Batch fetch returns two hosts with different UUIDs
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		var hosts []*fleet.Host
 		for _, uuid := range uuids {
@@ -365,13 +365,11 @@ func TestMakeAndroidAppAvailableBatchWithVars(t *testing.T) {
 	err := w.makeAndroidAppAvailableBatch(t.Context(), "com.example.app", 1, hosts, "enterprises/test", false)
 	require.NoError(t, err)
 
-	// Per-host substitution: one AMAPI call per host
-	require.Equal(t, 2, addAppsCalls, "should call AddAppsToAndroidPolicy once per host")
-
-	// Each call should have the host's UUID substituted in, not the literal variable
-	for _, cfg := range capturedConfigs {
-		require.NotContains(t, cfg, "$FLEET_VAR_HOST_UUID", "variable should be substituted")
-	}
+	require.Len(t, capturedConfigByHost, 2, "should have called AMAPI for both hosts")
+	require.Contains(t, capturedConfigByHost["uuid-aaa"], "uuid-aaa", "host uuid-aaa should appear in its config")
+	require.NotContains(t, capturedConfigByHost["uuid-aaa"], "$FLEET_VAR_HOST_UUID")
+	require.Contains(t, capturedConfigByHost["uuid-bbb"], "uuid-bbb", "host uuid-bbb should appear in its config")
+	require.NotContains(t, capturedConfigByHost["uuid-bbb"], "$FLEET_VAR_HOST_UUID")
 }
 
 func TestQueueBulkSetAndroidAppsAvailableForHostsChunking(t *testing.T) {

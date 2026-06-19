@@ -159,7 +159,11 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 
 	// Queue staggered batch jobs. The phase-2 handler handles per-host
 	// variable substitution within each batch, so we always chunk the same way.
-	batches := splitHostMap(hosts, v.AndroidBatchSize)
+	batchSize := v.AndroidBatchSize
+	if batchSize <= 0 {
+		batchSize = defaultAndroidBatchSize
+	}
+	batches := splitHostMap(hosts, batchSize)
 	for i, batch := range batches {
 		delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
 		if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
@@ -744,7 +748,10 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 	return nil
 }
 
-const androidSoftwareInstallStaggerInterval = 60 * time.Second
+const (
+	androidSoftwareInstallStaggerInterval = 60 * time.Second
+	defaultAndroidBatchSize               = 1000
+)
 
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
