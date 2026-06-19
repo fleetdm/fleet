@@ -87,7 +87,7 @@ GitHub issue: [#42651](https://github.com/fleetdm/fleet/issues/42651)
 
 ### Command palette
 
-Fleet now includes a command palette. Press ⌘+K (or Ctrl+K on Windows and Linux) from anywhere in the app to instantly navigate to any page, trigger any action, or jump to any setting. The palette respects your role such that items are shown or hidden based on your permissions. Fleet Premium users with multiple fleets can jump directly to the fleet switcher with ⌘+Shift+F (Ctrl+Shift+F on Windows and Linux). Sub-pages let you search hosts, software titles, reports, and policies by name without leaving the keyboard.
+Fleet now includes a command palette. Press ⌘+K (or Ctrl+K on Windows and Linux) from anywhere in the app to instantly navigate to any page, trigger any action, or jump to any setting. The palette respects your role by showing or hiding items based on your permissions. Fleet Premium users with multiple fleets can jump directly to the fleet switcher with ⌘+Shift+F (Ctrl+Shift+F on Windows and Linux). Sub-pages let you search hosts, software titles, reports, and policies by name without leaving the keyboard.
 
 GitHub issue: [#43757](https://github.com/fleetdm/fleet/issues/43757)
 
