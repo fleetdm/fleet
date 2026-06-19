@@ -2,7 +2,7 @@
 
 Config-as-code has quietly become the default expectation for device management. Jamf, Zentral, Workspace ONE, and Fleet all let you describe your endpoints in a repository, review changes through pull requests, and keep an audit trail of who changed what and why. That convergence is a good thing. The argument about *whether* to manage devices as code is mostly over.
 
-The argument still worth having is about cost. Not the license, the cost in time, in skill, and in dependence on a single person. Two config-as-code setups can deliver the same governance benefits and still ask very different things of the team that has to live with them. Before you adopt one, it's worth being honest about which kind you're signing up for.
+The argument still worth having is about cost. Not the license cost. The cost in time, in skill, and in dependence on a single person. Two config-as-code setups can deliver the same governance benefits and still ask very different things of the team that has to live with them. Before you adopt one, it's worth being honest about which kind you're signing up for.
 
 This isn't a knock on any tool. It's a question every IT leader should ask before committing: when the person who set this up moves on, does the knowledge leave with them, or does it stay in Git?
 
