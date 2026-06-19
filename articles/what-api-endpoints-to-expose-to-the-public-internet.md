@@ -37,6 +37,7 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 - `/mdm/sso`, `/api/*/fleet/mdm/sso`, `/mdm/sso/callback`, `/api/*/fleet/mdm/sso/callback`, and `/assets/*`: If you use automatic enrollment and you require [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
 - `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, allows end user to see the EULA.
 - `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/guides/setup-experience#end-user-authentication) during out-of-the-box macOS setup, installs the bootstrap package.
+- `/api/mdm/apple/psso/*` and `/.well-known/apple-app-site-association`: If you use Fleet's Platform SSO extension (not a third-party extension provided by your IdP), allows macOS hosts to authenticate for user provisioning and password syncing.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
 > are not RESTful and are not intended for use by API clients or browsers.
