@@ -9796,6 +9796,14 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	require.NotEmpty(t, runResp.CommandUUID)
 	require.Equal(t, "windows", runResp.Platform)
 	require.Equal(t, "./SetValues", runResp.RequestType)
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), fmt.Sprintf(`{
+		"host_id": %d,
+		"host_display_name": %q,
+		"host_uuid": %q,
+		"command_uuid": %q,
+		"request_type": "./SetValues",
+		"platform": "windows"
+	}`, enrolledWindows.ID, enrolledWindows.DisplayName(), enrolledWindows.UUID, runResp.CommandUUID), 0)
 
 	// valid macOS
 	runResp = runMDMCommandResponse{}
@@ -9806,6 +9814,14 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	require.NotEmpty(t, runResp.CommandUUID)
 	require.Equal(t, "darwin", runResp.Platform)
 	require.Equal(t, "ShutDownDevice", runResp.RequestType)
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), fmt.Sprintf(`{
+		"host_id": %d,
+		"host_display_name": %q,
+		"host_uuid": %q,
+		"command_uuid": %q,
+		"request_type": "ShutDownDevice",
+		"platform": "darwin"
+	}`, enrolledMac.ID, enrolledMac.DisplayName(), enrolledMac.UUID, runResp.CommandUUID), 0)
 }
 
 func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
