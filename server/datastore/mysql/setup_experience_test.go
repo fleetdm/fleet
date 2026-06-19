@@ -40,6 +40,7 @@ func TestSetupExperience(t *testing.T) {
 		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
 		{"PolicyGate", testSetupExperiencePolicyGate},
 		{"PolicyGateResultLookups", testSetupExperiencePolicyGateResultLookups},
+		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
 	}
 
 	for _, c := range cases {
@@ -2561,5 +2562,184 @@ func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
 			return sqlx.GetContext(ctx, q, &updatedAt, "SELECT policy_updated_at FROM hosts WHERE id = ?", host.ID)
 		})
 		require.True(t, updatedAt.Before(enrolledAt), "policy_updated_at must be reset to a stale value so the full policy set re-runs")
+	})
+}
+
+func testSetupExperienceCrossPlatformShScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-cross-plat"})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// .sh scripts are stored as platform='linux' but can also run on darwin.
+	tfrSh, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/sh\necho hello"), t.TempDir)
+	require.NoError(t, err)
+	_, shTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "#!/bin/sh\necho install",
+		InstallerFile:   tfrSh,
+		StorageID:       "storage-sh-cross",
+		Filename:        "cross.sh",
+		Title:           "Cross Platform Script",
+		Version:         "1.0",
+		Source:          "sh_packages",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        "linux",
+		Extension:       "sh",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	tfrPkg, err := fleet.NewTempFileReader(strings.NewReader("pkg content"), t.TempDir)
+	require.NoError(t, err)
+	_, macosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer -pkg mac.pkg -target /",
+		UninstallScript: "rm -rf /Applications/mac.app",
+		InstallerFile:   tfrPkg,
+		StorageID:       "storage-pkg-cross",
+		Filename:        "mac.pkg",
+		Title:           "Mac App",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		Extension:       "pkg",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	t.Run("sh appears in both linux and darwin listings", func(t *testing.T) {
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		linuxNames := make([]string, 0, len(linuxTitles))
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil {
+				linuxNames = append(linuxNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, linuxNames, "cross.sh")
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		macosNames := make([]string, 0, len(macosTitles))
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil {
+				macosNames = append(macosNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, macosNames, "cross.sh")
+		assert.Contains(t, macosNames, "mac.pkg")
+	})
+
+	t.Run("saving macOS selection does not clear Linux native selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID, macosTitleID})
+		require.NoError(t, err)
+
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var linuxShSelected bool
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" {
+				linuxShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.True(t, linuxShSelected)
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		selectedNames := make([]string, 0)
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.InstallDuringSetup != nil && *tt.SoftwarePackage.InstallDuringSetup {
+				selectedNames = append(selectedNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, selectedNames, "cross.sh")
+		assert.Contains(t, selectedNames, "mac.pkg")
+	})
+
+	t.Run("clearing macOS selection does not clear Linux native selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{})
+		require.NoError(t, err)
+
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var linuxShSelected bool
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" {
+				linuxShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.True(t, linuxShSelected)
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var macosShSelected bool
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" && tt.SoftwarePackage.InstallDuringSetup != nil {
+				macosShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.False(t, macosShSelected)
+	})
+
+	t.Run("darwin host enqueues cross-selected .sh", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		darwinUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "darwin-host-" + darwinUUID,
+			UUID:          darwinUUID,
+			Platform:      "darwin",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-darwin-" + darwinUUID),
+			NodeKey:       new("nk-darwin-" + darwinUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", darwinUUID, team.ID)
+		require.NoError(t, err)
+		assert.True(t, enrolled)
+
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &names,
+				`SELECT name FROM setup_experience_status_results WHERE host_uuid = ?`,
+				darwinUUID)
+		})
+		assert.Contains(t, names, "Cross Platform Script")
+	})
+
+	t.Run("linux host is unaffected by darwin-only cross selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{})
+		require.NoError(t, err)
+
+		linuxUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "linux-host-" + linuxUUID,
+			UUID:          linuxUUID,
+			Platform:      "debian",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-linux-" + linuxUUID),
+			NodeKey:       new("nk-linux-" + linuxUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "linux", "debian", linuxUUID, team.ID)
+		require.NoError(t, err)
+		assert.False(t, enrolled)
 	})
 }

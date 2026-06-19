@@ -75,7 +75,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		})
 	}
 
-	if (len(tp.LabelsIncludeAll) > 0 || len(tp.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
+	if (len(tp.LabelsIncludeAll) > 0 || len(tp.LabelsExcludeAll) > 0 || len(tp.LabelsIncludeAny) > 0 || len(tp.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -628,7 +628,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0) && !license.IsPremium(ctx) {
+	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 

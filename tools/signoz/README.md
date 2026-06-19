@@ -65,6 +65,22 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 > **Note:** All log levels (including debug) are always sent to SigNoz regardless of the `--logging_debug` flag. That flag only controls stderr output.
 
+### Multiple environments
+
+When you point more than one Fleet deployment (for example `production`, `staging`, and `dev-local`) at the same SigNoz instance, keep the service name the same and tell them apart by environment instead.
+
+Leave `OTEL_SERVICE_NAME` at its default of `fleet` on every deployment so they stay grouped under one service, then set the environment through `OTEL_RESOURCE_ATTRIBUTES`. Set both of these attributes to the same value:
+
+- `deployment.environment.name` is the current [OpenTelemetry semantic convention](https://opentelemetry.io/docs/specs/semconv/resource/deployment-environment/).
+- `deployment.environment` is the older, now-deprecated attribute that SigNoz still keys off (the dashboard `environment` selector reads this one).
+
+```bash
+export OTEL_SERVICE_NAME=fleet
+export OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev-local,deployment.environment=dev-local
+```
+
+Use a distinct value on each deployment and keep both attributes in sync so the dashboard `environment` selector resolves to a single deployment.
+
 ### Low-latency configuration (optional)
 
 For faster feedback during development, you can reduce the batch processing delays on the Fleet side:

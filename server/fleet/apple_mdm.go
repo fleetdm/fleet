@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
+
 // Sentinel errors for recovery lock rotation
 var (
 	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
@@ -1477,4 +1479,12 @@ type HostManagedLocalAccountAutoRotationInfo struct {
 	DisplayName      string `db:"display_name"`
 	AccountUUID      string `db:"account_uuid"`
 	InitiatedByFleet bool   `db:"initiated_by_fleet"`
+}
+
+type ADUEEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
 }

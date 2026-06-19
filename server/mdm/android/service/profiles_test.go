@@ -83,6 +83,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
+		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1414,4 +1415,48 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 			require.NotContains(t, p.Detail, "Waiting for certificate")
 		}
 	}
+}
+
+// testUnresolvableFleetVarMarksProfileFailed verifies that when a profile
+// contains a $FLEET_VAR_HOST_* variable that can't be resolved for a host
+// (e.g., missing IDP linkage), the profile is marked as MDMDeliveryFailed
+// with an appropriate detail message visible on the host's OS settings page.
+func testUnresolvableFleetVarMarksProfileFailed(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a host with no IDP user linked.
+	h1 := createAndroidHost(t, ds, 1)
+
+	// Create a profile that references an IDP variable the host can't resolve.
+	p1 := androidProfileWithPayloadForTest("wifi-eap", `{"name": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+
+	// Reconcile — should NOT call AMAPI (no policy to patch) but should
+	// persist the profile as failed.
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID:      h1.UUID,
+			ProfileUUID:   p1.ProfileUUID,
+			ProfileName:   p1.Name,
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPUsername),
+		},
+	})
+
+	// AMAPI should NOT have been called — the substitution failure prevents
+	// the policy patch.
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
