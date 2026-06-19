@@ -2,7 +2,7 @@
 
 A native macOS application that provides end users with a self-service portal for [Fleet](https://fleetdm.com). It integrates with Fleet's [orbit](https://fleetdm.com/docs/get-started/anatomy#orbit) agent to give users direct access to device management features in a native window instead of a browser.
 
-> **Heads up — two things named "Fleet Desktop":** Fleet's agent already ships a tray/menu-bar component called Fleet Desktop (bundle ID `com.fleetdm.desktop`, built from `orbit/cmd/desktop`). This is a separate, standalone native app (bundle ID `com.fleetdm.fleet-desktop`) distributed as its own `.pkg`. They use different bundle IDs and can coexist.
+> Fleet's agent already ships the "Fleet Desktop menu bar icon" (bundle ID `com.fleetdm.desktop`, built from `orbit/cmd/desktop`). This is the separate "Fleet Desktop app" (bundle ID `com.fleetdm.fleet-desktop`) distributed as its own `.pkg`. They use different bundle IDs and can coexist. [Learn more](https://fleetdm.com/guides/fleet-desktop).
 
 ## Features
 

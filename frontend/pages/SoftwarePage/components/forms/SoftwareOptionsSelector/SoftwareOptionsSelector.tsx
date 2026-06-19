@@ -9,6 +9,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 
 import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
@@ -117,7 +118,9 @@ const CategoriesSelector = ({
       return (
         <div className={`${baseClass}__categories-empty`}>
           <CustomLink
-            url={paths.SOFTWARE_LIBRARY_CATEGORIES}
+            url={getPathWithQueryParams(paths.SOFTWARE_LIBRARY_CATEGORIES, {
+              fleet_id: teamId,
+            })}
             text="Add category"
           />
           <span>to assign software to it.</span>

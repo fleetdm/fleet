@@ -42,6 +42,7 @@ module.exports = {
         'Adam Pippert',
         'Justin LaBo',
         'Brian LaShomb',
+        'Ed Merrett',
       ];
 
       // Filter the testimonials by product category

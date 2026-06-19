@@ -897,9 +897,9 @@ var DefaultSelfServiceCategoryNames = []string{
 	"🌎 Browsers",
 	"👬 Communication",
 	"🧰 Developer tools",
-	"💻 Productivity",
+	"🖥️ Productivity",
 	"🔐 Security",
-	"🛟 Support",
+	"🛠️ Utilities",
 }
 
 // Map the old default category names that don't include emojis to the new ones
@@ -909,9 +909,9 @@ var LegacySoftwareCategoryNames = map[string]string{
 	"Browsers":        "🌎 Browsers",
 	"Communication":   "👬 Communication",
 	"Developer tools": "🧰 Developer tools",
-	"Productivity":    "💻 Productivity",
+	"Productivity":    "🖥️ Productivity",
 	"Security":        "🔐 Security",
-	"Utilities":       "🛟 Support",
+	"Utilities":       "🛠️ Utilities",
 }
 
 func TranslateLegacySoftwareCategoryNames(names []string) []string {

@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -104,4 +106,112 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			require.Contains(t, bodyString, fmt.Sprintf(`const MAC_MDM_ENABLED = "%t" == "true";`, enabled))
 		})
 	}
+}
+
+func TestServeEndUserEnrollOTAClearsCookieForFullyManaged(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ds := new(mock.DataStore)
+	ds.HasUsersFunc = func(ctx context.Context) (bool, error) {
+		return true, nil
+	}
+	teamID := uint(1)
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret, TeamID: &teamID}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{
+			ID: id,
+			Config: fleet.TeamConfigLite{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: true,
+					},
+				},
+			},
+		}, nil
+	}
+	appCfg := &fleet.AppConfig{
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			AndroidEnabledAndConfigured: true,
+		},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+
+	svc, _ := newTestService(t, ds, nil, nil)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	h := ServeEndUserEnrollOTA(svc, "", ds, logger, false)
+	ts := httptest.NewServer(h)
+	t.Cleanup(func() {
+		ts.Close()
+	})
+
+	idpUUID := "test-idp-uuid-1234"
+
+	// Simulate a request with a valid BYOD cookie + matching enrollment_reference
+	// for a fully-managed Android enrollment.
+	req, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&fully_managed=true&enrollment_reference="+idpUUID, nil)
+	require.NoError(t, err)
+	req.AddCookie(&http.Cookie{
+		Name:  shared_mdm.BYODIdpCookieName,
+		Value: idpUUID,
+	})
+
+	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
+	response, err := client.Do(req)
+	require.NoError(t, err)
+	defer response.Body.Close()
+
+	require.Equal(t, http.StatusOK, response.StatusCode)
+
+	// Assert that Set-Cookie header is present and clears the BYOD cookie.
+	setCookieHeaders := response.Header.Values("Set-Cookie")
+	var foundClear bool
+	for _, sc := range setCookieHeaders {
+		if bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+			bytes.Contains([]byte(sc), []byte("Max-Age=0")) {
+			foundClear = true
+			break
+		}
+	}
+	require.True(t, foundClear, "expected Set-Cookie header to clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders)
+
+	// Assert that the rendered HTML contains the IdP UUID for JS to use.
+	bodyBytes, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	bodyString := string(bodyBytes)
+	require.Contains(t, bodyString, fmt.Sprintf(`const IDP_UUID = "%s";`, idpUUID))
+
+	// BYOD (non-fully-managed) requests should NOT clear the cookie
+	req2, err := http.NewRequest("GET", ts.URL+"?enroll_secret=foo&enrollment_reference="+idpUUID, nil)
+	require.NoError(t, err)
+	req2.AddCookie(&http.Cookie{
+		Name:  shared_mdm.BYODIdpCookieName,
+		Value: idpUUID,
+	})
+
+	response2, err := client.Do(req2)
+	require.NoError(t, err)
+	defer response2.Body.Close()
+
+	require.Equal(t, http.StatusOK, response2.StatusCode)
+
+	setCookieHeaders2 := response2.Header.Values("Set-Cookie")
+	for _, sc := range setCookieHeaders2 {
+		require.False(t,
+			bytes.Contains([]byte(sc), []byte(shared_mdm.BYODIdpCookieName)) &&
+				bytes.Contains([]byte(sc), []byte("Max-Age=0")),
+			"BYOD request should not clear %s, got: %v", shared_mdm.BYODIdpCookieName, setCookieHeaders2,
+		)
+	}
+
+	// Assert that BYOD rendered HTML has an empty IdP UUID (not passed through template).
+	bodyBytes2, err := io.ReadAll(response2.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(bodyBytes2), `const IDP_UUID = "";`)
 }
