@@ -1612,18 +1612,18 @@
       "description": "Clop is an image, video and clipboard optimiser."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Cloudflare WARP",
+      "name": "Cloudflare One",
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
       "unique_identifier": "Cloudflare One Client",
-      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+      "description": "Cloudflare One enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
       "name": "Eltima CloudMounter",
@@ -3373,6 +3373,13 @@
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.dialer",
+      "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
+    },
+    {
+      "name": "Groove OmniDialer",
+      "slug": "groove-omnidialer/windows",
+      "platform": "windows",
+      "unique_identifier": "Groove OmniDialer",
       "description": "Groove OmniDialer is an outbound sales dialer for making and managing calls."
     },
     {
