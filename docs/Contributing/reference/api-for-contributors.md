@@ -6063,7 +6063,7 @@ LhF5zOH2B/pJftzHZRIUPTg5doECxNFV6WB+4jr2
 ```
 
 ## Apple Platform SSO
-The following endpoints describe Fleet's Platform SSO implementation used for initial user provisioning and password sync. These endpoints are only used by Fleet's Platform SSO extension, included within the Fleet Desktop app, not when using third party Platform SSO extensions such as Company Portal or Okta Verify.
+The following endpoints describe Fleet's Platform SSO implementation used for initial user provisioning and password sync. These endpoints are used only by Fleet's Platform SSO extension, included in the Fleet Desktop app, not by third-party Platform SSO extensions such as Company Portal or Okta Verify.
 
 ### Platform SSO Device Registration
 
@@ -6105,7 +6105,7 @@ No response body. A `2xx` tells the extension the keys were persisted; the frame
 
 `POST /api/mdm/apple/psso/nonce`
 
-This endpoint is used prior to every call to the Token endpoint to obtain a new nonce which is immediately consumed on the call to the token endpoint where it is sent as the `request_nonce` claim of the JWT. Nonces have a five minute expiry. The returned nonce is a random 32-byte value, base64url-encoded.
+This endpoint is used prior to every call to the Token endpoint to obtain a new nonce, which is immediately consumed on the call to the token endpoint, where it is sent as the `request_nonce` claim of the JWT. Nonces have a five-minute expiry. The returned nonce is a random 32-byte value, base64url-encoded.
 
 #### Parameters
 
@@ -6129,7 +6129,7 @@ None.
 
 `POST /api/mdm/apple/psso/token`
 
-This endpoint is used for User Registration, Key Request and Key Exchange requests of Platform SSO to authenticate users of previously-registered devices and support operations such as Key Exchange which allows a user who has changed their IDP password and logged in with it to unlock their keychain without the prior password.
+This endpoint is used for User Registration, Key Request, and Key Exchange requests of Platform SSO to authenticate users of previously-registered devices and support operations such as Key Exchange, which allows a user who has changed their IDP password and logged in with it to unlock their keychain without the prior password.
 
 The request body is an OAuth `jwt-bearer`-style urlencoded form whose `assertion` field carries a compact JWS signed by the device's registered signing key. Fleet resolves the device from the JWS header's `kid`, verifies the signature against the registered signing key, then dispatches on a claim in the JWS payload. The signed payload must always include a valid, unexpired `request_nonce` from the nonce endpoint and a `jwe_crypto` recipe (`ECDH-ES` / `A256GCM` against the device encryption key) describing how Fleet must encrypt the response.
 
@@ -6212,9 +6212,9 @@ The response is served with `Content-Type: application/jwk-set+json`.
 
 `GET /.well-known/apple-app-site-association`
 
-This endpoint is used by Apple's Associated Domains functionality to ensure that a given Platform SSO (or other security-related extension) and a given hostname both agree that they can communicate with each other. This server URL provides a list of which applications may communicate with this server and for which purposes, and the app must contain, or be deployed alongside an MDM profile containing an Asociated Domains payload listing the server URL. See https://developer.apple.com/documentation/xcode/supporting-associated-domains. If fleet's Platform SSO-enabled Password Sync feature has not been configured, this will return a 404 error.
+This endpoint is used by Apple's Associated Domains functionality to ensure that a given Platform SSO (or other security-related extension) and a given hostname both agree that they can communicate with each other. This server URL lists which applications may communicate with this server and for which purposes, and the app must contain, or be deployed alongside, an MDM profile with an Associated Domains payload listing the server URL. See https://developer.apple.com/documentation/xcode/supporting-associated-domains. If Fleet's Platform SSO-enabled Password Sync feature has not been configured, this will return a 404 error.
 
-Note: Hosts do not communicate with this endpoint directly, but instead with an Apple CDN, which itself only occasionally requests the data from this endpoint. Hosts cache this information within a local cache for several hours between CDN requests. As such it may take 6-24 hours to see changes reflected on a host if this endpoint ever returns different data and this should be accounted for in future modifications to this endpoint. Finally, Apple's framework requires this endpoint to be served over a publicly-trusted TLS certificate; self-signed certificates are silently rejected.
+> **Note:** Hosts do not communicate with this endpoint directly; instead, they communicate with an Apple CDN, which only occasionally requests data from this endpoint. Hosts cache this information locally for several hours between CDN requests. As such, it may take 6-24 hours for changes to be reflected on a host if this endpoint ever returns different data, and this should be accounted for in future modifications to this endpoint. Finally, Apple's framework requires this endpoint to be served over a publicly-trusted TLS certificate; self-signed certificates are silently rejected.
 
 The `apps` arrays list the `<team_id>.<bundle_id>` identifiers permitted to bind to this hostname as an authentication server (`authsrv:`).
 
