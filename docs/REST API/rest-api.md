@@ -2,6 +2,7 @@
 
 - [Authentication](#authentication)
 - [Activities](#activities)
+- [Charts](#charts)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
@@ -1240,6 +1241,82 @@ Resends a certificate for the specified host. Currently, only Android certificat
 ##### Default response
 
 `Status: 202`
+
+---
+
+## Charts
+
+- [Get chart data](#get-chart-data)
+
+### Get chart data
+
+Returns time-series data for a dashboard chart, as a list of per-bucket distinct host counts over a recent window.
+
+The available metrics are:
+
+- `uptime`: the number of hosts online (checking in to Fleet) during each bucket.
+- `cve`: _Available in Fleet Premium_. The number of hosts with critical (CVSS >= 9.0) vulnerabilities in tracked software during each bucket.
+
+`GET /api/v1/fleet/charts/:metric`
+
+#### Parameters
+
+| Name                 | Type    | In    | Description                                                                                                                                                                                       |
+| ---                  | ---     | ---   | ---                                                                                                                                                                                               |
+| metric               | string  | path  | **Required**. The chart metric. One of `uptime` or `cve`. The `cve` metric requires Fleet Premium.                                                                                                |
+| days                 | integer | query | Number of days of history to return. Must be between 1 and 31. Default is `7`.                                                                                                                    |
+| resolution           | integer | query | Bucket size in hours. Must be `0` or a positive divisor of 24 (for example `1`, `2`, `3`, `4`, `6`, `8`, `12`, `24`). `0` (the default) uses the metric's default resolution.                      |
+| tz_offset            | integer | query | The client's UTC offset in minutes, as returned by JavaScript's `Date.getTimezoneOffset()` (positive is west of UTC). Used to align bucket boundaries to the client's local time.                  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Scopes results to the specified fleet. Use `0` to scope to "Unassigned" (no fleet) hosts.                                                                            |
+| label_ids            | string  | query | Comma-separated list of label IDs. Limits the chart to hosts that belong to any of these labels.                                                                                                  |
+| platforms            | string  | query | Comma-separated list of host platforms to include (for example `darwin,windows,linux,chrome`).                                                                                                    |
+| include_host_ids     | string  | query | Comma-separated list of host IDs. Limits the chart to only these hosts.                                                                                                                           |
+| exclude_host_ids     | string  | query | Comma-separated list of host IDs to exclude from the chart.                                                                                                                                       |
+| software_filters     | string  | query | `cve` metric only. Comma-separated list of software categories to include: `os`, `browsers`, `office`, `adobe`. Omit to include all categories.                                                   |
+| has_known_exploit    | boolean | query | `cve` metric only. If `true`, only include CVEs with a known exploit (present in the CISA Known Exploited Vulnerabilities catalog).                                                                |
+| epss_min             | number  | query | `cve` metric only. Minimum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
+| epss_max             | number  | query | `cve` metric only. Maximum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
+| exclude_vulnerabilities | string | query | `cve` metric only. Comma-separated list of CVEs (for example `CVE-2024-1234`) to exclude from the chart.                                                                                         |
+
+#### Response fields
+
+| Name          | Type    | Description                                                                                                                |
+| ---           | ---     | ---                                                                                                                        |
+| metric        | string  | The requested metric.                                                                                                      |
+| visualization | string  | The metric's default visualization (`line` or `checkerboard`).                                                            |
+| total_hosts   | integer | The number of hosts matching the host filters, used as the denominator when the chart is displayed as a percentage.        |
+| resolution    | string  | The bucket size of the returned data (for example `hourly`, `3-hour`, or `daily`).                                         |
+| days          | integer | The number of days of history returned.                                                                                   |
+| filters       | object  | The filters that were applied to the request.                                                                             |
+| data          | array   | The time series. Each element has a `timestamp` (RFC3339, the start of the bucket) and a `value` (the host count).         |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "metric": "cve",
+  "visualization": "line",
+  "total_hosts": 1164,
+  "resolution": "3-hour",
+  "days": 7,
+  "filters": {
+    "software_filters": ["browsers", "adobe"],
+    "has_known_exploit": true
+  },
+  "data": [
+    {
+      "timestamp": "2026-06-08T00:00:00Z",
+      "value": 488
+    },
+    {
+      "timestamp": "2026-06-08T03:00:00Z",
+      "value": 502
+    }
+  ]
+}
+```
 
 ---
 
