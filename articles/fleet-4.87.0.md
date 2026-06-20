@@ -1,5 +1,9 @@
 # Fleet 4.87.0 | 800+ new apps, custom OS updates, non-admin local accounts, and more...
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/Mv2kbxItSbI?si=1bPEQvi8BO6VLUIv" title="0" allowfullscreen></iframe>
+</div>
+
 Fleet 4.87.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.87.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
