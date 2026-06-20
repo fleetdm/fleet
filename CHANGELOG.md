@@ -1,4 +1,4 @@
-## Fleet 4.87.0 (Jun 08, 2026)
+## Fleet 4.87.0 (Jun 19, 2026)
 
 ### IT Admins
 - Added the ability to deploy custom OS update configuration profiles for Apple and Windows.
