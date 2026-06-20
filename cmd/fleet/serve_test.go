@@ -305,7 +305,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet, &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1002,7 +1002,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1069,7 +1069,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 

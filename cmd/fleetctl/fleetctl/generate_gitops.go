@@ -277,6 +277,7 @@ type GenerateGitopsCommand struct {
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
+		Hidden:      true,
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
 		Action:      createGenerateGitopsAction(nil),
@@ -1665,13 +1666,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 		}
 		// Parse any labels.
-		if policy.LabelsIncludeAny != nil {
+		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
 		}
 		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
-		if policy.LabelsExcludeAny != nil {
+		if policy.LabelsExcludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
 		}
 		if policy.LabelsExcludeAll != nil && cmd.AppConfig.License.IsPremium() {

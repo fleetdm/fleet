@@ -1309,7 +1309,7 @@ module.exports.routes = {
   'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/setup-experience#end-user-license-agreement-eula',
-  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#end-user-authentication',
+  'GET /learn-more-about/end-user-authentication': '/guides/setup-experience#require-idp-authentication',
   'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
   'GET /learn-more-about/policy-templates': '/policies',
   'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
@@ -1371,9 +1371,11 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
+  'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
 
   // Sitemap

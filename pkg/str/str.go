@@ -3,7 +3,26 @@ package str
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
+
+// MaxErrorResponseBytes is the maximum number of bytes captured from a remote
+// error response body before the string is truncated.
+const MaxErrorResponseBytes = 512 * 1024
+
+// TruncateErrorResponse caps s at MaxErrorResponseBytes bytes. When the string
+// is longer it is cut at a valid UTF-8 boundary and " [truncated]" is appended.
+func TruncateErrorResponse(s string) string {
+	if len(s) <= MaxErrorResponseBytes {
+		return s
+	}
+	cut := s[:MaxErrorResponseBytes]
+	// Step back from the cut point to ensure we end on a valid rune boundary.
+	for !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut + " [truncated]"
+}
 
 func SplitAndTrim(s string, delimiter string, removeEmpty bool) []string {
 	parts := strings.Split(s, delimiter)

@@ -6517,6 +6517,7 @@ type updateABMTokenTeamsRequest struct {
 	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
 	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
 	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -6529,7 +6530,7 @@ func (r updateABMTokenTeamsResponse) Error() error { return r.Err }
 func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
 
-	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID)
+	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID, req.BYODTeamID)
 	if err != nil {
 		return &updateABMTokenTeamsResponse{Err: err}, nil
 	}
@@ -6537,7 +6538,7 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 	return &updateABMTokenTeamsResponse{ABMToken: tok}, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

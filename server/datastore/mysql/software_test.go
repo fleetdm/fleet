@@ -12867,6 +12867,26 @@ func testSoftwareCategoryCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareCategory(ctx, 9999999)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// A team with zero categories returns a non-nil empty slice so the JSON
+	// response serializes as `[]` rather than `null`. See issue #47712.
+	emptyTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "empty" + t.Name()})
+	require.NoError(t, err)
+	seeded, err := ds.ListSoftwareCategories(ctx, emptyTeam.ID)
+	require.NoError(t, err)
+	for _, c := range seeded {
+		require.NoError(t, ds.DeleteSoftwareCategory(ctx, c.ID))
+	}
+	emptyCats, err := ds.ListSoftwareCategories(ctx, emptyTeam.ID)
+	require.NoError(t, err)
+	require.NotNil(t, emptyCats)
+	require.Empty(t, emptyCats)
+
+	// An unknown team_id also returns a non-nil empty slice.
+	unknownCats, err := ds.ListSoftwareCategories(ctx, 9999999)
+	require.NoError(t, err)
+	require.NotNil(t, unknownCats)
+	require.Empty(t, unknownCats)
 }
 
 func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
@@ -12953,7 +12973,7 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	var emojiProductivity, emojiSecurity fleet.SoftwareCategory
 	for _, c := range seeded {
 		switch c.Name {
-		case "💻 Productivity":
+		case "🖥️ Productivity":
 			emojiProductivity = c
 		case "🔐 Security":
 			emojiSecurity = c

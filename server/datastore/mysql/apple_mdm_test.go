@@ -56,6 +56,7 @@ func TestMDMApple(t *testing.T) {
 		{"InsertADUEEnrollmentChallenge", testInsertADUEEnrollmentChallenge},
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
+		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
@@ -8168,6 +8169,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	tm3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
+	tm4, err := ds.NewTeam(ctx, &fleet.Team{Name: "team4"})
+	require.NoError(t, err)
 
 	toks, err := ds.ListABMTokens(ctx)
 	require.NoError(t, err)
@@ -8205,12 +8208,14 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
+	require.Equal(t, fleet.TeamNameNoTeam, tok.BYODTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
 	tok.AppleID = "name@example.com"
 	tok.MacOSDefaultTeamID = &tm1.ID
 	tok.IOSDefaultTeamID = &tm2.ID
+	tok.BYODDefaultTeamID = &tm4.ID
 	err = ds.SaveABMToken(ctx, tok)
 	require.NoError(t, err)
 
@@ -8230,6 +8235,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
 	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// empty name token now doesn't exist
 	_, err = ds.GetABMTokenByOrgName(ctx, "")
@@ -8253,6 +8261,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
 
 	// change just the encrypted token
 	encTok2 := uuid.NewString()
@@ -8275,6 +8284,9 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeam.Name)
 	require.Equal(t, tm3.ID, tokReload.IPadOSTeam.ID)
+	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
+	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
+	require.Equal(t, tm4.ID, tokReload.BYODTeam.ID)
 
 	// Remove unused token
 	require.NoError(t, ds.DeleteABMToken(ctx, t1.ID))
@@ -8290,6 +8302,7 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
+	require.Equal(t, tm4.Name, expTok.BYODTeamName) // nolint:testifylint // tm4 is the actual value.
 
 	tokCount, err = ds.GetABMTokenCount(ctx)
 	require.NoError(t, err)
@@ -13056,4 +13069,52 @@ func testCleanupExpiredADUEEnrollmentChallenges(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, countChallenge(t, "non-expired-with-used"), "non-expired challenge with used_at should not be deleted")
 	assert.Equal(t, 0, countChallenge(t, "expired-no-used"), "challenge expired >24h ago without used_at should be deleted")
 	assert.Equal(t, 0, countChallenge(t, "expired-with-used"), "challenge expired >24h ago with used_at should be deleted")
+}
+
+func testGetABMOrganizationNamesAssociatedByDefaultTeams(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newTeam := func(name string) uint {
+		t.Helper()
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		return tm.ID
+	}
+	insertToken := func(org string, teamSetter func(*fleet.ABMToken)) {
+		t.Helper()
+		tok := &fleet.ABMToken{
+			OrganizationName: org,
+			EncryptedToken:   []byte(uuid.NewString()),
+			RenewAt:          time.Now().Add(365 * 24 * time.Hour),
+		}
+		if teamSetter != nil {
+			teamSetter(tok)
+		}
+		_, err := ds.InsertABMToken(ctx, tok)
+		require.NoError(t, err)
+	}
+	assertOrgNames := func(teamID *uint, want []string) {
+		t.Helper()
+		got, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, teamID)
+		require.NoError(t, err)
+		sort.Strings(got)
+		require.Equal(t, want, got)
+	}
+
+	tm1 := newTeam("abm-default-team-1")
+	tm2 := newTeam("abm-default-team-2")
+	tm3 := newTeam("abm-default-team-3")
+
+	insertToken("org-macos", func(tok *fleet.ABMToken) { tok.MacOSDefaultTeamID = &tm1 })
+	insertToken("org-ios", func(tok *fleet.ABMToken) { tok.IOSDefaultTeamID = &tm1 })
+	insertToken("org-ipados", func(tok *fleet.ABMToken) { tok.IPadOSDefaultTeamID = &tm2 })
+	insertToken("org-byod", func(tok *fleet.ABMToken) { tok.BYODDefaultTeamID = &tm1 })
+	insertToken("org-unassigned", nil)
+
+	assertOrgNames(&tm1, []string{"org-byod", "org-ios", "org-macos"})
+	assertOrgNames(&tm2, []string{"org-ipados"})
+	assertOrgNames(&tm3, nil)
+
+	_, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, nil)
+	require.Error(t, err)
 }

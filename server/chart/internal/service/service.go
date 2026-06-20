@@ -138,10 +138,30 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, err
 	}
 
+	// entityIDs semantics at the storage layer: nil = no filter (all entities);
+	// non-nil empty = match nothing (zero-valued buckets). For the CVE metric we
+	// always resolve a concrete allow-set — never nil — so that lower-severity
+	// CVEs (now collected for all severities) never leak into the chart.
 	var entityIDs []string
-	// entityIDs semantics at the storage layer: nil = no filter; non-nil empty
-	// = match nothing (produces zero-valued buckets). Do NOT convert empty to
-	// nil here.
+	if metric == api.MetricCVE {
+		// Severity is plumbed through the API (opts.SeverityMin/Max) but forced
+		// to critical-only this round; the severity UI lands in a follow-up.
+		// TODO(#47326): honor opts.SeverityMin/Max instead of hard-coding.
+		cveFilter := types.CVEChartFilter{
+			Categories:   opts.SoftwareFilters,
+			CVSSMin:      9.0,
+			CVSSMax:      10.0,
+			EPSSMin:      opts.EPSSMin,
+			EPSSMax:      opts.EPSSMax,
+			KnownExploit: opts.KnownExploit,
+			ExcludeCVEs:  opts.ExcludeCVEs,
+		}
+		entityIDs, err = s.store.ResolveCVEChartEntities(ctx, cveFilter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve CVE chart entities")
+		}
+	}
+
 	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 	if err != nil {
 		return nil, err
@@ -159,6 +179,16 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			Platforms:      opts.Platforms,
 			IncludeHostIDs: opts.IncludeHostIDs,
 			ExcludeHostIDs: opts.ExcludeHostIDs,
+
+			SoftwareFilters: opts.SoftwareFilters,
+			KnownExploit:    opts.KnownExploit,
+			EPSSMin:         opts.EPSSMin,
+			EPSSMax:         opts.EPSSMax,
+			// Severity is not echoed: it's forced to critical-only this round
+			// (see above), so echoing the client's requested severity_min/max
+			// would misrepresent what was actually applied. It returns to the
+			// echo when severity becomes a real filter (#47326).
+			ExcludeCVEs: opts.ExcludeCVEs,
 		},
 		Data: data,
 	}, nil

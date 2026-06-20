@@ -1,1 +1,0 @@
-- Added support for setting the end user account type to `standard` for a standard (non-admin) user or `none` to skip end-user account creation, both requiring a local admin account.
