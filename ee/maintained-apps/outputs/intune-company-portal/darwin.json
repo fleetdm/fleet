@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac' AND version_compare(bundle_short_version, '5.2604.2') < 0);"
       },
-      "installer_url": "https://officecdn.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/CompanyPortal_5.2604.2-Upgrade.pkg",
+      "installer_url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/CompanyPortal_5.2604.2-Upgrade.pkg",
       "install_script_ref": "676aaca2",
       "uninstall_script_ref": "a449b511",
       "sha256": "7f990faf3ce5f9f5641f796a25c1f43d7f69aaefd5b569503c772d159f75a91e",
