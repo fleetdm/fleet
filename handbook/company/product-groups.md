@@ -59,7 +59,6 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 - MDM protocol & configuration
 - Configuration profiles
 - New device onboarding
-- Scripts
 - Setup experience
 - OS configuration & updates
 
@@ -84,6 +83,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 - Apple Volume Purchasing Program (VPP) apps
 - Google Play apps
 - In-house apps (IPAs) 
+- Scripts
 - End user self-service
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
@@ -373,7 +373,6 @@ The goal of the Apple @ Work working group is to increase the number of Apple de
 - Apple device onboarding (ADE/DEP)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
-- Scripts on Apple devices
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this working group is `#g-mdm`.
 
@@ -397,6 +396,7 @@ The goal of the Auto Patching working group is to reduce the amount of time befo
 - Google Play apps
 - In-house apps (IPAs)
 - End user self-service
+- Scripts
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this working group is `#g-software`.
 
