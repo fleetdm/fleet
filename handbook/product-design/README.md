@@ -46,11 +46,6 @@ During this call, the Head of Product Design (HPD) and a former IT admin review 
 If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the HPD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
 
-### Triage new bugs
-
-Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#inbox).
-
-
 ### Drafting
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).

@@ -911,21 +911,23 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
+> Working groups use the bug triage process below. For product groups (#g-mdm, #g-software, #g-orchestration, and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
+
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
+At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug, specify the expected behavior, and make sure reproduction steps are documented. If the expected behavior is unclear, ask the product group's Tech Lead for help.
+Then, it's the product group Engineer Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 
-If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
+If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The EM has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
-When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Product Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+When more information is needed, it's up to the EM to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the EM will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, triages the issue as a [new request](https://fleetdm.com/handbook/product-design#triage-new-requests), and @ mentions the reporter in the issue.
 
-For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the EM should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
-If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the Product Designer verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the EM verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
 
 
 #### Needs reproduction
