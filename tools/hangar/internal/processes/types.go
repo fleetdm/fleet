@@ -41,10 +41,10 @@ type LogLine struct {
 
 // ProcEvent is the "proc:state" event payload.
 type ProcEvent struct {
-	ProcID    string `json:"proc_id"`
-	State     string `json:"state"`
-	ExitCode  *int   `json:"exit_code"`
-	ExitSignal *int  `json:"exit_signal"`
+	ProcID     string `json:"proc_id"`
+	State      string `json:"state"`
+	ExitCode   *int   `json:"exit_code"`
+	ExitSignal *int   `json:"exit_signal"`
 }
 
 // LogEntry is one structured, stored log line (in the ring + on disk).
@@ -86,8 +86,8 @@ type DockerStatus struct {
 
 // LogWindow is a filtered slice of the structured log store.
 type LogWindow struct {
-	Entries      []LogEntry `json:"entries"`
-	TotalInWindow int       `json:"total_in_window"`
-	WarnCount    int        `json:"warn_count"`
-	ErrorCount   int        `json:"error_count"`
+	Entries       []LogEntry `json:"entries"`
+	TotalInWindow int        `json:"total_in_window"`
+	WarnCount     int        `json:"warn_count"`
+	ErrorCount    int        `json:"error_count"`
 }

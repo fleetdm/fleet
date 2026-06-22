@@ -55,9 +55,9 @@ type ContextSummary struct {
 
 // ContextInfo describes the parsed fleetctl config.
 type ContextInfo struct {
-	ConfigPath string          `json:"config_path"`
-	Exists     bool            `json:"exists"`
-	Current    *ContextSummary `json:"current"`
+	ConfigPath string           `json:"config_path"`
+	Exists     bool             `json:"exists"`
+	Current    *ContextSummary  `json:"current"`
 	Contexts   []ContextSummary `json:"contexts"`
 }
 
