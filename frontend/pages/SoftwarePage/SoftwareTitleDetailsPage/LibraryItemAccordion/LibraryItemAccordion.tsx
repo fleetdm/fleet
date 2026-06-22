@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -143,26 +143,14 @@ const LibraryItemAccordion = ({
     setExpanded((prev) => !prev);
   };
 
-  // Holds the active "clear copy message" timer so a re-click resets it
-  // instead of stacking timers, and so unmount can cancel it cleanly.
-  const copyMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (copyMessageTimer.current) clearTimeout(copyMessageTimer.current);
-    };
-  }, []);
-
   const handleCopyHash = () => {
     if (!hashSha256) return;
-    const resolve = (msg: string) => {
-      setCopyMessage(msg);
-      if (copyMessageTimer.current) clearTimeout(copyMessageTimer.current);
-      copyMessageTimer.current = setTimeout(() => setCopyMessage(""), 1000);
-    };
     stringToClipboard(hashSha256)
-      .then(() => resolve("Copied!"))
-      .catch(() => resolve("Copy failed"));
+      .then(() => setCopyMessage("Copied!"))
+      .catch(() => setCopyMessage("Copy failed"));
+
+    // Clear message after 1 second
+    setTimeout(() => setCopyMessage(""), 1000);
   };
 
   const inactiveTooltip = (
@@ -449,9 +437,11 @@ const LibraryItemAccordion = ({
         // `inactiveTooltip` ("Select Actions > Versions and pin this version
         // to rollback."), which is the only hover affordance the row should
         // surface. Suppressing the widget's own tooltips (title truncation,
-        // version chip, addedAt, Play Store) avoids stacking a second tooltip
-        // on top of that one — Fleet UI avoids rendering two tooltips on the
-        // same hover target across the app.
+        // version chip, addedAt, FMA, Play Store) avoids stacking a second
+        // tooltip on top of that one — Fleet UI avoids rendering two tooltips
+        // on the same hover target across the app. See
+        // `SoftwareInstallerCard/InstallerDetailsWidget/InstallerDetailsWidget.tsx`
+        // for the exact set of tooltips this flag silences.
         disableTooltips={!isActive}
       />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>

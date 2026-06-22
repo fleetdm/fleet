@@ -374,23 +374,25 @@ describe("LibraryItemAccordion", () => {
 
   // Cross-cutting: every callback prop is optional, so a row with none wired
   // up must still click through every interactive element without throwing.
-  it("does not throw when interactive elements are clicked without handlers", async () => {
-    const { user } = renderAccordion({
-      badgeState: "latest",
-      labels: makeLabels(2),
-      // intentionally no onBadgeClick / onLabelCountClick / onDownloadClick /
-      // onTrashClick — exercising the optional-callback no-op paths
-    });
+  describe("no-handler safety", () => {
+    it("does not throw when interactive elements are clicked without handlers", async () => {
+      const { user } = renderAccordion({
+        badgeState: "latest",
+        labels: makeLabels(2),
+        // intentionally no onBadgeClick / onLabelCountClick / onDownloadClick /
+        // onTrashClick — exercising the optional-callback no-op paths
+      });
 
-    await user.click(screen.getByRole("button", { name: "Latest" }));
-    await user.click(screen.getByRole("button", { name: "2" }));
-    await user.click(screen.getByRole("button", { expanded: false }));
-    await user.click(
-      screen.getByRole("button", { name: "Download installer" })
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Delete this version" })
-    );
-    // The test passes if none of the above throw.
+      await user.click(screen.getByRole("button", { name: "Latest" }));
+      await user.click(screen.getByRole("button", { name: "2" }));
+      await user.click(screen.getByRole("button", { expanded: false }));
+      await user.click(
+        screen.getByRole("button", { name: "Download installer" })
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Delete this version" })
+      );
+      // The test passes if none of the above throw.
+    });
   });
 });

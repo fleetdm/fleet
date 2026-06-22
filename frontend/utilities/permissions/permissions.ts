@@ -198,15 +198,14 @@ const isNoAccess = (user: IUser): boolean => {
 // edit/delete affordances for software installer rows.
 export const canWriteSoftware = (
   user: IUser | null,
-  teamId: number | null | undefined
+  teamId: number | null
 ): boolean => {
   if (!user) return false;
-  const tid = teamId ?? null;
   return (
     isGlobalAdmin(user) ||
     isGlobalMaintainer(user) ||
-    isTeamAdmin(user, tid) ||
-    isTeamMaintainer(user, tid)
+    isTeamAdmin(user, teamId) ||
+    isTeamMaintainer(user, teamId)
   );
 };
 

@@ -87,7 +87,7 @@ const SoftwareTitleDetailsPage = ({
     includeNoTeam: true,
   });
 
-  const canEditSoftware = canWriteSoftware(currentUser, currentTeamId);
+  const canEditSoftware = canWriteSoftware(currentUser, currentTeamId ?? null);
 
   // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
   // as it automatically opens from adding flow of custom software in gitOps mode

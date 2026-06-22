@@ -1,7 +1,6 @@
 import createMockUser from "__mocks__/userMock";
 
 import permissions from ".";
-import { canWriteSoftware } from "./permissions";
 
 describe("permissions - isAdminForAllUserTeams", () => {
   const globalAdmin = createMockUser({ global_role: "admin", teams: [] });
@@ -117,19 +116,18 @@ describe("permissions - canWriteSoftware", () => {
   const TEAM_ID = 1;
 
   it("returns false when there is no user", () => {
-    expect(canWriteSoftware(null, TEAM_ID)).toBe(false);
+    expect(permissions.canWriteSoftware(null, TEAM_ID)).toBe(false);
   });
 
   it("allows a global admin regardless of team", () => {
     const user = createMockUser({ global_role: "admin", teams: [] });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(true);
-    expect(canWriteSoftware(user, null)).toBe(true);
-    expect(canWriteSoftware(user, undefined)).toBe(true);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
+    expect(permissions.canWriteSoftware(user, null)).toBe(true);
   });
 
   it("allows a global maintainer regardless of team", () => {
     const user = createMockUser({ global_role: "maintainer", teams: [] });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(true);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
 
   it("allows a team admin on their team", () => {
@@ -137,7 +135,7 @@ describe("permissions - canWriteSoftware", () => {
       global_role: null,
       teams: [{ id: TEAM_ID, name: "Team 1", role: "admin" }],
     });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(true);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
 
   it("allows a team maintainer on their team", () => {
@@ -145,7 +143,7 @@ describe("permissions - canWriteSoftware", () => {
       global_role: null,
       teams: [{ id: TEAM_ID, name: "Team 1", role: "maintainer" }],
     });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(true);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
 
   it("denies a team admin on a different team", () => {
@@ -153,7 +151,7 @@ describe("permissions - canWriteSoftware", () => {
       global_role: null,
       teams: [{ id: 2, name: "Team 2", role: "admin" }],
     });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(false);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
 
   it.each([
@@ -162,7 +160,7 @@ describe("permissions - canWriteSoftware", () => {
     ["observer_plus", "observer_plus"],
   ] as const)("denies a global %s", (_label, role) => {
     const user = createMockUser({ global_role: role, teams: [] });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(false);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
 
   it.each([
@@ -174,6 +172,6 @@ describe("permissions - canWriteSoftware", () => {
       global_role: null,
       teams: [{ id: TEAM_ID, name: "Team 1", role }],
     });
-    expect(canWriteSoftware(user, TEAM_ID)).toBe(false);
+    expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
 });
