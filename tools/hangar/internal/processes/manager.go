@@ -222,7 +222,7 @@ func (m *Manager) Start(id string, a StartArgs) error {
 		return fmt.Errorf("process %s is already running", id)
 	}
 
-	cmd := exec.Command(a.Program, a.Args...)
+	cmd := shellpath.Command(a.Program, a.Args...)
 	cmd.Dir = a.Cwd
 	extra := map[string]string{}
 	for _, p := range a.Env {
@@ -230,7 +230,9 @@ func (m *Manager) Start(id string, a StartArgs) error {
 			extra[p.Key] = p.Value
 		}
 	}
-	cmd.Env = shellpath.MergeEnv(shellpath.Env(), extra)
+	// shellpath.Command preset cmd.Env to the login-shell env; layer the
+	// caller's env on top.
+	cmd.Env = shellpath.MergeEnv(cmd.Env, extra)
 	// Own process group so a single kill(-pid) reaches the whole tree.
 	// Deliberately NOT setting a Cancel/WaitDelay: we don't want the child
 	// killed if the Manager goes away — crash recovery (running.json) handles

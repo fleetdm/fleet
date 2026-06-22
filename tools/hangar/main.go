@@ -38,8 +38,9 @@ func main() {
 	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
 
 	// Warm the login-shell PATH (so the first spawn doesn't pay the probe
-	// latency) and reap any orphans a prior crashed session left behind,
-	// before the tray/commands come up.
+	// latency; shellpath.Command then resolves tools against it) and reap any
+	// orphans a prior crashed session left behind, before the tray/commands
+	// come up.
 	shellpath.Warm()
 	processes.CleanOrphansFromPriorRun(dataDir)
 

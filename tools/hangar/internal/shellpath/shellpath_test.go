@@ -1,6 +1,8 @@
 package shellpath
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -151,5 +153,73 @@ func TestAugmentInheritedEmptyHome(t *testing.T) {
 	}
 	if !strings.HasPrefix(got, "/opt/homebrew/bin") {
 		t.Errorf("want homebrew prefix, got %s", got)
+	}
+}
+
+func TestLookPathIn(t *testing.T) {
+	// Build a fake PATH: an empty dir, then one holding an executable "tool"
+	// and a non-executable "data" file and a "sub" directory.
+	dirEmpty := t.TempDir()
+	dirReal := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dirReal, "tool"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirReal, "data"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dirReal, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := dirEmpty + ":" + dirReal
+
+	// Resolves an executable to the first PATH dir that has it.
+	if got, err := LookPathIn(path, "tool"); err != nil || got != filepath.Join(dirReal, "tool") {
+		t.Errorf("LookPathIn(tool) = %q, %v; want %q", got, err, filepath.Join(dirReal, "tool"))
+	}
+	// A non-executable file is not a match.
+	if _, err := LookPathIn(path, "data"); err == nil {
+		t.Error("LookPathIn(data): want error for non-executable file")
+	}
+	// A directory is not a match.
+	if _, err := LookPathIn(path, "sub"); err == nil {
+		t.Error("LookPathIn(sub): want error for directory")
+	}
+	// A name not present anywhere errors.
+	if _, err := LookPathIn(path, "absent"); err == nil {
+		t.Error("LookPathIn(absent): want not-found error")
+	}
+	// A name containing a separator is checked directly, not searched.
+	abs := filepath.Join(dirReal, "tool")
+	if got, err := LookPathIn(dirEmpty, abs); err != nil || got != abs {
+		t.Errorf("LookPathIn(abs path) = %q, %v; want %q", got, err, abs)
+	}
+}
+
+func TestCommandResolvesAndSetsEnv(t *testing.T) {
+	// Pin the cached shell PATH to a temp dir holding "tool" so Command
+	// resolves to an absolute path (not the bare name) and presets cmd.Env.
+	dir := t.TempDir()
+	toolPath := filepath.Join(dir, "tool")
+	if err := os.WriteFile(toolPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	orig := cached
+	cached = dir
+	mu.Unlock()
+	t.Cleanup(func() { mu.Lock(); cached = orig; mu.Unlock() })
+
+	cmd := Command("tool", "--flag")
+	if cmd.Path != toolPath {
+		t.Errorf("Command resolved Path = %q, want %q", cmd.Path, toolPath)
+	}
+	if len(cmd.Env) == 0 {
+		t.Error("Command should preset cmd.Env to the login-shell env")
+	}
+
+	// A name not on the shell PATH falls back to the bare name so Start()
+	// still produces the standard not-found error.
+	if miss := Command("definitely-not-a-real-tool"); miss.Path == "" {
+		t.Error("Command(miss) should keep the bare name in Path")
 	}
 }

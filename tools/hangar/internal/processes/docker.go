@@ -14,9 +14,7 @@ import (
 // (docker lives in /usr/local/bin or /opt/homebrew/bin, neither on a
 // Finder-launched app's bare PATH).
 func dockerCmd(args ...string) *exec.Cmd {
-	cmd := exec.Command("docker", args...)
-	cmd.Env = shellpath.Env()
-	return cmd
+	return shellpath.Command("docker", args...)
 }
 
 func str(v any) string {

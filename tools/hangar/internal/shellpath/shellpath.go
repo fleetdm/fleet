@@ -13,6 +13,7 @@
 package shellpath
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -40,6 +41,82 @@ func ShellPath() string {
 // Warm eagerly populates the cache (e.g. at startup) so the first real
 // spawn doesn't pay the shell-probe latency. Safe to call repeatedly.
 func Warm() { ShellPath() }
+
+// Command builds an *exec.Cmd for an external tool, resolving the program
+// against the login-shell PATH and presetting the child's env to the
+// login-shell environment. Callers may set Dir/Stdin/etc. and layer extra
+// env onto cmd.Env with MergeEnv.
+//
+// This is the crux of spawning tools from a Finder-launched app. Go's
+// exec.Command resolves a bare program name ("docker", "ngrok", ...) against
+// the PARENT process's $PATH at construction time, and IGNORES the PATH set
+// on the child's cmd.Env. A packaged app inherits only the bare
+// /usr/bin:/bin:/usr/sbin:/sbin from Finder/Dock, so we resolve the absolute
+// path here and hand THAT to exec.Command. (Rust's std::process::Command
+// resolves against the PATH set via .env(), so the port couldn't translate
+// that line literally.)
+func Command(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(resolveOrName(name), args...)
+	cmd.Env = Env()
+	return cmd
+}
+
+// CommandContext is Command with a context for cancellation/timeout.
+func CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, resolveOrName(name), args...)
+	cmd.Env = Env()
+	return cmd
+}
+
+// LookPath resolves an executable name against the login-shell PATH, instead
+// of the app's own (possibly bare) process PATH that the stdlib's
+// exec.LookPath consults. A name that already contains a separator is only
+// checked for runnability, mirroring exec.LookPath.
+func LookPath(file string) (string, error) {
+	return LookPathIn(ShellPath(), file)
+}
+
+// LookPathIn is LookPath against an explicit PATH string — for callers that
+// already hold a resolved PATH (e.g. the dep-version probe).
+func LookPathIn(path, file string) (string, error) {
+	if strings.ContainsRune(file, os.PathSeparator) {
+		if err := isExecutableFile(file); err != nil {
+			return "", &exec.Error{Name: file, Err: err}
+		}
+		return file, nil
+	}
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			dir = "." // a bare colon in PATH means the current directory
+		}
+		full := filepath.Join(dir, file)
+		if isExecutableFile(full) == nil {
+			return full, nil
+		}
+	}
+	return "", &exec.Error{Name: file, Err: exec.ErrNotFound}
+}
+
+// resolveOrName returns the shell-PATH-resolved absolute path, or the
+// original bare name on miss so exec.Command/Start still yields the familiar
+// "executable file not found" error.
+func resolveOrName(name string) string {
+	if p, err := LookPath(name); err == nil {
+		return p
+	}
+	return name
+}
+
+func isExecutableFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() || info.Mode()&0o111 == 0 {
+		return os.ErrPermission
+	}
+	return nil
+}
 
 // Refresh re-probes and overwrites the cache, returning the new value.
 // The dep-check screen calls this on "Recheck" so tools the user just

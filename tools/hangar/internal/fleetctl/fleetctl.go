@@ -185,8 +185,8 @@ func RunCapture(program, cwd string, args []string, env map[string]string, stdin
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMS)*time.Millisecond)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, program, args...)
-	cmd.Env = shellpath.MergeEnv(shellpath.Env(), env)
+	cmd := shellpath.CommandContext(ctx, program, args...)
+	cmd.Env = shellpath.MergeEnv(cmd.Env, env)
 	if cwd != "" {
 		cmd.Dir = cwd
 	}

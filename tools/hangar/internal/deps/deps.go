@@ -112,7 +112,13 @@ func requiredNodeVersion(repo string) string {
 // output, ran). ran is false only when the binary couldn't be spawned.
 // Prefers stdout, falling back to stderr (some tools print --version there).
 func run(path, cmd string, args ...string) (ok bool, out string, ran bool) {
-	c := exec.Command(cmd, args...)
+	// Resolve against the probed PATH (not the app's bare process PATH that
+	// exec.Command would otherwise search), then run with that PATH in env.
+	prog := cmd
+	if resolved, err := shellpath.LookPathIn(path, cmd); err == nil {
+		prog = resolved
+	}
+	c := exec.Command(prog, args...)
 	c.Env = shellpath.MergeEnv(os.Environ(), map[string]string{"PATH": path})
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout

@@ -56,8 +56,7 @@ type Branch struct {
 // runGit runs `git -C repo <args>` with the login-shell PATH so git
 // resolves in a Finder-launched app. On failure it returns git's stderr.
 func runGit(repo string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
-	cmd.Env = shellpath.Env()
+	cmd := shellpath.Command("git", append([]string{"-C", repo}, args...)...)
 	out, err := cmd.Output()
 	if err != nil {
 		var ee *exec.ExitError
