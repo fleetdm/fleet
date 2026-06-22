@@ -13186,10 +13186,15 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	err = ds.DeleteSoftwareInstaller(ctx, installerID)
 	require.NoError(t, err)
 
-	var nulledInstallerID *uint
-	err = ds.writer(ctx).GetContext(ctx, &nulledInstallerID, `SELECT software_installer_id FROM host_software_installs WHERE execution_id = ?`, "removed-installer-uuid")
-	require.NoError(t, err)
-	require.Nil(t, nulledInstallerID)
+	var removedInstall struct {
+		InstallerID *uint   `db:"software_installer_id"`
+		Status      *string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &removedInstall, `SELECT software_installer_id, status FROM host_software_installs WHERE execution_id = ?`, "removed-installer-uuid")
+	})
+	require.Nil(t, removedInstall.InstallerID)
+	require.Nil(t, removedInstall.Status) // removed nulls the aggregate status
 
 	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
@@ -13239,10 +13244,15 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	err = ds.CleanupSoftwareTitles(ctx)
 	require.NoError(t, err)
 
-	var nulledTitleID *uint
-	err = ds.writer(ctx).GetContext(ctx, &nulledTitleID, `SELECT software_title_id FROM host_software_installs WHERE execution_id = ?`, "deleted-title-uuid")
-	require.NoError(t, err)
-	require.Nil(t, nulledTitleID)
+	var titleDeletedRow struct {
+		TitleID *uint   `db:"software_title_id"`
+		Status  *string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleDeletedRow, `SELECT software_title_id, status FROM host_software_installs WHERE execution_id = ?`, "deleted-title-uuid")
+	})
+	require.Nil(t, titleDeletedRow.TitleID)
+	require.Nil(t, titleDeletedRow.Status) // removed nulls the aggregate status
 
 	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
@@ -13259,4 +13269,175 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.Equal(t, fleet.SoftwareInstallFailed, failedResult2.Status)
 	require.Equal(t, "deleted-title-app", failedResult2.SoftwareTitle)
 	require.Equal(t, "deleted-title.pkg", failedResult2.SoftwarePackage)
+
+	// Pending install whose installer is deleted: marked canceled with software_installer_id nulled, so a
+	// late result can still record an intermediate failure.
+	tfrPendingDelete, err := fleet.NewTempFileReader(strings.NewReader("pending-delete-package"), t.TempDir)
+	require.NoError(t, err)
+	pendingDeleteInstallerID, pendingDeleteTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   `echo 'foo'`,
+		UninstallScript: `echo 'uninstall'`,
+		InstallerFile:   tfrPendingDelete,
+		StorageID:       "pending-delete-storage",
+		Filename:        "pending-delete.pkg",
+		Title:           "pending-delete-app",
+		Version:         "v1.0.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// No exit code: a pending install.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, software_title_id, software_title_name, installer_filename)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			"pending-delete-uuid", host.ID, pendingDeleteInstallerID, user.ID, false, pendingDeleteTitleID, "pending-delete-app", "pending-delete.pkg")
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, pendingDeleteInstallerID)
+	require.NoError(t, err)
+
+	var pendingDeleteRow struct {
+		InstallerID *uint  `db:"software_installer_id"`
+		Canceled    bool   `db:"canceled"`
+		Status      string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pendingDeleteRow, `SELECT software_installer_id, canceled, status FROM host_software_installs WHERE execution_id = ?`, "pending-delete-uuid")
+	})
+	require.Nil(t, pendingDeleteRow.InstallerID)
+	require.True(t, pendingDeleteRow.Canceled)
+	require.Equal(t, "canceled_install", pendingDeleteRow.Status)
+
+	// canceled rows are filtered out of the results endpoint, though the row still exists.
+	_, err = ds.GetSoftwareInstallResults(ctx, "pending-delete-uuid")
+	require.True(t, fleet.IsNotFound(err))
+
+	pendingDeleteExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "pending-delete-uuid",
+		InstallScriptExitCode: new(1),
+		InstallScriptOutput:   new("install failed"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, pendingDeleteExecID)
+
+	pendingDeleteResult, err := ds.GetSoftwareInstallResults(ctx, pendingDeleteExecID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, pendingDeleteResult.Status)
+	require.Equal(t, "pending-delete-app", pendingDeleteResult.SoftwareTitle)
+	require.Equal(t, "pending-delete.pkg", pendingDeleteResult.SoftwarePackage)
+
+	// BatchSetSoftwareInstallers removing a team's software: a pending install is canceled and a completed
+	// one is removed, both with software_installer_id nulled and still readable for a failure record.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-removal-team"})
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   `echo 'foo'`,
+			StorageID:       "batch-pending-storage",
+			Filename:        "batch-pending.pkg",
+			Title:           "batch-pending-app",
+			Source:          "apps",
+			Version:         "1",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   `echo 'foo'`,
+			StorageID:       "batch-done-storage",
+			Filename:        "batch-done.pkg",
+			Title:           "batch-done-app",
+			Source:          "apps",
+			Version:         "1",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	var batchPendingInstaller struct {
+		ID      uint `db:"id"`
+		TitleID uint `db:"title_id"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &batchPendingInstaller, `SELECT id, title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "batch-pending.pkg")
+	})
+	var batchDoneInstaller struct {
+		ID      uint `db:"id"`
+		TitleID uint `db:"title_id"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &batchDoneInstaller, `SELECT id, title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "batch-done.pkg")
+	})
+
+	// A pending install (no exit code) and a completed one (exit code 0).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, software_title_id, software_title_name, installer_filename)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			"batch-pending-uuid", host.ID, batchPendingInstaller.ID, user.ID, false, batchPendingInstaller.TitleID, "batch-pending-app", "batch-pending.pkg")
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, software_title_id, software_title_name, installer_filename, install_script_exit_code)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			"batch-done-uuid", host.ID, batchDoneInstaller.ID, user.ID, false, batchDoneInstaller.TitleID, "batch-done-app", "batch-done.pkg", 0)
+		return err
+	})
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+
+	var batchPendingRow struct {
+		InstallerID *uint  `db:"software_installer_id"`
+		Canceled    bool   `db:"canceled"`
+		Status      string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &batchPendingRow, `SELECT software_installer_id, canceled, status FROM host_software_installs WHERE execution_id = ?`, "batch-pending-uuid")
+	})
+	require.Nil(t, batchPendingRow.InstallerID)
+	require.True(t, batchPendingRow.Canceled)
+	require.Equal(t, "canceled_install", batchPendingRow.Status)
+
+	// canceled rows are filtered out of the results endpoint; the failure record below is not.
+	_, err = ds.GetSoftwareInstallResults(ctx, "batch-pending-uuid")
+	require.True(t, fleet.IsNotFound(err))
+
+	var batchDoneRow struct {
+		InstallerID *uint   `db:"software_installer_id"`
+		Removed     bool    `db:"removed"`
+		Status      *string `db:"status"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &batchDoneRow, `SELECT software_installer_id, removed, status FROM host_software_installs WHERE execution_id = ?`, "batch-done-uuid")
+	})
+	require.Nil(t, batchDoneRow.InstallerID)
+	require.True(t, batchDoneRow.Removed)
+	require.Nil(t, batchDoneRow.Status) // removed nulls the aggregate status
+
+	batchPendingExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "batch-pending-uuid",
+		InstallScriptExitCode: new(1),
+		InstallScriptOutput:   new("install failed"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, batchPendingExecID)
+
+	batchPendingResult, err := ds.GetSoftwareInstallResults(ctx, batchPendingExecID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, batchPendingResult.Status)
+	require.Equal(t, "batch-pending-app", batchPendingResult.SoftwareTitle)
+	require.Equal(t, "batch-pending.pkg", batchPendingResult.SoftwarePackage)
 }

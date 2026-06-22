@@ -1237,23 +1237,15 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		globalOrTeamID = *teamID
 	}
 
-	// NOTE(mna): I'm adding the deletion for the upcoming_activities too, but I
-	// don't think the existing code works as intended anyway as the
-	// host_software_installs.policy_id column has a ON DELETE SET NULL foreign
-	// key, so the deletion statement will not find any row.
-	const deleteStmt = `
-		DELETE FROM
-			host_software_installs
-		WHERE
-			policy_id = ? AND
-			status = ? AND
-			software_installer_id IN (
-				SELECT id FROM software_installers WHERE global_or_team_id = ?
-			)
-	`
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending, globalOrTeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+	const cancelPendingStmt = `
+		UPDATE host_software_installs SET canceled = 1
+		WHERE policy_id = ? AND status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+	if _, err := ds.writer(ctx).ExecContext(ctx, cancelPendingStmt, policyID, globalOrTeamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel pending software installs for policy")
 	}
 
 	const loadAffectedHostsStmt = `
@@ -1290,7 +1282,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 				SELECT id FROM software_installers WHERE global_or_team_id = ?
 			)
 	`
-	_, err = ds.writer(ctx).ExecContext(ctx, deleteUAStmt, policyID, globalOrTeamID)
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteUAStmt, policyID, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
@@ -1454,11 +1446,11 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 				)`
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
+		_, err = tx.ExecContext(ctx, `UPDATE host_software_installs SET canceled = 1
 			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')
 			   `+excludeSetupExperienceFromHSI, installerID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending host software installs/uninstalls")
 		}
 
 		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT
@@ -1495,8 +1487,8 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 				WHERE sesr.host_software_installs_execution_id = host_software_installs.execution_id
 			)`
 		}
-		_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
-				WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL
+		_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1
+				WHERE software_installer_id = ? AND status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
 				`+excludeSetupExperienceFromRemoved, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
@@ -2188,8 +2180,8 @@ UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND h
 )
 `
 
-	const deleteAllPendingSoftwareInstallsHSI = `
-		DELETE FROM host_software_installs
+	const cancelAllPendingSoftwareInstallsHSI = `
+		UPDATE host_software_installs SET canceled = 1
 		WHERE status IN('pending_install', 'pending_uninstall')
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ?
@@ -2223,8 +2215,8 @@ UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND h
 		)
 `
 	const markAllSoftwareInstallsAsRemoved = `
-		UPDATE host_software_installs SET removed = TRUE
-		WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		UPDATE host_software_installs SET removed = 1
+		WHERE status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ?
 		)
@@ -2257,8 +2249,8 @@ WHERE
 		)
 	`
 
-	const deletePendingSoftwareInstallsNotInListHSI = `
-		DELETE FROM host_software_installs
+	const cancelPendingSoftwareInstallsNotInListHSI = `
+		UPDATE host_software_installs SET canceled = 1
 		WHERE status IN('pending_install', 'pending_uninstall')
 		AND software_installer_id IN (
 			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
@@ -2292,8 +2284,8 @@ WHERE
 			)
 `
 	const markSoftwareInstallsNotInListAsRemoved = `
-		UPDATE host_software_installs SET removed = TRUE
-			WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		UPDATE host_software_installs SET removed = 1
+			WHERE status IS NOT NULL AND canceled = 0 AND host_deleted_at IS NULL
 				AND software_installer_id IN (
 					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			   )
@@ -2583,8 +2575,8 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			if _, err := tx.ExecContext(ctx, cancelAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel all pending host software installs")
 			}
 
 			var affectedHostIDs []uint
@@ -2728,12 +2720,12 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
 		}
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(cancelPendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
+			return ctxerr.Wrap(ctx, err, "build statement to cancel obsolete pending software installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+			return ctxerr.Wrap(ctx, err, "cancel obsolete pending host software install records")
 		}
 
 		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
