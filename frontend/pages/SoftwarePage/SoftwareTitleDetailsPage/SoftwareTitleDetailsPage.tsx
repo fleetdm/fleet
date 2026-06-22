@@ -396,11 +396,11 @@ const SoftwareTitleDetailsPage = ({
   const renderInventorySection = (title: ISoftwareTitleDetails) => {
     // Hide for sources that don't report versions/hosts (tgz/sh/ps1 packages)
     // and when no hosts have the software installed yet.
-    const showVersionsTable =
+    const showInventorySection =
       !!title.hosts_count &&
       !NO_VERSION_OR_HOST_DATA_SOURCES.includes(title.source);
 
-    if (!showVersionsTable) {
+    if (!showInventorySection) {
       return null;
     }
 

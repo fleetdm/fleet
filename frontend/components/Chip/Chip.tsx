@@ -13,7 +13,6 @@ interface IChipProps {
   trailingIcon?: IconNames;
   className?: string;
   onClick?: () => void;
-  /** Optional tooltip shown on hover/focus. Pass a string or JSX. */
   tooltip?: React.ReactNode;
 }
 
