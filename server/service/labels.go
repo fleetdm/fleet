@@ -410,6 +410,13 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
 		h := fleet.HostResponseForHost(ctx, svc, host)
+		if req.ListOptions.PopulateLabels {
+			labels, err := svc.ListLabelsForHost(ctx, h.ID)
+			if err != nil {
+				return listHostsResponse{Err: ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID))}, nil
+			}
+			h.Labels = labels
+		}
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{Hosts: hostResponses, MDMSolution: mdmSolution}, nil

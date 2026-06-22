@@ -1322,6 +1322,14 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAndroidProfilesStatus()
 	}
 
+	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
+	if opt.PolicyIDFilter == nil {
+		policyMembershipJoin = ""
+	} else if opt.PolicyResponseFilter == nil {
+		policyMembershipJoin = "LEFT " + policyMembershipJoin
+	}
+	query += policyMembershipJoin
+
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	whereParams = append(whereParams, lid)
 
@@ -1340,6 +1348,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
+	query, whereParams = filterHostsByPolicy(query, opt, whereParams)
 	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {

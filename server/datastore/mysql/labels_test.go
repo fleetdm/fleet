@@ -457,6 +457,25 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM)}, 2)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
 
+	// Policy filter on the label path: scope hosts-in-label by policy result.
+	// h1/h2/h3 are all in l1 — record h1 passing and h2 failing, leave h3
+	// unevaluated. listHostsInLabelCheckCount asserts BOTH ListHostsInLabel and
+	// CountHostsInLabel, so this covers the list and count endpoints together.
+	policyAuthor := test.NewUser(t, db, "Policy Author", "policy-author@example.com", true)
+	policy := newTestPolicy(t, db, policyAuthor, "label-policy", "darwin", nil)
+	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false, nil))
+	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false, nil))
+
+	// passing → only h1
+	passing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID), PolicyResponseFilter: ptr.Bool(true)}, 1)
+	require.Equal(t, h1.ID, passing[0].ID)
+	// failing → only h2
+	failing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID), PolicyResponseFilter: ptr.Bool(false)}, 1)
+	require.Equal(t, h2.ID, failing[0].ID)
+	// policy_id without a response → "not run" → only h3 (h1/h2 have results)
+	notRun := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID)}, 1)
+	require.Equal(t, h3.ID, notRun[0].ID)
+
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
 	require.NoError(t, err)

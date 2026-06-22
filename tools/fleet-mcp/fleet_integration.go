@@ -770,81 +770,50 @@ func (fc *FleetClient) GetHostCount(ctx context.Context) (int, error) {
 	return result.Count, nil
 }
 
-// GetHostCountWithFilters returns the count of hosts that match the given
-// filter intersection — the same dimensions accepted by
-// GetEndpointsWithFilters. This is the count companion that lets MCP callers
-// receive a "total matching the filter" alongside a paginated listing, so the
-// `Total` field on get_endpoints stops reporting the global inventory size
-// (which historically caused the "fleet=Workstations returns total=133"
-// confusion: 133 was the global count, not the team count).
-//
-// Routing parallels GetEndpointsWithFilters:
-//
-//   - No label/platform: GET /api/v1/fleet/hosts/count?team_id=…&status=…
-//     &query=…&policy_id=…&policy_response=…  — Fleet's count endpoint
-//     respects the same filter set as /hosts in this code path.
-//   - With label/platform: /api/v1/fleet/hosts/count?label_id=… ignores
-//     team_id upstream (same datastore bug as /labels/:id/hosts), so we
-//     reuse the listing path's fan-out to get an accurate team-intersected
-//     count. We fetch via GetEndpointsWithFilters with perPage=0 (no cap),
-//     which performs the client-side team intersection internally, and
-//     return its length. More expensive than a single COUNT(*) but the
-//     only correct option until the upstream bug is fixed.
+// GetHostCountWithFilters returns the count of hosts matching the given filter
+// intersection — the count companion to GetEndpointsWithFilters.
 func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, platform, status, query, labelName, policyID, policyResponse string) (int, error) {
 	if policyResponse != "" && policyID == "" {
 		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
 	}
 
-	// Decide whether the label-path workaround is needed.
-	_, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
+	labelID, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
 	if err != nil {
 		return 0, err
 	}
 
-	if !viaLabel {
-		// Pure /hosts/count path — Fleet's count endpoint honors the same
-		// filter set as /hosts when label_id is absent, so reuse the same
-		// buildHostListParams() helper the listing path uses. Drift between
-		// the two URLs would mean `Total` and `Endpoints` describe different
-		// scopes — the very confusion this fix exists to prevent.
-		var teamIDStr string
-		if teamName != "" {
-			teamIDs, terr := fc.resolveTeamNames(ctx, []string{teamName})
-			if terr != nil {
-				return 0, fmt.Errorf("failed to resolve fleet: %w", terr)
-			}
-			teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, terr := fc.resolveTeamNames(ctx, []string{teamName})
+		if terr != nil {
+			return 0, fmt.Errorf("failed to resolve fleet: %w", terr)
 		}
-		params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
-		path := "/api/v1/fleet/hosts/count"
-		if encoded := params.Encode(); encoded != "" {
-			path += "?" + encoded
-		}
-		resp, rerr := fc.makeFleetRequest(ctx, "GET", path, nil)
-		if rerr != nil {
-			return 0, fmt.Errorf("failed to get filtered host count: %w", rerr)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return 0, fmt.Errorf("failed to get filtered host count: status %d", resp.StatusCode)
-		}
-		var result struct {
-			Count int `json:"count"`
-		}
-		if derr := json.NewDecoder(resp.Body).Decode(&result); derr != nil {
-			return 0, fmt.Errorf("failed to decode filtered host count: %w", derr)
-		}
-		return result.Count, nil
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
 	}
 
-	// Label/platform path — reuse the listing helper (perPage=0 → no cap)
-	// because the upstream count endpoint can't honor team_id when label_id
-	// is set. The listing path does the client-side team intersection.
-	hosts, lerr := fc.GetEndpointsWithFilters(ctx, teamName, platform, status, query, labelName, policyID, policyResponse, 0)
-	if lerr != nil {
-		return 0, lerr
+	params := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
+	if viaLabel {
+		params.Set("label_id", fmt.Sprintf("%d", labelID))
 	}
-	return len(hosts), nil
+	path := "/api/v1/fleet/hosts/count"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := fc.makeFleetRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get filtered host count: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("failed to get filtered host count: status %d", resp.StatusCode)
+	}
+	var result struct {
+		Count int `json:"count"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("failed to decode filtered host count: %w", err)
+	}
+	return result.Count, nil
 }
 
 // resolveLabelName resolves a label name to its numeric ID using exact
@@ -1021,25 +990,13 @@ func (fc *FleetClient) resolvePlatformOrLabelToLabelID(ctx context.Context, labe
 }
 
 // GetEndpointsWithFilters retrieves endpoints from Fleet with optional
-// server-side filters.
+// server-side filters (team, status, query, label/platform, policy).
 //
-// IMPORTANT — Fleet API quirks this function works around:
-//
-//   - /api/v1/fleet/hosts SILENTLY IGNORES ?platform= and ?label_id= query
-//     params (any value returns the unfiltered host list). To filter by
-//     label or platform we must call /api/v1/fleet/labels/:label_id/hosts
-//     instead — that endpoint actually scopes results.
-//   - /api/v1/fleet/labels/:id/hosts IGNORES ?policy_id=,
-//     ?software_version_id=, AND ?team_id= (the upstream `applyHostLabelFilters`
-//     in datastore/mysql/labels.go reads filter.TeamID from the RBAC filter,
-//     never opt.TeamFilter from the query param — so passing ?team_id=N on
-//     the labels endpoint is silently dropped). It DOES respect ?status= and
-//     ?query=. So when team scoping is combined with a label/platform filter
-//     we must intersect client-side by host.TeamID; the same is true for
-//     policy_id/policy_response — fetch both sides and intersect.
-//   - /api/v1/fleet/hosts respects ?team_id, ?status, ?query, ?policy_id,
-//     ?policy_response, ?software_version_id — used for the no-label path
-//     and as the policy side of the intersection.
+// Routing: /api/v1/fleet/hosts ignores ?label_id= / ?platform= (it returns the
+// unfiltered list), so when a label or platform is requested we route to
+// /api/v1/fleet/labels/:label_id/hosts — which scopes by label and honors
+// team_id / status / query / policy_id / policy_response and populate_labels
+// server-side. Every other (no-label) case uses /hosts directly.
 //
 // query is a free-text substring matched case-insensitively against
 // hostname / hardware_serial / primary_ip / hardware_model / user inventory
@@ -1091,138 +1048,23 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		return hosts, nil
 	}
 
-	// Path 2: label/platform routing — call /labels/:id/hosts with the
-	// filters that endpoint respects. Use a generous per_page so that
-	// downstream client-side intersection (if any) has the full label set.
-	labelParams := url.Values{}
+	// Path 2: label/platform routing — /labels/:id/hosts scopes by label and,
+	// server-side, by team_id / status / query / policy_id / policy_response,
+	// and populates labels when asked. The server does it all; the MCP just
+	// passes the filters through.
+	labelParams := buildHostListParams(teamIDStr, status, query, policyID, policyResponse)
 	labelParams.Set("populate_labels", "true")
-	// NOTE: we still send team_id even though the upstream label endpoint
-	// silently ignores it — keeps the request shape correct for the day
-	// Fleet fixes the bug. Real scoping happens client-side below.
-	if teamIDStr != "" {
-		labelParams.Set("team_id", teamIDStr)
+	if perPage > 0 {
+		labelParams.Set("per_page", fmt.Sprintf("%d", perPage))
 	}
-	if status != "" {
-		labelParams.Set("status", status)
-	}
-	if q := strings.TrimSpace(query); q != "" {
-		labelParams.Set("query", q)
-	}
-	// Always pull a wide page from the label endpoint — intersection may
-	// reduce the count, and the label endpoint doesn't honor most filters.
-	labelParams.Set("per_page", "500")
 	labelHosts, _, err := fc.fetchHostsFromPath(ctx, fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?%s", labelID, labelParams.Encode()))
 	if err != nil {
 		return nil, err
 	}
-
-	// Fleet upstream /labels/:id/hosts silently ignores ?team_id= — intersect
-	// client-side by host.TeamID so callers actually see team-scoped results
-	// (the root cause of the "fleet=Workstations + platform=windows returns
-	// hosts from every team" regression). If teamIDStr fails to parse we
-	// fall through unfiltered — that's strictly safer than returning empty.
-	if teamIDStr != "" {
-		if tid64, perr := strconv.ParseUint(teamIDStr, 10, 32); perr == nil {
-			tid := uint(tid64)
-			labelHosts = filterEndpointsByTeamID(labelHosts, tid)
-		}
+	if perPage > 0 && len(labelHosts) > perPage {
+		labelHosts = labelHosts[:perPage]
 	}
-
-	// No policy filter → cap, enrich, return.
-	//
-	// Why enrich: Fleet's /labels/:id/hosts silently ignores populate_labels=true
-	// (verified empirically) — every host in labelHosts has Labels=nil. The
-	// MCP contract is to return hosts with their Labels populated, so we
-	// hydrate via per-host /api/v1/fleet/hosts/:id calls (concurrent, bounded).
-	if policyID == "" {
-		if perPage > 0 && len(labelHosts) > perPage {
-			labelHosts = labelHosts[:perPage]
-		}
-		fc.enrichHostLabels(ctx, labelHosts)
-		return labelHosts, nil
-	}
-
-	// Path 3: label + policy combo — fetch policy side via /hosts (which DOES
-	// honor populate_labels), then intersect against the label-side ID set.
-	//
-	// Why iterate policyHosts (not labelHosts): /hosts populates Labels;
-	// /labels/:id/hosts does not. Picking from policyHosts means the result
-	// already has Labels — no per-host enrichment needed for Path 3.
-	policyParams := url.Values{}
-	policyParams.Set("policy_id", policyID)
-	policyParams.Set("populate_labels", "true")
-	if policyResponse != "" {
-		policyParams.Set("policy_response", policyResponse)
-	}
-	if teamIDStr != "" {
-		policyParams.Set("team_id", teamIDStr)
-	}
-	if status != "" {
-		policyParams.Set("status", status)
-	}
-	if q := strings.TrimSpace(query); q != "" {
-		policyParams.Set("query", q)
-	}
-	policyParams.Set("per_page", "500")
-	policyHosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+policyParams.Encode())
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch policy host set for intersection: %w", err)
-	}
-
-	labelIDs := make(map[uint]bool, len(labelHosts))
-	for _, h := range labelHosts {
-		labelIDs[h.ID] = true
-	}
-
-	intersected := make([]Endpoint, 0)
-	for _, h := range policyHosts {
-		if !labelIDs[h.ID] {
-			continue
-		}
-		intersected = append(intersected, h)
-		if perPage > 0 && len(intersected) >= perPage {
-			break
-		}
-	}
-	return intersected, nil
-}
-
-// enrichHostLabels populates each host's Labels field via per-host detail
-// fetches when Labels is nil. Used after /labels/:id/hosts (which silently
-// ignores populate_labels=true and leaves Labels unpopulated). Idempotent:
-// hosts that already carry Labels are skipped, so callers can invoke
-// liberally without re-fetching.
-//
-// Concurrency is bounded so a 200-host result doesn't fan out to 200
-// in-flight Fleet API calls. ctx propagation means MCP-level cancellation
-// stops in-flight enrichment promptly. Per-host failures are logged but do
-// not abort the whole call — the caller still gets the original list, just
-// with some hosts missing labels.
-func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
-	const enrichConcurrency = 8
-	sem := make(chan struct{}, enrichConcurrency)
-	var wg sync.WaitGroup
-	for i := range hosts {
-		if hosts[i].Labels != nil {
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			return
-		}
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			full, err := fc.GetHostByID(ctx, hosts[idx].ID)
-			if err != nil {
-				logrus.Warnf("enrichHostLabels: failed to fetch host %d: %v", hosts[idx].ID, err)
-				return
-			}
-			hosts[idx].Labels = full.Labels
-		}(i)
-	}
-	wg.Wait()
+	return labelHosts, nil
 }
 
 // GetPolicyCompliance retrieves policy compliance data
@@ -1822,21 +1664,6 @@ func buildHostListParams(teamIDStr, status, query, policyID, policyResponse stri
 		params.Set("policy_response", policyResponse)
 	}
 	return params
-}
-
-// filterEndpointsByTeamID keeps only hosts whose TeamID matches the given
-// team. Used to compensate for Fleet's /labels/:id/hosts ignoring ?team_id=
-// — see the operational learning in GetEndpointsWithFilters. Hosts with a
-// nil TeamID are treated as "no team / global" and never match a numeric
-// team filter.
-func filterEndpointsByTeamID(hosts []Endpoint, teamID uint) []Endpoint {
-	out := make([]Endpoint, 0, len(hosts))
-	for _, h := range hosts {
-		if h.TeamID != nil && *h.TeamID == teamID {
-			out = append(out, h)
-		}
-	}
-	return out
 }
 
 // intersectHostsByID returns hosts present in both lists, preserving the
