@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -52,13 +52,11 @@ export interface ILibraryItemAccordionProps {
   isActive: boolean;
 
   /** Mirrors backend WRITE on the `SoftwareInstaller` entity — admin or
-   * maintainer. Technicians, observers, and observer+ pass `false`.
-   * Compute with `permissions.canWriteSoftware(user, teamId)`. Gates every
-   * edit/delete affordance on the row: the label-count badge (button → static
-   * span), the expanded-panel labels-click handler, the inactive-row
-   * "Select Actions > Versions and pin this version to rollback" hover
-   * tooltip, and the trash button (hidden entirely when false). Required —
-   * no default, so the type system forces callers to supply a value. */
+   * maintainer. Compute with `permissions.canWriteSoftware(user, teamId)`.
+   * Gates every edit/delete affordance on the row: the label-count badge
+   * (button → static span), the expanded-panel labels-click handler, the
+   * inactive-row "Select Actions > Versions and pin this version to rollback"
+   * hover tooltip, and the trash button (hidden entirely when false). */
   canEditSoftware: boolean;
 
   /** Which status badge the active row renders. `"latest"` → "Latest" with a
@@ -145,21 +143,27 @@ const LibraryItemAccordion = ({
     setExpanded((prev) => !prev);
   };
 
+  // Holds the active "clear copy message" timer so a re-click resets it
+  // instead of stacking timers, and so unmount can cancel it cleanly.
+  const copyMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyMessageTimer.current) clearTimeout(copyMessageTimer.current);
+    };
+  }, []);
+
   const handleCopyHash = () => {
     if (!hashSha256) return;
+    const resolve = (msg: string) => {
+      setCopyMessage(msg);
+      if (copyMessageTimer.current) clearTimeout(copyMessageTimer.current);
+      copyMessageTimer.current = setTimeout(() => setCopyMessage(""), 1000);
+    };
     stringToClipboard(hashSha256)
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
+      .then(() => resolve("Copied!"))
+      .catch(() => resolve("Copy failed"));
   };
-
-  // Clear the transient "Copied!" / "Copy failed" message 1s after it lands
-  // (timer starts when the message is set, not when the click fires), and
-  // cancel on unmount to avoid a setState-after-unmount warning.
-  useEffect(() => {
-    if (!copyMessage) return undefined;
-    const id = setTimeout(() => setCopyMessage(""), 1000);
-    return () => clearTimeout(id);
-  }, [copyMessage]);
 
   const inactiveTooltip = (
     <>
@@ -392,8 +396,9 @@ const LibraryItemAccordion = ({
     </Button>
   );
 
-  // Mirrors SoftwareInstallerCard: only FMA and App Store / Play Store rows
-  // are disabled in GitOps mode (those installer types can't be managed via
+  // Mirrors `SoftwareInstallerCard.SoftwareActionButtons` and complements the
+  // `permissions.canWriteSoftware` role gate: only FMA and App Store / Play
+  // Store rows are GitOps-locked (those installer types can't be managed via
   // YAML). Custom packages stay deletable. The "software" entity exception is
   // respected via `GitOpsModeTooltipWrapper`'s `entityType`.
   const isAppStore = installerType === "app-store";
