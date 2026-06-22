@@ -29,9 +29,10 @@ extension AuthenticationViewController:
             completion(.failed)
             return
         }
-        // If for some reason we don't get a registration token this will fail.
-        // As best I can tell there is no good way to surface this to the user
-        let registrationToken = loginManager.registrationToken ?? ""
+        guard let registrationToken = loginManager.registrationToken, !registrationToken.isEmpty else {
+            completion(.failed)
+            return
+        }
         // applyLoginConfiguration fetches the server's encryption key over HTTP,
         // so it runs on the Task alongside the registration POST. Report success
         // only once Fleet has stored the keys, so the framework can't proceed to
