@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -51,14 +51,15 @@ export interface ILibraryItemAccordionProps {
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
 
-  /** Mirror backend WRITE permission on the `SoftwareInstaller` entity —
-   * admin or maintainer. Technicians, observers, and observer+ pass `false`.
-   * Gates every edit/delete affordance on the row: the label-count badge
-   * (button → static span), the expanded-panel labels-click handler, the
-   * inactive-row "Select Actions > Versions and pin this version to rollback"
-   * hover tooltip, and the trash button (hidden entirely when false).
-   * Defaults to true. */
-  canEditSoftware?: boolean;
+  /** Mirrors backend WRITE on the `SoftwareInstaller` entity — admin or
+   * maintainer. Technicians, observers, and observer+ pass `false`.
+   * Compute with `permissions.canWriteSoftware(user, teamId)`. Gates every
+   * edit/delete affordance on the row: the label-count badge (button → static
+   * span), the expanded-panel labels-click handler, the inactive-row
+   * "Select Actions > Versions and pin this version to rollback" hover
+   * tooltip, and the trash button (hidden entirely when false). Required —
+   * no default, so the type system forces callers to supply a value. */
+  canEditSoftware: boolean;
 
   /** Which status badge the active row renders. `"latest"` → "Latest" with a
    * refresh icon. `"pinned"` → "Pinned" with a pin icon. `"majorVersion"` →
@@ -110,7 +111,7 @@ const LibraryItemAccordion = ({
   isLatestFmaVersion,
   isScriptPackage = false,
   isActive,
-  canEditSoftware = true,
+  canEditSoftware,
   badgeState,
   labels,
   labelKind = "includeAny",
@@ -149,8 +150,16 @@ const LibraryItemAccordion = ({
     stringToClipboard(hashSha256)
       .then(() => setCopyMessage("Copied!"))
       .catch(() => setCopyMessage("Copy failed"));
-    setTimeout(() => setCopyMessage(""), 1000);
   };
+
+  // Clear the transient "Copied!" / "Copy failed" message 1s after it lands
+  // (timer starts when the message is set, not when the click fires), and
+  // cancel on unmount to avoid a setState-after-unmount warning.
+  useEffect(() => {
+    if (!copyMessage) return undefined;
+    const id = setTimeout(() => setCopyMessage(""), 1000);
+    return () => clearTimeout(id);
+  }, [copyMessage]);
 
   const inactiveTooltip = (
     <>
@@ -387,7 +396,8 @@ const LibraryItemAccordion = ({
   // are disabled in GitOps mode (those installer types can't be managed via
   // YAML). Custom packages stay deletable. The "software" entity exception is
   // respected via `GitOpsModeTooltipWrapper`'s `entityType`.
-  const lockedByGitOpsMode = isFma || installerType === "app-store";
+  const isAppStore = installerType === "app-store";
+  const lockedByGitOpsMode = isFma || isAppStore;
 
   const renderTrashButton = () =>
     lockedByGitOpsMode ? (

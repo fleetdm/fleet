@@ -1,7 +1,7 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen, waitFor } from "@testing-library/react";
 
+import { renderWithSetup } from "test/test-utils";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
 import { stringToClipboard } from "utilities/copy_text";
@@ -30,6 +30,7 @@ const baseProps: ILibraryItemAccordionProps = {
   version: "149.0.7827.54",
   addedAt: new Date("2026-06-15T00:00:00Z").toISOString(),
   isActive: true,
+  canEditSoftware: true,
   installed: 32,
   pending: 5,
   failed: 3,
@@ -48,7 +49,7 @@ const makeLabels = (count: number): ILabelSoftwareTitle[] =>
   })) as ILabelSoftwareTitle[];
 
 const renderAccordion = (overrides: Partial<ILibraryItemAccordionProps> = {}) =>
-  render(<LibraryItemAccordion {...baseProps} {...overrides} />);
+  renderWithSetup(<LibraryItemAccordion {...baseProps} {...overrides} />);
 
 describe("LibraryItemAccordion", () => {
   it("renders filename and version line in the collapsed header", () => {
@@ -64,8 +65,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("expands when the header is clicked and collapses on a second click", async () => {
-    const user = userEvent.setup();
-    renderAccordion();
+    const { user } = renderAccordion();
 
     const header = screen.getByRole("button", { expanded: false });
     await user.click(header);
@@ -131,8 +131,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("hides all badges and the chevron interaction when inactive", async () => {
-    const user = userEvent.setup();
-    renderAccordion({
+    const { user } = renderAccordion({
       isActive: false,
       badgeState: "latest",
       labels: makeLabels(3),
@@ -148,8 +147,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("hides the trash button entirely when canEditSoftware is false", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ canEditSoftware: false });
+    const { user } = renderAccordion({ canEditSoftware: false });
 
     await user.click(screen.getByRole("button", { expanded: false }));
 
@@ -164,8 +162,7 @@ describe("LibraryItemAccordion", () => {
 
   it("invokes onTrashClick when enabled", async () => {
     const onTrashClick = jest.fn();
-    const user = userEvent.setup();
-    renderAccordion({ onTrashClick });
+    const { user } = renderAccordion({ onTrashClick });
 
     await user.click(screen.getByRole("button", { expanded: false }));
     await user.click(
@@ -176,8 +173,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("renders zero-install state without crashing", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ installed: 0, pending: 0, failed: 0 });
+    const { user } = renderAccordion({ installed: 0, pending: 0, failed: 0 });
 
     await user.click(screen.getByRole("button", { expanded: false }));
 
@@ -187,34 +183,40 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("renders the 'Include any' heading by default", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ labels: makeLabels(2) });
+    const { user } = renderAccordion({ labels: makeLabels(2) });
     await user.click(screen.getByRole("button", { expanded: false }));
     expect(screen.getByText("Include any")).toBeVisible();
   });
 
   it("renders the 'Include all' heading when labelKind is includeAll", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ labels: makeLabels(2), labelKind: "includeAll" });
+    const { user } = renderAccordion({
+      labels: makeLabels(2),
+      labelKind: "includeAll",
+    });
     await user.click(screen.getByRole("button", { expanded: false }));
     expect(screen.getByText("Include all")).toBeVisible();
   });
 
   it("renders the 'Exclude any' heading when labelKind is excludeAny", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ labels: makeLabels(2), labelKind: "excludeAny" });
+    const { user } = renderAccordion({
+      labels: makeLabels(2),
+      labelKind: "excludeAny",
+    });
     await user.click(screen.getByRole("button", { expanded: false }));
     expect(screen.getByText("Exclude any")).toBeVisible();
   });
 
   it("renders a tooltip with the label list when hovering the count badge", async () => {
-    const user = userEvent.setup();
     const labels = [
       { id: 1, name: "Design" },
       { id: 2, name: "Engineering" },
       { id: 3, name: "IT" },
     ] as never;
-    renderAccordion({ badgeState: "latest", labels, labelKind: "includeAll" });
+    const { user } = renderAccordion({
+      badgeState: "latest",
+      labels,
+      labelKind: "includeAll",
+    });
 
     await user.hover(screen.getByRole("button", { name: "3" }));
     // Tooltip renders the heading inside a `<strong>` and the names as
@@ -238,8 +240,7 @@ describe("LibraryItemAccordion", () => {
     "fires onBadgeClick when the %s badge is clicked",
     async (state, label) => {
       const onBadgeClick = jest.fn();
-      const user = userEvent.setup();
-      renderAccordion({ badgeState: state, onBadgeClick });
+      const { user } = renderAccordion({ badgeState: state, onBadgeClick });
 
       await user.click(screen.getByRole("button", { name: label }));
       expect(onBadgeClick).toHaveBeenCalledTimes(1);
@@ -248,8 +249,7 @@ describe("LibraryItemAccordion", () => {
 
   it("does not propagate badge clicks to the header expand toggle", async () => {
     const onBadgeClick = jest.fn();
-    const user = userEvent.setup();
-    renderAccordion({ badgeState: "latest", onBadgeClick });
+    const { user } = renderAccordion({ badgeState: "latest", onBadgeClick });
 
     // The header would expand if the click bubbled — verify it stays collapsed.
     await user.click(screen.getByRole("button", { name: "Latest" }));
@@ -259,8 +259,7 @@ describe("LibraryItemAccordion", () => {
 
   it("fires onLabelCountClick when the label-count badge is clicked", async () => {
     const onLabelCountClick = jest.fn();
-    const user = userEvent.setup();
-    renderAccordion({
+    const { user } = renderAccordion({
       badgeState: "latest",
       labels: makeLabels(4),
       onLabelCountClick,
@@ -283,8 +282,7 @@ describe("LibraryItemAccordion", () => {
 
   it("fires onDownloadClick when the download button is clicked", async () => {
     const onDownloadClick = jest.fn();
-    const user = userEvent.setup();
-    renderAccordion({ onDownloadClick });
+    const { user } = renderAccordion({ onDownloadClick });
 
     await user.click(screen.getByRole("button", { expanded: false }));
     await user.click(
@@ -294,8 +292,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("omits the download button when downloadUrl is not provided", async () => {
-    const user = userEvent.setup();
-    renderAccordion({ downloadUrl: undefined });
+    const { user } = renderAccordion({ downloadUrl: undefined });
 
     await user.click(screen.getByRole("button", { expanded: false }));
     expect(
@@ -304,8 +301,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("renders status counts as links when expanded", async () => {
-    const user = userEvent.setup();
-    renderAccordion();
+    const { user } = renderAccordion();
 
     await user.click(screen.getByRole("button", { expanded: false }));
 
@@ -323,8 +319,7 @@ describe("LibraryItemAccordion", () => {
 
   it("copies the hash to the clipboard and shows a transient 'Copied!' message", async () => {
     mockedStringToClipboard.mockResolvedValueOnce(undefined);
-    const user = userEvent.setup();
-    renderAccordion();
+    const { user } = renderAccordion();
 
     await user.click(screen.getByRole("button", { expanded: false }));
     await user.click(
@@ -337,8 +332,7 @@ describe("LibraryItemAccordion", () => {
 
   it("shows 'Copy failed' when the clipboard write rejects", async () => {
     mockedStringToClipboard.mockRejectedValueOnce(new Error("denied"));
-    const user = userEvent.setup();
-    renderAccordion();
+    const { user } = renderAccordion();
 
     await user.click(screen.getByRole("button", { expanded: false }));
     await user.click(
@@ -349,8 +343,7 @@ describe("LibraryItemAccordion", () => {
   });
 
   it("does not throw when the row is rendered with no handlers and interactive elements are clicked", async () => {
-    const user = userEvent.setup();
-    renderAccordion({
+    const { user } = renderAccordion({
       badgeState: "latest",
       labels: makeLabels(2),
       // intentionally no onBadgeClick / onLabelCountClick / onDownloadClick /

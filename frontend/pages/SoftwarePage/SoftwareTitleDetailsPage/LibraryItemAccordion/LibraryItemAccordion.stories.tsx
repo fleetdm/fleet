@@ -28,6 +28,7 @@ const meta: Meta<typeof LibraryItemAccordion> = {
     isActive: true,
     badgeState: "latest",
     labels: labels7,
+    canEditSoftware: true,
     installed: 32,
     pending: 5,
     failed: 3,

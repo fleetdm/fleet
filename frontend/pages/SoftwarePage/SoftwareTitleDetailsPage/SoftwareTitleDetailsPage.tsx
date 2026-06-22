@@ -18,6 +18,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import { canWriteSoftware } from "utilities/permissions/permissions";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
@@ -58,24 +59,13 @@ const SoftwareTitleDetailsPage = ({
   const {
     isPremiumTier,
     isOnGlobalTeam,
-    isGlobalAdmin,
-    isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
     isTeamTechnician,
+    currentUser,
     config,
   } = useContext(AppContext);
-
-  // Mirrors backend WRITE on `SoftwareInstaller` (rego: admin | maintainer |
-  // gitops). The UI doesn't surface gitops users here, so admin/maintainer is
-  // the full set. Used to gate every edit/delete affordance on the accordion.
-  const canEditSoftware = !!(
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isTeamAdmin ||
-    isTeamMaintainer
-  );
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
@@ -96,6 +86,8 @@ const SoftwareTitleDetailsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
   });
+
+  const canEditSoftware = canWriteSoftware(currentUser, currentTeamId);
 
   // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
   // as it automatically opens from adding flow of custom software in gitOps mode

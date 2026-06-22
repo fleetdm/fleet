@@ -1,13 +1,8 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 
-import TruncatedTextList from "./TruncatedTextList";
+import withFrame from "test/storybook-utils";
 
-const withFrame = (width: number) => (Story: React.ComponentType) => (
-  <div style={{ width, border: "1px dashed #ccc", padding: "80px 8px" }}>
-    <Story />
-  </div>
-);
+import TruncatedTextList from "./TruncatedTextList";
 
 const meta: Meta<typeof TruncatedTextList> = {
   title: "Components/TruncatedTextList",

@@ -192,6 +192,24 @@ const isNoAccess = (user: IUser): boolean => {
   return user.global_role === null && user.teams.length === 0;
 };
 
+// Mirrors backend WRITE on the `SoftwareInstaller` rego entity
+// (server/authz/policy.rego — admin | maintainer | gitops). The UI doesn't
+// surface gitops users, so admin/maintainer is the full set. Use this to gate
+// edit/delete affordances for software installer rows.
+export const canWriteSoftware = (
+  user: IUser | null,
+  teamId: number | null | undefined
+): boolean => {
+  if (!user) return false;
+  const tid = teamId ?? null;
+  return (
+    isGlobalAdmin(user) ||
+    isGlobalMaintainer(user) ||
+    isTeamAdmin(user, tid) ||
+    isTeamMaintainer(user, tid)
+  );
+};
+
 export default {
   isSandboxMode,
   isFreeTier,
@@ -219,4 +237,5 @@ export default {
   isOnlyObserver,
   isObserverPlus,
   isNoAccess,
+  canWriteSoftware,
 };

@@ -1,3 +1,21 @@
+// Storybook for the multi-row list view. Two pieces of indirection make stories
+// terse but are worth calling out:
+//
+//   1. `<StoryRow>` is a typed shim around `<LibraryItemAccordion>` that injects
+//      `installedPath` / `pendingPath` / `failedPath` from a shared
+//      `STORYBOOK_PATHS` stub. Every JSX row in this file is `<StoryRow>`, not
+//      `<LibraryItemAccordion>`, so the path props can be omitted per row.
+//
+//   2. `LibraryItemAccordionListDemo` walks the children (recursing through
+//      Fragments) and uses `React.cloneElement` to inject `labels`,
+//      `labelKind`, and `badgeState` from the storybook control panel onto
+//      every row. Each story author writes plain JSX without those three
+//      props; the demo wrapper supplies them at render time.
+//
+// Net effect: stories are short and focused on row-shape variety, but a prop
+// added to `<LibraryItemAccordion>` in the future may need wiring here before
+// it surfaces in any of these stories.
+
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import {
@@ -119,15 +137,21 @@ const STORYBOOK_PATHS = {
   failedPath: statusPath("failed"),
 };
 
-// Shim used by every story so each row can skip the path props (they're
-// stubbed identically here, never customized per story). The Demo wrapper
-// below still injects labels/labelKind/badgeState via cloneElement.
+// Shim used by every story so each row can skip the stub props (paths are
+// stubbed identically here, never customized per story; `canEditSoftware`
+// defaults to true so only the "can't edit" stories need to override it).
+// The Demo wrapper below still injects labels/labelKind/badgeState via
+// cloneElement.
 type IStoryRowProps = Omit<
   ILibraryItemAccordionProps,
-  "installedPath" | "pendingPath" | "failedPath"
->;
-const StoryRow = (props: IStoryRowProps) => (
-  <LibraryItemAccordion {...props} {...STORYBOOK_PATHS} />
+  "installedPath" | "pendingPath" | "failedPath" | "canEditSoftware"
+> & { canEditSoftware?: boolean };
+const StoryRow = ({ canEditSoftware = true, ...props }: IStoryRowProps) => (
+  <LibraryItemAccordion
+    {...props}
+    {...STORYBOOK_PATHS}
+    canEditSoftware={canEditSoftware}
+  />
 );
 
 const LibraryItemAccordionListDemo = ({

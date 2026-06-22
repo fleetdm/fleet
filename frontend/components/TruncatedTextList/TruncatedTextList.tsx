@@ -53,8 +53,8 @@ const renderVisibleRow = ({
   hidden,
   items,
   separator,
-  tooltipPosition = "top",
-  truncatedFirstMaxChars = 30,
+  tooltipPosition,
+  truncatedFirstMaxChars,
   onClick,
 }: IRenderVisibleRowParams) => {
   const truncatedFirst = truncateString(items[0] ?? "", truncatedFirstMaxChars);
