@@ -17,7 +17,6 @@ type Config struct {
 	TLSSkipVerify bool   // FLEET_TLS_SKIP_VERIFY — skip TLS cert verification (unsafe; for dev only)
 	TLSCAFile     string // FLEET_CA_FILE — path to PEM CA cert for self-signed Fleet instances
 	MCPAuthToken  string // MCP_AUTH_TOKEN — bearer token required on all incoming MCP requests
-	RateLimitMode string // MCP_RATE_LIMIT_MODE — SSE throttle: "global" (default) or "ip"
 }
 
 // LoadConfig loads configuration from environment variables, falling back to .env if present.
@@ -47,7 +46,6 @@ func LoadConfig() *Config {
 		TLSSkipVerify: os.Getenv("FLEET_TLS_SKIP_VERIFY") == "true",
 		TLSCAFile:     os.Getenv("FLEET_CA_FILE"),
 		MCPAuthToken:  resolveSecret("MCP_AUTH_TOKEN"),
-		RateLimitMode: strings.ToLower(getEnv("MCP_RATE_LIMIT_MODE", RateLimitModeGlobal)),
 	}
 }
 

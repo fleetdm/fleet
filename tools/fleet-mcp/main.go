@@ -133,16 +133,8 @@ func main() {
 	handler = mcpRouteGuard(handler)
 	handler = limitBodyMiddleware(handler)
 
-	// SSE throttle.
-	// MCP_RATE_LIMIT_MODE selects "global" (one shared bucket; right behind a proxy/WAF)
-	// or "ip" (one bucket per TCP peer — never reads the spoofable X-Forwarded-For).
-	rl, err := newRateLimiter(ctx, config.RateLimitMode)
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
-	logrus.Infof("rate limiting: %s mode", config.RateLimitMode)
-
-	handler = rl.Middleware(handler)
+	// /healthz is an unauthenticated liveness probe (see healthzHandler);
+	// everything else goes through the middleware chain above.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthzHandler)
 	mux.Handle("/", handler)

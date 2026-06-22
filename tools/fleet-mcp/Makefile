@@ -5,7 +5,6 @@
 #   FLEET_API_KEY must belong to an API-only Fleet user, else the binary refuses
 #     to start (see README "API-only token required").
 #   FLEET_TLS_SKIP_VERIFY=true     # only for a localhost dev Fleet with a self-signed cert
-#   MCP_RATE_LIMIT_MODE=global|ip  # optional, SSE only (default global)
 # Quickest setup:  cp .env.example .env  &&  edit it  (.env is gitignored).
 #
 # Usage:
