@@ -46,8 +46,8 @@ Then, from this directory:
 ```sh
 task dev       # live-reload dev mode (Vite + Go)
 task build     # type-check + production build -> bin/fleet-hangar
-task package   # build + bundle + ad-hoc sign -> bin/fleet-hangar.app
-task dist      # zip the existing .app into a shareable bin/fleet-hangar.zip
+task package   # build + bundle + ad-hoc sign -> "bin/Fleet Hangar.app"
+task dist      # zip the existing .app into a shareable "bin/Fleet Hangar.zip"
 go test ./...  # backend unit tests
 ```
 
@@ -60,15 +60,18 @@ wails3 generate bindings -clean=true -ts
 
 ## Notes
 
-- **Bundle identifier** is `com.fleetdm.fleet-hangar` — the same ID the original Rust app
-  used, so settings written by it carry over untouched. Settings live under
-  `~/Library/Application Support/<id>/` and logs under `~/Library/Logs/<id>/`; DB backups
-  live in `<repo>/db-backups/`.
+- **Names.** The bundle is `Fleet Hangar.app` (the `PRODUCT_NAME` Taskfile var) so Finder,
+  Launchpad, and Spotlight show "Fleet Hangar". The executable inside stays `fleet-hangar`
+  (the `APP_NAME` var) — it's also reused for the `-server` binary and Docker image tags,
+  where a space would break things. The **bundle identifier** is `com.fleetdm.fleet-hangar`
+  — the same ID the original Rust app used, so settings written by it carry over untouched.
+  Settings live under `~/Library/Application Support/<id>/` and logs under
+  `~/Library/Logs/<id>/`; DB backups live in `<repo>/db-backups/`.
 - **Distribution.** `task package` produces only an ad-hoc-signed `.app`; `task dist` zips
-  whatever bundle is in `bin/` into `bin/fleet-hangar.zip` (via `ditto`, so the signature
+  whatever bundle is in `bin/` into `bin/Fleet Hangar.zip` (via `ditto`, so the signature
   survives) for handoff. Two paths:
   - *Quick / trusted teammate:* `task package` → `task dist`, then the recipient clears
-    quarantine after unzipping: `xattr -dr com.apple.quarantine "/path/to/fleet-hangar.app"`
+    quarantine after unzipping: `xattr -dr com.apple.quarantine "/path/to/Fleet Hangar.app"`
     (an ad-hoc-signed app from another machine is otherwise blocked by Gatekeeper).
   - *Clean install anywhere:* configure `SIGN_IDENTITY` + `KEYCHAIN_PROFILE` in
     `build/darwin/Taskfile.yml`, run `task darwin:sign:notarize` (Developer ID sign +

@@ -136,8 +136,8 @@ tasks:
   dist:
     summary: Zips the packaged `.app` into a single shareable archive
     desc: |
-      Packages the existing {{.BIN_DIR}}/{{.APP_NAME}}.app into
-      {{.BIN_DIR}}/{{.APP_NAME}}.zip for distribution.
+      Packages the existing {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app into
+      {{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip for distribution.
 
       Run a build step FIRST to produce the .app — `dist` zips whatever bundle is
       already present and never rebuilds, so it can't clobber a notarized signature:
@@ -147,34 +147,34 @@ tasks:
       Uses `ditto`, which preserves the code signature and resource forks (a plain
       `zip` corrupts the bundle's signature).
     preconditions:
-      - sh: test -d "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - sh: test -d "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
         msg: |
-          No {{.BIN_DIR}}/{{.APP_NAME}}.app found. Build it first:
+          No {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app found. Build it first:
             task package              # ad-hoc signed
             task darwin:sign:notarize # Developer ID + notarized
     cmds:
-      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}.zip"
-      - ditto -c -k --sequesterRsrc --keepParent "{{.BIN_DIR}}/{{.APP_NAME}}.app" "{{.BIN_DIR}}/{{.APP_NAME}}.zip"
-      - 'echo "Created {{.BIN_DIR}}/{{.APP_NAME}}.zip"'
+      - rm -f "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"
+      - ditto -c -k --sequesterRsrc --keepParent "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"
+      - 'echo "Created {{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"'
 
   create:app:bundle:
     summary: Creates an `.app` bundle
     cmds:
       # Start clean so artifacts from older builds (e.g. a previously-generated
       # Assets.car) can't linger in the bundle.
-      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
-      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - rm -rf "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents/MacOS"
+      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app/Contents"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
     summary: Ad-hoc signs the app bundle (macOS only)
     internal: true
     cmds:
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
 
   codesign:skip:
     summary: Skips codesigning when cross-compiling
@@ -184,14 +184,14 @@ tasks:
 
   run:
     cmds:
-      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
-      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
-      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
-      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
+      - rm -rf "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS"
+      - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/Info.plist"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.PRODUCT_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
   sign:
     summary: Signs the application bundle with Developer ID
@@ -201,7 +201,7 @@ tasks:
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}}
     preconditions:
       - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
         msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"
@@ -217,7 +217,7 @@ tasks:
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}
+      - wails3 tool sign --input "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" --identity "{{.SIGN_IDENTITY}}" {{if .ENTITLEMENTS}}--entitlements {{.ENTITLEMENTS}}{{end}} --notarize --keychain-profile {{.KEYCHAIN_PROFILE}}
     preconditions:
       - sh: '[ -n "{{.SIGN_IDENTITY}}" ]'
         msg: "SIGN_IDENTITY is required. Set it in the vars section at the top of build/darwin/Taskfile.yml"

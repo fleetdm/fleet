@@ -5,6 +5,8 @@
             <string>APPL</string>
         <key>CFBundleName</key>
             <string>Fleet Hangar</string>
+        <key>CFBundleDisplayName</key>
+            <string>Fleet Hangar</string>
         <key>CFBundleExecutable</key>
             <string>fleet-hangar</string>
         <key>CFBundleIdentifier</key>

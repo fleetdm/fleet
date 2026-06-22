@@ -1,7 +1,11 @@
 version: '3'
 
 vars:
+  # APP_NAME is the executable / binary name (hyphenated: reused for the
+  # `-server` binary and Docker image tags, where spaces would break things).
   APP_NAME: "fleet-hangar"
+  # PRODUCT_NAME is the user-facing `.app` bundle name shown in Finder/Launchpad.
+  PRODUCT_NAME: "Fleet Hangar"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -22,7 +26,7 @@ tasks:
       - task: "{{OS}}:package"
 
   dist:
-    summary: Zips the already-built .app into a single shareable archive (bin/fleet-hangar.zip)
+    summary: Zips the already-built .app into a single shareable archive (bin/Fleet Hangar.zip)
     cmds:
       - task: "{{OS}}:dist"
 
