@@ -704,7 +704,7 @@ If the fields below are omitted, they default to values specified in [the app's 
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
-- `categories` is an array of categories, from [supported categories](#labels-and-categories).
+- `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
 ## org_settings and settings
 
