@@ -71,65 +71,12 @@ const SoftwareSummaryCard = ({
     softwareTitle.display_name
   );
 
-  // If there is no installer (no package/app), bail out of installer‑related UI.
-  if (!installerResult) {
-    // when no installer, no edit actions:
-    return (
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
-        <SoftwareDetailsSummary
-          displayName={softwareDisplayName}
-          type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
-          hostCount={softwareTitle.hosts_count}
-          countsUpdatedAt={softwareTitle.counts_updated_at}
-          queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
-          name={softwareTitle.name}
-          source={softwareTitle.source}
-          iconUrl={softwareTitle.icon_url}
-          iconUploadedAt={iconUploadedAt}
-        />
-      </Card>
-    );
-  }
-
-  const { meta } = installerResult;
-  const {
-    softwareInstaller,
-    installerType,
-    isIosOrIpadosApp,
-    isFleetMaintainedApp,
-    isAndroidPlayStoreApp,
-    isAndroidPlayStoreWebApp,
-    isCustomPackage,
-    canManageSoftware,
-  } = meta;
-
-  const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
-  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
-  const canEditConfiguration =
-    canManageSoftware &&
-    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
-  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
-  /** Versions / pin is a Premium-only Fleet-maintained app feature */
-  const canManageVersions =
-    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
-  /** Installer modals require a specific team; hidden from "All Teams" */
-  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
-  const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
-
-  const canEditAutoUpdateConfig =
-    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
-
-  const onClickEditAppearance = () => setShowEditIconModal(true);
-  const onClickEditSoftware = () => setShowEditSoftwareModal(true);
-  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
-  const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
-  const onClickEditAutoUpdateConfig = () =>
-    setShowEditAutoUpdateConfigModal(true);
-  // Versions modal wiring lands in #47623; for now this is a no-op placeholder
-  // so the Actions item can render with proper gating.
-  const onClickVersions = () => undefined;
+  // Pre-compute meta-derived values via optional chaining so the hooks below
+  // can run unconditionally (React requires stable hook order across renders).
+  const installerType = installerResult?.meta.installerType;
+  const isFleetMaintainedApp = !!installerResult?.meta.isFleetMaintainedApp;
+  const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
+  const isCustomPackage = !!installerResult?.meta.isCustomPackage;
 
   const autoInstallPolicies: ISoftwareInstallPolicy[] =
     softwareTitle.software_package?.automatic_install_policies ??
@@ -235,6 +182,62 @@ const SoftwareSummaryCard = ({
     teamId,
   ]);
 
+  // If there is no installer (no package/app), bail out of installer‑related UI.
+  if (!installerResult) {
+    // when no installer, no edit actions:
+    return (
+      <Card borderRadiusSize="xxlarge" className={baseClass}>
+        <SoftwareDetailsSummary
+          displayName={softwareDisplayName}
+          type={formatSoftwareType(softwareTitle)}
+          versions={softwareTitle.versions?.length ?? 0}
+          hostCount={softwareTitle.hosts_count}
+          countsUpdatedAt={softwareTitle.counts_updated_at}
+          queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
+          name={softwareTitle.name}
+          source={softwareTitle.source}
+          iconUrl={softwareTitle.icon_url}
+          iconUploadedAt={iconUploadedAt}
+          headerPills={headerPills}
+        />
+      </Card>
+    );
+  }
+
+  const {
+    softwareInstaller,
+    isIosOrIpadosApp,
+    isAndroidPlayStoreWebApp,
+    canManageSoftware,
+  } = installerResult.meta;
+
+  const canEditAppearance = canManageSoftware;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
+  const canEditConfiguration =
+    canManageSoftware &&
+    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
+  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
+  /** Versions / pin is a Premium-only Fleet-maintained app feature */
+  const canManageVersions =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
+  /** Installer modals require a specific team; hidden from "All Teams" */
+  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+  const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
+
+  const canEditAutoUpdateConfig =
+    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+
+  const onClickEditAppearance = () => setShowEditIconModal(true);
+  const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
+  const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
+  const onClickEditAutoUpdateConfig = () =>
+    setShowEditAutoUpdateConfigModal(true);
+  // Versions modal wiring lands in #47623; for now this is a no-op placeholder
+  // so the Actions item can render with proper gating.
+  const onClickVersions = () => undefined;
+
   return (
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -282,7 +285,7 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           iconUploadedAt={iconUploadedAt}
           setIconUploadedAt={setIconUploadedAt}
-          installerType={installerType}
+          installerType={installerResult.meta.installerType}
           previewInfo={{
             name: softwareDisplayName,
             titleName: softwareTitle.name,
@@ -302,7 +305,7 @@ const SoftwareSummaryCard = ({
           softwareInstaller={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
-          installerType={installerType}
+          installerType={installerResult.meta.installerType}
           openViewYamlModal={onToggleViewYaml}
           isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
