@@ -245,7 +245,7 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 	// assertion in case a test replaces DefaultTransport with a non-*Transport.
 	dt, ok := http.DefaultTransport.(*http.Transport)
 	if !ok || dt == nil {
-		dt = &http.Transport{} //nolint:gocritic // we are inside fleethttp itself
+		dt = &http.Transport{ForceAttemptHTTP2: true} //nolint:gocritic // we are inside fleethttp itself
 	}
 	tr := dt.Clone()
 	if to.tlsConf != nil {
