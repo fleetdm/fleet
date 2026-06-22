@@ -48,7 +48,7 @@ func NewFleet(t *testing.T, version string) *Fleet {
 	//nolint:gosec // does not need to be secure for tests
 	projectName := "fleet-test-" + strconv.FormatUint(rand.Uint64(), 16)
 
-	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+	dockerClient, err := dockerclient.New(dockerclient.FromEnv)
 	if err != nil {
 		t.Fatalf("create docker client: %v", err)
 	}
