@@ -221,66 +221,46 @@ software:
       self_service: true
       labels_include_any:
         - "Keynote 14 installed"
-      categories:
-        - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
-      categories:
-        - Utilities
     - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
       self_service: false
       labels_include_any:
         - "Macs with Fleet Desktop.app launch agent MDM profile"
-      categories:
-        - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
       display_name: "Enable Touch ID for sudo"
       self_service: true
-      categories:
-        - Security
       icon:
         path: ../lib/all/icons/touch-id.png
     # Linux apps
     - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
       self_service: true
       setup_experience: true
-      categories:
-        - Security
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
       self_service: true
       setup_experience: true
-      categories:
-        - Security
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
     # Windows apps
@@ -302,8 +282,6 @@ software:
     - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
       self_service: true
       setup_experience: true
-      categories:
-        - Security
       labels_include_any:
         - "x86-based Windows hosts"
   app_store_apps:
@@ -311,218 +289,143 @@ software:
       display_name: "Keynote"
       platform: darwin
       self_service: true
-      categories:
-        - Productivity
   fleet_maintained_apps:
     # macOS apps
     - slug: 1password/darwin # 1Password for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Security
     - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
       self_service: true
       labels_include_any:
         - "IdP group: SAML-aws-vpn"
-      categories:
-        - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Browsers
     - slug: firefox/darwin # Mozilla Firefox for macOS
       self_service: true
       labels_include_any:
         - Macs with Firefox installed
-      categories:
-        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
         - Macs with Brave Browser installed
-      categories:
-        - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
         - Macs with Docker Desktop installed
-      categories:
-        - Developer tools
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
         - Macs with Visual Studio Code installed
-      categories:
-        - Developer tools
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
     - slug: zoom/darwin # Zoom for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
-        - Productivity
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Security
     - slug: santa/darwin # Santa for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Security
     - slug: fleet-desktop/darwin # Fleet Desktop for macOS
       self_service: true
       icon:
         path: ../lib/all/icons/fleet-desktop-icon.png
-      categories:
-        - Utilities
     - slug: claude/darwin # Claude for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Productivity
     - slug: github/darwin # GitHub Desktop for macOS
       self_service: true
       labels_include_any:
         - Macs with GitHub Desktop installed
-      categories:
-        - Developer tools
     - slug: utm/darwin # UTM for macOS
       self_service: true
       labels_include_any:
         - Macs with UTM installed
-      categories:
-        - Productivity
     - slug: postman/darwin # Postman for macOS
       self_service: true
       labels_include_any:
         - Macs with Postman installed
-      categories:
-        - Developer tools
     - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
       self_service: true
       labels_include_any:
         - Macs with Grammarly Desktop installed
-      categories:
-        - Productivity
     - slug: iterm2/darwin # iTerm2 for macOS
       self_service: true
       labels_include_any:
         - Macs with iTerm2 installed
-      categories:
-        - Developer tools
     - slug: sublime-text/darwin # Sublime Text for macOS
       self_service: true
       labels_include_any:
         - Macs with Sublime Text installed
-      categories:
-        - Developer tools
     - slug: parallels/darwin # Parallels Desktop for macOS
       self_service: true
       labels_include_any:
         - Macs with Parallels Desktop installed
-      categories:
-        - Productivity
     - slug: loom/darwin # Loom for macOS
       self_service: true
       labels_include_any:
         - Macs with Loom installed
-      categories:
-        - Productivity
     - slug: nudge/darwin # Nudge for macOS
       self_service: false
       setup_experience: true
-      categories:
-        - Utilities
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
       labels_include_any:
         - Macs with Spotify installed
-      categories:
-        - Productivity
     - slug: rectangle/darwin # Rectangle for macOS
       self_service: true
       labels_include_any:
         - Macs with Rectangle installed
-      categories:
-        - Productivity
     - slug: logi-options+/darwin # Logi Options+ for macOS
       self_service: true
       labels_include_any:
         - Macs with Logi Options+ installed
-      categories:
-        - Productivity
     - slug: figma/darwin # Figma for macOS
       self_service: true
       labels_include_any:
         - Macs with Figma installed
-      categories:
-        - Productivity
     - slug: whatsapp/darwin # WhatsApp for macOS
       self_service: true
       labels_include_any:
         - Macs with WhatsApp installed
-      categories:
-        - Communication
     - slug: android-studio/darwin # Android Studio for macOS
       self_service: true
       labels_include_any:
         - Macs with Android Studio installed
-      categories:
-        - Developer tools
     - slug: zed/darwin # Zed for macOS
       self_service: true
       labels_include_any:
         - Macs with Zed installed
-      categories:
-        - Developer tools
     - slug: obsidian/darwin # Obsidian for macOS
       self_service: true
       labels_include_any:
         - Macs with Obsidian installed
-      categories:
-        - Productivity
     - slug: google-drive/darwin # Google Drive for macOS
       self_service: true
       labels_include_any:
         - Macs with Google Drive installed
-      categories:
-        - Productivity
     - slug: cursor/darwin # Cursor for macOS
       self_service: true
       labels_include_any:
         - Macs with Cursor installed
-      categories:
-        - Developer tools
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
       self_service: true
       labels_include_any:
         - Macs with Adobe Acrobat Reader installed
-      categories:
-        - Productivity
     - slug: adobe-acrobat-pro/darwin # Adobe Acrobat Pro for macOS
       self_service: true
       labels_include_any:
         - Macs with Adobe Acrobat Pro installed
-      categories:
-        - Productivity
     # Windows apps
     - slug: 1password/windows # 1Password for Windows
       self_service: true
       setup_experience: true
-      categories:
-        - Security
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: claude/windows # Claude for Windows
@@ -530,37 +433,25 @@ software:
       setup_experience: true
       labels_include_any:
         - "x86-based Windows hosts"
-      categories:
-        - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
-      categories:
-        - Browsers
       labels_include_any:
         - "x86 Windows hosts with Firefox installed"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       setup_experience: true
-      categories:
-        - Browsers
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: zoom/windows # Zoom for Windows (x86)
       self_service: true
       setup_experience: true
-      categories:
-        - Communication
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
       labels_include_any:
         - "x86 Windows hosts with Visual Studio Code installed"
-      categories:
-        - Developer tools
     - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
       self_service: true
       labels_include_any:
         - x86 Windows hosts with Adobe Acrobat Reader installed
-      categories:
-        - Productivity
