@@ -53,7 +53,7 @@ columns:
     type: text
     required: false
     description: |-
-      Path to the containerd socket to query.
+      Path to the containerd socket to query (default: /run/containerd/containerd.sock).
 examples: |-
   Get all containers from all namespaces:
 
