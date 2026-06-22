@@ -2,4 +2,5 @@
   description: Windows hosts that should NOT receive the read-only removable storage profile. Add a host to this manual label to allow read-write removable storage on that device.
   label_membership_type: manual
   platform: windows
-  hosts: []
+  hosts:
+    - "1230"
