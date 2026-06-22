@@ -36,6 +36,8 @@ software:
       self_service: true
       setup_experience: true
       platform: ios
+      categories:
+        - "Communication"
     - app_store_id: "546505307" # Zoom
       display_name: "Zoom"
       self_service: true
@@ -44,6 +46,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Communication"
     - app_store_id: "6473753684" # Claude
       display_name: "Claude"
       self_service: true
@@ -52,6 +56,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -59,6 +65,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842849113" # Google Sheets
       display_name: "Google Sheets"
       self_service: true
@@ -66,6 +74,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "507874739" # Google Drive
       display_name: "Google Drive"
       self_service: true
@@ -73,6 +83,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "490179405" # Okta Verify
       display_name: "Okta Verify"
       self_service: true
@@ -81,6 +93,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Security"
     - app_store_id: "1511601750" # 1Password
       display_name: "1Password"
       self_service: true
@@ -89,12 +103,17 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Security"
     # iPadOS apps
     - app_store_id: "618783545" # Slack
       display_name: "Slack"
       self_service: true
       setup_experience: true
       platform: ipados
+      categories:
+        - "Productivity"
+        - "Communication"
     - app_store_id: "546505307" # Zoom
       display_name: "Zoom"
       self_service: true
@@ -103,6 +122,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Communication"
     - app_store_id: "6473753684" # Claude
       display_name: "Claude"
       self_service: true
@@ -111,6 +132,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "1511601750" # 1Password
       display_name: "1Password"
       self_service: true
@@ -119,6 +142,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Security"
     - app_store_id: "842842640" # Google Docs
       display_name: "Google Docs"
       self_service: true
@@ -126,6 +151,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842849113" # Google Sheets
       display_name: "Google Sheets"
       self_service: true
@@ -133,6 +160,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "507874739" # Google Drive
       display_name: "Google Drive"
       self_service: true
@@ -140,6 +169,8 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "21:00"
       auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     # Android apps
     - app_store_id: "us.zoom.videomeetings" # Zoom
       platform: android
