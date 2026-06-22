@@ -185,23 +185,34 @@ const SoftwareSummaryCard = ({
     teamId,
   ]);
 
+  const policiesModal = showPoliciesModal && (
+    <PoliciesModal
+      policies={mergedPolicies}
+      teamId={teamId}
+      onExit={() => setShowPoliciesModal(false)}
+    />
+  );
+
   if (!installerResult) {
     return (
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
-        <SoftwareDetailsSummary
-          displayName={softwareDisplayName}
-          type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
-          hostCount={softwareTitle.hosts_count}
-          countsUpdatedAt={softwareTitle.counts_updated_at}
-          queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
-          name={softwareTitle.name}
-          source={softwareTitle.source}
-          iconUrl={softwareTitle.icon_url}
-          iconUploadedAt={iconUploadedAt}
-          headerPills={headerPills}
-        />
-      </Card>
+      <>
+        <Card borderRadiusSize="xxlarge" className={baseClass}>
+          <SoftwareDetailsSummary
+            displayName={softwareDisplayName}
+            type={formatSoftwareType(softwareTitle)}
+            versions={softwareTitle.versions?.length ?? 0}
+            hostCount={softwareTitle.hosts_count}
+            countsUpdatedAt={softwareTitle.counts_updated_at}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
+            name={softwareTitle.name}
+            source={softwareTitle.source}
+            iconUrl={softwareTitle.icon_url}
+            iconUploadedAt={iconUploadedAt}
+            headerPills={headerPills}
+          />
+        </Card>
+        {policiesModal}
+      </>
     );
   }
 
@@ -342,13 +353,7 @@ const SoftwareSummaryCard = ({
           onExit={() => setShowEditAutoUpdateConfigModal(false)}
         />
       )}
-      {showPoliciesModal && (
-        <PoliciesModal
-          policies={mergedPolicies}
-          teamId={teamId}
-          onExit={() => setShowPoliciesModal(false)}
-        />
-      )}
+      {policiesModal}
     </>
   );
 };

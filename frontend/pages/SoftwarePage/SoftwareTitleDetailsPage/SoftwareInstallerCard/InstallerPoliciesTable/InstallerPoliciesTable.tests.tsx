@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, render, waitFor } from "@testing-library/react";
+import { screen, render } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import { ISoftwareInstallPolicyUI } from "interfaces/software";
 import InstallerPoliciesTable from "./InstallerPoliciesTable";
@@ -32,28 +32,18 @@ describe("InstallerPoliciesTable", () => {
 
     expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
 
-    await waitFor(() => {
-      waitFor(() => {
-        user.hover(screen.getByTestId("refresh-icon"));
-      });
+    await user.hover(screen.getByTestId("refresh-icon"));
+    expect(
+      await screen.findByText(
+        "Software will be automatically installed when hosts fail this policy."
+      )
+    ).toBeInTheDocument();
 
-      expect(
-        screen.getByText(
-          "Software will be automatically installed when hosts fail this policy."
-        )
-      ).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
-      waitFor(() => {
-        user.hover(screen.getByText(/patch/i));
-      });
-
-      expect(
-        screen.getByText(
-          "Hosts will fail this policy if they're running an older version."
-        )
-      ).toBeInTheDocument();
-    });
+    await user.hover(screen.getByText(/patch/i));
+    expect(
+      await screen.findByText(
+        "Hosts will fail this policy if they're running an older version."
+      )
+    ).toBeInTheDocument();
   });
 });
