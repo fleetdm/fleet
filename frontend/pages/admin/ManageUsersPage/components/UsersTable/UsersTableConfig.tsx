@@ -15,6 +15,8 @@ import {
   generateTeam,
   generateTeamNames,
   greyCell,
+  ROLE_VARIOUS,
+  ROLE_GLOBAL,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -141,7 +143,7 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
-        if (cellProps.cell.value === "Various") {
+        if (cellProps.cell.value === ROLE_VARIOUS) {
           const { roleGroups } = cellProps.row.original;
           return (
             <TooltipWrapper
@@ -157,7 +159,7 @@ const generateTableHeaders = (
               tipOffset={10}
               fixedPositionStrategy
             >
-              <TextCell value="Various" grey italic />
+              <TextCell value={ROLE_VARIOUS} grey italic />
             </TooltipWrapper>
           );
         }
@@ -250,7 +252,7 @@ const generateTableHeaders = (
           <TextCell
             value={cellProps.cell.value}
             grey={isGrey}
-            italic={isGrey && cellProps.cell.value !== "Global"}
+            italic={isGrey && cellProps.cell.value !== ROLE_GLOBAL}
           />
         );
       },

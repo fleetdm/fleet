@@ -20,6 +20,7 @@ import {
   generateTeam,
   generateTeamNames,
   readableDate,
+  ROLE_VARIOUS,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -145,7 +146,7 @@ const AccountSidePanel = ({
       <DataSet
         title="Role"
         value={
-          roleText === "Various" ? (
+          roleText === ROLE_VARIOUS ? (
             <TooltipWrapper
               tipContent={roleGroups.map(({ role, names }) => (
                 <span key={role}>
