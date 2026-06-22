@@ -3,11 +3,6 @@
   // shared TooltipWrapper, which this component no longer delegates to).
   @include tooltip5-arrow-styles;
   display: inline-flex;
-  // Hug the wrapped content so the tooltip (anchored to this span) centers on a button
-  // rather than the whole row. The global `form > * { width: 100% }` rule (_global.scss)
-  // would otherwise stretch the span to the full form width. Inputs/dropdowns opt back
-  // into full width via the `--inputfield` modifier below.
-  width: fit-content;
 
   &__tooltip-content {
     display: flex;
@@ -24,5 +19,13 @@
   &--inputfield {
     display: block;
     width: 100%;
+  }
+
+  // Non-field content (buttons, icon rows) hugs its content so the tooltip centers on the
+  // button. Without this, the global `form > * { width: 100% }` rule (_global.scss) stretches
+  // the span to the full form width and the arrow drifts to the form center. Field wrappers
+  // deliberately keep full width so the disabled row stays the hover target.
+  &--hug {
+    width: fit-content;
   }
 }
