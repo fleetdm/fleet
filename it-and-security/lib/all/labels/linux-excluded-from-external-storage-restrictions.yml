@@ -1,0 +1,5 @@
+- name: Linux hosts excluded from external storage restrictions
+  description: Linux hosts that should NOT be enforced to read-only removable storage. Add a host to this manual label to skip the udev-rule policy on that device. Note - if the udev rule was already installed prior to exclusion, it must be removed manually from /etc/udev/rules.d/99-fleet-readonly-removable-storage.rules.
+  label_membership_type: manual
+  platform: linux
+  hosts: []
