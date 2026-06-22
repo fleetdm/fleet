@@ -1,9 +1,12 @@
 import React from "react";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 import { SoftwareInstallPolicyTypeSet } from "interfaces/software";
 import PillBadge from "components/PillBadge";
+
+const baseClass = "software-install-policy-badges";
 
 export const PATCH_TOOLTIP_CONTENT = (
   <>
@@ -21,7 +24,21 @@ const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
   );
 
   const renderAutomaticInstallBadge = () => (
-    <Icon name="refresh" color="ui-fleet-black-75" />
+    <TooltipWrapper
+      className={`${baseClass}__dynamic-policy-tooltip`}
+      tipContent={
+        <>
+          Software will be automatically installed <br />
+          when hosts fail this policy.
+        </>
+      }
+      tipOffset={14}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      <Icon name="refresh" color="ui-fleet-black-75" />
+    </TooltipWrapper>
   );
 
   return (

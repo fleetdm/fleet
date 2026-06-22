@@ -137,7 +137,6 @@ const SoftwareSummaryCard = ({
           <Tag
             icon="refresh"
             text="Auto install"
-            trailingIcon="chevron-right"
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
               // would just show a one-item list with that same link.
