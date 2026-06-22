@@ -12,7 +12,6 @@ import {
   formatSoftwareType,
   isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
-  ISoftwareInstallPolicy,
   ISoftwareTitleDetails,
 } from "interfaces/software";
 
@@ -78,17 +77,22 @@ const SoftwareSummaryCard = ({
   const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
   const isCustomPackage = !!installerResult?.meta.isCustomPackage;
 
-  const autoInstallPolicies: ISoftwareInstallPolicy[] =
-    softwareTitle.software_package?.automatic_install_policies ??
-    softwareTitle.app_store_app?.automatic_install_policies ??
-    [];
+  // Depend on the optional-chained sources directly so the memo's cache hits
+  // when both are nullish — `?? []` would mint a fresh array literal each
+  // render and bust the cache (and cascade into `headerPills` below).
+  const packageAutoInstallPolicies =
+    softwareTitle.software_package?.automatic_install_policies;
+  const appStoreAutoInstallPolicies =
+    softwareTitle.app_store_app?.automatic_install_policies;
+  const patchPolicy = softwareTitle.software_package?.patch_policy;
   const mergedPolicies = useMemo(
     () =>
       mergePolicies({
-        automaticInstallPolicies: autoInstallPolicies,
-        patchPolicy: softwareTitle.software_package?.patch_policy,
+        automaticInstallPolicies:
+          packageAutoInstallPolicies ?? appStoreAutoInstallPolicies,
+        patchPolicy,
       }),
-    [autoInstallPolicies, softwareTitle.software_package?.patch_policy]
+    [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
   );
   const isSelfService =
     !!softwareTitle.software_package?.self_service ||
