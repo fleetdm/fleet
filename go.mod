@@ -43,7 +43,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/clbanning/mxj v1.8.4
-	github.com/containerd/containerd v1.7.32
+	github.com/containerd/containerd v1.7.33
 	github.com/crewjam/saml v0.5.1
 	github.com/danieljoos/wincred v1.2.1
 	github.com/davecgh/go-spew v1.1.1
@@ -385,6 +385,7 @@ tool (
 )
 
 ignore (
+	./apps
 	./articles
 	./assets
 	./docs
@@ -392,5 +393,4 @@ ignore (
 	./handbook
 	./it-and-security
 	./node_modules
-	./apps
 )

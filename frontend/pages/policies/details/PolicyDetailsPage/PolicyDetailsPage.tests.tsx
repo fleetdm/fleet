@@ -1,12 +1,50 @@
+import React from "react";
+import { screen } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+
 import { IPolicy } from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
+import {
+  createCustomRenderer,
+  baseUrl,
+  createMockRouter,
+} from "test/test-utils";
+import mockServer from "test/mock-server";
+import createMockUser from "__mocks__/userMock";
+import createMockConfig from "__mocks__/configMock";
 
-import { getLabelModalData } from "./PolicyDetailsPage";
+import PolicyDetailsPage, { getLabelModalData } from "./PolicyDetailsPage";
 
 // Stub SoftwareIcon to avoid asset resolution when importing the page module.
 jest.mock("pages/SoftwarePage/components/icons/SoftwareIcon", () => {
   return () => null;
 });
+
+// Avoid depending on react-router's browserHistory inside BackButton.
+jest.mock("components/BackButton", () => ({
+  __esModule: true,
+  default: ({ text }: { text: string }) => (
+    <button type="button" data-testid="back-button">
+      {text}
+    </button>
+  ),
+}));
+
+// Surface the modal's `query` prop as plain text (the real modal renders it in
+// an Ace editor that isn't reliably assertable in jsdom).
+jest.mock("components/modals/ShowQueryModal", () => ({
+  __esModule: true,
+  default: ({ query }: { query?: string }) => (
+    <div data-testid="show-query-modal">{query}</div>
+  ),
+}));
+
+// Activities table fetches on mount; stub it out so the render test stays
+// focused on the policy's own fields.
+jest.mock("../components/PolicyAutomationsActivitiesTable", () => ({
+  __esModule: true,
+  default: () => null,
+}));
 
 const labels = (...names: string[]): ILabelPolicy[] =>
   names.map((name, i) => ({ id: i + 1, name }));
@@ -167,5 +205,103 @@ describe("getLabelModalData", () => {
       expect(result.includeScopeLabel).toBe("have all");
       expect(result.excludeScopeLabel).toBe("exclude all");
     });
+  });
+});
+
+const POLICY_ID = 8;
+
+const createProps = () => ({
+  router: createMockRouter(),
+  params: { id: String(POLICY_ID) },
+  location: {
+    pathname: `/policies/${POLICY_ID}`,
+    search: "",
+    query: {},
+  },
+});
+
+const baseAppContext = {
+  isGlobalAdmin: true,
+  isOnGlobalTeam: true,
+  // Free tier short-circuits useTeamIdParam's redirect logic when no fleet_id is
+  // set, keeping the test focused on which data source the page renders from.
+  isFreeTier: true,
+  isPremiumTier: false,
+  currentUser: createMockUser({ global_role: "admin" }),
+  config: createMockConfig(),
+  availableTeams: [],
+};
+
+describe("PolicyDetailsPage - renders fresh policy data (regression #43310)", () => {
+  it("renders the loaded policy's fields, not stale PolicyContext values", async () => {
+    mockServer.use(
+      // team_id: null keeps the team query disabled, so no second endpoint to mock.
+      http.get(baseUrl(`/policies/${POLICY_ID}`), () =>
+        HttpResponse.json({
+          policy: createMockPolicy({
+            id: POLICY_ID,
+            team_id: null,
+            name: "Fresh policy name",
+            description: "Fresh policy description",
+            resolution: "Fresh resolution steps",
+            platform: "darwin",
+            query: "SELECT 'fresh';",
+            critical: true,
+          }),
+        })
+      )
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: baseAppContext,
+        // Stale values left over from a previously-viewed policy. The page must
+        // ignore all of these and render the freshly-loaded policy instead.
+        policy: {
+          lastEditedQueryName: "Stale policy name",
+          lastEditedQueryDescription: "Stale policy description",
+          lastEditedQueryResolution: "Stale resolution steps",
+          lastEditedQueryPlatform: "windows",
+          lastEditedQueryBody: "SELECT 'stale';",
+          lastEditedQueryCritical: false,
+        },
+      },
+    });
+    const { user, container } = render(
+      <PolicyDetailsPage {...(createProps() as any)} />
+    );
+
+    // name + description
+    expect(await screen.findByText("Fresh policy name")).toBeInTheDocument();
+    expect(screen.getByText("Fresh policy description")).toBeInTheDocument();
+    expect(screen.queryByText("Stale policy name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Stale policy description")
+    ).not.toBeInTheDocument();
+
+    // resolution
+    expect(screen.getByText("Fresh resolution steps")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Stale resolution steps")
+    ).not.toBeInTheDocument();
+
+    // platform ("darwin" displays as "macOS"; stale "windows" must not appear)
+    expect(screen.getByText("macOS")).toBeInTheDocument();
+    expect(screen.queryByText("Windows")).not.toBeInTheDocument();
+
+    // critical (drives the critical-policy icon)
+    expect(
+      container.querySelector(".critical-policy-icon")
+    ).toBeInTheDocument();
+
+    // query (shown via the "Show query" modal)
+    await user.click(screen.getByRole("button", { name: "Show query" }));
+    expect(screen.getByTestId("show-query-modal")).toHaveTextContent(
+      "SELECT 'fresh';"
+    );
+    expect(screen.getByTestId("show-query-modal")).not.toHaveTextContent(
+      "SELECT 'stale';"
+    );
   });
 });
