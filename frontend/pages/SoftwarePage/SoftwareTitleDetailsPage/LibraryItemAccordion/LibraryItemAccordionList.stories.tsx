@@ -66,11 +66,9 @@ const generateLabels = (count: number): ILabelSoftwareTitle[] =>
     name: FAKE_LABEL_NAMES[i] ?? `Label ${i + 1}`,
   })) as ILabelSoftwareTitle[];
 
-// Wrapper component that exposes labelKind/labelCount as real props so
-// Storybook's args+controls system can bind to them reliably. The wrapper
-// builds the label list, wraps its children in LibraryItemAccordionList, and
-// clones each child to inject the labels — letting story authors write
-// natural JSX without repeating the labels props on every accordion row.
+// Exposes labelKind/labelCount as Storybook args; builds the label list,
+// wraps rows in LibraryItemAccordionList, and clones each row to inject the
+// labels so story authors don't repeat them on every accordion.
 type BadgeState = "latest" | "pinned" | "majorVersion";
 
 interface ILibraryItemAccordionListDemoProps {
@@ -89,12 +87,10 @@ interface ILibraryItemAccordionListDemoProps {
   children?: React.ReactNode;
 }
 
-// Recursively unwraps React.Fragment elements so a story can pass its rows
-// wrapped in `<>...</>` (the natural JSX shape) and we still walk down to the
-// individual `<LibraryItemAccordion />` leaves. Neither `Children.map` nor
-// `Children.toArray` traverses fragments — both treat a fragment as a single
-// leaf element — so without this step the cloneElement below would run on the
-// fragment wrapper and the injected props would never reach the accordions.
+// Recursively unwraps React.Fragment so stories can use `<>...</>`. Neither
+// `Children.map` nor `Children.toArray` traverses fragments — they treat
+// them as single leaf elements — which would route cloneElement's injected
+// props to the fragment wrapper instead of the accordion rows.
 const flattenFragments = (nodes: React.ReactNode): React.ReactElement[] => {
   const out: React.ReactElement[] = [];
   React.Children.forEach(nodes, (child) => {
@@ -116,10 +112,8 @@ const flattenFragments = (nodes: React.ReactNode): React.ReactElement[] => {
 // boolean toggling, the prop is its own discriminated union now.
 const badgeOverridesFor = (state: BadgeState) => ({ badgeState: state });
 
-// Realistic hosts-filter URLs so the install-status counts render as
-// CustomLinks (and the hrefs look like what the production page builds via
-// the same utility). `software_title_id` + `fleet_id` are stubbed; only the
-// shape matters for Storybook.
+// Stub URLs from the production utility so install-status counts render as
+// CustomLinks with realistic-looking hrefs. Only the shape matters here.
 const statusPath = (software_status: "installed" | "pending" | "failed") =>
   getPathWithQueryParams(paths.MANAGE_HOSTS, {
     software_title_id: 123,
@@ -133,15 +127,10 @@ const STORYBOOK_PATHS = {
   failedPath: statusPath("failed"),
 };
 
-// Shim used by every story so each row can skip the stub props (paths are
-// stubbed identically here, never customized per story). The Demo wrapper
-// below still injects labels/labelKind/badgeState via cloneElement.
-//
-// Trade-off on `canEditSoftware`: the component prop is required, but stories
-// that aren't about edit-permission shouldn't have to think about it. The
-// shim defaults to `true` so non-permission-focused stories stay short;
-// permission stories (e.g. an inactive row without edit access) override it
-// explicitly. The cost is one less compile-time nudge inside Storybook.
+// Shim around `<LibraryItemAccordion>`: injects path props + a
+// `canEditSoftware: true` default so non-permission stories stay terse.
+// Permission stories override `canEditSoftware` explicitly. The Demo
+// wrapper still injects labels/labelKind/badgeState via cloneElement.
 type IStoryRowProps = Omit<
   ILibraryItemAccordionProps,
   "installedPath" | "pendingPath" | "failedPath" | "canEditSoftware"

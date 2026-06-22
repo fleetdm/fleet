@@ -3,9 +3,9 @@
   flex-direction: column;
 
   &__header {
-    // `<div role="button">` defaults to `content-box`, so `width: 100%` plus
-    // horizontal padding overflows the parent. Native `<button>` is
-    // `border-box` for free; we lost that when the role swap happened.
+    // Explicit border-box: this is a `<div role="button">` (default
+    // `content-box`), and `width: 100%` plus horizontal padding would push
+    // the header past the parent without it.
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -70,8 +70,8 @@
   }
 
   // Non-clickable variant of the label badge (rendered when the viewer can't
-  // edit software). Matches the size="small" text-icon Button visually so the
-  // header doesn't shift when the click affordance is removed.
+  // edit software). Matches the clickable badge's metrics so the header
+  // doesn't shift when the click affordance is removed.
   &__badge-button--static {
     padding: $pad-xsmall $pad-small;
     font-size: $x-small;
@@ -81,19 +81,16 @@
   }
 
   &__panel {
-    // Same `border-box` reason as `__header` above — the panel is stretched
-    // to the accordion's width by `align-items: stretch`, so without
-    // border-box the padding pushes the panel (and every child column) past
-    // the right edge.
+    // Explicit border-box: the panel's width is set by `align-items: stretch`
+    // from the accordion container, and without border-box the padding would
+    // push the panel (and every child column) past the right edge.
     box-sizing: border-box;
     display: flex;
     align-items: stretch;
-    // `gap` (vs `margin-right` on children) lets flex shrink the details
-    // column cleanly when content gets long — child margins don't get
-    // accounted for in some `min-width: 0` interactions and the column
-    // overflows. Uniform 1rem between adjacent columns; the status block
-    // gets an extra `margin-right` below for the asymmetric 3rem visual
-    // breathing room around its border-right divider.
+    // Uniform 1rem column gap; the status block carries an extra 2rem
+    // `margin-right` to reach the 3rem visual separation around its
+    // border-right divider. (Asymmetric per-pair spacing isn't expressible
+    // as a single `gap` value, hence the supplemental margin.)
     gap: $pad-medium;
     padding: $pad-large;
     background: $ui-off-white;
@@ -125,20 +122,16 @@
     font-size: $x-small;
     color: $ui-fleet-black-75;
 
-    // TooltipWrapper's inner element is block-level by default with line-height
-    // whitespace, so the arrow centers on that taller box and reads as pointing
-    // below the icon. Force inline-flex/center so the anchor box matches the
-    // icon's visual bounds. Mirrors __status-counts-info below.
+    // TooltipWrapper's inner element is block by default; force inline-flex
+    // so its bounds match the icon's instead of growing to a line-height box.
     .component__tooltip-wrapper__element {
       display: inline-flex;
       align-items: center;
     }
   }
 
-  // The info-outline tooltip sits inline at the end of the first status row.
-  // TooltipWrapper's inner element is block-level by default, which drops the
-  // icon onto the text baseline; force it to a centered inline-flex so the
-  // info icon shares a vertical center with the "x installed" icon.
+  // Info-outline tooltip at the end of the first status row. Same
+  // inline-flex fix so the icon shares a vertical center with the count.
   &__status-counts-info {
     margin-left: $pad-medium;
     align-items: center;
@@ -190,9 +183,9 @@
     flex: 0 1 auto;
   }
 
-  // Wraps the copy button so the absolutely-positioned "Copied!" message can
-  // anchor to its left edge (right: 100%) and float over the truncated hash
-  // rather than pushing the button around. Mirrors `InputField.__action-button-wrapper`.
+  // Wraps the copy button so the absolute "Copied!" message can anchor to
+  // its left edge and float over the truncated hash. Same pattern as
+  // `InputField.__action-button-wrapper`.
   &__copy-wrapper {
     position: relative;
     flex-shrink: 0;
@@ -204,9 +197,8 @@
 
   &__copy-message {
     @include copy-message;
-    // The mixin's `margin: -4px 0` is designed to align the chip inline with
-    // surrounding text; override to 0 so the absolutely-positioned chip
-    // centers cleanly against the copy button.
+    // Mixin's `margin: -4px 0` is for inline alignment; zero it out so the
+    // absolute chip centers cleanly against the copy button.
     margin: 0;
     position: absolute;
     top: 50%;
@@ -223,8 +215,8 @@
     flex-shrink: 0;
   }
 
-  // The inactive-row tooltip wraps the full-width header button; override the
-  // default inline-flex so the button keeps its row layout.
+  // The inactive-row tooltip wraps the full-width header; override the
+  // default inline-flex so the header keeps its row layout.
   &__inactive-tooltip {
     display: flex;
 

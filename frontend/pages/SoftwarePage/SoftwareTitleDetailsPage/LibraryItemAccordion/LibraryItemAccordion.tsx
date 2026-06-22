@@ -387,11 +387,9 @@ const LibraryItemAccordion = ({
     </Button>
   );
 
-  // Mirrors `SoftwareInstallerCard.SoftwareActionButtons` and complements the
-  // `permissions.canWriteSoftware` role gate: only FMA and App Store / Play
-  // Store rows are GitOps-locked (those installer types can't be managed via
-  // YAML). Custom packages stay deletable. The "software" entity exception is
-  // respected via `GitOpsModeTooltipWrapper`'s `entityType`.
+  // Only FMA and App Store / Play Store rows are GitOps-locked (those
+  // installer types can't be managed via YAML); custom packages stay
+  // deletable. The `software` entity exception is honored via the wrapper.
   const isAppStore = installerType === "app-store";
   const lockedByGitOpsMode = isFma || isAppStore;
 
@@ -409,12 +407,10 @@ const LibraryItemAccordion = ({
       renderTrashButtonBody(false)
     );
 
-  // Activates the header on Enter or Space. Mirrors `DataTable.tsx`'s
-  // clickable-row pattern (onClick + onKeyDown + tabIndex on the container)
-  // but uses `role="button"` since this isn't a `<tr>` with implicit table
-  // semantics. The container can't be a real `<button>` because the badges
-  // it renders are themselves native `<button>` elements — nesting buttons
-  // violates the HTML spec and would fire React's validateDOMNesting warning.
+  // `<div role="button">` rather than `<button>` because the badges nested
+  // inside are native `<button>`s — nesting them violates the HTML spec
+  // (React fires `validateDOMNesting`). Keyboard handling mirrors
+  // `DataTable.tsx`'s clickable-row pattern.
   const handleHeaderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!canExpand) return;
     if (e.key === "Enter" || e.key === " ") {
@@ -451,15 +447,9 @@ const LibraryItemAccordion = ({
         isScriptPackage={isScriptPackage}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
-        // Inactive rows wrap the entire header in the `inactiveTooltip`
-        // ("Select Actions > Versions and pin this version to rollback."),
-        // which is the only hover affordance the row should surface.
-        // Suppressing the widget's own tooltips (title truncation, version
-        // chip, addedAt, FMA, Play Store) avoids stacking a second tooltip
-        // on top of that one — Fleet UI avoids rendering two tooltips on the
-        // same hover target across the app. See
-        // `SoftwareInstallerCard/InstallerDetailsWidget/InstallerDetailsWidget.tsx`
-        // for the exact set of tooltips this flag silences.
+        // Inactive rows surface a single hover tooltip (the rollback hint);
+        // suppress the widget's tooltips to avoid stacking two on the same
+        // target. See `InstallerDetailsWidget` for the full set silenced.
         disableTooltips={!isActive}
       />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
