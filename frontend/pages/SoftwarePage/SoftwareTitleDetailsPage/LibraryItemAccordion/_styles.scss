@@ -168,7 +168,7 @@
   &__hash-row {
     display: flex;
     align-items: center;
-    position: relative;
+    gap: $pad-small;
     min-width: 0;
   }
 
@@ -179,13 +179,30 @@
     flex: 0 1 auto;
   }
 
+  // Wraps the copy button so the absolutely-positioned "Copied!" message can
+  // anchor to its left edge (right: 100%) and float over the truncated hash
+  // rather than pushing the button around. Mirrors `InputField.__action-button-wrapper`.
+  &__copy-wrapper {
+    position: relative;
+    flex-shrink: 0;
+  }
+
   &__copy-button {
     flex-shrink: 0;
   }
 
   &__copy-message {
-    font-size: $xx-small;
-    color: $ui-fleet-black-50;
+    @include copy-message;
+    // The mixin's `margin: -4px 0` is designed to align the chip inline with
+    // surrounding text; override to 0 so the absolutely-positioned chip
+    // centers cleanly against the copy button.
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    right: calc(100% + #{$pad-xsmall});
+    transform: translateY(-50%);
+    pointer-events: none;
+    white-space: nowrap;
   }
 
   &__actions-column {

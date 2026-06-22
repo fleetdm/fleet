@@ -1,10 +1,25 @@
+import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryClientProviderProps,
+} from "react-query";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import LibraryItemAccordion from "./LibraryItemAccordion";
+
+// Needed because the embedded `SoftwareIcon` (rendered for installerType
+// "app-store") uses `useQuery` internally. Without a QueryClientProvider in
+// scope, switching the `installerType` control to "app-store" throws.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+type CustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
+const CustomQueryClientProvider: React.FC<CustomQueryClientProviderProps> = QueryClientProvider;
 
 const labels7: ILabelSoftwareTitle[] = Array.from({ length: 7 }, (_, i) => ({
   id: i + 1,
@@ -39,6 +54,13 @@ const meta: Meta<typeof LibraryItemAccordion> = {
       "af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7",
     downloadUrl: "https://example.com/installer.pkg",
   },
+  decorators: [
+    (Story) => (
+      <CustomQueryClientProvider client={queryClient}>
+        <Story />
+      </CustomQueryClientProvider>
+    ),
+  ],
 };
 
 export default meta;

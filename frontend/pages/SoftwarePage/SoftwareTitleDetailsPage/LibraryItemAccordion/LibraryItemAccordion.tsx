@@ -354,19 +354,22 @@ const LibraryItemAccordion = ({
             className={`${baseClass}__hash`}
             value={hashSha256}
           />
-
-          <Button
-            variant="icon"
-            iconStroke
-            onClick={handleCopyHash}
-            ariaLabel="Copy hash to clipboard"
-            className={`${baseClass}__copy-button`}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage && (
-            <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
-          )}
+          <div className={`${baseClass}__copy-wrapper`}>
+            {copyMessage && (
+              <span className={`${baseClass}__copy-message`}>
+                {copyMessage}
+              </span>
+            )}
+            <Button
+              variant="icon"
+              iconStroke
+              onClick={handleCopyHash}
+              ariaLabel="Copy hash to clipboard"
+              className={`${baseClass}__copy-button`}
+            >
+              <Icon name="copy" />
+            </Button>
+          </div>
         </div>
       </div>
     );
