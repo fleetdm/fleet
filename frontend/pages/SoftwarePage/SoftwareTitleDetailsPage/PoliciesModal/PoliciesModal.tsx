@@ -25,7 +25,11 @@ const PoliciesModal = ({ policies, teamId, onExit }: IPoliciesModalProps) => {
             No policies are linked to this software.
           </p>
         ) : (
-          <InstallerPoliciesTable teamId={teamId} policies={policies} hideCount />
+          <InstallerPoliciesTable
+            teamId={teamId}
+            policies={policies}
+            hideCount
+          />
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>

@@ -3,17 +3,32 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
     "icon  title  actions"
-    "icon  data   data"
-    "pills pills  pills";
+    "icon  data   data";
   align-items: center;
   column-gap: $pad-small;
   row-gap: $pad-small;
 
-  @media (min-width: $break-md) {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  // Adds the third row only when pills are present — otherwise the empty
+  // track would still add `row-gap` below the data row (e.g. EditIconModal's
+  // preview card never passes `headerPills`).
+  &--has-pills {
     grid-template-areas:
-      "icon  title  pills  actions"
-      "icon  data   data   data";
+      "icon  title  actions"
+      "icon  data   data"
+      "pills pills  pills";
+  }
+
+  @media (min-width: $break-md) {
+    grid-template-areas:
+      "icon  title  actions"
+      "icon  data   data";
+
+    &--has-pills {
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-areas:
+        "icon  title  pills  actions"
+        "icon  data   data   data";
+    }
   }
 
   .software-icon {

@@ -5,6 +5,7 @@ software/os/:id > Top section
 */
 
 import React from "react";
+import classnames from "classnames";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -126,12 +127,14 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show versions option only for Fleet-maintained apps on Premium
+  // Show versions option only for Fleet-maintained apps on Premium.
+  // GitOps mode disables the option even when repoURL hasn't loaded yet — the
+  // tooltip will simply be absent until config arrives.
   if (canManageVersions) {
     options.push({
       label: "Versions",
       value: ACTION_VERSIONS,
-      isDisabled: !!disabledVersionsTooltipContent,
+      isDisabled: gitOpsModeEnabled,
       tooltipContent: disabledVersionsTooltipContent,
     });
   }
@@ -287,7 +290,11 @@ const SoftwareDetailsSummary = ({
 
   return (
     <>
-      <div className={baseClass}>
+      <div
+        className={classnames(baseClass, {
+          [`${baseClass}--has-pills`]: !!headerPills,
+        })}
+      >
         <div className={`${baseClass}__icon-wrap`}>
           {isOperatingSystem ? (
             <OSIcon name={name} size="xlarge" />

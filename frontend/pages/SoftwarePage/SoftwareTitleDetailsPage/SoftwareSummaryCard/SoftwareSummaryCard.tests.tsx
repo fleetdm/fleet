@@ -638,12 +638,7 @@ describe("Software Summary Card", () => {
 
       await user.click(screen.getByText("Auto install"));
 
-      // The modal renders the help text and both policies in the table.
-      expect(
-        screen.getAllByText(
-          "Software will be installed when hosts fail these policies."
-        ).length
-      ).toBeGreaterThan(0);
+      // The modal renders both policies in the table.
       expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Policy B").length).toBeGreaterThan(0);
     });

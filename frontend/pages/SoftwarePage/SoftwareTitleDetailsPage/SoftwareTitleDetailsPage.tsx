@@ -375,6 +375,11 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderLibrarySection = (title: ISoftwareTitleDetails) => {
+    // Library section is Premium-only per #47621 CoS — Fleet Free should not
+    // see it even when an installer is present.
+    if (!isPremiumTier) {
+      return null;
+    }
     const installerCard = renderSoftwareInstallerCard(title);
     if (!installerCard) {
       return null;
