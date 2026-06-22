@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.9.1.1",
+      "version": "6.10.0.252.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND version_compare(bundle_short_version, '6.9.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.acc.AdobeCreativeCloud' AND version_compare(bundle_short_version, '6.10.0.252.3') < 0);"
       },
-      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.9.1/1/macarm64/ACCCx6_9_1_1.dmg",
+      "installer_url": "https://ccmdls.adobe.com/AdobeProducts/StandaloneBuilds/ACCC/ESD/6.10.0/252.3/macarm64/ACCCx6_10_0_252_3.dmg",
       "install_script_ref": "a331ea84",
       "uninstall_script_ref": "e002ddef",
-      "sha256": "3a5c62f6e0be6bf38c7fa169744bc6545b3d9a1512974cb2acff80df315a1a91",
+      "sha256": "d02fc307e32b583c0552fbbca87cfe40b098f2fc707a12b033dff726091a21d6",
       "default_categories": [
         "Productivity"
       ]
