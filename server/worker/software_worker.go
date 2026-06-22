@@ -750,7 +750,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 
 const (
 	androidSoftwareInstallStaggerInterval = 60 * time.Second
-	defaultAndroidBatchSize               = 1000
+	defaultAndroidBatchSize               = 100
 )
 
 func QueueBulkSetAndroidAppsAvailableForHosts(
