@@ -42,6 +42,7 @@ const GitOpsModeTooltipWrapper = ({
 
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const [hasSingleFieldRow, setHasSingleFieldRow] = useState(false);
+  const [wrapsField, setWrapsField] = useState(true);
   // Prefix makes this a valid CSS id selector (lodash uniqueId returns a bare number).
   const wrapperId = useMemo(() => uniqueId(`${baseClass}-`), []);
 
@@ -56,6 +57,10 @@ const GitOpsModeTooltipWrapper = ({
       FIRST_ROW_PARTS.join(", ")
     );
     setHasSingleFieldRow(!!root?.matches(".form-field") && rows?.length === 1);
+    // Field content (a single field or a group of them) keeps full width so the disabled
+    // row stays the hover target; only non-field content (buttons, icon rows) hugs its
+    // content so the tooltip centers on the button rather than the full form row.
+    setWrapsField(!!wrapperRef.current?.querySelector(".form-field"));
   }, []);
 
   if (!gitOpsModeEnabled) {
@@ -70,6 +75,7 @@ const GitOpsModeTooltipWrapper = ({
 
   const wrapperClass = classnames(baseClass, {
     [`${baseClass}--inputfield`]: isInputField,
+    [`${baseClass}--hug`]: !wrapsField && !isInputField,
   });
 
   // Anchor to the field's first row so the arrow points at the label regardless of input,
@@ -86,7 +92,10 @@ const GitOpsModeTooltipWrapper = ({
         className={`${baseClass}__tip-text`}
         anchorSelect={anchorSelect}
         place={position}
-        offset={tipOffset ?? 5}
+        // This wrapper always renders an arrow. A 5px offset leaves no gap between the
+        // arrow and a button (e.g. "Add certificate authority"), so non-field content
+        // gets extra clearance. Field tooltips anchor to the label row and read fine at 5.
+        offset={tipOffset ?? (hasSingleFieldRow ? 5 : 8)}
         opacity={1}
         disableStyleInjection
         clickable

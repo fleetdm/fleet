@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "30.0.4",
+      "version": "30.2.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'draw.io' AND publisher = 'JGraph';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'draw.io' AND publisher = 'JGraph' AND version_compare(version, '30.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'draw.io' AND publisher = 'JGraph' AND version_compare(version, '30.2.4') < 0);"
       },
-      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v30.0.4/draw.io-30.0.4-windows-installer.exe",
+      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v30.2.4/draw.io-30.2.4-windows-installer.exe",
       "install_script_ref": "51038703",
       "uninstall_script_ref": "63a061f9",
-      "sha256": "24776674f7b36e7cec763a3bdd0f2815d91a31d750b148f23db3e5d5f65deda5",
+      "sha256": "2f4639dc5a5c2c9c4385ea1a344a13f3ec97cfd84c98607d4c13e0f6a5118734",
       "default_categories": [
         "Productivity"
       ]
