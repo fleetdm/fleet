@@ -71,6 +71,10 @@ export const buildActionOptions = ({
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
   let disabledVersionsTooltipContent: TooltipContent | undefined;
 
+  // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
+  // below); the tooltip is only populated when `repoURL` is also available,
+  // since the copy depends on it. Without that split, an empty `repoURL`
+  // would leave the options clickable in gitops mode.
   if (gitOpsModeEnabled) {
     const gitOpsModeTooltipContent =
       repoURL && getGitOpsModeTipContent(repoURL);
@@ -92,7 +96,7 @@ export const buildActionOptions = ({
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      isDisabled: !!disableEditAppearanceTooltipContent,
+      isDisabled: gitOpsModeEnabled,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
@@ -102,7 +106,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: !!disableEditSoftwareTooltipContent,
+      isDisabled: gitOpsModeEnabled && source === "vpp_apps",
       tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
@@ -112,7 +116,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      isDisabled: !!disabledEditConfigurationTooltipContent,
+      isDisabled: gitOpsModeEnabled,
       tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
@@ -128,8 +132,6 @@ export const buildActionOptions = ({
   }
 
   // Show versions option only for Fleet-maintained apps on Premium.
-  // GitOps mode disables the option even when repoURL hasn't loaded yet — the
-  // tooltip will simply be absent until config arrives.
   if (canManageVersions) {
     options.push({
       label: "Versions",
