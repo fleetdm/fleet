@@ -6,8 +6,8 @@ This guide shows how to work around that limitation using custom Apple DDM decla
 
 ## Prerequisites
 
-- Fleet v4.88 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
-- Fleet v4.89 or later: this flag is enabled by default. No action needed.
+- Fleet v4.86 or earlier: enable the `mdm.allow_all_declarations` feature flag on your Fleet server before following these steps. Set the environment variable `FLEET_MDM_ALLOW_ALL_DECLARATIONS=1` and restart your Fleet server. See [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) for details.
+- Fleet v4.87 or later: this flag is enabled by default. No action needed.
 - macOS 14 or later on managed devices (required by Apple for `softwareupdate.enforcement.specific` declarations).
 - Fleet Premium (required for label-scoped profiles).
 
