@@ -463,18 +463,16 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	// CountHostsInLabel, so this covers the list and count endpoints together.
 	policyAuthor := test.NewUser(t, db, "Policy Author", "policy-author@example.com", true)
 	policy := newTestPolicy(t, db, policyAuthor, "label-policy", "darwin", nil)
-	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false, nil))
-	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false, nil))
+	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil))
 
-	// passing → only h1
-	passing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID), PolicyResponseFilter: ptr.Bool(true)}, 1)
-	require.Equal(t, h1.ID, passing[0].ID)
-	// failing → only h2
-	failing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID), PolicyResponseFilter: ptr.Bool(false)}, 1)
-	require.Equal(t, h2.ID, failing[0].ID)
-	// policy_id without a response → "not run" → only h3 (h1/h2 have results)
-	notRun := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: ptr.Uint(policy.ID)}, 1)
-	require.Equal(t, h3.ID, notRun[0].ID)
+	// passing → only h1, failing → only h2, no response ("not run") → only h3
+	passing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: new(policy.ID), PolicyResponseFilter: new(true)}, 1)
+	require.Equal(t, []uint{h1.ID}, hostIDsOf(passing))
+	failing := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: new(policy.ID), PolicyResponseFilter: new(false)}, 1)
+	require.Equal(t, []uint{h2.ID}, hostIDsOf(failing))
+	notRun := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{PolicyIDFilter: new(policy.ID)}, 1)
+	require.Equal(t, []uint{h3.ID}, hostIDsOf(notRun))
 
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
@@ -537,6 +535,18 @@ func listHostsInLabelCheckCount(
 	require.Equal(t, expectedCount, count)
 	require.Len(t, hosts, expectedCount)
 	return hosts
+}
+
+// hostIDsOf extracts host IDs nil-safely (skips any nil element), so callers can
+// assert membership without indexing a possibly-nil slice/element.
+func hostIDsOf(hosts []*fleet.Host) []uint {
+	ids := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		if h != nil {
+			ids = append(ids, h.ID)
+		}
+	}
+	return ids
 }
 
 func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
