@@ -1747,6 +1747,42 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
 	}
 
+	// Keep appconfig in sync
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
+		if appCfgToken.OrganizationName == token.OrganizationName {
+
+			// Clear no team names, so they are presented nicer in gitops.
+			appCfgToken.BYODTeam = token.BYODTeam.Name
+			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.BYODTeam = ""
+			}
+			appCfgToken.MacOSTeam = token.MacOSTeam.Name
+			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.MacOSTeam = ""
+			}
+			appCfgToken.IOSTeam = token.IOSTeam.Name
+			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IOSTeam = ""
+			}
+			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
+			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IpadOSTeam = ""
+			}
+
+			// update the app config with the new team names
+			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
+			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
+			}
+			break
+		}
+	}
+
 	return token, nil
 }
 

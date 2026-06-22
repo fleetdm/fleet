@@ -2166,14 +2166,14 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
-				COALESCE(SUM(CASE WHEN hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
+				COALESCE(SUM(CASE WHEN hdep.deleted_at IS NULL AND hdep.assign_profile_response IN (%s, %s) THEN 1 ELSE 0 END), 0) dep_assign_error_count,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)`+hostMDMSeenTimeJoin+`
 			LEFT JOIN host_dep_assignments hdep ON h.id = hdep.host_id
 			%s
 			%s
-			WHERE %s AND hdep.deleted_at IS NULL
+			WHERE %s
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, depFailed, depThrottled, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
@@ -2537,6 +2537,35 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	}
 
 	return &host, nil
+}
+
+// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in Fleet and
+// was previously orbit-enrolled (i.e. it has an orbit node key). It mirrors the host matching done by EnrollOrbit so that "a host
+// already exists here" means the same row EnrollOrbit would take over.
+func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+	if hostInfo.HardwareUUID == "" {
+		return false, ctxerr.New(ctx, "hardware uuid is empty")
+	}
+
+	serialToMatch := hostInfo.HardwareSerial
+	if hostInfo.Platform == "windows" {
+		// For Windows, don't match by serial number, matching EnrollOrbit's behavior.
+		serialToMatch = ""
+	}
+
+	matched, err := matchHostDuringEnrollment(ctx, ds.reader(ctx), orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
+		hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// No host matches these identifiers: this is a new device (or one moving to a different Fleet server), not a re-enroll.
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "match host for orbit re-enrollment check")
+	default:
+		// Require a previously-set orbit node key so a never-orbit-enrolled row (e.g. a DEP-pre-created host) does not exempt
+		// enrollment from end user authentication.
+		return matched.NodeKeySet, nil
+	}
 }
 
 // EnrollOsquery enrolls the osquery agent to Fleet.
