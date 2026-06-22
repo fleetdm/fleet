@@ -134,10 +134,6 @@ $max-width: 2560px;
 
 @mixin grey-text {
   color: $ui-fleet-black-50;
-
-  .custom-link {
-    color: inherit;
-  }
 }
 
 @mixin help-text {
