@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -29,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2090,43 +2090,11 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-// This endpoint gets called twice by the Apple account driven enrollment flow. The first time it
-// is called without a bearer token which results in a 401 Unauthorized response where we tell it
-// to go through MDM SSO End User Authentication. The second time it is called with a bearer token,
-// in this case an enrollment reference which is used to fetch the enrollment profile. The device
-// then has the user sign in with the Apple ID specified in the enrollment profile
-func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*mdmAppleAccountEnrollRequest)
-	svc.SkipAuth(ctx)
-	deviceProduct := strings.ToLower(req.DeviceInfo.Product)
-	if !(strings.HasPrefix(deviceProduct, "ipad") || strings.HasPrefix(deviceProduct, "iphone") || strings.HasPrefix(deviceProduct, "ipod")) {
-		// There is unfortunately no good way to get the client to show this error, they will see a
-		// generic error about a failure to get an enrollment profile.
-		return mdmAppleEnrollResponse{
-			Err: &fleet.BadRequestError{
-				Message: "only iOS and iPadOS devices are supported for account driven user enrollment",
-			},
-		}, nil
-	}
-	if req.EnrollReference == nil {
-		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-		return mdmAppleAccountEnrollAuthenticateResponse{mdmSSOUrl: mdmSSOUrl}, nil
-	}
-
-	// Fetch the enrollment reference
-	profile, err := svc.GetMDMAppleAccountEnrollmentProfile(ctx, *req.EnrollReference)
-	if err != nil {
-		return mdmAppleEnrollResponse{Err: err}, nil
-	}
-	return mdmAppleEnrollResponse{Profile: profile}, nil
-}
-
 type mdmAppleAccountEnrollRequest struct {
 	EnrollReference *string
 	DeviceInfo      fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo
+	// EnrollmentToken is the token extracted from the URL variable. It contains the ABM unique token to link this enrollment attempt to an ABM token.
+	EnrollmentToken string
 }
 
 func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -2168,17 +2136,22 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
 
+	token := mux.Vars(r)["token"]
+	if token != "" {
+		decoded.EnrollmentToken = token
+	}
+
 	return &decoded, nil
 }
 
-type mdmAppleAccountEnrollAuthenticateResponse struct {
+type mdmAppleAccountEnrollResponse struct {
 	Err       error `json:"error,omitempty"`
 	mdmSSOUrl string
 }
 
-func (r mdmAppleAccountEnrollAuthenticateResponse) Error() error { return r.Err }
+func (r mdmAppleAccountEnrollResponse) Error() error { return r.Err }
 
-func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r mdmAppleAccountEnrollResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate",
 		`Bearer method="apple-as-web" `+
 			`url="`+r.mdmSSOUrl+`"`,
@@ -2186,66 +2159,59 @@ func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Cont
 	w.WriteHeader(http.StatusUnauthorized)
 }
 
+// This endpoint gets called twice by the Apple account driven enrollment flow. The first time it
+// is called without a bearer token which results in a 401 Unauthorized response where we tell it
+// to go through MDM SSO End User Authentication. The second time it is called with a bearer token,
+// in this case an enrollment reference which is used to fetch the enrollment profile. The device
+// then has the user sign in with the Apple ID specified in the enrollment profile
+func mdmAppleAccountEnrollEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*mdmAppleAccountEnrollRequest)
+	svc.SkipAuth(ctx)
+	deviceProduct := strings.ToLower(req.DeviceInfo.Product)
+	if !(strings.HasPrefix(deviceProduct, "ipad") || strings.HasPrefix(deviceProduct, "iphone") || strings.HasPrefix(deviceProduct, "ipod")) {
+		// There is unfortunately no good way to get the client to show this error, they will see a
+		// generic error about a failure to get an enrollment profile.
+		return mdmAppleEnrollResponse{
+			Err: &fleet.BadRequestError{
+				Message: "only iOS and iPadOS devices are supported for account driven user enrollment",
+			},
+		}, nil
+	}
+
+	if req.EnrollReference == nil {
+		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx, req.EnrollmentToken)
+		if err != nil {
+			return mdmAppleAccountEnrollResponse{Err: err}, nil
+		}
+		return mdmAppleAccountEnrollResponse{mdmSSOUrl: mdmSSOUrl}, nil
+	}
+
+	// Fetch the enrollment reference
+	profile, err := svc.GetMDMAppleAccountEnrollmentProfile(ctx, *req.EnrollReference)
+	if err != nil {
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+	return mdmAppleEnrollResponse{Profile: profile}, nil
+}
+
 func (svc *Service) SkipAuth(ctx context.Context) {
 	svc.authz.SkipAuthorization(ctx)
 }
 
-func (svc *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error) {
-	// skipauth: The enroll profile endpoint is unauthenticated.
+func (svc *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err)
-	}
-
-	return appConfig.MDMUrl() + "/mdm/apple/account_driven_enroll/sso", nil
+	return "", fleet.ErrMissingLicense
 }
 
 func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollRef string) (profile []byte, err error) {
-	// skipauth: This enrollment endpoint is authenticated only by the enrollment reference.
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollRef)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting MDM IdP account by UUID")
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	topic, err := svc.mdmPushCertTopic(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
-	}
-
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	}, nil)
-	if err != nil {
-		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
-	}
-	enrollURL := appConfig.MDMUrl()
-
-	enrollmentProf, err := apple_mdm.GenerateAccountDrivenEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		enrollURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
-		topic,
-		idpAccount.Email,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
-	}
-
-	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "signing profile")
-	}
-
-	return signed, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
@@ -2298,7 +2264,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
-	topic, err := svc.mdmPushCertTopic(ctx)
+	topic, err := apple_mdm.MDMPushCertTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
@@ -2549,32 +2515,6 @@ func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAp
 		ProductVersion: latest.ProductVersion,
 		Build:          latest.Build,
 	}), nil
-}
-
-func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetAPNSCert,
-	}, nil)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
-	}
-
-	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return "", ctxerr.Wrap(ctx, err, "decoding PEM data")
-	}
-
-	apnsCert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing APNs certificate")
-	}
-
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
-	}
-
-	return mdmPushCertTopic, nil
 }
 
 // enqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a RemoveProfile MDM command for the given host.
@@ -3567,7 +3507,7 @@ func (r initiateMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWri
 	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }
 
-func initiateMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func initiateMDMSSOEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateMDMSSORequest)
 	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "", req.HostUUID)
 	if err != nil {
@@ -3575,8 +3515,7 @@ func initiateMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}
 
 	return initiateMDMSSOResponse{
-		URL: idpProviderURL,
-
+		URL:                    idpProviderURL,
 		sessionID:              sessionID,
 		sessionDurationSeconds: sessionDurationSeconds,
 	}, nil
@@ -3797,6 +3736,28 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		m.Model = m.ProductName
 	}
 
+	// For account driven user enrollments, we get the challenge in the Bearer token
+	// which is used to look up the default team for BYOD enrollments.
+	var byodTeamID *uint
+	if r.Type == mdm.UserEnrollmentDevice && strings.HasPrefix(r.Authorization, "Bearer ") {
+		// Split enrollment challenge off the Bearer prefix
+		challenge := strings.TrimPrefix(r.Authorization, "Bearer ")
+
+		enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(r.Context, challenge)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
+		}
+
+		if enrollChallenge.ABMTokenID != nil {
+			abmToken, err := svc.ds.GetABMTokenByID(r.Context, *enrollChallenge.ABMTokenID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting abm token by id")
+			}
+			byodTeamID = abmToken.BYODDefaultTeamID
+		}
+
+	}
+
 	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                mdmlifecycle.HostActionReset,
 		Platform:              platform,
@@ -3805,6 +3766,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		HardwareModel:         m.Model,
 		SCEPRenewalInProgress: scepRenewalInProgress,
 		UserEnrollmentID:      m.EnrollmentID,
+		TeamID:                byodTeamID,
 	}); err != nil {
 		svc.logger.WarnContext(r.Context, "could not reset Apple mdm information", "UDID", m.UDID, "EnrollmentID", m.EnrollmentID, "err", err)
 		return err
@@ -3949,26 +3911,38 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 
 	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments,
-	// are a special case where the bearer token is used to link the enrollment to the IDP account.
+	// are a special case where the bearer token is used to link the enrollment to the IDP account and it's default team.
 	if r.Type == mdm.UserEnrollmentDevice && idp == nil && strings.HasPrefix(r.Authorization, "Bearer ") {
-		// Split off the Bearer prefix
-		accountUUID := strings.TrimPrefix(r.Authorization, "Bearer ")
-		idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, accountUUID)
+		// Split enrollment challenge off the Bearer prefix
+		challenge := strings.TrimPrefix(r.Authorization, "Bearer ")
+
+		enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(r.Context, challenge)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
+			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
 		}
-		if fleet.IsNotFound(err) || idpAccount == nil {
-			// This should never happen but we still want to process the token update
-			svc.logger.ErrorContext(r.Context, "no IDP account found for User (Device) enrollment even though a bearer token was passed",
-				"host_uuid", r.ID, "account_uuid", accountUUID)
+		if fleet.IsNotFound(err) || enrollChallenge == nil {
+			// This should never happen, but we skip IDP assocation.
+			svc.logger.ErrorContext(r.Context, "no enrollment challenge found for User (Device) enrollment",
+				"host_uuid", r.ID, "challenge", challenge)
 		} else {
-			acctUUID = idpAccount.UUID
-			managedAppleID = idpAccount.Email
-			err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "associating host with idp account")
+			idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, enrollChallenge.IdPAccountUUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
+			}
+			if fleet.IsNotFound(err) || idpAccount == nil {
+				// This should never happen but we still want to process the token update
+				svc.logger.ErrorContext(r.Context, "no IDP account found for User (Device) enrollment",
+					"host_uuid", r.ID, "account_uuid", enrollChallenge.IdPAccountUUID)
+			} else {
+				acctUUID = idpAccount.UUID
+				managedAppleID = idpAccount.Email
+				err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
+				if err != nil {
+					return ctxerr.Wrap(r.Context, err, "associating host with idp account")
+				}
 			}
 		}
+
 	}
 
 	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
@@ -6543,6 +6517,7 @@ type updateABMTokenTeamsRequest struct {
 	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
 	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
 	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -6555,7 +6530,7 @@ func (r updateABMTokenTeamsResponse) Error() error { return r.Err }
 func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
 
-	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID)
+	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID, req.BYODTeamID)
 	if err != nil {
 		return &updateABMTokenTeamsResponse{Err: err}, nil
 	}
@@ -6563,7 +6538,7 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 	return &updateABMTokenTeamsResponse{ABMToken: tok}, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -6888,7 +6863,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, authz.ForbiddenWithInternal(fmt.Sprintf("payload signed with invalid certificate: %s", err), nil, nil, nil)
 	}
 
-	topic, err := svc.mdmPushCertTopic(ctx)
+	topic, err := apple_mdm.MDMPushCertTopic(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
@@ -6952,7 +6927,7 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking account driven enrollment service discovery")
 	}
-	sdURL := ac.MDMUrl() + urlPrefix + apple_mdm.ServiceDiscoveryPath
+	sdURL := ac.MDMUrl() + urlPrefix + apple_mdm.ServiceDiscoveryTokenPath
 
 	tokens, err := ds.ListABMTokens(ctx)
 	switch {
@@ -6961,36 +6936,43 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	case len(tokens) == 0:
 		logger.InfoContext(ctx, "no ABM tokens found, skipping account driven enrollment service discovery")
 		return nil
-	case len(tokens) > 1:
-		logger.DebugContext(ctx, "multiple ABM tokens found, using the first one for account driven enrollment service discovery")
 	}
-	orgName := tokens[0].OrganizationName
 
-	details, err := depSvc.GetMDMAppleServiceDiscoveryDetails(ctx, orgName)
-	if err != nil {
-		switch {
-		case godep.IsServiceDiscoveryNotFound(err):
-			logger.InfoContext(ctx, "account driven enrollment profile not found") // proceed to assignment
-		case godep.IsServiceDiscoveryNotSupported(err):
-			logger.InfoContext(ctx, "account driven enrollment org not supported, skipping assignment")
-			return nil // skip assignment
-		default:
-			return ctxerr.Wrap(ctx, err, "fetching account driven enrollment profile") // skip assignment
+	for _, token := range tokens {
+		orgName := token.OrganizationName
+
+		details, err := depSvc.GetMDMAppleServiceDiscoveryDetails(ctx, orgName)
+		if err != nil {
+			switch {
+			case godep.IsServiceDiscoveryNotFound(err):
+				logger.InfoContext(ctx, "account driven enrollment profile not found") // proceed to assignment
+			case godep.IsServiceDiscoveryNotSupported(err):
+				logger.InfoContext(ctx, "account driven enrollment org not supported, skipping assignment")
+				continue // skip assignment
+			default:
+				logger.ErrorContext(ctx, "fetching account driven enrollment profile", "org_name", orgName, "err", err)
+				continue // skip assignment
+			}
 		}
-	}
 
-	var gotURL string
-	var lastUpdated time.Time
-	if details != nil {
-		gotURL = details.MDMServiceDiscoveryURL
-		lastUpdated = details.LastUpdatedTimestamp
-	}
-	logger.InfoContext(ctx, "account driven enrollment service discovery url confirmed", "service_discovery_url", gotURL, "last_updated", lastUpdated)
+		sdURLWithToken := strings.Replace(sdURL, "{token}", string(token.EnrollmentURLToken), 1)
 
-	if gotURL != sdURL {
-		// proced to assignment
-		return ctxerr.Wrap(ctx, depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, sdURL),
-			"assigning account driven enrollment service discovery URL")
+		var gotURL string
+		var lastUpdated time.Time
+		if details != nil {
+			gotURL = details.MDMServiceDiscoveryURL
+			lastUpdated = details.LastUpdatedTimestamp
+		}
+		logger.InfoContext(ctx, "account driven enrollment service discovery url confirmed", "service_discovery_url", gotURL, "last_updated", lastUpdated)
+
+		if gotURL != sdURLWithToken {
+			logger.InfoContext(ctx, "account driven enrollment service discovery url needs update", "new_url", sdURLWithToken)
+			// proced to assignment
+			if err := depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, sdURLWithToken); err != nil {
+				logger.ErrorContext(ctx, "assigning account driven enrollment service discovery URL", "org_name", orgName, "err", err)
+			}
+			continue
+		}
 	}
 
 	return nil

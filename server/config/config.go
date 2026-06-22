@@ -715,6 +715,13 @@ type VulnerabilitiesConfig struct {
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
+// IsDisabledByInstanceCheck reports whether vulnerability processing is disabled
+// on this instance via the current_instance_checks setting ("no", or the legacy
+// "0"). It does not consider DisableSchedule, which disables processing globally.
+func (v VulnerabilitiesConfig) IsDisabledByInstanceCheck() bool {
+	return v.CurrentInstanceChecks == "no" || v.CurrentInstanceChecks == "0"
+}
+
 // UpgradesConfig defines configs related to fleet server upgrades.
 type UpgradesConfig struct {
 	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`

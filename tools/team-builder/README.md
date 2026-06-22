@@ -1,3 +1,10 @@
+> [!NOTE]
+> **Prefer [`dibble`](../dibble/README.md) for seeding teams.** The equivalent is:
+> ```bash
+> ./tools/dibble/dibble teams --count N
+> ```
+> This tool is kept for backwards compatibility (it also generates installer
+> packages, which dibble does not). We'll remove it once no one references it.
 
 # Fleet fleet builder
 

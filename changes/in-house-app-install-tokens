@@ -1,5 +1,0 @@
-- In-house iOS app manifest and package endpoints now require a per-install
-  token in the URL, minted when the install is enqueued and bound to the
-  target host with a 6-hour TTL. Aligns the in-house download flow with the
-  URL-token authentication pattern already used by Fleet's MDM installer and
-  software installer download endpoints.

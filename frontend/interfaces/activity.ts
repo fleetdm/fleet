@@ -184,6 +184,14 @@ export enum ActivityType {
   DeletedOrgLogo = "deleted_org_logo",
   EnabledHistoricalDataset = "enabled_historical_dataset",
   DisabledHistoricalDataset = "disabled_historical_dataset",
+  FailedAutomationWebhook = "failed_automation_webhook",
+  FailedAutomationTicket = "failed_automation_ticket",
+  FailedAutomationCalendarEvent = "failed_automation_calendar_event",
+  FailedAutomationConditionalAccess = "failed_automation_conditional_access",
+  RanAutomationWebhook = "ran_automation_webhook",
+  RanAutomationTicket = "ran_automation_ticket",
+  RanAutomationCalendarEvent = "ran_automation_calendar_event",
+  RanAutomationConditionalAccess = "ran_automation_conditional_access",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -331,6 +339,13 @@ export interface IActivityDetails {
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
+  status_code?: number;
+  error_response?: string;
+  /** Ticket integration that produced a ticket policy automation activity. */
+  type?: "jira" | "zendesk";
+  ticket_key?: string;
+  ticket_id?: number;
   custom_variable_name?: string;
   host_idp_username?: string;
   idp_full_name?: string;
@@ -553,4 +568,16 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DeletedLabel]: "Deleted label",
   [ActivityType.EnabledHistoricalDataset]: "Enabled chart data collection",
   [ActivityType.DisabledHistoricalDataset]: "Disabled chart data collection",
+  [ActivityType.FailedAutomationWebhook]: "Failed policy automation: webhook",
+  [ActivityType.FailedAutomationTicket]: "Failed policy automation: ticket",
+  [ActivityType.FailedAutomationCalendarEvent]:
+    "Failed policy automation: calendar event",
+  [ActivityType.FailedAutomationConditionalAccess]:
+    "Failed policy automation: conditional access",
+  [ActivityType.RanAutomationWebhook]: "Policy automation: webhook ran",
+  [ActivityType.RanAutomationTicket]: "Policy automation: ticket created",
+  [ActivityType.RanAutomationCalendarEvent]:
+    "Policy automation: calendar event created",
+  [ActivityType.RanAutomationConditionalAccess]:
+    "Policy automation: single sign-on blocked",
 };

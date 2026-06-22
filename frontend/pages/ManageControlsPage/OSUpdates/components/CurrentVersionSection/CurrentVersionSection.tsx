@@ -70,7 +70,12 @@ const CurrentVersionSection = ({
     AxiosError
   >(
     ["os_versions", currentTeamId, queryParams],
-    () => getOSVersions({ teamId: currentTeamId, ...queryParams }),
+    () =>
+      getOSVersions({
+        teamId: currentTeamId,
+        ...queryParams,
+        query: "windows,darwin,ios,ipados", // We only want to show windows mac, ios, ipados versions atm.
+      }),
     {
       retry: false,
       refetchOnWindowFocus: false,
@@ -119,20 +124,10 @@ const CurrentVersionSection = ({
       return <OSVersionsEmptyState />;
     }
 
-    // We only want to show windows mac, ios, ipados versions atm.
-    const filteredOSVersionData = data.os_versions.filter((osVersion) => {
-      return (
-        osVersion.platform === "windows" ||
-        osVersion.platform === "darwin" ||
-        osVersion.platform === "ios" ||
-        osVersion.platform === "ipados"
-      );
-    }) as IFilteredOperatingSystemVersion[];
-
     return (
       <OSVersionTable
         router={router}
-        osVersionData={filteredOSVersionData}
+        osVersionData={data.os_versions as IFilteredOperatingSystemVersion[]}
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
         queryParams={queryParams}

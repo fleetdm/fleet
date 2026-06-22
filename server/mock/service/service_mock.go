@@ -104,7 +104,7 @@ type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlRespons
 
 type MDMSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string)
 
-type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context) (string, error)
+type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context, enrollmentToken string) (string, error)
 
 type GetSSOUserFunc func(ctx context.Context, auth fleet.Auth) (*fleet.User, error)
 
@@ -462,6 +462,10 @@ type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPol
 
 type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
+type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+
+type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
+
 type ApplyPolicySpecsFunc func(ctx context.Context, policies []*fleet.PolicySpec) error
 
 type CountGlobalPoliciesFunc func(ctx context.Context, matchQuery string) (int, error)
@@ -636,7 +640,7 @@ type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
 
 type CountABMTokensFunc func(ctx context.Context) (int, error)
 
-type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint) (*fleet.ABMToken, error)
+type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error)
 
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
@@ -892,7 +896,7 @@ type IsAllSetupExperienceSoftwareRequiredFunc func(ctx context.Context, host *fl
 
 type AddFleetMaintainedAppFunc func(ctx context.Context, teamID *uint, appID uint, installScript string, preInstallQuery string, postInstallScript string, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny []string, labelsExcludeAny []string, labelsIncludeAll []string) (uint, error)
 
-type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetFleetMaintainedAppFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
@@ -1603,6 +1607,12 @@ type Service struct {
 
 	GetPolicyByIDFunc        GetPolicyByIDFunc
 	GetPolicyByIDFuncInvoked bool
+
+	ResetPolicyFunc        ResetPolicyFunc
+	ResetPolicyFuncInvoked bool
+
+	ListPolicyAutomationActivitiesFunc        ListPolicyAutomationActivitiesFunc
+	ListPolicyAutomationActivitiesFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -2618,11 +2628,11 @@ func (s *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResp
 	return s.MDMSSOCallbackFunc(ctx, sessionID, samlResponse)
 }
 
-func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error) {
+func (s *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMAccountDrivenEnrollmentSSOURLFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx)
+	return s.GetMDMAccountDrivenEnrollmentSSOURLFunc(ctx, enrollmentToken)
 }
 
 func (s *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
@@ -3871,6 +3881,20 @@ func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Poli
 	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
+func (s *Service) ResetPolicy(ctx context.Context, policyID uint) error {
+	s.mu.Lock()
+	s.ResetPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyFunc(ctx, policyID)
+}
+
+func (s *Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListPolicyAutomationActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPolicyAutomationActivitiesFunc(ctx, policyID, opts, status)
+}
+
 func (s *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	s.mu.Lock()
 	s.ApplyPolicySpecsFuncInvoked = true
@@ -4480,11 +4504,11 @@ func (s *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return s.CountABMTokensFunc(ctx)
 }
 
-func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error) {
 	s.mu.Lock()
 	s.UpdateABMTokenTeamsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID)
+	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID)
 }
 
 func (s *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
@@ -5376,7 +5400,7 @@ func (s *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID
 	return s.AddFleetMaintainedAppFunc(ctx, teamID, appID, installScript, preInstallQuery, postInstallScript, uninstallScript, selfService, automaticInstall, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 }
 
-func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()

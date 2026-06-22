@@ -127,8 +127,7 @@ interface ISoftwareCountResponse {
 // *FormData instead, even for programmatic request bodies (e.g.
 // IDeleteQueriesFormData). One consistent suffix is easier to follow than
 // asking each dev to judge "is this form-driven enough?"
-// *PreviewPayload is fine for outgoing webhook shapes (matches the
-// "Preview payload" UI terminology).
+// *PreviewPayload is fine for outgoing webhook shapes.
 ```
 
 ## Utilities

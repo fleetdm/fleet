@@ -9,6 +9,7 @@ import {
   getSoftwareInstallHandlerOnlyInstallOutput,
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
+  getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
 import { noop } from "lodash";
@@ -381,6 +382,36 @@ describe("SoftwareInstallDetailsModal", () => {
           name: /Details/i,
         })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("API error states", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the Fleet Premium upsell when the results request returns 402", async () => {
+      mockServer.use(getSoftwareInstallResultHandlerPremiumRequired);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Couldn't get install details.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/This feature is included in Fleet Premium/i)
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/upgrade"
+      );
     });
   });
 });
