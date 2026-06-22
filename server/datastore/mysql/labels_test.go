@@ -463,6 +463,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	// CountHostsInLabel, so this covers the list and count endpoints together.
 	policyAuthor := test.NewUser(t, db, "Policy Author", "policy-author@example.com", true)
 	policy := newTestPolicy(t, db, policyAuthor, "label-policy", "darwin", nil)
+	require.NotNil(t, policy)
 	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
 	require.NoError(t, db.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil))
 
