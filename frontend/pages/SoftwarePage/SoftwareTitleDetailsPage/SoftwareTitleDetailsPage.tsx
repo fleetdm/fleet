@@ -170,6 +170,8 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
+  // TODO: Replace SoftwareInstallerCard with LibraryAccordionList once #47944
+  // is merged and this branch is rebased on top of it.
   const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
     const hasPermission = Boolean(
       isOnGlobalTeam ||
