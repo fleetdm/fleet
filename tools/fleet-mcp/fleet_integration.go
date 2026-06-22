@@ -776,6 +776,9 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 	if policyResponse != "" && policyID == "" {
 		return 0, fmt.Errorf("policy_response is only valid when policy_id is also set")
 	}
+	if policyResponse != "" && policyResponse != "passing" && policyResponse != "failing" {
+		return 0, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResponse)
+	}
 
 	labelID, viaLabel, err := fc.resolvePlatformOrLabelToLabelID(ctx, labelName, platform)
 	if err != nil {
