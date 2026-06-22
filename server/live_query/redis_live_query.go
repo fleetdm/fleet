@@ -51,10 +51,18 @@
 //
 // The sql:livequery:<ID> and livequery:active keys are used by both models. A
 // host checkin reads its own livequery:host:<hostID> set once (instead of one
-// GETBIT per small-target query) and probes the bitfield only for the remaining
-// broadcast queries. The per-host sets have a TTL and stale entries (campaigns
-// no longer active) are filtered against the active set at read time, so they do
-// not need to be removed on StopQuery.
+// GETBIT per small-target query) and resolves the remaining broadcast queries
+// against the broadcast bitfields cached in memory (see memCache.bitfields),
+// avoiding a GETBIT per broadcast query per checkin; a broadcast query whose
+// bitfield is not cached falls back to a live GETBIT. The per-host sets have a
+// TTL and stale entries (campaigns no longer active) are filtered against the
+// active set at read time, so they do not need to be removed on StopQuery.
+//
+// Because the bitfields are cached for up to the cache TTL, a host's completion
+// of a broadcast query (which clears its bit) is reflected within one TTL rather
+// than immediately. This is safe because the host checkin interval
+// (distributed_interval, default 10s) is much larger than the cache TTL
+// (default 1s), so a host does not check in again within the staleness window.
 //
 // It is a noted downside that the active live queries set will necessarily
 // live on a single node in cluster mode (a "hot key"), and that node will see
@@ -76,6 +84,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -101,6 +110,9 @@ type redisLiveQuery struct {
 	// use the per-host reverse index instead of the bitfield. A value of 0
 	// disables the reverse index entirely (all queries use the bitfield).
 	smallTargetThreshold int
+	// cacheLoadGroup coalesces concurrent cache reloads so that a burst of host
+	// checkins arriving when the cache is expired triggers a single loadCache.
+	cacheLoadGroup singleflight.Group
 
 	logger *slog.Logger
 }
@@ -115,8 +127,13 @@ type memCache struct {
 	// use the reverse per-host index. It is used by the read path to exclude
 	// those queries from the per-host bitfield (GETBIT) probes.
 	reverseActiveCache map[string]struct{}
-	cacheExp           time.Time
-	mu                 sync.RWMutex
+	// bitfields holds the targeting bitfield of each active broadcast query, keyed
+	// by campaign ID. The read path tests a host's bit in memory instead of
+	// issuing a GETBIT per broadcast query on every checkin. Refreshed on each
+	// cache (re)load so host completions are reflected within the cache TTL.
+	bitfields map[string][]byte
+	cacheExp  time.Time
+	mu        sync.RWMutex
 }
 
 // cacheIsExpired is a thread-safe method to check if the cache is expired.
@@ -145,6 +162,44 @@ func (r *redisLiveQuery) isReverse(campaignID string) bool {
 	return found
 }
 
+// getCachedBitfield is a thread-safe method to get the cached targeting bitfield
+// of a broadcast live query by its campaign ID. The returned slice must not be
+// modified; it is replaced wholesale (never mutated in place) on cache reload.
+func (r *redisLiveQuery) getCachedBitfield(campaignID string) ([]byte, bool) {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	bitfield, found := r.cache.bitfields[campaignID]
+	return bitfield, found
+}
+
+// testBit reports whether the bit for hostID is set in the bitfield, matching
+// the layout produced by mapBitfield and the semantics of Redis GETBIT (a bit
+// beyond the end of the bitfield reads as 0).
+func testBit(bitfield []byte, hostID uint) bool {
+	byteIndex := hostID / bitsInByte
+	if byteIndex >= uint(len(bitfield)) {
+		return false
+	}
+	bitIndex := bitsInByte - (hostID % bitsInByte) - 1
+	return bitfield[byteIndex]&(1<<bitIndex) != 0
+}
+
+// ensureCacheLoaded reloads the in-memory cache if it has expired, coalescing
+// concurrent reloads so a burst of checkins triggers a single loadCache.
+func (r *redisLiveQuery) ensureCacheLoaded() error {
+	if !r.cacheIsExpired() {
+		return nil
+	}
+	_, err, _ := r.cacheLoadGroup.Do("loadCache", func() (any, error) {
+		// Another goroutine may have reloaded while we waited for the group.
+		if !r.cacheIsExpired() {
+			return nil, nil
+		}
+		return nil, r.loadCache()
+	})
+	return err
+}
+
 // NewRedisLiveQuery creates a new Redis implementation of the live query store
 // using the provided Redis connection pool.
 //
@@ -166,6 +221,7 @@ func newMemCache() memCache {
 		sqlCache:           make(map[string]string),
 		activeQueriesCache: make([]string, 0),
 		reverseActiveCache: make(map[string]struct{}),
+		bitfields:          make(map[string][]byte),
 	}
 }
 
@@ -275,22 +331,36 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 
 	queries := make(map[string]string)
 
-	// Broadcast queries: probe this host's bit in each query's bitfield. Reverse
-	// (small-target) queries are excluded here - probing them is the per-checkin
-	// command storm this whole change is meant to avoid.
-	keyNames := make([]string, 0, len(names))
+	// Broadcast queries: test this host's bit against the cached bitfield in
+	// memory - no Redis command per query. Reverse (small-target) queries are
+	// excluded here; they are read once below. A broadcast query whose bitfield is
+	// not cached (rare: it expired while the campaign is still active) falls back
+	// to a live GETBIT for correctness.
+	var uncachedKeys []string
 	for _, name := range names {
 		if r.isReverse(name) {
 			continue
 		}
-		tkey, _ := generateKeys(name)
-		keyNames = append(keyNames, tkey)
+		bitfield, cached := r.getCachedBitfield(name)
+		if !cached {
+			tkey, _ := generateKeys(name)
+			uncachedKeys = append(uncachedKeys, tkey)
+			continue
+		}
+		if testBit(bitfield, hostID) {
+			if sql, found := r.getSQLByCampaignID(name); found {
+				queries[name] = sql
+			} else {
+				r.logger.WarnContext(context.TODO(), "live query not found in cache", "name", name)
+			}
+		}
 	}
 
-	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
-	for _, qkeys := range keysBySlot {
-		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
-			return nil, err
+	if len(uncachedKeys) > 0 {
+		for _, qkeys := range redis.SplitKeysBySlot(r.pool, uncachedKeys...) {
+			if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -307,18 +377,21 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 // campaign IDs (lingering in the per-host set after the query was stopped) are
 // filtered out because their SQL is no longer in the cache.
 func (r *redisLiveQuery) collectReverseQueriesForHost(hostID uint, queriesByHost map[string]string) error {
-	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
-	defer conn.Close()
-
 	// Stale-entry filtering below relies on the SQL cache holding only active
 	// queries. Refresh it on expiry here so this path stays correct on its own,
 	// independent of any cache (re)load done by the caller or the bitfield path
 	// (which is skipped when every active query is small-target).
-	if r.cacheIsExpired() {
-		if err := r.loadCache(); err != nil {
-			return fmt.Errorf("load cache: %w", err)
-		}
+	//
+	// This must happen before checking out a pool connection: loadCache checks
+	// out its own connections, so holding one here while waiting on the
+	// singleflight reload leader could starve the pool (the leader waiting for a
+	// connection that the waiters are holding).
+	if err := r.ensureCacheLoaded(); err != nil {
+		return fmt.Errorf("load cache: %w", err)
 	}
+
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
 
 	names, err := redigo.Strings(conn.Do("SMEMBERS", reverseHostKey(hostID)))
 	if err != nil && err != redigo.ErrNil {
@@ -339,11 +412,8 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	if r.cacheIsExpired() {
-		if err := r.loadCache(); err != nil {
-			return fmt.Errorf("load cache: %w", err)
-		}
-	}
+	// The cache is already loaded by the caller (QueriesForHost via
+	// LoadActiveQueryNames); the SQL lookup below relies on it.
 
 	// Pipeline redis calls to check for this host in the bitfield of the
 	// targets of the query.
@@ -563,11 +633,7 @@ func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 		return names
 	}
 
-	if !r.cacheIsExpired() {
-		return copyActiveQueries(), nil
-	}
-
-	if err := r.loadCache(); err != nil {
+	if err := r.ensureCacheLoaded(); err != nil {
 		return nil, fmt.Errorf("load cache: %w", err)
 	}
 
@@ -577,17 +643,20 @@ func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 func (r *redisLiveQuery) loadCache() error {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
+	bitfields := make(map[string][]byte)
 
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	if err != nil && err != redigo.ErrNil {
+		conn.Close()
 		return fmt.Errorf("get active queries: %w", err)
 	}
 
 	// Load which active campaigns use the reverse per-host index, so the read
-	// path can exclude them from the per-host bitfield (GETBIT) probes.
+	// path can exclude them from the per-host bitfield (GETBIT) probes and so we
+	// only cache the bitfields of broadcast queries below.
 	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
+	conn.Close()
 	if err != nil && err != redigo.ErrNil {
 		return fmt.Errorf("get reverse active queries: %w", err)
 	}
@@ -596,23 +665,17 @@ func (r *redisLiveQuery) loadCache() error {
 		reverseActive[id] = struct{}{}
 	}
 
-	for _, id := range activeIDs {
-		_, sqlKey := generateKeys(id)
-
-		sql, err := redigo.String(conn.Do("GET", sqlKey))
-		if err != nil {
-			if err != redigo.ErrNil {
-				return fmt.Errorf("get query sql: %w", err)
-			}
-
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[id] = struct{}{}
-			continue
+	// Fetch each active query's SQL (and, for broadcast queries, its targeting
+	// bitfield) pipelined and grouped by cluster slot - one round-trip per slot
+	// instead of per query.
+	targetKeys := make([]string, len(activeIDs))
+	for i, id := range activeIDs {
+		targetKeys[i], _ = generateKeys(id)
+	}
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, targetKeys...) {
+		if err := r.loadBatchIntoCache(slotKeys, reverseActive, sqlCache, bitfields, expiredQueries); err != nil {
+			return err
 		}
-
-		sqlCache[id] = sql
 	}
 
 	// remove expired queries from the names list
@@ -628,6 +691,7 @@ func (r *redisLiveQuery) loadCache() error {
 
 	r.cache.mu.Lock()
 	r.cache.sqlCache = sqlCache
+	r.cache.bitfields = bitfields
 	r.cache.activeQueriesCache = activeIDs
 	r.cache.reverseActiveCache = reverseActive
 	r.cache.cacheExp = time.Now().Add(r.cacheExpiration)
@@ -652,6 +716,72 @@ func (r *redisLiveQuery) loadCache() error {
 		}
 	}
 
+	return nil
+}
+
+// loadBatchIntoCache fetches, for the campaigns identified by the given target
+// keys (which all belong to the same cluster slot), each query's SQL and - for
+// broadcast queries (those not using the reverse index) - its targeting
+// bitfield, using a single pipelined round-trip, recording them in the provided
+// maps. A campaign whose SQL has expired is recorded in expiredQueries instead.
+func (r *redisLiveQuery) loadBatchIntoCache(targetKeys []string, reverseActive map[string]struct{}, sqlCache map[string]string, bitfields map[string][]byte, expiredQueries map[string]struct{}) error {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, tkey := range targetKeys {
+		id := extractTargetKeyName(tkey)
+		_, sqlKey := generateKeys(id)
+		if err := conn.Send("GET", sqlKey); err != nil {
+			return fmt.Errorf("send get query sql: %w", err)
+		}
+		// Only broadcast queries have a bitfield; reverse queries are served from
+		// their per-host set, so don't fetch (a non-existent) bitfield for them.
+		if _, isReverse := reverseActive[id]; !isReverse {
+			if err := conn.Send("GET", tkey); err != nil {
+				return fmt.Errorf("send get query targets: %w", err)
+			}
+		}
+	}
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, tkey := range targetKeys {
+		id := extractTargetKeyName(tkey)
+		_, isReverse := reverseActive[id]
+
+		sql, err := redigo.String(conn.Receive())
+		if err != nil {
+			if err != redigo.ErrNil {
+				return fmt.Errorf("get query sql: %w", err)
+			}
+			// The livequery key expired but was still in the active set - handle
+			// gracefully by marking it for removal. Drain the bitfield reply (if one
+			// was requested) to keep the pipeline aligned.
+			expiredQueries[id] = struct{}{}
+			if !isReverse {
+				if _, err := conn.Receive(); err != nil {
+					return fmt.Errorf("drain query targets: %w", err)
+				}
+			}
+			continue
+		}
+		sqlCache[id] = sql
+
+		if isReverse {
+			continue
+		}
+		bitfield, err := redigo.Bytes(conn.Receive())
+		if err != nil {
+			if err != redigo.ErrNil {
+				return fmt.Errorf("get query targets: %w", err)
+			}
+			// SQL present but bitfield missing (rare race / partial expiry): leave it
+			// uncached so the read path falls back to a live GETBIT.
+			continue
+		}
+		bitfields[id] = bitfield
+	}
 	return nil
 }
 

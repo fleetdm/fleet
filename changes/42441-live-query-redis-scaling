@@ -1,1 +1,2 @@
 - Fixed a bug where running many concurrent live queries that each target a small number of hosts could overload Redis and slow down host check-ins.
+- Reduced Redis load from concurrent live queries by serving broadcast query targeting from each Fleet server's in-memory cache, removing a per-query Redis command on every host check-in.

@@ -2,7 +2,9 @@ package live_query
 
 import (
 	"log/slog"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -55,8 +57,12 @@ func setupRedisLiveQuery(t *testing.T, cluster, reverseEnabled bool) *redisLiveQ
 }
 
 func setupRedisLiveQueryThreshold(t *testing.T, cluster bool, threshold int) *redisLiveQuery {
+	return setupRedisLiveQueryThresholdTTL(t, cluster, threshold, 0)
+}
+
+func setupRedisLiveQueryThresholdTTL(t *testing.T, cluster bool, threshold int, ttl time.Duration) *redisLiveQuery {
 	pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
-	return NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), 0, threshold)
+	return NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), ttl, threshold)
 }
 
 func TestMapBitfield(t *testing.T) {
@@ -296,5 +302,167 @@ func TestReverseIndexKillSwitch(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, map[string]string{"q": "SELECT 1"}, queries)
 		})
+	}
+}
+
+// TestTestBit checks that testBit reads back exactly the bits mapBitfield sets,
+// since the in-memory read path relies on the two agreeing.
+func TestTestBit(t *testing.T) {
+	cases := [][]uint{
+		{0}, {1}, {4}, {7}, {8}, {0, 1, 2, 3, 4, 5, 6, 7, 8}, {79}, {2, 5, 9}, {100000},
+	}
+	for _, ids := range cases {
+		bitfield := mapBitfield(ids)
+		targeted := make(map[uint]struct{}, len(ids))
+		for _, id := range ids {
+			targeted[id] = struct{}{}
+			assert.True(t, testBit(bitfield, id), "bit %d should be set for %v", id, ids)
+		}
+		// Every other bit up to a bit past the last ID must read as 0.
+		for probe := uint(0); probe <= ids[len(ids)-1]+10; probe++ {
+			if _, ok := targeted[probe]; ok {
+				continue
+			}
+			assert.False(t, testBit(bitfield, probe), "bit %d should not be set for %v", probe, ids)
+		}
+	}
+
+	// A bit beyond the end of the bitfield reads as 0 (matching GETBIT).
+	assert.False(t, testBit(mapBitfield(nil), 0))
+	assert.False(t, testBit([]byte{}, 5))
+	assert.False(t, testBit(mapBitfield([]uint{1}), 1000))
+}
+
+// TestBitfieldCacheFallbackToGetbit verifies that when a broadcast query's
+// bitfield is not in the in-memory cache (e.g. it expired while the campaign is
+// still active), QueriesForHost falls back to a live GETBIT rather than missing
+// the query.
+func TestBitfieldCacheFallbackToGetbit(t *testing.T) {
+	for _, cluster := range []bool{false, true} {
+		clusterName := "standalone"
+		if cluster {
+			clusterName = "cluster"
+		}
+		t.Run(clusterName, func(t *testing.T) {
+			// threshold 0 => broadcast (bitfield) model; long TTL so the cache is not
+			// reloaded between the two calls below.
+			store := setupRedisLiveQueryThresholdTTL(t, cluster, 0, time.Hour)
+
+			require.NoError(t, store.RunQuery("q", "SELECT 1", []uint{1}))
+
+			// Prime the cache (loads the bitfield into memory).
+			queries, err := store.QueriesForHost(1)
+			require.NoError(t, err)
+			require.Equal(t, map[string]string{"q": "SELECT 1"}, queries)
+
+			// Evict only the cached bitfield to simulate the rare race where the
+			// campaign is still active but its bitfield is not cached. The bitfield
+			// still exists in Redis, so the read path must fall back to GETBIT.
+			store.cache.mu.Lock()
+			delete(store.cache.bitfields, "q")
+			store.cache.mu.Unlock()
+
+			queries, err = store.QueriesForHost(1)
+			require.NoError(t, err)
+			require.Equal(t, map[string]string{"q": "SELECT 1"}, queries, "fallback GETBIT should still return the query")
+		})
+	}
+}
+
+// TestLoadBatchIntoCacheDrain exercises the conditional reply-draining in
+// loadBatchIntoCache: a broadcast query whose SQL has expired (its bitfield GET
+// reply must still be drained) batched together, in both orders, with a live
+// broadcast query in the same pipeline. A missed drain would desync the pipeline
+// and corrupt the live query's result.
+func TestLoadBatchIntoCacheDrain(t *testing.T) {
+	for _, expiredFirst := range []bool{true, false} {
+		name := "liveFirst"
+		if expiredFirst {
+			name = "expiredFirst"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := setupRedisLiveQueryThreshold(t, false, 0) // broadcast model
+
+			// "live" gets a SQL + bitfield; "expired" is never created, so its SQL
+			// (and bitfield) GETs return nil.
+			require.NoError(t, store.RunQuery("live", "SELECT 1", []uint{1}))
+
+			liveKey, _ := generateKeys("live")
+			expiredKey, _ := generateKeys("expired")
+			targetKeys := []string{liveKey, expiredKey}
+			if expiredFirst {
+				targetKeys = []string{expiredKey, liveKey}
+			}
+
+			sqlCache := map[string]string{}
+			bitfields := map[string][]byte{}
+			expired := map[string]struct{}{}
+			err := store.loadBatchIntoCache(targetKeys, map[string]struct{}{}, sqlCache, bitfields, expired)
+			require.NoError(t, err)
+
+			// "live" resolved correctly despite "expired" sharing the batch.
+			require.Equal(t, map[string]string{"live": "SELECT 1"}, sqlCache)
+			require.Contains(t, bitfields, "live")
+			require.True(t, testBit(bitfields["live"], 1))
+			require.NotContains(t, bitfields, "expired")
+			require.Contains(t, expired, "expired")
+		})
+	}
+}
+
+// TestBitfieldServedFromCacheWithoutGetbit proves the read path serves a
+// broadcast query from the in-memory bitfield cache rather than a live GETBIT:
+// after priming the cache, the bitfield key is deleted from Redis, yet the query
+// is still returned (a live GETBIT would read 0 and drop it).
+func TestBitfieldServedFromCacheWithoutGetbit(t *testing.T) {
+	store := setupRedisLiveQueryThresholdTTL(t, false, 0, time.Hour) // broadcast model, long TTL
+
+	require.NoError(t, store.RunQuery("q", "SELECT 1", []uint{1}))
+
+	// Prime the in-memory cache.
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"q": "SELECT 1"}, queries)
+
+	// Delete the bitfield from Redis. A cache hit will still return the query; a
+	// live GETBIT would now read 0 and miss it.
+	conn := redis.ConfigureDoer(store.pool, store.pool.Get())
+	defer conn.Close()
+	_, err = conn.Do("DEL", queryKeyPrefix+"{q}")
+	require.NoError(t, err)
+
+	queries, err = store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"q": "SELECT 1"}, queries, "broadcast query must be served from the in-memory cache, not a live GETBIT")
+}
+
+// TestConcurrentQueriesForHost exercises concurrent checkins (and thus the
+// singleflight-coalesced cache reload) to surface races under -race.
+func TestConcurrentQueriesForHost(t *testing.T) {
+	store := setupRedisLiveQuery(t, false, false) // 0 TTL => every call reloads the cache
+
+	require.NoError(t, store.RunQuery("q", "SELECT 1", []uint{1, 2, 3}))
+
+	const goroutines = 25
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	errs := make(chan error, goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			queries, err := store.QueriesForHost(1)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if queries["q"] != "SELECT 1" {
+				errs <- assert.AnError
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
 	}
 }
