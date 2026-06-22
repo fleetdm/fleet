@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.1",
+      "version": "5.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'darktable' AND publisher = 'the darktable project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'darktable' AND publisher = 'the darktable project' AND version_compare(version, '5.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'darktable' AND publisher = 'the darktable project' AND version_compare(version, '5.6.0') < 0);"
       },
-      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.4.1/darktable-5.4.1-win64.exe",
+      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.0/darktable-5.6.0-win64.exe",
       "install_script_ref": "a5276316",
       "uninstall_script_ref": "a50fe3c2",
-      "sha256": "df3b9f2f9f1375b9166c2fb2f1503455c3ceaa44c702b8a9144419e65e0cfdf9",
+      "sha256": "b42989195dfff44540c0b767b407987329ca99853612304cbbf14c48d1d3f803",
       "default_categories": [
         "Productivity"
       ]
