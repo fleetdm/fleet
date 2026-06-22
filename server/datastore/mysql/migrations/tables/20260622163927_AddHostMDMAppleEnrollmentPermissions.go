@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260616144537, Down_20260616144537)
+	MigrationClient.AddMigration(Up_20260622163927, Down_20260622163927)
 }
 
-func Up_20260616144537(tx *sql.Tx) error {
+func Up_20260622163927(tx *sql.Tx) error {
 	// Keyed by host_uuid (the device's MDM enrollment UDID) rather than
 	// host_id so this table correlates directly with the nanomdm tables
 	// (nano_enrollments.id, host_mdm_apple_profiles.host_uuid, etc.), which
@@ -58,6 +58,6 @@ func Up_20260616144537(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260616144537(tx *sql.Tx) error {
+func Down_20260622163927(tx *sql.Tx) error {
 	return nil
 }
