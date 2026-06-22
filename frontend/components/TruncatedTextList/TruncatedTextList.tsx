@@ -147,10 +147,22 @@ const TruncatedTextList = ({
   useLayoutEffect(() => {
     const measure = () => {
       if (!containerRef.current) return;
-      const containerWidth = containerRef.current.clientWidth;
-      const moreWidth = moreRef.current?.offsetWidth ?? 0;
+      // `getBoundingClientRect().width` gives subpixel precision —
+      // `clientWidth`/`offsetWidth` round to integers, which lets a row that
+      // sums to (say) container_width + 0.7px read as "fits." Plus a small
+      // buffer for the layout discrepancy between the measure layer (each
+      // item in its own `<span>`) and the visible row (items joined into a
+      // single string), which can differ by a few pixels from inline
+      // boundary kerning. Same spirit as the `max-width: 101%` subpixel
+      // trick in `TooltipTruncatedTextCell`.
+      const BOUNDARY_BUFFER_PX = 16;
+      const containerWidth =
+        containerRef.current.getBoundingClientRect().width - BOUNDARY_BUFFER_PX;
+      const moreWidth = moreRef.current?.getBoundingClientRect().width ?? 0;
 
-      const widths = itemRefs.current.map((el) => el?.offsetWidth ?? 0);
+      const widths = itemRefs.current.map(
+        (el) => el?.getBoundingClientRect().width ?? 0
+      );
       const totalWidth = widths.reduce((sum, w) => sum + w, 0);
 
       // Everything fits — no "+N more" needed.

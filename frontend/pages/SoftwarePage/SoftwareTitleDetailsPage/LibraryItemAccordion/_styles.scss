@@ -3,6 +3,10 @@
   flex-direction: column;
 
   &__header {
+    // `<div role="button">` defaults to `content-box`, so `width: 100%` plus
+    // horizontal padding overflows the parent. Native `<button>` is
+    // `border-box` for free; we lost that when the role swap happened.
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: $pad-medium;
@@ -77,19 +81,26 @@
   }
 
   &__panel {
+    // Same `border-box` reason as `__header` above — the panel is stretched
+    // to the accordion's width by `align-items: stretch`, so without
+    // border-box the padding pushes the panel (and every child column) past
+    // the right edge.
+    box-sizing: border-box;
     display: flex;
     align-items: stretch;
+    // `gap` (vs `margin-right` on children) lets flex shrink the details
+    // column cleanly when content gets long — child margins don't get
+    // accounted for in some `min-width: 0` interactions and the column
+    // overflows. Uniform 1rem between adjacent columns; the status block
+    // gets an extra `margin-right` below for the asymmetric 3rem visual
+    // breathing room around its border-right divider.
+    gap: $pad-medium;
     padding: $pad-large;
     background: $ui-off-white;
     border-bottom: 1px solid $ui-fleet-black-10;
 
-    // Asymmetric gaps: 3rem between status and details, 1rem between details
-    // and actions. `gap` can't differ per pair in flex, so use margins.
     > :nth-child(1) {
-      margin-right: 3rem;
-    }
-    > :nth-child(2) {
-      margin-right: 1rem;
+      margin-right: $pad-xlarge;
     }
   }
 
