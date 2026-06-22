@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"log/slog"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -168,6 +170,74 @@ func mustECPublicKeyPEM(t *testing.T) string {
 	der, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	require.NoError(t, err)
 	return string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+}
+
+func mustECPrivateKeyPEM(t *testing.T, key *ecdsa.PrivateKey) []byte {
+	t.Helper()
+	der, err := x509.MarshalECPrivateKey(key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
+}
+
+// TestPSSO_JWKSIncludesSigningAndEncryptionKeys confirms the JWKS publishes both
+// the signing key (use:sig, ES256) the device verifies responses with and the
+// encryption key (use:enc, ECDH-ES) it encrypts the password to, with distinct
+// kids.
+func TestPSSO_JWKSIncludesSigningAndEncryptionKeys(t *testing.T) {
+	svc, ctx := newPSSOTestService(t, configuredPSSOTestConfig())
+	ds := svc.ds.(*mock.Store)
+
+	signKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	encKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	signPEM := mustECPrivateKeyPEM(t, signKey)
+	encPEM := mustECPrivateKeyPEM(t, encKey)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		out := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+		for _, n := range names {
+			switch n {
+			case fleet.MDMAssetPSSOSigningKey:
+				out[n] = fleet.MDMConfigAsset{Name: n, Value: signPEM}
+			case fleet.MDMAssetPSSOEncryptionKey:
+				out[n] = fleet.MDMConfigAsset{Name: n, Value: encPEM}
+			}
+		}
+		return out, nil
+	}
+
+	body, err := svc.PSSOJWKS(ctx)
+	require.NoError(t, err)
+
+	var jwks struct {
+		Keys []struct {
+			Kty string `json:"kty"`
+			Crv string `json:"crv"`
+			Use string `json:"use"`
+			Alg string `json:"alg"`
+			Kid string `json:"kid"`
+		} `json:"keys"`
+	}
+	require.NoError(t, json.Unmarshal(body, &jwks))
+	require.Len(t, jwks.Keys, 2)
+
+	byUse := map[string]struct{ alg, kid, crv, kty string }{}
+	for _, k := range jwks.Keys {
+		assert.Equal(t, "EC", k.Kty)
+		assert.Equal(t, "P-256", k.Crv)
+		byUse[k.Use] = struct{ alg, kid, crv, kty string }{k.Alg, k.Kid, k.Crv, k.Kty}
+	}
+
+	sig, ok := byUse["sig"]
+	require.True(t, ok, "signing key (use:sig) must be present")
+	assert.Equal(t, "ES256", sig.alg)
+
+	enc, ok := byUse["enc"]
+	require.True(t, ok, "encryption key (use:enc) must be present")
+	assert.Equal(t, "ECDH-ES", enc.alg)
+
+	assert.NotEqual(t, sig.kid, enc.kid, "signing and encryption keys must have distinct kids")
 }
 
 func TestPSSORegisterDevice_RequiresValidToken(t *testing.T) {

@@ -63,9 +63,15 @@ extension AuthenticationViewController {
     // key in the profile's ExtensionData — the Fleet server URL, e.g.
     // https://fleet.example.com. The issuer/audience is its bare hostname,
     // matching the `iss` claim Fleet mints into login-response id_tokens.
+    //
+    // It also fetches Fleet's JWKS and, if an encryption key is published,
+    // sets it as loginRequestEncryptionPublicKey. macOS then encrypts the
+    // password into the login assertion (ECDH-ES/A256GCM) so it can't be read
+    // by anything able to terminate TLS. If the server publishes no encryption
+    // key, the property is left unset.
     func applyLoginConfiguration(
         _ mgr: ASAuthorizationProviderExtensionLoginManager
-    ) throws {
+    ) async throws {
         let data = mgr.extensionData
         guard let baseString = data["BaseURL"] as? String,
               let base = URL(string: baseString),
@@ -79,6 +85,9 @@ extension AuthenticationViewController {
             audience: host)
         cfg.nonceEndpointURL = pssoEndpointURL(base, "nonce")
         self.registrationEndpointURL = pssoEndpointURL(base, "registration")
+        if let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) {
+            cfg.loginRequestEncryptionPublicKey = encryptionKey
+        }
         try mgr.saveLoginConfiguration(cfg)
     }
 
