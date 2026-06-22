@@ -120,7 +120,7 @@ The signing key(`MDMAssetPSSOSigningKey`) and the self-signed PSSO CA (`MDMAsset
 
 ### Encrypt the password on the wire
 
-The password is the one raw credential PSSO handles, so it is encrypted end-to-end to Fleet rather than relying on TLS alone — a MITM proxy that terminates TLS (e.g. ngrok) must not be able to read it.
+The password is the one raw credential PSSO handles, so it is encrypted end-to-end to Fleet rather than relying on TLS alone — a MITM proxy that terminates TLS  must not be able to read it else we risk inadvertent plaintext exposure.
 
 - **Separate encryption key.** A second EC P-256 key (`MDMAssetPSSOEncryptionKey`) is minted alongside the signing key in `bootstrapPSSOAssets` and published in the JWKS as a second JWK with `"use":"enc","alg":"ECDH-ES"`. It is deliberately *not* the signing key: NIST SP 800-57 §5.2 forbids using one key for both signing and encryption. The bootstrap mints each asset independently, so enabling the feature on a deployment that predates this key mints just the encryption key.
 - **Extension wiring.** When building the login configuration the extension fetches the JWKS, and if an `enc` key is present sets it as `ASAuthorizationProviderExtensionLoginConfiguration.loginRequestEncryptionPublicKey`. With that set, macOS encrypts the password into the login request instead of sending it in the clear.
