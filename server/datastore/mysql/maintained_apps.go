@@ -33,7 +33,6 @@ ON DUPLICATE KEY UPDATE
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
@@ -51,38 +50,17 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
-// ReconcileMaintainedAppSoftwareNames normalizes the names of macOS
-// software_titles (and the matching software inventory rows) so they use the
-// canonical Fleet-maintained app name instead of the osquery- or
-// installer-reported name (e.g. "Code" -> "Microsoft Visual Studio Code").
+// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software
+// rows to the canonical FMA name (e.g. "Code" -> "Microsoft Visual Studio Code").
+// Called once per sync; set-based and idempotent.
 //
-// It is called once per maintained-apps sync (hourly), is set-based, and is
-// idempotent, so it self-heals: a row that already matches is left untouched.
-//
-// Because an FMA's unique_identifier (the macOS bundle identifier) is NOT unique
-// across the FMA list — Firefox and Firefox ESR both report org.mozilla.firefox,
-// LibreOffice and a future LibreOffice-still would share org.libreoffice.script —
-// renaming purely by bundle identifier is ambiguous and would clobber titles with
-// whichever sibling FMA was synced last. To stay correct it renames in two passes:
-//
-//  1. Precise: a title that was added via a specific FMA is linked through
-//     software_installers.fleet_maintained_app_id. When that link resolves to a
-//     single FMA name, use it — this disambiguates shared identifiers because we
-//     know exactly which FMA the user added, and it repairs titles previously
-//     mislabeled by the old blind-rename behavior.
-//
-//  2. Heuristic: for titles not added via an FMA (osquery-detected, custom
-//     installer, VPP), fall back to matching by bundle identifier, but ONLY when
-//     that identifier maps to exactly one FMA name. Shared identifiers are skipped
-//     entirely, since there is no single correct canonical name.
+// A bundle identifier is not unique across FMAs (Firefox and Firefox ESR both use
+// org.mozilla.firefox), so renaming by identifier alone is ambiguous. It renames in
+// two passes: first by the precise installer link, then by bundle identifier but
+// only when it maps to a single FMA name.
 func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
-	// titleNameByFMA maps each software_title to the canonical name of the single
-	// darwin FMA it was added with, resolved through its installer link
-	// (software_installers.fleet_maintained_app_id). A title linked to
-	// differently-named FMAs (e.g. Firefox on one team, Firefox ESR on another,
-	// sharing one global title) is excluded by the HAVING clause, since we cannot
-	// pick a single name for it. Grouping to one row per title also keeps the
-	// UPDATEs below from fanning out over a title's per-team installer rows.
+	// title_id -> name, for titles linked to a single FMA via their installer.
+	// GROUP BY also collapses a title's per-team installer rows to avoid fan-out.
 	const titleNameByFMA = `
 		SELECT si.title_id, MIN(fma.name) AS name
 		FROM software_installers si
@@ -91,9 +69,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 		GROUP BY si.title_id
 		HAVING COUNT(DISTINCT fma.name) = 1`
 
-	// unambiguousByIdentifier is the set of darwin bundle identifiers that map to
-	// exactly one FMA name. Identifiers shared by differently-named FMAs (Firefox /
-	// Firefox ESR) are excluded by the HAVING clause and never auto-renamed.
+	// darwin bundle identifiers mapping to exactly one FMA name; shared ones are excluded.
 	const unambiguousByIdentifier = `
 		SELECT unique_identifier, MIN(name) AS name
 		FROM fleet_maintained_apps
@@ -105,7 +81,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 		label string
 		stmt  string
 	}{
-		// Pass 1 (precise): rename titles linked to a single FMA via their installer.
+		// Pass 1: precise, via installer link.
 		{"software_titles by installer link", `
 			UPDATE software_titles st
 				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = st.id
@@ -117,7 +93,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 			SET s.name = fma.name
 			WHERE s.name <> fma.name`},
 
-		// Pass 2 (heuristic): rename rows matched by an unambiguous bundle identifier.
+		// Pass 2: by bundle identifier, unambiguous only.
 		{"software_titles by bundle identifier", `
 			UPDATE software_titles st
 				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = st.bundle_identifier
@@ -165,13 +141,10 @@ const fleetMaintainedAppsTeamJoin = `
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles
-				-- When the title was added via a specific FMA, match that exact app by
-				-- its installer link. This disambiguates FMAs that share a bundle
-				-- identifier (e.g. Firefox vs Firefox ESR): adding Firefox must not mark
-				-- Firefox ESR as added.
+				-- Match the exact FMA the title was added with, so a shared bundle
+				-- identifier (Firefox vs Firefox ESR) doesn't mark the sibling added.
 				ON team_titles.fleet_maintained_app_id = fma.id
-				-- Otherwise (detected-only, custom installer, or VPP), the title is not
-				-- tied to a specific FMA, so fall back to matching by bundle identifier.
+				-- Not added via an FMA: fall back to the bundle identifier.
 				OR (
 					team_titles.fleet_maintained_app_id IS NULL
 					AND team_titles.unique_identifier = fma.unique_identifier
@@ -362,10 +335,8 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 }
 
 func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
-	// Only return identifiers that map to exactly one FMA name. A bundle
-	// identifier shared by differently-named FMAs (e.g. org.mozilla.firefox for
-	// both Firefox and Firefox ESR) has no single canonical name, so it is
-	// omitted here and callers fall back to the osquery-reported name.
+	// Only identifiers mapping to one FMA name; shared ones (Firefox/ESR) have no
+	// single canonical name, so callers fall back to the osquery-reported name.
 	query := `
 		SELECT unique_identifier, MIN(name) AS name
 		FROM fleet_maintained_apps

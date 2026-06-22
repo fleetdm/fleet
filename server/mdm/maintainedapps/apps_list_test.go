@@ -11,27 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// knownSharedDarwinIdentifiers allowlists macOS bundle identifiers that are
-// intentionally shared by more than one differently-named Fleet-maintained app.
-//
-// Sharing a bundle identifier is ambiguous on macOS: osquery reports the same
-// identifier for every app, so there is no way to tell them apart from inventory
-// alone. The server handles this deliberately — see ReconcileMaintainedAppSoftwareNames
-// (renames by identifier only when it maps to a single FMA name, otherwise uses the
-// installer link) and fleetMaintainedAppsTeamJoin (marks an app "added" via its
-// installer link rather than the shared identifier). This test fails on any NEW
-// shared identifier so the collision is consciously reviewed against those paths
-// instead of silently reintroducing https://github.com/fleetdm/fleet/issues/42445.
-//
-// If a new collision is intentional, confirm the paths above handle it and then add
-// the identifier here with a comment naming the apps.
+// knownSharedDarwinIdentifiers allowlists macOS bundle identifiers intentionally
+// shared by more than one differently-named FMA. Such collisions are ambiguous and
+// must be handled by ReconcileMaintainedAppSoftwareNames and fleetMaintainedAppsTeamJoin
+// (see https://github.com/fleetdm/fleet/issues/42445). The test below fails on any
+// new one so it's reviewed against those paths before being added here.
 var knownSharedDarwinIdentifiers = map[string]string{
 	"org.mozilla.firefox": "Mozilla Firefox and Mozilla Firefox ESR",
 }
 
-// TestNoUnexpectedSharedDarwinIdentifiers guards the maintained-apps manifest
-// against new macOS FMAs that share a bundle identifier with a differently-named
-// app without being accounted for in knownSharedDarwinIdentifiers.
 func TestNoUnexpectedSharedDarwinIdentifiers(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	base := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename))))

@@ -937,9 +937,7 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// The upsert alone does not rename anything; the reconcile pass (run once per
-	// sync) does. com.microsoft.VSCode maps to a single FMA name, so it is renamed
-	// via the unambiguous-identifier pass.
+	// The upsert doesn't rename; the reconcile pass does (unambiguous identifier).
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
 	// Verify software entries were updated to use the FMA canonical name
@@ -1000,8 +998,7 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// The darwin software should NOT have been renamed (reconcile only matches
-	// darwin FMAs against macOS bundle identifiers).
+	// A Windows FMA must not rename darwin software.
 	var someAppName string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &someAppName,
@@ -1010,11 +1007,9 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Some App", someAppName)
 }
 
-// testReconcileSoftwareNamesSharedIdentifier covers the Firefox / Firefox ESR
-// case: two FMAs sharing one bundle identifier (org.mozilla.firefox). The
-// reconcile pass must NOT guess a canonical name from the shared identifier
-// alone, but MUST use the specific FMA a title was added with when that link
-// exists.
+// testReconcileSoftwareNamesSharedIdentifier: two FMAs sharing a bundle identifier
+// (Firefox / Firefox ESR). Reconcile must not guess a name from the identifier
+// alone, but must use the specific FMA a title was added with.
 func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -1065,19 +1060,15 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 		return name
 	}
 
-	// Ingestion must not have guessed a canonical name for the shared identifier.
+	// Ingestion must not guess a name for the shared identifier.
 	require.Equal(t, "Firefox.app", titleName())
 
-	// Reconciling must leave it alone: with no FMA installer link and an ambiguous
-	// identifier, there is no single correct name. (Regression test for the bug
-	// where the title flipped to "Mozilla Firefox ESR" depending on sync order.)
+	// No FMA link and an ambiguous identifier: reconcile must leave it alone.
+	// (Regression: the title used to flip to "Mozilla Firefox ESR" by sync order.)
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, "Firefox.app", titleName())
 
-	// Now the user adds the Firefox (non-ESR) FMA. This links the existing title
-	// to a specific FMA via software_installers.fleet_maintained_app_id. The
-	// install reuses the existing title (matched by bundle identifier), so the
-	// name is still "Firefox.app" until reconcile runs.
+	// Add the Firefox (non-ESR) FMA, linking the existing title to a specific FMA.
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "Mozilla Firefox",
 		TeamID:               &team.ID,
@@ -1092,12 +1083,10 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// The install reuses the existing osquery title, so the name is unchanged
-	// until reconcile runs.
+	// The install reuses the existing title, so the name is unchanged until reconcile.
 	require.Equal(t, "Firefox.app", titleName())
 
-	// Reconcile now resolves the ambiguity via the installer link and renames the
-	// title (and software inventory) to the specific FMA the user added.
+	// Reconcile resolves the ambiguity via the installer link.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, "Mozilla Firefox", titleName())
 
@@ -1109,9 +1098,8 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Mozilla Firefox", softwareName)
 }
 
-// testListAvailableAppsSharedIdentifier verifies that adding one of two FMAs
-// that share a bundle identifier (Firefox) does not mark its sibling (Firefox
-// ESR) as added in the maintained-apps list.
+// testListAvailableAppsSharedIdentifier: adding Firefox must not mark its
+// bundle-identifier sibling Firefox ESR as added.
 func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -1165,8 +1153,7 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Firefox is now added; Firefox ESR must remain available (not added), even
-	// though it shares the same bundle identifier.
+	// Firefox is added; ESR must remain available despite the shared identifier.
 	require.Equal(t, &titleID, titleIDFor(firefox.ID))
 	require.Nil(t, titleIDFor(esr.ID))
 
@@ -1227,9 +1214,8 @@ func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
 	_, ok := names["Microsoft Visual Studio Code"]
 	require.False(t, ok)
 
-	// Add two darwin FMAs sharing one bundle identifier (Firefox / Firefox ESR).
-	// The shared identifier is ambiguous, so it must be omitted entirely rather
-	// than resolving to whichever name was inserted last.
+	// Two FMAs sharing a bundle identifier (Firefox/ESR) must be omitted, not
+	// resolved to whichever was inserted last.
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Mozilla Firefox",
 		Slug:             "firefox/darwin",
