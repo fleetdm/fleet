@@ -8216,7 +8216,7 @@
       "name": "VNC Viewer",
       "slug": "vnc-viewer/windows",
       "platform": "windows",
-      "unique_identifier": "RealVNC Viewer",
+      "unique_identifier": "RealVNC Connect Viewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
