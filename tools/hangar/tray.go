@@ -23,10 +23,6 @@ func newTrayController(app *application.App, icon []byte) *trayController {
 	// menu bar (alpha-only), matching the rest of the macOS menu bar.
 	t.SetTemplateIcon(icon)
 	t.SetTooltip("Fleet Hangar")
-	// TEMP (tray-visibility diagnostic): a text label makes the status item
-	// unmistakable so we can tell whether the icon-only tray was simply being
-	// hidden behind the MacBook notch / a full menu bar. Remove once confirmed.
-	t.SetLabel("Fleet")
 	c := &trayController{app: app, tray: t}
 	c.update(traymenu.State{})
 	// Left-click opens the main window; the menu shows on right-click.

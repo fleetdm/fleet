@@ -21,6 +21,11 @@ tasks:
     cmds:
       - task: "{{OS}}:package"
 
+  dist:
+    summary: Zips the already-built .app into a single shareable archive (bin/fleet-hangar.zip)
+    cmds:
+      - task: "{{OS}}:dist"
+
   run:
     summary: Runs the application
     cmds:

@@ -47,6 +47,7 @@ Then, from this directory:
 task dev       # live-reload dev mode (Vite + Go)
 task build     # type-check + production build -> bin/fleet-hangar
 task package   # build + bundle + ad-hoc sign -> bin/fleet-hangar.app
+task dist      # zip the existing .app into a shareable bin/fleet-hangar.zip
 go test ./...  # backend unit tests
 ```
 
@@ -63,8 +64,17 @@ wails3 generate bindings -clean=true -ts
   used, so settings written by it carry over untouched. Settings live under
   `~/Library/Application Support/<id>/` and logs under `~/Library/Logs/<id>/`; DB backups
   live in `<repo>/db-backups/`.
-- The packaged `.app` is ad-hoc signed, not notarized. On another machine, clear quarantine:
-  `xattr -dr com.apple.quarantine "/path/to/fleet-hangar.app"`.
+- **Distribution.** `task package` produces only an ad-hoc-signed `.app`; `task dist` zips
+  whatever bundle is in `bin/` into `bin/fleet-hangar.zip` (via `ditto`, so the signature
+  survives) for handoff. Two paths:
+  - *Quick / trusted teammate:* `task package` → `task dist`, then the recipient clears
+    quarantine after unzipping: `xattr -dr com.apple.quarantine "/path/to/fleet-hangar.app"`
+    (an ad-hoc-signed app from another machine is otherwise blocked by Gatekeeper).
+  - *Clean install anywhere:* configure `SIGN_IDENTITY` + `KEYCHAIN_PROFILE` in
+    `build/darwin/Taskfile.yml`, run `task darwin:sign:notarize` (Developer ID sign +
+    Apple notarization), then `task dist`. No quarantine step needed.
+
+  `dist` never rebuilds, so running it after `sign:notarize` preserves the notarized signature.
 
 ## Known issues
 
