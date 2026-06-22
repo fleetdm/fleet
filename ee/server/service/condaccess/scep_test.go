@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mock"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
@@ -19,9 +19,9 @@ func TestChallengeMiddleware(t *testing.T) {
 	teamBID := uint(2)
 
 	cases := []struct {
-		name          string
-		challenge     string
-		wantErr       string
+		name           string
+		challenge      string
+		wantErr        string
 		wantSignCalled bool
 	}{
 		{
@@ -83,13 +83,12 @@ func TestChallengeMiddleware(t *testing.T) {
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
-				assert.False(t, signCalled, "signer should not be called on error")
 				assert.Nil(t, cert)
 			} else {
 				require.NoError(t, err)
-				assert.True(t, signCalled)
 				assert.NotNil(t, cert)
 			}
+			assert.Equal(t, tc.wantSignCalled, signCalled, "unexpected signer invocation")
 		})
 	}
 }
