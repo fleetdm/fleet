@@ -23,7 +23,6 @@
     color: $core-fleet-blue;
     font-family: "Inter", sans-serif;
     font-size: $x-small;
-    box-sizing: border-box;
     height: 36px;
 
     &::placeholder {
@@ -51,7 +50,6 @@
     &--error {
       color: $core-vibrant-red;
       border: 1px solid $core-vibrant-red;
-      box-sizing: border-box;
       border-radius: $border-radius;
 
       &:focus {

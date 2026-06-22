@@ -1,10 +1,17 @@
 html {
   position: relative;
   height: 100%;
+  box-sizing: border-box;
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
   color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
 }
 
 html:has(body.dark-mode) {
@@ -148,10 +155,6 @@ form,
 
   p {
     margin: 0;
-  }
-
-  .info-banner {
-    box-sizing: border-box;
   }
 }
 

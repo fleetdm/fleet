@@ -34,7 +34,6 @@ $main-max-width-including-padding: 1280px + 32px + 32px; // Cannot use variables
   /* Main Content logic per breakpoint */
   .main-content {
     position: relative;
-    box-sizing: border-box;
     padding: $main-padding;
 
     /* Default: for < ($main-max-width-including-padding + $side-panel-width) */
