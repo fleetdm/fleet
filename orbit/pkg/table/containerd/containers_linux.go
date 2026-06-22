@@ -25,14 +25,14 @@ func ContainersColumns() []table.ColumnDefinition {
 		table.TextColumn("runtime"),
 		table.TextColumn("command"),
 		table.BigIntColumn("pid"),
-        table.TextColumn("socket_path"),
+		table.TextColumn("socket_path"),
 	}
 }
 
 // GenerateContainers is called to return the results for the containerd_containers table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func GenerateContainers(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-    client, socketPath, err := newClient(queryContext)
+	client, socketPath, err := newClient(queryContext)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to containerd: %v", err)
 	}
@@ -100,7 +100,7 @@ func GenerateContainers(ctx context.Context, queryContext table.QueryContext) ([
 				"runtime":      info.Runtime.Name,
 				"pid":          pid,
 				"command":      command,
-        		"socket_path":  socketPath,
+				"socket_path":  socketPath,
 			}
 			rows = append(rows, row)
 		}

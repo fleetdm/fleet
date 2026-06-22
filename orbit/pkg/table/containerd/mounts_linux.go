@@ -21,14 +21,14 @@ func MountsColumns() []table.ColumnDefinition {
 		table.TextColumn("source"),
 		table.TextColumn("destination"),
 		table.TextColumn("options"),
-        table.TextColumn("socket_path"),
+		table.TextColumn("socket_path"),
 	}
 }
 
 // GenerateMounts is called to return the results for the containerd_mounts table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-    client, socketPath, err := newClient(queryContext)
+	client, socketPath, err := newClient(queryContext)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to containerd: %w", err)
 	}
@@ -67,7 +67,7 @@ func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map
 						"source":       mount.Source,
 						"destination":  mount.Destination,
 						"options":      strings.Join(mount.Options, ","),
-                        "socket_path":  socketPath,
+						"socket_path":  socketPath,
 					}
 					rows = append(rows, row)
 				}
