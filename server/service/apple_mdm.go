@@ -3787,10 +3787,15 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 
 	// Persist the access rights for this host so SCEP/ACME renewal can honour
 	// the monotonic-narrowing invariant (Apple disallows widening on replace).
-	accessRights := apple_mdm.AppleEnrollmentAccessRights(isPersonal)
-	if err := svc.ds.SetHostMDMAppleEnrollmentPermissions(r.Context, r.ID, accessRights); err != nil {
-		svc.logger.ErrorContext(r.Context, "failed to persist enrollment permissions", "host_uuid", r.ID, "err", err)
-		// Non-fatal: worst-case the next SCEP renewal uses MDMAccessRightAll (the pre-feature default).
+	// Skip during SCEP renewal: the renewed profile's ServerURL doesn't carry
+	// byod=1, so isPersonal would be false here and we'd widen the stored
+	// bitmask back to MDMAccessRightAll, breaking the next renewal.
+	if !scepRenewalInProgress {
+		accessRights := apple_mdm.AppleEnrollmentAccessRights(isPersonal)
+		if err := svc.ds.SetHostMDMAppleEnrollmentPermissions(r.Context, r.ID, accessRights); err != nil {
+			svc.logger.ErrorContext(r.Context, "failed to persist enrollment permissions", "host_uuid", r.ID, "err", err)
+			// Non-fatal: worst-case the next SCEP renewal uses MDMAccessRightAll (the pre-feature default).
+		}
 	}
 
 	if svc.keyValueStore != nil {
