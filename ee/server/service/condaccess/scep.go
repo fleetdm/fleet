@@ -96,12 +96,17 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		_, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
 		switch {
 		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+		// Only global enroll secrets (team_id IS NULL) are valid for
+		// conditional-access SCEP. Reject team-scoped secrets.
+		if secret.TeamID != nil {
+			return nil, errors.New("invalid challenge")
 		}
 		return next.SignCSRContext(ctx, m)
 	}
