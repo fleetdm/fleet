@@ -72,7 +72,7 @@
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: ($break-md - 1)) {
   .host-count-card {
     &__card {
       text-align: center;
