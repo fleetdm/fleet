@@ -14,10 +14,10 @@ const generateUrl = (
   enrollSecret: string,
   enrollmentType: EnrollmentType
 ) => {
-  const base = `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
-    enrollSecret
-  )}`;
-  return enrollmentType === "personal" ? `${base}&byod=true` : base;
+  const secretParam = `enroll_secret=${encodeURIComponent(enrollSecret)}`;
+  return enrollmentType === "personal"
+    ? `${serverUrl}/enroll?byod=true&${secretParam}`
+    : `${serverUrl}/enroll?${secretParam}`;
 };
 
 const baseClass = "ios-ipados-panel";

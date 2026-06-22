@@ -363,8 +363,8 @@
         </h1>
         <div>
           <div class="byod-tabs" role="tablist">
-            <button type="button" class="byod-tab byod-tab--personal active" role="tab" aria-selected="true" data-byod="personal">Personal (BYOD)</button>
-            <button type="button" class="byod-tab byod-tab--company" role="tab" aria-selected="false" data-byod="company">Company-owned</button>
+            <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+            <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
           </div>
           <div class="byod-info-banner">
             <span class="byod-info-banner-icon" aria-hidden="true">
@@ -374,8 +374,8 @@
               </svg>
             </span>
             <span class="byod-info-banner-text">
-              <span data-byod-content="personal">Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
-              <span data-byod-content="company" hidden>Your organization can see and delete all device information.</span>
+              <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
+              <span data-byod-content="company">Your organization can see and delete all device information.</span>
             </span>
           </div>
         </div>
@@ -436,8 +436,8 @@
           <h1>How to turn on MDM on your Mac</h1>
           <div>
             <div class="byod-tabs" role="tablist">
-              <button type="button" class="byod-tab byod-tab--personal active" role="tab" aria-selected="true" data-byod="personal">Personal (BYOD)</button>
-              <button type="button" class="byod-tab byod-tab--company" role="tab" aria-selected="false" data-byod="company">Company-owned</button>
+              <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+              <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
             </div>
             <div class="byod-info-banner">
               <span class="byod-info-banner-icon" aria-hidden="true">
@@ -447,8 +447,8 @@
                 </svg>
               </span>
               <span class="byod-info-banner-text">
-                <span data-byod-content="personal">Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
-                <span data-byod-content="company" hidden>Your organization can see and delete all device information.</span>
+                <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out.</span>
+                <span data-byod-content="company">Your organization can see and delete all device information.</span>
               </span>
             </div>
           </div>
@@ -708,12 +708,13 @@
       // Wires up the Personal (BYOD) / Company-owned tabs that appear on the
       // macOS, iOS, and iPadOS instruction screens. The active tab determines
       // both the visible info-banner copy and whether the Download link's URL
-      // includes &personal=true (matches the FleetPersonalEnrollmentKey on the
-      // backend OTA endpoint).
+      // includes &byod=true (consumed by the OTA endpoint to strip lock/erase
+      // rights from the enrollment profile for personal devices).
       //
       // The default selection follows the byod URL query param (set by the
-      // Add hosts modal when an admin chooses "Personal (BYOD)"); when absent
-      // we default to "personal" to match the Figma.
+      // Add hosts modal when an admin chooses "Personal (BYOD)"); only an
+      // explicit byod=true selects personal — everything else (absent param,
+      // byod=false, byod=0) defaults to company-owned.
       const wireBYODTabs = () => {
         const tabs = document.querySelectorAll(".byod-tab");
         if (tabs.length === 0) {
@@ -727,9 +728,9 @@
 
         const params = new URLSearchParams(window.location.search);
         const initial =
-          params.get("byod") === "false" || params.get("byod") === "0"
-            ? "company"
-            : "personal";
+          params.get("byod") === "true" || params.get("byod") === "1"
+            ? "personal"
+            : "company";
 
         const setSelection = (selection) => {
           tabs.forEach((tab) => {
@@ -742,14 +743,14 @@
             .forEach((el) => {
               el.hidden = el.getAttribute("data-byod-content") !== selection;
             });
-          // Append personal=true to the OTA download URL for BYOD; remove it for
+          // Append byod=true to the OTA download URL for BYOD; remove it for
           // company-owned. Using URL parsing keeps existing query params intact.
           try {
             const downloadUrl = new URL(baseHref, window.location.origin);
             if (selection === "personal") {
-              downloadUrl.searchParams.set("personal", "true");
+              downloadUrl.searchParams.set("byod", "true");
             } else {
-              downloadUrl.searchParams.delete("personal");
+              downloadUrl.searchParams.delete("byod");
             }
             downloadLink.setAttribute("href", downloadUrl.toString());
           } catch (e) {
@@ -757,7 +758,7 @@
             const sep = baseHref.includes("?") ? "&" : "?";
             downloadLink.setAttribute(
               "href",
-              selection === "personal" ? `${baseHref}${sep}personal=true` : baseHref
+              selection === "personal" ? `${baseHref}${sep}byod=true` : baseHref
             );
           }
         };
