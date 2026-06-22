@@ -3,4 +3,4 @@
   label_membership_type: manual
   platform: windows
   hosts:
-    - "1230"
+    - "1230"   #47980
