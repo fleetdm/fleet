@@ -33,9 +33,9 @@ import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import LibraryItemAccordion, {
-  LibraryItemAccordionList,
   LibraryItemLabelKind,
-} from "./LibraryItemAccordion";
+} from "./LibraryItemAccordion/LibraryItemAccordion";
+import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
 import EditSoftwareModal from "./EditSoftwareModal";
 import { getDisplayedSoftwareName } from "../helpers";
 
@@ -58,12 +58,24 @@ const SoftwareTitleDetailsPage = ({
   const {
     isPremiumTier,
     isOnGlobalTeam,
+    isGlobalAdmin,
+    isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
     isTeamTechnician,
     config,
   } = useContext(AppContext);
+
+  // Mirrors backend WRITE on `SoftwareInstaller` (rego: admin | maintainer |
+  // gitops). The UI doesn't surface gitops users here, so admin/maintainer is
+  // the full set. Used to gate every edit/delete affordance on the accordion.
+  const canEditSoftware = !!(
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer
+  );
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
@@ -262,6 +274,7 @@ const SoftwareTitleDetailsPage = ({
             badgeState="latest"
             labels={labels}
             labelKind={kind}
+            canEditSoftware={canEditSoftware}
             installed={appStore.status?.installed ?? 0}
             pending={appStore.status?.pending ?? 0}
             failed={appStore.status?.failed ?? 0}
@@ -290,6 +303,7 @@ const SoftwareTitleDetailsPage = ({
           badgeState="latest"
           labels={labels}
           labelKind={kind}
+          canEditSoftware={canEditSoftware}
           installed={pkg.status?.installed ?? 0}
           pending={
             (pkg.status?.pending_install ?? 0) +
@@ -317,6 +331,7 @@ const SoftwareTitleDetailsPage = ({
           isActive={false}
           labels={labels}
           labelKind={kind}
+          canEditSoftware={canEditSoftware}
           installed={pkg.status?.installed ?? 0}
           pending={
             (pkg.status?.pending_install ?? 0) +

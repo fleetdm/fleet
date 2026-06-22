@@ -17,7 +17,7 @@ interface ITooltipTruncatedTextCellProps {
    * positioning can misplace the tooltip in that case. */
   fixedPositionStrategy?: boolean;
   /** When `true`, suppress the tooltip even if the text is truncated. Useful
-   * when a parent surface owns the hover tooltip for the row. */
+   * when a parent surface owns the hover tooltip. */
   disableTooltip?: boolean;
 }
 

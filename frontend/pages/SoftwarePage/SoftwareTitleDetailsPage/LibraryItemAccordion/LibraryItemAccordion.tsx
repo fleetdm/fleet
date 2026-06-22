@@ -3,6 +3,7 @@ import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -50,10 +51,13 @@ export interface ILibraryItemAccordionProps {
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
 
-  /** Gates the inactive-row hover tooltip ("Select Actions > Versions and pin
-   * this version to rollback."). Mirrors `canEditSoftware` elsewhere in this
-   * area — users without edit access can't reach Actions > Versions, so the
-   * hint would point at a menu they can't use. Defaults to true. */
+  /** Mirror backend WRITE permission on the `SoftwareInstaller` entity —
+   * admin or maintainer. Technicians, observers, and observer+ pass `false`.
+   * Gates every edit/delete affordance on the row: the label-count badge
+   * (button → static span), the expanded-panel labels-click handler, the
+   * inactive-row "Select Actions > Versions and pin this version to rollback"
+   * hover tooltip, and the trash button (hidden entirely when false).
+   * Defaults to true. */
   canEditSoftware?: boolean;
 
   /** Which status badge the active row renders. `"latest"` → "Latest" with a
@@ -80,9 +84,6 @@ export interface ILibraryItemAccordionProps {
 
   hashSha256?: string | null;
   downloadUrl?: string;
-
-  trashDisabled?: boolean;
-  trashDisabledTooltip?: React.ReactNode;
 
   /** Click handler for whichever badge is rendered per `badgeState`. The
    * consumer can branch on `badgeState` inside the callback if it needs to
@@ -121,8 +122,6 @@ const LibraryItemAccordion = ({
   failedPath,
   hashSha256,
   downloadUrl,
-  trashDisabled,
-  trashDisabledTooltip,
   onBadgeClick,
   onLabelCountClick,
   onLabelsClick,
@@ -372,34 +371,37 @@ const LibraryItemAccordion = ({
     );
   };
 
-  const renderTrashButton = () => {
-    const trashButton = (
-      <Button
-        variant="icon"
-        disabled={trashDisabled}
-        onClick={onTrashClick}
-        ariaLabel="Delete this version"
-        className={`${baseClass}__trash-button`}
-      >
-        <Icon name="trash" />
-      </Button>
-    );
+  const renderTrashButtonBody = (disabled: boolean) => (
+    <Button
+      variant="icon"
+      disabled={disabled}
+      onClick={onTrashClick}
+      ariaLabel="Delete this version"
+      className={`${baseClass}__trash-button`}
+    >
+      <Icon name="trash" />
+    </Button>
+  );
 
-    if (trashDisabled && trashDisabledTooltip) {
-      return (
-        <TooltipWrapper
-          tipContent={trashDisabledTooltip}
-          showArrow
-          underline={false}
-          position="top"
-          tipOffset={8}
-        >
-          {trashButton}
-        </TooltipWrapper>
-      );
-    }
-    return trashButton;
-  };
+  // Mirrors SoftwareInstallerCard: only FMA and App Store / Play Store rows
+  // are disabled in GitOps mode (those installer types can't be managed via
+  // YAML). Custom packages stay deletable. The "software" entity exception is
+  // respected via `GitOpsModeTooltipWrapper`'s `entityType`.
+  const lockedByGitOpsMode = isFma || installerType === "app-store";
+
+  const renderTrashButton = () =>
+    lockedByGitOpsMode ? (
+      <GitOpsModeTooltipWrapper
+        position="top"
+        tipOffset={8}
+        entityType="software"
+        renderChildren={(gitOpsDisabled) =>
+          renderTrashButtonBody(!!gitOpsDisabled)
+        }
+      />
+    ) : (
+      renderTrashButtonBody(false)
+    );
 
   const headerButton = (
     <button
@@ -518,7 +520,7 @@ const LibraryItemAccordion = ({
                 <Icon name="download" />
               </Button>
             )}
-            {renderTrashButton()}
+            {canEditSoftware && renderTrashButton()}
           </div>
         </div>
       )}

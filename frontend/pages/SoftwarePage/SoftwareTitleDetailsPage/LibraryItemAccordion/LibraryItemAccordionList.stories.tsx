@@ -119,6 +119,17 @@ const STORYBOOK_PATHS = {
   failedPath: statusPath("failed"),
 };
 
+// Shim used by every story so each row can skip the path props (they're
+// stubbed identically here, never customized per story). The Demo wrapper
+// below still injects labels/labelKind/badgeState via cloneElement.
+type IStoryRowProps = Omit<
+  ILibraryItemAccordionProps,
+  "installedPath" | "pendingPath" | "failedPath"
+>;
+const StoryRow = (props: IStoryRowProps) => (
+  <LibraryItemAccordion {...props} {...STORYBOOK_PATHS} />
+);
+
 const LibraryItemAccordionListDemo = ({
   labelKind,
   labelCount,
@@ -142,7 +153,6 @@ const LibraryItemAccordionListDemo = ({
           {
             labels,
             labelKind,
-            ...STORYBOOK_PATHS,
             ...badgeProps,
             key: child.key ?? i,
           }
@@ -212,7 +222,7 @@ export const PinnedToMajorVersion: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="Google Chrome"
           version="149.0.7827.54"
           addedAt={daysAgo(1)}
@@ -226,7 +236,7 @@ export const PinnedToMajorVersion: Story = {
           hashSha256="af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7"
           downloadUrl="https://example.com/chrome-149.0.7827.54.pkg"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="Google Chrome"
           version="149.0.7800.10"
           addedAt={daysAgo(10)}
@@ -237,7 +247,7 @@ export const PinnedToMajorVersion: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="Google Chrome"
           version="148.0.7778.179"
           addedAt={daysAgo(28)}
@@ -269,7 +279,7 @@ export const AndroidFmaSingleVersion: Story = {
   render: (args) =>
     renderList(
       args,
-      <LibraryItemAccordion
+      <StoryRow
         filename="Google Chrome"
         addedAt={daysAgo(1)}
         installerType="app-store"
@@ -291,7 +301,7 @@ export const MacCustomPackageMultipleVersions: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeHelper.pkg"
           version="2.4.0"
           addedAt={daysAgo(2)}
@@ -303,7 +313,7 @@ export const MacCustomPackageMultipleVersions: Story = {
           hashSha256="b9d3a9d6c1e9442f9c0bb56af4f37b87f0bcb6df7f8db5a30e1bdce20c40a8d3"
           downloadUrl="https://example.com/acme-helper-2.4.0.pkg"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeHelper.pkg"
           version="2.3.5"
           addedAt={daysAgo(18)}
@@ -313,7 +323,7 @@ export const MacCustomPackageMultipleVersions: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeHelper.pkg"
           version="2.2.0"
           addedAt={daysAgo(60)}
@@ -336,7 +346,7 @@ export const WindowsCustomPackageMultipleVersions: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="NotepadPlusPlus.msi"
           version="8.6.9"
           addedAt={daysAgo(3)}
@@ -348,7 +358,7 @@ export const WindowsCustomPackageMultipleVersions: Story = {
           hashSha256="2e8a4f3b9c1d5e7a8b6c2f0d1e3a5b7c9d2e4f6a8b0c1d3e5f7a9b1c3d5e7f9a"
           downloadUrl="https://example.com/npp-8.6.9.msi"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="NotepadPlusPlus.msi"
           version="8.6.4"
           addedAt={daysAgo(22)}
@@ -358,7 +368,7 @@ export const WindowsCustomPackageMultipleVersions: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="NotepadPlusPlus.msi"
           version="8.5.8"
           addedAt={daysAgo(70)}
@@ -384,7 +394,7 @@ export const WindowsMixedCustomAndFma: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="Mozilla Firefox"
           version="131.0.3"
           addedAt={daysAgo(1)}
@@ -398,7 +408,7 @@ export const WindowsMixedCustomAndFma: Story = {
           hashSha256="9f2c4e6a8b0d1f3e5a7c9b1d3f5e7a9c1b3d5f7e9a1c3b5d7f9e1a3c5b7d9f1e"
           downloadUrl="https://example.com/firefox-131.0.3.msi"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="Mozilla Firefox"
           version="130.0.1"
           addedAt={daysAgo(20)}
@@ -409,7 +419,7 @@ export const WindowsMixedCustomAndFma: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="CompanyVPN.msi"
           version="4.1.0"
           addedAt={daysAgo(7)}
@@ -420,7 +430,7 @@ export const WindowsMixedCustomAndFma: Story = {
           failed={0}
           hashSha256="3a7c9e1b5d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="CompanyVPN.msi"
           version="4.0.2"
           addedAt={daysAgo(40)}
@@ -443,7 +453,7 @@ export const MacOSMixedCustomAndFma: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="Slack"
           version="4.39.95"
           addedAt={daysAgo(1)}
@@ -457,7 +467,7 @@ export const MacOSMixedCustomAndFma: Story = {
           hashSha256="d4e7a1c3b5f9e1a3c5b7d9f1e3a5c7b9d1f3e5a7c9b1d3f5e7a9c1b3d5f7e9a1"
           downloadUrl="https://example.com/slack-4.39.95.pkg"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="Slack"
           version="4.38.121"
           addedAt={daysAgo(25)}
@@ -468,7 +478,7 @@ export const MacOSMixedCustomAndFma: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="DesignTool.pkg"
           version="3.2.1"
           addedAt={daysAgo(8)}
@@ -479,7 +489,7 @@ export const MacOSMixedCustomAndFma: Story = {
           failed={0}
           hashSha256="7e3a9c1b5d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4e"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="DesignTool.pkg"
           version="3.1.0"
           addedAt={daysAgo(50)}
@@ -501,7 +511,7 @@ export const AppStoreVppSingleVersion: Story = {
   render: (args) =>
     renderList(
       args,
-      <LibraryItemAccordion
+      <StoryRow
         filename="1Password 7 - Password Manager"
         version="7.9.11"
         addedAt={daysAgo(2)}
@@ -527,7 +537,7 @@ export const IOSInHouseIpaMultipleVersions: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeWarehouse.ipa"
           version="5.2.1"
           addedAt={daysAgo(4)}
@@ -539,7 +549,7 @@ export const IOSInHouseIpaMultipleVersions: Story = {
           hashSha256="6b1d3a5c7e9f0b2d4a6c8e1f3b5d7a9c0e2f4b6d8a0c1e3f5b7d9a1c3e5f7b9d"
           downloadUrl="https://example.com/acme-warehouse-5.2.1.ipa"
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeWarehouse.ipa"
           version="5.1.0"
           addedAt={daysAgo(28)}
@@ -549,7 +559,7 @@ export const IOSInHouseIpaMultipleVersions: Story = {
           pending={0}
           failed={0}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeWarehouse.ipa"
           version="5.0.3"
           addedAt={daysAgo(75)}
@@ -574,7 +584,7 @@ export const IOSMixedVppAndInHouseIpa: Story = {
     renderList(
       args,
       <>
-        <LibraryItemAccordion
+        <StoryRow
           filename="Microsoft Authenticator"
           version="6.8.14"
           addedAt={daysAgo(2)}
@@ -584,7 +594,7 @@ export const IOSMixedVppAndInHouseIpa: Story = {
           pending={5}
           failed={1}
         />
-        <LibraryItemAccordion
+        <StoryRow
           filename="AcmeWarehouse.ipa"
           version="5.2.1"
           addedAt={daysAgo(6)}

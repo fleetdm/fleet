@@ -4,11 +4,19 @@ import userEvent from "@testing-library/user-event";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
+import { stringToClipboard } from "utilities/copy_text";
 import { getPathWithQueryParams } from "utilities/url";
 
 import LibraryItemAccordion, {
   ILibraryItemAccordionProps,
 } from "./LibraryItemAccordion";
+
+jest.mock("utilities/copy_text", () => ({
+  stringToClipboard: jest.fn(),
+}));
+const mockedStringToClipboard = stringToClipboard as jest.MockedFunction<
+  typeof stringToClipboard
+>;
 
 const statusPath = (software_status: "installed" | "pending" | "failed") =>
   getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -139,24 +147,19 @@ describe("LibraryItemAccordion", () => {
     expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
   });
 
-  it("renders the trash button disabled with tooltip when trashDisabled", async () => {
-    const onTrashClick = jest.fn();
+  it("hides the trash button entirely when canEditSoftware is false", async () => {
     const user = userEvent.setup();
-    renderAccordion({
-      trashDisabled: true,
-      trashDisabledTooltip: "GitOps mode is enabled",
-      onTrashClick,
-    });
+    renderAccordion({ canEditSoftware: false });
 
     await user.click(screen.getByRole("button", { expanded: false }));
 
-    const trashBtn = screen.getByRole("button", {
-      name: "Delete this version",
-    });
-    expect(trashBtn).toBeDisabled();
-
-    await user.click(trashBtn);
-    expect(onTrashClick).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Delete this version" })
+    ).not.toBeInTheDocument();
+    // Download stays — gated only by `downloadUrl`, not edit permission.
+    expect(
+      screen.getByRole("button", { name: "Download installer" })
+    ).toBeVisible();
   });
 
   it("invokes onTrashClick when enabled", async () => {
@@ -316,6 +319,33 @@ describe("LibraryItemAccordion", () => {
       "href",
       statusPath("failed")
     );
+  });
+
+  it("copies the hash to the clipboard and shows a transient 'Copied!' message", async () => {
+    mockedStringToClipboard.mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    renderAccordion();
+
+    await user.click(screen.getByRole("button", { expanded: false }));
+    await user.click(
+      screen.getByRole("button", { name: "Copy hash to clipboard" })
+    );
+
+    expect(mockedStringToClipboard).toHaveBeenCalledWith(baseProps.hashSha256);
+    expect(await screen.findByText("Copied!")).toBeVisible();
+  });
+
+  it("shows 'Copy failed' when the clipboard write rejects", async () => {
+    mockedStringToClipboard.mockRejectedValueOnce(new Error("denied"));
+    const user = userEvent.setup();
+    renderAccordion();
+
+    await user.click(screen.getByRole("button", { expanded: false }));
+    await user.click(
+      screen.getByRole("button", { name: "Copy hash to clipboard" })
+    );
+
+    expect(await screen.findByText("Copy failed")).toBeVisible();
   });
 
   it("does not throw when the row is rendered with no handlers and interactive elements are clicked", async () => {

@@ -92,19 +92,29 @@ export const Inactive: Story = {
   },
 };
 
-export const TrashDisabledGitOps: Story = {
+/** Active row, user lacks edit permission. The label-count badge demotes to a
+ * static span (no button + no click handler), the expanded-panel labels list
+ * renders as plain text rather than a CustomLink, and the trash button is
+ * hidden entirely. The download button stays (gated only by `downloadUrl`). */
+export const ActiveCannotEditSoftware: Story = {
   args: {
-    trashDisabled: true,
-    trashDisabledTooltip:
-      "GitOps mode is enabled. Manage software via your YAML files.",
+    canEditSoftware: false,
+    badgeState: "latest",
+    labels: labels7,
   },
 };
 
-export const TrashDisabledObserver: Story = {
+/** Inactive row, user lacks edit permission. The "Select Actions > Versions
+ * and pin this version to rollback" hover tooltip is suppressed because the
+ * user can't reach that menu anyway. */
+export const InactiveCannotEditSoftware: Story = {
   args: {
-    trashDisabled: true,
-    trashDisabledTooltip:
-      "Your role does not have permission to delete software.",
+    canEditSoftware: false,
+    isActive: false,
+    badgeState: undefined,
+    labels: [],
+    version: "148.0.7778.179",
+    addedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
   },
 };
 
