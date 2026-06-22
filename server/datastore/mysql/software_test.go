@@ -135,6 +135,7 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
+		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6332,7 +6333,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	// Create a software installer using the standard method
 	tfr, err := fleet.NewTempFileReader(strings.NewReader("test-package"), t.TempDir)
 	require.NoError(t, err)
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   `echo 'foo'`,
 		UninstallScript: `echo 'uninstall'`,
 		InstallerFile:   tfr,
@@ -6351,9 +6352,9 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	originalCreatedAt := time.Now().Add(-1 * time.Hour).UTC().Truncate(time.Microsecond) // Set to 1 hour ago
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt)
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at, software_title_id, software_title_name, installer_filename)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt, titleID, "test-app", "installer.pkg")
 		return err
 	})
 
@@ -13146,4 +13147,116 @@ INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app
 	require.Len(t, installs, 1)
 	require.NotNil(t, installs[0].InHouseAppID)
 	require.Equal(t, appID, *installs[0].InHouseAppID)
+}
+
+func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "test", "test@example.com", true)
+
+	// Installer removed: DeleteSoftwareInstaller marks the completed install removed and the
+	// software_installer_id FK (ON DELETE SET NULL) nulls out, but the title survives and the
+	// denormalized columns are preserved.
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("removed-installer-package"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   `echo 'foo'`,
+		UninstallScript: `echo 'uninstall'`,
+		InstallerFile:   tfr,
+		StorageID:       "removed-installer-storage",
+		Filename:        "removed-installer.pkg",
+		Title:           "removed-installer-app",
+		Version:         "v1.0.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// A completed install (terminal exit code) so DeleteSoftwareInstaller marks it removed rather
+	// than deleting it as a pending install.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, software_title_id, software_title_name, installer_filename, install_script_exit_code)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			"removed-installer-uuid", host.ID, installerID, user.ID, false, titleID, "removed-installer-app", "removed-installer.pkg", 0)
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, installerID)
+	require.NoError(t, err)
+
+	var nulledInstallerID *uint
+	err = ds.writer(ctx).GetContext(ctx, &nulledInstallerID, `SELECT software_installer_id FROM host_software_installs WHERE execution_id = ?`, "removed-installer-uuid")
+	require.NoError(t, err)
+	require.Nil(t, nulledInstallerID)
+
+	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "removed-installer-uuid",
+		InstallScriptExitCode: new(1),
+		InstallScriptOutput:   new("install failed"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, failedExecID)
+
+	failedResult, err := ds.GetSoftwareInstallResults(ctx, failedExecID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, failedResult.Status)
+	require.Equal(t, "removed-installer-app", failedResult.SoftwareTitle)
+	require.Equal(t, "removed-installer.pkg", failedResult.SoftwarePackage)
+
+	// Title deleted: titles are only ever removed by CleanupSoftwareTitles once orphaned, i.e. after
+	// their installer is deleted. That nulls host_software_installs.software_title_id (ON DELETE SET
+	// NULL) on top of the already-nulled software_installer_id, leaving only the denormalized columns.
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("deleted-title-package"), t.TempDir)
+	require.NoError(t, err)
+	installerID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   `echo 'foo'`,
+		UninstallScript: `echo 'uninstall'`,
+		InstallerFile:   tfr2,
+		StorageID:       "deleted-title-storage",
+		Filename:        "deleted-title.pkg",
+		Title:           "deleted-title-app",
+		Version:         "v1.0.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, software_title_id, software_title_name, installer_filename, install_script_exit_code)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			"deleted-title-uuid", host.ID, installerID2, user.ID, false, titleID2, "deleted-title-app", "deleted-title.pkg", 0)
+		return err
+	})
+
+	err = ds.DeleteSoftwareInstaller(ctx, installerID2)
+	require.NoError(t, err)
+	err = ds.CleanupSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	var nulledTitleID *uint
+	err = ds.writer(ctx).GetContext(ctx, &nulledTitleID, `SELECT software_title_id FROM host_software_installs WHERE execution_id = ?`, "deleted-title-uuid")
+	require.NoError(t, err)
+	require.Nil(t, nulledTitleID)
+
+	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "deleted-title-uuid",
+		InstallScriptExitCode: new(1),
+		InstallScriptOutput:   new("install failed"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, failedExecID2)
+
+	failedResult2, err := ds.GetSoftwareInstallResults(ctx, failedExecID2)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, failedResult2.Status)
+	require.Equal(t, "deleted-title-app", failedResult2.SoftwareTitle)
+	require.Equal(t, "deleted-title.pkg", failedResult2.SoftwarePackage)
 }
