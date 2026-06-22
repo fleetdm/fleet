@@ -327,28 +327,14 @@ const generateActionDropdownOptions = (
   return dropdownOptions;
 };
 
-const generateTeamNames = (
-  teams: ITeam[],
-  globalRole: UserRole | null
-): string[] => {
-  const names = teams.map((t) => t.name);
-  if (globalRole !== null && teams.length > 0) {
-    return ["Global", ...names];
-  }
-  return names;
+const generateTeamNames = (teams: ITeam[]): string[] => {
+  return teams.map((t) => t.name);
 };
 
 const generateRoleGroups = (
-  teams: ITeam[],
-  globalRole: UserRole | null
+  teams: ITeam[]
 ): { role: string; names: string[] }[] => {
   const groups: { role: string; names: string[] }[] = [];
-  if (globalRole !== null && teams.length > 0) {
-    groups.push({
-      role: stringUtils.capitalizeRole(globalRole),
-      names: ["Global"],
-    });
-  }
   teams.forEach((team) => {
     const role = stringUtils.capitalizeRole(team.role || "Unassigned");
     const existing = groups.find((g) => g.role === role);
@@ -371,8 +357,8 @@ const enhanceUserData = (
       status: generateStatus("user", user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
-      teamNames: generateTeamNames(user.teams, user.global_role),
-      roleGroups: generateRoleGroups(user.teams, user.global_role),
+      teamNames: generateTeamNames(user.teams),
+      roleGroups: generateRoleGroups(user.teams),
       role: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
@@ -396,7 +382,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       teamNames: generateTeamNames(invite.teams, invite.global_role),
-      roleGroups: generateRoleGroups(invite.teams, invite.global_role),
+      roleGroups: generateRoleGroups(invite.teams),
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(
         false,

@@ -72,21 +72,10 @@ const AccountSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const teamNames = (() => {
-    const names = teams.map((t) => t.name);
-    return globalRole !== null && teams.length > 0
-      ? ["Global", ...names]
-      : names;
-  })();
+  const teamNames = teams.map((t) => t.name);
 
   const roleGroups = (() => {
     const groups: { role: string; names: string[] }[] = [];
-    if (globalRole !== null && teams.length > 0) {
-      groups.push({
-        role: stringUtils.capitalizeRole(globalRole),
-        names: ["Global"],
-      });
-    }
     teams.forEach((team) => {
       const role = stringUtils.capitalizeRole(team.role || "Unassigned");
       const existing = groups.find((g) => g.role === role);
