@@ -1,6 +1,6 @@
 /** software/titles/:id > First section */
 
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 
 import { InjectedRouter } from "react-router";
 
@@ -135,10 +135,14 @@ const SoftwareSummaryCard = ({
     softwareTitle.software_package?.automatic_install_policies ??
     softwareTitle.app_store_app?.automatic_install_policies ??
     [];
-  const mergedPolicies = mergePolicies({
-    automaticInstallPolicies: autoInstallPolicies,
-    patchPolicy: softwareTitle.software_package?.patch_policy,
-  });
+  const mergedPolicies = useMemo(
+    () =>
+      mergePolicies({
+        automaticInstallPolicies: autoInstallPolicies,
+        patchPolicy: softwareTitle.software_package?.patch_policy,
+      }),
+    [autoInstallPolicies, softwareTitle.software_package?.patch_policy]
+  );
   const isSelfService =
     !!softwareTitle.software_package?.self_service ||
     !!softwareTitle.app_store_app?.self_service;
@@ -151,6 +155,10 @@ const SoftwareSummaryCard = ({
   // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
   // ship as a custom package.
   const isAppleVpp = installerType === "app-store" && !isAndroidPlayStoreApp;
+  // Order matters: `.find` returns the first truthy row. FMA is checked first
+  // because a Fleet-maintained app uploaded as a custom package still counts
+  // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
+  // by their dominant source; Custom package is the catch-all fallback.
   const installerKindLabel = ([
     [isFleetMaintainedApp, "Fleet-maintained"],
     [isAppleVpp, "App Store (VPP)"],
@@ -158,59 +166,74 @@ const SoftwareSummaryCard = ({
     [isCustomPackage, "Custom package"],
   ] as const).find(([flag]) => flag)?.[1];
 
-  const headerPills = (
-    <>
-      {installerKindLabel && <Tag text={installerKindLabel} />}
-      {isSelfService && (
-        <Tag
-          icon="user"
-          text="Self-service"
-          tooltip={getSelfServiceTooltip(
-            isIpadOrIphoneSoftwareSource(softwareTitle.source),
-            isAndroidSoftwareSource(softwareTitle.source)
-          )}
-        />
-      )}
-      {hasLinkedPolicies && (
-        <Tag
-          icon="refresh"
-          text="Auto install"
-          trailingIcon="chevron-right"
-          onClick={() => {
-            // Single-policy case: jump straight to the policy. The modal
-            // would just show a one-item list with that same link.
-            if (mergedPolicies.length === 1) {
-              router.push(
-                getPathWithQueryParams(
-                  PATHS.POLICY_DETAILS(mergedPolicies[0].id),
-                  { fleet_id: teamId }
-                )
-              );
-              return;
-            }
-            setShowPoliciesModal(true);
-          }}
-          tooltip={
-            mergedPolicies.length === 1 ? (
-              <>
-                Policy triggers install.
-                <br />
-                Select to open policy.
-              </>
-            ) : (
-              <>
-                Policies trigger install.
-                <br />
-                Select to view policies.
-              </>
-            )
-          }
-        />
-      )}
-    </>
-  );
   const showHeaderPills =
     !!installerKindLabel || isSelfService || hasLinkedPolicies;
+
+  const headerPills = useMemo(() => {
+    if (!showHeaderPills) {
+      return undefined;
+    }
+    return (
+      <>
+        {installerKindLabel && <Tag text={installerKindLabel} />}
+        {isSelfService && (
+          <Tag
+            icon="user"
+            text="Self-service"
+            tooltip={getSelfServiceTooltip(
+              isIpadOrIphoneSoftwareSource(softwareTitle.source),
+              isAndroidSoftwareSource(softwareTitle.source)
+            )}
+          />
+        )}
+        {hasLinkedPolicies && (
+          <Tag
+            icon="refresh"
+            text="Auto install"
+            trailingIcon="chevron-right"
+            onClick={() => {
+              // Single-policy case: jump straight to the policy. The modal
+              // would just show a one-item list with that same link.
+              if (mergedPolicies.length === 1) {
+                router.push(
+                  getPathWithQueryParams(
+                    PATHS.POLICY_DETAILS(mergedPolicies[0].id),
+                    { fleet_id: teamId }
+                  )
+                );
+                return;
+              }
+              setShowPoliciesModal(true);
+            }}
+            tooltip={
+              mergedPolicies.length === 1 ? (
+                <>
+                  Policy triggers install.
+                  <br />
+                  Select to open policy.
+                </>
+              ) : (
+                <>
+                  Policies trigger install.
+                  <br />
+                  Select to view policies.
+                </>
+              )
+            }
+          />
+        )}
+      </>
+    );
+  }, [
+    showHeaderPills,
+    installerKindLabel,
+    isSelfService,
+    hasLinkedPolicies,
+    mergedPolicies,
+    softwareTitle.source,
+    router,
+    teamId,
+  ]);
 
   return (
     <>
@@ -247,7 +270,7 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
-          headerPills={showHeaderPills ? headerPills : undefined}
+          headerPills={headerPills}
         />
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (

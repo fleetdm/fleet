@@ -430,6 +430,9 @@ const SoftwareTitleDetailsPage = ({
     }
 
     if (softwareTitle) {
+      // Intentional: a title with no installer and no installed hosts collapses
+      // to just the summary card with both Library and Inventory hidden. No
+      // empty state is shown — design wants the summary alone in that case.
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}

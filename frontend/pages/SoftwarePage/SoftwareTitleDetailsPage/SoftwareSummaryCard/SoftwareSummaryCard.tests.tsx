@@ -326,6 +326,85 @@ describe("Software Summary Card", () => {
       const options = await getDropdownOptions(user);
       expect(options).not.toContain("Versions");
     });
+
+    it("still renders the Versions option when GitOps mode is on", async () => {
+      // GitOps disables the option but keeps it visible (with a tooltip
+      // explaining why). The disabled+tooltip wiring is unit-tested in
+      // SoftwareDetailsSummary.tests.tsx; here we just confirm the option
+      // survives the gitops context — i.e., we don't accidentally hide it.
+      const gitopsRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://example.com/repo",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = gitopsRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      const options = screen
+        .getAllByTestId("dropdown-option")
+        .map((opt) => opt.textContent);
+      expect(options).toContain("Versions");
+    });
+
+    it("hides Versions option for observers without manage permission", async () => {
+      const observerRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalObserver: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: false,
+                repository_url: "",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = observerRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      // Observers don't get an Actions dropdown at all when canManageSoftware
+      // is false — confirming Versions is unreachable from this role.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(user).toBeDefined();
+    });
   });
 
   describe("Header pills", () => {
@@ -567,6 +646,33 @@ describe("Software Summary Card", () => {
       ).toBeGreaterThan(0);
       expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Policy B").length).toBeGreaterThan(0);
+    });
+
+    it("does not render the pills row when nothing applies", () => {
+      // No FMA, no VPP, no Play Store, no self-service, no policies — but the
+      // package itself qualifies as Custom, so installerKindLabel is "Custom
+      // package" and the pill row should appear. To get a truly empty pill
+      // row we need a title with no installer at all, in which case the
+      // component early-returns before pills are constructed, so there's no
+      // pill wrapper to find either. Either path, the pill wrapper is absent
+      // when there's nothing to show.
+      const { container } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: null,
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      expect(
+        container.querySelector(".software-details-summary__header-pills")
+      ).toBeNull();
     });
   });
 });
