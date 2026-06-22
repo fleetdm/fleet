@@ -3,4 +3,4 @@
   label_membership_type: manual
   platform: darwin
   hosts:
-    - "1339" #47980
+    - "1339"   #47980
