@@ -191,7 +191,7 @@ const LibraryItemAccordion = ({
       <div className={`${baseClass}__badges`}>
         {badgeState === "latest" && (
           <Button
-            variant="text-icon"
+            variant="inverse"
             size="small"
             onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
@@ -202,7 +202,7 @@ const LibraryItemAccordion = ({
         )}
         {badgeState === "pinned" && (
           <Button
-            variant="text-icon"
+            variant="inverse"
             size="small"
             onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
@@ -213,7 +213,7 @@ const LibraryItemAccordion = ({
         )}
         {badgeState === "majorVersion" && (
           <Button
-            variant="text-icon"
+            variant="inverse"
             size="small"
             onClick={handleBadgeClick(onBadgeClick)}
             className={`${baseClass}__badge-button`}
@@ -232,7 +232,7 @@ const LibraryItemAccordion = ({
           >
             {canEditSoftware ? (
               <Button
-                variant="text-icon"
+                variant="inverse"
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
@@ -409,11 +409,26 @@ const LibraryItemAccordion = ({
       renderTrashButtonBody(false)
     );
 
+  // Activates the header on Enter or Space. Mirrors `DataTable.tsx`'s
+  // clickable-row pattern (onClick + onKeyDown + tabIndex on the container)
+  // but uses `role="button"` since this isn't a `<tr>` with implicit table
+  // semantics. The container can't be a real `<button>` because the badges
+  // it renders are themselves native `<button>` elements — nesting buttons
+  // violates the HTML spec and would fire React's validateDOMNesting warning.
+  const handleHeaderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canExpand) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleExpanded();
+    }
+  };
+
   const headerButton = (
-    <button
-      type="button"
+    <div
+      role="button"
       className={`${baseClass}__header`}
       onClick={toggleExpanded}
+      onKeyDown={handleHeaderKeyDown}
       aria-expanded={isExpanded}
       aria-disabled={!canExpand}
       tabIndex={canExpand ? 0 : -1}
@@ -436,19 +451,19 @@ const LibraryItemAccordion = ({
         isScriptPackage={isScriptPackage}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
-        // Inactive rows wrap the entire header button in the
-        // `inactiveTooltip` ("Select Actions > Versions and pin this version
-        // to rollback."), which is the only hover affordance the row should
-        // surface. Suppressing the widget's own tooltips (title truncation,
-        // version chip, addedAt, FMA, Play Store) avoids stacking a second
-        // tooltip on top of that one — Fleet UI avoids rendering two tooltips
-        // on the same hover target across the app. See
+        // Inactive rows wrap the entire header in the `inactiveTooltip`
+        // ("Select Actions > Versions and pin this version to rollback."),
+        // which is the only hover affordance the row should surface.
+        // Suppressing the widget's own tooltips (title truncation, version
+        // chip, addedAt, FMA, Play Store) avoids stacking a second tooltip
+        // on top of that one — Fleet UI avoids rendering two tooltips on the
+        // same hover target across the app. See
         // `SoftwareInstallerCard/InstallerDetailsWidget/InstallerDetailsWidget.tsx`
         // for the exact set of tooltips this flag silences.
         disableTooltips={!isActive}
       />
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
-    </button>
+    </div>
   );
 
   return (
