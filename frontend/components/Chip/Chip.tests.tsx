@@ -2,11 +2,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import Tag from "./Tag";
+import Chip from "./Chip";
 
-describe("Tag", () => {
+describe("Chip", () => {
   it("renders text without an icon when icon is omitted", () => {
-    render(<Tag text="Fleet-maintained" />);
+    render(<Chip text="Fleet-maintained" />);
 
     expect(screen.getByText("Fleet-maintained")).toBeInTheDocument();
     // The Icon component renders an svg; there should be none when no icon prop.
@@ -14,7 +14,7 @@ describe("Tag", () => {
   });
 
   it("renders a leading icon when icon prop is provided", () => {
-    render(<Tag icon="user" text="Self-service" />);
+    render(<Chip icon="user" text="Self-service" />);
 
     expect(screen.getByText("Self-service")).toBeInTheDocument();
     expect(document.querySelector("svg")).not.toBeNull();
@@ -22,7 +22,7 @@ describe("Tag", () => {
 
   it("renders a trailing icon when trailingIcon prop is provided", () => {
     render(
-      <Tag icon="refresh" text="Auto install" trailingIcon="chevron-right" />
+      <Chip icon="refresh" text="Auto install" trailingIcon="chevron-right" />
     );
 
     expect(screen.getByText("Auto install")).toBeInTheDocument();
@@ -31,31 +31,31 @@ describe("Tag", () => {
   });
 
   it("renders as a button when onClick is provided", () => {
-    render(<Tag text="Auto install" onClick={() => undefined} />);
+    render(<Chip text="Auto install" onClick={() => undefined} />);
     expect(
       screen.getByRole("button", { name: /auto install/i })
     ).toBeInTheDocument();
   });
 
-  it("calls onClick when the tag is clicked", async () => {
+  it("calls onClick when the chip is clicked", async () => {
     const handler = jest.fn();
-    render(<Tag text="Auto install" onClick={handler} />);
+    render(<Chip text="Auto install" onClick={handler} />);
 
     await userEvent.click(screen.getByText("Auto install"));
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it("does not render a button when onClick is not provided", () => {
-    render(<Tag text="Fleet-maintained" />);
+    render(<Chip text="Fleet-maintained" />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("wraps the tag in a TooltipWrapper when tooltip is provided", () => {
+  it("wraps the chip in a TooltipWrapper when tooltip is provided", () => {
     const { container } = render(
-      <Tag text="Self-service" tooltip="Available in self-service" />
+      <Chip text="Self-service" tooltip="Available in self-service" />
     );
 
-    // The tag text is still discoverable through the wrapper.
+    // The chip text is still discoverable through the wrapper.
     expect(screen.getByText("Self-service")).toBeInTheDocument();
     // The TooltipWrapper element is present (content renders on hover, but the
     // wrapper class is the structural signal that tooltip wiring kicked in).
@@ -65,7 +65,7 @@ describe("Tag", () => {
   });
 
   it("does not render a TooltipWrapper when tooltip is omitted", () => {
-    const { container } = render(<Tag text="Self-service" />);
+    const { container } = render(<Chip text="Self-service" />);
     expect(container.querySelector(".component__tooltip-wrapper")).toBeNull();
   });
 });

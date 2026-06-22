@@ -5,9 +5,9 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "tag";
+const baseClass = "chip";
 
-interface ITagProps {
+interface IChipProps {
   icon?: IconNames;
   text: string;
   trailingIcon?: IconNames;
@@ -17,18 +17,18 @@ interface ITagProps {
   tooltip?: React.ReactNode;
 }
 
-const Tag = ({
+const Chip = ({
   icon,
   text,
   trailingIcon,
   className,
   onClick,
   tooltip,
-}: ITagProps) => {
+}: IChipProps) => {
   const classNames = classnames(
     baseClass,
     className,
-    onClick && `${baseClass}__clickable-tag`
+    onClick && `${baseClass}__clickable-chip`
   );
 
   const content = (
@@ -41,8 +41,8 @@ const Tag = ({
     </>
   );
 
-  const tag = onClick ? (
-    // use a button element so that the tag can be focused and clicked
+  const chip = onClick ? (
+    // use a button element so that the chip can be focused and clicked
     // with the keyboard
     <button className={classNames} onClick={onClick}>
       {content}
@@ -52,7 +52,7 @@ const Tag = ({
   );
 
   if (!tooltip) {
-    return tag;
+    return chip;
   }
 
   return (
@@ -62,9 +62,9 @@ const Tag = ({
       underline={false}
       showArrow
     >
-      {tag}
+      {chip}
     </TooltipWrapper>
   );
 };
 
-export default Tag;
+export default Chip;

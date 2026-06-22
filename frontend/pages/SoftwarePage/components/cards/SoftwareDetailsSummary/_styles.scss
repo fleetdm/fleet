@@ -9,8 +9,7 @@
   row-gap: $pad-small;
 
   // Adds the third row only when pills are present — otherwise the empty
-  // track would still add `row-gap` below the data row (e.g. EditIconModal's
-  // preview card never passes `headerPills`).
+  // track would still add `row-gap` below the data row.
   &--has-pills {
     grid-template-areas:
       "icon  title  actions"

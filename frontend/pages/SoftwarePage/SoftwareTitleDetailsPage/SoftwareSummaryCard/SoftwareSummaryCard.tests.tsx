@@ -328,10 +328,6 @@ describe("Software Summary Card", () => {
     });
 
     it("still renders the Versions option when GitOps mode is on", async () => {
-      // GitOps disables the option but keeps it visible (with a tooltip
-      // explaining why). The disabled+tooltip wiring is unit-tested in
-      // SoftwareDetailsSummary.tests.tsx; here we just confirm the option
-      // survives the gitops context — i.e., we don't accidentally hide it.
       const gitopsRender = createCustomRenderer({
         context: {
           app: {
@@ -638,19 +634,11 @@ describe("Software Summary Card", () => {
 
       await user.click(screen.getByText("Auto install"));
 
-      // The modal renders both policies in the table.
       expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Policy B").length).toBeGreaterThan(0);
     });
 
-    it("does not render the pills row when nothing applies", () => {
-      // No FMA, no VPP, no Play Store, no self-service, no policies — but the
-      // package itself qualifies as Custom, so installerKindLabel is "Custom
-      // package" and the pill row should appear. To get a truly empty pill
-      // row we need a title with no installer at all, in which case the
-      // component early-returns before pills are constructed, so there's no
-      // pill wrapper to find either. Either path, the pill wrapper is absent
-      // when there's nothing to show.
+    it("does not render the pills row when there is no installer", () => {
       const { container } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({

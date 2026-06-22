@@ -21,7 +21,7 @@ import {
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import Card from "components/Card";
-import Tag from "components/Tag";
+import Chip from "components/Chip";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -126,9 +126,9 @@ const SoftwareSummaryCard = ({
     }
     return (
       <>
-        {installerKindLabel && <Tag text={installerKindLabel} />}
+        {installerKindLabel && <Chip text={installerKindLabel} />}
         {isSelfService && (
-          <Tag
+          <Chip
             icon="user"
             text="Self-service"
             tooltip={getSelfServiceTooltip(
@@ -138,7 +138,7 @@ const SoftwareSummaryCard = ({
           />
         )}
         {hasLinkedPolicies && (
-          <Tag
+          <Chip
             icon="refresh"
             text="Auto install"
             onClick={() => {
@@ -185,9 +185,7 @@ const SoftwareSummaryCard = ({
     teamId,
   ]);
 
-  // If there is no installer (no package/app), bail out of installer‑related UI.
   if (!installerResult) {
-    // when no installer, no edit actions:
     return (
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary

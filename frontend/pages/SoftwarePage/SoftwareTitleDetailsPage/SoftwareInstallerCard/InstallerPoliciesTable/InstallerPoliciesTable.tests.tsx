@@ -30,9 +30,19 @@ describe("InstallerPoliciesTable", () => {
       <InstallerPoliciesTable teamId={42} policies={policies} />
     );
 
-    // Dynamic policies render a refresh icon (no tooltip — context now lives in
-    // the modal's help text).
     expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByTestId("refresh-icon"));
+      });
+
+      expect(
+        screen.getByText(
+          "Software will be automatically installed when hosts fail this policy."
+        )
+      ).toBeInTheDocument();
+    });
 
     await waitFor(() => {
       waitFor(() => {

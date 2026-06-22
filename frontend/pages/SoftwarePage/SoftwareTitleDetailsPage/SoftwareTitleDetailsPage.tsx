@@ -394,9 +394,8 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderInventorySection = (title: ISoftwareTitleDetails) => {
-    // Mirrors the prior gating from SoftwareSummaryCard — hide for sources
-    // that don't report versions/hosts (tgz/sh/ps1 packages) and when no
-    // hosts have the software installed yet.
+    // Hide for sources that don't report versions/hosts (tgz/sh/ps1 packages)
+    // and when no hosts have the software installed yet.
     const showVersionsTable =
       !!title.hosts_count &&
       !NO_VERSION_OR_HOST_DATA_SOURCES.includes(title.source);

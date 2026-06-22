@@ -19,7 +19,7 @@ import Card from "components/Card";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
-import Tag from "components/Tag";
+import Chip from "components/Chip";
 import Button from "components/buttons/Button";
 
 import endpoints from "utilities/endpoints";
@@ -286,7 +286,7 @@ const SoftwareInstallerCard = ({
                   )}
                   underline={false}
                 >
-                  <Tag icon="clock" text="Auto updates" />
+                  <Chip icon="clock" text="Auto updates" />
                 </TooltipWrapper>
               )}
             </div>
