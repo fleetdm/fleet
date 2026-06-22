@@ -509,6 +509,26 @@ export const generateTeam = (
   return `${teams.length + 1} fleets`; // global role and one or more teams
 };
 
+export const generateTeamNames = (teams: ITeam[]): string[] => {
+  return teams.map((t) => t.name);
+};
+
+export const generateRoleGroups = (
+  teams: ITeam[]
+): { role: string; names: string[] }[] => {
+  const groups: { role: string; names: string[] }[] = [];
+  teams.forEach((team) => {
+    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+    const existing = groups.find((g) => g.role === role);
+    if (existing) {
+      existing.names.push(team.name);
+    } else {
+      groups.push({ role, names: [team.name] });
+    }
+  });
+  return groups;
+};
+
 export const greyCell = (roleOrTeamText: string): boolean => {
   const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
@@ -990,7 +1010,9 @@ export default {
   formatSelectedTargetsForApi,
   formatPackTargetsForApi,
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
   getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,

@@ -7,16 +7,16 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import PillBadge from "components/PillBadge";
 import { IInvite } from "interfaces/invite";
-import { ITeam } from "interfaces/team";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
   greyCell,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import stringUtils from "utilities/strings";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
@@ -327,26 +327,6 @@ const generateActionDropdownOptions = (
   return dropdownOptions;
 };
 
-const generateTeamNames = (teams: ITeam[]): string[] => {
-  return teams.map((t) => t.name);
-};
-
-const generateRoleGroups = (
-  teams: ITeam[]
-): { role: string; names: string[] }[] => {
-  const groups: { role: string; names: string[] }[] = [];
-  teams.forEach((team) => {
-    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
-    const existing = groups.find((g) => g.role === role);
-    if (existing) {
-      existing.names.push(team.name);
-    } else {
-      groups.push({ role, names: [team.name] });
-    }
-  });
-  return groups;
-};
-
 const enhanceUserData = (
   users: IUser[],
   currentUserId: number
@@ -381,7 +361,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       status: generateStatus("invite", invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
-      teamNames: generateTeamNames(invite.teams, invite.global_role),
+      teamNames: generateTeamNames(invite.teams),
       roleGroups: generateRoleGroups(invite.teams),
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(

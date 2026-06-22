@@ -16,11 +16,12 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
   readableDate,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import stringUtils from "utilities/strings";
 import TooltipWrapper from "components/TooltipWrapper";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
@@ -72,21 +73,8 @@ const AccountSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const teamNames = teams.map((t) => t.name);
-
-  const roleGroups = (() => {
-    const groups: { role: string; names: string[] }[] = [];
-    teams.forEach((team) => {
-      const role = stringUtils.capitalizeRole(team.role || "Unassigned");
-      const existing = groups.find((g) => g.role === role);
-      if (existing) {
-        existing.names.push(team.name);
-      } else {
-        groups.push({ role, names: [team.name] });
-      }
-    });
-    return groups;
-  })();
+  const teamNames = generateTeamNames(teams);
+  const roleGroups = generateRoleGroups(teams);
 
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />
