@@ -24,6 +24,8 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import CustomLink from "components/CustomLink";
+
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
@@ -163,7 +165,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   return (
     <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
-        <p>Control the end user migration workflow for macOS hosts.</p>
+        <p>
+          Control the end user migration workflow for macOS hosts.{" "}
+          <CustomLink
+            url="https://fleetdm.com/learn-more-about/end-user-migration-workflow"
+            text="Learn more"
+            newTab
+          />
+        </p>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           src={MdmMigrationVideo}
@@ -236,7 +245,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           variant="inverse"
           onClick={toggleExamplePayloadModal}
         >
-          Preview payload
+          Example payload
         </Button>
         <GitOpsModeTooltipWrapper
           tipOffset={8}

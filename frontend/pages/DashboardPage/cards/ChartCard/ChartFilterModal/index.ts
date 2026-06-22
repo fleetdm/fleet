@@ -1,2 +1,2 @@
 export { default } from "./ChartFilterModal";
-export type { IChartFilterState } from "./ChartFilterModal";
+export type { IChartFilterState, ChartFilterTab } from "./ChartFilterModal";

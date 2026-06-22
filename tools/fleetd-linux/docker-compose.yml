@@ -19,16 +19,16 @@ services:
     platform: *default-platform
     environment: *default-environment
     cap_add: *default-caps
-    restart: on-failure
+    restart: unless-stopped
   fedora43-fleetd:
     image: "fleetd-fedora-43"
     platform: *default-platform
     environment: *default-environment
     cap_add: *default-caps
-    restart: on-failure
+    restart: unless-stopped
   debian13.4-fleetd:
     image: "fleetd-debian-13.4"
     platform: *default-platform
     environment: *default-environment
     cap_add: *default-caps
-    restart: on-failure
+    restart: unless-stopped

@@ -1,7 +1,7 @@
 import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
-import Integrations from "./cards/Integrations";
+import TicketDestinations from "./cards/Integrations";
 import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
@@ -17,7 +17,7 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       title: "Ticket destinations",
       urlSection: "ticket-destinations",
       path: PATHS.ADMIN_INTEGRATIONS_TICKET_DESTINATIONS,
-      Card: Integrations,
+      Card: TicketDestinations,
     },
     {
       title: "MDM",

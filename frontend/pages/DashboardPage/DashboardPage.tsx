@@ -29,6 +29,7 @@ import {
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import { isHistoricalDataEnabled } from "interfaces/charts";
 
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 
@@ -96,6 +97,7 @@ interface IDashboardProps {
     hash?: string;
     query: {
       fleet_id?: string;
+      manage_automations?: string;
     };
   };
 }
@@ -159,7 +161,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setUpdatingActivityFeedAutomations,
   ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
-  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<
     IMdmSummaryMdmSolution[] | null
@@ -171,6 +172,36 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     JSX.Element | string | null
   >();
 
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  // Open activity feed automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate as the in-page action —
+  // the param must not bypass role/team checks. Wait for the user's role
+  // flags and the team route to resolve before evaluating, so an
+  // authorized global admin isn't denied the modal on direct page load
+  // while AppContext is still hydrating.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEditActivityFeedAutomations) {
+      setShowActivityFeedAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname, query: rest });
+  }, [
+    location.query,
+    pathname,
+    router,
+    canEditActivityFeedAutomations,
+    setShowActivityFeedAutomationsModal,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
   useEffect(() => {
     const platformByPathname =
       PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
@@ -178,12 +209,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
-
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canEditActivityFeedAutomations =
-    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
@@ -223,7 +248,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
-        setShowHostsUI(true);
       },
     }
   );
@@ -306,6 +330,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+
+  const teamHistoricalData = useMemo(
+    () =>
+      isAnyTeamSelected
+        ? teams?.find((t) => t.id === currentTeamId)?.features?.historical_data
+        : undefined,
+    [isAnyTeamSelected, teams, currentTeamId]
+  );
+  const historicalDataEnabled = useMemo(
+    () => ({
+      uptime: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "uptime"
+      ),
+      vulnerabilities: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "vulnerabilities"
+      ),
+    }),
+    [config?.features?.historical_data, teamHistoricalData]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -618,8 +665,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
+          type: "automations",
           onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,
@@ -889,13 +935,17 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <Card paddingSize="xlarge" borderRadiusSize="large">
             <HostsEnrolledCard
               counts={totalCounts}
+              totalHostCount={hostSummaryTotals?.totals_hosts_count || 0}
               builtInLabels={labels}
               currentTeamId={teamIdForApi}
               router={router}
             />
           </Card>
           <Card paddingSize="xlarge" borderRadiusSize="large">
-            <ChartCard currentTeamId={teamIdForApi} />
+            <ChartCard
+              currentTeamId={teamIdForApi}
+              historicalDataEnabled={historicalDataEnabled}
+            />
           </Card>
         </div>
         <div className={`${baseClass}__platforms`}>

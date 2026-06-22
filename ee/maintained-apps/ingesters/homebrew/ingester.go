@@ -193,6 +193,23 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
+	if input.Token == "docker-desktop" {
+		// Docker's updater can leave Docker.app.back; do not treat it as the installed app for patch status.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.back' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "sonos" {
+		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
+		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
+		// the unrelated marketing version (e.g. "17.2.3"). Compare bundle_version so
+		// patch status reflects the actual installed build.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 
 	return out, nil
 }

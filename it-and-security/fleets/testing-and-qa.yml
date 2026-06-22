@@ -52,6 +52,9 @@ agent_options:
     watchdog_utilization_limit: 130
     # --- macOS FIM ---
     enable_file_events: true
+    # --- macOS EndpointSecurity tables (requires Full Disk Access for osqueryd) ---
+    disable_endpointsecurity: false       # enables es_process_events
+    disable_endpointsecurity_fim: false   # enables es_process_file_events
     # --- Linux process + socket auditing via the audit framework ---
     disable_audit: false
     audit_allow_process_events: true
@@ -64,6 +67,10 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  apple_settings:
+    configuration_profiles:
+      # Required for osqueryd to inherit Full Disk Access (EndpointSecurity tables)
+      - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -76,7 +83,6 @@ controls:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     # Windows scripts
-    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
@@ -85,6 +91,7 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
+  - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # Linux apps

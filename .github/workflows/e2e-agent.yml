@@ -45,6 +45,10 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
 
   # Generate a random UUID to be used for the Cloudflare tunnel subdomain and make it available to later jobs.
@@ -55,7 +59,7 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
@@ -67,11 +71,11 @@ jobs:
 
   run-server:
     timeout-minutes: 240
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: gen
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
@@ -174,7 +178,7 @@ jobs:
      token: ${{ steps.login.outputs.token }}
    steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
@@ -299,6 +303,7 @@ jobs:
         fetch-depth: 1
         sparse-checkout: |
           it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+        persist-credentials: false
 
     - name: Uninstall Orbit
       run: |
@@ -317,7 +322,7 @@ jobs:
     needs: [gen, login]
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
@@ -513,12 +518,13 @@ jobs:
       with:
         fetch-depth: 1
         sparse-checkout: |
-          it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+          docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1
+        persist-credentials: false
 
     - name: Uninstall Orbit
       shell: powershell
       run: |
-        .\it-and-security\lib\windows\scripts\uninstall-fleetd-windows.ps1
+        .\docs\solutions\windows\scripts\uninstall-fleetd-windows.ps1
 
   summary:
     needs: [fleetd-macos, fleetd-ubuntu, fleetd-windows]

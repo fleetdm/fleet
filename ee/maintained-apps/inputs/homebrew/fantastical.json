@@ -1,0 +1,10 @@
+{
+  "name": "Fantastical",
+  "unique_identifier": "com.flexibits.fantastical",
+  "token": "fantastical",
+  "installer_format": "zip",
+  "slug": "fantastical/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Bome Network",
+  "unique_identifier": "com.bome.network",
+  "token": "bome-network",
+  "installer_format": "dmg",
+  "slug": "bome-network/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

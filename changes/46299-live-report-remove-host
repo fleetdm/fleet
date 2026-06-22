@@ -1,0 +1,1 @@
+- Fixed a bug where selected hosts could not be removed (the "X" did nothing) on the live report target selection screen.

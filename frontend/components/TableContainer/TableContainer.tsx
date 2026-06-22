@@ -59,7 +59,9 @@ interface ITableContainerProps<T = any> {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  totalCount?: number;
   searchable?: boolean;
+  disableSearch?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
   /**
@@ -151,7 +153,9 @@ const TableContainer = <T,>({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
+  totalCount,
   searchable,
+  disableSearch,
   wideSearch,
   disablePagination,
   disableNextPage,
@@ -401,6 +405,7 @@ const TableContainer = <T,>({
                       placeholder={inputPlaceHolder}
                       defaultValue={searchQuery}
                       onChange={onSearchQueryChange}
+                      disabled={disableSearch}
                     />
                   </div>
                 </TooltipWrapper>
@@ -419,6 +424,7 @@ const TableContainer = <T,>({
               placeholder={inputPlaceHolder}
               defaultValue={searchQuery}
               onChange={onSearchQueryChange}
+              disabled={disableSearch}
             />
           </div>
         )}
@@ -475,6 +481,7 @@ const TableContainer = <T,>({
                       placeholder={inputPlaceHolder}
                       defaultValue={searchQuery}
                       onChange={onSearchQueryChange}
+                      disabled={disableSearch}
                     />
                   </div>
                 </TooltipWrapper>
@@ -489,6 +496,7 @@ const TableContainer = <T,>({
     customControl,
     disableActionButton,
     disableCount,
+    disableSearch,
     disableTableHeader,
     inputPlaceHolder,
     isLoading,
@@ -552,6 +560,7 @@ const TableContainer = <T,>({
                 showMarkAllPages={showMarkAllPages}
                 isAllPagesSelected={isAllPagesSelected}
                 toggleAllPagesSelected={toggleAllPagesSelected}
+                totalCount={totalCount}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={pageIndex}

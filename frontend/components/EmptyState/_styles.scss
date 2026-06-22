@@ -14,6 +14,13 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
 
 .empty-state {
   position: relative;
+  // Span the full width of the parent regardless of its align-items setting.
+  // Without this, parents using `align-items: flex-start` (or any non-stretch
+  // value) collapse the empty state to its intrinsic content width — see #46370.
+  // box-sizing: border-box so width: 100% + the 1px border doesn't overflow
+  // the parent by 2px in content-box mode (Fleet has no global box-sizing reset).
+  box-sizing: border-box;
+  width: 100%;
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   overflow: hidden;
@@ -158,7 +165,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // Form variant — ghost form fields with a save button
   // ----------------------------------------------------------
   &--form {
-    height: 320px;
+    height: $ghost-table-height;
 
     .empty-state__ghost-table {
       display: block;

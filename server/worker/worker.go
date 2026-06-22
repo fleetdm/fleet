@@ -37,6 +37,14 @@ type Job interface {
 	Run(ctx context.Context, argsJSON json.RawMessage) error
 }
 
+// FinalFailureNotifier is an optional interface a Job can implement to be
+// notified once, after the worker has exhausted all retries and marked the job
+// as permanently failed. This is the right place to record terminal-failure
+// side effects (e.g. an activity) without emitting one per intermediate retry.
+type FinalFailureNotifier interface {
+	OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error
+}
+
 // failingPolicyArgs are the args common to all integrations that can process
 // failing policies.
 type failingPolicyArgs struct {
@@ -44,7 +52,17 @@ type failingPolicyArgs struct {
 	PolicyName     string                `json:"policy_name"`
 	PolicyCritical bool                  `json:"policy_critical"`
 	Hosts          []fleet.PolicySetHost `json:"hosts"`
-	TeamID         *uint                 `json:"team_id,omitempty"`
+	TeamID         *uint                 `json:"team_id,omitempty"` //nolint:apiparamcheck // these are written to the db, changing likely requires migration
+}
+
+// hostIDs returns the IDs of the hosts targeted by the failing-policy job, used
+// to associate a failure activity with each affected host.
+func (a *failingPolicyArgs) hostIDs() []uint {
+	ids := make([]uint, len(a.Hosts))
+	for i, h := range a.Hosts {
+		ids[i] = h.ID
+	}
+	return ids
 }
 
 // vulnArgs are the args common to all integrations that can process
@@ -196,6 +214,15 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 					}
 				} else {
 					job.State = fleet.JobStateFailure
+					if notifier, ok := w.registry[job.Name].(FinalFailureNotifier); ok {
+						var args json.RawMessage
+						if job.Args != nil {
+							args = *job.Args
+						}
+						if ffErr := notifier.OnFinalFailure(ctx, args, job.Error); ffErr != nil {
+							log.ErrorContext(ctx, "on final failure handler", "err", ffErr)
+						}
+					}
 				}
 			} else {
 				job.State = fleet.JobStateSuccess

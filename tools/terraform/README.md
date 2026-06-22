@@ -1,8 +1,8 @@
-# Terraform Provider for FleetDM Teams
+# Terraform Provider for fleets
 
-This is a Terraform provider for managing FleetDM teams. When you have
-100+ teams in FleetDM, and manually managing them is not feasible. The
-primary setting of concern is the team's "agent options" which
+This is a Terraform provider for managing fleets (formally "teams"). When you have
+100+ fleets, and manually managing them is not feasible. The
+primary setting of concern is the fleet's "agent options" which
 consists of some settings and command line flags. These (potentially
 dangerously) configure FleetDM all machines.
 
@@ -34,9 +34,9 @@ See `make plan` and `make apply`.
 ### Running Tests
 
 You probably guessed this.  See `make test`. Note that these tests
-require a FleetDM server to be running. The tests will create teams
+require a FleetDM server to be running. The tests will create fleets
 and delete them when they're done. The tests also require a valid
-FleetDM API token to be in the `FLEETDM_APIKEY` environment variable.
+Fleet API token to be in the `FLEETDM_APIKEY` environment variable.
 
 ### Debugging locally
 

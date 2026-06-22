@@ -32,8 +32,6 @@ const (
 type CarveStore struct {
 	*s3store
 	metadatadb fleet.CarveStore
-
-	gcs bool
 }
 
 // NewCarveStore creates a new store with the given config
@@ -46,8 +44,6 @@ func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveS
 	return &CarveStore{
 		s3store:    s3store,
 		metadatadb: metadatadb,
-
-		gcs: isGCS(config.EndpointURL),
 	}, nil
 }
 
@@ -138,7 +134,6 @@ func (c *CarveStore) listS3Carves(ctx context.Context, lastPrefix string, maxKey
 // metadata present in the database and mark as expired the carves no longer
 // available in S3 (ignores the `now` argument)
 func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
-	var err error
 	// Get the 1000 oldest carves
 	nonExpiredCarves, err := c.ListCarves(ctx, fleet.CarveListOptions{
 		ListOptions: fleet.ListOptions{PerPage: cleanupSize},
@@ -146,6 +141,9 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	})
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
+	}
+	if len(nonExpiredCarves) == 0 {
+		return 0, nil
 	}
 	// List carves in S3 up to a hour+1 prefix
 	lastCarveNextHour := nonExpiredCarves[len(nonExpiredCarves)-1].CreatedAt.Add(time.Hour)
@@ -156,14 +154,26 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	}
 	// Compare carve metadata in DB with S3 listing and update expiration flag
 	cleanCount := 0
+	var retErr error
 	for _, carve := range nonExpiredCarves {
+		// A carve whose multipart upload has not completed yet has no listable
+		// object in S3 (ListObjectsV2 does not return in-progress multipart
+		// uploads), so skip it to avoid expiring a carve that is still
+		// uploading. Such a carve would otherwise become permanently
+		// undownloadable.
+		if !carve.BlocksComplete() {
+			continue
+		}
 		if _, ok := carveKeys[c.generateS3Key(carve)]; !ok {
 			carve.Expired = true
-			err = c.UpdateCarve(ctx, carve)
+			if uerr := c.UpdateCarve(ctx, carve); uerr != nil {
+				retErr = errors.Join(retErr, ctxerr.Wrap(ctx, uerr, fmt.Sprintf("marking carve %d expired", carve.ID)))
+				continue
+			}
 			cleanCount++
 		}
 	}
-	return cleanCount, err
+	return cleanCount, retErr
 }
 
 // Carve returns carve metadata by ID

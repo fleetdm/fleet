@@ -6,16 +6,23 @@
  */
 
 import React, { useContext } from "react";
+import { useQuery } from "react-query";
 
 import { Column } from "react-table";
 import { AppContext } from "context/app";
 import { IHeaderProps } from "interfaces/datatable_config";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import Icon from "components/Icon";
 
 import SelfServicePreview from "../../cards/SelfServicePreview";
 import SoftwareIcon from "../../icons/SoftwareIcon";
@@ -24,9 +31,27 @@ const baseClass = "categories-end-user-experience-preview-modal";
 
 interface ISoftwareRow {
   name: React.ReactNode;
+  install_status: React.ReactNode;
 }
 
 type ITableHeaderProps = IHeaderProps<ISoftwareRow>;
+
+const InstalledCell = () => (
+  <span
+    className={`${baseClass}__status-cell ${baseClass}__status-cell--installed`}
+  >
+    <Icon name="success" />
+    Installed
+  </span>
+);
+
+const NeverInstalledCell = () => (
+  <span
+    className={`${baseClass}__status-cell ${baseClass}__status-cell--never-installed`}
+  >
+    {DEFAULT_EMPTY_CELL_VALUE}
+  </span>
+);
 
 const columns: Column<ISoftwareRow>[] = [
   {
@@ -36,14 +61,24 @@ const columns: Column<ISoftwareRow>[] = [
     accessor: "name",
     disableSortBy: true,
   },
+  {
+    Header: (cellProps: ITableHeaderProps) => (
+      <HeaderCell
+        value="Install status"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "install_status",
+    disableSortBy: true,
+  },
 ];
 
 type ExampleSoftware = {
   title: string;
 };
 
+// 2 examples + current software = 3 rows shown in the preview table.
 const EXAMPLE_SOFTWARE_ROWS: ExampleSoftware[] = [
-  { title: "1Password" },
   { title: "Adobe Acrobat Reader" },
   { title: "Box Drive" },
 ];
@@ -67,6 +102,7 @@ const getData = (
         previewIcon={previewIcon}
       />
     ),
+    install_status: <NeverInstalledCell />,
   };
 
   // Filters out the current software from the example rows to avoid duplication
@@ -81,6 +117,7 @@ const getData = (
         isSelfService
       />
     ),
+    install_status: <InstalledCell />,
   }));
 
   return [currentSoftwareRow, ...exampleSoftwareRows];
@@ -116,12 +153,15 @@ export const BasicSoftwareTable = ({
       disablePagination
       disableCount
       disableTableHeader
+      disableHighlightOnHover
     />
   );
 };
 
 interface ICategoriesEndUserExperienceModal {
   onCancel: () => void;
+  /** Used to scope the categories query to the current fleet */
+  teamId: number;
   isIosOrIpadosApp?: boolean;
   name?: string;
   displayName?: string;
@@ -132,6 +172,7 @@ interface ICategoriesEndUserExperienceModal {
 
 const CategoriesEndUserExperienceModal = ({
   onCancel,
+  teamId,
   isIosOrIpadosApp = false,
   name = "Software name",
   displayName = "Software name",
@@ -140,6 +181,21 @@ const CategoriesEndUserExperienceModal = ({
   mobileVersion,
 }: ICategoriesEndUserExperienceModal): JSX.Element => {
   const { config } = useContext(AppContext);
+
+  const { data: categories } = useQuery<
+    ISelfServiceCategoriesResponse,
+    Error,
+    ISelfServiceCategory[]
+  >(
+    ["selfServiceCategories", teamId],
+    () => selfServiceCategoriesAPI.getCategories(teamId),
+    {
+      select: (response) => response.self_service_categories,
+      staleTime: 60_000,
+    }
+  );
+  const hasCategories = (categories?.length ?? 0) > 0;
+
   return (
     <Modal title="End user experience" onExit={onCancel} className={baseClass}>
       <span>What end users see:</span>
@@ -149,6 +205,7 @@ const CategoriesEndUserExperienceModal = ({
         name={name}
         displayName={displayName || name}
         versionLabel={mobileVersion || "Version (unknown)"}
+        hasCategories={hasCategories}
         renderIcon={() => (
           <SoftwareIcon
             name={name}

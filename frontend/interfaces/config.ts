@@ -6,6 +6,7 @@ import {
   IWebhookActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
+import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
   tier: string;
@@ -85,6 +86,7 @@ export interface IMdmConfig {
     require_all_software_windows: boolean | null;
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
+    end_user_local_account_type?: EndUserLocalAccountType;
   };
   macos_setup?: {
     enable_managed_local_account?: boolean;
@@ -95,6 +97,7 @@ export interface IMdmConfig {
     grace_period_days: number | null;
   };
   windows_entra_tenant_ids: string[] | null;
+  windows_entra_client_ids: string[] | null;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -123,6 +126,10 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
   enable_conditional_access: boolean;
   enable_conditional_access_bypass: boolean;
+  historical_data: {
+    uptime: boolean;
+    vulnerabilities: boolean;
+  };
 }
 
 export interface IConfigServerSettings {
@@ -224,6 +231,7 @@ export interface IConfig {
     config: {
       region: string;
       source_arn: string;
+      sender_domain: string;
     };
   };
   mdm: IMdmConfig;

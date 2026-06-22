@@ -18,7 +18,25 @@ const (
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
+	// MaxSSOCallbackSize bounds the body of the unauthenticated SSO callback
+	// endpoints (regular and MDM). The body carries a base64-encoded
+	// SAMLResponse; legitimate responses are well under 50 KiB even after
+	// base64 inflation, so 256 KiB leaves generous headroom for large
+	// enterprise IdP responses while keeping pre-auth attacks surface small.
+	MaxSSOCallbackSize int64 = 256 * units.KiB
+	// MaxAppleMDMRequestBodySize bounds Apple MDM check-in and command-result
+	// request bodies. Results are stored in a MEDIUMTEXT column (max 16,777,215
+	// bytes), so the limit must not exceed that boundary.
+	MaxAppleMDMRequestBodySize int64 = (16 * units.MiB) - 1
 
+	// DefaultMaxOsqueryLogWriteSize is the default request body size limit
+	// applied to /api/osquery/log when osquery.allow_body_auth_fallback is
+	// true (legacy body-auth mode). Operators can override via the
+	// osquery.max_log_write_body_size config. In header-auth mode
+	// (allow_body_auth_fallback=false) this limit does not apply; the
+	// route inherits the global request body size limit.
+	DefaultMaxOsqueryLogWriteSize int64 = 10 * units.MiB
+	// DefaultMaxOsqueryDistributedWriteSize is the same as
+	// DefaultMaxOsqueryLogWriteSize but for /api/osquery/distributed/write.
 	DefaultMaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
-	DefaultMaxOsqueryLogWriteSize         int64 = 10 * units.MiB
 )

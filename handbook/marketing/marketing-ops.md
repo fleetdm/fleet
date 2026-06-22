@@ -1,6 +1,6 @@
 # Marketing ops
 
-Drive efficient, scalable pipeline growth by building and optimizing the systems, processes, and campaigns that attract, nurture, and convert high-quality leads into revenue—enabling the sales team to focus on closing while we focus on filling the funnel.
+Drive efficient, scalable pipeline growth by building and optimizing the systems, processes, and campaigns that attract, nurture, and convert high-quality contacts into revenue—enabling the sales team to focus on closing while we focus on filling the funnel.
 
 
 ##  Go-to-market attribution
@@ -21,33 +21,67 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cycle time**: tbd/todo  
+- **Stage to win cycle time**:   
 - **Stage to stage**:tbd/todo  
-- **Stage to stage cycle time**: tbd/todo
-
+- **Stage to stage cycle time**: 
 
 ## GTM model
 
-We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel leads/contacts and opportunities in order to attain future revenue targets. 
-See our current model in google docs [link](link to google docs) <Tbd/todo>
+We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel contacts and opportunities in order to attain future revenue targets. 
+
+
+## Contact source
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  We have a field *Contact source*, which is the same as the first historical event that took place causing us to create the contact.
+
+Here are the values for the contact source:
+
+| Contact source value | Definition |
+| :---- | :---- |
+| Attended a call with Fleet | Contact was added to the system after attending a calendar invite/call with the team. |
+| Website \- Contact forms \- Demo | Contact requested a standard demo via the website. |
+| Website \- Contact forms \- Demo \- ICP | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
+| Website \- Contact forms | Contact submitted a general inquiry via the website. |
+| Website \- Chat | Contact engaged and provided their email via the website chatbot. |
+| Website \- Sign up | Contact created an account/signed up for the Fleet platform. |
+| Website \- Gated document | Contact filled out a form to download a whitepaper, report, or guide. |
+| Website \- Newsletter | Contact explicitly subscribed to the Fleet blog or newsletter. |
+| Website \- Workshop request | Contact filled out a form on the website requesting a workshop in a city near them. |
+| Website \- Swag request | Contact filled out a form specifically to request Fleet merchandise. |
+| Website \- Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
+| Website \- Deal registration | Contact was tracked by an authorized partner/reseller filling out a form on the website as part of a formal deal registration. |
+| Event | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
+| Event - Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). |
+| Event - Workshop | Contact registered for or attended a workshop hosted by Fleet, such as a [GitOps workshop](https://fleetdm.com/gitops-workshop). |
+| LinkedIn \- Liked the LinkedIn company page | Contact followed or liked the official Fleet LinkedIn page. |
+| LinkedIn \- Reaction | Contact reacted (like, celebrate, etc.) to a Fleet post. |
+| LinkedIn \- Comment | Contact commented on a Fleet post. |
+| LinkedIn \- Share | Contact shared a Fleet post. |
+| LinkedIn \- Native lead form | Contact submitted their info directly inside LinkedIn via a Document Ad or lead gen form. |
+| Prospecting \- AE | Contact was sourced directly via outbound efforts by an Account Executive and added to Linkedin via Dripify webhook. |
+| Prospecting \- Specialist | Contact was sourced directly via outbound efforts by a Solution Specialist. |
+| Prospecting \- Meeting service | Contact was sourced/booked via an outsourced meeting-setting agency. |
+| GitHub \- Stared fleetdm/fleet | Contact starred the Fleet repository. |
+| GitHub \- Forked fleetdm/fleet | Contact forked the Fleet repository. |
+| GitHub \- Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
+
+
 
 
 ## Attribution framework
 
-
-
-To scale demand generation effectively, we need to have a trusted source of data about what works in generating new leads, opportunities, pipeline, and business. Without a consistent framework, our data is messy, reporting is unreliable, and we cannot confidently measure the ROI of our marketing or sales efforts. This framework solves three core problems:
+To scale demand generation effectively, we need to have a trusted source of data about what works in generating new contacts, opportunities, pipeline, and business. Without a consistent framework, our data is messy, reporting is unreliable, and we cannot confidently measure the ROI of our marketing or sales efforts. This framework solves three core problems:
 
 1. **Inconsistent data**  
 2. **Lack of visibility**  
 3. **Inaccurate ROI**
 
-This outlines a simple, scalable, and non-negotiable system for tracking all lead-generating activities at Fleet.
+This outlines a simple, scalable, and non-negotiable system for tracking all contact-generating activities at Fleet.
+
 
 
 ### First-touch vs. converting-touch
 
-This framework is **not** just for the Original Lead/Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.
+This framework is **not** just for the Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.  At some point, we may want to look at multi-touch attribution, this model is our starting point and foundation.
 
 
 #### 🌎 First-touch: Original contact source
@@ -56,10 +90,9 @@ This framework is **not** just for the Original Lead/Contact Source field. It sh
 - **The rule:** This field is **set once and is locked forever**. It should *never* be overwritten.  
 - **It answers:** "Which of our channels are best at generating *net-new names* and filling the top of our funnel?"
 
-
 #### 🏁 Converting-touch: Opportunity creation source 🟡
 
-- **What it is:** The "final push." It is the specific campaign that caused a known lead or contact to convert into a sales-qualified opportunity (i.e., they booked a demo or engaged with sales).  
+- **What it is:** The "final push." It is the specific campaign that caused a known contact to convert into a sales-qualified opportunity (i.e., they booked a demo or engaged with sales).  
 - **The rule:** This field is set *at the moment of opportunity creation*.  
 - **It answers:** "Which of our channels are best at generating *pipeline and revenue*?"
 
@@ -70,8 +103,10 @@ Example:
 
 - Six months later, an SDR emails them (2026\_04-SDR-q2\_fintech\_sequence), and they reply to book a demo.   
   - Their Most Recent/Converting-Touch is Prospecting \> SDR Outbound.
+  
+Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement,not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
 
-This allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
+**Converting-touch** allows us to see that our webinars are great for *finding* contacts, and our SDR team is great at *converting* them.
 
 
 ### Attribution hierarchy
@@ -94,7 +129,7 @@ At the top of the hierarchy, there are 6 “Source” buckets, where all our con
 - **🗓️ Event**: All in-person or virtual events, sponsored or hosted.
 - **💻 Digital**: All paid and owned online media and content.
 - **🎯 Prospecting**: All outbound activities initiated by sales or a 3rd-party vendor.
-- **🤝 Partner**: All co-marketing and leads generated from formal channel partners.
+- **🤝 Partner**: All co-marketing and contacts generated from formal channel partners.
 
 
 #### 🌳 Organic/web
@@ -107,6 +142,7 @@ For all unpaid, inbound traffic and brand-driven interest.
 | Direct traffic | DT | Default-DT |
 | Web referral | WR | Default-WR |
 | Organic social | SOC | Default-SOC |
+| Organic AI | AI | Default-AI, Default-AI-ChatGPT |
 
 
 #### 🗣️ Word-of-mouth
@@ -124,7 +160,7 @@ For all manually tracked, human-to-human recommendations.
 
 For all in-person or virtual events, sponsored or hosted.
 
-| Source detail | Code | Campaign examples (discreet) |
+| Source detail | Code | Campaign examples (discrete) |
 | :---- | :---- | :---- |
 | Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
@@ -148,6 +184,7 @@ For all paid and owned online media and content.
 | Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
 | Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
 | Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
+| Press Release | PR | 2025\_11-PR-Abc\_launch |  
 
 
 #### 🎯 Prospecting
@@ -156,25 +193,29 @@ For all outbound activities initiated by sales or a 3rd-party vendor.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| SDR outbound | SDR | SDR-General\_Prospecting (Always-On) 2025\_11-SDR-q4\_fintech\_sequence (Discreet) |
-| AE outbound | AE | AE-General\_Prospecting |
+| SDR outbound | SDR | Default-SDR-General\_Prospecting (Always-On) or 2025\_11-SDR-q4\_fintech\_sequence (a discrete campaign) |
+| AE outbound | AE | Default-AE-General\_Prospecting |
 | Meeting Service | MS | 2025\_11-MS-VIB 2026\_01-MS-SageTap |
+
+Other exmaples of campaigns:
+Default-AE-Dripify_LinkedIn
+Default-SDR-Dripify_LinkedIn
 
 
 #### 🤝 Partner
 
-For all co-marketing and leads generated from formal channel partners.
+For all co-marketing and contacts generated from formal channel partners.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Tech partner | TP | 2025\_11-TP-aws\_marketplace |
-| Reseller / VAR | RE | RE-General\_Referrals |
+| Tech partner | TP | Default-TP-TechPartner\_Referral or 2025\_11-TP-aws\_marketplace |
+| Reseller / VAR | RE | Default-RE-Reseller\_Referral |
 | Co-marketing | CM | 2026\_01-CM-crowdstrike\_whitepaper |
 
 
 ### Campaigns
 
-**The golden rule:** Every single lead-generating activity *must* have a unique campaign in the CRM before it launches. 
+**The golden rule:** Every single contact-generating activity *must* have a unique campaign in the CRM before it launches. 
 
 There are only two types of campaigns:
 1. "Always-on" campaigns (continuous)
@@ -199,6 +240,53 @@ These are generic "buckets" for continuous inbound channels that don't have a st
   - **\[Code\]:** The 2-4 letter code.
 - **Full example:** Default-OS (for all Organic Search)
 
+
+## SFDC field mapping
+
+The attribution framework is implemented across two record types in Salesforce: Contact and Opportunity. Understanding which fields store which attribution values — and how they behave — is essential for building accurate reports and debugging data issues.
+
+### Contact fields
+
+There are nine attribution fields on the Contact record, organized into two groups: **Source** (first-touch, locked forever) and **Most Recent** (updated on every new campaign touch).
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Source campaign initial URL | `Source_campaign_initial_url__c` | — | The landing page URL from the contact's first touch. Set once, never overwritten. |
+| Source channel | `Source_channel__c` | L1 | The high-level source bucket (e.g., Event, Prospecting). Set once, never overwritten. |
+| Source channel detail | `Source_channel_detail__c` | L2 | The specific tactic (e.g., Webinar Hosted, SDR Outbound). Set once, never overwritten. |
+| Source campaign | `Source_campaign__c` | L3 | The specific campaign name (e.g., `2026_02-WH-fleet_v5_launch`). Set once, never overwritten. |
+| Most recent campaign initial URL | `Most_recent_campaign_initial_url__c` | — | The landing page URL from the contact's most recent touch. Updated on every new touch. |
+| Most recent channel | `Most_recent_channel__c` | L1 | Updated on every new campaign touch. |
+| Most recent channel detail | `Most_recent_channel_detail__c` | L2 | Updated on every new campaign touch. |
+| Most recent campaign | `Most_recent_campaign__c` | L3 | The primary trigger field for the attribution automation. Updated on every new campaign touch. |
+| Most recent campaign member status | `Most_recent_campaign_member_status__c` | — | Reflects the contact's engagement level on their most recent campaign. Updated on every new touch. |
+
+### Opportunity fields
+
+When an opportunity is created from a Contact, the Most Recent values at that moment are copied into the Opportunity's Converting fields. These represent the converting-touch — the campaign that drove this specific pipeline event.
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Converting contact | `Converting_Contact__c` | — | Lookup to the Contact record that triggered opportunity creation. |
+| GCLID | `GCLID__c` | — | Google Click ID. Captured for paid search attribution. |
+| Converting channel | `Converting_channel__c` | L1 | Copied from Most Recent Channel at opportunity creation. |
+| Converting channel detail | `Converting_channel_detail__c` | L2 | Copied from Most Recent Channel Detail at opportunity creation. |
+| Converting campaign | `Converting_campaign__c` | L3 | Copied from Most Recent Campaign at opportunity creation. |
+| Primary Campaign Source | `CampaignId` | L3 | Standard SFDC lookup to the Campaign record. Set at opportunity creation. |
+
+### How the automation works
+
+The attribution system is driven by a single trigger: **when Most Recent Campaign is populated**, a Salesforce Flow fires and handles everything downstream.
+
+**Step 1 — Derive L1 and L2 from the campaign name.** The two-character code embedded in every campaign name (e.g., `WH` in `2026_02-WH-fleet_v5_launch`) is used to look up the correct Source Channel Detail (L2) and Source Channel (L1) values automatically. This is why the campaign naming convention is non-negotiable — the automation depends on it.
+
+**Step 2 — Stamp first-touch if Source fields are blank.** If the Source Channel field is empty, the flow copies the Most Recent values into the Source fields. This happens exactly once per contact — the moment they are first known to us. After that, the Source fields are locked and never overwritten.
+
+**Step 3 — Add to campaign and set member status.** The flow adds the contact as a Campaign Member on the corresponding SFDC Campaign record and sets their member status based on the Most Recent Campaign Member Status field.
+
+**Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
+
+Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 
@@ -294,14 +382,14 @@ To accurately measure marketing ROI and attribution, we must standardize how we 
 
 All campaigns must utilize the following status values. Custom statuses outside this list are to be avoided.
 
-| Status value | Responded? | Funnel stage | Psystage | Definition |
+| Status value | Responded? | Funnel stage | Psystage (legacy) | Definition |
 | ----- | ----- | ----- | ----- | ----- |
 | **Targeted** | No | Unaware | 1 \- Unaware | The individual is on a list or in an audience segment but has taken no action. |
 | **Sent** | No | Awareness | 2 \- Aware | The email was sent, the ad was displayed, or the post was published. |
 | **Interacted** | **Yes** | Interest | **3 \- Intrigued**  | **(Light Touch)** Passive engagement. They clicked a link, liked a post, or visited a high-value page, but **did not exchange contact** info. |
 | **Registered** | **Yes** | Consideration | **3 \- Intrigued** | **(Conversion)** The individual explicitly exchanged data for access (Form Fill, Sign Up, RSVP). |
 | **Attended** | **Yes** | Evaluation | 3 \- Intrigued | The individual showed up to a synchronous event (Booth Scan, Webinar, Live Event, Dinner). |
-| **Engaged** | **Yes** | Intent | **4 \- Has use case** | **(Deep Interaction)** High-effort engagement. They asked a question, made a meaningful comment, or engaged in a conversation. Hot Lead from Event |
+| **Engaged** | **Yes** | Intent | **4 \- Has use case** | **(Deep Interaction)** High-effort engagement. They asked a question, made a meaningful comment, or engaged in a conversation. Hot contact from Event |
 | **Meeting Requested** | **Yes** | Purchase | 5 \- Personally confident | The individual explicitly requested a sales contact or a demo. |
 
 
@@ -309,11 +397,11 @@ All campaigns must utilize the following status values. Custom statuses outside 
 
 #### Social media and content
 
-*Goal: Distinguish between vanity metrics (Likes) and true leads.*
+*Goal: Distinguish between vanity metrics (Likes) and true prospects.*
 
 - **Interacted:** User "Likes" a post, "Follows" the page, or clicks a link to ungated content.  
 - **Engaged:** User comments on a post, shares/retweets with their own commentary, or sends a Direct Message (DM).  
-- **Registered:** User fills out a specific lead gen form (e.g., LinkedIn lead gen) or clicks through to a landing page and converts.
+- **Registered:** User fills out a specific lead gen form (e.g., LinkedIn lead gen form) or clicks through to a landing page and converts.
 
 #### Webinars and virtual events
 
@@ -328,10 +416,10 @@ All campaigns must utilize the following status values. Custom statuses outside 
 
 *Goal: Differentiate between booth traffic and serious conversations.*
 
-- **Interacted:** Visited the booth, took swag, a COLD LEAD  
+- **Interacted:** Visited the booth, took swag, a COLD contact  
 - **Registered:** RSVP’d to the event (if hosted by us) or pre-booked a meeting.  
 - **Attended:** Badge scanned at booth.  
-- **Engaged:** HOT lead. Had a meaningful conversation with a rep; notes added to CRM.  
+- **Engaged:** HOT contact. Had a meaningful conversation with a rep; notes added to CRM.  
 - **Meeting Requested**
 
 
@@ -355,47 +443,8 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Engaged:** Replied to the email directly.
 
 #### Website chat (qualified)
-- **Interacted:** We chatted and learned about the prospect
-- **Engaged:** We chatted long enough to offer a meeting 
+- **Engaged:** We chatted and learned about the prospect
 - **Meeting Requested:** The prospect has booked a meeting
-
-## Contact source (Lead source)
-At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effectively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
-
-Here are the values for the contact source:
-
-
-| **Contact Source Value** | **Category** | **Status** | **Definition** |
-| :---- | :---- | :---- | :---- |
-| Website \- Sign up | Website | Existing | Contact created an account/signed up for the Fleet platform. |
-| Website \- Contact forms \- Demo | Website | Existing | Contact requested a standard demo via the website. |
-| Website \- Contact forms \- Demo \- ICP | Website | Existing | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
-| Website \- Contact forms | Website | Existing | Contact submitted a general inquiry via the website. |
-| Website \- Gated document | Website | NEW | Contact filled out a form to download a whitepaper, report, or guide. |
-| Website \- Newsletter | Website | Existing | Contact explicitly subscribed to the Fleet blog or newsletter. |
-| Website \- Swag request | Website | Existing | Contact filled out a form specifically to request Fleet merchandise. |
-| Website \- GitOps | Website | Existing | Contact converted via a specific GitOps-related form or landing page flow. |
-| Website \- Chat | Website | Existing | Contact engaged and provided their email via the website chatbot. |
-| Website \- Partner sign up | Website | NEW | Contact submitted a form to apply for or join the Fleet partner program. |
-| Webinar | Events | NEW | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
-| Event | Events | Existing | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
-| LinkedIn \- Native lead form | Third-Party | NEW | Contact submitted their info directly inside LinkedIn via a Document Ad or Lead Gen form. |
-| Content syndication | Third-Party | NEW | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
-| Partner \- Deal registration | Third-Party | NEW | Contact was formally registered as a lead by an authorized partner/reseller. |
-| GitHub \- Stared fleetdm/fleet | Community | Existing | Contact starred the Fleet repository. |
-| GitHub \- Forked fleetdm/fleet | Community | Existing | Contact forked the Fleet repository. |
-| GitHub \- Contributed to fleetdm/fleet | Community | Existing | Contact made a code/documentation contribution to the Fleet repository. |
-| LinkedIn \- Liked the LinkedIn company page | Social | Existing | Contact followed or liked the official Fleet LinkedIn page. |
-| LinkedIn \- Reaction | Social | Existing | Contact reacted (like, celebrate, etc.) to a Fleet post. |
-| LinkedIn \- Comment | Social | Existing | Contact commented on a Fleet post. |
-| LinkedIn \- Share | Social | Existing | Contact shared a Fleet post. |
-| Prospecting \- AE | Outbound | Existing | Contact was sourced directly via outbound efforts by an Account Executive. |
-| Prospecting \- Specialist | Outbound | Existing | Contact was sourced directly via outbound efforts by a Sales Specialist. |
-| Prospecting \- Meeting service | Outbound | Existing | Contact was sourced/booked via an outsourced meeting-setting agency. |
-| Dripify \- AE | Outbound | Existing | Contact was sourced via Dripify automation by an AE. |
-| Dripify \- Specialist | Outbound | Existing | Contact was sourced via Dripify automation by a Specialist. |
-| Attended a call with Fleet | Outbound | Existing | Contact was added to the system after attending a calendar invite/call with the team. |
-
 
 
 ## 📧 Contact marketability & compliance
@@ -406,7 +455,7 @@ We do not rely on "implied" logic (e.g., "If they have an email, email them"). I
 
 ### The "marketing status" definitions
 
-The `Marketing_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
+The `Marketing_Email_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
 
 | Status value | Definition | Can marketing email? | Can sales email? |
 | --- | --- | --- | --- |
@@ -423,17 +472,10 @@ To support this status, we use three additional fields to track the "Who, When, 
 
 | Field | API Name | Purpose |
 | --- | --- | --- |
-| **Status Date** | `Marketing_Status_Last_Updated__c` | **The Timestamp.** <br>
-
-<br>Records exactly *when* the status changed. Required for compliance auditing (e.g., "Proof of Consent"). |
 | **Status Reason** | `Marketing_Status_Detail__c` | **The Audit Trail.** <br>
 
 <br>Explains *why* the status changed. <br>
 
-<br>*Examples:* "Inbound Demo Request," "Clay Enrichment Import," "User Clicked Unsubscribe." |
-| **Is Marketable?** | `Is_Marketable__c` | **The Integration Gatekeeper.** <br>
-
-<br>A generic checkbox formula (`TRUE` only if Status = `Marketable`). Our marketing platform (ActiveCampaign) only syncs contacts where this is Checked. |
 
 ### The "Traffic Cop" automation
 
@@ -456,7 +498,7 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 
 - **Triggers:** User clicks "Unsubscribe" in email, or `HasOptedOutOfEmail` is checked in SFDC.
 - **Result:** Status  `Unsubscribed`.
-- **Rule:** This is permanent. A "Cold" lead can become "Marketable" (by filling a form), but an "Unsubscribed" contact is locked unless they manually re-subscribe.
+- **Rule:** This is permanent. A "Cold" contact can become "Marketable" (by filling a form), but an "Unsubscribed" contact is locked unless they manually re-subscribe.
 
 ### Why this matters
 
@@ -467,7 +509,7 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 
 ## ActiveCampaign
 
-Fleet uses ActiveCampaign as its marketing automation platform for email marketing, contact lifecycle management, lead nurturing, and segmentation. ActiveCampaign is integrated with Salesforce (SFDC) as the system of record; key contact fields sync from SFDC into ActiveCampaign, and lifecycle transitions driven by sales activity in SFDC are reflected in ActiveCampaign automations.
+Fleet uses ActiveCampaign as its marketing automation platform for email marketing, contact lifecycle management, nurturing, and segmentation. ActiveCampaign is integrated with Salesforce (SFDC) as the system of record; key contact fields sync from SFDC into ActiveCampaign, and lifecycle transitions driven by sales activity in SFDC are reflected in ActiveCampaign automations.
 
 ### Lists
 
@@ -531,10 +573,10 @@ Tags handle behavioral and automation state signals that change over time. They 
 | Tag | Category | Description |
 |---|---|---|
 | `ls: prospect` | Lifecycle Stage | Opted-in contact with no qualification yet. Starting point for all contacts regardless of source. |
-| `ls: mql` | Lifecycle Stage | Marketing Qualified Lead. Right-fit demographics/firmographics plus minor intent signal. Qualifies for increased marketing investment. |
-| `ls: srl` | Lifecycle Stage | Sales Ready Lead. MQL threshold met plus sufficient intent to hand off. Triggers sales notification and pauses marketing nurture. |
-| `ls: sal` | Lifecycle Stage | Sales Accepted Lead. Sales has accepted and is actively working the contact. SFDC is system of record from this point. |
-| `ls: sql` | Lifecycle Stage | Sales Qualified Lead. Sales has met with the contact and is moving forward toward a deal. |
+| `ls: mql` | Lifecycle Stage | Marketing Qualified. Right-fit demographics/firmographics plus minor intent signal. Qualifies for increased marketing investment. |
+| `ls: srl` | Lifecycle Stage | Sales Ready. MQL threshold met plus sufficient intent to hand off. Triggers sales notification and pauses marketing nurture. |
+| `ls: sal` | Lifecycle Stage | Sales Accepted. Sales has accepted and is actively working the contact. SFDC is system of record from this point. |
+| `ls: sql` | Lifecycle Stage | Sales Qualified. Sales has met with the contact and is moving forward toward a deal. |
 | `ls: customer` | Lifecycle Stage | Has purchased Fleet. Contact is added to the Customers list. |
 | `ls: churned` | Lifecycle Stage | Former customer who has cancelled or not renewed. |
 | `ls: non-prospect` | Lifecycle Stage | In the database but will never enter the funnel (press, media, analysts, students, community members). Excluded from all nurture automations. |
@@ -554,7 +596,7 @@ Tags handle behavioral and automation state signals that change over time. They 
 
 ### Email marketing
 
-Fleet uses ActiveCampaign for all owned-list email marketing. This includes the newsletter, product announcements, event follow-ups, and lead nurture sequences.
+Fleet uses ActiveCampaign for all owned-list email marketing. This includes the newsletter, product announcements, event follow-ups, and nurture sequences.
 
 All campaign names in ActiveCampaign must follow the Level 3 attribution naming convention so that email-driven conversions are correctly attributed in SFDC:
 
@@ -642,7 +684,7 @@ We use a virtual team member — **"Grace"** — as the sender identity for our 
 People engage with people, not logos. Emails from a named individual consistently outperform emails sent from a brand name or a generic address like `marketing@` or `no-reply@`. A virtual persona gives us the warmth and approachability of a personal sender without the operational problems that come with tying automation to a real employee.
 
 - Turnover risk: When a real person is the face of automated email, their departure creates a jarring experience for recipients and a scramble to update templates, signatures, and sender addresses across every platform.
-- Scalability: No single employee can realistically "own" the relationship with every lead and contact in the database. A persona can.
+- Scalability: No single employee can realistically "own" the relationship with every contact in the database. A persona can.
 - Consistency: A virtual identity stays on-brand across every touchpoint — tone, title, photo, and signature never drift.
 - Privacy for the team: Real employees don't have their name and likeness attached to thousands of cold or automated emails they didn't personally write.
 
@@ -664,7 +706,7 @@ What grace is not:
 
 ### How it works in practice
 
-- Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
+- **Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
 - Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
 - Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
 - Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
@@ -677,6 +719,24 @@ Alternative
 > *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
 
 
+### Set up and configuration
 
-<meta name="maintainedBy" value="johnjeremiah">
+Fleet uses a virtual persona — Grace West (gracewest at fleetdm.com) — as the sender for ActiveCampaign automated marketing emails. Using a realistic-looking sender improves open rates and engagement.
+
+**How it's set up:** gracewest at fleetdm.com is a Google Group, not a licensed Gmail user. This avoids license fees and SSO/Okta complications, and allows multiple marketing team members to send as Grace when needed.
+
+**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to (gracewest at fleetdm.com) lands in their inboxes, and replies route back to the group rather than to individuals.
+
+**To send as Grace from your own Gmail:**
+1. In Gmail, click the gear icon → **See all settings**.
+2. Go to the **Accounts and Import** tab.
+3. Under **Send mail as**, click **Add another email address**.
+4. Set **Name:** Grace West, **Email:** gracewest at fleetdm.com.
+5. Uncheck "Treat as an alias" — this ensures replies from prospects route to the Google Group rather than your personal inbox.
+6. Click **Next Step** → **Send Verification**.
+7. The verification email lands in your inbox (since you're a group member). Click the link or copy the code.
+
+Once verified, the **From** dropdown in Gmail's compose window lets you switch to "Grace West <gracewest at fleetdm.com>" when sending.
+
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing ops">

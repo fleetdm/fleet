@@ -53,23 +53,23 @@ func TestDebugConnectionCommand(t *testing.T) {
 			return nil, errors.New("invalid")
 		}
 
-		output := RunAppForTest(t, []string{"debug", "connection"})
+		output := runAppForTest(t, []string{"debug", "connection"})
 		// 3 successes: resolve host, dial address, check api endpoint
 		require.Equal(t, 3, strings.Count(output, "Success:"))
 	})
 
 	t.Run("invalid certificate flag without address", func(t *testing.T) {
-		_, err := RunAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
 		require.Contains(t, err.Error(), "--fleet-certificate")
 	})
 
 	t.Run("invalid context flag with address", func(t *testing.T) {
-		_, err := RunAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
 		require.Contains(t, err.Error(), "--context")
 	})
 
 	t.Run("invalid config flag with address", func(t *testing.T) {
-		_, err := RunAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
 		require.Contains(t, err.Error(), "--config")
 	})
 
@@ -84,7 +84,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		// get the certificate of the TLS server
 		certPath := rawCertToPemFile(t, srv.Certificate().Raw)
 
-		output := RunAppForTest(t, []string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		output := runAppForTest(t, []string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 4 successes: resolve host, dial address, certificate, check api endpoint
 		t.Log(output)
 		require.Equal(t, 4, strings.Count(output, "Success:"))
@@ -103,7 +103,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		certPath := filepath.Join(dir, "cert.pem")
 		require.NoError(t, os.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0o600))
 
-		buf, err := RunAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
 		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))

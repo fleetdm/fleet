@@ -3,10 +3,14 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
+import { isDarkMode } from "utilities/theme";
+
 // @ts-ignore
 import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
 // @ts-ignore
 import backgroundImg from "../../../../assets/images/403.svg";
+// @ts-ignore
+import backgroundImgDark from "../../../../assets/images/403-dark.svg";
 
 const baseClass = "fleet-403";
 
@@ -22,7 +26,7 @@ const Fleet403 = () => (
       </Link>
     </header>
     <img
-      src={backgroundImg}
+      src={isDarkMode() ? backgroundImgDark : backgroundImg}
       alt="403 background"
       className="background-image"
     />

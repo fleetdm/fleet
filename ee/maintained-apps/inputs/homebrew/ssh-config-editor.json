@@ -1,0 +1,10 @@
+{
+  "name": "SSH Config Editor",
+  "unique_identifier": "org.hejki.osx.sshce",
+  "token": "ssh-config-editor",
+  "installer_format": "dmg",
+  "slug": "ssh-config-editor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

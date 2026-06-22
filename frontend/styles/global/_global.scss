@@ -4,6 +4,13 @@ html {
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
+  color-scheme: light;
+}
+
+html:has(body.dark-mode) {
+  // Tells the browser to render native UI (scrollbars, form controls, etc.)
+  // in their dark variants when dark mode is active.
+  color-scheme: dark;
 }
 
 body {
@@ -27,11 +34,14 @@ body {
   body.theme-transition *::after {
     transition: background-color 300ms ease, color 300ms ease,
       border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
-      stroke 300ms ease !important;
+      stroke 300ms ease, background-image 300ms ease !important;
   }
 
-  // Hide the gradient image during theme switch so background-color
-  // can transition smoothly without the gradient snapping.
+  // The core-wrapper's hero gradient doesn't interpolate cleanly between
+  // themes (different shape/stops), so hide it during the transition and
+  // let background-color carry the fade. The data-table wrapper keeps its
+  // gradient — it has the same shape in both themes, so background-image
+  // interpolates smoothly along with background-color.
   body.theme-transition .core-wrapper {
     background-image: none !important;
   }
@@ -276,6 +286,26 @@ body.dark-mode thead {
 body.dark-mode .data-table-block tbody tr,
 body.dark-mode tbody tr {
   background-color: $dark-mode-table-row;
+}
+
+// Data table rows stay transparent in dark mode so the wrapper's scroll
+// shadow can show through when the table is horizontally scrollable —
+// matches the light-mode pattern where `tr` has no background and the
+// wrapper shows through.
+body.dark-mode .data-table-block tbody tr {
+  background-color: transparent;
+}
+
+// $ui-off-white-opaque is a near-transparent rgba tuned for light mode;
+// against the dark wrapper it's perceptually invisible. A translucent
+// black overlay darkens the row beneath the wrapper color cleanly — the
+// interpolation from `transparent` (rgba(0,0,0,0)) to rgba(0,0,0,0.2)
+// stays in monotonically darkening tints, so no flicker. Selector
+// includes `.data-table` to beat the component rule's `.single-row:hover`
+// specificity (0,4,2).
+body.dark-mode .data-table-block .data-table tbody tr:hover,
+body.dark-mode .data-table-block .data-table tbody .single-row:hover {
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 body.dark-mode .site-nav-item:not(.dup-org-logo):hover {

@@ -16,12 +16,12 @@ import {
 
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
-import AdminUserManagementPage from "pages/admin/UserManagementPage";
-import CreateUserPage from "pages/admin/UserManagementPage/CreateUserPage";
-import CreateApiUserPage from "pages/admin/UserManagementPage/CreateApiUserPage";
-import EditUserPage from "pages/admin/UserManagementPage/EditUserPage";
-import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
-import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
+import AdminManageUsersPage from "pages/admin/ManageUsersPage";
+import CreateUserPage from "pages/admin/ManageUsersPage/CreateUserPage";
+import CreateApiUserPage from "pages/admin/ManageUsersPage/CreateApiUserPage";
+import EditUserPage from "pages/admin/ManageUsersPage/EditUserPage";
+import AdminManageFleetsPage from "pages/admin/ManageFleetsPage";
+import TeamDetailsWrapper from "pages/admin/ManageFleetsPage/TeamDetailsWrapper";
 import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
@@ -61,8 +61,8 @@ import Fleet404 from "pages/errors/Fleet404";
 import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
-import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
+import UsersPage from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/UsersPage";
+import AgentOptionsPage from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/AgentOptionsPage";
 import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
@@ -80,9 +80,10 @@ import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
 import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
+import SelfServiceCategoriesPage from "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
-import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
+import TeamSettings from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
@@ -164,13 +165,17 @@ const routes = (
             path="mdm/apple/account_driven_enroll/sso"
             component={MDMAppleSSOPage}
           />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso/:token"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to="/dashboard" />
+          <IndexRedirect to="dashboard" />
           <Route path="dashboard" component={DashboardPage}>
             <Route path="linux" component={DashboardPage} />
             <Route path="mac" component={DashboardPage} />
@@ -215,11 +220,11 @@ const routes = (
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>
-                  <Route path="users" component={AdminUserManagementPage} />
+                  <Route path="users" component={AdminManageUsersPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
                   <Redirect from="teams" to="fleets" />
-                  <Route path="fleets" component={AdminTeamManagementPage} />
+                  <Route path="fleets" component={AdminManageFleetsPage} />
                 </Route>
               </Route>
             </Route>
@@ -229,10 +234,12 @@ const routes = (
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
-              to="integrations/mdm/abm"
+              to="integrations/mdm/ab"
             />
+            {/* Redirect old /abm URL to /ab */}
+            <Redirect from="integrations/mdm/abm" to="integrations/mdm/ab" />
             <Route
-              path="integrations/mdm/abm"
+              path="integrations/mdm/ab"
               component={AppleBusinessManagerPage}
             />
             <Route
@@ -278,15 +285,6 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageHostsPage} />
             <Route path="manage/labels/:label_id" component={ManageHostsPage} />
-            <Route path="manage/:active_label" component={ManageHostsPage} />
-            <Route
-              path="manage/labels/:label_id/:active_label"
-              component={ManageHostsPage}
-            />
-            <Route
-              path="manage/:active_label/labels/:label_id"
-              component={ManageHostsPage}
-            />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
               <Route path="details" component={HostDetailsPage} />
@@ -383,6 +381,10 @@ const routes = (
               {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route
+              path="library/categories"
+              component={SelfServiceCategoriesPage}
+            />
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />

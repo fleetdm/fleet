@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
+	"database/sql/driver"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -21,13 +24,14 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -269,11 +273,11 @@ func TestAutomationsSchedule(t *testing.T) {
 		}, nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("automations", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("automations")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -301,7 +305,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 5*time.Minute, failingPoliciesSet, &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -340,11 +344,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		return nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -891,11 +895,11 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -967,7 +971,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	failingPoliciesClosed := false
 	unknownName := false
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		if expiration != expectedInterval {
 			return false, nil
@@ -989,7 +993,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	}
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -998,7 +1002,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 1*time.Second, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1051,12 +1055,12 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		}, nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("automations", "test_instance", time.Now().UTC())
 	require.NoError(t, mockLocker.AddChannels(t, "locked"))
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("automations")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -1065,7 +1069,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, slog.New(slog.DiscardHandler), 200*time.Millisecond, service.NewMemFailingPolicySet(), &mock.MockActivityService{})
 	require.NoError(t, err)
 	s.Start()
 
@@ -1233,6 +1237,9 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
+	ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+		return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := fleet.AppConfig{}
 		appCfg.MDM.EnabledAndConfigured = true
@@ -1309,6 +1316,12 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	}
 
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+		// The cron must pass a filter that includes fleet/team-scoped labels,
+		// otherwise host vitals labels on a team never get populated (#46869). An
+		// empty TeamFilter (nil User) falls back to global-only labels in
+		// applyLabelTeamFilter, so require a global-admin user here.
+		require.NotNil(t, filter.User, "cron must pass a user-scoped filter so team labels are included")
+		require.True(t, filter.User.HasAnyGlobalRole(), "cron must use a global-admin filter to see all team labels")
 		return labels, nil
 	}
 
@@ -1342,4 +1355,202 @@ func TestOTELResourceCreation(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, res)
+}
+
+func TestArgsToString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		args []driver.NamedValue
+		want string
+	}{
+		{
+			name: "empty",
+			args: nil,
+			want: "{}",
+		},
+		{
+			name: "single positional",
+			args: []driver.NamedValue{{Value: "hello"}},
+			want: "{hello}",
+		},
+		{
+			name: "single named",
+			args: []driver.NamedValue{{Name: "id", Value: 42}},
+			want: "{id=42}",
+		},
+		{
+			name: "multiple named",
+			args: []driver.NamedValue{
+				{Name: "id", Value: 1},
+				{Name: "name", Value: "alice"},
+			},
+			want: "{id=1, name=alice}",
+		},
+		{
+			name: "mixed positional and named",
+			args: []driver.NamedValue{
+				{Name: "id", Value: 1},
+				{Value: "second"},
+			},
+			want: "{id=1, second}",
+		},
+		{
+			name: "mixed value types",
+			args: []driver.NamedValue{
+				{Value: 1},
+				{Value: "two"},
+				{Value: true},
+				{Value: nil},
+			},
+			want: "{1, two, true, <nil>}",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, argsToString(tc.args))
+		})
+	}
+}
+
+func TestGetTLSConfig(t *testing.T) {
+	t.Parallel()
+	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
+
+	t.Run("modern", func(t *testing.T) {
+		cfg := getTLSConfig(config.TLSProfileModern)
+		require.NotNil(t, cfg)
+		assert.Equal(t, uint16(tls.VersionTLS13), cfg.MinVersion)
+		assert.True(t, cfg.PreferServerCipherSuites)
+		assert.ElementsMatch(t, expectedCurves, cfg.CurvePreferences)
+		assert.ElementsMatch(t, []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		}, cfg.CipherSuites)
+	})
+
+	t.Run("intermediate", func(t *testing.T) {
+		cfg := getTLSConfig(config.TLSProfileIntermediate)
+		require.NotNil(t, cfg)
+		assert.Equal(t, uint16(tls.VersionTLS12), cfg.MinVersion)
+		assert.True(t, cfg.PreferServerCipherSuites)
+		assert.ElementsMatch(t, expectedCurves, cfg.CurvePreferences)
+		assert.ElementsMatch(t, []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		}, cfg.CipherSuites)
+	})
+}
+
+// TestGetTLSConfigInvalidProfile covers the default case of getTLSConfig,
+// which calls initFatal. Not run in parallel because the test mutates the
+// package-level initFatal var.
+func TestGetTLSConfigInvalidProfile(t *testing.T) {
+	var capturedErr error
+	var capturedMsg string
+	orig := initFatal
+	initFatal = func(err error, msg string) {
+		capturedErr = err
+		capturedMsg = msg
+	}
+	t.Cleanup(func() { initFatal = orig })
+
+	getTLSConfig("not-a-real-profile")
+
+	require.Error(t, capturedErr)
+	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
+	require.Contains(t, capturedErr.Error(), "is invalid")
+	require.Equal(t, "set TLS profile", capturedMsg)
+}
+
+func TestInitLicense(t *testing.T) {
+	t.Parallel()
+	t.Run("dev license", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.True(t, license.IsPremium())
+		assert.False(t, license.IsExpired())
+		assert.NotEmpty(t, cfg.License.Key, "dev license should populate the config key")
+	})
+
+	t.Run("dev expired license", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, false, true)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.True(t, license.IsExpired())
+		assert.NotEmpty(t, cfg.License.Key, "dev expired license should populate the config key")
+	})
+
+	t.Run("no license key", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, false, false)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.Equal(t, fleet.TierFree, license.Tier)
+		assert.Empty(t, cfg.License.Key)
+	})
+}
+
+func TestPrintMissingMigrationsWarning(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		tables         []int64
+		data           []int64
+		wantSubstrings []string
+	}{
+		{
+			name:           "tables only",
+			tables:         []int64{1, 2, 3},
+			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
+		},
+		{
+			name:           "data only",
+			data:           []int64{4, 5},
+			wantSubstrings: []string{"data=[4 5]"},
+		},
+		{
+			name:           "tables and data",
+			tables:         []int64{1},
+			data:           []int64{2},
+			wantSubstrings: []string{"tables=[1], data=[2]"},
+		},
+		{
+			name:           "neither",
+			wantSubstrings: []string{"unknown"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
+			out := buf.String()
+			for _, sub := range tc.wantSubstrings {
+				assert.Contains(t, out, sub)
+			}
+			assert.Contains(t, out, os.Args[0])
+		})
+	}
+}
+
+func TestInitOrgLogoStore(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	// With no software installers bucket configured, the store falls back to
+	// the database-backed implementation. NewOrgLogoStore does no DB work at
+	// construction, so a zero-value Datastore is enough to verify selection.
+	ds := &mysql.Datastore{}
+	store := initOrgLogoStore(t.Context(), config.S3Config{}, ds, logger)
+	require.IsType(t, ds.NewOrgLogoStore(), store)
 }

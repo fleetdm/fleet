@@ -33,6 +33,11 @@
     }
   }
 
+  .card {
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
   &__platforms {
     display: flex;
     align-items: center;
