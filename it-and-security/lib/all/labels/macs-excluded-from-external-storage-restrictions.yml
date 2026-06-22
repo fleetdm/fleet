@@ -2,4 +2,9 @@
   description: Macs that should NOT receive the read-only external storage DDM profile. Add a host to this manual label to allow read-write external storage on that Mac.
   label_membership_type: manual
   hosts:
-    - "1339"   #47980
+    - "1339"
+    - "1372"
+    - "1739"
+    - "1720"
+    - "1577"
+    - "1595"
