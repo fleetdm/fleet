@@ -86,7 +86,10 @@ const GitOpsModeTooltipWrapper = ({
         className={`${baseClass}__tip-text`}
         anchorSelect={anchorSelect}
         place={position}
-        offset={tipOffset ?? 5}
+        // This wrapper always renders an arrow. A 5px offset leaves no gap between the
+        // arrow and a button (e.g. "Add certificate authority"), so non-field content
+        // gets extra clearance. Field tooltips anchor to the label row and read fine at 5.
+        offset={tipOffset ?? (hasSingleFieldRow ? 5 : 8)}
         opacity={1}
         disableStyleInjection
         clickable
