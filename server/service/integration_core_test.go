@@ -5375,8 +5375,6 @@ func (s *integrationTestSuite) TestLabels() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
 		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
 
-		// populate_labels=true must hydrate each returned host's Labels — this
-		// endpoint historically ignored the param; it now mirrors GET /hosts.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "populate_labels", "true")
 		require.NotEmpty(t, listHostsResp.Hosts)
 		for _, h := range listHostsResp.Hosts {
