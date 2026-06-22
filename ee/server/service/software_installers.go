@@ -3877,9 +3877,15 @@ func getInstallScript(extension string, packageIDs []string, currentScript strin
 // batchAddSelfServiceCategories only adds categories, because it is used across both the installer and vpp
 // endpoints and we cannot know what categories to delete before those are both done.
 func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) ([]string, error) {
+	// Compare names with fleet.SoftwareCategoryNamesEqual rather than a plain
+	// case-insensitive comparison: the software_categories unique index uses the
+	// utf8mb4_unicode_ci collation, which ignores variation selectors, so two
+	// names Go considers distinct (e.g. "🖥️ Productivity" with vs. without U+FE0F)
+	// are the same row to MySQL. Deduping/matching on the DB's terms here avoids
+	// attempting an insert that would fail with a 1062 duplicate-entry error.
 	var allCategories []string
 	for _, name := range fleet.TranslateLegacySoftwareCategoryNames(categoryNames) {
-		if slices.ContainsFunc(allCategories, func(c string) bool { return strings.EqualFold(c, name) }) {
+		if slices.ContainsFunc(allCategories, func(c string) bool { return fleet.SoftwareCategoryNamesEqual(c, name) }) {
 			continue
 		}
 		allCategories = append(allCategories, name)
@@ -3896,7 +3902,7 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 
 	var categoriesToInsert []string
 	for _, name := range allCategories {
-		if !slices.ContainsFunc(existingCategories, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
+		if !slices.ContainsFunc(existingCategories, func(c fleet.SoftwareCategory) bool { return fleet.SoftwareCategoryNamesEqual(c.Name, name) }) {
 			categoriesToInsert = append(categoriesToInsert, name)
 		}
 	}
