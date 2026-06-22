@@ -276,7 +276,7 @@ func TestSoftwareNameUpdate(t *testing.T) {
 func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
 	ds := new(mock.Store)
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-		return &fleet.SoftwareTitle{BundleIdentifier: ptr.String("com.example.app")}, nil
+		return &fleet.SoftwareTitle{BundleIdentifier: new("com.example.app")}, nil
 	}
 	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
 
@@ -295,16 +295,15 @@ func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamUser})
 
 	_, err := svc.SoftwareTitleByID(ctx, 1, teamIDZero)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "forbidden")
+	checkAuthErr(t, true, err)
 
 	// Global admin should still be able to access software with team_id=0
 	globalAdmin := &fleet.User{
 		ID:         2,
-		GlobalRole: ptr.String(fleet.RoleAdmin),
+		GlobalRole: new(fleet.RoleAdmin),
 	}
 	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: globalAdmin})
 
 	_, err = svc.SoftwareTitleByID(adminCtx, 1, teamIDZero)
-	require.NoError(t, err)
+	checkAuthErr(t, false, err)
 }
