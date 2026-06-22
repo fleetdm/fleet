@@ -3626,7 +3626,7 @@ func (r getManualEnrollmentProfileResponse) Error() error { return r.Err }
 type getManualEnrollmentProfileRequest struct {
 	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
 	// Defaults to false (company-owned) when omitted to preserve backwards-compatibility.
-	Personal bool `query:"personal"`
+	Personal bool `query:"byod"`
 }
 
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -3766,7 +3766,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 
 	// Read the personal enrollment flag from the MDM ServerURL query params.
-	// AddPersonalEnrollmentToFleetURL bakes "is_personal=1" into the ServerURL when
+	// AddPersonalEnrollmentToFleetURL bakes "byod=1" into the ServerURL when
 	// the end user chose "Personal (BYOD)" on the /enroll page; nanomdm surfaces it here.
 	isPersonal := r.Params != nil && r.Params[apple_mdm.FleetPersonalEnrollmentKey] == "1"
 
@@ -6675,7 +6675,7 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
 	// Defaults to false (company-owned) when omitted.
-	Personal bool   `query:"personal"`
+	Personal bool   `query:"byod"`
 	IdpUUID  string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
@@ -6687,7 +6687,7 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	personal := r.URL.Query().Get("personal") == "true" || r.URL.Query().Get("personal") == "1"
+	personal := r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
 
 	boydIdpCookie, err := r.Cookie(shared_mdm.BYODIdpCookieName)
 	if err != nil {
@@ -6823,7 +6823,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 
 	request.EnrollSecret = enrollSecret
 	request.IdpUUID = idpUUID
-	request.Personal = r.URL.Query().Get("personal") == "true" || r.URL.Query().Get("personal") == "1"
+	request.Personal = r.URL.Query().Get("byod") == "true" || r.URL.Query().Get("byod") == "1"
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
 	return &request, nil
@@ -6934,7 +6934,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	}
 
 	// NOTE: we don't offer ACME enrollment via OTA.
-	// Embed is_personal in the MDM ServerURL so the Authenticate checkin handler
+	// Embed byod=1 in the MDM ServerURL so the Authenticate checkin handler
 	// can set is_personal_enrollment correctly on the host record.
 	enrollMDMURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(mdmURL, personal)
 	if err != nil {

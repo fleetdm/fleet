@@ -104,8 +104,9 @@ func AppleEnrollmentAccessRights(personal bool) int {
 // FleetPersonalEnrollmentKey is the URL query-parameter key added to the MDM
 // ServerURL in enrollment profiles for personal (BYOD) devices. nanomdm surfaces
 // URL query parameters as request.Params so the Authenticate checkin handler can
-// read it and set host_mdm.is_personal_enrollment accordingly.
-const FleetPersonalEnrollmentKey = "is_personal"
+// read it and set host_mdm.is_personal_enrollment accordingly. The "byod" key
+// matches the param the OTA endpoint and the /enroll page already use.
+const FleetPersonalEnrollmentKey = "byod"
 
 // AddPersonalEnrollmentToFleetURL appends the FleetPersonalEnrollmentKey query
 // param to fleetURL when personal is true. If personal is false the URL is
@@ -1748,7 +1749,7 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 		q.Set("idp_uuid", idpUUID)
 	}
 	if personal {
-		q.Set("personal", "true")
+		q.Set("byod", "true")
 	}
 	enrollURL.RawQuery = q.Encode()
 

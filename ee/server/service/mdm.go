@@ -1559,8 +1559,8 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	accessRights := apple_mdm.AppleEnrollmentAccessRights(personal)
 
 	// Embed the personal flag in the MDM ServerURL so that nanomdm surfaces it as
-	// r.Params["is_personal"] during the Authenticate checkin and the host record
-	// is created with is_personal_enrollment set correctly.
+	// r.Params["byod"] during the Authenticate checkin and the host record is
+	// created with is_personal_enrollment set correctly.
 	mdmURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), personal)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building MDM URL with personal enrollment flag")
