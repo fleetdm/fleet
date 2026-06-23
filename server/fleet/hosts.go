@@ -1511,10 +1511,16 @@ type AggregatedMunkiVersion struct {
 // HostMDMApplePermissions records the AccessRights integer that was last delivered
 // to an Apple host's MDM enrollment profile. Apple does not allow profile replacements
 // to widen access rights, so this value is the monotonic ceiling for SCEP/ACME renewal.
+//
+// IsPersonalEnrollment is sourced from host_mdm.is_personal_enrollment (joined into
+// the lookup). It is the authoritative signal for whether the device was enrolled
+// as BYOD, and SCEP/ACME renewal uses it to reconstruct the same ServerURL Apple
+// saw at initial enrollment (Apple rejects ServerURL changes on profile replacement).
 type HostMDMApplePermissions struct {
-	HostUUID     string    `db:"host_uuid"`
-	AccessRights int       `db:"access_rights"`
-	DeliveredAt  time.Time `db:"delivered_at"`
+	HostUUID             string    `db:"host_uuid"`
+	AccessRights         int       `db:"access_rights"`
+	DeliveredAt          time.Time `db:"delivered_at"`
+	IsPersonalEnrollment bool      `db:"is_personal_enrollment"`
 }
 
 // MunkiIssue represents a single munki issue, as returned by the list hosts

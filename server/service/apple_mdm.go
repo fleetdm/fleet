@@ -5775,18 +5775,25 @@ func RenewSCEPCertificates(
 
 		if len(filteredAssocs) > 0 {
 			for _, assoc := range filteredAssocs {
-				rights := apple_mdm.MDMAccessRightAll
-				storedPerms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, assoc.HostUUID)
-				if err != nil && !fleet.IsNotFound(err) {
+				personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
+				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal")
 				}
-				if storedPerms != nil {
-					rights = storedPerms.AccessRights
+				// Apple rejects ServerURL changes on profile replacement, so the
+				// renewed URL must match the URL the device was enrolled with.
+				// BYOD devices carry byod=1 in their initial ServerURL (set by
+				// AddPersonalEnrollmentToFleetURL on the OTA/EE path); reapply
+				// the same flag for personal enrollments. Pre-feature and
+				// company-owned devices return personal=false here, leaving
+				// MDMUrl unchanged.
+				renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), personal)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag")
 				}
 
 				profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 					appConfig.OrgInfo.OrgName,
-					appConfig.MDMUrl(),
+					renewURL,
 					scepChallenge,
 					mdmPushCertTopic,
 					rights,
@@ -5854,13 +5861,16 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
 
-		rights := apple_mdm.MDMAccessRightAll
-		storedPerms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, assoc.HostUUID)
-		if err != nil && !fleet.IsNotFound(err) {
+		personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal with ref")
 		}
-		if storedPerms != nil {
-			rights = storedPerms.AccessRights
+		// Apple rejects ServerURL changes on profile replacement; preserve the
+		// byod=1 flag on the renewed URL for personal enrollments. See the
+		// matching block above (without ref) for the full rationale.
+		enrollURL, err = apple_mdm.AddPersonalEnrollmentToFleetURL(enrollURL, personal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag for ref renewal")
 		}
 
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
@@ -5902,13 +5912,16 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "creating new ACME enrollment")
 		}
 
-		acmeRights := apple_mdm.MDMAccessRightAll
-		storedACMEPerms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
-		if err != nil && !fleet.IsNotFound(err) {
+		personal, acmeRights, err := renewalEnrollmentParams(ctx, ds, hostUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for ACME renewal")
 		}
-		if storedACMEPerms != nil {
-			acmeRights = storedACMEPerms.AccessRights
+		// Defensive: BYOD enrolls only via OTA which doesn't use ACME, so this
+		// branch should never see a personal enrollment today. Still match the
+		// URL shape in case that combination becomes possible later.
+		enrollURL, err = apple_mdm.AddPersonalEnrollmentToFleetURL(enrollURL, personal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag for ACME renewal")
 		}
 
 		profile, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
@@ -5947,6 +5960,42 @@ func RenewSCEPCertificates(
 	}
 
 	return nil
+}
+
+// renewalEnrollmentParams loads the personal-enrollment flag and the access
+// rights bitmask that must be reused when generating a SCEP/ACME renewal
+// profile. Apple does not allow ServerURL changes or access-rights widening
+// on profile replacement, so the renewal must reuse the exact values the
+// device was originally enrolled with.
+//
+// The personal flag is sourced from host_mdm.is_personal_enrollment (set
+// during the initial Authenticate by the host upsert, which is fatal on
+// failure). The access rights default to MDMAccessRightAll unless a stored
+// row in host_mdm_apple_enrollment_permissions narrows them. As a safety
+// net for the rare case where the rights persist failed during the initial
+// Authenticate (it is logged but non-fatal), a personal device whose stored
+// rights came back unrestricted is renarrowed here.
+//
+// Pre-feature devices have is_personal_enrollment=0 (column default) and no
+// permissions row, so they return (personal=false, MDMAccessRightAll) —
+// matching their original raw ServerURL and full rights.
+func renewalEnrollmentParams(ctx context.Context, ds fleet.Datastore, hostUUID string) (personal bool, rights int, err error) {
+	stored, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, 0, err
+	}
+	rights = apple_mdm.MDMAccessRightAll
+	if stored != nil {
+		personal = stored.IsPersonalEnrollment
+		rights = stored.AccessRights
+		if personal && rights == apple_mdm.MDMAccessRightAll {
+			// Permissions row was missing or stale; re-derive the narrowed
+			// bitmask from the authoritative personal flag so the renewal
+			// doesn't attempt to widen.
+			rights = apple_mdm.AppleEnrollmentAccessRights(true)
+		}
+	}
+	return personal, rights, nil
 }
 
 func renewMDMAppleEnrollmentProfile(
