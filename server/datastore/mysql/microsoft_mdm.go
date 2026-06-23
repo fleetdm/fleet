@@ -923,9 +923,19 @@ ORDER BY
 // removed entirely. Legacy rows written before this change carry no prefix and are returned verbatim by decompressWindowsMDMResponse.
 const windowsMDMResponseCompressedPrefix = "gz1:"
 
+// windowsMDMResponseCompressMinBytes is the size below which an envelope is stored verbatim. gzip has ~18 bytes of framing overhead and
+// base64 adds ~33%, so compressing a tiny payload would inflate it. Real envelopes are 2-20 KB (issue #44188) and always clear this bar; only
+// trivially small payloads are stored uncompressed, where the absolute waste of skipping compression is negligible.
+const windowsMDMResponseCompressMinBytes = 256
+
 // compressWindowsMDMResponse gzip-compresses and base64-encodes a full SyncML response envelope for storage in windows_mdm_responses,
-// tagging the result with windowsMDMResponseCompressedPrefix so it can be distinguished from legacy uncompressed rows on read.
+// tagging the result with windowsMDMResponseCompressedPrefix so it can be distinguished from legacy uncompressed rows on read. Payloads
+// below windowsMDMResponseCompressMinBytes are returned verbatim (no prefix) to avoid inflating them; the read path handles unprefixed
+// values transparently.
 func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
+	if len(raw) < windowsMDMResponseCompressMinBytes {
+		return raw, nil
+	}
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 	if _, err := gw.Write(raw); err != nil {

@@ -3874,12 +3874,28 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 
 func TestCompressWindowsMDMResponse(t *testing.T) {
 	t.Run("round-trip restores the original envelope", func(t *testing.T) {
-		original := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody><Status><CmdID>1</CmdID><Data>200</Data></Status></SyncBody></SyncML>`)
+		// Pad past windowsMDMResponseCompressMinBytes so the value is actually compressed (and prefixed).
+		original := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody><Status><CmdID>1</CmdID><Data>200</Data></Status>` +
+			strings.Repeat("<Status><CmdID>2</CmdID><Data>200</Data></Status>", 10) + `</SyncBody></SyncML>`)
+		require.GreaterOrEqual(t, len(original), windowsMDMResponseCompressMinBytes)
 		compressed, err := compressWindowsMDMResponse(original)
 		require.NoError(t, err)
 		require.True(t, strings.HasPrefix(string(compressed), windowsMDMResponseCompressedPrefix))
 
 		decompressed, err := decompressWindowsMDMResponse(compressed)
+		require.NoError(t, err)
+		require.Equal(t, original, decompressed)
+	})
+
+	t.Run("small envelope is stored verbatim to avoid inflation", func(t *testing.T) {
+		original := []byte(`<SyncML/>`)
+		require.Less(t, len(original), windowsMDMResponseCompressMinBytes)
+		stored, err := compressWindowsMDMResponse(original)
+		require.NoError(t, err)
+		require.Equal(t, original, stored, "small payloads must be stored uncompressed and unprefixed")
+		require.False(t, strings.HasPrefix(string(stored), windowsMDMResponseCompressedPrefix))
+
+		decompressed, err := decompressWindowsMDMResponse(stored)
 		require.NoError(t, err)
 		require.Equal(t, original, decompressed)
 	})
