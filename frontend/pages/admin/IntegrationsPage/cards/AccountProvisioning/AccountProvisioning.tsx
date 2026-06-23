@@ -113,12 +113,14 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     setIsUpdating(true);
     try {
       await configAPI.update({
-        apple_account_provisioning: {
-          oauth_idp_token_url: formData.tokenUrl,
-          oauth_idp_client_id: formData.clientId,
-          ...(secretToSubmit !== undefined && {
-            oauth_idp_client_secret: secretToSubmit,
-          }),
+        mdm: {
+          apple_account_provisioning: {
+            oauth_idp_token_url: formData.tokenUrl,
+            oauth_idp_client_id: formData.clientId,
+            ...(secretToSubmit !== undefined && {
+              oauth_idp_client_secret: secretToSubmit,
+            }),
+          },
         },
       });
       await queryClient.invalidateQueries(["config"]);
