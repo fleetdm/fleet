@@ -47,7 +47,9 @@ import LibraryItemAccordion, {
 import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
 import EditSoftwareModal from "./EditSoftwareModal";
 import DeleteSoftwareModal from "./DeleteSoftwareModal";
+import VersionsModal from "./VersionsModal";
 import { getDisplayedSoftwareName } from "../helpers";
+import { buildLibraryVersionRows } from "./helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
 import ViewYamlModal from "./ViewYamlModal";
 
@@ -113,6 +115,9 @@ const SoftwareTitleDetailsPage = ({
 
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Page-owned so both the Actions menu and the Library accordion badge open
+  // the same Versions modal.
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
 
   const {
     data: softwareTitle,
@@ -213,6 +218,7 @@ const SoftwareTitleDetailsPage = ({
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onToggleViewYaml={onToggleViewYaml}
+        onClickVersions={() => setShowVersionsModal(true)}
       />
     );
   };
@@ -233,8 +239,6 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
-    // TODO #47623 multi-row rendering — render one accordion per version,
-    // and lift installer-meta lookup to per-row (only the latest is "active").
     const libraryAccordionList = () => {
       const pkg = title.software_package;
       const appStore = title.app_store_app;
@@ -283,36 +287,50 @@ const SoftwareTitleDetailsPage = ({
       const { installed, pending, failed } = aggregateInstallStatusCounts(
         pkg.status
       );
+      // FMAs list every cached version (active row badged from the pin, the
+      // rest dimmed rollback candidates); other packages render a single row.
+      const rows = buildLibraryVersionRows({
+        fleetMaintainedVersions: pkg.fleet_maintained_versions,
+        activeVersion: pkg.version,
+        pinnedVersion: pkg.pinned_version,
+        addedTimestamp: pkg.uploaded_at,
+      });
       return (
         <LibraryItemAccordionList>
-          <LibraryItemAccordion
-            filename={pkg.name}
-            version={pkg.version}
-            addedAt={pkg.uploaded_at}
-            installerType="package"
-            isFma={isFma}
-            isLatestFmaVersion={isLatestFmaVersion}
-            isScriptPackage={isScriptPackage}
-            isTarballPackage={title.source === "tgz_packages"}
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
-            isActive
-            badgeState="latest"
-            labels={labels}
-            labelKind={kind}
-            canEditSoftware={canEditSoftware}
-            installed={installed}
-            pending={pending}
-            failed={failed}
-            installedPath={statusPath("installed")}
-            pendingPath={statusPath("pending")}
-            failedPath={statusPath("failed")}
-            hashSha256={pkg.hash_sha256 ?? null}
-            downloadUrl={pkg.url}
-            onLabelCountClick={openEditModal}
-            onLabelsClick={openEditModal}
-            onDownloadClick={onDownloadInstaller}
-            onTrashClick={() => setShowDeleteModal(true)}
-          />
+          {rows.map((row) => (
+            <LibraryItemAccordion
+              key={row.id}
+              filename={pkg.name}
+              version={row.version}
+              addedAt={row.uploaded_at}
+              installerType="package"
+              isFma={isFma}
+              isLatestFmaVersion={row.isActive && isLatestFmaVersion}
+              isScriptPackage={isScriptPackage}
+              isTarballPackage={title.source === "tgz_packages"}
+              isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
+              isActive={row.isActive}
+              badgeState={row.badgeState}
+              labels={row.isActive ? labels : null}
+              labelKind={kind}
+              canEditSoftware={canEditSoftware}
+              installed={row.isActive ? installed : 0}
+              pending={row.isActive ? pending : 0}
+              failed={row.isActive ? failed : 0}
+              installedPath={statusPath("installed")}
+              pendingPath={statusPath("pending")}
+              failedPath={statusPath("failed")}
+              hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
+              downloadUrl={row.isActive ? pkg.url : undefined}
+              onBadgeClick={
+                isFma ? () => setShowVersionsModal(true) : undefined
+              }
+              onLabelCountClick={openEditModal}
+              onLabelsClick={openEditModal}
+              onDownloadClick={onDownloadInstaller}
+              onTrashClick={() => setShowDeleteModal(true)}
+            />
+          ))}
         </LibraryItemAccordionList>
       );
     };
@@ -419,6 +437,19 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
+  const renderVersionsModal = (title: ISoftwareTitleDetails) => {
+    if (!showVersionsModal || !title.software_package) return null;
+    return (
+      <VersionsModal
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onExit={() => setShowVersionsModal(false)}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
       return <Spinner />;
@@ -445,6 +476,7 @@ const SoftwareTitleDetailsPage = ({
           {renderLibraryEditModal(softwareTitle)}
           {renderDeleteModal()}
           {renderViewYamlModal(softwareTitle)}
+          {renderVersionsModal(softwareTitle)}
         </>
       );
     }

@@ -45,6 +45,7 @@ describe("Software Summary Card", () => {
         router={router}
         refetchSoftwareTitle={jest.fn()}
         onToggleViewYaml={jest.fn()}
+        onClickVersions={jest.fn()}
       />
     );
     // Get the text with aria label "software display name"
@@ -97,6 +98,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -120,6 +122,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -144,6 +147,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -170,6 +174,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -194,6 +199,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -217,6 +223,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -239,6 +246,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -262,6 +270,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -302,6 +311,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -320,6 +330,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -355,6 +366,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -393,6 +405,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -432,6 +445,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -451,6 +465,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -470,6 +485,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -487,6 +503,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -504,6 +521,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -523,6 +541,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -545,6 +564,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -564,6 +584,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -581,6 +602,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -603,6 +625,7 @@ describe("Software Summary Card", () => {
           router={pushedRouter}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -629,6 +652,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
@@ -650,6 +674,7 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
