@@ -1,0 +1,1 @@
+- Added "Fleet Agent base URL" under Advanced Options in the Fleet UI settings to change where hosts pull fleetd from by default
