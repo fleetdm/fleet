@@ -1187,19 +1187,24 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 	// device-initiated enrollment); it has no handling for the <wsse:UsernameToken> that an OnPremise auth policy makes
 	// the Windows MDM client send.
 	//
-	// When an Entra tenant is configured, advertise Federated together with Microsoft's LoginRedirect endpoint. The
-	// Windows MDM client then opens that URL in a webview, authenticates the user against Microsoft, and posts the
-	// resulting AAD JWT as the BinarySecurityToken, which authBinarySecurityToken already validates. This is what makes
-	// device-initiated BYOD enrollment (Settings > Access work or school) work; advertising OnPremise instead leaves it
-	// stuck on the opaque 0x80180027 error.
+	// We distinguish the two enrollment flows by the presence of an EmailAddress in the discovery request:
 	//
-	// Without an Entra tenant Fleet has no auth scheme it can accept for a device-initiated enrollment, so we keep
-	// advertising OnPremise (the prior behavior). Programmatic fleetd enrollment performs this same discovery handshake
-	// via the Windows RegisterDeviceWithManagement API but supplies its own BinarySecurityToken (the orbit node key)
-	// regardless of the advertised policy, so it is unaffected in either case.
+	//   - Programmatic fleetd enrollment performs this discovery handshake via the Windows RegisterDeviceWithManagement
+	//     API with an empty UPN, so its discovery request carries an empty EmailAddress. It supplies its own
+	//     BinarySecurityToken (the orbit node key) directly, so we keep advertising OnPremise (the prior behavior) and
+	//     leave that flow untouched regardless of whether an Entra tenant is configured.
+	//
+	//   - User-driven enrollment (device-initiated BYOD via Settings > Access work or school, or Autopilot/AAD) carries
+	//     a non-empty EmailAddress. When an Entra tenant is configured we advertise Federated together with Microsoft's
+	//     LoginRedirect endpoint, so the Windows MDM client opens that URL in a webview, authenticates the user against
+	//     Microsoft, and posts the resulting AAD JWT as the BinarySecurityToken, which authBinarySecurityToken already
+	//     validates. Advertising OnPremise here instead leaves the device stuck on the opaque 0x80180027 error. Without
+	//     an Entra tenant Fleet has no auth scheme it can accept for user-driven enrollment, so we fall back to
+	//     OnPremise (no behavior change from before this fix).
 	authPolicy := syncml.AuthOnPremise
 	var authServiceUrl string
-	if len(appCfg.MDM.WindowsEntraTenantIDs.Value) > 0 {
+	userDriven := len(strings.TrimSpace(upnEmail)) > 0
+	if userDriven && len(appCfg.MDM.WindowsEntraTenantIDs.Value) > 0 {
 		authPolicy = syncml.AuthFederated
 		authServiceUrl = syncml.AuthFederatedLoginRedirectURL
 	}

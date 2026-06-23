@@ -8391,6 +8391,65 @@ func (s *integrationMDMTestSuite) TestFederatedDiscoveryRequest() {
 	}
 }
 
+// TestProgrammaticDiscoveryWithEntraConfigured verifies that even when an Entra tenant is configured, a discovery
+// request with an empty EmailAddress (as sent by programmatic fleetd enrollment via RegisterDeviceWithManagement, which
+// uses an empty UPN) still gets the OnPremise auth policy and no authentication service url. Programmatic enrollment
+// supplies its own BinarySecurityToken (the orbit node key), so advertising Federated to it is both unnecessary and
+// risks the Windows client preferring the federated webview over the supplied token.
+func (s *integrationMDMTestSuite) TestProgrammaticDiscoveryWithEntraConfigured() {
+	t := s.T()
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b"] } }`), http.StatusOK, &acResp)
+
+	requestBytes := []byte(`
+	 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+	   <s:Header>
+	     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+	     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+	     <a:ReplyTo>
+	       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+	     </a:ReplyTo>
+	     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+	   </s:Header>
+	   <s:Body>
+	     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+	       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	         <EmailAddress></EmailAddress>
+	         <RequestVersion>5.0</RequestVersion>
+	         <DeviceType>CIMClient_Windows</DeviceType>
+	         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+	         <OSEdition>48</OSEdition>
+	         <AuthPolicies>
+	           <AuthPolicy>OnPremise</AuthPolicy>
+	           <AuthPolicy>Federated</AuthPolicy>
+	         </AuthPolicies>
+	       </request>
+	     </Discover>
+	   </s:Body>
+	 </s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+
+	var xmlType any
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("AuthPolicy", syncml.AuthOnPremise, resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+	require.False(t, s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+}
+
 func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	t := s.T()
 
