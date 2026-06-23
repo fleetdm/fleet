@@ -206,8 +206,12 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	var baseTransport http.RoundTripper
 	if co.tlsConf != nil {
 		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
-	} else {
+	} else if _, ok := http.DefaultTransport.(*http.Transport); ok {
 		baseTransport = NewTransport()
+	} else {
+		// http.DefaultTransport is not a *http.Transport (e.g. test mock).
+		// Use it directly to preserve the mock chain.
+		baseTransport = http.DefaultTransport
 	}
 	cli.Transport = otelhttp.NewTransport(baseTransport)
 	if co.cookieJar != nil {
