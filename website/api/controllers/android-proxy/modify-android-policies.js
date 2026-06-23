@@ -98,9 +98,8 @@ module.exports = {
     }).intercept((err) => {
       if([502, 503, 504].includes(err.status)){
         return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
-      } else {
-        return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
       }
+      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 
