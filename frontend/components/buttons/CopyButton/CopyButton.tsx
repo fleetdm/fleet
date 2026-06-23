@@ -23,6 +23,10 @@ interface ICopyButtonProps {
   size?: "small" | "wide" | "default";
   className?: string;
   ariaLabel?: string;
+  /** Distance in px from the anchor to the tooltip. Defaults to `4` — tight
+   *  for inline-with-text copy actions. Pass `10` to match react-tooltip 5's
+   *  own default when the trigger is a larger floating button. */
+  tooltipOffset?: number;
 }
 
 const baseClass = "copy-button";
@@ -38,6 +42,7 @@ const CopyButton = ({
   size,
   className,
   ariaLabel = "Copy to clipboard",
+  tooltipOffset = 4,
 }: ICopyButtonProps) => {
   const [message, setMessage] = useState<string | null>(null);
   const tipIdRef = useRef(uniqueId("copy-button-tooltip-"));
@@ -53,6 +58,11 @@ const CopyButton = ({
 
   const onClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+    // Fleet Button's --icon variant uses :focus (not :focus-visible) for its
+    // hover-background, so a mouse click leaves the button visually "stuck"
+    // highlighted. Drop focus once the copy fires.
+    evt.currentTarget.blur();
+
     stringToClipboard(copyText)
       .then(() => setMessage(SUCCESS_MESSAGE))
       .catch(() => setMessage(ERROR_MESSAGE));
@@ -85,6 +95,7 @@ const CopyButton = ({
         id={tipIdRef.current}
         isOpen={message !== null}
         place="left"
+        offset={tooltipOffset}
         opacity={1}
         disableStyleInjection
         noArrow

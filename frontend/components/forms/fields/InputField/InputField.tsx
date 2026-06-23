@@ -141,6 +141,7 @@ const InputField = ({
           <CopyButton
             copyText={copyText}
             className={`${baseClass}__action-button`}
+            tooltipOffset={10}
           />
         )}
         {enableShowSecret && (
