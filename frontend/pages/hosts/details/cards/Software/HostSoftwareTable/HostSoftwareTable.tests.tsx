@@ -156,8 +156,9 @@ describe("HostSoftwareTable", () => {
   });
 
   it("appends macos_applications to the URL on pagination when the filter is set", () => {
-    mockRouter.replace.mockClear();
+    const router = createMockRouter();
     renderWithContext({
+      router,
       platform: "darwin",
       macosApplicationsFilter: true,
       data: fullPageWithNextResults,
@@ -165,14 +166,15 @@ describe("HostSoftwareTable", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(mockRouter.replace).toHaveBeenCalledWith(
+    expect(router.replace).toHaveBeenCalledWith(
       expect.stringContaining("macos_applications=true")
     );
   });
 
   it("does not append macos_applications to the URL on pagination when the filter is undefined (My device page)", () => {
-    mockRouter.replace.mockClear();
+    const router = createMockRouter();
     renderWithContext({
+      router,
       platform: "darwin",
       // My device page leaves the filter undefined since it has no dropdown.
       macosApplicationsFilter: undefined,
@@ -182,8 +184,8 @@ describe("HostSoftwareTable", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
-    expect(mockRouter.replace).not.toHaveBeenCalledWith(
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).not.toHaveBeenCalledWith(
       expect.stringContaining("macos_applications")
     );
   });
