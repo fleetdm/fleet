@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -590,6 +591,454 @@ func TestCampaignWebsocketURL(t *testing.T) {
 		}
 		if got != tc.want {
 			t.Errorf("campaignWebsocketURL(%q) = %q, want %q", tc.base, got, tc.want)
+		}
+	}
+}
+
+func TestListSoftwareTitles_PaginatesUntilShortPage(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/fleet/software/titles" {
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		calls.Add(1)
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		var titles []SoftwareTitle
+		switch page {
+		case 0:
+			titles = make([]SoftwareTitle, 100)
+			for i := range titles {
+				titles[i] = SoftwareTitle{ID: uint(i + 1), Name: fmt.Sprintf("pkg%d", i), Source: "apps"}
+			}
+		case 1:
+			titles = make([]SoftwareTitle, 25)
+			for i := range titles {
+				titles[i] = SoftwareTitle{ID: uint(100 + i + 1), Name: fmt.Sprintf("pkg%d", 100+i), Source: "apps"}
+			}
+		default:
+			t.Errorf("unexpected page %d", page)
+			http.Error(w, "unexpected page", http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}{SoftwareTitles: titles})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	// perPage 0 means "no client-side cap" — paginate until the short page.
+	out, truncated, err := fc.ListSoftwareTitles(context.Background(), "", "", "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if truncated {
+		t.Errorf("expected truncated=false")
+	}
+	if got, want := len(out), 125; got != want {
+		t.Errorf("len(out) = %d, want %d", got, want)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Errorf("expected 2 page calls, got %d", got)
+	}
+}
+
+func TestListSoftwareTitles_AppliesSourceFilter(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/fleet/software/titles" {
+			http.NotFound(w, r)
+			return
+		}
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		if page > 0 {
+			// Short page on page 1 to end pagination.
+			_ = json.NewEncoder(w).Encode(struct {
+				SoftwareTitles []SoftwareTitle `json:"software_titles"`
+			}{})
+			return
+		}
+		// Mixed-source payload: 3 npm, 2 python, 5 apps. Short page (8 < 100)
+		// so pagination ends after this response.
+		titles := []SoftwareTitle{
+			{ID: 1, Name: "left-pad", Source: "npm_packages"},
+			{ID: 2, Name: "lodash", Source: "npm_packages"},
+			{ID: 3, Name: "axios", Source: "npm_packages"},
+			{ID: 4, Name: "requests", Source: "python_packages"},
+			{ID: 5, Name: "numpy", Source: "python_packages"},
+			{ID: 6, Name: "Slack.app", Source: "apps"},
+			{ID: 7, Name: "Chrome.app", Source: "apps"},
+			{ID: 8, Name: "Zoom.app", Source: "apps"},
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}{SoftwareTitles: titles})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	out, _, err := fc.ListSoftwareTitles(context.Background(), "", "", "", "", "npm_packages", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := len(out), 3; got != want {
+		t.Errorf("len(out) = %d, want %d (3 npm)", got, want)
+	}
+	for _, row := range out {
+		if !strings.EqualFold(row.Source, "npm_packages") {
+			t.Errorf("unexpected source %q in filtered result", row.Source)
+		}
+	}
+
+	// Case-insensitive should also work.
+	out2, _, err := fc.ListSoftwareTitles(context.Background(), "", "", "", "", "NPM_PACKAGES", 0)
+	if err != nil {
+		t.Fatalf("unexpected error (case-insensitive): %v", err)
+	}
+	if len(out2) != 3 {
+		t.Errorf("case-insensitive filter returned %d rows, want 3", len(out2))
+	}
+}
+
+func TestGetHostSoftware_PropagatesTruncated(t *testing.T) {
+	// Lower the cap so a small fixture trips truncation deterministically.
+	orig := fetchSoftwareHardCap
+	fetchSoftwareHardCap = 4
+	t.Cleanup(func() { fetchSoftwareHardCap = orig })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/fleet/hosts/") || !strings.HasSuffix(r.URL.Path, "/software") {
+			http.NotFound(w, r)
+			return
+		}
+		// Single page with 10 matching rows — hard cap of 4 should fire
+		// before the page is fully consumed.
+		rows := make([]HostSoftware, 10)
+		for i := range rows {
+			rows[i] = HostSoftware{ID: uint(i + 1), Name: fmt.Sprintf("pkg%d", i), Source: "apps"}
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			Software []HostSoftware `json:"software"`
+		}{Software: rows})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	// perPage 0 — don't short-circuit on client-side cap. Force the hard-cap
+	// path to fire instead. source="" matches everything.
+	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !truncated {
+		t.Errorf("expected truncated=true when hard cap fires")
+	}
+	if got, want := len(out), 4; got != want {
+		t.Errorf("len(out) = %d, want %d (hard cap)", got, want)
+	}
+}
+
+func TestResolveHostWithUsers_AmbiguousCandidates(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/fleet/hosts":
+			// Substring search returns multiple collisions.
+			hosts := []Endpoint{
+				{ID: 1, Name: "mac-1.local"},
+				{ID: 2, Name: "mac-2.local"},
+				{ID: 3, Name: "mac-3.local"},
+			}
+			_ = json.NewEncoder(w).Encode(struct {
+				Hosts []Endpoint `json:"hosts"`
+			}{Hosts: hosts})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	host, ambiguous, candidates, err := resolveHostWithUsers(context.Background(), fc, "", "mac")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ambiguous {
+		t.Errorf("expected ambiguous=true for multi-match identifier")
+	}
+	if host != nil {
+		t.Errorf("expected host=nil when ambiguous, got %+v", host)
+	}
+	if got, want := len(candidates), 3; got != want {
+		t.Errorf("len(candidates) = %d, want %d", got, want)
+	}
+}
+
+func TestGetHostByIDWithUsers_DecodesUsers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/fleet/hosts/42" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"host": map[string]any{
+				"id":       42,
+				"hostname": "test.local",
+				"users": []map[string]any{
+					{"uid": 501, "username": "alice", "type": "regular", "groupname": "staff", "shell": "/bin/zsh"},
+					{"uid": 502, "username": "bob", "type": "regular", "groupname": "staff", "shell": "/bin/bash"},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	fc := newTestClient(srv.URL)
+	host, err := fc.GetHostByIDWithUsers(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if host == nil {
+		t.Fatalf("nil host")
+	}
+	if got, want := host.ID, uint(42); got != want {
+		t.Errorf("host.ID = %d, want %d", got, want)
+	}
+	if got, want := len(host.Users), 2; got != want {
+		t.Errorf("len(users) = %d, want %d", got, want)
+	}
+	if host.Users[0].Username != "alice" || host.Users[1].Shell != "/bin/bash" {
+		t.Errorf("user decode mismatch: %+v", host.Users)
+	}
+}
+
+func TestFilterHostUsers_CaseInsensitiveAcrossFields(t *testing.T) {
+	users := []HostUser{
+		{UID: 501, Username: "alice", GroupName: "staff", Shell: "/bin/zsh"},
+		{UID: 502, Username: "bob", GroupName: "wheel", Shell: "/bin/bash"},
+		{UID: 0, Username: "root", GroupName: "wheel", Shell: "/bin/sh"},
+	}
+	cases := []struct {
+		query string
+		want  int
+	}{
+		{"alice", 1}, // username exact
+		{"ALICE", 1}, // case-insensitive
+		{"wheel", 2}, // groupname
+		{"bash", 1},  // shell
+		{"50", 2},    // uid prefix (matches 501, 502)
+		{"nomatch", 0},
+	}
+	for _, tc := range cases {
+		got := filterHostUsers(users, tc.query)
+		if len(got) != tc.want {
+			t.Errorf("filterHostUsers(%q) returned %d, want %d", tc.query, len(got), tc.want)
+		}
+	}
+}
+
+func TestValidateGetSoftwareArgs(t *testing.T) {
+	cases := []struct {
+		name                        string
+		perHost                     bool
+		fleet, platform, vulnerable string
+		wantErr                     bool
+	}{
+		{"per-host alone ok", true, "", "", "", false},
+		{"per-host + fleet rejected", true, "Workstations", "", "", true},
+		{"per-host + platform rejected", true, "", "macos", "", true},
+		{"cross-host none ok (full inventory)", false, "", "", "", false},
+		{"cross-host fleet alone ok", false, "Workstations", "", "", false},
+		{"cross-host platform alone rejected", false, "", "macos", "", true},
+		{"cross-host platform + fleet ok", false, "Workstations", "macos", "", false},
+		{"vulnerable=true ok", false, "", "", "true", false},
+		{"vulnerable=false ok", false, "", "", "false", false},
+		{"vulnerable bad value rejected", false, "", "", "maybe", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateGetSoftwareArgs(tc.perHost, tc.fleet, tc.platform, tc.vulnerable)
+			if tc.wantErr && err == nil {
+				t.Errorf("expected error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestMatchesSoftwareSource(t *testing.T) {
+	cases := []struct {
+		row, want string
+		expect    bool
+	}{
+		{"apps", "", true},                     // empty want matches anything
+		{"apps", "apps", true},                 // exact
+		{"NPM_Packages", "npm_packages", true}, // case-insensitive
+		{"deb_packages", "apps", false},        // mismatch
+	}
+	for _, tc := range cases {
+		if got := matchesSoftwareSource(tc.row, tc.want); got != tc.expect {
+			t.Errorf("matchesSoftwareSource(%q,%q) = %v, want %v", tc.row, tc.want, got, tc.expect)
+		}
+	}
+}
+
+func TestResolveHostIDFromArgs_NumericSkipsLookup(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	id, _, ambiguous, err := resolveHostIDFromArgs(context.Background(), fc, "42", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 42 || ambiguous {
+		t.Errorf("got id=%d ambiguous=%v, want 42/false", id, ambiguous)
+	}
+	if calls.Load() != 0 {
+		t.Errorf("numeric host_id should make no HTTP call, got %d", calls.Load())
+	}
+	// invalid values are rejected
+	for _, bad := range []string{"abc", "0", "-1"} {
+		if _, _, _, err := resolveHostIDFromArgs(context.Background(), fc, bad, ""); err == nil {
+			t.Errorf("host_id=%q: expected error, got nil", bad)
+		}
+	}
+}
+
+func TestResolveHostIDFromArgs_IdentifierSingleAndFallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/fleet/hosts":
+			q := r.URL.Query().Get("query")
+			hosts := []Endpoint{}
+			if q == "solo" { // single unambiguous match
+				hosts = []Endpoint{{ID: 7, Name: "solo.local"}}
+			}
+			_ = json.NewEncoder(w).Encode(struct {
+				Hosts []Endpoint `json:"hosts"`
+			}{Hosts: hosts})
+		case r.URL.Path == "/api/v1/fleet/hosts/identifier/ghost":
+			_ = json.NewEncoder(w).Encode(struct {
+				Host Endpoint `json:"host"`
+			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	// single substring match -> that host's id, not ambiguous
+	id, _, ambiguous, err := resolveHostIDFromArgs(context.Background(), fc, "", "solo")
+	if err != nil || ambiguous || id != 7 {
+		t.Fatalf("single match: id=%d ambiguous=%v err=%v, want 7/false/nil", id, ambiguous, err)
+	}
+	// zero substring matches -> identifier-endpoint fallback
+	id, _, ambiguous, err = resolveHostIDFromArgs(context.Background(), fc, "", "ghost")
+	if err != nil || ambiguous || id != 9 {
+		t.Fatalf("fallback: id=%d ambiguous=%v err=%v, want 9/false/nil", id, ambiguous, err)
+	}
+}
+
+func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/hosts":
+			hosts := []Endpoint{}
+			if r.URL.Query().Get("query") == "solo" {
+				hosts = []Endpoint{{ID: 5, Name: "solo.local"}}
+			}
+			_ = json.NewEncoder(w).Encode(struct {
+				Hosts []Endpoint `json:"hosts"`
+			}{Hosts: hosts})
+		case "/api/v1/fleet/hosts/5":
+			_ = json.NewEncoder(w).Encode(struct {
+				Host HostWithUsers `json:"host"`
+			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 5, Name: "solo.local"}, Users: []HostUser{{UID: 501, Username: "alice"}}}})
+		case "/api/v1/fleet/hosts/identifier/ghost":
+			_ = json.NewEncoder(w).Encode(struct {
+				Host HostWithUsers `json:"host"`
+			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 9, Name: "ghost.local"}, Users: []HostUser{{UID: 0, Username: "root"}}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	// single match -> fetched by id, users populated
+	host, ambiguous, _, err := resolveHostWithUsers(context.Background(), fc, "", "solo")
+	if err != nil || ambiguous || host == nil || host.ID != 5 || len(host.Users) != 1 {
+		t.Fatalf("single match: host=%+v ambiguous=%v err=%v", host, ambiguous, err)
+	}
+	// zero matches -> identifier fallback
+	host, ambiguous, _, err = resolveHostWithUsers(context.Background(), fc, "", "ghost")
+	if err != nil || ambiguous || host == nil || host.ID != 9 || host.Users[0].Username != "root" {
+		t.Fatalf("fallback: host=%+v ambiguous=%v err=%v", host, ambiguous, err)
+	}
+}
+
+func TestGetHostByIdentifierWithUsers_DecodesUsers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/fleet/hosts/identifier/host-uuid" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"host":{"id":3,"hostname":"h3","users":[{"uid":501,"username":"alice","groupname":"staff","shell":"/bin/zsh"}]}}`))
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	h, err := fc.GetHostByIdentifierWithUsers(context.Background(), "host-uuid")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if h.ID != 3 || len(h.Users) != 1 || h.Users[0].UID != 501 || h.Users[0].Username != "alice" {
+		t.Errorf("decoded host = %+v, want id=3 with alice uid=501", h)
+	}
+}
+
+func TestGetHostSoftware_SourceFilterAndPerPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/software") {
+			http.NotFound(w, r)
+			return
+		}
+		rows := []HostSoftware{
+			{ID: 1, Name: "a", Source: "apps"},
+			{ID: 2, Name: "b", Source: "deb_packages"},
+			{ID: 3, Name: "c", Source: "apps"},
+			{ID: 4, Name: "d", Source: "npm_packages"},
+			{ID: 5, Name: "e", Source: "apps"},
+		}
+		_ = json.NewEncoder(w).Encode(struct {
+			Software []HostSoftware `json:"software"`
+		}{Software: rows})
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	// source=apps keeps only apps rows; perPage=2 caps the merged result early
+	out, truncated, err := fc.GetHostSoftware(context.Background(), 42, "", "", "apps", 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if truncated {
+		t.Errorf("expected truncated=false when perPage is reached")
+	}
+	if len(out) != 2 {
+		t.Fatalf("len(out) = %d, want 2 (perPage cap on matching rows)", len(out))
+	}
+	for _, sw := range out {
+		if sw.Source != "apps" {
+			t.Errorf("source filter leaked non-apps row: %+v", sw)
 		}
 	}
 }

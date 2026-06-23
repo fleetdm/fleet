@@ -482,6 +482,254 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	return &result.Host, nil
 }
 
+// UID is uint64 because Fleet sends `uid` as a JSON number, not a string.
+type HostUser struct {
+	UID       uint64 `json:"uid"`
+	Username  string `json:"username"`
+	Type      string `json:"type"`
+	GroupName string `json:"groupname"`
+	Shell     string `json:"shell"`
+}
+
+type HostWithUsers struct {
+	Endpoint
+	Users []HostUser `json:"users"`
+}
+
+// Vulnerabilities is RawMessage: Fleet returns either a []string of CVE IDs or
+// CVE objects depending on tier, so the MCP passes it through verbatim.
+type SoftwareVersion struct {
+	ID              uint            `json:"id"`
+	Version         string          `json:"version"`
+	Vulnerabilities json.RawMessage `json:"vulnerabilities,omitempty"`
+}
+
+type SoftwareTitle struct {
+	ID               uint              `json:"id"`
+	Name             string            `json:"name"`
+	Source           string            `json:"source"`
+	VersionsCount    int               `json:"versions_count"`
+	HostsCount       int               `json:"hosts_count"`
+	Versions         []SoftwareVersion `json:"versions,omitempty"`
+	BundleIdentifier string            `json:"bundle_identifier,omitempty"`
+	Browser          string            `json:"browser,omitempty"`
+	ExtensionFor     string            `json:"extension_for,omitempty"`
+}
+
+type HostSoftware struct {
+	ID               uint            `json:"id"`
+	Name             string          `json:"name"`
+	Version          string          `json:"version"`
+	Source           string          `json:"source"`
+	BundleIdentifier string          `json:"bundle_identifier,omitempty"`
+	Vulnerabilities  json.RawMessage `json:"vulnerabilities,omitempty"`
+	InstalledPaths   []string        `json:"installed_paths,omitempty"`
+	LastOpenedAt     string          `json:"last_opened_at,omitempty"`
+	Browser          string          `json:"browser,omitempty"`
+}
+
+func (fc *FleetClient) GetHostByIDWithUsers(ctx context.Context, hostID uint) (*HostWithUsers, error) {
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID)
+	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host with users by id: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("host not found: id=%d", hostID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get host with users by id: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Host HostWithUsers `json:"host"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode host with users by id response: %w", err)
+	}
+	return &result.Host, nil
+}
+
+// This endpoint silently returns one host when several share a hostname;
+// collision-prone callers should disambiguate first (see resolveHostWithUsers).
+func (fc *FleetClient) GetHostByIdentifierWithUsers(ctx context.Context, identifier string) (*HostWithUsers, error) {
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
+	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host with users: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("host not found: %s", identifier)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get host with users: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Host HostWithUsers `json:"host"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode host with users response: %w", err)
+	}
+	return &result.Host, nil
+}
+
+// Bounds memory for a single software fetch. var (not const) so tests can lower it.
+var fetchSoftwareHardCap = 5000
+
+func matchesSoftwareSource(rowSource, want string) bool {
+	if want == "" {
+		return true
+	}
+	return strings.EqualFold(rowSource, want)
+}
+
+// source is filtered client-side (not a server-side param on this endpoint);
+// perPage caps the merged result.
+func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
+	if hostID == 0 {
+		return nil, false, fmt.Errorf("host_id is required")
+	}
+
+	const apiPerPage = 500
+	out := make([]HostSoftware, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%d/software?%s", hostID, params.Encode())
+		resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch host software: %w", err)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("host not found: id=%d", hostID)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch host software: status code %d", status)
+		}
+
+		var result struct {
+			Software []HostSoftware `json:"software"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode host software response: %w", decErr)
+		}
+
+		shortPage := len(result.Software) < apiPerPage
+		for _, row := range result.Software {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("host software fetch hit hard cap %d (host_id=%d) — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap, hostID)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
+func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platform, query, vulnerable, source string, perPage int) ([]SoftwareTitle, bool, error) {
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
+	}
+
+	const apiPerPage = 100 // titles endpoint returns expanded objects; lower page size keeps payloads small
+	out := make([]SoftwareTitle, 0, perPage)
+	for page := 0; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+
+		params := url.Values{}
+		params.Set("per_page", strconv.Itoa(apiPerPage))
+		params.Set("page", strconv.Itoa(page))
+		if teamIDStr != "" {
+			params.Set("team_id", teamIDStr)
+		}
+		if p := strings.TrimSpace(platform); p != "" {
+			params.Set("platform", p)
+		}
+		if q := strings.TrimSpace(query); q != "" {
+			params.Set("query", q)
+		}
+		if v := strings.TrimSpace(vulnerable); v != "" {
+			params.Set("vulnerable", v)
+		}
+
+		resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+params.Encode(), nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch software titles: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			status := resp.StatusCode
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("failed to fetch software titles: status code %d", status)
+		}
+
+		var result struct {
+			SoftwareTitles []SoftwareTitle `json:"software_titles"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode software titles response: %w", decErr)
+		}
+
+		shortPage := len(result.SoftwareTitles) < apiPerPage
+		for _, row := range result.SoftwareTitles {
+			if !matchesSoftwareSource(row.Source, source) {
+				continue
+			}
+			out = append(out, row)
+			if perPage > 0 && len(out) >= perPage {
+				return out, false, nil
+			}
+			if len(out) >= fetchSoftwareHardCap {
+				logrus.Warnf("software titles fetch hit hard cap %d — result truncated; tighten filters or raise fetchSoftwareHardCap", fetchSoftwareHardCap)
+				return out, true, nil
+			}
+		}
+		if shortPage {
+			break
+		}
+	}
+	return out, false, nil
+}
+
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/reports", nil)
@@ -854,7 +1102,6 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 	out := make([]Endpoint, 0, perPage)
 	truncated := false
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
@@ -1312,7 +1559,6 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
-		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
 			return nil, false, err
 		}
