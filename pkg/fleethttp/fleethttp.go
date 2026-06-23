@@ -298,11 +298,10 @@ func HostnamesMatch(a, b string) (bool, error) {
 }
 
 // SizeLimitTransport wraps a base RoundTripper and enforces a response size
-// limit. It uses NewTransport() as the base to inherit the private network
-// blocking DialContext.
+// limit. If base is nil, http.DefaultTransport is used.
 type SizeLimitTransport struct {
 	maxSizeBytes int64
-	base         http.RoundTripper
+	Base         http.RoundTripper
 }
 
 var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
@@ -310,12 +309,15 @@ var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
 func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
 	return &SizeLimitTransport{
 		maxSizeBytes: maxSizeBytes,
-		base:         NewTransport(),
 	}
 }
 
 func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := t.base.RoundTrip(req)
+	base := t.Base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	resp, err := base.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
