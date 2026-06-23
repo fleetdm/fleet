@@ -101,7 +101,7 @@ How to configure automations in bulk:
 
 ### Further reading
 
-- [REST API documentation for queries](https://fleetdm.com/docs/rest-api/rest-api#queries)
+- [REST API documentation for reports](https://fleetdm.com/docs/rest-api/rest-api#reports)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
 - [Using fleetctl to run a live report and how live queries work](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries#basic-article)
 - [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
