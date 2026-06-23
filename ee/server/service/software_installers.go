@@ -674,11 +674,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			activeInstallerID = versions[0].ID
 		case usesCaret:
 			for _, v := range versions {
-				matches, err := versionMatchesMajor(v.Version, majorVersionString)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
-				}
-				if matches {
+				if versionMatchesMajor(v.Version, majorVersionString) {
 					activeInstallerID = v.ID
 					break
 				}
@@ -2531,12 +2527,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	if usesCaret {
-		matches, err := versionMatchesMajor(app.Version, majorVersionString)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
-		}
-
-		if !matches {
+		if !versionMatchesMajor(app.Version, majorVersionString) {
 			// We cannot use the FMA we just got the manifest for since it is on a different major
 			// version, so we try to find the latest cached version and use that instead.
 			if app.TitleID == nil {
@@ -3999,14 +3990,7 @@ func parsePinnedVersion(ctx context.Context, version string) (majorVersion strin
 	return majorVersion, usesCaret, nil
 }
 
-func versionMatchesMajor(version string, majorVersion string) (bool, error) {
-	v, err := fleet.VersionToSemverVersion(version)
-	if err != nil {
-		return false, err
-	}
-	major, err := fleet.VersionToSemverVersion(majorVersion)
-	if err != nil {
-		return false, err
-	}
-	return v.Major() == major.Major(), nil
+func versionMatchesMajor(version string, majorVersion string) bool {
+	versionMajor, _, _ := strings.Cut(version, ".")
+	return versionMajor == majorVersion
 }

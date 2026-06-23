@@ -32850,7 +32850,19 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		installerPath:  "/zoom.msi",
 		patchQuery:     "SELECT 1 FROM osquery_info;",
 	}
-	startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": zoom})
+	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
+	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
+	// version — that used to fail the whole apply with "Invalid Semantic Version".
+	chrome := &fmaTestState{
+		version:        "149.0.7827.156",
+		installerBytes: []byte("chrome-149"),
+		installerPath:  "/googlechrome.msi",
+		patchQuery:     "SELECT 1 FROM osquery_info;",
+	}
+	startFMAServers(t, s.ds, map[string]*fmaTestState{
+		"/zoom/windows.json":          zoom,
+		"/google-chrome/windows.json": chrome,
+	})
 
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
@@ -32859,6 +32871,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	team := *teamResp.Team
 
 	batchSet := func(software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		software = append(software, &fleet.SoftwareInstallerPayload{Slug: new("google-chrome/windows"), RollbackVersion: "^149"})
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
@@ -32873,9 +32886,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Cache v1.0, then bump the manifest and cache v2.0 (GitOps applies, no pin).
 	pkgs := batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
-	require.NotEmpty(t, pkgs)
-	require.NotNil(t, pkgs[0].TitleID)
-	titleID := *pkgs[0].TitleID
+	var titleID, chromeTitleID uint
+	for _, pkg := range pkgs {
+		require.NotNil(t, pkg.TitleID)
+		switch pkg.Slug {
+		case "zoom/windows":
+			titleID = *pkg.TitleID
+		case "google-chrome/windows":
+			chromeTitleID = *pkg.TitleID
+		}
+	}
+	require.NotZero(t, titleID)
+	require.NotZero(t, chromeTitleID)
 
 	bumpVersion("2.0", []byte("zoom-2.0"))
 	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
@@ -32911,6 +32933,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	p := getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
+	// Chrome's ^149 caret resolved against its 4-component version on the applies above.
+	var chromeResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", chromeTitleID), nil, http.StatusOK, &chromeResp, "team_id", fmt.Sprint(team.ID))
+	require.Equal(t, "149.0.7827.156", chromeResp.SoftwareTitle.SoftwarePackage.Version)
+	require.Equal(t, new("^149"), chromeResp.SoftwareTitle.SoftwarePackage.PinnedVersion)
 
 	// Dependencies on the title: an install-automation policy (carries software_installer_id, re-pointed to the
 	// active installer on a flip) and a patch policy (title-scoped via patch_software_title_id, never re-pointed).
