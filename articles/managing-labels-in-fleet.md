@@ -10,7 +10,7 @@ In Fleet, labels organize hosts into groups you can target with [software](https
 - **Manual:** Applied to an explicit list of hosts, specified by `hardware_serial`, `uuid`, or Fleet host ID. Useful for one-off groupings (e.g., a pilot group).
 - **Host vitals:** Fleet-generated; auto-applied to hosts matching a host vital from your IdP. Supported criteria: `end_user_idp_group` and `end_user_idp_department`. Requires a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)). Platforms: macOS, iOS, iPadOS, Android.
 
-> To change a dynamic label's query/platform or a host vitals label's criteria, you must delete and re-create it.
+> To change a dynamic label's query/platform or a host vitals label's criteria in the UI, you must delete and re-create it.
 
 ## Targeting with labels
 
@@ -24,16 +24,15 @@ Labels can target (or exclude) hosts for other features using one scoping mode p
 
 ## Label scope: global vs. fleet
 
-A label's scope is set by where it's created, not by its name:
+A label's scope is set based on where it's created, not by its name:
 
-- **Global** — available across all fleets. Created by a global user in the UI, or defined in `default.yml`.
-- **Fleet** (Fleet Premium) — scoped to a single fleet and visible only alongside global labels for that fleet. Defined in that fleet's `fleets/fleet-name.yml`. Defining a label here scopes it to the fleet; it does **not** become global.
-
-A name must be unique across all global and fleet labels—they share one namespace.
+- **Global:** Available across all fleets. Created by a global user in the UI, or defined in `default.yml`.
+- **Fleet:** (Fleet Premium) Scoped to a single fleet and visible only alongside global labels for that fleet. Defined in that fleet's `fleets/fleet-name.yml`. Defining a label here scopes it to the fleet; it does **not** become global.
 
 > **Tip:** Label names share one namespace, so creating a label whose name already exists (global or fleet) will fail. If multiple teams manage labels independently, prefix them to avoid collisions—either **by owner/fleet** (e.g. `[Workstations] Kiosk`, `ws-kiosk`) or by **centralizing all labels** in one place (e.g. a `labels/` directory referenced from `default.yml`) as the single source of truth, so collisions surface in a single PR.
 
 ## Managing labels
+
 To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
 
 You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
