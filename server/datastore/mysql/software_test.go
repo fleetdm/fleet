@@ -132,6 +132,7 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
+		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -536,7 +537,8 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 			assert.Equal(t, "somecpe", software.GenerateCPE)
 			require.Len(t, software.Vulnerabilities, 1000)
 			assert.True(t, strings.HasPrefix(software.Vulnerabilities[0].CVE, "CVE-"))
-			assert.Equal(t,
+			assert.Equal(
+				t,
 				"https://nvd.nist.gov/vuln/detail/"+software.Vulnerabilities[0].CVE,
 				software.Vulnerabilities[0].DetailsLink,
 			)
@@ -3657,7 +3659,8 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Len(t, toD, 3)
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]uint{toD[0], toD[1], toD[2]},
 			[]uint{stored[1].ID, stored[2].ID, stored[3].ID},
 		)
@@ -3667,23 +3670,28 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			require.Equal(t, toI[i].HostID, host.ID)
 		}
 
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]uint{toI[0].SoftwareID, toI[1].SoftwareID},
 			[]uint{software[1].ID, software[2].ID},
 		)
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]string{toI[0].InstalledPath, toI[1].InstalledPath},
 			[]string{fmt.Sprintf("/some/path/%d", software[1].ID+1), fmt.Sprintf("/some/path/%d", software[2].ID)},
 		)
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]*string{toI[0].CDHashSHA256, toI[1].CDHashSHA256},
 			[]*string{&cdHash1, nil},
 		)
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]*string{toI[0].ExecutableSHA256, toI[1].ExecutableSHA256},
 			[]*string{&eHash1, nil},
 		)
-		require.ElementsMatch(t,
+		require.ElementsMatch(
+			t,
 			[]*string{toI[0].ExecutablePath, toI[1].ExecutablePath},
 			[]*string{&ePath1, nil},
 		)
@@ -5181,7 +5189,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		res, err := q.ExecContext(ctx,
+		res, err := q.ExecContext(
+			ctx,
 			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(MD5(?)))`,
 			i4Title.Name,
 			i4Title.Source,
@@ -5988,7 +5997,8 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	res, err := ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -6048,7 +6058,8 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 
 	// have the second host install a vpp app, but not by fleet
-	res, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err = ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -6157,7 +6168,8 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp2, &tm.ID)
 	require.NoError(t, err)
-	res, err := ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -6194,7 +6206,8 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	res, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err = ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -8478,7 +8491,8 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	res, err := ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -8611,7 +8625,8 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), tmHost.ID, "")
 	require.NoError(t, err)
 	// Insert software entry for vpp app
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -8635,7 +8650,8 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	}
 	hvpp, err := ds.InsertVPPAppWithTeam(ctx, hostInstalledVpps, &tm.ID)
 	require.NoError(t, err)
-	res, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err = ds.writer(ctx).ExecContext(
+		ctx, `
 		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -8913,7 +8929,8 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	res, err := ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -9141,7 +9158,8 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, anotherHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -9159,7 +9177,8 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	thirdHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
 	nanoEnroll(t, ds, thirdHost, false)
 	// have a pre-installed vpp app
-	res, err := ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -9640,7 +9659,8 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 			return err
 		}
 
-		res, err = q.ExecContext(ctx, `
+		res, err = q.ExecContext(
+			ctx, `
         	INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         	VALUES (?, ?, ?, ?, ?, ?)
 		`,
@@ -10174,7 +10194,8 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 			WHERE software_installers.id = ?`, installerID)
 		require.NoError(t, err)
 
-		res, err := q.ExecContext(ctx,
+		res, err := q.ExecContext(
+			ctx,
 			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
 			title.Name,
 			title.Source,
@@ -10332,7 +10353,8 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	require.Len(t, software, 0)
 
 	// inventory by osquery
-	res, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err = ds.writer(ctx).ExecContext(
+		ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -10729,7 +10751,8 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	// Verify extensions don't interfere with bundle ID logic
 	// Add a macOS app with a bundle ID alongside extensions
 	mixedSoftware := crossBrowserExtensions
-	mixedSoftware = append(mixedSoftware,
+	mixedSoftware = append(
+		mixedSoftware,
 		fleet.Software{Name: "Safari.app", Version: "17.0", Source: "apps", BundleIdentifier: "com.apple.Safari"},
 	)
 
@@ -11879,7 +11902,8 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 	// = 6 raw rows → 5 unique titles after dedup.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		insertScript := func(script string) (int64, error) {
-			res, err := q.ExecContext(ctx,
+			res, err := q.ExecContext(
+				ctx,
 				`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5(?)), ?)`, script, script,
 			)
 			if err != nil {
@@ -11897,14 +11921,16 @@ func testListHostSoftwarePaginationWithMultipleInstallers(t *testing.T, ds *Data
 		}
 
 		var titleID uint
-		if err := sqlx.GetContext(ctx, q, &titleID,
+		if err := sqlx.GetContext(
+			ctx, q, &titleID,
 			`SELECT id FROM software_titles WHERE name = 'pagsw-04' AND source = 'apps'`,
 		); err != nil {
 			return err
 		}
 
 		for _, version := range []string{"1.0.0", "2.0.0"} {
-			if _, err := q.ExecContext(ctx, `
+			if _, err := q.ExecContext(
+				ctx, `
 				INSERT INTO software_installers
 					(team_id, global_or_team_id, title_id, filename, extension, version,
 					 install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids, patch_query)
@@ -13020,4 +13046,172 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
 	require.NoError(t, err)
 	assert.Empty(t, got)
+}
+
+func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Teams auto-seed "🖥️ Productivity" with the U+FE0F variation selector. The
+	// utf8mb4_unicode_ci collation on the (team_id, name) unique index ignores that
+	// selector, so re-inserting the same category WITHOUT the selector — a common
+	// form in GitOps files — collides in the index even though the bytes differ.
+	// The batch insert must be idempotent (ON DUPLICATE KEY UPDATE) so this does
+	// not fail with a 1062 duplicate-entry error and does not create a second row.
+	const (
+		productivityCanonical = "\U0001F5A5\uFE0F Productivity" // seeded form, with VS-16
+		productivityNoVS      = "\U0001F5A5 Productivity"       // colliding form, no VS-16
+		customName            = "\U0001F195 Custom"             // a genuinely new category
+	)
+
+	countProductivity := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM software_categories WHERE team_id = ? AND name = ?`, team.ID, productivityCanonical))
+		return n
+	}
+	require.Equal(t, 1, countProductivity(), "team should be seeded with exactly one Productivity category")
+
+	// Re-inserting the colliding form alongside a brand-new category must succeed.
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+
+	// The collision was absorbed (no second Productivity row) and the new category
+	// was created.
+	require.Equal(t, 1, countProductivity(), "colliding insert must not create a duplicate Productivity row")
+	cats, err := ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.True(t, slices.ContainsFunc(cats, func(c fleet.SoftwareCategory) bool { return c.Name == customName }),
+		"genuinely new category should have been inserted")
+
+	// Repeating the same batch remains a no-op: no error and no new rows.
+	before := len(cats)
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+	cats, err = ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, cats, before)
+}
+
+// The next three tests guard the per-host software detail queries against the
+// OR-dominance drop-out: a host with two queued activities for the same
+// installer/app (one lower priority, the other later created_at) used to fail
+// the self anti-join on both rows and vanish from the host's software list. The
+// ROW_NUMBER rewrite keeps exactly one row per installer/app.
+
+func testHostSoftwareInstallUninstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "hsidrop", "1", "hsidropkey", "hsidropuuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", UninstallScript: "uninstall",
+		InstallerFile: tfr, StorageID: "hsidrop-storage", Filename: "hsidrop.pkg",
+		Title: "HSIDrop", Version: "1.0", Source: "apps",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// row B: lower priority + earlier created_at; row A: later created_at.
+	seed := func(activityType, execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, ?, ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, activityType, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id) VALUES (?, ?)`, uaID, installerID)
+		require.NoError(t, err)
+	}
+	seed("software_install", "hsi-B", -1, 0)
+	seed("software_install", "hsi-A", 0, 100)
+	seed("software_uninstall", "hsu-B", -1, 0)
+	seed("software_uninstall", "hsu-A", 0, 100)
+
+	installs, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InstallerID)
+	require.Equal(t, installerID, *installs[0].InstallerID)
+
+	uninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, uninstalls, 1)
+	require.NotNil(t, uninstalls[0].InstallerID)
+	require.Equal(t, installerID, *uninstalls[0].InstallerID)
+}
+
+func testHostVPPInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vppdrop", BundleIdentifier: "com.app.vppdrop",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_drop", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	appID := app.VPPAppID
+	host := test.NewHost(t, ds, "vppdrop-host", "1", "vppdropkey", "vppdropuuid", time.Now())
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'vpp_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform) VALUES (?, ?, ?)`, uaID, appID.AdamID, appID.Platform)
+		require.NoError(t, err)
+	}
+	seed("vppdrop-B", -1, 0)
+	seed("vppdrop-A", 0, 100)
+
+	installs, err := hostVPPInstalls(ds, ctx, host.ID, 0, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].VPPAppAdamID)
+	require.Equal(t, appID.AdamID, *installs[0].VPPAppAdamID)
+}
+
+func testHostInHouseInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team drop"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "ihadrop-host", "1", "ihadropkey", "ihadropuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	appID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &team.ID, UserID: user.ID,
+		Title: "ihadrop", Filename: "ihadrop.ipa", BundleIdentifier: "com.ihadrop",
+		StorageID: "ihadrop-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'in_house_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id) VALUES (?, ?)`, uaID, appID)
+		require.NoError(t, err)
+	}
+	seed("ihadrop-B", -1, 0)
+	seed("ihadrop-A", 0, 100)
+
+	installs, err := hostInHouseInstalls(ds, ctx, host.ID, team.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InHouseAppID)
+	require.Equal(t, appID, *installs[0].InHouseAppID)
 }

@@ -6988,7 +6988,16 @@ func batchNewSoftwareCategoriesDB(ctx context.Context, q sqlx.ExtContext, teamID
 		return nil
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(names)), ", ")
-	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders
+	// ON DUPLICATE KEY UPDATE makes this insert idempotent against the
+	// (team_id, name) unique index. Callers already filter out names that exist,
+	// but that check runs in Go and can't perfectly mirror the utf8mb4_unicode_ci
+	// collation (which ignores variation selectors and gives many emoji equal
+	// weight), so a name that's distinct to Go may collide in the index. The
+	// upsert lets the existing row win instead of failing the batch with a 1062
+	// duplicate-entry error; it also tolerates concurrent inserts of the same
+	// default categories.
+	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders +
+		` ON DUPLICATE KEY UPDATE name = name`
 	args := make([]any, 0, len(names)*2)
 	for _, name := range names {
 		args = append(args, name, teamID)
