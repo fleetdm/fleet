@@ -3872,6 +3872,56 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	return prof
 }
 
+func TestCompressWindowsMDMResponse(t *testing.T) {
+	t.Run("round-trip restores the original envelope", func(t *testing.T) {
+		original := []byte(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody><Status><CmdID>1</CmdID><Data>200</Data></Status></SyncBody></SyncML>`)
+		compressed, err := compressWindowsMDMResponse(original)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(string(compressed), windowsMDMResponseCompressedPrefix))
+
+		decompressed, err := decompressWindowsMDMResponse(compressed)
+		require.NoError(t, err)
+		require.Equal(t, original, decompressed)
+	})
+
+	t.Run("compression shrinks a realistic envelope", func(t *testing.T) {
+		// A typical SyncML envelope is highly compressible XML; build a representative one with repeated structure.
+		var sb strings.Builder
+		sb.WriteString(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD></SyncHdr><SyncBody>`)
+		for range 200 {
+			sb.WriteString(`<Status><CmdID>1</CmdID><MsgRef>1</MsgRef><CmdRef>2</CmdRef><Cmd>Replace</Cmd><Data>200</Data></Status>`)
+		}
+		sb.WriteString(`</SyncBody></SyncML>`)
+		original := []byte(sb.String())
+
+		compressed, err := compressWindowsMDMResponse(original)
+		require.NoError(t, err)
+		require.Less(t, len(compressed), len(original), "compressed (incl. base64 + prefix) must be smaller than the original envelope")
+
+		decompressed, err := decompressWindowsMDMResponse(compressed)
+		require.NoError(t, err)
+		require.Equal(t, original, decompressed)
+	})
+
+	t.Run("legacy uncompressed value passes through unchanged", func(t *testing.T) {
+		legacy := []byte("some-response")
+		out, err := decompressWindowsMDMResponse(legacy)
+		require.NoError(t, err)
+		require.Equal(t, legacy, out)
+	})
+
+	t.Run("empty value passes through unchanged", func(t *testing.T) {
+		out, err := decompressWindowsMDMResponse([]byte{})
+		require.NoError(t, err)
+		require.Empty(t, out)
+	})
+
+	t.Run("prefixed but invalid payload errors", func(t *testing.T) {
+		_, err := decompressWindowsMDMResponse([]byte(windowsMDMResponseCompressedPrefix + "not-base64!!"))
+		require.Error(t, err)
+	})
+}
+
 func testSaveResponse(t *testing.T, ds *Datastore) {
 	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
@@ -3955,6 +4005,17 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 	assert.Equal(t, cmd.CommandUUID, results[0].CommandUUID)
 	assert.Equal(t, "200", results[0].Status)
+	// The read path must transparently restore the original envelope even though it is stored gzip-compressed (#44188).
+	assert.Equal(t, enrichedSyncML.Raw, results[0].Result)
+
+	// And the row on disk must actually be compressed (carry the prefix), not the raw envelope.
+	var storedResp string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &storedResp,
+			`SELECT raw_response FROM windows_mdm_responses WHERE enrollment_id = ?`, enrolledDevice1.ID)
+	})
+	assert.True(t, strings.HasPrefix(storedResp, windowsMDMResponseCompressedPrefix), "stored raw_response must be compressed")
+	assert.NotContains(t, storedResp, "<SyncML", "stored raw_response must not contain the plaintext envelope")
 
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

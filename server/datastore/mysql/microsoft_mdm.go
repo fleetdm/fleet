@@ -2,11 +2,14 @@ package mysql
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"slices"
 	"strings"
@@ -914,6 +917,46 @@ ORDER BY
 	return commands, nil
 }
 
+// windowsMDMResponseCompressedPrefix marks a windows_mdm_responses.raw_response value that has been gzip-compressed and base64-encoded.
+// The column is MEDIUMTEXT (utf8mb4), so raw gzip bytes cannot be stored directly; base64 keeps the value charset-safe. This is a stopgap
+// (issue #44188) to shrink the row size and the redo-log/commit-quorum pressure of the Windows MDM check-in hot path until the table is
+// removed entirely. Legacy rows written before this change carry no prefix and are returned verbatim by decompressWindowsMDMResponse.
+const windowsMDMResponseCompressedPrefix = "gz1:"
+
+// compressWindowsMDMResponse gzip-compresses and base64-encodes a full SyncML response envelope for storage in windows_mdm_responses,
+// tagging the result with windowsMDMResponseCompressedPrefix so it can be distinguished from legacy uncompressed rows on read.
+func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(raw); err != nil {
+		return nil, err
+	}
+	if err := gw.Close(); err != nil {
+		return nil, err
+	}
+	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
+	return append([]byte(windowsMDMResponseCompressedPrefix), encoded...), nil
+}
+
+// decompressWindowsMDMResponse reverses compressWindowsMDMResponse. Values without windowsMDMResponseCompressedPrefix (legacy uncompressed
+// rows, or the empty string from a LEFT JOIN miss) are returned unchanged.
+func decompressWindowsMDMResponse(stored []byte) ([]byte, error) {
+	prefix := []byte(windowsMDMResponseCompressedPrefix)
+	if !bytes.HasPrefix(stored, prefix) {
+		return stored, nil
+	}
+	decoded, err := base64.StdEncoding.DecodeString(string(stored[len(prefix):]))
+	if err != nil {
+		return nil, err
+	}
+	gr, err := gzip.NewReader(bytes.NewReader(decoded))
+	if err != nil {
+		return nil, err
+	}
+	defer gr.Close()
+	return io.ReadAll(gr)
+}
+
 func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	if len(enrichedSyncML.Raw) == 0 {
 		return nil, ctxerr.New(ctx, "empty raw response")
@@ -926,9 +969,13 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		result = nil
 
-		// store the full response
+		// store the full response, gzip-compressed to shrink the row and reduce redo-log/commit-quorum pressure on this hot path (#44188)
+		compressedResp, err := compressWindowsMDMResponse(enrichedSyncML.Raw)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "compressing full response")
+		}
 		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
+		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, compressedResp)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving full response")
 		}
@@ -1284,6 +1331,16 @@ WHERE
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+
+	// raw_response is stored gzip-compressed (see compressWindowsMDMResponse); restore the original envelope for the API response. Legacy
+	// uncompressed rows and empty (LEFT JOIN miss) values pass through unchanged.
+	for _, r := range results {
+		decompressed, err := decompressWindowsMDMResponse(r.Result)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decompressing windows mdm response")
+		}
+		r.Result = decompressed
 	}
 
 	return results, nil
