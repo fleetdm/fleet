@@ -558,12 +558,9 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 		username = claims.Subject
 	}
 
-	password, assertionUsername, err := svc.resolvePSSOLoginPassword(ctx, claims)
+	password, err := svc.resolvePSSOLoginPassword(ctx, claims)
 	if err != nil {
 		return nil, err
-	}
-	if username == "" {
-		username = assertionUsername
 	}
 	if username == "" || password == "" {
 		return nil, &fleet.BadRequestError{Message: "psso password login: missing username or password"}
@@ -641,30 +638,29 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, settings *fleet
 
 // resolvePSSOLoginPassword returns the plaintext password for a password login.
 // With password encryption disabled it's the plaintext Password claim. With it
-// enabled the Password claim is empty and the password (and possibly the
-// username) lives in the encrypted embedded assertion, which Fleet decrypts with
-// its PSSO encryption key. The assertion's username is returned so the caller
-// can fall back to it when the outer (signed) JWT omitted one.
-func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTokenClaims) (password, assertionUsername string, err error) {
+// enabled the Password claim is empty and the password lives in the encrypted
+// embedded assertion, which Fleet decrypts with its PSSO encryption key. The
+// username is always taken from the (signed) outer JWT, not the assertion.
+func (svc *Service) resolvePSSOLoginPassword(ctx context.Context, claims *pssoTokenClaims) (string, error) {
 	if claims.Password != "" {
-		return claims.Password, "", nil
+		return claims.Password, nil
 	}
 	if claims.Assertion == "" {
-		return "", "", nil
+		return "", nil
 	}
 	encKey, _, err := svc.getPSSOEncryptionKey(ctx)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "load psso encryption key")
+		return "", ctxerr.Wrap(ctx, err, "load psso encryption key")
 	}
 	plaintext, err := decryptPSSOInboundJWE([]byte(claims.Assertion), encKey)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "decrypt psso login assertion")
+		return "", ctxerr.Wrap(ctx, err, "decrypt psso login assertion")
 	}
-	password, assertionUsername, err = parseEmbeddedAssertionCredentials(plaintext)
+	password, err := parseEmbeddedAssertionPassword(plaintext)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "parse psso login assertion")
+		return "", ctxerr.Wrap(ctx, err, "parse psso login assertion")
 	}
-	return password, assertionUsername, nil
+	return password, nil
 }
 
 // handlePSSOKeyRequest services a PSSO 2.0 key request (request_type

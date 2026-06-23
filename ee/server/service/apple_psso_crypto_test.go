@@ -499,28 +499,27 @@ func TestPSSO_InboundAssertionDecryptRoundTrip(t *testing.T) {
 	require.ErrorContains(t, err, "unexpected typ")
 }
 
-// TestPSSO_ParseEmbeddedAssertionCredentials confirms the password and username
-// are extracted whether the decrypted assertion is a compact JWT (Apple's +jwt
-// typ) or a bare JSON claims object.
-func TestPSSO_ParseEmbeddedAssertionCredentials(t *testing.T) {
+// TestPSSO_ParseEmbeddedAssertionPassword confirms the password is extracted
+// whether the decrypted assertion is a compact JWT (Apple's +jwt typ) or a bare
+// JSON claims object. The username is read from the signed outer JWT elsewhere,
+// not from the assertion.
+func TestPSSO_ParseEmbeddedAssertionPassword(t *testing.T) {
 	t.Run("compact JWT", func(t *testing.T) {
 		header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
 		body := base64.RawURLEncoding.EncodeToString([]byte(`{"password":"pw","username":"alice"}`))
-		password, username, err := parseEmbeddedAssertionCredentials([]byte(header + "." + body + "."))
+		password, err := parseEmbeddedAssertionPassword([]byte(header + "." + body + "."))
 		require.NoError(t, err)
 		assert.Equal(t, "pw", password)
-		assert.Equal(t, "alice", username)
 	})
 
 	t.Run("bare JSON object", func(t *testing.T) {
-		password, username, err := parseEmbeddedAssertionCredentials([]byte(`{"password":"pw2","username":"bob"}`))
+		password, err := parseEmbeddedAssertionPassword([]byte(`{"password":"pw2","username":"bob"}`))
 		require.NoError(t, err)
 		assert.Equal(t, "pw2", password)
-		assert.Equal(t, "bob", username)
 	})
 
 	t.Run("neither JSON nor JWT is rejected", func(t *testing.T) {
-		_, _, err := parseEmbeddedAssertionCredentials([]byte("not-json-not-jwt"))
+		_, err := parseEmbeddedAssertionPassword([]byte("not-json-not-jwt"))
 		require.Error(t, err)
 	})
 }
@@ -550,10 +549,9 @@ func TestPSSO_ResolveLoginPassword(t *testing.T) {
 	}
 
 	t.Run("plaintext password claim", func(t *testing.T) {
-		pw, user, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{Password: "plain"})
+		pw, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{Password: "plain"})
 		require.NoError(t, err)
 		assert.Equal(t, "plain", pw)
-		assert.Empty(t, user)
 	})
 
 	t.Run("encrypted embedded assertion", func(t *testing.T) {
@@ -562,13 +560,12 @@ func TestPSSO_ResolveLoginPassword(t *testing.T) {
 		jwe, err := buildPSSOResponseJWE(inner, &encKey.PublicKey, apv, pssoTypEncryptedLoginAssertion)
 		require.NoError(t, err)
 
-		pw, user, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{
+		pw, err := newSvc().resolvePSSOLoginPassword(t.Context(), &pssoTokenClaims{
 			GrantType: pssoGrantTypeJWTBearer,
 			Assertion: string(jwe),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "secret", pw)
-		assert.Equal(t, "carol", user)
 	})
 }
 

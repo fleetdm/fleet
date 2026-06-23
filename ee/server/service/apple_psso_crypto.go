@@ -475,35 +475,34 @@ func decryptPSSOInboundJWE(compact []byte, recipientPriv *ecdsa.PrivateKey) ([]b
 	return plaintext, nil
 }
 
-// parseEmbeddedAssertionCredentials pulls the password (and any username) out of
-// a decrypted embedded login assertion. Apple's typ ends in "+jwt", so the
-// plaintext is a JWT whose claims carry the credentials; a bare JSON claims
-// object is also accepted. The assertion is encrypted-only — its integrity is
-// covered by the outer signed JWT and the JWE GCM tag, so no inner signature is
-// verified here.
-func parseEmbeddedAssertionCredentials(plaintext []byte) (password, username string, err error) {
+// parseEmbeddedAssertionPassword pulls the password out of a decrypted embedded
+// login assertion. Apple's typ ends in "+jwt", so the plaintext is a JWT whose
+// claims carry the password; a bare JSON claims object is also accepted. The
+// username is taken from the signed outer JWT, not here. The assertion is
+// encrypted-only — its integrity is covered by the outer signed JWT and the JWE
+// GCM tag, so no inner signature is verified here.
+func parseEmbeddedAssertionPassword(plaintext []byte) (string, error) {
 	s := strings.TrimSpace(string(plaintext))
 	claimsJSON := []byte(s)
 	if len(s) > 0 && s[0] != '{' {
 		// Compact JWT: header.payload[.signature]; the claims are the payload.
 		parts := strings.Split(s, ".")
 		if len(parts) < 2 {
-			return "", "", errors.New("psso embedded assertion: not JSON or a compact JWT")
+			return "", errors.New("psso embedded assertion: not JSON or a compact JWT")
 		}
 		decoded, derr := base64.RawURLEncoding.DecodeString(strings.TrimRight(parts[1], "="))
 		if derr != nil {
-			return "", "", fmt.Errorf("psso embedded assertion: decode claims segment: %w", derr)
+			return "", fmt.Errorf("psso embedded assertion: decode claims segment: %w", derr)
 		}
 		claimsJSON = decoded
 	}
 	var claims struct {
 		Password string `json:"password"`
-		Username string `json:"username"`
 	}
 	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
-		return "", "", fmt.Errorf("psso embedded assertion: parse claims: %w", err)
+		return "", fmt.Errorf("psso embedded assertion: parse claims: %w", err)
 	}
-	return claims.Password, claims.Username, nil
+	return claims.Password, nil
 }
 
 // decodeJOSEB64 base64url-decodes a JOSE value, tolerating optional padding.
