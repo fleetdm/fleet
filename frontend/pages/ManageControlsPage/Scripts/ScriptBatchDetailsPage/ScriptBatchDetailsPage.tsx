@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
@@ -14,7 +8,7 @@ import EmptyState from "components/EmptyState";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
@@ -110,8 +104,6 @@ const ScriptBatchDetailsPage = ({
     null
   );
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const {
     data: batchDetails,
     isLoading,
@@ -142,15 +134,17 @@ const ScriptBatchDetailsPage = ({
 
     try {
       await scriptsAPI.cancelScriptBatch(batchExecutionId);
-      renderFlash("success", "Successfully canceled script.");
+      notify.success("Successfully canceled script.");
       setShowCancelModal(false);
       router.push(pathToProgress);
     } catch (error) {
-      renderFlash("error", "Could not cancel script. Please try again.");
+      notify.error("Could not cancel script. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsCanceling(false);
     }
-  }, [batchExecutionId, pathToProgress, renderFlash, router]);
+  }, [batchExecutionId, pathToProgress, router]);
 
   const handleTabChange = useCallback(
     (index: number) => {
