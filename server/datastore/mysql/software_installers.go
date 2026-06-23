@@ -1230,7 +1230,7 @@ AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE softwar
 }
 
 // deletePendingSoftwareInstallsForPolicy should be called before a policy is
-// deleted to remove any pending software installs
+// deleted to cancel any pending software installs
 func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {

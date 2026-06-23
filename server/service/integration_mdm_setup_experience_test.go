@@ -5562,11 +5562,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 				*host.OrbitNodeKey, echoInstallUUID)),
 			http.StatusNoContent)
 
-		// the intermediate failure record was written: a host_software_installs row with the reported
-		// failure output exists for the host.
+		// the intermediate failure record was written as a NEW row (distinct from the canceled original),
+		// carrying the reported failure output and the denormalized installer details from the original.
 		var failureCount int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &failureCount, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND install_script_output = ?`, host.ID, "boom")
+			return sqlx.GetContext(ctx, q, &failureCount,
+				`SELECT COUNT(*) FROM host_software_installs
+				 WHERE host_id = ? AND execution_id != ? AND install_script_output = ?
+				 AND software_title_name = ? AND installer_filename = ?`,
+				host.ID, echoInstallUUID, "boom", "EchoApp", "EchoApp.pkg")
 		})
 		require.Equal(t, 1, failureCount)
 
