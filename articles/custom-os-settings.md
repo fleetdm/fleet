@@ -10,6 +10,33 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+### Apple declarations (DDM)
+
+For macOS hosts, Fleet supports uploading Apple Declarative Device Management (DDM) profiles as `.json` files. Fleet supports the following declaration types:
+
+- **Configurations** (`com.apple.configuration.*`): Enforce settings like passcode policies, account configurations, and more.
+- **Assets** (`com.apple.asset.*`): Deploy credentials, certificates, and other assets referenced by configurations.
+
+Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Payload` key. Example:
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.sudo-config-asset",
+  "Payload": {
+    "Reference": {
+      "DataURL": "https://mdm.yourcompany.com/assets/sudo-config.zip",
+      "ContentType": "application/zip"
+    }
+  }
+}
+```
+
+Optionally, you can set a **predicate** to control when configurations are applied for conditional deployment.
+
+To upload an asset declaration, use the same workflow (UI, API, or GitOps) as configuration profiles. Asset files are raw JSON following Apple's [DDM schema](https://developer.apple.com/documentation/devicemanagement).
+
+
 ## Enforce
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
@@ -38,7 +65,7 @@ If two Windows profiles configure the same setting (LocURI) and one is removed, 
 
 ### Device and user scope
 
-Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles. User-scoped declaration (DDM) profiles for macOS are coming soon.
+Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles.
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
@@ -97,7 +124,7 @@ Hosts that applied all OS settings.
 
 For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
+macOS declaration profiles (configurations, activations, and assets) are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
