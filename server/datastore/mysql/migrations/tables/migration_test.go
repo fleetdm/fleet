@@ -41,9 +41,7 @@ const (
 	testPassword = "toor"
 )
 
-var (
-	testAddress = getTestAddress()
-)
+var testAddress = getTestAddress()
 
 func getTestAddress() string {
 	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
@@ -169,4 +167,3 @@ WHERE
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)
 }
-
