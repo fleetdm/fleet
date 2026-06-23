@@ -90,7 +90,7 @@ const ServerAuthenticationSection = ({
                 Specified server must follow official directory structure and
                 naming conventions.{" "}
                 <CustomLink
-                  url="https://fleetdm.com/thedocs"
+                  url="https://fleetdm.com/guides/self-host-fleetd-for-automatic-enrollment"
                   text="Learn more"
                   newTab
                   multiline
