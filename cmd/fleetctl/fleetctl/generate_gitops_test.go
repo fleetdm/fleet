@@ -664,6 +664,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -677,6 +678,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:

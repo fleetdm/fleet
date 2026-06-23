@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -674,11 +675,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			activeInstallerID = versions[0].ID
 		case usesCaret:
 			for _, v := range versions {
-				matches, err := versionMatchesMajor(v.Version, majorVersionString)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
-				}
-				if matches {
+				if versionMatchesMajor(v.Version, majorVersionString) {
 					activeInstallerID = v.ID
 					break
 				}
@@ -820,6 +817,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
+		}
+		if payload.PinnedVersion != nil && *payload.PinnedVersion != "" {
+			activity.PinnedVersion = payload.PinnedVersion
 		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
@@ -2528,12 +2528,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	if usesCaret {
-		matches, err := versionMatchesMajor(app.Version, majorVersionString)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
-		}
-
-		if !matches {
+		if !versionMatchesMajor(app.Version, majorVersionString) {
 			// We cannot use the FMA we just got the manifest for since it is on a different major
 			// version, so we try to find the latest cached version and use that instead.
 			if app.TitleID == nil {
@@ -3983,27 +3978,20 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 	return allCategories, nil
 }
 
-func parsePinnedVersion(ctx context.Context, version string) (majorVersion string, usesCaret bool, err error) {
-	majorVersion, usesCaret = strings.CutPrefix(version, "^")
+func parsePinnedVersion(ctx context.Context, version string) (trimmedVersion string, usesCaret bool, err error) {
+	trimmedVersion, usesCaret = strings.CutPrefix(version, "^")
 	if usesCaret {
-		if len(majorVersion) == 0 {
+		if len(trimmedVersion) == 0 {
 			return "", false, fleet.NewUserMessageError(errEmptyCaretVersion, http.StatusBadRequest)
 		}
-		if parts := strings.Split(version, "."); len(parts) > 1 {
+		if _, err := strconv.ParseUint(trimmedVersion, 10, 64); err != nil {
 			return "", false, fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
 		}
 	}
-	return majorVersion, usesCaret, nil
+	return trimmedVersion, usesCaret, nil
 }
 
-func versionMatchesMajor(version string, majorVersion string) (bool, error) {
-	v, err := fleet.VersionToSemverVersion(version)
-	if err != nil {
-		return false, err
-	}
-	major, err := fleet.VersionToSemverVersion(majorVersion)
-	if err != nil {
-		return false, err
-	}
-	return v.Major() == major.Major(), nil
+func versionMatchesMajor(version string, majorVersion string) bool {
+	versionMajor, _, _ := strings.Cut(version, ".")
+	return versionMajor == majorVersion
 }

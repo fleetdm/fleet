@@ -13002,7 +13002,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TeamID:            nil,
 		}, http.StatusOK, "")
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": "",
+		"pinned_version": null}`,
 			titleID, lblA.ID, lblA.Name)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -13070,7 +13071,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": ""}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d, "software_display_name": "",
+		"pinned_version": null}`,
 			lblA.ID, lblA.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -13138,7 +13140,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// the edited-software activity should still carry labels_include_all
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
-		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}], "software_display_name": ""}`,
+		"team_id": null, "fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_all": [{"id": %d, "name": %q}], "software_display_name": "",
+		"pinned_version": null}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
@@ -32847,7 +32850,19 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		installerPath:  "/zoom.msi",
 		patchQuery:     "SELECT 1 FROM osquery_info;",
 	}
-	startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": zoom})
+	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
+	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
+	// version — that used to fail the whole apply with "Invalid Semantic Version".
+	chrome := &fmaTestState{
+		version:        "149.0.7827.156",
+		installerBytes: []byte("chrome-149"),
+		installerPath:  "/googlechrome.msi",
+		patchQuery:     "SELECT 1 FROM osquery_info;",
+	}
+	startFMAServers(t, s.ds, map[string]*fmaTestState{
+		"/zoom/windows.json":          zoom,
+		"/google-chrome/windows.json": chrome,
+	})
 
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
@@ -32856,6 +32871,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	team := *teamResp.Team
 
 	batchSet := func(software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		software = append(software, &fleet.SoftwareInstallerPayload{Slug: new("google-chrome/windows"), RollbackVersion: "^149"})
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
@@ -32870,9 +32886,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Cache v1.0, then bump the manifest and cache v2.0 (GitOps applies, no pin).
 	pkgs := batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
-	require.NotEmpty(t, pkgs)
-	require.NotNil(t, pkgs[0].TitleID)
-	titleID := *pkgs[0].TitleID
+	var titleID, chromeTitleID uint
+	for _, pkg := range pkgs {
+		require.NotNil(t, pkg.TitleID)
+		switch pkg.Slug {
+		case "zoom/windows":
+			titleID = *pkg.TitleID
+		case "google-chrome/windows":
+			chromeTitleID = *pkg.TitleID
+		}
+	}
+	require.NotZero(t, titleID)
+	require.NotZero(t, chromeTitleID)
 
 	bumpVersion("2.0", []byte("zoom-2.0"))
 	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
@@ -32908,6 +32933,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	p := getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
+	// Chrome's ^149 caret resolved against its 4-component version on the applies above.
+	var chromeResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", chromeTitleID), nil, http.StatusOK, &chromeResp, "team_id", fmt.Sprint(team.ID))
+	require.Equal(t, "149.0.7827.156", chromeResp.SoftwareTitle.SoftwarePackage.Version)
+	require.Equal(t, new("^149"), chromeResp.SoftwareTitle.SoftwarePackage.PinnedVersion)
 
 	// Dependencies on the title: an install-automation policy (carries software_installer_id, re-pointed to the
 	// active installer on a flip) and a patch policy (title-scoped via patch_software_title_id, never re-pointed).
@@ -32930,12 +32960,24 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 	}
+	// requireLastPinActivity asserts the latest activity is an edited_software with want as pinned_version.
+	// Marshaling want renders a pin as "1.0"/"^2" and a cleared pin (nil) as null, so no branching is needed.
+	requireLastPinActivity := func(want *string) {
+		pinnedVersion, err := json.Marshal(want)
+		require.NoError(t, err)
+		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
+			`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "self_service": false, `+
+				`"software_title": "Zoom Workplace (X64)", "software_package": "zoom.msi", "software_icon_url": null, `+
+				`"software_title_id": %d, "software_display_name": "", "pinned_version": %s}`,
+			team.ID, team.ID, team.Name, team.Name, titleID, pinnedVersion), 0)
+	}
 
 	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---
 
 	// Rollback to an older cached version. The install policy is re-pointed to the now-active installer; the patch
 	// policy is title-scoped and stays put.
 	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
 	require.Equal(t, "1.0", p.Version)
 	require.Equal(t, new("1.0"), p.PinnedVersion)
@@ -32944,6 +32986,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
+	requireLastPinActivity(new("^2"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
@@ -32951,6 +32994,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")
+	requireLastPinActivity(new("^9"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^9"), p.PinnedVersion)
@@ -32958,6 +33002,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Empty clears the pin row, back to Latest.
 	patchVersion("")
+	requireLastPinActivity(nil)
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
@@ -32980,6 +33025,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Last write wins: a GitOps apply with no version resets a prior UI pin back to Latest.
 	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
 	require.Equal(t, "1.0", p.Version)
 	require.Equal(t, new("1.0"), p.PinnedVersion)
@@ -32995,6 +33041,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	// A caret pin tracks a newly released minor in the pinned major: releasing 2.5 under "^2" moves the active
 	// version forward to 2.5.
 	patchVersion("^2")
+	requireLastPinActivity(new("^2"))
 	p = getPkg()
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
@@ -33059,11 +33106,13 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Pin the older 4.0, then clear to Latest and confirm it resolves to 10.0, not the string-larger "4.0".
 	patchVersion("4.0")
+	requireLastPinActivity(new("4.0"))
 	p = getPkg()
 	require.Equal(t, "4.0", p.Version)
 	require.Equal(t, new("4.0"), p.PinnedVersion)
 
 	patchVersion("")
+	requireLastPinActivity(nil)
 	p = getPkg()
 	require.Equal(t, "10.0", p.Version)
 	require.Nil(t, p.PinnedVersion)
