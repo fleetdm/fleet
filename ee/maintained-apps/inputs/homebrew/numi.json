@@ -1,0 +1,10 @@
+{
+  "name": "Numi",
+  "unique_identifier": "com.dmitrynikolaev.numi",
+  "token": "numi",
+  "installer_format": "dmg",
+  "slug": "numi/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

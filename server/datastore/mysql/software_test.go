@@ -85,6 +85,10 @@ func TestSoftware(t *testing.T) {
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"HostSoftwareInstallUninstallNoDropout", testHostSoftwareInstallUninstallNoDropout},
+		{"HostVPPInstallNoDropout", testHostVPPInstallNoDropout},
+		{"HostInHouseInstallNoDropout", testHostInHouseInstallNoDropout},
+		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
@@ -109,6 +113,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
+		{"SoftwareCategoryCRUD", testSoftwareCategoryCRUD},
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
@@ -129,6 +134,8 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareStmtAvailableSkipsInactiveInstaller", testListHostSoftwareStmtAvailableSkipsInactiveInstaller},
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
+		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
+		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4057,6 +4064,74 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, software[i], got)
 	}
+}
+
+func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "macos-apps-host", "", "macappskey", "macappsuuid", time.Now(), test.WithPlatform("darwin"))
+	linuxHost := test.NewHost(t, ds, "linux-apps-host", "", "linuxappskey", "linuxappsuuid", time.Now(), test.WithPlatform("ubuntu"))
+
+	// All source 'apps' so the installed path is the only differentiator.
+	software := []fleet.Software{
+		{Name: "TopLevel", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.toplevel"},
+		{Name: "Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.helper"},
+		{Name: "SystemApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.system"},
+		{Name: "UserApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.user"},
+	}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	pathByName := map[string]string{
+		"TopLevel":  "/Applications/TopLevel.app",                             // kept
+		"Helper":    "/Applications/TopLevel.app/Contents/Helpers/Helper.app", // nested, dropped
+		"SystemApp": "/System/Applications/SystemApp.app",                     // system, dropped
+		"UserApp":   "/Users/alice/Applications/UserApp.app",                  // user-local, dropped
+	}
+
+	swPaths := map[string]struct{}{}
+	for _, hs := range host.Software {
+		path, ok := pathByName[hs.Name]
+		require.True(t, ok)
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+		swPaths[key] = struct{}{}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+
+	baseOpts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"}}
+
+	// filter off: all four apps returned
+	opts := baseOpts
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.EqualValues(t, 4, meta.TotalResults)
+
+	// filter on: only the top-level /Applications app
+	opts = baseOpts
+	opts.MacOSApplicationsOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "TopLevel", sw[0].Name)
+	require.EqualValues(t, 1, meta.TotalResults)
+
+	// filter is ignored on a non-macOS host
+	linuxSoftware := []fleet.Software{
+		{Name: "vim", Version: "1.0", Source: "deb_packages"},
+		{Name: "curl", Version: "1.0", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, linuxHost.ID, linuxSoftware)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, linuxHost, false))
+
+	opts = baseOpts
+	opts.MacOSApplicationsOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, linuxHost, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.EqualValues(t, 2, meta.TotalResults)
 }
 
 func testListHostSoftware(t *testing.T, ds *Datastore) {
@@ -9720,15 +9795,15 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "user1"+t.Name(), fmt.Sprintf("user1%s@example.com", t.Name()), false)
 
 	// create some categories
-	cat1, err := ds.NewSoftwareCategory(ctx, "category1")
+	cat1, err := ds.NewSoftwareCategory(ctx, 0, "category1")
 	require.NoError(t, err)
 	require.Equal(t, "category1", cat1.Name)
-	cat2, err := ds.NewSoftwareCategory(ctx, "category2")
+	cat2, err := ds.NewSoftwareCategory(ctx, 0, "category2")
 	require.NoError(t, err)
 	require.Equal(t, "category2", cat2.Name)
 
 	// get the IDs
-	ids, err := ds.GetSoftwareCategoryIDs(ctx, []string{cat1.Name, cat2.Name})
+	ids, err := ds.GetSoftwareCategoryIDs(ctx, 0, []string{cat1.Name, cat2.Name})
 	require.NoError(t, err)
 	require.Len(t, ids, 2)
 	require.Contains(t, ids, cat1.ID)
@@ -12722,6 +12797,102 @@ func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.Nil(t, result)
 }
 
+func testSoftwareCategoryCRUD(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2" + t.Name()})
+	require.NoError(t, err)
+
+	catA, err := ds.NewSoftwareCategory(ctx, team1.ID, "Apple")
+	require.NoError(t, err)
+	require.Equal(t, "Apple", catA.Name)
+	require.Equal(t, team1.ID, catA.TeamID)
+	require.False(t, catA.CreatedAt.IsZero())
+	require.False(t, catA.UpdatedAt.IsZero())
+
+	catB, err := ds.NewSoftwareCategory(ctx, team1.ID, "Banana")
+	require.NoError(t, err)
+	catC, err := ds.NewSoftwareCategory(ctx, team1.ID, "Cherry")
+	require.NoError(t, err)
+
+	// Same name on a different team is allowed (uniqueness is per-team).
+	catASame, err := ds.NewSoftwareCategory(ctx, team2.ID, "Apple")
+	require.NoError(t, err)
+	require.NotEqual(t, catA.ID, catASame.ID)
+
+	// Case-insensitive duplicate within the same team conflicts.
+	_, err = ds.NewSoftwareCategory(ctx, team1.ID, "apple")
+	require.Error(t, err)
+	var existsErr fleet.AlreadyExistsError
+	require.ErrorAs(t, err, &existsErr)
+
+	// List filters by team and orders by name.
+	sameNames := func(want string, got fleet.SoftwareCategory) bool { return want == got.Name }
+
+	cats, err := ds.ListSoftwareCategories(ctx, team1.ID)
+	require.NoError(t, err)
+	want1 := append([]string{"Apple", "Banana", "Cherry"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want1, cats, sameNames), "want %v, got %v", want1, cats)
+
+	cats2, err := ds.ListSoftwareCategories(ctx, team2.ID)
+	require.NoError(t, err)
+	want2 := append([]string{"Apple"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want2, cats2, sameNames), "want %v, got %v", want2, cats2)
+
+	// Get by id, and not-found for unknown id.
+	got, err := ds.SoftwareCategory(ctx, catB.ID)
+	require.NoError(t, err)
+	require.Equal(t, catB.ID, got.ID)
+	require.Equal(t, "Banana", got.Name)
+
+	_, err = ds.SoftwareCategory(ctx, 9999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Update renames.
+	updated, err := ds.UpdateSoftwareCategory(ctx, catB.ID, "Berry")
+	require.NoError(t, err)
+	require.Equal(t, catB.ID, updated.ID)
+	require.Equal(t, "Berry", updated.Name)
+
+	// Update into a case-insensitive conflict within the same team.
+	_, err = ds.UpdateSoftwareCategory(ctx, catC.ID, "BERRY")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	// Delete works; deleted id is then not-found.
+	require.NoError(t, ds.DeleteSoftwareCategory(ctx, catC.ID))
+	_, err = ds.SoftwareCategory(ctx, catC.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Delete unknown id returns not-found.
+	err = ds.DeleteSoftwareCategory(ctx, 9999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// A team with zero categories returns a non-nil empty slice so the JSON
+	// response serializes as `[]` rather than `null`. See issue #47712.
+	emptyTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "empty" + t.Name()})
+	require.NoError(t, err)
+	seeded, err := ds.ListSoftwareCategories(ctx, emptyTeam.ID)
+	require.NoError(t, err)
+	for _, c := range seeded {
+		require.NoError(t, ds.DeleteSoftwareCategory(ctx, c.ID))
+	}
+	emptyCats, err := ds.ListSoftwareCategories(ctx, emptyTeam.ID)
+	require.NoError(t, err)
+	require.NotNil(t, emptyCats)
+	require.Empty(t, emptyCats)
+
+	// An unknown team_id also returns a non-nil empty slice.
+	unknownCats, err := ds.ListSoftwareCategories(ctx, 9999999)
+	require.NoError(t, err)
+	require.NotNil(t, unknownCats)
+	require.Empty(t, unknownCats)
+}
+
 func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -12790,4 +12961,235 @@ func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
 	result, err = ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, nil)
 	require.NoError(t, err)
 	require.Empty(t, result)
+}
+
+func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-2"})
+	require.NoError(t, err)
+
+	// Teams auto-seed the 6 default emoji-prefixed categories. Pick the two we need.
+	seeded, err := ds.ListSoftwareCategories(ctx, team1.ID)
+	require.NoError(t, err)
+	var emojiProductivity, emojiSecurity fleet.SoftwareCategory
+	for _, c := range seeded {
+		switch c.Name {
+		case "🖥️ Productivity":
+			emojiProductivity = c
+		case "🔐 Security":
+			emojiSecurity = c
+		}
+	}
+	require.NotZero(t, emojiProductivity.ID)
+	require.NotZero(t, emojiSecurity.ID)
+
+	customCat, err := ds.NewSoftwareCategory(ctx, team1.ID, "MyCustom")
+	require.NoError(t, err)
+
+	// Lookups against the seeded + custom state: each input maps to whatever row
+	// resolves, with translation fallback for legacy plain names.
+	lookups := []struct {
+		desc string
+		in   []string
+		want map[string]uint
+	}{
+		{"empty input returns empty map", nil, map[string]uint{}},
+		{"plain legacy reference resolves to emoji-prefixed row", []string{"Productivity"}, map[string]uint{"Productivity": emojiProductivity.ID}},
+		{"emoji reference resolves literally", []string{"🔐 Security"}, map[string]uint{"🔐 Security": emojiSecurity.ID}},
+		{"non-legacy reference resolves literally", []string{"MyCustom"}, map[string]uint{"MyCustom": customCat.ID}},
+		{"unknown name is omitted from result", []string{"NotOnAnyTeam"}, map[string]uint{}},
+		{"mixed hits and misses across forms", []string{"Productivity", "🔐 Security", "MyCustom", "NotFound"}, map[string]uint{
+			"Productivity": emojiProductivity.ID,
+			"🔐 Security":   emojiSecurity.ID,
+			"MyCustom":     customCat.ID,
+		}},
+	}
+	for _, tc := range lookups {
+		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, tc.in)
+		require.NoError(t, err, tc.desc)
+		assert.Equal(t, tc.want, got, tc.desc)
+	}
+
+	// Literal plain row wins over translation when both rows exist on the team.
+	plainProductivity, err := ds.NewSoftwareCategory(ctx, team1.ID, "Productivity")
+	require.NoError(t, err)
+	got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]uint{"Productivity": plainProductivity.ID}, got)
+
+	// Other teams' rows are not visible.
+	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
+func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Teams auto-seed "🖥️ Productivity" with the U+FE0F variation selector. The
+	// utf8mb4_unicode_ci collation on the (team_id, name) unique index ignores that
+	// selector, so re-inserting the same category WITHOUT the selector — a common
+	// form in GitOps files — collides in the index even though the bytes differ.
+	// The batch insert must be idempotent (ON DUPLICATE KEY UPDATE) so this does
+	// not fail with a 1062 duplicate-entry error and does not create a second row.
+	const (
+		productivityCanonical = "\U0001F5A5\uFE0F Productivity" // seeded form, with VS-16
+		productivityNoVS      = "\U0001F5A5 Productivity"       // colliding form, no VS-16
+		customName            = "\U0001F195 Custom"             // a genuinely new category
+	)
+
+	countProductivity := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM software_categories WHERE team_id = ? AND name = ?`, team.ID, productivityCanonical))
+		return n
+	}
+	require.Equal(t, 1, countProductivity(), "team should be seeded with exactly one Productivity category")
+
+	// Re-inserting the colliding form alongside a brand-new category must succeed.
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+
+	// The collision was absorbed (no second Productivity row) and the new category
+	// was created.
+	require.Equal(t, 1, countProductivity(), "colliding insert must not create a duplicate Productivity row")
+	cats, err := ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.True(t, slices.ContainsFunc(cats, func(c fleet.SoftwareCategory) bool { return c.Name == customName }),
+		"genuinely new category should have been inserted")
+
+	// Repeating the same batch remains a no-op: no error and no new rows.
+	before := len(cats)
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+	cats, err = ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, cats, before)
+}
+
+// The next three tests guard the per-host software detail queries against the
+// OR-dominance drop-out: a host with two queued activities for the same
+// installer/app (one lower priority, the other later created_at) used to fail
+// the self anti-join on both rows and vanish from the host's software list. The
+// ROW_NUMBER rewrite keeps exactly one row per installer/app.
+
+func testHostSoftwareInstallUninstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "hsidrop", "1", "hsidropkey", "hsidropuuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", UninstallScript: "uninstall",
+		InstallerFile: tfr, StorageID: "hsidrop-storage", Filename: "hsidrop.pkg",
+		Title: "HSIDrop", Version: "1.0", Source: "apps",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// row B: lower priority + earlier created_at; row A: later created_at.
+	seed := func(activityType, execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, ?, ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, activityType, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id) VALUES (?, ?)`, uaID, installerID)
+		require.NoError(t, err)
+	}
+	seed("software_install", "hsi-B", -1, 0)
+	seed("software_install", "hsi-A", 0, 100)
+	seed("software_uninstall", "hsu-B", -1, 0)
+	seed("software_uninstall", "hsu-A", 0, 100)
+
+	installs, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InstallerID)
+	require.Equal(t, installerID, *installs[0].InstallerID)
+
+	uninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, uninstalls, 1)
+	require.NotNil(t, uninstalls[0].InstallerID)
+	require.Equal(t, installerID, *uninstalls[0].InstallerID)
+}
+
+func testHostVPPInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vppdrop", BundleIdentifier: "com.app.vppdrop",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_drop", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	appID := app.VPPAppID
+	host := test.NewHost(t, ds, "vppdrop-host", "1", "vppdropkey", "vppdropuuid", time.Now())
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'vpp_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform) VALUES (?, ?, ?)`, uaID, appID.AdamID, appID.Platform)
+		require.NoError(t, err)
+	}
+	seed("vppdrop-B", -1, 0)
+	seed("vppdrop-A", 0, 100)
+
+	installs, err := hostVPPInstalls(ds, ctx, host.ID, 0, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].VPPAppAdamID)
+	require.Equal(t, appID.AdamID, *installs[0].VPPAppAdamID)
+}
+
+func testHostInHouseInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team drop"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "ihadrop-host", "1", "ihadropkey", "ihadropuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	appID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &team.ID, UserID: user.ID,
+		Title: "ihadrop", Filename: "ihadrop.ipa", BundleIdentifier: "com.ihadrop",
+		StorageID: "ihadrop-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'in_house_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id) VALUES (?, ?)`, uaID, appID)
+		require.NoError(t, err)
+	}
+	seed("ihadrop-B", -1, 0)
+	seed("ihadrop-A", 0, 100)
+
+	installs, err := hostInHouseInstalls(ds, ctx, host.ID, team.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InHouseAppID)
+	require.Equal(t, appID, *installs[0].InHouseAppID)
 }

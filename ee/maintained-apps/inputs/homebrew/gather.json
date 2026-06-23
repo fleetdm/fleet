@@ -1,0 +1,10 @@
+{
+  "name": "Gather Town",
+  "unique_identifier": "com.gather.Gather",
+  "token": "gather",
+  "installer_format": "zip",
+  "slug": "gather/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

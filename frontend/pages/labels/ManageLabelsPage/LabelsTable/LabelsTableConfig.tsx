@@ -15,8 +15,8 @@ import {
   isTeamTechnician,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
+import ActionsDropdown from "components/ActionsDropdown";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
@@ -175,14 +175,12 @@ const generateTableHeaders = (
           repoURL
         );
         return (
-          <ViewAllHostsLink
-            rowHover
-            noLink
-            excludeChevron
-            dropdown={{
-              options: dropdownOptions,
-              onChange: (value: string) => onClickAction(value, label),
-            }}
+          <ActionsDropdown
+            options={dropdownOptions}
+            onChange={(value: string) => onClickAction(value, label)}
+            placeholder="Actions"
+            menuAlign="right"
+            variant="small-button"
           />
         );
       },

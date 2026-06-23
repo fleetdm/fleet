@@ -21,7 +21,7 @@ export interface ICommandSubItem {
 export interface ICommandItem {
   id: string;
   label: string;
-  group: string;
+  group: typeof GROUPS[number];
   path?: string;
   keywords?: string[];
   /** Displayed on the right when navigating would switch your team context */
@@ -30,8 +30,8 @@ export interface ICommandItem {
   subItems?: ICommandSubItem[];
   /** Custom action instead of navigation */
   onAction?: () => void;
-  /** True when selecting this item opens a sub-page (not a navigation). */
-  opensSubPage?: boolean;
+  /** True when selecting this item opens a picker page (not a navigation). */
+  opensPickerPage?: boolean;
 }
 
 export interface ICommandPaletteContext {
@@ -320,10 +320,15 @@ export const highlightMatches = (
   query: string
 ): IHighlightSegment[] => {
   if (!text) return [{ text: "", matched: false }];
-  const queryLower = query.toLowerCase().trim();
+  // NFD-decompose, drop combining marks, lowercase. Mirrors
+  // utf8mb4_unicode_ci's accent-insensitive folding so the highlighter
+  // never undershoots a row the backend surfaced.
+  const foldChar = (cp: string): string =>
+    cp.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const fold = (s: string): string => Array.from(s, foldChar).join("");
+  const queryLower = fold(query).trim();
   if (!queryLower) return [{ text, matched: false }];
 
-  const textLower = text.toLowerCase();
   // Always include the full query as one needle so phrase matches get
   // a contiguous highlight, plus each individual token for multi-token
   // queries.
@@ -332,12 +337,40 @@ export const highlightMatches = (
     if (tok) needles.add(tok);
   });
 
+  // Build textLower in lockstep with offset maps back to the original.
+  // Iterate by codepoint (not code unit) so supplementary-plane chars
+  // fold correctly — text[i].toLowerCase() on a lone surrogate is a
+  // no-op. Some folds change length (Turkish "İ" → "i", combining marks
+  // stripped from "Café" → "Cafe"); lowerToOrigStart/End translate
+  // matches back to original-text ranges.
+  let textLower = "";
+  const lowerToOrigStart: number[] = [];
+  const lowerToOrigEnd: number[] = [];
+  let origIdx = 0;
+  Array.from(text).forEach((cp) => {
+    const folded = foldChar(cp);
+    for (let j = 0; j < folded.length; j += 1) {
+      lowerToOrigStart.push(origIdx);
+      lowerToOrigEnd.push(origIdx + cp.length);
+    }
+    textLower += folded;
+    origIdx += cp.length;
+  });
+  // Sentinels for end-of-text alignment.
+  lowerToOrigStart.push(text.length);
+  lowerToOrigEnd.push(text.length);
+
   const ranges: Array<[number, number]> = [];
   needles.forEach((needle) => {
     let idx = textLower.indexOf(needle);
     while (idx !== -1) {
-      ranges.push([idx, idx + needle.length]);
-      idx = textLower.indexOf(needle, idx + needle.length);
+      const lowerEnd = idx + needle.length;
+      // Translate to original-text coords. lowerToOrigEnd already
+      // accounts for surrogate-pair widths and length-changing folds.
+      const origStart = lowerToOrigStart[idx];
+      const origEnd = lowerToOrigEnd[lowerEnd - 1];
+      ranges.push([origStart, origEnd]);
+      idx = textLower.indexOf(needle, lowerEnd);
     }
   });
 
@@ -390,14 +423,85 @@ export const buildPaletteItems = (
   ];
 };
 
-// Pages that require a specific fleet — they can't render "All fleets" or
-// (with some overlap) "Unassigned". When switching to either of those from
-// one of these pages, fall back to Hosts which supports both.
-const TEAM_REQUIRED_PREFIXES = [
-  paths.CONTROLS,
-  paths.SOFTWARE_LIBRARY,
-  paths.NEW_REPORT,
+// Per-page fleet picker behavior. One row per path prefix; each row
+// declares overrides off the common defaults:
+//
+//   default all:        "native"  — page renders All fleets inline
+//   default unassigned: "hidden"  — picker omits Unassigned
+//
+// Overrides:
+//   all = "redirect" — keep in the picker as a shortcut, but selecting it
+//                      sends the user to /hosts/manage (which supports All).
+//                      Mirrors `useTeamIdParam({ includeAllTeams: false })`
+//                      or, for SOFTWARE_LIBRARY, the explicit redirect in
+//                      SoftwarePage when All is selected on the Library tab.
+//   all = "hidden"   — omit from picker. Reserved for admin views where
+//                      "all fleets" is conceptually meaningless (no global
+//                      view of fleet-level user/option/settings config).
+//   unassigned = "native" — page renders Unassigned (id 0) inline. Mirrors
+//                      `useTeamIdParam({ includeNoTeam: true })`.
+//
+// Multiple rows may match a path; the longest-matching prefix wins per
+// dimension (e.g. /software/library inherits unassigned:"native" from
+// /software while overriding all to "redirect" via its own row).
+//
+// Scope: Premium, non-Primo only. The fleet picker doesn't exist on Fleet
+// Free or in Primo mode — both entry points (Cmd+Shift+F and the
+// fleet-switcher button) are gated behind `canSwitchFleet`, which requires
+// `isPremiumTier && !isPrimoMode`. This table and its resolver describe
+// the picker's behavior within that gated surface; do not consult them
+// from Free or Primo code paths.
+
+type AllOverride = "redirect" | "hidden";
+type UnassignedOverride = "native";
+
+interface PageFleetRule {
+  prefix: string;
+  all?: AllOverride;
+  unassigned?: UnassignedOverride;
+}
+
+const PAGE_FLEET_RULES: ReadonlyArray<PageFleetRule> = [
+  { prefix: paths.CONTROLS, all: "redirect", unassigned: "native" },
+  { prefix: paths.SOFTWARE_LIBRARY, all: "redirect" },
+  { prefix: paths.SOFTWARE, unassigned: "native" },
+  { prefix: paths.NEW_REPORT, all: "redirect" },
+  { prefix: `${paths.ROOT}hosts`, unassigned: "native" },
+  { prefix: `${paths.ROOT}policies`, unassigned: "native" },
+  { prefix: `${paths.ROOT}settings/fleets/users`, all: "hidden" },
+  { prefix: `${paths.ROOT}settings/fleets/options`, all: "hidden" },
+  { prefix: `${paths.ROOT}settings/fleets/settings`, all: "hidden" },
 ];
+
+interface ResolvedFleetSupport {
+  all: "native" | AllOverride;
+  unassigned: "native" | "hidden";
+}
+
+const resolvePageFleetSupport = (pathname: string): ResolvedFleetSupport => {
+  let all: ResolvedFleetSupport["all"] = "native";
+  let unassigned: ResolvedFleetSupport["unassigned"] = "hidden";
+  let allPrefixLen = -1;
+  let unassignedPrefixLen = -1;
+  PAGE_FLEET_RULES.forEach((rule) => {
+    if (!pathname.startsWith(rule.prefix)) return;
+    if (rule.all && rule.prefix.length > allPrefixLen) {
+      all = rule.all;
+      allPrefixLen = rule.prefix.length;
+    }
+    if (rule.unassigned && rule.prefix.length > unassignedPrefixLen) {
+      unassigned = rule.unassigned;
+      unassignedPrefixLen = rule.prefix.length;
+    }
+  });
+  return { all, unassigned };
+};
+
+export const pathSupportsUnassigned = (pathname: string): boolean =>
+  resolvePageFleetSupport(pathname).unassigned === "native";
+
+export const pathSupportsAllFleets = (pathname: string): boolean =>
+  resolvePageFleetSupport(pathname).all !== "hidden";
 
 /**
  * Build the next URL for a fleet switch initiated from the command palette.
@@ -418,17 +522,19 @@ export const buildFleetSwitchUrl = ({
 }): string => {
   const isAll = fleetId === APP_CONTEXT_ALL_TEAMS_ID;
   const isUnassignedTarget = fleetId === 0;
-  const isOnTeamRequiredPage = TEAM_REQUIRED_PREFIXES.some((p) =>
-    pathname.startsWith(p)
-  );
+  const support = resolvePageFleetSupport(pathname);
 
-  if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
-    // For Unassigned, keep fleet_id=0 on the fallback URL.
-    // useTeamIdParam coerces a missing param back to All fleets (-1),
-    // which would silently undo the setCurrentTeam({id:0}) caller.
-    return isUnassignedTarget
-      ? `${paths.MANAGE_HOSTS}?fleet_id=0`
-      : paths.MANAGE_HOSTS;
+  // All fleets: page can't render it but the picker keeps the option as a
+  // shortcut. Redirect to Hosts (which supports All).
+  if (isAll && support.all === "redirect") {
+    return paths.MANAGE_HOSTS;
+  }
+  // Unassigned: page can't render it. Keep fleet_id=0 on the fallback URL
+  // — useTeamIdParam coerces a missing param back to All fleets (-1),
+  // which would silently undo the switch. This branch is defensive; the
+  // picker already filters unsupported Unassigned via pathSupportsUnassigned.
+  if (isUnassignedTarget && support.unassigned !== "native") {
+    return `${paths.MANAGE_HOSTS}?fleet_id=0`;
   }
 
   const params = new URLSearchParams(currentSearch);

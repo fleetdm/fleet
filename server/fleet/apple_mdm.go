@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
+
 // Sentinel errors for recovery lock rotation
 var (
 	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
@@ -465,49 +467,26 @@ func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
 	return *h.TeamID
 }
 
-// AppleProfileIncludeMode indicates how a profile's include-labels gate
-// applicability to a host. Independent of exclude-labels, which always
-// have "exclude any" semantics. A single profile may carry both include
-// labels (with one consistent mode) and exclude labels.
-type AppleProfileIncludeMode int
+// AppleProfileIncludeMode aliases the platform-neutral include mode; see
+// MDMProfileIncludeMode in mdm_reconcile.go.
+type AppleProfileIncludeMode = MDMProfileIncludeMode
 
 const (
-	// AppleProfileIncludeNone means the profile has no include labels —
-	// applicability is determined entirely by team, platform, and any
-	// exclude labels present.
-	AppleProfileIncludeNone AppleProfileIncludeMode = iota
-	// AppleProfileIncludeAll requires the host to be a member of every
-	// (non-broken) include label.
-	AppleProfileIncludeAll
-	// AppleProfileIncludeAny requires the host to be a member of at
-	// least one include label.
-	AppleProfileIncludeAny
+	AppleProfileIncludeNone = MDMProfileIncludeNone
+	AppleProfileIncludeAll  = MDMProfileIncludeAll
+	AppleProfileIncludeAny  = MDMProfileIncludeAny
 )
 
-// AppleProfileLabelRef is a single label reference attached to a profile.
-// A nil LabelID means the label was deleted (the assignment is "broken").
-type AppleProfileLabelRef struct {
-	LabelID   *uint
-	CreatedAt time.Time
-	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic,
-	// 1=manual. Needed by the exclude-any handler so dynamic labels that
-	// were created after a host's last label_updated_at are treated as
-	// "results not yet reported" instead of "host is not a member".
-	LabelMembershipType int
-}
+// AppleProfileLabelRef aliases the platform-neutral label reference; see
+// MDMProfileLabelRef in mdm_reconcile.go.
+type AppleProfileLabelRef = MDMProfileLabelRef
 
-// AppleLabeledEntity is the minimal view of a label-gated Apple MDM
-// entity (profile or declaration) that the team/platform/label dispatcher
-// and the per-mode handlers need. The same dispatcher and handlers run
-// against both AppleProfileForReconcile and AppleDeclarationForReconcile
-// so the rules cannot drift between the two reconcilers.
-type AppleLabeledEntity interface {
-	GetTeamID() uint
-	GetIncludeMode() AppleProfileIncludeMode
-	GetIncludeLabels() []AppleProfileLabelRef
-	GetExcludeLabels() []AppleProfileLabelRef
-	HasBrokenLabel() bool
-}
+// AppleLabeledEntity aliases the platform-neutral label-gated entity view;
+// see MDMLabeledEntity in mdm_reconcile.go. Both AppleProfileForReconcile
+// and AppleDeclarationForReconcile implement it so the same dispatcher and
+// handlers run against both Apple reconcilers as well as other platforms'
+// reconcilers.
+type AppleLabeledEntity = MDMLabeledEntity
 
 // AppleProfileForReconcile is the profile data needed by the batched
 // reconciler to compute desired state per host in memory.
@@ -539,7 +518,7 @@ func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { r
 // exempt from removal (matches legacy behaviour: a profile with a broken
 // label is never auto-removed from a host that already has it).
 func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(p.IncludeLabels) || anyAppleLabelBroken(p.ExcludeLabels)
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
 // AppleDeclarationForReconcile is the declaration data needed by the
@@ -580,18 +559,7 @@ func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef
 
 // HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
 func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
-	return anyAppleLabelBroken(d.IncludeLabels) || anyAppleLabelBroken(d.ExcludeLabels)
-}
-
-// anyAppleLabelBroken reports whether any label reference has a nil
-// LabelID (the label was deleted, leaving the assignment "broken").
-func anyAppleLabelBroken(labels []AppleProfileLabelRef) bool {
-	for _, l := range labels {
-		if l.LabelID == nil {
-			return true
-		}
-	}
-	return false
+	return anyMDMLabelBroken(d.IncludeLabels) || anyMDMLabelBroken(d.ExcludeLabels)
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -1247,19 +1215,20 @@ type MDMBootstrapPackageStore interface {
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
 type MDMAppleMachineInfo struct {
-	IMEI                        string `plist:"IMEI,omitempty"`
-	Language                    string `plist:"LANGUAGE,omitempty"`
-	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
-	MEID                        string `plist:"MEID,omitempty"`
-	OSVersion                   string `plist:"OS_VERSION"`
-	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
-	Product                     string `plist:"PRODUCT"`
-	Serial                      string `plist:"SERIAL"`
-	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
-	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
-	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
-	UDID                        string `plist:"UDID"`
-	Version                     string `plist:"VERSION"`
+	IMEI                            string `plist:"IMEI,omitempty"`
+	Language                        string `plist:"LANGUAGE,omitempty"`
+	MandatorySoftwareUpdateRequired bool   `plist:"MANDATORY_SOFTWARE_UPDATE_REQUIRED,omitempty"`
+	MDMCanRequestSoftwareUpdate     bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                            string `plist:"MEID,omitempty"`
+	OSVersion                       string `plist:"OS_VERSION"`
+	PairingToken                    string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                         string `plist:"PRODUCT"`
+	Serial                          string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID          string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion        string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra      string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                            string `plist:"UDID"`
+	Version                         string `plist:"VERSION"`
 }
 
 // macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
@@ -1510,4 +1479,12 @@ type HostManagedLocalAccountAutoRotationInfo struct {
 	DisplayName      string `db:"display_name"`
 	AccountUUID      string `db:"account_uuid"`
 	InitiatedByFleet bool   `db:"initiated_by_fleet"`
+}
+
+type ADUEEnrollmentChallenge struct {
+	ID             uint       `db:"id"`
+	IdPAccountUUID string     `db:"idp_account_uuid"`
+	ABMTokenID     *uint      `db:"abm_token_id"`
+	ExpiresAt      time.Time  `db:"expires_at"`
+	UsedAt         *time.Time `db:"used_at"`
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Sloth",
+  "unique_identifier": "org.sveinbjorn.Sloth",
+  "token": "sloth",
+  "installer_format": "zip",
+  "slug": "sloth/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

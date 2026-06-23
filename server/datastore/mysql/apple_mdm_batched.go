@@ -280,6 +280,10 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 
 	for uuid, ia := range includeModes {
 		p := byUUID[uuid]
+		if p == nil {
+			// Should not happen, so not worth logging anything here.
+			continue
+		}
 		if ia.mixed {
 			// Defensive: include rows disagreed on require_all (should
 			// be impossible in production — the upsert path enforces a
@@ -287,7 +291,9 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			// intent; exclude labels (if any) are preserved.
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.AppleProfileIncludeNone
-			ds.logger.WarnContext(ctx, "apple profile has mixed include label modes; ignoring include labels", "profile_uuid", uuid, "team_id", p.TeamID)
+			errMsg := "apple profile has mixed include label modes; ignoring include labels"
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id", p.TeamID)
+			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}
 		p.IncludeMode = ia.mode
@@ -296,81 +302,9 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 	return out, nil
 }
 
-// BulkGetHostLabelMemberships returns, for each given host ID, the set of
-// label IDs (from the provided labelIDs) the host is a member of.
-//
-// Both lists may be empty; in either case the result is an empty (non-nil)
-// map. The IN clauses are chunked to keep total placeholders well under
-// MySQL's prepared-statement parameter limit.
-func (ds *Datastore) BulkGetHostLabelMemberships(
-	ctx context.Context,
-	hostIDs []uint,
-	labelIDs []uint,
-) (map[uint]map[uint]struct{}, error) {
-	return ds.bulkGetHostLabelMembershipsTransaction(ctx, ds.reader(ctx), hostIDs, labelIDs)
-}
-
-func (ds *Datastore) bulkGetHostLabelMembershipsTransaction(
-	ctx context.Context,
-	tx common_mysql.DBReadTx,
-	hostIDs []uint,
-	labelIDs []uint,
-) (map[uint]map[uint]struct{}, error) {
-	out := make(map[uint]map[uint]struct{}, len(hostIDs))
-	if len(hostIDs) == 0 || len(labelIDs) == 0 {
-		return out, nil
-	}
-
-	const (
-		hostChunk  = 5000
-		labelChunk = 1000
-	)
-
-	const stmt = `SELECT host_id, label_id FROM label_membership WHERE host_id IN (?) AND label_id IN (?)`
-
-	type membershipRow struct {
-		HostID  uint `db:"host_id"`
-		LabelID uint `db:"label_id"`
-	}
-
-	for hi := 0; hi < len(hostIDs); hi += hostChunk {
-		hEnd := min(hi+hostChunk, len(hostIDs))
-		hostBatch := hostIDs[hi:hEnd]
-
-		for li := 0; li < len(labelIDs); li += labelChunk {
-			lEnd := min(li+labelChunk, len(labelIDs))
-			labelBatch := labelIDs[li:lEnd]
-
-			q, args, err := sqlx.In(stmt, hostBatch, labelBatch)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "build label membership query")
-			}
-
-			var rows []membershipRow
-			if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "query host label memberships")
-			}
-
-			for _, r := range rows {
-				set, ok := out[r.HostID]
-				if !ok {
-					set = make(map[uint]struct{})
-					out[r.HostID] = set
-				}
-				set[r.LabelID] = struct{}{}
-			}
-		}
-	}
-
-	return out, nil
-}
-
 // BulkGetHostMDMAppleProfilesByUUIDs returns the current host_mdm_apple_profiles
 // rows for the given host UUIDs, grouped by host UUID.
-//
-// The returned MDMAppleProfilePayload fields mirror what the legacy
-// listMDMAppleProfilesToRemoveTransaction returns. HostPlatform and
-// DeviceEnrolledAt are left zero because they come from joined tables the
+// HostPlatform and DeviceEnrolledAt are left zero because they come from joined tables the
 // in-memory reconciler already has from listAppleMDMHostsForReconcileBatchTransaction.
 func (ds *Datastore) BulkGetHostMDMAppleProfilesByUUIDs(
 	ctx context.Context,
@@ -653,11 +587,17 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 
 	for uuid, ia := range includeModes {
 		d := byUUID[uuid]
+		if d == nil {
+			// Should never happen, so not worth logging anything here.
+			continue
+		}
 		if ia.mixed {
 			d.IncludeLabels = nil
 			d.IncludeMode = fleet.AppleProfileIncludeNone
 
-			ds.logger.WarnContext(ctx, "apple declaration has mixed include label modes; ignoring include labels", "declaration_uuid", uuid, "team_id", d.TeamID)
+			errMsg := "apple declaration has mixed include label modes; ignoring include labels"
+			ds.logger.ErrorContext(ctx, errMsg, "declaration_uuid", uuid, "team_id", d.TeamID)
+			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}
 		d.IncludeMode = ia.mode

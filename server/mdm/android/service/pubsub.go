@@ -629,7 +629,18 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
-		host.TeamID = enrollSecret.GetTeamID()
+		if err == nil {
+			host.TeamID = enrollSecret.GetTeamID()
+		}
+
+		// If the device was previously known restore the last-known team instead of the enrollment secret's default.
+		hostKey := getAndroidHostKey(device)
+		if priorTeamID, found, err := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", err)
+			ctxerr.Handle(ctx, err)
+		} else if found {
+			host.TeamID = priorTeamID
+		}
 
 		if enrollmentTokenRequest.IdpUUID != "" {
 			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
@@ -718,17 +729,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.Device.DeviceID = deviceID
 
-	var idpFullname string
-	idpAcct, err := svc.fleetDS.GetMDMIdPAccountByHostUUID(ctx, host.Host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting IdP account for host")
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, &host.Host.ID, host.Host.UUID, "")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for host")
 	}
-	if idpAcct != nil {
-		idpFullname = idpAcct.Fullname
-	}
-
-	host.Host.ComputerName = getComputerName(device, idpFullname)
-	host.Host.Hostname = getComputerName(device, idpFullname)
+	host.Host.ComputerName = computerName
+	host.Host.Hostname = computerName
 	host.Host.Platform = "android"
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
@@ -757,6 +763,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+
+	if fromEnroll {
+		if err := svc.fleetDS.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(host.TeamID, []uint{host.Host.ID})); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting team for re-enrolled Android host")
+		}
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, []string{host.Host.UUID}, host.TeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "syncing android_devices team_id for re-enrolled Android host")
+		}
 	}
 
 	// Populate the operating_systems table so the host can be filtered via
@@ -860,6 +875,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	// If the device was previously known restore the last-known team instead of the enrollment secret's default.
+	teamID := enrollSecret.GetTeamID()
+	hostKey := getAndroidHostKey(device)
+	if priorTeamID, found, tlErr := svc.ds.GetAndroidDeviceLastTeamID(ctx, hostKey); tlErr != nil {
+		svc.logger.ErrorContext(ctx, "failed to look up prior android team, using enroll secret", "err", tlErr)
+		ctxerr.Handle(ctx, tlErr)
+	} else if found {
+		teamID = priorTeamID
+	}
+
 	deviceID, err := svc.getDeviceID(ctx, device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
@@ -867,22 +892,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
-	var idpFullname string
-	if enrollmentTokenRequest.IdpUUID != "" {
-		idpAcct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollmentTokenRequest.IdpUUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "getting IdP account for new host")
-		}
-		if idpAcct != nil {
-			idpFullname = idpAcct.Fullname
-		}
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", enrollmentTokenRequest.IdpUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for new host")
 	}
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			TeamID:                    enrollSecret.GetTeamID(),
-			ComputerName:              getComputerName(device, idpFullname),
-			Hostname:                  getComputerName(device, idpFullname),
+			TeamID:                    teamID,
+			ComputerName:              computerName,
+			Hostname:                  computerName,
 			Platform:                  "android",
 			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
@@ -943,12 +962,12 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	// Create pending certificate templates for this newly enrolled host.
-	// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
-	teamID := uint(0)
-	if enrollSecret.GetTeamID() != nil {
-		teamID = *enrollSecret.GetTeamID()
+	// Use certTeamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
+	certTeamID := uint(0)
+	if teamID != nil {
+		certTeamID = *teamID
 	}
-	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, teamID); err != nil {
+	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, certTeamID); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
 		return ctxerr.Wrap(ctx, err, "creating pending certificate templates for new host")
 	}
@@ -971,13 +990,44 @@ func getHardwareModel(device *androidmanagement.Device) string {
 	return cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
 }
 
-func getComputerName(device *androidmanagement.Device, idpFullname string) string {
+// Priority: SCIM full name (via GetEndUsers) → IdP fullname (mdm_idp_accounts) → hardware model.
+// For existing hosts pass hostID + hostUUID
+// For new hosts (not yet inserted) pass hostID=nil and enrollmentIdpUUID from the enrollment token.
+func getComputerName(ctx context.Context, ds fleet.Datastore, device *androidmanagement.Device, hostID *uint, hostUUID, enrollmentIdpUUID string) (string, error) {
 	hardwareModel := getHardwareModel(device)
-	name := strings.TrimSpace(idpFullname)
-	if name == "" {
-		return hardwareModel
+
+	var endUsers []fleet.HostEndUser
+	if hostID != nil {
+		var err error
+		endUsers, err = fleet.GetEndUsers(ctx, ds, *hostID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting end users")
+		}
 	}
-	return name + "'s " + hardwareModel
+
+	if len(endUsers) > 0 && endUsers[0].IdpFullName != "" {
+		return endUsers[0].IdpFullName + "'s " + hardwareModel, nil
+	}
+
+	var idpAcct *fleet.MDMIdPAccount
+	var err error
+	switch {
+	case hostUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	case enrollmentIdpUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByUUID(ctx, enrollmentIdpUUID)
+	}
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting IdP account")
+	}
+
+	if idpAcct != nil {
+		if name := strings.TrimSpace(idpAcct.Fullname); name != "" {
+			return name + "'s " + hardwareModel, nil
+		}
+	}
+
+	return hardwareModel, nil
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {

@@ -10,7 +10,7 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import paths from "router/paths";
 
@@ -110,7 +110,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isPremiumTier,
     isOnGlobalTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const {
     currentTeamId,
@@ -596,15 +595,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             },
           });
         }
-        renderFlash(
-          "success",
-          "Successfully updated activity feed automations."
-        );
+        notify.success("Successfully updated activity feed automations.");
         setShowActivityFeedAutomationsModal(false);
-      } catch {
-        renderFlash(
-          "error",
-          "Couldn't update activity feed automations. Please try again."
+      } catch (e) {
+        notify.error(
+          "Couldn't update activity feed automations. Please try again.",
+          { response: e }
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
@@ -616,7 +612,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       config?.webhook_settings.activities_webhook.destination_url,
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
       refetchConfig,
-      renderFlash,
     ]
   );
 
@@ -665,8 +660,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
+          type: "automations",
           onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,

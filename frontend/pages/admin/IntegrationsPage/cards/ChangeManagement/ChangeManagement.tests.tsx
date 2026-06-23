@@ -9,6 +9,15 @@ import { IConfig } from "interfaces/config";
 
 import ChangeManagement from "./ChangeManagement";
 
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
+
 const configUrl = baseUrl("/config");
 
 const createGetConfigHandler = (overrides?: Partial<IConfig>) => {
@@ -33,7 +42,6 @@ describe("ChangeManagement", () => {
     withBackendMock: true,
     context: {
       app: { isPremiumTier: true, setConfig: jest.fn() },
-      notification: { renderFlash: jest.fn() },
     },
   });
 

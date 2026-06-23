@@ -830,14 +830,25 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
+		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
+		// When the team filter allows all hosts ("TRUE"),
+		// skip the join to the hosts table and count straight off the
+		// label_membership index.
+		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
+		if teamFilter == "TRUE" {
+			countFrom = "label_membership lm"
+		}
 		query = fmt.Sprintf(`
-				SELECT l.*,
-					(SELECT COUNT(1)
-					 FROM label_membership lm
-					     JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s
-					 ) AS host_count
+				WITH label_host_counts AS (
+					SELECT lm.label_id, COUNT(1) AS host_count
+					FROM %s
+					WHERE %s
+					GROUP BY lm.label_id
+				)
+				SELECT l.*, COALESCE(lhc.host_count, 0) AS host_count
 				FROM labels l
-			`, ds.whereFilterHostsByTeams(filter, "h"),
+				LEFT JOIN label_host_counts lhc ON lhc.label_id = l.id
+			`, countFrom, teamFilter,
 		)
 	}
 
@@ -1259,6 +1270,12 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
 	var whereParams, joinParams []interface{}
+
+	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
+	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	if opt.StatusFilter.IsValid() {
+		query += hostMDMSeenTimeJoin
+	}
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `

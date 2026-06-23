@@ -263,13 +263,6 @@ func gitopsCommand() *cli.Command {
 			// Used for keeping track of all label changes in this run.
 			labelChanges := make(map[string][]spec.LabelChange) // team name -> label changes
 
-			// Parsed a config and filename pair
-			type ConfigFile struct {
-				Config         *spec.GitOps
-				Filename       string
-				IsGlobalConfig bool
-			}
-
 			// Load all configs in before processing them
 			configs := make([]ConfigFile, 0, len(flFilenames.Value()))
 
@@ -363,6 +356,16 @@ func gitopsCommand() *cli.Command {
 				seenTeamNames[key] = cf.Filename
 			}
 
+			// Cross-file invariant: if any file in this run enables MDM
+			// end-user authentication, the IdP must be configured either in
+			// this run's global file or in the server's current state.
+			// Without this check, a partial gitops run can enable EUA on a
+			// team while leaving the IdP unconfigured — locking ADE
+			// enrollment for that team's hosts. See issue #43371.
+			if err := validateGitOpsGroupEUA(configs, appConfig, fleetClient.ListTeams, flDeleteOtherTeams); err != nil {
+				return err
+			}
+
 			labelMoves, err := computeLabelMoves(labelChanges)
 			if err != nil {
 				return err
@@ -388,18 +391,35 @@ func gitopsCommand() *cli.Command {
 						return errors.New("'controls' must be set on global config")
 					}
 					if !config.Controls.Set() {
+						// noTeamControls had its file paths resolved to absolute against the
+						// no-team file's own dir in extractControlsForNoTeam, so they survive
+						// being applied here under the global file's baseDir.
 						config.Controls = noTeamControls
 					}
 				}
 
-				// Targeting queries against labels is a Premium feature only
 				if !appConfig.License.IsPremium() {
+					// Targeting queries against labels is a Premium feature only
 					for _, query := range config.Queries {
 						if len(query.LabelsIncludeAny) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
 						}
 						if len(query.LabelsIncludeAll) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
+						}
+					}
+					for _, policy := range config.Policies {
+						if len(policy.LabelsIncludeAny) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_include_any', which is only available in Fleet Premium", policy.Name)
+						}
+						if len(policy.LabelsIncludeAll) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_include_all', which is only available in Fleet Premium", policy.Name)
+						}
+						if len(policy.LabelsExcludeAny) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_exclude_any', which is only available in Fleet Premium", policy.Name)
+						}
+						if len(policy.LabelsExcludeAll) > 0 {
+							return fmt.Errorf("policy %q uses 'labels_exclude_all', which is only available in Fleet Premium", policy.Name)
 						}
 					}
 				}
@@ -722,6 +742,117 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
+// ConfigFile pairs a parsed gitops config with its source filename, used
+// while orchestrating a multi-file gitops run.
+type ConfigFile struct {
+	Config         *spec.GitOps
+	Filename       string
+	IsGlobalConfig bool
+}
+
+// Verify that if any fleet has EUA enabled after this GitOps run, then the IdP for EUA will be fully configured
+// after this run. This checks all fleets whether they're being modified in this run or not.
+func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig, listTeams func(query string) ([]fleet.Team, error), deleteOtherTeams bool) error {
+	// Compute the effective post-apply IdP state. Start from stored state; if a
+	// global file is in this run, its incoming org_settings override stored
+	// state (overwrite mode), so an empty/incomplete/missing block leaves the
+	// IdP incomplete.
+	idpName := appCfg.MDM.EndUserAuthentication.IDPName
+	entityID := appCfg.MDM.EndUserAuthentication.EntityID
+	metadata := appCfg.MDM.EndUserAuthentication.Metadata
+	metadataURL := appCfg.MDM.EndUserAuthentication.MetadataURL
+	globalInRun := false
+	for _, cf := range configs {
+		if !cf.IsGlobalConfig {
+			continue
+		}
+		globalInRun = true
+		mdm, _ := cf.Config.OrgSettings["mdm"].(map[string]any)
+		eua, _ := mdm["end_user_authentication"].(map[string]any)
+		idpName, _ = eua["idp_name"].(string)
+		entityID, _ = eua["entity_id"].(string)
+		metadata, _ = eua["metadata"].(string)
+		metadataURL, _ = eua["metadata_url"].(string)
+		break
+	}
+
+	// An IdP is complete only when idp_name, entity_id, and one of
+	// metadata/metadata_url are all set (mirrors the server-side complete-IdP
+	// predicate). If the effective IdP is complete, EUA may be enabled anywhere.
+	idpComplete := idpName != "" && entityID != "" && (metadata != "" || metadataURL != "")
+	if idpComplete {
+		return nil
+	}
+
+	const idpHint = "Set org_settings.mdm.end_user_authentication idp_name, entity_id, and metadata or metadata_url in your global config, or configure a complete IdP on the server first"
+
+	// The effective IdP is incomplete: EUA must not be enabled at any effective
+	// post-apply scope. First, any file in this run that enables it. Track the
+	// teams present in this run so their stored state is not double-counted
+	// below — the in-run file's value wins (including a file that disables EUA).
+	teamsInRun := make(map[string]struct{})
+	for _, cf := range configs {
+		if cf.Config.TeamName != nil {
+			key := norm.NFC.String(strings.ToLower(strings.TrimSpace(*cf.Config.TeamName)))
+			if key != "" {
+				teamsInRun[key] = struct{}{}
+			}
+		}
+		if cf.Config.Controls.MacOSSetup == nil ||
+			!cf.Config.Controls.MacOSSetup.EnableEndUserAuthentication {
+			continue
+		}
+		return fmt.Errorf(
+			"%s: controls.setup_experience.enable_end_user_authentication is true but the IdP is not fully configured. %s.",
+			cf.Filename, idpHint,
+		)
+	}
+
+	// Then any stored team NOT present in this run that still has EUA enabled —
+	// the case where a global-only run degrades the IdP while a team keeps EUA
+	// on (issue #43371). Teams are premium-only, so skip the lookup otherwise.
+	//
+	// With --delete-other-fleets, teams omitted from the run are deleted rather
+	// than preserved, so they can't lock anyone out post-apply; consulting their
+	// stored EUA state would be a false positive.
+	//
+	// Note there is an edge case here where a fleet has EUA enabled but not
+	// supplied in a --delete-other-fleets GitOps run, but the fleet CAN'T
+	// be deleted due to its being in ABM or VPP. This could lead to EUA being
+	// degraded (since that API call happens first) while EUA is still enabled
+	// on that fleet. This would be better handled by detecting un-deletable
+	// fleets early when --delete-other-fleets is used.
+	if appCfg.License.IsPremium() && !deleteOtherTeams {
+		teams, err := listTeams("")
+		if err != nil {
+			return fmt.Errorf("listing fleets to validate end user authentication: %w", err)
+		}
+		for _, tm := range teams {
+			key := norm.NFC.String(strings.ToLower(strings.TrimSpace(tm.Name)))
+			if _, ok := teamsInRun[key]; ok {
+				continue
+			}
+			if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
+				return fmt.Errorf(
+					"fleet %q has end user authentication enabled but the IdP is not fully configured. %s, or disable end user authentication for that fleet.",
+					tm.Name, idpHint,
+				)
+			}
+		}
+	}
+
+	// Finally, the stored no-team/global EUA flag survives only when no global
+	// file is in this run (a global file in the run authoritatively redefines
+	// no-team state in overwrite mode, and is covered by the file loop above).
+	if !globalInRun && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
+		return fmt.Errorf(
+			"end user authentication is enabled in Unassigned but the IdP is not fully configured. %s.",
+			idpHint,
+		)
+	}
+	return nil
+}
+
 // Computes label moves and validates that there is no funny business around label changes,
 // like trying to add the same label on multiple teams or deleting the same label multiple times.
 // A label is moved when it is deleted from one team and added to another, the moves are stored in
@@ -860,7 +991,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 				if len(setting.LabelsIncludeAll) > 0 {
 					labels = setting.LabelsIncludeAll
 				}
-				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
+				if overlap := fleet.LabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
 					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
 				labels = append(labels, setting.LabelsExcludeAny...)
@@ -940,22 +1071,14 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		updateLabelUsage(labels, query.Name, "Query", result)
 	}
 
-	// Get policy label usage.
+	// Get policy label usage. A policy may combine one include scope (any/all)
+	// with one exclude scope (any/all); VerifyLabelScopes rejects more than one
+	// of either, or a label appearing in both an include and an exclude list.
 	for _, policy := range config.Policies {
-		nonEmptyScopes := 0
-		if len(policy.LabelsIncludeAny) > 0 {
-			nonEmptyScopes++
+		if err := policy.VerifyLabelScopes(); err != nil {
+			return nil, fmt.Errorf("Policy '%s': %w", policy.Name, err)
 		}
-		if len(policy.LabelsIncludeAll) > 0 {
-			nonEmptyScopes++
-		}
-		if len(policy.LabelsExcludeAny) > 0 {
-			nonEmptyScopes++
-		}
-		if nonEmptyScopes > 1 {
-			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
-		}
-		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny, policy.LabelsExcludeAll)
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 
@@ -982,6 +1105,10 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 			if err != nil {
 				return spec.GitOpsControls{}, false, fileName, err
 			}
+			// These controls are applied onto the global config and applied under the
+			// global file's baseDir, so resolve their file paths to absolute against this
+			// file's own dir to keep relative paths (e.g. ../lib/...) working.
+			config.Controls.ResolveFilePathsAbs(baseDir)
 			return config.Controls, true, fileName, nil
 		}
 	}
@@ -1173,6 +1300,10 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
+										// Accept display name "All fleets" as equivalent to the internal "All teams"
+										if normalizedTeam == fleet.DisplayNameAllTeams {
+											normalizedTeam = fleet.TeamNameAllTeams
+										}
 										vppTeams = append(vppTeams, normalizedTeam)
 										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
 										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {

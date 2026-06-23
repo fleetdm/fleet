@@ -293,7 +293,13 @@
   quoteAuthorProfileImageFilename: testimonial-author-adam-pippert-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7462273958181093376/?dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287462579370302390272%2Curn%3Ali%3Aactivity%3A7462273958181093376%29
   quoteAuthorJobTitle: Principal Solutions Architect @ Red Hat
-  productCategories: [Device management]
+  productCategories: [Device management, Software management]
+- quote: We use Fleet Device Management. Basically, osquery is the answer.
+  quoteAuthorName: Ed Merrett
+  quoteAuthorProfileImageFilename: testimonial-author-ed-merrett-50x50@2x.png
+  quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7473001724425732097?commentUrn=urn%3Ali%3Acomment%3A%28ugcPost%3A7472995294640222210%2Curn%3Ali%3Aactivity%3A7473001724425732097%29
+  quoteAuthorJobTitle: Director, Security & TechOps @ Harmonic Security
+  productCategories: [Observability, Software management]
 # -
 #   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
 #   quoteAuthorName: Nick Borgers

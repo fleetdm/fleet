@@ -60,6 +60,45 @@ describe("PatchAutomationCta", () => {
       ).toBeInTheDocument();
     });
 
+    it("prefers patch_software.display_name over name in the label", () => {
+      renderWithAppContext(
+        <PatchAutomationCta
+          storedPolicy={createMockPatchPolicy({
+            patch_software: {
+              name: "Microsoft.CompanyPortal",
+              display_name: "Company Portal (Corp)",
+              software_title_id: 42,
+            },
+          })}
+          canEditPolicy
+          onAddAutomation={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(/Automatically patch Company Portal \(Corp\)/)
+      ).toBeInTheDocument();
+    });
+
+    it("normalizes well-known patch_software names when display_name is absent", () => {
+      renderWithAppContext(
+        <PatchAutomationCta
+          storedPolicy={createMockPatchPolicy({
+            patch_software: {
+              name: "Microsoft.CompanyPortal",
+              software_title_id: 42,
+            },
+          })}
+          canEditPolicy
+          onAddAutomation={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(/Automatically patch Company Portal/)
+      ).toBeInTheDocument();
+    });
+
     it("calls onAddAutomation when the button is clicked", async () => {
       const user = userEvent.setup();
       const onAddAutomation = jest.fn();
