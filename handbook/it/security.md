@@ -325,6 +325,50 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and incident response when necessary.
 
 
+### Read-only external storage
+
+We enforce read-only mounting of external/removable storage (USB sticks, external HDDs/SSDs presented as removable, SD cards) on every Fleet-managed workstation. Team members can still **read** from a connected drive, but cannot **write** to it.
+
+| Platform | Enforcement mechanism                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| macOS    | DDM declaration `com.apple.configuration.diskmanagement.settings` with `Restrictions.ExternalStorage = ReadOnly` (macOS 15+) |
+| Windows  | Storage Policy CSP `RemovableDiskDenyWriteAccess = 1`                                                            |
+| Linux    | udev rule that flags USB removable block devices read-only at the kernel layer, deployed via a Fleet policy with auto-remediation |
+
+**Why?**
+
+* External storage is one of the most common vectors for both **data exfiltration** (sensitive files copied off a managed device) and **malware introduction** (an untrusted USB device dropping payloads onto a workstation). Blocking writes neutralizes the exfiltration vector while still preserving the legitimate read use cases (loading conference materials, reading vendor-provided files, recovering data from a personal drive).
+* Our [acceptable use of end-user computing policy](#acceptable-use-of-end-user-computing) already prohibits storing sensitive data on external storage devices. This control enforces that policy at the OS level rather than relying on individual judgment.
+* It complements [whole-disk encryption](#encryption-policy) by ensuring that company data — even non-sensitive data — does not silently leave a managed device on an unencrypted thumb drive.
+
+**User experience impacts**
+
+* Plugging in a USB drive, external SSD, or SD card still mounts the device and exposes its files in Finder / File Explorer / your file manager — read access is unchanged.
+* Attempting to copy a file *to* the drive, save a file onto it, or rename/delete files on it will fail with a "read-only" or "permission denied" style error from the OS.
+* Drives that are physically write-protected, network shares, optical media, and Thunderbolt/PCIe drives presenting as fixed disks are unaffected.
+* On Linux, the rule applies as soon as the host receives the policy and reattaches the device (or reboots); already-mounted drives keep their existing mount until reattached.
+
+#### Requesting an exception
+
+Some legitimate workflows need write access — for example, building bootable installers, transferring files to a vendor-provided device, or recovering data to an external drive. Exceptions are granted per-host via a manual exclusion label, and the change goes through code review like any other configuration change.
+
+To request an exception:
+
+1. Find your host's **Fleet ID** (visible in the URL on your host's details page in dogfood).
+2. Open a pull request against [`fleetdm/fleet`](https://github.com/fleetdm/fleet) that adds your host's Fleet ID under `hosts:` of the label file matching your platform:
+
+   | Platform | Label file                                                                                       |
+   | -------- | ------------------------------------------------------------------------------------------------ |
+   | macOS    | `it-and-security/lib/all/labels/macs-excluded-from-external-storage-restrictions.yml`            |
+   | Windows  | `it-and-security/lib/all/labels/windows-excluded-from-external-storage-restrictions.yml`         |
+   | Linux    | `it-and-security/lib/all/labels/linux-excluded-from-external-storage-restrictions.yml`           |
+
+3. In the PR description, briefly state **what you need write access for** and **for how long** (permanent vs. time-bound). If the exception is temporary, open a follow-up issue to remove yourself when you're done.
+4. Tag the IT/security team for review. Once merged and GitOps syncs, the profile (macOS/Windows) or remediation policy (Linux) stops applying to your host.
+
+> **Linux note:** because the udev rule lives on disk, exclusion stops Fleet from re-applying it but does not remove an already-installed rule. After your PR merges, also delete `/etc/udev/rules.d/99-fleet-readonly-removable-storage.rules` on the affected host and run `sudo udevadm control --reload-rules` to revert. Reach out in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) if you'd like help.
+
+
 ### Chrome configuration
 
 We configure Chrome on company-owned devices with a basic policy.

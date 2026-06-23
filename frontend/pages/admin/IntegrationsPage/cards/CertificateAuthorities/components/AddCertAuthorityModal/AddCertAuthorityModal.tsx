@@ -1,6 +1,5 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
 import {
   ICertificateAuthorityPartial,
@@ -10,6 +9,7 @@ import {
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 
 import {
   generateAddCertAuthorityData,
@@ -51,8 +51,6 @@ const AddCertAuthorityModal = ({
   certAuthorities,
   onExit,
 }: IAddCertAuthorityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const dropdownOptions = useMemo(() => {
     return generateDropdownOptions(
       certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
@@ -193,10 +191,10 @@ const AddCertAuthorityModal = ({
     setIsAdding(true);
     try {
       await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
-      renderFlash("success", "Successfully added your certificate authority.");
+      notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
     setIsAdding(false);
   };

@@ -20,4 +20,12 @@
     display: block;
     width: 100%;
   }
+
+  // Non-field content (buttons, icon rows) hugs its content so the tooltip centers on the
+  // button. Without this, the global `form > * { width: 100% }` rule (_global.scss) stretches
+  // the span to the full form width and the arrow drifts to the form center. Field wrappers
+  // deliberately keep full width so the disabled row stays the hover target.
+  &--hug {
+    width: fit-content;
+  }
 }
