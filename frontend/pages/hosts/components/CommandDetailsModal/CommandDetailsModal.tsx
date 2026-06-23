@@ -22,7 +22,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "command-details-modal";
 
-export const GetIconName = (status: string): IconNames => {
+export const getIconName = (status: string): IconNames => {
   // Apple MDM status strings
   switch (status) {
     case "Error":
@@ -47,7 +47,7 @@ export const GetIconName = (status: string): IconNames => {
 };
 
 export const getVerbForCommandStatus = (status: string): string => {
-  const icon = GetIconName(status);
+  const icon = getIconName(status);
   switch (icon) {
     case "error":
       return "failed to run";
@@ -123,7 +123,7 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
 const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
   <IconStatusMessage
     className={`${baseclass}__status-message`}
-    iconName={GetIconName(result.status)}
+    iconName={getIconName(result.status)}
     message={getStatusMessage(result)}
   />
 );

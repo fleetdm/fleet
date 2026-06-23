@@ -47,7 +47,7 @@ import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
 import MdmCommandDetailsModal, {
-  GetIconName,
+  getIconName,
   getVerbForCommandStatus,
 } from "pages/hosts/components/CommandDetailsModal";
 import IconStatusMessage from "components/IconStatusMessage";
@@ -513,7 +513,7 @@ const ActivityFeed = ({
         <MdmCommandDetailsModal
           command={mdmCommandActivityDetails}
           contentBody={(cls, result) => {
-            const isPending = GetIconName(result.status) === "pending-outline";
+            const isPending = getIconName(result.status) === "pending-outline";
             const cmdDisplayName = getMdmCommandDisplayName(
               result.request_type
             );
@@ -525,7 +525,7 @@ const ActivityFeed = ({
             return (
               <IconStatusMessage
                 className={`${cls}__status-message`}
-                iconName={GetIconName(result.status)}
+                iconName={getIconName(result.status)}
                 message={
                   isPending ? (
                     <span>

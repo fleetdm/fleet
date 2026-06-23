@@ -1,52 +1,52 @@
-import { GetIconName, getVerbForCommandStatus } from "./CommandDetailsModal";
+import { getIconName, getVerbForCommandStatus } from "./CommandDetailsModal";
 
-describe("GetIconName", () => {
+describe("getIconName", () => {
   it("returns error for Apple Error status", () => {
-    expect(GetIconName("Error")).toEqual("error");
+    expect(getIconName("Error")).toEqual("error");
   });
 
   it("returns error for Apple CommandFormatError status", () => {
-    expect(GetIconName("CommandFormatError")).toEqual("error");
+    expect(getIconName("CommandFormatError")).toEqual("error");
   });
 
   it("returns success for Apple Acknowledged status", () => {
-    expect(GetIconName("Acknowledged")).toEqual("success");
+    expect(getIconName("Acknowledged")).toEqual("success");
   });
 
   it("returns pending-outline for Apple Pending status", () => {
-    expect(GetIconName("Pending")).toEqual("pending-outline");
+    expect(getIconName("Pending")).toEqual("pending-outline");
   });
 
   it("returns pending-outline for Apple NotNow status", () => {
-    expect(GetIconName("NotNow")).toEqual("pending-outline");
+    expect(getIconName("NotNow")).toEqual("pending-outline");
   });
 
   it("returns success for Windows 200 status", () => {
-    expect(GetIconName("200")).toEqual("success");
+    expect(getIconName("200")).toEqual("success");
   });
 
   it("returns error for Windows 400 status", () => {
-    expect(GetIconName("400")).toEqual("error");
+    expect(getIconName("400")).toEqual("error");
   });
 
   it("returns error for Windows 500 status", () => {
-    expect(GetIconName("500")).toEqual("error");
+    expect(getIconName("500")).toEqual("error");
   });
 
   it("returns pending-outline for Windows 101 status", () => {
-    expect(GetIconName("101")).toEqual("pending-outline");
+    expect(getIconName("101")).toEqual("pending-outline");
   });
 
   it("returns pending-outline for Windows 199 status (upper pending boundary)", () => {
-    expect(GetIconName("199")).toEqual("pending-outline");
+    expect(getIconName("199")).toEqual("pending-outline");
   });
 
   it("returns success for Windows 399 status (upper success boundary)", () => {
-    expect(GetIconName("399")).toEqual("success");
+    expect(getIconName("399")).toEqual("success");
   });
 
   it("returns warning for an unknown status", () => {
-    expect(GetIconName("unknown")).toEqual("warning");
+    expect(getIconName("unknown")).toEqual("warning");
   });
 });
 
