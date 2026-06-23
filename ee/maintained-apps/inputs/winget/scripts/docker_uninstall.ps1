@@ -1,14 +1,29 @@
 # Define acceptable/expected exit codes
 $ExpectedExitCodes = @(0, 19)
 
-# Uninstall Registry Key
-$machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop'
+# Docker Desktop can be installed per-user (HKCU, %LOCALAPPDATA%) or
+# all-users (HKLM, C:\Program Files). Check HKCU first, then HKLM.
+$registryPaths = @(
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop',
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop'
+)
 
 # Initialize exit code
 $exitCode = 0
 
 try {
-    $key = Get-ItemProperty -Path $machineKey -ErrorAction Stop
+    $key = $null
+    foreach ($path in $registryPaths) {
+        $candidate = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
+        if ($candidate) {
+            Write-Host "Found Docker Desktop registry at: $path"
+            $key = $candidate
+            break
+        }
+    }
+    if (-not $key) {
+        Throw "Docker Desktop registry entry not found in HKCU or HKLM."
+    }
 
     # Get the uninstall command. Some uninstallers do not include 'QuietUninstallString'
     $uninstallCommand = if ($key.QuietUninstallString) {
@@ -17,7 +32,7 @@ try {
         $key.UninstallString
     }
 
-    # The expected uninstall command value is "C:\Program Files\Docker\Docker\Docker Desktop Installer.exe" "uninstall"
+    # The expected uninstall command value is "<install dir>\Docker Desktop Installer.exe" "uninstall"
     $splitArgs = $uninstallCommand.Split('"')
     if ($splitArgs.Length -ne 5) {
       Throw "Unexpected uninstall command. Please update the uninstall script.`nUninstall command: $uninstallCommand"

@@ -1,0 +1,10 @@
+{
+  "name": "TREZOR Suite",
+  "unique_identifier": "io.trezor.TrezorSuite",
+  "token": "trezor-suite",
+  "installer_format": "dmg",
+  "slug": "trezor-suite/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -4,11 +4,12 @@ import { SingleValue } from "react-select-5";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import { SelectedPlatform } from "interfaces/platform";
 import { getNextLocationPath } from "utilities/helpers";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
@@ -61,6 +62,7 @@ interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  onAddPolicyClick: () => void;
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
@@ -86,12 +88,15 @@ interface IPoliciesTableProps {
     platform?: string;
   };
   platform?: SelectedPlatform;
+  otherAutomationType?: OtherAutomationType;
+  onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const PoliciesTable = ({
   policiesList,
   isLoading,
   onDeletePoliciesClick,
+  onAddPolicyClick,
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
@@ -109,6 +114,8 @@ const PoliciesTable = ({
   router,
   queryParams,
   platform = "all",
+  otherAutomationType,
+  onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -145,26 +152,28 @@ const PoliciesTable = ({
     );
   }, [platform, handlePlatformFilterDropdownChange]);
 
-  const emptyState: IEmptyStateProps = {
-    header: "You don't have any policies",
-    info:
-      "Add policies to detect device health issues and trigger automations.",
-  };
+  const isAllFleets =
+    isPremiumTier &&
+    (currentTeam?.id === null || currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID);
 
+  let emptyHeader = "No policies yet";
+  // Primo mode uses a generic empty state header
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
-    if (
-      currentTeam?.id === null ||
-      currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-    ) {
-      emptyState.header += ` that apply to all fleets`;
-    } else {
-      emptyState.header += ` that apply to this fleet`;
-    }
+    emptyHeader = isAllFleets
+      ? "No policies apply to all fleets"
+      : "No policies for this fleet";
   }
 
-  if (!canAddOrDeletePolicies) {
-    emptyState.info = "";
-  }
+  const emptyState: IEmptyStateProps = {
+    header: emptyHeader,
+    info:
+      "Policies are queries that return a pass or fail result. Failures trigger fixes or prompt end users to solve them on their own.",
+    primaryButton: canAddOrDeletePolicies ? (
+      <Button onClick={onAddPolicyClick} type="button">
+        Add policy
+      </Button>
+    ) : undefined,
+  };
 
   if (searchQuery || isFiltered) {
     delete emptyState.primaryButton;
@@ -172,11 +181,8 @@ const PoliciesTable = ({
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(
-    policiesList?.length === 0 &&
-    searchQuery === "" &&
-    !isFiltered
-  );
+  const isTrulyEmpty =
+    policiesList?.length === 0 && searchQuery === "" && !isFiltered;
 
   const combinedCustomControl = () => {
     return (
@@ -211,6 +217,8 @@ const PoliciesTable = ({
           {
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
+            otherAutomationType,
+            onOpenManageAutomationsModal,
           },
           isPremiumTier,
           config?.partnerships?.enable_primo
@@ -246,8 +254,8 @@ const PoliciesTable = ({
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
-        disableTableHeader={!searchable}
+        searchable
+        disableSearch={isTrulyEmpty}
         customControl={combinedCustomControl}
         selectedDropdownFilter={platform}
       />

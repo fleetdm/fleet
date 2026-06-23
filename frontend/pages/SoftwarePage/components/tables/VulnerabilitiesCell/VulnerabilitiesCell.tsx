@@ -111,6 +111,7 @@ const VulnerabilitiesCell = ({
       position={tooltipPosition}
       underline={false}
       showArrow
+      fixedPositionStrategy
     >
       <div className={`${baseClass}__vulnerability-text-with-tooltip`}>
         {cell}

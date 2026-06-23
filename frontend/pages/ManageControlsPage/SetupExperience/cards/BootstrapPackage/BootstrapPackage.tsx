@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
@@ -14,7 +14,7 @@ import mdmAPI, {
 } from "services/entities/mdm";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -46,7 +46,6 @@ const BootstrapPackage = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
     setSelectedManualAgentInstall,
@@ -145,9 +144,9 @@ const BootstrapPackage = ({
         fleet_id: currentTeamId,
         macos_manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted.");
-    } catch {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.success("Successfully deleted.");
+    } catch (err) {
+      notify.error("Couldn't delete. Please try again.", { response: err });
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
@@ -220,7 +219,14 @@ const BootstrapPackage = ({
         <EmptyState
           variant="form"
           header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          info={
+            <>
+              Turn on MDM and automatic enrollment to deploy a custom bootstrap
+              package.
+              <br />
+              Supported on macOS.
+            </>
+          }
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on

@@ -17,10 +17,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +136,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 
 	// check the software installer
 	var id uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, payload.TeamID, payload.Filename)
 	})
@@ -210,7 +212,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 
 func getLatestSoftwareInstallExecID(t *testing.T, ds *mysql.Datastore, hostID uint) string {
 	var installUUID string
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &installUUID,
 			"SELECT execution_id FROM host_software_installs WHERE host_id = ? ORDER BY id desc", hostID)
 	})
@@ -258,7 +260,7 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 
 	// Get the title ID from the database
 	var id uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, createTeamResp.Team.ID, filename)
 	})
@@ -328,8 +330,15 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 		res.Body.Close()
 		return buf
 	}
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	// Mint directly; the activation path is exercised in end-to-end tests.
+	token := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return s.ds.CreateInHouseAppInstallToken(context.Background(), q, token, titleID, *teamID, 1)
+	})
+	res := s.DoRawNoAuth("GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, token),
+		nil, http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)

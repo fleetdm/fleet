@@ -1,0 +1,10 @@
+{
+  "name": "Recents",
+  "unique_identifier": "com.lapier.Recents",
+  "token": "recents",
+  "installer_format": "dmg",
+  "slug": "recents/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

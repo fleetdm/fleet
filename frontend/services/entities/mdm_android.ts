@@ -39,23 +39,48 @@ export default {
           method: "GET",
           headers: {
             Authorization: `Bearer ${authToken.get()}`,
+            Accept: "text/event-stream",
           },
           signal: abortSignal,
         });
 
         const reader = response?.body?.getReader();
+        if (!reader) {
+          reject(new Error("Android MDM SSE stream unavailable"));
+          return;
+        }
         const decoder = new TextDecoder();
+        const successSignal = "data: Android Enterprise successfully connected";
+        const errorMarker = "event: error";
+        // Buffer accumulates decoded text so a frame split across multiple
+        // chunks (valid with chunked transfer encoding) is still detected.
+        const tailLen = Math.max(successSignal.length, errorMarker.length);
+        let buffer = "";
+        let loggedError = false;
 
         while (true) {
-          // @ts-ignore
           // eslint-disable-next-line no-await-in-loop
-          const { done, value } = await reader?.read();
-          if (done) break;
-          const text = decoder.decode(value);
-          if (text === "Android Enterprise successfully connected") {
-            resolve();
-            break;
+          const { done, value } = await reader.read();
+          if (done) {
+            // Server closed the stream without ever sending success.
+            // Reject so callers don't await forever on unmount or backend hiccup.
+            reject(new Error("Android MDM SSE ended before success signal"));
+            return;
           }
+          buffer += decoder.decode(value, { stream: true });
+          // Surface backend-emitted error events. Chrome's EventStream tab
+          // doesn't attach to fetch-based SSE reliably, so without this log
+          // the only signal of a server-side failure is the generic UI
+          // toast.
+          if (!loggedError && buffer.includes(errorMarker)) {
+            console.error("[android-sse]:", buffer);
+            loggedError = true;
+          }
+          if (buffer.includes(successSignal)) {
+            resolve();
+            return;
+          }
+          buffer = buffer.slice(-tailLen);
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") {

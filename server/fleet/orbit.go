@@ -34,6 +34,11 @@ type OrbitConfigNotifications struct {
 	// host.IsEligibleForWindowsMDMUnenrollment for the list of conditions).
 	NeedsProgrammaticWindowsMDMUnenrollment bool `json:"needs_programmatic_windows_mdm_unenrollment,omitempty"`
 
+	// WindowsMDMSyncRequest is set to true when the host's Windows MDM enrollment has queued commands awaiting delivery and the device should
+	// start an OMA-DM session now (via deviceenroller) instead of waiting for its next scheduled poll. Only set for hosts whose fleetd
+	// advertises CapabilityWindowsMDMSync. Older fleetd that does not understand this field ignores it.
+	WindowsMDMSyncRequest bool `json:"windows_mdm_sync_request,omitempty"`
+
 	// PendingScriptExecutionIDs lists the IDs of scripts that are pending
 	// execution on that host. The scripts pending execution are those that
 	// haven't received a result yet.
@@ -67,6 +72,8 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	// nil = no opinion (orbit keeps its current level); true/false sets it.
+	DebugLogging *bool `json:"debug_logging,omitempty"`
 }
 
 type OrbitConfigReceiver interface {
@@ -117,12 +124,11 @@ type OrbitHostInfo struct {
 
 // DatastoreEnrollOrbitConfig holds the configuration for datastore Orbit enrollment
 type DatastoreEnrollOrbitConfig struct {
-	IsMDMEnabled     bool
-	HostInfo         OrbitHostInfo
-	OrbitNodeKey     string
-	TeamID           *uint
-	IdentityCert     *types.HostIdentityCertificate
-	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
+	IsMDMEnabled bool
+	HostInfo     OrbitHostInfo
+	OrbitNodeKey string
+	TeamID       *uint
+	IdentityCert *types.HostIdentityCertificate
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
@@ -159,14 +165,6 @@ func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IdentityCert = identityCert
-	}
-}
-
-// WithEnrollOrbitIgnoreTeamUpdate sets whether to ignore team updates for datastore Orbit enrollment
-// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
-func WithEnrollOrbitIgnoreTeamUpdate(ignore bool) DatastoreEnrollOrbitOption {
-	return func(c *DatastoreEnrollOrbitConfig) {
-		c.IgnoreTeamUpdate = ignore
 	}
 }
 

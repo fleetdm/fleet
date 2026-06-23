@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -41,7 +41,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
-	dbConns := mysql.TestDBConnections(t, ds)
+	dbConns := mysqltest.TestDBConnections(t, ds)
 	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,

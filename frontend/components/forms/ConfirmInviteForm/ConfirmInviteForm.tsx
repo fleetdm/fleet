@@ -111,6 +111,7 @@ const ConfirmInviteForm = ({
         error={formErrors.name}
         parseTarget
         inputOptions={{ maxLength: 80 }}
+        ignore1password={false}
       />
       <InputField
         label="Password"
@@ -122,6 +123,7 @@ const ConfirmInviteForm = ({
         value={password}
         error={formErrors.password}
         parseTarget
+        ignore1password={false}
       />
       <InputField
         label="Confirm password"
@@ -132,6 +134,7 @@ const ConfirmInviteForm = ({
         value={password_confirmation}
         error={formErrors.password_confirmation}
         parseTarget
+        ignore1password={false}
       />
       <div className="button-wrap--center">
         <Button

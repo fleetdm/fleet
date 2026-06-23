@@ -1,0 +1,135 @@
+package profiles
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/variables"
+)
+
+// ErrUnresolvableAndroidAppConfigVar signals that one of the $FLEET_VAR_*
+// tokens referenced in an Android managed app configuration could not be
+// resolved for the target host.
+var ErrUnresolvableAndroidAppConfigVar = errors.New("android: unresolvable Fleet variable in managed app configuration")
+
+// UnresolvableAndroidAppConfigVarError carries the unresolved variable name
+// and a user-facing detail message.
+type UnresolvableAndroidAppConfigVarError struct {
+	FleetVar string
+	Detail   string
+}
+
+func (e *UnresolvableAndroidAppConfigVarError) Error() string {
+	if e.Detail != "" {
+		return e.Detail
+	}
+	return fmt.Sprintf("android: unresolvable Fleet variable $FLEET_VAR_%s", e.FleetVar)
+}
+
+func (e *UnresolvableAndroidAppConfigVarError) Is(target error) bool {
+	return target == ErrUnresolvableAndroidAppConfigVar
+}
+
+// AndroidAppConfigSubstitutionHost carries the host context needed to
+// substitute host-scoped $FLEET_VAR_* tokens in Android managed app
+// configuration.
+type AndroidAppConfigSubstitutionHost struct {
+	UUID           string
+	HardwareSerial string
+	Platform       string
+}
+
+// SubstituteFleetVarsInAndroidAppConfig replaces every supported $FLEET_VAR_*
+// token in config with the resolved value for the given host, returning the
+// substituted bytes. End-user IDP fields are looked up via ds.
+// Returns ErrUnresolvableAndroidAppConfigVar (wrapped) if the host can't
+// supply a referenced variable.
+func SubstituteFleetVarsInAndroidAppConfig(
+	ctx context.Context,
+	ds fleet.Datastore,
+	config []byte,
+	host AndroidAppConfigSubstitutionHost,
+) ([]byte, error) {
+	if len(config) == 0 {
+		return config, nil
+	}
+	used := variables.Find(string(config))
+	if len(used) == 0 {
+		return config, nil
+	}
+
+	contents := string(config)
+	idpUUIDCache := map[string]uint{}
+
+	for _, name := range used {
+		switch fleet.FleetVarName(name) {
+		case fleet.FleetVarHostUUID:
+			contents = replaceJSONSafe(contents, name, host.UUID)
+
+		case fleet.FleetVarHostHardwareSerial:
+			if host.HardwareSerial == "" {
+				return nil, &UnresolvableAndroidAppConfigVarError{
+					FleetVar: name,
+					Detail:   fmt.Sprintf("There is no serial number for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
+				}
+			}
+			contents = replaceJSONSafe(contents, name, host.HardwareSerial)
+
+		case fleet.FleetVarHostPlatform:
+			contents = replaceJSONSafe(contents, name, host.Platform)
+
+		case fleet.FleetVarHostEndUserEmailIDP:
+			emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host idp email for android app config")
+			}
+			if len(emails) == 0 {
+				return nil, &UnresolvableAndroidAppConfigVarError{
+					FleetVar: name,
+					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
+				}
+			}
+			contents = replaceJSONSafe(contents, name, emails[0])
+
+		case fleet.FleetVarHostEndUserIDPUsername,
+			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			fleet.FleetVarHostEndUserIDPGroups,
+			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname:
+			var detail string
+			value, _, ok, err := ResolveHostEndUserIDPValue(
+				ctx, ds, name, host.UUID, idpUUIDCache,
+				func(d string) error { detail = d; return nil },
+			)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "resolve host idp variable for android app config")
+			}
+			if !ok {
+				return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name, Detail: detail}
+			}
+			contents = replaceJSONSafe(contents, name, value)
+
+		default:
+			return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name}
+		}
+	}
+
+	return []byte(contents), nil
+}
+
+// replaceJSONSafe replaces a Fleet variable in contents with a JSON-safe value.
+func replaceJSONSafe(contents, variableName, value string) string {
+	return variables.Replace(contents, variableName, jsonEscapeString(value))
+}
+
+// jsonEscapeString returns value with JSON special characters escaped,
+// suitable for embedding inside a JSON string literal.
+func jsonEscapeString(s string) string {
+	b, _ := json.Marshal(s) // json.Marshal for strings never errors
+	return strings.TrimSuffix(strings.TrimPrefix(string(b), `"`), `"`)
+}

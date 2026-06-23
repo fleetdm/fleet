@@ -1,0 +1,10 @@
+{
+  "name": "Mellel",
+  "unique_identifier": "com.redlex.mellel6",
+  "token": "mellel",
+  "installer_format": "dmg",
+  "slug": "mellel/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

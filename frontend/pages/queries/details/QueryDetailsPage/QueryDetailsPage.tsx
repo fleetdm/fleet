@@ -5,7 +5,6 @@ import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 
 import {
   IGetQueryResponse,
@@ -110,25 +109,6 @@ const QueryDetailsPage = ({
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
-  const {
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
-    lastEditedQueryObserverCanRun,
-    lastEditedQueryDiscardData,
-    lastEditedQueryLoggingType,
-    setLastEditedQueryId,
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryObserverCanRun,
-    setLastEditedQueryFrequency,
-    setLastEditedQueryLoggingType,
-    setLastEditedQueryMinOsqueryVersion,
-    setLastEditedQueryPlatforms,
-    setLastEditedQueryDiscardData,
-  } = useContext(QueryContext);
-
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
@@ -138,8 +118,6 @@ const QueryDetailsPage = ({
     }
   }, [config]);
 
-  // disabled on page load so we can control the number of renders
-  // else it will re-populate the context on occasion
   const {
     isLoading: isStoredQueryLoading,
     data: storedQuery,
@@ -151,18 +129,6 @@ const QueryDetailsPage = ({
       enabled: !!queryId,
       refetchOnWindowFocus: false,
       select: (data) => data.query,
-      onSuccess: (returnedQuery) => {
-        setLastEditedQueryId(returnedQuery.id);
-        setLastEditedQueryName(returnedQuery.name);
-        setLastEditedQueryDescription(returnedQuery.description);
-        setLastEditedQueryBody(returnedQuery.query);
-        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-        setLastEditedQueryFrequency(returnedQuery.interval);
-        setLastEditedQueryPlatforms(returnedQuery.platform);
-        setLastEditedQueryLoggingType(returnedQuery.logging);
-        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
-        setLastEditedQueryDiscardData(returnedQuery.discard_data);
-      },
       onError: (error) => handlePageError(error),
     }
   );
@@ -192,7 +158,9 @@ const QueryDetailsPage = ({
     data: queryReport,
     error: queryReportError,
   } = useQuery<IQueryReport, Error, IQueryReport>(
-    [],
+    // Key must include every queryFn parameter; an empty key bled one report's
+    // cached rows into another on revisit (and suppressed refetch on sort).
+    ["queryReport", queryId, currentTeamId, serverSortBy],
     () =>
       queryReportAPI.load({
         teamId: currentTeamId,
@@ -235,22 +203,25 @@ const QueryDetailsPage = ({
   const isClipped = queryReport?.report_clipped;
   const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
+  const canLiveQuery =
+    storedQuery?.observer_can_run ||
+    isObserverPlus ||
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
+    isTeamTechnician;
+
+  const canRunLiveReport = canLiveQuery && !isLiveQueryDisabled;
+
+  // Team admins/maintainers can only edit queries assigned to a team
+  const canEditQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
   const renderHeader = () => {
-    // Team admins/maintainers can only edit queries assigned to a team
-    const canEditQuery =
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
-
-    const canLiveQuery =
-      lastEditedQueryObserverCanRun ||
-      isObserverPlus ||
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin ||
-      isGlobalTechnician ||
-      isTeamTechnician;
-
+    // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (hostId)
         return getPathWithQueryParams(
@@ -277,7 +248,7 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className="name-description">
                 <h1 className={`${baseClass}__query-name`}>
-                  {lastEditedQueryName}
+                  {storedQuery?.name}
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
@@ -343,7 +314,7 @@ const QueryDetailsPage = ({
             </div>
             <PageDescription
               className={`${baseClass}__query-description`}
-              content={lastEditedQueryDescription}
+              content={storedQuery?.description}
             />
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
@@ -403,9 +374,10 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const loggingSnapshot = lastEditedQueryLoggingType === "snapshot";
+    const discardData = !!storedQuery?.discard_data;
+    const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
-      disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
+      disabledCachingGlobally || discardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     if (isLoading) {
@@ -417,19 +389,30 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache || lastEditedQueryDiscardData) {
+    if (emptyCache || discardData) {
       return (
         <NoResults
+          queryId={queryId}
           queryInterval={storedQuery?.interval}
           queryUpdatedAt={storedQuery?.updated_at}
           disabledCaching={disabledCaching}
           disabledCachingGlobally={disabledCachingGlobally}
-          discardDataEnabled={lastEditedQueryDiscardData}
+          discardDataEnabled={discardData}
           loggingSnapshot={loggingSnapshot}
+          canLiveQuery={canRunLiveReport}
+          canEditQuery={!!canEditQuery}
         />
       );
     }
-    return <QueryReport {...{ queryReport, isClipped }} />;
+    return (
+      <QueryReport
+        queryReport={queryReport}
+        queryId={queryId}
+        queryName={storedQuery?.name}
+        isClipped={isClipped}
+        canLiveQuery={canRunLiveReport}
+      />
+    );
   };
 
   return (
@@ -440,7 +423,7 @@ const QueryDetailsPage = ({
         {renderReport()}
         {showQueryModal && (
           <ShowQueryModal
-            query={lastEditedQueryBody}
+            query={storedQuery?.query}
             onCancel={onShowQueryModal}
           />
         )}

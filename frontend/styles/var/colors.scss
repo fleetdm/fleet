@@ -12,6 +12,11 @@
   --core-fleet-black: #192147;
   --core-fleet-green: #009a7d;
   --core-fleet-white: #ffffff;
+  // Same RGB as --core-fleet-white with zero alpha. Use as the fade-out
+  // endpoint in gradients that need to disappear into the wrapper background
+  // cleanly. The generic `$transparent` is rgba(255, 255, 255, 0) regardless
+  // of theme, which leaks white into dark-mode gradients.
+  --core-fleet-white-transparent: rgba(255, 255, 255, 0);
   --ui-fleet-black-75: #515774;
   --ui-fleet-black-50: #8b8fa2;
   --ui-fleet-black-33: #b3b6c1;
@@ -118,6 +123,7 @@ body.dark-mode {
   --core-fleet-black: #e2e4ea;
   --core-fleet-green: #00c28b;
   --core-fleet-white: #1a1c21;
+  --core-fleet-white-transparent: rgba(26, 28, 33, 0);
   --ui-fleet-black-75: #bebebf;
   --ui-fleet-black-50: #87888b;
   --ui-fleet-black-33: #636777;
@@ -147,7 +153,7 @@ body.dark-mode {
   --ui-gray: #32363e;
   --ui-light-grey: #1e2128;
   --ui-off-white: #1e2128;
-  --ui-shadow: #000000;
+  --ui-shadow: #2a2e36;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
   --ui-vibrant-blue-25: #282736;
   --ui-vibrant-blue-10: #2d2e4d;
@@ -219,6 +225,7 @@ body.dark-mode {
 $core-fleet-black: var(--core-fleet-black);
 $core-fleet-green: var(--core-fleet-green);
 $core-fleet-white: var(--core-fleet-white);
+$core-fleet-white-transparent: var(--core-fleet-white-transparent);
 $ui-fleet-black-75: var(--ui-fleet-black-75);
 $ui-fleet-black-50: var(--ui-fleet-black-50);
 $ui-fleet-black-33: var(--ui-fleet-black-33);
@@ -309,6 +316,8 @@ $static-black: #192147;
 $dark-mode-table-header: #282c33;
 $dark-mode-table-row: #1f2229;
 $dark-mode-nav-hover: #1f2228;
+$logo-preview-light: #ffffff;
+$logo-preview-dark: #1a1c21;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.

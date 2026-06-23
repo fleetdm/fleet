@@ -49,6 +49,17 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			},
 			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '139.0.0') < 0);",
 		},
+		{
+			name: "codex-cli portable install OR precedence and file_version",
+			p: patch_policy.PolicyData{
+				Platform: "windows",
+				Version:  "0.130.0",
+				ExistsQuery: "SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' " +
+					"OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path = 'C:\\Program Files\\Codex CLI\\codex.exe' " +
+				"OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe') AND version_compare(file_version, '0.130.0') < 0);",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

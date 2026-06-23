@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
@@ -247,7 +248,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done := make(chan struct{}, 1)
 	go func() {
 		for {
-			aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			aggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && err != nil {
 				time.Sleep(30 * time.Millisecond)
 			} else {
@@ -264,7 +265,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 		if err != nil {
 			lastErr = err.Error()
 		}
-		aggStats, err = mysql.GetAggregatedStats(
+		aggStats, err = mysqltest.GetAggregatedStats(
 			ctxdb.RequirePrimary(ctx, true), svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID,
 		)
 		if err != nil {
@@ -347,7 +348,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done = make(chan struct{}, 1)
 	go func() {
 		for {
-			newAggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			newAggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && (*aggStats.SystemTimeP50 == *newAggStats.SystemTimeP50 ||
 				*aggStats.SystemTimeP95 == *newAggStats.SystemTimeP95 ||
 				*aggStats.UserTimeP50 == *newAggStats.UserTimeP50 ||
@@ -393,14 +394,14 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 }
 
 func TestUpdateStats(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, false)
 }
 
 func TestIntegrationsUpdateStatsOnReplica(t *testing.T) {
-	ds := mysql.CreateMySQLDSWithReplica(t, nil)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDSWithReplica(t, nil)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)
 }
 

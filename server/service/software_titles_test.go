@@ -272,3 +272,38 @@ func TestSoftwareNameUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.UpdateSoftwareTitleNameFuncInvoked)
 }
+
+func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{BundleIdentifier: new("com.example.app")}, nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamIDZero := new(uint) // *uint pointing to 0
+
+	// Team-scoped user on team 1 should not be able to access software with team_id=0
+	teamUser := &fleet.User{
+		ID: 1,
+		Teams: []fleet.UserTeam{{
+			Team: fleet.Team{ID: 1},
+			Role: fleet.RoleAdmin,
+		}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamUser})
+
+	_, err := svc.SoftwareTitleByID(ctx, 1, teamIDZero)
+	checkAuthErr(t, true, err)
+
+	// Global admin should still be able to access software with team_id=0
+	globalAdmin := &fleet.User{
+		ID:         2,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: globalAdmin})
+
+	_, err = svc.SoftwareTitleByID(adminCtx, 1, teamIDZero)
+	checkAuthErr(t, false, err)
+}

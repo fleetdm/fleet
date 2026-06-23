@@ -73,8 +73,11 @@ interface IHostSummaryProps {
   ) => void;
   renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  /** Optional override for the title shown when `deviceUser` is true.
+   * Falls back to "My device" if not provided. */
+  deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const HostHeader = ({
@@ -83,6 +86,7 @@ const HostHeader = ({
   onRefetchHost,
   renderActionsDropdown,
   deviceUser,
+  deviceUserHeader,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
 }: IHostSummaryProps) => {
@@ -155,8 +159,10 @@ const HostHeader = ({
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
-
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
+
+    const title = tag.title;
+    const tipContent = tag.generateTooltip(platform);
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
@@ -166,13 +172,13 @@ const HostHeader = ({
     return (
       <>
         <TooltipWrapper
-          tipContent={tag.generateTooltip(platform)}
+          tipContent={tipContent}
           position="top"
           underline={false}
           showArrow
           className={`${baseClass}__device-status-tag-wrapper`}
         >
-          <span className={classNames}>{tag.title}</span>
+          <span className={classNames}>{title}</span>
         </TooltipWrapper>
       </>
     );
@@ -186,7 +192,7 @@ const HostHeader = ({
             disableTooltip={!isTruncated}
             tipContent={
               deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE
             }
             underline={false}
@@ -195,7 +201,7 @@ const HostHeader = ({
           >
             <h1 className="display-name" ref={hostDisplayName}>
               {deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
           </TooltipWrapper>

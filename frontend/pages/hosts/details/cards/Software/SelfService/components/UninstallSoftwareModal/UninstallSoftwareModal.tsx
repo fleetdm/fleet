@@ -1,8 +1,8 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import deviceUserAPI from "services/entities/device_user";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
@@ -23,7 +23,6 @@ const UninstallSoftwareModal = ({
   onExit,
   onSuccess,
 }: IUninstallSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUninstalling, setIsUninstalling] = useState(false);
 
   const onUninstallSoftware = useCallback(async () => {
@@ -33,11 +32,13 @@ const UninstallSoftwareModal = ({
       onSuccess();
     } catch (error) {
       // We only show toast message to end user if API returns an error
-      renderFlash("error", "Couldn't uninstall. Please try again.");
+      notify.error("Couldn't uninstall. Please try again.", {
+        response: error,
+      });
     }
     setIsUninstalling(false);
     onExit();
-  }, [softwareId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, onSuccess, onExit]);
 
   const displaySoftwareName = softwareName || "software";
 

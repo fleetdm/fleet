@@ -282,6 +282,47 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if !requireAllSoftware {
 		return nil
 	}
+
+	// Gate the cancel cascade on the host being actively in a Fleet-tracked ESP. The authoritative
+	// signal is mdm_windows_enrollments.awaiting_configuration: it transitions to Pending only when
+	// the device enrolls via WindowsMDMEnrollTypeAutomatic while the device is in OOBE, advances to Active once ESP commands are enqueued, and returns to
+	// None on completion/failure/timeout. All non-ESP enrollment paths stay at None, which is
+	// exactly the set of cases that must skip the cancellation cascade and activity emission:
+	//   - post-OOBE BYOD via work/school account in Settings
+	//   - post-OOBE manual orbit install that triggers programmatic Windows MDM enrollment
+	//   - post-OOBE manual orbit install with no Windows MDM at all (no enrollment row)
+	//   - any host that previously completed/timed-out ESP
+	//
+	// The primary lookup is keyed on mdm_windows_enrollments.host_uuid, which osquery's
+	// directIngestMDMDeviceIDWindows populates lazily on its first poll after enrollment. A
+	// fast-failing install can race that ingest, so when the primary lookup misses we fall back
+	// to the most-recent unlinked enrollment whose device_name matches host.ComputerName. Without
+	// the fallback an OOBE host that fails an install before osquery links the enrollment would
+	// be misread as having no MDM enrollment and would skip cancellation when it should fire.
+	// Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
+	if host.Platform == "windows" {
+		var awaiting fleet.WindowsMDMAwaitingConfiguration
+		state, err := ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load windows host config state for setup-experience cancel gate")
+		}
+		if state != nil {
+			awaiting = state.AwaitingConfiguration
+		}
+		if fleet.IsNotFound(err) && host.ComputerName != "" {
+			device, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for awaiting_configuration fallback")
+			}
+			if device != nil {
+				awaiting = device.AwaitingConfiguration
+			}
+		}
+		if awaiting != fleet.WindowsMDMAwaitingConfigurationPending &&
+			awaiting != fleet.WindowsMDMAwaitingConfigurationActive {
+			return nil
+		}
+	}
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")

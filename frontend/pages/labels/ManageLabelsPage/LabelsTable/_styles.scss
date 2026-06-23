@@ -1,9 +1,33 @@
+// Selectors nest under .data-table-block to outrank the global rule
+// `.data-table-block .data-table tbody td { max-width: 500px }`, which
+// otherwise wins on a class-vs-element specificity tie. `width: 100%;
+// max-width: 0` is the table idiom for "absorb the remaining row width
+// and let TooltipTruncatedTextCell truncate the overflow."
 .labels-table {
-  .view-all-hosts-link,
-  .view-all-hosts-link * {
-    text-decoration: none;
-    color: initial;
-    font-weight: initial;
-    font-size: $x-small;
+  .data-table-block .name__cell {
+    width: $col-lg;
+    max-width: $col-lg;
+  }
+
+  // Description flexes so it can't push the table past the viewport; name
+  // stays at $col-lg.
+  .data-table-block .description__cell {
+    width: 100%;
+    max-width: 0;
+  }
+
+  // Roles swap at the narrowest viewport: description locks small so it
+  // stays readable, name takes whatever's left.
+  @media (max-width: $break-sm) {
+    .data-table-block .description__cell {
+      width: 185px;
+      min-width: 185px;
+      max-width: 185px;
+    }
+
+    .data-table-block .name__cell {
+      width: 100%;
+      max-width: 0;
+    }
   }
 }
