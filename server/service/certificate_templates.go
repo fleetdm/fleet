@@ -11,6 +11,29 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
+// escapeDNValue escapes special characters in a string value being substituted
+// into an X.500 Distinguished Name or SAN, per RFC 4514 §2.4.
+func escapeDNValue(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i, r := range s {
+		switch {
+		case r == ',' || r == '+' || r == '"' || r == '\\' || r == '<' || r == '>' || r == ';':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == '#' && i == 0:
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == ' ' && (i == 0 || i == len(s)-1):
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // Fleet variables supported in certificate template subject names and SANs.
 var fleetVarsSupportedInCertificateTemplates = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
@@ -111,7 +134,7 @@ func validateCertificateTemplateSubjectAlternativeName(san, certName string) err
 // replaceCertificateVariables replaces FLEET_VAR_* variables in the input string with actual
 // host values. endUsersMemo is an optional cross-call cache for the host's end-user list — pass
 // the same `*[]fleet.HostEndUser` (with `*memo == nil` initially) into successive calls for the
-// same host to avoid re-fetching from the datastore. The IDP-username variable is the only one
+// same host to avoid re-fetching from the datastore. The IDP related variable is the only one
 // that triggers a DB round-trip; UUID and hardware serial come from the in-memory host struct.
 func (svc *Service) replaceCertificateVariables(ctx context.Context, input string, host *fleet.Host, endUsersMemo *[]fleet.HostEndUser) (string, error) {
 	fleetVars := variables.Find(input)
@@ -129,6 +152,9 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			return nil, ctxerr.Wrapf(ctx, err, "getting host end users for variable %s", fleetVar)
 		}
 		if endUsersMemo != nil {
+			if fetched == nil {
+				fetched = []fleet.HostEndUser{}
+			}
 			*endUsersMemo = fetched
 		}
 		return fetched, nil
@@ -153,30 +179,30 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			if host.UUID == "" {
 				return "", ctxerr.Errorf(ctx, "host does not have a UUID for variable %s", fleetVar)
 			}
-			result = fleet.FleetVarHostUUIDRegexp.ReplaceAllString(result, host.UUID)
+			result = fleet.FleetVarHostUUIDRegexp.ReplaceAllString(result, escapeDNValue(host.UUID))
 		case string(fleet.FleetVarHostHardwareSerial):
 			if host.HardwareSerial == "" {
 				return "", ctxerr.Errorf(ctx, "host %s does not have a hardware serial for variable %s", host.UUID, fleetVar)
 			}
-			result = fleet.FleetVarHostHardwareSerialRegexp.ReplaceAllString(result, host.HardwareSerial)
+			result = fleet.FleetVarHostHardwareSerialRegexp.ReplaceAllString(result, escapeDNValue(host.HardwareSerial))
 		case string(fleet.FleetVarHostPlatform):
 			if host.Platform == "" {
 				return "", ctxerr.Errorf(ctx, "host %s does not have a platform for variable %s", host.UUID, fleetVar)
 			}
-			result = fleet.FleetVarHostPlatformRegexp.ReplaceAllString(result, host.Platform)
+			result = fleet.FleetVarHostPlatformRegexp.ReplaceAllString(result, escapeDNValue(host.Platform))
 		case string(fleet.FleetVarHostEndUserIDPUsername):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
 				return "", err
 			}
-			result = fleet.FleetVarHostEndUserIDPUsernameRegexp.ReplaceAllString(result, user.IdpUserName)
+			result = fleet.FleetVarHostEndUserIDPUsernameRegexp.ReplaceAllString(result, escapeDNValue(user.IdpUserName))
 		case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
 				return "", err
 			}
 			local, _, _ := strings.Cut(user.IdpUserName, "@")
-			result = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp.ReplaceAllString(result, local)
+			result = fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp.ReplaceAllString(result, escapeDNValue(local))
 		case string(fleet.FleetVarHostEndUserIDPGroups):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
@@ -185,7 +211,7 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			if len(user.IdpGroups) == 0 {
 				return "", ctxerr.Errorf(ctx, "host %s does not have IDP groups for variable %s", host.UUID, fleetVar)
 			}
-			result = fleet.FleetVarHostEndUserIDPGroupsRegexp.ReplaceAllString(result, strings.Join(user.IdpGroups, ","))
+			result = fleet.FleetVarHostEndUserIDPGroupsRegexp.ReplaceAllString(result, escapeDNValue(strings.Join(user.IdpGroups, ",")))
 		case string(fleet.FleetVarHostEndUserIDPDepartment):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
@@ -194,7 +220,7 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			if user.Department == "" {
 				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP department for variable %s", host.UUID, fleetVar)
 			}
-			result = fleet.FleetVarHostEndUserIDPDepartmentRegexp.ReplaceAllString(result, user.Department)
+			result = fleet.FleetVarHostEndUserIDPDepartmentRegexp.ReplaceAllString(result, escapeDNValue(user.Department))
 		case string(fleet.FleetVarHostEndUserIDPFullname):
 			user, err := requireIDPUser(fleetVar)
 			if err != nil {
@@ -204,7 +230,7 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 			if fullName == "" {
 				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP full name for variable %s", host.UUID, fleetVar)
 			}
-			result = fleet.FleetVarHostEndUserIDPFullnameRegexp.ReplaceAllString(result, fullName)
+			result = fleet.FleetVarHostEndUserIDPFullnameRegexp.ReplaceAllString(result, escapeDNValue(fullName))
 		default:
 			return "", ctxerr.Errorf(ctx, "unsupported Fleet variable %s in certificate template", fleetVar)
 		}

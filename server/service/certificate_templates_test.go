@@ -634,7 +634,8 @@ func TestReplaceCertificateVariables(t *testing.T) {
 	t.Run("HOST_END_USER_IDP_GROUPS", func(t *testing.T) {
 		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil)
 		require.NoError(t, err)
-		require.Equal(t, "OU=admins,devs", result)
+		// Comma between groups is escaped so it's not mistaken for a DN separator.
+		require.Equal(t, `OU=admins\,devs`, result)
 	})
 
 	t.Run("HOST_END_USER_IDP_DEPARTMENT", func(t *testing.T) {
@@ -716,6 +717,29 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_NDES_SCEP_CHALLENGE", host, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported Fleet variable")
+	})
+
+	t.Run("special characters are RFC 4514 escaped", func(t *testing.T) {
+		dept := "Sales, Marketing + Ops"
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{
+				UserName:   "jane@example.com",
+				GivenName:  &givenName,
+				FamilyName: &familyName,
+				Department: &dept,
+				Groups: []fleet.ScimUserGroup{
+					{DisplayName: "group<A>"},
+					{DisplayName: `group"B"`},
+				},
+			}, nil
+		}
+		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		require.NoError(t, err)
+		require.Equal(t, `OU=Sales\, Marketing \+ Ops`, result)
+
+		result, err = svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil)
+		require.NoError(t, err)
+		require.Equal(t, `OU=group\<A\>\,group\"B\"`, result)
 	})
 }
 
