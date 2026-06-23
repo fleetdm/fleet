@@ -69,7 +69,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
   useEffect(() => {
-    const provisioning = appConfig.apple_account_provisioning;
+    const provisioning = appConfig.mdm.apple_account_provisioning;
     if (provisioning) {
       setFormData({
         tokenUrl: provisioning.oauth_idp_token_url,
