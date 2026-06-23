@@ -9,6 +9,19 @@
     min-height: 0;
     width: auto;
     padding: 2px;
+
+    // Fleet Button's focus indicator is a `::after` pseudo with a 1px
+    // border, which paints 1px past the 20×20 footprint. Swap it for an
+    // inset outline so the focus ring stays within the bounds.
+    &::after {
+      content: none;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+      border-radius: $border-radius;
+    }
   }
 
   // Chained with `.react-tooltip` so ancestor rules targeting the bare
