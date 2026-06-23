@@ -2818,6 +2818,7 @@ This activity contains the following fields:
 - "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
 - "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
 - "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
+- "platform": The platform the configuration profile is targeting.
 
 #### Example
 
@@ -2828,7 +2829,8 @@ This activity contains the following fields:
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
-  "fleet_name": "Workstations"
+  "fleet_name": "Workstations",
+  "platform": "windows"
 }
 ```
 
