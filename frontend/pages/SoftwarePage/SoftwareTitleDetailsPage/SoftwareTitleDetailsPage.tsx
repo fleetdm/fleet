@@ -267,6 +267,7 @@ const SoftwareTitleDetailsPage = ({
               failedPath={statusPath("failed")}
               onLabelCountClick={openEditModal}
               onLabelsClick={openEditModal}
+              onTrashClick={() => setShowDeleteModal(true)}
             />
           </LibraryItemAccordionList>
         );
@@ -293,6 +294,7 @@ const SoftwareTitleDetailsPage = ({
             isLatestFmaVersion={isLatestFmaVersion}
             isScriptPackage={isScriptPackage}
             isTarballPackage={title.source === "tgz_packages"}
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
             isActive
             badgeState="latest"
             labels={labels}
