@@ -944,8 +944,12 @@ func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
 	if err := gw.Close(); err != nil {
 		return nil, err
 	}
-	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
-	return append([]byte(windowsMDMResponseCompressedPrefix), encoded...), nil
+	// Encode directly into a single pre-sized buffer (prefix + base64) to avoid the extra string allocation and copy on this hot path.
+	prefix := windowsMDMResponseCompressedPrefix
+	out := make([]byte, len(prefix)+base64.StdEncoding.EncodedLen(buf.Len()))
+	copy(out, prefix)
+	base64.StdEncoding.Encode(out[len(prefix):], buf.Bytes())
+	return out, nil
 }
 
 // decompressWindowsMDMResponse reverses compressWindowsMDMResponse. Values without windowsMDMResponseCompressedPrefix (legacy uncompressed
@@ -955,11 +959,14 @@ func decompressWindowsMDMResponse(stored []byte) ([]byte, error) {
 	if !bytes.HasPrefix(stored, prefix) {
 		return stored, nil
 	}
-	decoded, err := base64.StdEncoding.DecodeString(string(stored[len(prefix):]))
+	// Decode the base64 payload directly from the []byte to avoid an extra string copy.
+	b64 := stored[len(prefix):]
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(b64)))
+	n, err := base64.StdEncoding.Decode(decoded, b64)
 	if err != nil {
 		return nil, err
 	}
-	gr, err := gzip.NewReader(bytes.NewReader(decoded))
+	gr, err := gzip.NewReader(bytes.NewReader(decoded[:n]))
 	if err != nil {
 		return nil, err
 	}

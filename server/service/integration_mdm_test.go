@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -9091,6 +9092,18 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
+		// raw_response is stored gzip-compressed (see compressWindowsMDMResponse); decompress it so it matches the decompressed envelope the
+		// API returns in Result. Envelopes below the compression threshold are stored verbatim (no prefix) and pass through unchanged.
+		const gzipPrefix = "gz1:"
+		if bytes.HasPrefix(fullResult, []byte(gzipPrefix)) {
+			decoded, err := base64.StdEncoding.DecodeString(string(fullResult[len(gzipPrefix):]))
+			require.NoError(t, err)
+			gr, err := gzip.NewReader(bytes.NewReader(decoded))
+			require.NoError(t, err)
+			defer gr.Close()
+			fullResult, err = io.ReadAll(gr)
+			require.NoError(t, err)
+		}
 		return fullResult
 	}
 
