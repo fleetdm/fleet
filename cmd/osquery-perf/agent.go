@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/softwaredb"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -490,6 +491,23 @@ type agent struct {
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
 
+	// Fleet Desktop device-token failure injection for load testing the
+	// exponential backoff fix (#45624 / #44816). desktopTokenFails marks a host
+	// that presents an invalid device token so the server rejects its
+	// authenticated device requests. It is an atomic.Bool because the failing
+	// retry loop runs in its own goroutine while runOrbitLoop may clear it on
+	// token rotation (transient mode).
+	desktopTokenFails atomic.Bool
+	// desktopTokenPermanentFail keeps a failing host failing for the whole run
+	// by suppressing the token-rotation self-heal.
+	desktopTokenPermanentFail bool
+	// desktopTokenBackoff makes the failing retry loop use exponential backoff
+	// (post-#45624 client behavior); when false it retries at a flat interval,
+	// reproducing the pre-fix retry storm.
+	desktopTokenBackoff bool
+	// badDesktopToken is a never-registered token presented by a failing host.
+	badDesktopToken string
+
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
@@ -628,6 +646,9 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	desktopTokenFailProb float64,
+	desktopTokenPermanentFail bool,
+	desktopTokenBackoff bool,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -720,15 +741,18 @@ func newAgent(
 		winMDMClient:  winMDMClient,
 		ddmDeclTokens: make(map[string]string),
 
-		disableScriptExec:        disableScriptExec,
-		disableFleetDesktop:      disableFleetDesktop,
-		loggerTLSMaxLines:        loggerTLSMaxLines,
-		bufferedResults:          make(map[resultLog]int),
-		scheduledQueryData:       new(sync.Map),
-		softwareVersionMap:       make(map[rune]int),
-		cachedLastOpenedAt:       make(map[string]*time.Time),
-		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
-		mdmProfileFailureProb:    mdmProfileFailureProb,
+		disableScriptExec:         disableScriptExec,
+		disableFleetDesktop:       disableFleetDesktop,
+		desktopTokenPermanentFail: desktopTokenPermanentFail,
+		desktopTokenBackoff:       desktopTokenBackoff,
+		badDesktopToken:           uuid.NewString(),
+		loggerTLSMaxLines:         loggerTLSMaxLines,
+		bufferedResults:           make(map[resultLog]int),
+		scheduledQueryData:        new(sync.Map),
+		softwareVersionMap:        make(map[rune]int),
+		cachedLastOpenedAt:        make(map[string]*time.Time),
+		commonSoftwareNameSuffix:  commonSoftwareNameSuffix,
+		mdmProfileFailureProb:     mdmProfileFailureProb,
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
@@ -737,6 +761,12 @@ func newAgent(
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
 	if winMDMClient != nil {
 		agent.winMDMWake = make(chan struct{}, 1)
+	}
+
+	// Only orbit/Fleet-Desktop hosts (those with a device token) can be marked
+	// as failing-token hosts for load testing the backoff fix.
+	if deviceAuthToken != nil && rand.Float64() <= desktopTokenFailProb {
+		agent.desktopTokenFails.Store(true)
 	}
 
 	// Initialize host identity client
@@ -763,6 +793,47 @@ func newAgent(
 	}
 
 	return agent
+}
+
+// presentedDeviceToken returns the Fleet Desktop device auth token the
+// simulated host presents to the server. A failing-token host (see
+// -desktop_token_fail_prob) presents an invalid, never-registered token so the
+// server rejects its authenticated device requests, reproducing the
+// expired-token scenario from #44816.
+func (a *agent) presentedDeviceToken() string {
+	if a.desktopTokenFails.Load() {
+		return a.badDesktopToken
+	}
+	if a.deviceAuthToken == nil {
+		return ""
+	}
+	return *a.deviceAuthToken
+}
+
+// runFailingDesktopTokenLoop reproduces Fleet Desktop's checkToken retry loop
+// for a host stuck with an invalid device token (the #44816 storm). It runs
+// until the host self-heals (transient mode) or for the whole run (permanent
+// mode). With desktopTokenBackoff it spaces retries using the same exponential
+// backoff as production (orbit/pkg/backoff, base 1s, cap 5m -- the post-#45624
+// behavior); otherwise it retries at a flat 5s, reproducing the pre-fix retry
+// storm. Toggling -desktop_token_backoff between runs gives an A/B of the fix's
+// effect on server/DB load.
+func (a *agent) runFailingDesktopTokenLoop(deviceClient *fleetclient.DeviceClient) {
+	const flatInterval = 5 * time.Second
+	bo := backoff.New(1*time.Second, 5*time.Minute)
+	for a.desktopTokenFails.Load() {
+		wait := flatInterval
+		if _, err := deviceClient.DesktopSummary(a.presentedDeviceToken()); err != nil {
+			a.stats.IncrementDesktopErrors()
+			if a.desktopTokenBackoff {
+				bo.RecordFailure()
+				wait = bo.Interval()
+			}
+		} else {
+			bo.RecordSuccess()
+		}
+		time.Sleep(wait)
+	}
 }
 
 type enrollResponse struct {
@@ -1055,7 +1126,7 @@ func (a *agent) runOrbitLoop() {
 				log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
 			}
 
-			if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+			if err := deviceClient.CheckToken(a.presentedDeviceToken()); err != nil {
 				a.stats.IncrementOrbitErrors()
 				log.Println("deviceClient.CheckToken: ", err)
 			}
@@ -1076,7 +1147,7 @@ func (a *agent) runOrbitLoop() {
 		for {
 			<-ticker.C
 			numberOfRequests--
-			if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+			if err := deviceClient.CheckToken(a.presentedDeviceToken()); err != nil {
 				log.Println("deviceClient.CheckToken: ", err)
 			}
 			if numberOfRequests == 0 {
@@ -1088,6 +1159,12 @@ func (a *agent) runOrbitLoop() {
 	// Fleet Desktop performs a burst of check token requests when it's initialized
 	if !a.disableFleetDesktop {
 		checkToken()
+	}
+
+	// A failing-token host runs the Fleet Desktop checkToken retry loop in its
+	// own goroutine to reproduce the #44816 storm (see runFailingDesktopTokenLoop).
+	if !a.disableFleetDesktop && a.desktopTokenFails.Load() {
+		go a.runFailingDesktopTokenLoop(deviceClient)
 	}
 
 	// orbit makes a call to check the config and update the CLI flags every 30
@@ -1151,7 +1228,7 @@ func (a *agent) runOrbitLoop() {
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
-				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+				if err := deviceClient.CheckToken(a.presentedDeviceToken()); err != nil {
 					a.stats.IncrementOrbitErrors()
 					log.Println("deviceClient.CheckToken: ", err)
 					continue
@@ -1159,6 +1236,11 @@ func (a *agent) runOrbitLoop() {
 			}
 		case <-orbitTokenRotationTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
+				// A permanent-fail host never heals: skip rotation so it stays in
+				// the failing-token storm for the whole run.
+				if a.desktopTokenFails.Load() && a.desktopTokenPermanentFail {
+					break
+				}
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
 					a.stats.IncrementOrbitErrors()
@@ -1166,6 +1248,9 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 				a.deviceAuthToken = newToken
+				// A transient-fail host heals here: it now presents the new valid
+				// token, which stops its runFailingDesktopTokenLoop goroutine.
+				a.desktopTokenFails.Store(false)
 				// fleet desktop performs a burst of check token requests after a token is rotated
 				checkToken()
 			}
@@ -1176,7 +1261,7 @@ func (a *agent) runOrbitLoop() {
 			}
 		case <-fleetDesktopPolicyTicker:
 			if !a.disableFleetDesktop {
-				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
+				if _, err := deviceClient.DesktopSummary(a.presentedDeviceToken()); err != nil {
 					a.stats.IncrementDesktopErrors()
 					log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 					continue
@@ -3883,6 +3968,13 @@ func main() {
 		disableScriptExec = flag.Bool("disable_script_exec", false, "Disable script execution support")
 
 		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
+
+		desktopTokenFailProb = flag.Float64("desktop_token_fail_prob", 0.0,
+			"Probability of an orbit/Fleet-Desktop host presenting an invalid device token, reproducing the #44816 expired-token retry storm [0, 1]")
+		desktopTokenPermanentFail = flag.Bool("desktop_token_permanent_fail", false,
+			"When set, failing-token hosts never self-heal on token rotation (stable steady-state storm for load tests); otherwise they recover at the next hourly rotation")
+		desktopTokenBackoff = flag.Bool("desktop_token_backoff", true,
+			"When set (default), failing-token hosts retry with exponential backoff (post-#45624 behavior); set false to reproduce the pre-fix flat-interval storm")
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
@@ -4114,6 +4206,9 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*desktopTokenFailProb,
+			*desktopTokenPermanentFail,
+			*desktopTokenBackoff,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
