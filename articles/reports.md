@@ -57,7 +57,7 @@ Persisting results within Fleet creates load on the database, so you'll want to 
 * Globally via the UI: **Settings** > **Advanced options** > **Disable stored results**
 * Globally via the API: set [`server_settings.discard_reports_data`](https://fleetdm.com/docs/rest-api/rest-api#server-settings)
 * Per-report via the UI: **Edit report** > **Show advanced options** > **Discard data**
-* Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-query) or [modifying](https://fleetdm.com/docs/rest-api/rest-api#modify-query) the report
+* Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-report) or [updating](https://fleetdm.com/docs/rest-api/rest-api#update-report) the report
 
 ## Run a report
 
@@ -101,7 +101,7 @@ How to configure automations in bulk:
 
 ### Further reading
 
-- [REST API documentation for queries](https://fleetdm.com/docs/rest-api/rest-api#queries)
+- [REST API documentation for reports](https://fleetdm.com/docs/rest-api/rest-api#reports)
 - [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
 - [Using fleetctl to run a live report and how live queries work](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries#basic-article)
 - [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
@@ -111,5 +111,5 @@ How to configure automations in bulk:
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2025-01-01">
-<meta name="articleTitle" value="Queries">
+<meta name="articleTitle" value="Reports">
 <meta name="description" value="Learn how to create, run, and schedule reports, as well as update agent options in the Fleet user interface.">
