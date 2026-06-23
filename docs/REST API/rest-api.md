@@ -1617,7 +1617,8 @@ None.
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ]
     },
@@ -1631,7 +1632,8 @@ None.
       "configuration_profiles": [
         {
          "path": "path/to/profile2.xml",
-         "labels": ["Label 3", "Label 4"]
+         "labels": ["Label 3", "Label 4"],
+         "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ],
     },
@@ -1973,15 +1975,18 @@ Modifies the Fleet's configuration with the supplied information.
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels_exclude_any": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"]
+          "labels_include_all": ["Label 3", "Label 4"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"]
+          "labels_include_any": ["Label 5", "Label 6"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -1995,7 +2000,8 @@ Modifies the Fleet's configuration with the supplied information.
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
-          "labels_exclude_any": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ]
     },
@@ -2719,11 +2725,13 @@ _Available in Fleet Premium._
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels": ["Label 3", "Label 4"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -2731,7 +2739,8 @@ _Available in Fleet Premium._
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ]
     },
@@ -6582,7 +6591,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
+| predicate | string | body | A predicate to control which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'`. Can be used in combination with labels or on its own. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -6603,6 +6613,7 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 profile="Foo.mobileconfig"
 fleet_id="1"
 labels_include_all="Label name 1"
+predicate="@status(device.model.family) == 'MacBookPro'"
 ```
 
 ##### Default response
@@ -6857,7 +6868,8 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
+| predicate | string | A predicate to control which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'`. Can be used in combination with labels or on its own. |
 | display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 
 For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
@@ -12639,7 +12651,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
             "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
+            "labels": ["Label 1", "Label 2"],
+            "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },
@@ -12653,7 +12666,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
             "path": "path/to/profile2.xml",
-            "labels": ["Label 3", "Label 4"]
+            "labels": ["Label 3", "Label 4"],
+            "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },
@@ -13132,11 +13146,13 @@ Returned when the requested name only differs from another fleet's name by lette
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels": ["Label 3", "Label 4"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -13150,7 +13166,8 @@ Returned when the requested name only differs from another fleet's name by lette
       "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ]
     },
@@ -13282,7 +13299,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
            "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
+           "labels": ["Label 1", "Label 2"],
+           "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },
@@ -13296,7 +13314,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
            "path": "path/to/profile2.xml",
-           "labels": ["Label 3", "Label 4"]
+           "labels": ["Label 3", "Label 4"],
+           "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },

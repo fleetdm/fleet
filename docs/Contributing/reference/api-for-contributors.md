@@ -2121,9 +2121,9 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names, and an optional `predicate` string to control profile targeting.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names, and an optional `predicate` string to control profile targeting.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The fleet's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
@@ -2200,12 +2200,14 @@ If the `name` is not already associated with an existing fleet, this API route c
         "apple_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile1.mobileconfig"
-              "labels_include_all": ["Label 1", "Label 2"]
+              "path": "path/to/profile1.mobileconfig",
+              "labels_include_all": ["Label 1", "Label 2"],
+              "predicate": "@status(device.model.family) == 'MacBookPro'"
             },
             {
-              "path": "path/to/profile2.json"
-              "labels_exclude_any": ["Label 3", "Label 4"]
+              "path": "path/to/profile2.json",
+              "labels_exclude_any": ["Label 3", "Label 4"],
+              "predicate": "@status(device.model.family) == 'MacBookPro'"
             },
           ],
           "enable_disk_encryption": true
@@ -2213,8 +2215,9 @@ If the `name` is not already associated with an existing fleet, this API route c
         "windows_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile3.xml"
-              "labels_include_all": ["Label 1", "Label 2"]
+              "path": "path/to/profile3.xml",
+              "labels_include_all": ["Label 1", "Label 2"],
+              "predicate": "@status(device.model.family) == 'MacBookPro'"
             }
           ]
         }

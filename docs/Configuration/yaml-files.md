@@ -398,11 +398,13 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
+        predicate: "@status(device.model.family) == 'MacBookPro'"
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+        predicate: "@status(device.model.family) == 'MacBookPro'"
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -456,6 +458,8 @@ Each entry can use either `path:` or `paths:`:
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
+Use `predicate` to specify a condition that controls which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'` targets only MacBook Pro hosts. A predicate can be used in combination with labels or on its own.
+
 ### android_settings
 
 - `android_settings.configuration_profiles` is a list of Android configuration profiles (.json).
@@ -463,6 +467,8 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+Use `predicate` to specify a condition that controls which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'` targets only MacBook Pro hosts. A predicate can be used in combination with labels or on its own.
 
 #### android_settings.certificates
 
