@@ -6789,7 +6789,7 @@ solely on the response status code returned by this endpoint.
 
 _Available in Fleet Premium._
 
-Update the labels (custom targets) for an existing configuration profile. Use this endpoint to change which hosts a profile is applied to without deleting and re-uploading the profile.
+Update an existing configuration profile. Use this endpoint to change which hosts a profile is applied to (labels/custom targets) and/or to upload a new profile file.
 
 `PATCH /api/v1/fleet/configuration_profiles/:profile_uuid`
 
@@ -6798,11 +6798,21 @@ Update the labels (custom targets) for an existing configuration profile. Use th
 | Name                      | Type    | In   | Description                                                                                                   |
 | ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
+| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
 | labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
+
+##### Uploading a new profile file
+
+You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+
+- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** and **file name** as the existing profile.
+- **v1 .mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** and **PayloadDisplayName** as the existing profile.
+
+If the new profile does not match the required identifiers, the request will be rejected.
 
 #### Example
 
