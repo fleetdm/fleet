@@ -8,13 +8,13 @@ In Fleet, labels organize hosts into groups you can target with [software](https
 
 - **Dynamic:** Query-based; auto-applied to any host returning a result for the label's SQL query. Optionally restrict to a platform (`darwin`, `windows`, `ubuntu`, `centos`).
 - **Manual:** Applied to an explicit list of hosts, specified by `hardware_serial`, `uuid`, or Fleet host ID. Useful for one-off groupings (e.g., a pilot group).
-- **Host vitals:** Fleet-generated; auto-applied to hosts matching a host vital from your IdP. Supported criteria: `end_user_idp_group` and `end_user_idp_department`. Requires a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)). Platforms: macOS, iOS, iPadOS, Android.
+- **Host vitals:** Auto-applied to hosts matching a host vital from your IdP. Supported criteria: `end_user_idp_group` and `end_user_idp_department`. Requires a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)).
 
 > To change a dynamic label's query/platform or a host vitals label's criteria in the UI, you must delete and re-create it.
 
 ## Targeting with labels
 
-Labels can target (or exclude) hosts for other features using one scoping mode per entity (you can't combine modes on the same item):
+Labels can target or exclude hosts using one scoping mode per item. Configuration Profiles support custom targeting via "Include any" and "Exclude any":
 
 | Scope | Behavior | Available for |
 | --- | --- | --- |
