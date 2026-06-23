@@ -674,9 +674,6 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 }
 
 func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
-	if payload.PinnedVersion == nil {
-		return ctxerr.New(ctx, "pinned version is required to set the active Fleet-maintained app installer")
-	}
 	tmID := ptr.ValOrZero(payload.TeamID)
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -698,7 +695,13 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
 		}
 
-		// record the pin in the same transaction; an empty version clears it (Latest)
+		// A nil pin means the caller manages the pin row separately and it must be
+		// left as-is. The auto-update cron relies on this so it can flip the active
+		// installer without clobbering a pin an admin changed concurrently. A
+		// non-nil pin is authoritative: empty clears it (Latest), else it's upserted.
+		if payload.PinnedVersion == nil {
+			return nil
+		}
 		if *payload.PinnedVersion == "" {
 			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID); err != nil {
 				return ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")

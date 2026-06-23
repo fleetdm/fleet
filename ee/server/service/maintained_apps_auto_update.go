@@ -61,10 +61,13 @@ func autoUpdateOneFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, lo
 		return nil
 	}
 
+	// PinnedVersion stays nil: the cron only flips the active installer and must
+	// not rewrite the pin, or it could clobber a pin an admin changed between this
+	// read and write. Latest stays Latest (no row created) and a caret pin is left
+	// in place.
 	payload := &fleet.UpdateSoftwareInstallerPayload{
-		TeamID:        c.TeamID,
-		TitleID:       c.TitleID,
-		PinnedVersion: &pin,
+		TeamID:  c.TeamID,
+		TitleID: c.TitleID,
 	}
 	if err := ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, target.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting active installer")

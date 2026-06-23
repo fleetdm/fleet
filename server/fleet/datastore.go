@@ -2678,7 +2678,8 @@ type Datastore interface {
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
 	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets other installers of the title
-	// to inactive, repoints policies, and records or clears the pinned version.
+	// to inactive, and repoints policies. A non-nil payload.PinnedVersion records ("" clears it to Latest)
+	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
 	// GetPinnedVersion returns the pinned version for a team and software title.

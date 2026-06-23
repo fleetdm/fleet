@@ -60,6 +60,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
+		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -5923,4 +5924,70 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
+}
+
+func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+	v1ID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "testpkg", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+	})
+	require.NoError(t, err)
+
+	// Add a second cached version (inactive) for the same no-team title.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
+			SELECT team_id, global_or_team_id, 'storageid2', filename, extension, '2.0', platform, title_id,
+				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, patch_query
+			FROM software_installers WHERE id = ?
+		`, v1ID)
+		return err
+	})
+	var v2ID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &v2ID, `SELECT id FROM software_installers WHERE title_id=? AND global_or_team_id=0 AND version='2.0'`, titleID)
+	})
+
+	activeID := func() uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT id FROM software_installers WHERE title_id=? AND global_or_team_id=0 AND is_active=1`, titleID)
+		})
+		return id
+	}
+
+	// A non-nil pin is authoritative: it upserts the pin row.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
+	require.Equal(t, v1ID, activeID())
+	pin, err := ds.GetPinnedVersion(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("^1"), pin)
+
+	// A nil pin flips the active installer but leaves the pin row untouched —
+	// this is what the auto-update cron relies on to avoid clobbering an admin's pin.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
+	require.Equal(t, v2ID, activeID())
+	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, new("^1"), pin) // unchanged
+
+	// A non-nil empty pin clears it (Latest).
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("")}, v1ID))
+	require.Equal(t, v1ID, activeID())
+	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

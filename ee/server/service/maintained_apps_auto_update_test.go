@@ -40,20 +40,18 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 		pin           *string
 		active        fleet.FMAAutoUpdateCandidate
 		cached        []fleet.FleetMaintainedVersion
-		wantFlip      bool
-		wantActiveID  uint   // installer ID bound active (when wantFlip)
-		wantOldID     uint   // installer ID whose side effects are processed
-		wantPinStored string // PinnedVersion sent to the flip (when wantFlip)
+		wantFlip     bool
+		wantActiveID uint // installer ID bound active (when wantFlip)
+		wantOldID    uint // installer ID whose side effects are processed
 	}{
 		{
-			name:          "Latest advances to newest cached",
-			pin:           nil,
-			active:        candidate(9, "148.0.1"),
-			cached:        versions,
-			wantFlip:      true,
-			wantActiveID:  12,
-			wantOldID:     9,
-			wantPinStored: "",
+			name:         "Latest advances to newest cached",
+			pin:          nil,
+			active:       candidate(9, "148.0.1"),
+			cached:       versions,
+			wantFlip:     true,
+			wantActiveID: 12,
+			wantOldID:    9,
 		},
 		{
 			name:     "Latest already on newest is a no-op",
@@ -63,14 +61,13 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			wantFlip: false,
 		},
 		{
-			name:          "caret advances within major",
-			pin:           new("^147"),
-			active:        candidate(8, "147.0.5"),
-			cached:        versions,
-			wantFlip:      true,
-			wantActiveID:  11, // 147.0.9, newest within major 147
-			wantOldID:     8,
-			wantPinStored: "^147",
+			name:         "caret advances within major",
+			pin:          new("^147"),
+			active:       candidate(8, "147.0.5"),
+			cached:       versions,
+			wantFlip:     true,
+			wantActiveID: 11, // 147.0.9, newest within major 147
+			wantOldID:    8,
 		},
 		{
 			name:     "caret never crosses major when no in-major version is cached",
@@ -106,11 +103,11 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			}
 
 			var gotActiveID, gotOldID uint
-			var gotPin string
 			ds.SetFleetMaintainedAppActiveInstallerFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
 				gotActiveID = activeInstallerID
-				require.NotNil(t, payload.PinnedVersion)
-				gotPin = *payload.PinnedVersion
+				// The cron must never write pin state, or it could clobber a
+				// concurrent admin pin change.
+				require.Nil(t, payload.PinnedVersion, "cron must not write the pin row")
 				return nil
 			}
 			ds.ProcessInstallerUpdateSideEffectsFunc = func(ctx context.Context, installerID uint, wasMetadataUpdated, wasPackageUpdated bool) error {
@@ -126,7 +123,6 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			if tc.wantFlip {
 				require.Equal(t, tc.wantActiveID, gotActiveID)
 				require.Equal(t, tc.wantOldID, gotOldID)
-				require.Equal(t, tc.wantPinStored, gotPin)
 			}
 			// A literal pin short-circuits before querying cached versions.
 			if tc.pin != nil && *tc.pin != "" && (*tc.pin)[0] != '^' {
