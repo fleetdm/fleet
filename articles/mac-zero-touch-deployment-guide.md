@@ -102,7 +102,7 @@ Infrastructure-as-code patterns are being adopted for device management. Using G
 
 This approach provides several advantages for IT teams. Configuration changes go through code review before deployment, creating an audit trail of who changed what and why. Teams can stage test configuration updates before applying them to production fleets and easily roll back undesirable changes. If your infrastructure team is already familiar with GitOps patterns for server and application management, they can apply the same methodologies to device management.
 
-With Fleet GitOps, organizations define configuration through YAML files that specify bootstrap packages, Setup Assistant customization, end user authentication, and security policies, software, configuration profiles an scripts. These files live in GitHub repositories alongside other infrastructure code, receiving the same review and deployment workflows as your other infrastructure.
+With Fleet GitOps, organizations define configuration through YAML files that specify bootstrap packages, Setup Assistant customization, IdP authentication, and security policies, software, configuration profiles an scripts. These files live in GitHub repositories alongside other infrastructure code, receiving the same review and deployment workflows as your other infrastructure.
 
 ## Open-source Mac fleet management
 

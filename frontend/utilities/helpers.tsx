@@ -473,6 +473,8 @@ export const formatMdmCommandNameForActivityItem = (
     </>
   );
 };
+export const ROLE_VARIOUS = "Various";
+export const ROLE_GLOBAL = "Global";
 
 export const generateRole = (
   teams: ITeam[],
@@ -501,14 +503,14 @@ export const generateRole = (
       return "Technician";
     }
 
-    return "Various"; // no global role and multiple teams
+    return ROLE_VARIOUS; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return stringUtils.capitalizeRole(globalRole);
   }
-  return "Various"; // global role and one or more teams
+  return ROLE_VARIOUS; // global role and one or more teams
 };
 
 export const generateTeam = (
@@ -528,13 +530,39 @@ export const generateTeam = (
 
   if (teams.length === 0) {
     // global role and no teams
-    return "Global";
+    return ROLE_GLOBAL;
   }
   return `${teams.length + 1} fleets`; // global role and one or more teams
 };
 
+export const generateTeamNames = (teams: ITeam[]): string[] => {
+  return teams.map((t) => t.name);
+};
+
+export const generateRoleGroups = (
+  teams: ITeam[]
+): { role: string; names: string[] }[] => {
+  const groups: { role: string; names: string[] }[] = [];
+  teams.forEach((team) => {
+    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+    const existing = groups.find((g) => g.role === role);
+    if (existing) {
+      existing.names.push(team.name);
+    } else {
+      groups.push({ role, names: [team.name] });
+    }
+  });
+  return groups;
+};
+
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
+  const GREYED_TEXT = [
+    ROLE_GLOBAL,
+    "Unassigned",
+    ROLE_VARIOUS,
+    "No team",
+    "Unknown",
+  ];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
@@ -1014,7 +1042,11 @@ export default {
   formatSelectedTargetsForApi,
   formatPackTargetsForApi,
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
+  ROLE_VARIOUS,
+  ROLE_GLOBAL,
   getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,

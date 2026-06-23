@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.12.1",
+      "version": "1.13.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.desktop' AND version_compare(bundle_short_version, '1.12.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmail.desktop' AND version_compare(bundle_short_version, '1.13.3') < 0);"
       },
-      "installer_url": "https://proton.me/download/mail/macos/1.12.1/ProtonMail-desktop.dmg",
+      "installer_url": "https://proton.me/download/mail/macos/1.13.3/ProtonMail-desktop.dmg",
       "install_script_ref": "036ed883",
       "uninstall_script_ref": "8e5ef0af",
-      "sha256": "cbc2a01e6f2921b2d001bd7fa480293416ec6848b995d2276385573418934252",
+      "sha256": "0b4511866c5c6d07cff2e31ef2746e531e5fd092f404cbefad615f5c709547dd",
       "default_categories": [
         "Communication"
       ]

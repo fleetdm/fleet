@@ -20,7 +20,7 @@ import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
@@ -97,7 +97,6 @@ const NewLabelPage = ({
     QueryContext
   );
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
@@ -339,7 +338,7 @@ const NewLabelPage = ({
     try {
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_LABELS);
-      renderFlash("success", "Label added successfully.");
+      notify.success("Label added successfully.");
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't add label. Please try again.";
@@ -352,7 +351,7 @@ const NewLabelPage = ({
           errorMessage = `Couldn't add label: ${reason}. Please try again.`;
         }
       }
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: error });
     }
     setIsUpdating(false);
   };
