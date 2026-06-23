@@ -100,7 +100,7 @@ func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "running post Apple DEP enrollment task")
 
 	case AppleMDMPostManualEnrollmentTask:
-		err := a.runPostManualEnrollment(ctx, args)
+		err := a.runPostManualEnrollment(ctx, args, appCfg)
 		return ctxerr.Wrap(ctx, err, "running post Apple manual enrollment task")
 
 	case AppleMDMPostDEPReleaseDeviceTask:
@@ -118,7 +118,7 @@ func isMacOS(platform string) bool {
 		platform == "darwin"
 }
 
-func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs, appCfg *fleet.AppConfig) error {
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
 	if err != nil {
 		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
@@ -127,7 +127,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 	}
 
 	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+		if _, err := a.installFleetd(ctx, args.HostUUID, appCfg); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 		}
 	} else {
@@ -172,7 +172,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 
 		if !manualAgentInstall {
-			fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
+			fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID, appCfg)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 			}
@@ -562,11 +562,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	return nil
 }
 
-func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, error) {
-	cfg, err := a.Datastore.AppConfig(ctx)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "retrieving app config")
-	}
+func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string, cfg *fleet.AppConfig) (string, error) {
 	manifestURL := fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL)
 	cmdUUID := uuid.New().String()
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {

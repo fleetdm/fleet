@@ -2,7 +2,7 @@
 
 You can configure Fleet to point towards a self-hosted server for fleetd installation during enrollment.
 
-This can be configured to ensure that host enrollments are successful in environments with strict network access
+This can be configured to ensure that host enrollments are successful in environments with strict network access.
 
 ## Prerequisites
 
@@ -15,8 +15,8 @@ This can be configured to ensure that host enrollments are successful in environ
 The files used for fleetd installation during automatic enrollment are:
 
 * [fleetd-base.msi](https://download.fleetdm.com/stable/fleetd-base.msi) - Used for Windows enrollments
-* [fleetd-base.pkg](https://download.fleetdm.com/stable/fleetd-base.pkg) - Used for MacOS enrollments
-* [fleetd-base-manifest.plist](https://download.fleetdm.com/stable/fleetd-base-manifest.plist) - Used for MacOS enrollments
+* [fleetd-base.pkg](https://download.fleetdm.com/stable/fleetd-base.pkg) - Used for macOS enrollments
+* [fleetd-base-manifest.plist](https://download.fleetdm.com/stable/fleetd-base-manifest.plist) - Used for macOS enrollments
     * *Contains sha256 hash & URL for fleetd-base.pkg.*
 * [meta.json](https://download.fleetdm.com/stable/meta.json) - Metadata file used for Windows enrollments
     * *Contains URLs for all files listed above, sha256 hashes for the .msi & .pkg installers, and a version timestamp.*

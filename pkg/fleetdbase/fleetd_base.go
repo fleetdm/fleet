@@ -1,4 +1,4 @@
-// package fleetdbase contains functions to interact with downloads.fleetdm.com
+// package fleetdbase contains functions to interact with download.fleetdm.com
 package fleetdbase
 
 import (
