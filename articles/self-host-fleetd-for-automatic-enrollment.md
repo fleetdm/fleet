@@ -17,11 +17,11 @@ The files used for fleetd installation during automatic enrollment are:
 * [fleetd-base.msi](https://download.fleetdm.com/stable/fleetd-base.msi) - Used for Windows enrollments
 * [fleetd-base.pkg](https://download.fleetdm.com/stable/fleetd-base.pkg) - Used for MacOS enrollments
 * [fleetd-base-manifest.plist](https://download.fleetdm.com/stable/fleetd-base-manifest.plist) - Used for MacOS enrollments
-    * *Contains sha256 hash & URL for fleetd-base.pkg. Be sure to change this to suit your environment*
+    * *Contains sha256 hash & URL for fleetd-base.pkg.*
 * [meta.json](https://download.fleetdm.com/stable/meta.json) - Metadata file used for Windows enrollments
-    * *Contains URLs for all files listed above, sha256 hashes for the .msi & .pkg installers, and a version timestamp*
+    * *Contains URLs for all files listed above, sha256 hashes for the .msi & .pkg installers, and a version timestamp.*
 
-> Certain values inside these files will require customization for your environment e.g. installer URLs
+> Certain values inside these files will require customization for your environment e.g. URLs, hashes
 
 
 ## Configure
@@ -35,6 +35,6 @@ You can define the fleetd base URL through the Fleet UI:
 <meta name="authorFullName" value="William Bowman">
 <meta name="authorGitHubUsername" value="William-TecNQ">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-06-24">
+<meta name="publishedOn" value="2026-06-23">
 <meta name="description" value="A guide to self-hosting fleetd for automatic enrollments into Fleet.">
 
