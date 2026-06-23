@@ -37,9 +37,9 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 	cases := []struct {
 		name string
 		// pin: nil => no pin row (Latest); otherwise the stored expression.
-		pin           *string
-		active        fleet.FMAAutoUpdateCandidate
-		cached        []fleet.FleetMaintainedVersion
+		pin          *string
+		active       fleet.FMAAutoUpdateCandidate
+		cached       []fleet.FleetMaintainedVersion
 		wantFlip     bool
 		wantActiveID uint // installer ID bound active (when wantFlip)
 		wantOldID    uint // installer ID whose side effects are processed
