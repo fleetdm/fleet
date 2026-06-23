@@ -323,7 +323,9 @@ const SoftwareTitleDetailsPage = ({
               hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
               downloadUrl={row.isActive ? pkg.url : undefined}
               onBadgeClick={
-                isFma ? () => setShowVersionsModal(true) : undefined
+                isFma && canEditSoftware
+                  ? () => setShowVersionsModal(true)
+                  : undefined
               }
               onLabelCountClick={openEditModal}
               onLabelsClick={openEditModal}
@@ -438,12 +440,20 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderVersionsModal = (title: ISoftwareTitleDetails) => {
-    if (!showVersionsModal || !title.software_package) return null;
+    // `teamIdForApi` is undefined on "All teams" (where `currentTeamId` is the
+    // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
+    if (
+      !showVersionsModal ||
+      !title.software_package ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
     return (
       <VersionsModal
         softwareTitle={title}
         softwareId={softwareId}
-        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        teamId={teamIdForApi}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onExit={() => setShowVersionsModal(false)}
       />

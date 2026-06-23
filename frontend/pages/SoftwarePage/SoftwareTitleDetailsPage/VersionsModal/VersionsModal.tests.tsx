@@ -84,6 +84,21 @@ describe("VersionsModal", () => {
     ).toBeChecked();
   });
 
+  it("formats an aged-out caret pin as a major-version option (no '^' leak)", () => {
+    // Pinned to ^148 but only 149.x is cached, so deriveVersionOptions emits
+    // only ^149 — the fallback must synthesize a properly-labeled ^148 option.
+    renderModal({
+      pinned_version: "^148",
+      fleet_maintained_versions: [
+        { id: 1, version: "149.0.2", uploaded_at: "2026-01-02T00:00:00Z" },
+      ],
+    });
+    expect(
+      screen.getByRole("radio", { name: "Pin to major version (148)" })
+    ).toBeChecked();
+    expect(screen.queryByText(/\^148/)).not.toBeInTheDocument();
+  });
+
   it("enables Save once the selection changes and PATCHes the chosen version on save", async () => {
     const editSpy = jest
       .spyOn(softwareAPI, "editSoftwarePackage")

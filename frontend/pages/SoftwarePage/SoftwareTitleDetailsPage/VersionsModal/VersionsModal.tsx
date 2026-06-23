@@ -45,9 +45,13 @@ const VersionsModal = ({
   const options = useMemo(() => {
     const opts = deriveVersionOptions(pkg?.fleet_maintained_versions ?? []);
     // A pin no longer among the cached versions still needs an option so the
-    // modal opens on the right radio.
+    // modal opens on the right radio. Format a caret major the same way as the
+    // derived options rather than leaking "^N" into the label.
     if (initialValue && !opts.some((o) => o.value === initialValue)) {
-      opts.push({ value: initialValue, label: `Pin to ${initialValue}` });
+      const label = initialValue.startsWith("^")
+        ? `Pin to major version (${initialValue.slice(1)})`
+        : `Pin to ${initialValue}`;
+      opts.push({ value: initialValue, label });
     }
     return opts;
   }, [pkg?.fleet_maintained_versions, initialValue]);
