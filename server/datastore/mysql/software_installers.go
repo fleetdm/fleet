@@ -1229,7 +1229,7 @@ AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE softwar
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
-// deletePendingSoftwareInstallsForPolicy should be called after a policy is
+// deletePendingSoftwareInstallsForPolicy should be called before a policy is
 // deleted to remove any pending software installs
 func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
