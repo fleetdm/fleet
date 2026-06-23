@@ -48,6 +48,10 @@ export interface ILibraryItemAccordionProps {
   /** Hide the version entirely (script-only packages). */
   isScriptPackage?: boolean;
   isTarballPackage?: boolean;
+  /** Apple App Store app whose platform is iOS or iPadOS. Drops the
+   * "policy automation" leg from the info-icon tooltip — `automatic_install`
+   * is not supported for iOS or iPadOS. */
+  isIosOrIpadosApp?: boolean;
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
 
@@ -109,6 +113,7 @@ const LibraryItemAccordion = ({
   isLatestFmaVersion,
   isScriptPackage = false,
   isTarballPackage = false,
+  isIosOrIpadosApp = false,
   isActive,
   canEditSoftware,
   badgeState,
@@ -251,14 +256,25 @@ const LibraryItemAccordion = ({
             )}
           </TooltipWrapper>
         )}
-        {showAllHostsBadge && (
-          <span
-            className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
-          >
-            <Icon name="tag" color="ui-fleet-black-75" />
-            <span>{ALL_HOSTS_LABEL}</span>
-          </span>
-        )}
+        {showAllHostsBadge &&
+          (canEditSoftware ? (
+            <Button
+              variant="inverse"
+              size="small"
+              onClick={handleBadgeClick(onLabelCountClick)}
+              className={`${baseClass}__badge-button`}
+            >
+              <Icon name="tag" color="ui-fleet-black-75" />
+              <span>{ALL_HOSTS_LABEL}</span>
+            </Button>
+          ) : (
+            <span
+              className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
+            >
+              <Icon name="tag" color="ui-fleet-black-75" />
+              <span>{ALL_HOSTS_LABEL}</span>
+            </span>
+          ))}
       </div>
     );
   };
@@ -307,7 +323,13 @@ const LibraryItemAccordion = ({
     }
 
     if (isTarballPackage) {
-      return <>Latest status from policy automation or manual install. </>;
+      return <>Latest status from policy automation or manual install.</>;
+    }
+
+    // `automatic_install` is not supported for iOS or iPadOS, so drop the
+    // policy-automation leg.
+    if (isIosOrIpadosApp) {
+      return <>Latest status from setup experience or manual install.</>;
     }
 
     return (

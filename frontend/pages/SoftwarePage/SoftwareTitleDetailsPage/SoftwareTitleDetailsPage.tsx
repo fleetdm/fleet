@@ -11,6 +11,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import {
@@ -29,6 +30,8 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import { getPathWithQueryParams } from "utilities/url";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -43,6 +46,7 @@ import LibraryItemAccordion, {
 } from "./LibraryItemAccordion/LibraryItemAccordion";
 import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
 import EditSoftwareModal from "./EditSoftwareModal";
+import DeleteSoftwareModal from "./DeleteSoftwareModal";
 import { getDisplayedSoftwareName } from "../helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
 import ViewYamlModal from "./ViewYamlModal";
@@ -78,10 +82,10 @@ const SoftwareTitleDetailsPage = ({
   const { isPremiumTier, isOnGlobalTeam, currentUser, config } = useContext(
     AppContext
   );
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
-  // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   const autoOpenGitOpsYamlModal =
@@ -107,9 +111,8 @@ const SoftwareTitleDetailsPage = ({
     autoOpenGitOpsYamlModal || false
   );
 
-  // TODO #47622 preview — page-level state for opening the EditSoftwareModal
-  // from the LibraryItemAccordion. Remove with the preview block.
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     data: softwareTitle,
@@ -139,8 +142,6 @@ const SoftwareTitleDetailsPage = ({
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
-  // TODO #47622 preview — installer meta used to wire the EditSoftwareModal
-  // from the accordion's label-count click. Remove with the preview block.
   const installerResult = useSoftwareInstaller(
     softwareTitle ?? ({} as ISoftwareTitleDetails)
   );
@@ -167,6 +168,34 @@ const SoftwareTitleDetailsPage = ({
       })
     );
   }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+
+  // Mints a one-shot download token and triggers the browser download via a
+  // synthetic `<a download>` click. The token-based URL is unauthenticated;
+  // we must build it client-side rather than redirecting.
+  const onDownloadInstaller = useCallback(async () => {
+    const pkg = softwareTitle?.software_package;
+    if (!pkg || typeof teamIdForApi !== "number") return;
+    try {
+      const resp = await softwareAPI.getSoftwarePackageToken(
+        softwareId,
+        teamIdForApi
+      );
+      if (!resp.token) {
+        throw new Error("No download token returned");
+      }
+      const { origin } = global.window.location;
+      const url = `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+        softwareId
+      )}/${resp.token}`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = pkg.name;
+      a.click();
+      a.remove();
+    } catch (e) {
+      renderFlash("error", "Couldn't download. Please try again.");
+    }
+  }, [renderFlash, softwareId, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -213,6 +242,7 @@ const SoftwareTitleDetailsPage = ({
       if (appStore) {
         const { labels, kind } = pickLabels(appStore);
         const isAndroidPlayStoreApp = appStore.platform === "android";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
         return (
           <LibraryItemAccordionList>
             <LibraryItemAccordion
@@ -223,6 +253,7 @@ const SoftwareTitleDetailsPage = ({
               androidPlayStoreId={
                 isAndroidPlayStoreApp ? appStore.app_store_id : undefined
               }
+              isIosOrIpadosApp={isIosOrIpadosApp}
               isActive
               badgeState="latest"
               labels={labels}
@@ -277,6 +308,8 @@ const SoftwareTitleDetailsPage = ({
             downloadUrl={pkg.url}
             onLabelCountClick={openEditModal}
             onLabelsClick={openEditModal}
+            onDownloadClick={onDownloadInstaller}
+            onTrashClick={() => setShowDeleteModal(true)}
           />
         </LibraryItemAccordionList>
       );
@@ -322,8 +355,7 @@ const SoftwareTitleDetailsPage = ({
   // Renders the YAML modal for custom (non-FMA) packages. Two flows open it:
   // (1) `?gitops_yaml=true` redirect after add, and (2) editing a custom
   // package in gitops mode — `EditSoftwareModal` calls `openViewYamlModal()`
-  // instead of flashing success. Previously hosted inside `SoftwareInstallerCard`;
-  // owned here now that the page no longer renders that card.
+  // instead of flashing success.
   const renderViewYamlModal = (title: ISoftwareTitleDetails) => {
     if (!showViewYamlModal) return null;
     const pkg = title.software_package;
@@ -337,6 +369,28 @@ const SoftwareTitleDetailsPage = ({
         softwarePackage={pkg}
         onExit={onToggleViewYaml}
         isScriptPackage={installerResult?.cardInfo.isScriptPackage}
+      />
+    );
+  };
+
+  // Delete modal for the active library row's installer.
+  const renderDeleteModal = () => {
+    if (!showDeleteModal || typeof teamIdForApi !== "number") return null;
+    const meta = installerResult?.meta;
+    const isAndroidApp = !!meta?.isAndroidPlayStoreApp;
+    const isAppStoreApp = meta?.installerType === "app-store" && !isAndroidApp;
+    return (
+      <DeleteSoftwareModal
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        gitOpsModeEnabled={gitOpsModeEnabled}
+        isAppStoreApp={isAppStoreApp}
+        isAndroidApp={isAndroidApp}
+        onExit={() => setShowDeleteModal(false)}
+        onSuccess={() => {
+          setShowDeleteModal(false);
+          onDeleteInstaller();
+        }}
       />
     );
   };
@@ -387,6 +441,7 @@ const SoftwareTitleDetailsPage = ({
           {renderLibrarySection(softwareTitle)}
           {renderInventorySection(softwareTitle)}
           {renderLibraryEditModal(softwareTitle)}
+          {renderDeleteModal()}
           {renderViewYamlModal(softwareTitle)}
         </>
       );

@@ -213,6 +213,33 @@ describe("LibraryItemAccordion", () => {
       // The static span still displays the count.
       expect(screen.getByText("4")).toBeVisible();
     });
+
+    it("fires onLabelCountClick when the 'All hosts' badge is clicked", async () => {
+      const onLabelCountClick = jest.fn();
+      const { user } = renderAccordion({
+        badgeState: "latest",
+        labels: [],
+        onLabelCountClick,
+      });
+
+      // Exact name match — the outer header is also a `role="button"` whose
+      // accessible name contains "All hosts" via descendant text.
+      await user.click(screen.getByRole("button", { name: "All hosts" }));
+      expect(onLabelCountClick).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders 'All hosts' as static (non-button) when canEditSoftware is false", () => {
+      renderAccordion({
+        badgeState: "latest",
+        labels: [],
+        canEditSoftware: false,
+      });
+      expect(
+        screen.queryByRole("button", { name: "All hosts" })
+      ).not.toBeInTheDocument();
+      // The static span still displays the label.
+      expect(screen.getByText("All hosts")).toBeVisible();
+    });
   });
 
   describe("inactive row", () => {
@@ -560,6 +587,20 @@ describe("LibraryItemAccordion", () => {
         "failed",
         /failed to run the script/i
       );
+    });
+
+    it("drops the policy-automation leg from the info tooltip for iOS/iPadOS apps", async () => {
+      const { user, container } = renderAccordion({ isIosOrIpadosApp: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      await expectInfoTooltip(
+        user,
+        container,
+        /setup experience or manual install/i
+      );
+      // Policy automation is macOS-only on Apple VPP — make sure that
+      // leg is gone from the iOS/iPadOS copy.
+      expect(screen.queryByText(/policy automation/i)).not.toBeInTheDocument();
     });
 
     it("renders the installed/pending/failed labels and tooltips for an Android Play Store app", async () => {
