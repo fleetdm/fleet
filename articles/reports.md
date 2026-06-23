@@ -111,5 +111,5 @@ How to configure automations in bulk:
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2025-01-01">
-<meta name="articleTitle" value="Queries">
+<meta name="articleTitle" value="Reports">
 <meta name="description" value="Learn how to create, run, and schedule reports, as well as update agent options in the Fleet user interface.">
