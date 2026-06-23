@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useQueryClient } from "react-query";
 
@@ -7,7 +7,7 @@ import {
   UNCHANGED_PASSWORD_API_RESPONSE,
 } from "utilities/constants";
 import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
@@ -58,7 +58,6 @@ const validate = (formData: IFormData): IFormErrors => {
 };
 
 const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled } = useGitOpsMode();
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -123,9 +122,9 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
         },
       });
       await queryClient.invalidateQueries(["config"]);
-      renderFlash("success", "Successfully updated settings.");
+      notify.success("Successfully updated settings.");
     } catch {
-      renderFlash("error", "Failed to update settings.");
+      notify.error("Failed to update settings.");
     } finally {
       setIsUpdating(false);
     }
