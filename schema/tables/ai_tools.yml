@@ -1,0 +1,108 @@
+name: ai_tools
+description: |-
+  Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, and agent instruction files. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  Count AI tools per type on the host.
+
+  ```
+  SELECT type, count(*) FROM ai_tools GROUP BY type;
+  ```
+
+  List outbound AI/MCP connections to see where data is going.
+
+  ```
+  SELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';
+  ```
+
+  List running MCP servers and their transport.
+
+  ```
+  SELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;
+  ```
+
+  Find anything carrying a security risk flag across every type.
+
+  ```
+  SELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';
+  ```
+
+  List AI editor plugins with versions.
+
+  ```
+  SELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';
+  ```
+notes: The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
+columns:
+  - name: type
+    description: "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, or `agent_instruction`."
+    type: text
+    required: false
+  - name: name
+    description: Server, plugin, agent, app, process, or instruction-file name.
+    type: text
+    required: false
+  - name: identifier
+    description: "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool."
+    type: text
+    required: false
+  - name: category
+    description: "Classification bucket (e.g. `coding-assistant`, `agent-runtime`, `inference-api-local`, `mcp-remote-egress`, `ai-api-egress`, `mcp-server`, `agent-instruction`)."
+    type: text
+    required: false
+  - name: location
+    description: "`local` or `remote`."
+    type: text
+    required: false
+  - name: source
+    description: "Provenance: MCP client, editor, install method, platform source, socket direction, or instruction tool."
+    type: text
+    required: false
+  - name: version
+    description: Version of the tool, if available.
+    type: text
+    required: false
+  - name: path
+    description: Config, install, binary, app, process, or instruction-file path.
+    type: text
+    required: false
+  - name: endpoint
+    description: Remote MCP URL or socket remote `addr:port`.
+    type: text
+    required: false
+  - name: running
+    description: Whether the tool is currently running (1 = yes, 0 = no).
+    type: integer
+    required: false
+  - name: pid
+    description: Process ID if the tool is running.
+    type: integer
+    required: false
+  - name: port
+    description: "Listening port, API port, or local port (varies by type)."
+    type: integer
+    required: false
+  - name: risk_flags
+    description: "Comma-separated security risk tokens (empty string = none). Possible values:`remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `bypass_permissions`, `injection_markers`, `hidden_unicode`."
+    type: text
+    required: false
+  - name: sha256
+    description: SHA-256 content hash of the primary artifact (config file, binary, or instruction file) for change detection and threat-intel matching.
+    type: text
+    required: false
+  - name: uid
+    description: User ID of the owner.
+    type: text
+    required: false
+  - name: username
+    description: Username of the owner.
+    type: text
+    required: false
+  - name: detail
+    description: "Compact JSON with type-specific extras (empty fields omitted). Examples: `transport`, `command`, `args`, `env_keys`, `capabilities`, `launch_hash`, `permission_mode`, `markers`, `scope`, `publisher`, `editor_family`, `runtime`, `protocol`, `remote_host`, `cmdline`."
+    type: text
+    required: false
