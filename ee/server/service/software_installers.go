@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -3977,17 +3978,17 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 	return allCategories, nil
 }
 
-func parsePinnedVersion(ctx context.Context, version string) (majorVersion string, usesCaret bool, err error) {
-	majorVersion, usesCaret = strings.CutPrefix(version, "^")
+func parsePinnedVersion(ctx context.Context, version string) (trimmedVersion string, usesCaret bool, err error) {
+	trimmedVersion, usesCaret = strings.CutPrefix(version, "^")
 	if usesCaret {
-		if len(majorVersion) == 0 {
+		if len(trimmedVersion) == 0 {
 			return "", false, fleet.NewUserMessageError(errEmptyCaretVersion, http.StatusBadRequest)
 		}
-		if parts := strings.Split(version, "."); len(parts) > 1 {
+		if _, err := strconv.ParseUint(trimmedVersion, 10, 64); err != nil {
 			return "", false, fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
 		}
 	}
-	return majorVersion, usesCaret, nil
+	return trimmedVersion, usesCaret, nil
 }
 
 func versionMatchesMajor(version string, majorVersion string) bool {

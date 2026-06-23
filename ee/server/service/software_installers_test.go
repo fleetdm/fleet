@@ -1793,6 +1793,7 @@ func TestParsePinnedVersion(t *testing.T) {
 		{name: "empty caret", version: "^", wantErr: errEmptyCaretVersion.Error()},
 		{name: "caret with minor", version: "^149.0", wantErr: errNonMajorVersion.Error()},
 		{name: "caret 4-component", version: "^149.1.91.172", wantErr: errNonMajorVersion.Error()},
+		{name: "caret non-numeric", version: "^abc", wantErr: errNonMajorVersion.Error()},
 	}
 	for _, c := range cases {
 		major, caret, err := parsePinnedVersion(t.Context(), c.version)
