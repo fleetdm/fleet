@@ -4,19 +4,17 @@ includes:
   common: ../Taskfile.yml
 
 vars:
-  # Signing configuration - edit these values for your project
-  # SIGN_IDENTITY: "Developer ID Application: Your Company (TEAMID)"
-  # KEYCHAIN_PROFILE: "my-notarize-profile"
-  # ENTITLEMENTS: "build/darwin/entitlements.plist"
-
-  # Docker image for cross-compilation (used when building on non-macOS)
-  CROSS_IMAGE: wails-cross
+  # Signing configuration - fill these in for Developer ID signing / notarization
+  # (or override on the CLI). Leave empty for ad-hoc signing via `task package`.
+  SIGN_IDENTITY: ""    # e.g. "Developer ID Application: Your Company (TEAMID)"
+  KEYCHAIN_PROFILE: "" # e.g. "my-notarize-profile"
+  ENTITLEMENTS: ""     # e.g. "build/darwin/entitlements.plist"
 
 tasks:
   build:
-    summary: Builds the application
+    summary: Builds the application (macOS-only, native)
     cmds:
-      - task: '{{if eq OS "darwin"}}build:native{{else}}build:docker{{end}}'
+      - task: build:native
         vars:
           ARCH: '{{.ARCH}}'
           DEV: '{{.DEV}}'
@@ -59,37 +57,6 @@ tasks:
       CGO_LDFLAGS: "-mmacosx-version-min=12.0"
       MACOSX_DEPLOYMENT_TARGET: "12.0"
 
-  build:docker:
-    summary: Cross-compiles for macOS using Docker (for Linux/Windows hosts)
-    internal: true
-    deps:
-      - task: common:build:frontend
-        vars:
-          OBFUSCATED:
-            ref: .OBFUSCATED
-      - task: common:generate:icons
-    preconditions:
-      - sh: docker info > /dev/null 2>&1
-        msg: "Docker is required for cross-compilation. Please install Docker."
-      - sh: docker image inspect {{.CROSS_IMAGE}} > /dev/null 2>&1
-        msg: |
-          Docker image '{{.CROSS_IMAGE}}' not found.
-          Build it first: wails3 task setup:docker
-    cmds:
-      - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.DOCKER_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{if eq .OBFUSCATED "true"}}-e OBFUSCATED=true{{end}} {{if .GARBLE_ARGS}}-e GARBLE_ARGS="{{.GARBLE_ARGS}}"{{end}} {{.CROSS_IMAGE}} darwin {{.DOCKER_ARCH}}
-      - cmd: docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
-        platforms: [linux, darwin]
-      - mkdir -p {{.BIN_DIR}}
-      - mv "bin/{{.APP_NAME}}-darwin-{{.DOCKER_ARCH}}" "{{.OUTPUT}}"
-    vars:
-      DOCKER_ARCH: '{{if eq .ARCH "arm64"}}arm64{{else if eq .ARCH "amd64"}}amd64{{else}}arm64{{end}}'
-      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
-      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
-      # Generate Docker volume mounts: Go module cache + go.mod replace directives
-      # Uses wails3 tool docker-mounts for cross-platform compatibility (Windows/Linux/macOS)
-      DOCKER_MOUNTS:
-        sh: 'wails3 tool docker-mounts'
-
   build:universal:
     summary: Builds darwin universal binary (arm64 + amd64)
     deps:
@@ -102,7 +69,7 @@ tasks:
           ARCH: arm64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
     cmds:
-      - task: '{{if eq OS "darwin"}}build:universal:lipo:native{{else}}build:universal:lipo:go{{end}}'
+      - task: build:universal:lipo:native
 
   build:universal:lipo:native:
     summary: Creates universal binary using native lipo (macOS)
@@ -110,13 +77,6 @@ tasks:
     cmds:
       - lipo -create -output "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-
-  build:universal:lipo:go:
-    summary: Creates universal binary using wails3 tool lipo (Linux/Windows)
-    internal: true
-    cmds:
-      - wails3 tool lipo -output "{{.BIN_DIR}}/{{.APP_NAME}}" -input "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -input "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
   package:
     summary: Packages the application into a `.app` bundle
