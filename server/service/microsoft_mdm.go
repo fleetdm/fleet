@@ -252,7 +252,9 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 		EnrollmentPolicyServiceUrl: policyUrl,
 		EnrollmentServiceUrl:       enrollmentUrl,
 	}
-	if len(authServiceUrl) > 0 {
+	// AuthenticationServiceUrl is only meaningful for the Federated auth policy (validated non-empty above); never emit
+	// it for OnPremise.
+	if authPolicy == syncml.AuthFederated {
 		result.AuthServiceUrl = &authServiceUrl
 	}
 
@@ -1195,16 +1197,23 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 	//     leave that flow untouched regardless of whether an Entra tenant is configured.
 	//
 	//   - User-driven enrollment (device-initiated BYOD via Settings > Access work or school, or Autopilot/AAD) carries
-	//     a non-empty EmailAddress. When an Entra tenant is configured we advertise Federated together with Microsoft's
-	//     LoginRedirect endpoint, so the Windows MDM client opens that URL in a webview, authenticates the user against
-	//     Microsoft, and posts the resulting AAD JWT as the BinarySecurityToken, which authBinarySecurityToken already
-	//     validates. Advertising OnPremise here instead leaves the device stuck on the opaque 0x80180027 error. Without
-	//     an Entra tenant Fleet has no auth scheme it can accept for user-driven enrollment, so we fall back to
-	//     OnPremise (no behavior change from before this fix).
+	//     a non-empty EmailAddress. It requires a configured Entra tenant: Federated (the user authenticates against
+	//     Microsoft's LoginRedirect endpoint in a webview and the resulting AAD JWT is posted as the BinarySecurityToken,
+	//     which authBinarySecurityToken already validates) is the only auth scheme Fleet can accept for it. When a tenant
+	//     is configured we advertise Federated; when one is not, we fail discovery with an actionable fault so the device
+	//     stops before sending a <wsse:UsernameToken> (which would leak the user's plaintext password into the logs and
+	//     then fail later with the opaque 0x80180027 error).
+	tenantConfigured := len(appCfg.MDM.WindowsEntraTenantIDs.Value) > 0
+	userDriven := len(strings.TrimSpace(upnEmail)) > 0
+
+	if userDriven && !tenantConfigured {
+		return nil, ctxerr.New(ctx, "Windows BYOD enrollment requires a Microsoft Entra tenant to be configured (mdm.windows_entra_tenant_ids)")
+	}
+
 	authPolicy := syncml.AuthOnPremise
 	var authServiceUrl string
-	userDriven := len(strings.TrimSpace(upnEmail)) > 0
-	if userDriven && len(appCfg.MDM.WindowsEntraTenantIDs.Value) > 0 {
+	if userDriven {
+		// tenantConfigured is guaranteed true here.
 		authPolicy = syncml.AuthFederated
 		authServiceUrl = syncml.AuthFederatedLoginRedirectURL
 	}

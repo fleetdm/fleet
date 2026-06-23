@@ -8271,10 +8271,13 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Nil(t, resp.NudgeConfig)
 }
 
-func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
+// TestUserDrivenDiscoveryRequestWithoutEntraReturnsFault verifies that a user-driven discovery request (non-empty
+// EmailAddress) with no Entra tenant configured fails with an actionable SOAP fault rather than advertising OnPremise.
+// OnPremise would make the Windows client send a <wsse:UsernameToken> (plaintext password) and then fail later with the
+// opaque 0x80180027 error, so we stop the device at discovery instead.
+func (s *integrationMDMTestSuite) TestUserDrivenDiscoveryRequestWithoutEntraReturnsFault() {
 	t := s.T()
 
-	// With no Entra tenant configured, discovery advertises the OnPremise auth policy and no authentication service url.
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": [] } }`), http.StatusOK, &acResp)
 
@@ -8307,6 +8310,8 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		   </s:Body>
 		 </s:Envelope>`)
 
+		// Discovery faults are returned as an HTTP 200 response carrying a SOAP fault envelope, same as other discovery
+		// validation failures (see TestInvalidDiscoveryRequest).
 		resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
 
 		resBytes, err := io.ReadAll(resp.Body)
@@ -8314,20 +8319,14 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 
 		require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
-		// Checking if SOAP response can be unmarshalled to an golang type
-		var xmlType interface{}
+		var xmlType any
 		err = xml.Unmarshal(resBytes, &xmlType)
 		require.NoError(t, err)
 
-		// Checking if SOAP response contains a valid DiscoveryResponse message
 		resSoapMsg := string(resBytes)
-		require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
-		require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
-		require.True(t, s.checkIfXMLTagContains("AuthPolicy", syncml.AuthOnPremise, resSoapMsg))
-		require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
-		require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
-		require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
-		require.False(t, s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+		require.False(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+		require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+		require.True(t, s.checkIfXMLTagContains("s:text", "requires a Microsoft Entra tenant", resSoapMsg))
 	}
 }
 
