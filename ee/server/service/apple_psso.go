@@ -493,8 +493,8 @@ func (svc *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, err
 // assertion it switches to the JWT-bearer grant and the password moves out of
 // the top-level claim into the (encrypted) assertion.
 const (
-	pssoGrantTypePassword  = "password"
-	pssoGrantTypeJWTBearer = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	pssoGrantTypePassword  = "password"                                    //nolint:gosec // G101 not a credential, a grant type
+	pssoGrantTypeJWTBearer = "urn:ietf:params:oauth:grant-type:jwt-bearer" //nolint:gosec // G101 not a credential, a grant type
 )
 
 // JWE header `typ` media types. The first two are responses Fleet returns; the
