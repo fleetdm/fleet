@@ -1,10 +1,10 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import configProfilesAPI from "services/entities/config_profiles";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "resend-config-profile-modal";
 
@@ -21,7 +21,6 @@ const ResendConfigProfileModal = ({
   count,
   onExit,
 }: IResendConfigProfileModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isResending, setIsResending] = React.useState(false);
 
   const countText = `${count} ${count === 1 ? "host" : "hosts"}`;
@@ -30,17 +29,16 @@ const ResendConfigProfileModal = ({
     setIsResending(true);
     try {
       await configProfilesAPI.batchResendConfigProfile(uuid);
-      renderFlash(
-        "success",
+      notify.success(
         <>
           Resent the <b>{name}</b> configuration profile.
         </>
       );
       onExit();
     } catch (error) {
-      renderFlash(
-        "error",
-        "Couldn't resend the configuration profile. Please try again."
+      notify.error(
+        "Couldn't resend the configuration profile. Please try again.",
+        { response: error }
       );
     }
     setIsResending(false);

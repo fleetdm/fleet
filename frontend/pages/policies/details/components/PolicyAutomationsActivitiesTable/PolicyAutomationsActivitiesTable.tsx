@@ -1,9 +1,9 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Row } from "react-table";
 import { AxiosError } from "axios";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import {
   IPolicy,
   IPolicyAutomationActivity,
@@ -60,7 +60,6 @@ const PolicyAutomationsActivitiesTable = ({
   canResetPolicy,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(0);
@@ -114,13 +113,15 @@ const PolicyAutomationsActivitiesTable = ({
     () => policiesAPI.reset(policyId),
     {
       onSuccess: () => {
-        renderFlash("success", "Policy reset successfully.");
+        notify.success("Policy reset successfully.");
         queryClient.invalidateQueries(["policyAutomationActivities", policyId]);
         queryClient.invalidateQueries(["policy", policyId]);
         setShowResetModal(false);
       },
-      onError: () => {
-        renderFlash("error", "Couldn't reset policy. Please try again.");
+      onError: (error) => {
+        notify.error("Couldn't reset policy. Please try again.", {
+          response: error,
+        });
       },
     }
   );
