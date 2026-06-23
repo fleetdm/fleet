@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -42,7 +42,6 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   const { gitOpsModeEnabled: labelsGitOpsManaged, repoURL } = useGitOpsMode(
     "labels"
   );
-  const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -64,16 +63,16 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
       try {
         setIsUpdating(true);
         await labelsAPI.destroy(labelToDelete);
-        renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
+        notify.success(`Successfully deleted ${labelToDelete.name}.`);
         refetch();
       } catch (err) {
-        renderFlash("error", getDeleteLabelErrorMessages(err));
+        notify.error(getDeleteLabelErrorMessages(err), { response: err });
       } finally {
         setLabelToDelete(null);
         setIsUpdating(false);
       }
     }
-  }, [labelToDelete, refetch, renderFlash]);
+  }, [labelToDelete, refetch]);
 
   const onClickAction = useCallback(
     (action: string, label: ILabel): void => {
