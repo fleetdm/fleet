@@ -27510,6 +27510,31 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
 
+	// ---- Test bumping a pin to a newly-published version ----
+	// A version published upstream but not yet cached must be downloadable in a
+	// single apply when pinned to directly. Previously this failed with
+	// "specified version is not available" because a literal pin only resolved
+	// against the already-cached set.
+	resetFMAState(warpState, "4.0", []byte("jkl")) // publish 4.0 upstream; not yet cached
+	downloadMu.Lock()
+	delete(downloadedSlugs, "cloudflare-warp/windows")
+	downloadMu.Unlock()
+
+	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
+		{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "4.0"},
+	})
+	require.Len(t, packages, 2)
+
+	// 4.0 is downloaded, cached, and becomes the active version in one apply.
+	downloadMu.Lock()
+	warpDownloaded = downloadedSlugs["cloudflare-warp/windows"]
+	downloadMu.Unlock()
+	require.True(t, warpDownloaded, "a newly-published pinned version must be downloaded")
+
+	title = getActiveTitleForTeam(team.ID)
+	require.Equal(t, "4.0", title.SoftwarePackage.Version)
+	require.Equal(t, "4.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+
 	// Attempt to add a custom package that will map to the same software title. Should fail
 	// (this tests the "custom installer vs existing FMA" direction).
 	installerContent := "installerbytes"
