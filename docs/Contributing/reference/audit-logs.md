@@ -2807,7 +2807,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_configuration_profile_labels
+## edited_configuration_profile
 
 Generated when a configuration profile is edited.
 
