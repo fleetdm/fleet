@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
+		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
@@ -4654,6 +4655,119 @@ func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, postInstallScript, installer.PostInstallScriptContentID)
 	require.NotEqual(t, uninstallScript, installer.UninstallScriptContentID)
 	require.Equal(t, "SELECT 1 DIFFERENT", installer.PreInstallQuery)
+}
+
+func testListFleetMaintainedAppActiveInstallers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	newFile := func(s string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(s), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	// Active FMA installer on team1.
+	fmaTeam1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "FooFMA",
+		Source:               "apps",
+		Platform:             "darwin",
+		InstallScript:        "echo install",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        newFile("t1"),
+		StorageID:            "storage-t1",
+		Filename:             "foo.pkg",
+		Version:              "1.0",
+		UserID:               user.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Active FMA installer on no-team.
+	fmaNoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "FooFMA",
+		Source:               "apps",
+		Platform:             "darwin",
+		InstallScript:        "echo install",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        newFile("nt"),
+		StorageID:            "storage-nt",
+		Filename:             "foo.pkg",
+		Version:              "2.0",
+		UserID:               user.ID,
+		TeamID:               nil,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Non-FMA installer on team2 — must be excluded.
+	customTeam2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "Custom",
+		Source:          "apps",
+		Platform:        "darwin",
+		InstallScript:   "echo install",
+		UninstallScript: "echo uninstall",
+		InstallerFile:   newFile("c2"),
+		StorageID:       "storage-c2",
+		Filename:        "custom.pkg",
+		Version:         "9.0",
+		UserID:          user.ID,
+		TeamID:          &team2.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// An inactive (older) cached version of team1's FMA — must be excluded.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
+			SELECT team_id, global_or_team_id, 'storage-t1-old', filename, extension, '0.9', platform, title_id,
+				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, patch_query
+			FROM software_installers WHERE id = ?
+		`, fmaTeam1)
+		return err
+	})
+
+	got, err := ds.ListFleetMaintainedAppActiveInstallers(ctx)
+	require.NoError(t, err)
+
+	byInstallerID := make(map[uint]fleet.FMAAutoUpdateCandidate, len(got))
+	for _, c := range got {
+		byInstallerID[c.InstallerID] = c
+	}
+
+	// Only the two active FMA rows are returned; the custom installer and the
+	// inactive version are excluded.
+	require.Len(t, got, 2)
+	require.NotContains(t, byInstallerID, customTeam2)
+
+	t1 := byInstallerID[fmaTeam1]
+	require.NotNil(t, t1.TeamID)
+	require.Equal(t, team1.ID, *t1.TeamID)
+	require.Equal(t, "1.0", t1.Version)
+	require.Equal(t, "maintained1", t1.Slug)
+
+	nt := byInstallerID[fmaNoTeam]
+	require.Nil(t, nt.TeamID) // no-team scope maps to nil
+	require.Equal(t, "2.0", nt.Version)
+	require.Equal(t, "maintained1", nt.Slug)
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {

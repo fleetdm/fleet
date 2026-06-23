@@ -384,6 +384,22 @@ type FleetMaintainedVersion struct {
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 }
 
+// FMAAutoUpdateCandidate is the active installer for one (team, title) backed
+// by a Fleet-maintained app. The auto-update cron uses it to decide whether to
+// advance the active version among the team's cached versions.
+type FMAAutoUpdateCandidate struct {
+	// TeamID is nil for the no-team scope (global_or_team_id = 0).
+	TeamID *uint `db:"global_or_team_id"`
+	// TitleID is the software_titles.id.
+	TitleID uint `db:"title_id"`
+	// InstallerID is the currently active software_installers.id.
+	InstallerID uint `db:"installer_id"`
+	// Version is the currently active version (for logging).
+	Version string `db:"version"`
+	// Slug is the Fleet-maintained app slug (for logging).
+	Slug string `db:"slug"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`

@@ -711,6 +711,27 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	})
 }
 
+func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+	var candidates []fleet.FMAAutoUpdateCandidate
+	// NULLIF maps the no-team scope (global_or_team_id = 0) to NULL so it scans
+	// into a nil *uint, matching the no-team convention used elsewhere.
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidates, `
+		SELECT
+			NULLIF(si.global_or_team_id, 0) AS global_or_team_id,
+			si.title_id,
+			si.id AS installer_id,
+			si.version,
+			fma.slug
+		FROM software_installers si
+		INNER JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		WHERE si.fleet_maintained_app_id IS NOT NULL AND si.is_active = 1
+	`)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing active fleet-maintained app installers")
+	}
+	return candidates, nil
+}
+
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
 		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")
