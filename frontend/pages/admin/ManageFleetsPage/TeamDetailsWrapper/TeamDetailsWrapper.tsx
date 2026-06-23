@@ -300,8 +300,8 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
-      router.push(PATHS.ADMIN_FLEETS);
       notify.success("Fleet removed");
+      router.push(PATHS.ADMIN_FLEETS);
     } catch (response) {
       notify.error("Something went wrong removing the fleet", { response });
       console.error(response);

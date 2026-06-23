@@ -722,8 +722,8 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
-        router.push(PATHS.MANAGE_HOSTS);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
+        router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
         notify.error(`Host "${host.display_name}" could not be deleted.`, {

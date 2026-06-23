@@ -69,9 +69,9 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 - Internal `<CustomLink>` (and any `router.push` / `<Link>`) to a fleet-scoped route MUST preserve the current fleet via `getPathWithQueryParams(PATHS.X, { fleet_id: teamId })`. Linking to the bare path drops fleet context and lands the user on the wrong fleet. Applies to any path that reads `fleet_id` from the query string (most `/software`, `/hosts`, `/policies`, `/queries`, `/controls` routes). `getPathWithQueryParams` filters undefined/null, so pass `teamId` directly — `fleet_id=0` (No team) is a valid, intentional value and must be preserved.
 
 ## Notifications
-- Use `renderFlash(alertType, message)` from `NotificationContext`
-- Types: `"success"`, `"error"`, `"warning-filled"`
-- Use `renderMultiFlash()` for batch operations
+- Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from `components/ToastNotification`.
+- **Call `notify.*` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
+- Success auto-dismisses after 5s; errors are sticky.
 
 ## XSS Prevention
 - ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:
