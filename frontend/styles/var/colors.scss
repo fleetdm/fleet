@@ -211,6 +211,112 @@ body.dark-mode {
   --dropdown-menu-outline: var(--ui-fleet-black-10);
 }
 
+// ---------------------------------------------------------------------------
+// Solarized Light — Ethan Schoonover's palette
+// https://ethanschoonover.com/solarized/
+// ---------------------------------------------------------------------------
+body.solarized-mode {
+  // Solarized base tones:
+  //   base3  #fdf6e3  (main background)    base03 #002b36  (darkest)
+  //   base2  #eee8d5  (bg highlights)      base02 #073642
+  //   base1  #93a1a1  (secondary content)  base01 #586e75  (emphasis)
+  //   base0  #839496  (lighter body)       base00 #657b83  (body text)
+
+  --core-fleet-black: #586e75; // base01
+  --core-fleet-green: #2aa198; // cyan
+  --core-fleet-white: #fdf6e3; // base3
+  --ui-fleet-black-75: #657b83; // base00
+  --ui-fleet-black-50: #839496; // base0
+  --ui-fleet-black-33: #93a1a1; // base1
+  --ui-fleet-black-25: #c9d1cb; // blue-gray tint
+  --ui-fleet-black-10: #dce5dc; // blue-gray border
+  --ui-fleet-black-5: #edf2ee; // cool off-white
+
+  // Secondary / interaction
+  --ui-fleet-black-75-over: #4b6068;
+  --ui-fleet-black-75-down: #3f545c;
+  --core-fleet-green-over: #239089;
+  --core-fleet-green-down: #1d7d77;
+  --ui-fleet-black-5-down: #e3ebe5;
+
+  // Core accent — lean into Solarized blue
+  --core-fleet-blue: #268bd2; // blue
+  --core-vibrant-blue: #268bd2; // blue (primary action color)
+  --core-vibrant-red: #dc322f; // red
+  --core-fleet-purple: #6c71c4; // violet
+  --core-dark-blue-grey: #2aa198; // cyan
+  --site-nav-on-hover: #dce5dc; // cool highlight
+
+  // UI — blue-gray surfaces
+  --ui-fleet-blue-10: #f0f4f1; // cool tinted white
+  --ui-dark-blue-gray: #839496; // base0
+  --ui-blue-gray: #d0dbd3; // blue-gray border
+  --ui-gray: #c9d4cc; // blue-gray mid
+  --ui-light-grey: #f0f4f1; // cool tinted white
+  --ui-off-white: #f0f4f1; // cool tinted white
+  --ui-shadow: #c0cdc3; // blue-gray shadow
+  --ui-vibrant-blue-50: rgba(38, 139, 210, 0.35); // blue semi
+  --ui-vibrant-blue-25: #d5e8f5; // blue very light
+  --ui-vibrant-blue-10: #e8f1f8; // blue ultra light
+  --tooltip-bg: #073642; // base02
+
+  // Notifications & status
+  --ui-offline: #839496; // base0
+  --ui-success: #859900; // green
+  --ui-warning: #b58900; // yellow
+  --ui-error: #dc322f; // red
+  --ui-info: #268bd2; // blue
+  --ui-yellow-banner: #f5efdc;
+  --ui-yellow-banner-outline: #d6cea8;
+
+  // Toast surfaces
+  --ui-success-toast-bg: #859900;
+  --ui-error-toast-bg: #dc322f;
+
+  // Flash backgrounds
+  --ui-success-flash-bg: #e5f0d8;
+  --ui-error-flash-bg: #f8e5e5;
+
+  // TS COLORS aliases
+  --core-fleet-red: #dc322f;
+  --ui-blue-hover: #1a7abd; // blue darkened
+  --ui-blue-pressed: #15679e; // blue darker
+  --ui-blue-50: rgba(38, 139, 210, 0.35);
+  --ui-blue-25: #d5e8f5;
+  --ui-blue-10: #e8f1f8;
+  --status-success: #859900;
+  --status-warning: #b58900;
+  --status-error: #dc322f;
+
+  // Rainbow
+  --rainbow-orange: #cb4b16; // orange
+  --rainbow-green: #859900; // green
+  --rainbow-blue: #268bd2; // blue
+
+  // Gradients — cool blue-gray tint
+  --gradient-background: #e5ede7;
+
+  // Button hover / active
+  --core-vibrant-red-over: #c82a28;
+  --core-vibrant-red-down: #b02523;
+  --core-vibrant-blue-over: #1a7abd; // blue darkened
+  --core-vibrant-blue-down: #15679e; // blue darker
+  --ui-success-over: #748700;
+  --ui-success-down: #636f00;
+  --core-fleet-blue-over: #1f78b8;
+  --core-fleet-blue-down: #19669e;
+
+  // Nav active underline
+  --nav-active-underline: #268bd2; // blue
+
+  // Overlays
+  --core-fleet-black-overlay-40: rgba(7, 54, 66, 0.4); // base02 overlay
+  --core-fleet-black-overlay-05: rgba(88, 110, 117, 0.07);
+  --loading-overlay: rgba(253, 246, 227, 0.85);
+
+  --dropdown-menu-outline: transparent;
+}
+
 // =============================================================================
 // SCSS variable aliases — every existing component stylesheet keeps working.
 // =============================================================================

@@ -109,6 +109,14 @@ const AccountSidePanel = ({
           checked={themeMode === "dark"}
           onChange={onThemeSelect}
         />
+        <Radio
+          id="theme-solarized"
+          name="theme"
+          value="solarized"
+          label="Solarized"
+          checked={themeMode === "solarized"}
+          onChange={onThemeSelect}
+        />
       </div>
       {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
       <DataSet title="Role" value={roleText} />

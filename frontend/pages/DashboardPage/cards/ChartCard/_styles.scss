@@ -297,6 +297,15 @@
     --level-4: #009a7d;
     --level-5: #005b4a;
 
+    body.solarized-mode & {
+      --level-0: #eee8d5;
+      --level-1: #d9e8e6;
+      --level-2: #b2d9d4;
+      --level-3: #84c8c1;
+      --level-4: #5bb2aa;
+      --level-5: #479891;
+    }
+
     body.dark-mode & {
       --level-0: #515256;
       --level-1: #2e363d;
