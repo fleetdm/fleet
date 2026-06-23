@@ -6639,10 +6639,10 @@ func TestValidatePSSORegistrationTokenVariable(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			vars, err := validateConfigProfileFleetVariables(tc.profile, premiumLic, &fleet.GroupedCertificateAuthorities{})
 			if tc.errMsg != "" {
-				assert.ErrorContains(t, err, tc.errMsg)
+				require.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
