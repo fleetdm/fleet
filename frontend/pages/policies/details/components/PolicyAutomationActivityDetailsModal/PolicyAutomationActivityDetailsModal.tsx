@@ -1,6 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { stringToClipboard } from "utilities/copy_text";
 import PATHS from "router/paths";
@@ -33,14 +33,13 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { status, created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
 
   const onCopyDetails = () => {
     stringToClipboard(detailOutput)
-      .then(() => renderFlash("success", "Details copied to clipboard."))
-      .catch(() => renderFlash("error", "Couldn't copy to clipboard."));
+      .then(() => notify.success("Details copied to clipboard."))
+      .catch(() => notify.error("Couldn't copy to clipboard."));
   };
 
   return (
