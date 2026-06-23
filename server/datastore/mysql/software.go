@@ -3575,26 +3575,25 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
-            SELECT
-                ua.execution_id AS last_install_install_uuid,
-                ua.created_at AS last_install_installed_at,
-                siua.software_installer_id AS installer_id,
-                'pending_install' AS status
-            FROM
-                upcoming_activities ua
-            INNER JOIN
-                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-            LEFT JOIN (
-                upcoming_activities ua2
-                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
-            ) ON ua.host_id = ua2.host_id AND
-                siua.software_installer_id = siua2.software_installer_id AND
-                ua.activity_type = ua2.activity_type AND
-                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-            WHERE
-                ua.host_id = ? AND
-                ua.activity_type = 'software_install' AND
-                ua2.id IS NULL
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+                SELECT
+                    ua.execution_id AS last_install_install_uuid,
+                    ua.created_at AS last_install_installed_at,
+                    siua.software_installer_id AS installer_id,
+                    'pending_install' AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY siua.software_installer_id, ua.activity_type
+                        ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+                    ) AS rn
+                FROM
+                    upcoming_activities ua
+                INNER JOIN
+                    software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                WHERE
+                    ua.host_id = ? AND
+                    ua.activity_type = 'software_install'
+            ) ranked
+            WHERE rn = 1
         ),
         last_software_install AS (
             SELECT
@@ -3666,26 +3665,25 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
 	softwareUninstallsStmt := `
         WITH upcoming_software_uninstall AS (
-            SELECT
-                ua.execution_id AS last_uninstall_script_execution_id,
-                ua.created_at AS last_uninstall_uninstalled_at,
-                siua.software_installer_id AS installer_id,
-                'pending_uninstall' AS status
-            FROM
-                upcoming_activities ua
-            INNER JOIN
-                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-            LEFT JOIN (
-                upcoming_activities ua2
-                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
-            ) ON ua.host_id = ua2.host_id AND
-                siua.software_installer_id = siua2.software_installer_id AND
-                ua.activity_type = ua2.activity_type AND
-                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-            WHERE
-                ua.host_id = ? AND
-                ua.activity_type = 'software_uninstall' AND
-                ua2.id IS NULL
+            SELECT last_uninstall_script_execution_id, last_uninstall_uninstalled_at, installer_id, status FROM (
+                SELECT
+                    ua.execution_id AS last_uninstall_script_execution_id,
+                    ua.created_at AS last_uninstall_uninstalled_at,
+                    siua.software_installer_id AS installer_id,
+                    'pending_uninstall' AS status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY siua.software_installer_id, ua.activity_type
+                        ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+                    ) AS rn
+                FROM
+                    upcoming_activities ua
+                INNER JOIN
+                    software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                WHERE
+                    ua.host_id = ? AND
+                    ua.activity_type = 'software_uninstall'
+            ) ranked
+            WHERE rn = 1
         ),
         last_software_uninstall AS (
             SELECT
@@ -4286,35 +4284,33 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	}
 	vppInstallsStmt := fmt.Sprintf(`
 	(   -- upcoming_vpp_install
-			SELECT
-					vpp_apps.title_id AS id,
-					ua.execution_id AS last_install_install_uuid,
-					ua.created_at AS last_install_installed_at,
-					vaua.adam_id AS vpp_app_adam_id,
-					vat.self_service AS vpp_app_self_service,
-					'pending_install' AS status
-			FROM
-					upcoming_activities ua
-			INNER JOIN
-					vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			LEFT JOIN (
-					upcoming_activities ua2
-					INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
-			) ON ua.host_id = ua2.host_id AND
-					vaua.adam_id = vaua2.adam_id AND
-					vaua.platform = vaua2.platform AND
-					ua.activity_type = ua2.activity_type AND
-					(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-			LEFT JOIN
-				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-			INNER JOIN
-				vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
-			WHERE
-				-- selfServiceFilter
-				%s
-			 ua.host_id = :host_id AND
-			 ua.activity_type = 'vpp_app_install' AND
-			 ua2.id IS NULL
+			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
+				SELECT
+						vpp_apps.title_id AS id,
+						ua.execution_id AS last_install_install_uuid,
+						ua.created_at AS last_install_installed_at,
+						vaua.adam_id AS vpp_app_adam_id,
+						vat.self_service AS vpp_app_self_service,
+						'pending_install' AS status,
+						ROW_NUMBER() OVER (
+							PARTITION BY vaua.adam_id, vaua.platform, ua.activity_type
+							ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+						) AS rn
+				FROM
+						upcoming_activities ua
+				INNER JOIN
+						vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+				LEFT JOIN
+					vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+				INNER JOIN
+					vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
+				WHERE
+					-- selfServiceFilter
+					%s
+				 ua.host_id = :host_id AND
+				 ua.activity_type = 'vpp_app_install'
+			) ranked
+			WHERE rn = 1
 ) UNION (
 			-- last_vpp_install
 			SELECT
@@ -4401,36 +4397,35 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 
 	installsStmt := fmt.Sprintf(`
 (   -- upcoming_in_house_install
-	SELECT
-		iha.title_id AS id,
-		ua.execution_id AS last_install_install_uuid,
-		ua.created_at AS last_install_installed_at,
-		ihua.in_house_app_id AS in_house_app_id,
-		iha.filename AS in_house_app_name,
-		iha.platform AS in_house_app_platform,
-		iha.version AS in_house_app_version,
-		iha.self_service AS in_house_app_self_service,
-		'pending_install' AS status
-	FROM
-		upcoming_activities ua
-	INNER JOIN
-		in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
-	LEFT JOIN (
-		upcoming_activities ua2
-		INNER JOIN in_house_app_upcoming_activities ihua2 ON ua2.id = ihua2.upcoming_activity_id
-	) ON ua.host_id = ua2.host_id AND
-			ihua.in_house_app_id = ihua2.in_house_app_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	INNER JOIN
-		in_house_apps iha ON ihua.in_house_app_id = iha.id
-	WHERE
-		-- selfServiceFilter
-		%s
-		ua.host_id = :host_id AND
-		ua.activity_type = 'in_house_app_install' AND
-		iha.global_or_team_id = :global_or_team_id AND
-		ua2.id IS NULL
+	SELECT id, last_install_install_uuid, last_install_installed_at, in_house_app_id, in_house_app_name, in_house_app_platform, in_house_app_version, in_house_app_self_service, status FROM (
+		SELECT
+			iha.title_id AS id,
+			ua.execution_id AS last_install_install_uuid,
+			ua.created_at AS last_install_installed_at,
+			ihua.in_house_app_id AS in_house_app_id,
+			iha.filename AS in_house_app_name,
+			iha.platform AS in_house_app_platform,
+			iha.version AS in_house_app_version,
+			iha.self_service AS in_house_app_self_service,
+			'pending_install' AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ihua.in_house_app_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+		INNER JOIN
+			in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+		INNER JOIN
+			in_house_apps iha ON ihua.in_house_app_id = iha.id
+		WHERE
+			-- selfServiceFilter
+			%s
+			ua.host_id = :host_id AND
+			ua.activity_type = 'in_house_app_install' AND
+			iha.global_or_team_id = :global_or_team_id
+	) ranked
+	WHERE rn = 1
 ) UNION (
 	-- last_in_house_install
 	SELECT

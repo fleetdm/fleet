@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.3.5",
+      "version": "5.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx' AND version_compare(bundle_short_version, '5.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx' AND version_compare(bundle_short_version, '5.4.0') < 0);"
       },
-      "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX_ARM64/5.3.5/AWS_VPN_Client_ARM64.pkg",
+      "installer_url": "https://d20adtppz83p9s.cloudfront.net/OSX_ARM64/5.4.0/AWS_VPN_Client_ARM64.pkg",
       "install_script_ref": "53e8589e",
       "uninstall_script_ref": "f0c0a1aa",
-      "sha256": "048c9011b7cea43720cb92d7c2fe064c8d853b391ee499408736cba5d9111652",
+      "sha256": "b9b6c384fd265fc5d2b94467c5dcd80c47c1a1265623f157ec8b99b833ad82a9",
       "default_categories": [
         "Productivity"
       ]

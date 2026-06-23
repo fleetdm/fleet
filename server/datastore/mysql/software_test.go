@@ -85,6 +85,9 @@ func TestSoftware(t *testing.T) {
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"HostSoftwareInstallUninstallNoDropout", testHostSoftwareInstallUninstallNoDropout},
+		{"HostVPPInstallNoDropout", testHostVPPInstallNoDropout},
+		{"HostInHouseInstallNoDropout", testHostInHouseInstallNoDropout},
 		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
@@ -13066,4 +13069,127 @@ func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {
 	cats, err = ds.ListSoftwareCategories(ctx, team.ID)
 	require.NoError(t, err)
 	require.Len(t, cats, before)
+}
+
+// The next three tests guard the per-host software detail queries against the
+// OR-dominance drop-out: a host with two queued activities for the same
+// installer/app (one lower priority, the other later created_at) used to fail
+// the self anti-join on both rows and vanish from the host's software list. The
+// ROW_NUMBER rewrite keeps exactly one row per installer/app.
+
+func testHostSoftwareInstallUninstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "hsidrop", "1", "hsidropkey", "hsidropuuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", UninstallScript: "uninstall",
+		InstallerFile: tfr, StorageID: "hsidrop-storage", Filename: "hsidrop.pkg",
+		Title: "HSIDrop", Version: "1.0", Source: "apps",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// row B: lower priority + earlier created_at; row A: later created_at.
+	seed := func(activityType, execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, ?, ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, activityType, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id) VALUES (?, ?)`, uaID, installerID)
+		require.NoError(t, err)
+	}
+	seed("software_install", "hsi-B", -1, 0)
+	seed("software_install", "hsi-A", 0, 100)
+	seed("software_uninstall", "hsu-B", -1, 0)
+	seed("software_uninstall", "hsu-A", 0, 100)
+
+	installs, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InstallerID)
+	require.Equal(t, installerID, *installs[0].InstallerID)
+
+	uninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, uninstalls, 1)
+	require.NotNil(t, uninstalls[0].InstallerID)
+	require.Equal(t, installerID, *uninstalls[0].InstallerID)
+}
+
+func testHostVPPInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vppdrop", BundleIdentifier: "com.app.vppdrop",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_drop", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	appID := app.VPPAppID
+	host := test.NewHost(t, ds, "vppdrop-host", "1", "vppdropkey", "vppdropuuid", time.Now())
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'vpp_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform) VALUES (?, ?, ?)`, uaID, appID.AdamID, appID.Platform)
+		require.NoError(t, err)
+	}
+	seed("vppdrop-B", -1, 0)
+	seed("vppdrop-A", 0, 100)
+
+	installs, err := hostVPPInstalls(ds, ctx, host.ID, 0, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].VPPAppAdamID)
+	require.Equal(t, appID.AdamID, *installs[0].VPPAppAdamID)
+}
+
+func testHostInHouseInstallNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team drop"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "ihadrop-host", "1", "ihadropkey", "ihadropuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	appID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &team.ID, UserID: user.ID,
+		Title: "ihadrop", Filename: "ihadrop.ipa", BundleIdentifier: "com.ihadrop",
+		StorageID: "ihadrop-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	seed := func(execID string, priority, offsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities (host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES (?, ?, 1, 'in_house_app_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, offsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id) VALUES (?, ?)`, uaID, appID)
+		require.NoError(t, err)
+	}
+	seed("ihadrop-B", -1, 0)
+	seed("ihadrop-A", 0, 100)
+
+	installs, err := hostInHouseInstalls(ds, ctx, host.ID, team.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.NotNil(t, installs[0].InHouseAppID)
+	require.Equal(t, appID, *installs[0].InHouseAppID)
 }

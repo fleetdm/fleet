@@ -2340,7 +2340,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			)
 		}
 
-		if payload.URL != "" {
+		// Skip URL validation when it is empty or when it is for a script-only package,
+		// which uses a "script://" URL scheme to pass the filename
+		if payload.URL != "" && !strings.HasPrefix(payload.URL, "script://") {
 			if _, err := url.ParseRequestURI(payload.URL); err != nil {
 				return "", fleet.NewInvalidArgumentError(
 					"software.url",
