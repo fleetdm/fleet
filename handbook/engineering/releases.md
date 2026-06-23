@@ -1,13 +1,13 @@
 # Releases
 
-This handbook page details Fleet's release process. Fleet releases three products on a regular cadence:
+This handbook page details Fleet's release process.
+
+Fleet server and fleetd (macOS, Windows, Linux) follow a "train timetable" model: the RC branch is cut on the first Monday of each sprint regardless of what has or hasn't merged. If your work misses the cut, it goes in the next release unless you get approval to cherry-pick.
 
 - **Fleet server**: Released every three weeks (one minor + one patch per sprint). The release candidate is cut on the first Monday of each sprint.
 - **Fleetd agent** (macOS, Windows, Linux): Released via TUF (The Update Framework). The release candidate is cut at the same time as the Fleet server RC, on the first Monday of each sprint.
 - **Fleetd Android**: Released via Google Play as needed. Not on a fixed schedule.
 - **Fleetd ChromeOS**: Released via Google Admin as needed.
-
-Both Fleet server and fleetd follow a "train timetable" model: the RC branch is cut on schedule regardless of what has or hasn't merged. If your work misses the cut, it goes in the next release unless you get approval to cherry-pick.
 
 
 ## Participate in QA Day
