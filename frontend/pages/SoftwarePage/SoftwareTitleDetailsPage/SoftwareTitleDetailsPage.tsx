@@ -11,13 +11,18 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ILabelSoftwareTitle } from "interfaces/label";
-import { ISoftwareTitleDetails } from "interfaces/software";
 import {
-  APP_CONTEXT_ALL_TEAMS_ID,
-  APP_CONTEXT_NO_TEAM_ID,
-} from "interfaces/team";
+  aggregateInstallStatusCounts,
+  IAppStoreApp,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwarePackage,
+  ISoftwareTitleDetails,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
+} from "interfaces/software";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { canWriteSoftware } from "utilities/permissions/permissions";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -25,22 +30,40 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import { getPathWithQueryParams } from "utilities/url";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
+import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
-import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import LibraryItemAccordion, {
   LibraryItemLabelKind,
 } from "./LibraryItemAccordion/LibraryItemAccordion";
 import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
 import EditSoftwareModal from "./EditSoftwareModal";
+import DeleteSoftwareModal from "./DeleteSoftwareModal";
 import { getDisplayedSoftwareName } from "../helpers";
+import TitleVersionsTable from "./TitleVersionsTable";
+import ViewYamlModal from "./ViewYamlModal";
 
 const baseClass = "software-title-details-page";
+
+const pickLabels = (
+  source: ISoftwarePackage | IAppStoreApp
+): { labels: ILabelSoftwareTitle[] | null; kind: LibraryItemLabelKind } => {
+  if (source.labels_include_all?.length) {
+    return { labels: source.labels_include_all, kind: "includeAll" };
+  }
+  if (source.labels_exclude_any?.length) {
+    return { labels: source.labels_exclude_any, kind: "excludeAny" };
+  }
+  return { labels: source.labels_include_any, kind: "includeAny" };
+};
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -56,20 +79,13 @@ const SoftwareTitleDetailsPage = ({
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const {
-    isPremiumTier,
-    isOnGlobalTeam,
-    isTeamAdmin,
-    isTeamMaintainer,
-    isTeamObserver,
-    isTeamTechnician,
-    currentUser,
-    config,
-  } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, currentUser, config } = useContext(
+    AppContext
+  );
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
-  // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   const autoOpenGitOpsYamlModal =
@@ -95,9 +111,8 @@ const SoftwareTitleDetailsPage = ({
     autoOpenGitOpsYamlModal || false
   );
 
-  // TODO #47622 preview — page-level state for opening the EditSoftwareModal
-  // from the LibraryItemAccordion. Remove with the preview block.
   const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     data: softwareTitle,
@@ -127,8 +142,6 @@ const SoftwareTitleDetailsPage = ({
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
-  // TODO #47622 preview — installer meta used to wire the EditSoftwareModal
-  // from the accordion's label-count click. Remove with the preview block.
   const installerResult = useSoftwareInstaller(
     softwareTitle ?? ({} as ISoftwareTitleDetails)
   );
@@ -156,6 +169,34 @@ const SoftwareTitleDetailsPage = ({
     );
   }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
+  // Mints a one-shot download token and triggers the browser download via a
+  // synthetic `<a download>` click. The token-based URL is unauthenticated;
+  // we must build it client-side rather than redirecting.
+  const onDownloadInstaller = useCallback(async () => {
+    const pkg = softwareTitle?.software_package;
+    if (!pkg || typeof teamIdForApi !== "number") return;
+    try {
+      const resp = await softwareAPI.getSoftwarePackageToken(
+        softwareId,
+        teamIdForApi
+      );
+      if (!resp.token) {
+        throw new Error("No download token returned");
+      }
+      const { origin } = global.window.location;
+      const url = `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+        softwareId
+      )}/${resp.token}`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = pkg.name;
+      a.click();
+      a.remove();
+    } catch (e) {
+      renderFlash("error", "Couldn't download. Please try again.");
+    }
+  }, [renderFlash, softwareId, softwareTitle, teamIdForApi]);
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
@@ -163,45 +204,12 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
-    const hasPermission = Boolean(
-      isOnGlobalTeam ||
-        isTeamAdmin ||
-        isTeamMaintainer ||
-        isTeamObserver ||
-        isTeamTechnician
-    );
-
-    const showInstallerCard =
-      currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
-      hasPermission &&
-      isAvailableForInstall;
-
-    if (!showInstallerCard) {
-      return null;
-    }
-
-    return (
-      <SoftwareInstallerCard
-        softwareTitle={title}
-        softwareId={softwareId}
-        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        onDelete={onDeleteInstaller}
-        isLoading={isSoftwareTitleLoading}
-        onToggleViewYaml={onToggleViewYaml}
-        showViewYamlModal={showViewYamlModal}
-      />
-    );
-  };
-
   const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
       <SoftwareSummaryCard
         softwareTitle={title}
         softwareId={softwareId}
         teamId={teamIdForApi}
-        isAvailableForInstall={isAvailableForInstall}
-        isLoading={isSoftwareTitleLoading}
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onToggleViewYaml={onToggleViewYaml}
@@ -209,13 +217,14 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
-  // TODO #47622 preview — remove before merging into main.
-  // Renders a single LibraryItemAccordion from the active software_package or
-  // app_store_app so design can review with real data; multi-row rendering
-  // lands in #47623.
-  const renderLibraryItemAccordionPreview = (title: ISoftwareTitleDetails) => {
-    const pkg = title.software_package;
-    const appStore = title.app_store_app;
+  const renderLibrarySection = (title: ISoftwareTitleDetails) => {
+    // Library section is Premium-only
+    // Fleet Free should not see it even when an installer is present.
+    if (!isPremiumTier || !isAvailableForInstall) {
+      return null;
+    }
+
+    const openEditModal = () => setShowLibraryEditModal(true);
 
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -224,124 +233,167 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
-    const installerMeta = installerResult?.meta;
-    const isFma = installerMeta?.isFleetMaintainedApp ?? false;
-    const isLatestFmaVersion = installerMeta?.isLatestFmaVersion ?? false;
-    const isScriptPackage = installerResult?.cardInfo.isScriptPackage ?? false;
+    // TODO #47623 multi-row rendering — render one accordion per version,
+    // and lift installer-meta lookup to per-row (only the latest is "active").
+    const libraryAccordionList = () => {
+      const pkg = title.software_package;
+      const appStore = title.app_store_app;
 
-    interface ILabeledSource {
-      labels_include_any: ILabelSoftwareTitle[] | null;
-      labels_include_all: ILabelSoftwareTitle[] | null;
-      labels_exclude_any: ILabelSoftwareTitle[] | null;
-    }
-    interface IPickedLabels {
-      labels: ILabelSoftwareTitle[] | null;
-      kind: LibraryItemLabelKind;
-    }
-    const pickLabels = (source: ILabeledSource): IPickedLabels => {
-      if (source.labels_include_all?.length) {
-        return { labels: source.labels_include_all, kind: "includeAll" };
+      if (appStore) {
+        const { labels, kind } = pickLabels(appStore);
+        const isAndroidPlayStoreApp = appStore.platform === "android";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+        return (
+          <LibraryItemAccordionList>
+            <LibraryItemAccordion
+              filename={appStore.name}
+              version={appStore.latest_version}
+              addedAt={appStore.created_at}
+              installerType="app-store"
+              androidPlayStoreId={
+                isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+              }
+              isIosOrIpadosApp={isIosOrIpadosApp}
+              isActive
+              badgeState="latest"
+              labels={labels}
+              labelKind={kind}
+              canEditSoftware={canEditSoftware}
+              installed={appStore.status?.installed ?? 0}
+              pending={appStore.status?.pending ?? 0}
+              failed={appStore.status?.failed ?? 0}
+              installedPath={statusPath("installed")}
+              pendingPath={statusPath("pending")}
+              failedPath={statusPath("failed")}
+              onLabelCountClick={openEditModal}
+              onLabelsClick={openEditModal}
+              onTrashClick={() => setShowDeleteModal(true)}
+            />
+          </LibraryItemAccordionList>
+        );
       }
-      if (source.labels_exclude_any?.length) {
-        return { labels: source.labels_exclude_any, kind: "excludeAny" };
-      }
-      return { labels: source.labels_include_any, kind: "includeAny" };
-    };
 
-    if (appStore) {
-      const { labels, kind } = pickLabels(appStore);
-      const isAndroidPlayStoreApp = appStore.platform === "android";
+      if (!pkg) return null;
+      const { labels, kind } = pickLabels(pkg);
+      const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
+      const isLatestFmaVersion =
+        installerResult?.meta.isLatestFmaVersion ?? false;
+      const isScriptPackage =
+        installerResult?.cardInfo.isScriptPackage ?? false;
+      const { installed, pending, failed } = aggregateInstallStatusCounts(
+        pkg.status
+      );
       return (
         <LibraryItemAccordionList>
           <LibraryItemAccordion
-            filename={appStore.name}
-            version={appStore.latest_version}
-            addedAt={appStore.created_at}
-            installerType="app-store"
-            androidPlayStoreId={
-              isAndroidPlayStoreApp ? appStore.app_store_id : undefined
-            }
+            filename={pkg.name}
+            version={pkg.version}
+            addedAt={pkg.uploaded_at}
+            installerType="package"
+            isFma={isFma}
+            isLatestFmaVersion={isLatestFmaVersion}
             isScriptPackage={isScriptPackage}
+            isTarballPackage={title.source === "tgz_packages"}
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(title.source)}
             isActive
             badgeState="latest"
             labels={labels}
             labelKind={kind}
             canEditSoftware={canEditSoftware}
-            installed={appStore.status?.installed ?? 0}
-            pending={appStore.status?.pending ?? 0}
-            failed={appStore.status?.failed ?? 0}
+            installed={installed}
+            pending={pending}
+            failed={failed}
             installedPath={statusPath("installed")}
             pendingPath={statusPath("pending")}
             failedPath={statusPath("failed")}
-            onLabelCountClick={() => setShowLibraryEditModal(true)}
-            onLabelsClick={() => setShowLibraryEditModal(true)}
+            hashSha256={pkg.hash_sha256 ?? null}
+            downloadUrl={pkg.url}
+            onLabelCountClick={openEditModal}
+            onLabelsClick={openEditModal}
+            onDownloadClick={onDownloadInstaller}
+            onTrashClick={() => setShowDeleteModal(true)}
           />
         </LibraryItemAccordionList>
       );
+    };
+
+    return (
+      <section className={`${baseClass}__section`}>
+        <SectionHeader title="Library" />
+        <PageDescription content="Software available to be installed" />
+        {libraryAccordionList()}
+      </section>
+    );
+  };
+
+  const renderInventorySection = (title: ISoftwareTitleDetails) => {
+    // Hide for sources that don't report versions/hosts (tgz/sh/ps1 packages)
+    // and when no hosts have the software installed yet.
+    const showInventorySection =
+      !!title.hosts_count &&
+      !NO_VERSION_OR_HOST_DATA_SOURCES.includes(title.source);
+
+    if (!showInventorySection) {
+      return null;
     }
 
-    if (!pkg) return null;
-    const { labels, kind } = pickLabels(pkg);
     return (
-      <LibraryItemAccordionList>
-        <LibraryItemAccordion
-          filename={pkg.name}
-          version={pkg.version}
-          addedAt={pkg.uploaded_at}
-          isFma={isFma}
-          isLatestFmaVersion={isLatestFmaVersion}
-          isScriptPackage={isScriptPackage}
-          isActive
-          badgeState="latest"
-          labels={labels}
-          labelKind={kind}
-          canEditSoftware={canEditSoftware}
-          installed={pkg.status?.installed ?? 0}
-          pending={
-            (pkg.status?.pending_install ?? 0) +
-            (pkg.status?.pending_uninstall ?? 0)
-          }
-          failed={
-            (pkg.status?.failed_install ?? 0) +
-            (pkg.status?.failed_uninstall ?? 0)
-          }
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
-          hashSha256={pkg.hash_sha256 ?? null}
-          downloadUrl={pkg.url}
-          onLabelCountClick={() => setShowLibraryEditModal(true)}
-          onLabelsClick={() => setShowLibraryEditModal(true)}
+      <section className={`${baseClass}__section`}>
+        <SectionHeader title="Inventory" />
+        <PageDescription content="Versions installed across all hosts" />
+        <TitleVersionsTable
+          router={router}
+          data={title.versions ?? []}
+          isLoading={isSoftwareTitleLoading}
+          teamIdForApi={teamIdForApi}
+          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isAvailableForInstall={isAvailableForInstall}
+          countsUpdatedAt={title.counts_updated_at}
         />
-        <LibraryItemAccordion
-          filename="example-package-v2-really-long-package-name-to-see-what-happens-responsive-design.pkg"
-          version="2.0.0"
-          addedAt="2024-01-01T12:00:00Z"
-          isFma={isFma}
-          isLatestFmaVersion={isLatestFmaVersion}
-          isScriptPackage={isScriptPackage}
-          isActive={false}
-          labels={labels}
-          labelKind={kind}
-          canEditSoftware={canEditSoftware}
-          installed={pkg.status?.installed ?? 0}
-          pending={
-            (pkg.status?.pending_install ?? 0) +
-            (pkg.status?.pending_uninstall ?? 0)
-          }
-          failed={
-            (pkg.status?.failed_install ?? 0) +
-            (pkg.status?.failed_uninstall ?? 0)
-          }
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
-          hashSha256={pkg.hash_sha256 ?? null}
-          downloadUrl={pkg.url}
-          onLabelCountClick={() => setShowLibraryEditModal(true)}
-          onLabelsClick={() => setShowLibraryEditModal(true)}
-        />
-      </LibraryItemAccordionList>
+      </section>
+    );
+  };
+
+  // Renders the YAML modal for custom (non-FMA) packages. Two flows open it:
+  // (1) `?gitops_yaml=true` redirect after add, and (2) editing a custom
+  // package in gitops mode — `EditSoftwareModal` calls `openViewYamlModal()`
+  // instead of flashing success.
+  const renderViewYamlModal = (title: ISoftwareTitleDetails) => {
+    if (!showViewYamlModal) return null;
+    const pkg = title.software_package;
+    // FMA packages don't expose YAML editing — only custom packages do.
+    if (!pkg || pkg.fleet_maintained_app_id) return null;
+    return (
+      <ViewYamlModal
+        softwareTitleName={title.name}
+        iconUrl={title.icon_url}
+        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
+        softwarePackage={pkg}
+        onExit={onToggleViewYaml}
+        isScriptPackage={installerResult?.cardInfo.isScriptPackage}
+      />
+    );
+  };
+
+  // Delete modal for the active library row's installer.
+  const renderDeleteModal = () => {
+    if (!showDeleteModal || typeof teamIdForApi !== "number") return null;
+    const meta = installerResult?.meta;
+    const isAndroidApp = !!meta?.isAndroidPlayStoreApp;
+    const isAppStoreApp = meta?.installerType === "app-store" && !isAndroidApp;
+    return (
+      <DeleteSoftwareModal
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        gitOpsModeEnabled={gitOpsModeEnabled}
+        isAppStoreApp={isAppStoreApp}
+        isAndroidApp={isAndroidApp}
+        onExit={() => setShowDeleteModal(false)}
+        onSuccess={() => {
+          setShowDeleteModal(false);
+          onDeleteInstaller();
+        }}
+      />
     );
   };
 
@@ -382,12 +434,17 @@ const SoftwareTitleDetailsPage = ({
     }
 
     if (softwareTitle) {
+      // Intentional: a title with no installer and no installed hosts collapses
+      // to just the summary card with both Library and Inventory hidden. No
+      // empty state is shown — design wants the summary alone in that case.
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}
-          {renderLibraryItemAccordionPreview(softwareTitle)}
-          {renderSoftwareInstallerCard(softwareTitle)}
+          {renderLibrarySection(softwareTitle)}
+          {renderInventorySection(softwareTitle)}
           {renderLibraryEditModal(softwareTitle)}
+          {renderDeleteModal()}
+          {renderViewYamlModal(softwareTitle)}
         </>
       );
     }

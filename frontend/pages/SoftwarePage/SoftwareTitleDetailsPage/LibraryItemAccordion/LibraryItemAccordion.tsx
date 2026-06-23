@@ -47,7 +47,11 @@ export interface ILibraryItemAccordionProps {
   isLatestFmaVersion?: boolean;
   /** Hide the version entirely (script-only packages). */
   isScriptPackage?: boolean;
-
+  isTarballPackage?: boolean;
+  /** Apple App Store app whose platform is iOS or iPadOS. Drops the
+   * "policy automation" leg from the info-icon tooltip — `automatic_install`
+   * is not supported for iOS or iPadOS. */
+  isIosOrIpadosApp?: boolean;
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
 
@@ -108,6 +112,8 @@ const LibraryItemAccordion = ({
   isFma = false,
   isLatestFmaVersion,
   isScriptPackage = false,
+  isTarballPackage = false,
+  isIosOrIpadosApp = false,
   isActive,
   canEditSoftware,
   badgeState,
@@ -250,14 +256,25 @@ const LibraryItemAccordion = ({
             )}
           </TooltipWrapper>
         )}
-        {showAllHostsBadge && (
-          <span
-            className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
-          >
-            <Icon name="tag" color="ui-fleet-black-75" />
-            <span>{ALL_HOSTS_LABEL}</span>
-          </span>
-        )}
+        {showAllHostsBadge &&
+          (canEditSoftware ? (
+            <Button
+              variant="inverse"
+              size="small"
+              onClick={handleBadgeClick(onLabelCountClick)}
+              className={`${baseClass}__badge-button`}
+            >
+              <Icon name="tag" color="ui-fleet-black-75" />
+              <span>{ALL_HOSTS_LABEL}</span>
+            </Button>
+          ) : (
+            <span
+              className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
+            >
+              <Icon name="tag" color="ui-fleet-black-75" />
+              <span>{ALL_HOSTS_LABEL}</span>
+            </span>
+          ))}
       </div>
     );
   };
@@ -271,16 +288,20 @@ const LibraryItemAccordion = ({
     trailing?: React.ReactNode
   ) => (
     <div className={`${baseClass}__status-count`}>
-      <TooltipWrapper
-        tipContent={iconTooltip}
-        showArrow
-        underline={false}
-        position="top"
-        tipOffset={8}
-        clickable={false}
-      >
+      {iconTooltip ? (
+        <TooltipWrapper
+          tipContent={iconTooltip}
+          showArrow
+          underline={false}
+          position="top"
+          tipOffset={8}
+          clickable={false}
+        >
+          <Icon name={iconName} />
+        </TooltipWrapper>
+      ) : (
         <Icon name={iconName} />
-      </TooltipWrapper>
+      )}
       <CustomLink
         url={path}
         text={`${count} ${label}`}
@@ -290,41 +311,116 @@ const LibraryItemAccordion = ({
     </div>
   );
 
-  const statusCountsTooltip = (
-    <>
-      Latest status from policy automation,
-      <br />
-      setup experience, or manual install.
-    </>
-  );
+  // Script-only packages swap the "installed" label/tooltip for "ran"
+  // semantics; Android Play Store apps swap pending/failed tooltip wording
+  // to match MDM check-in semantics.
+  const isAndroidApp = !!androidPlayStoreId;
+  const installedLabel = isScriptPackage ? "ran" : "installed";
 
-  const installedIconTooltip = (
-    <>
-      Software is installed on these hosts
-      <br />
-      (install script finished with exit code 0).
-      <br />
-      Currently, if the software is uninstalled,
-      <br />
-      the &quot;Installed&quot; status won&apos;t be updated.
-    </>
-  );
+  const getStatusCountTooltip = () => {
+    if (isAndroidApp) {
+      return <>Latest status from the Google Play Store</>;
+    }
 
-  const pendingIconTooltip = (
-    <>
-      Fleet is installing/uninstalling or will
-      <br />
-      do so when the host comes online.
-    </>
-  );
+    if (isTarballPackage) {
+      return <>Latest status from policy automation or manual install.</>;
+    }
 
-  const failedIconTooltip = (
-    <>
-      These hosts failed to install/uninstall
-      <br />
-      software. Click on a host to view error(s).
-    </>
-  );
+    // `automatic_install` is not supported for iOS or iPadOS, so drop the
+    // policy-automation leg.
+    if (isIosOrIpadosApp) {
+      return <>Latest status from setup experience or manual install.</>;
+    }
+
+    return (
+      <>
+        Latest status from policy automation,
+        <br />
+        setup experience, or manual install.
+      </>
+    );
+  };
+
+  const getInstalledIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          The script successfully
+          <br />
+          ran on these hosts.
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return null;
+    }
+    return (
+      <>
+        Software is installed on these hosts
+        <br />
+        (install script finished with exit code 0).
+        <br />
+        Currently, if the software is uninstalled,
+        <br />
+        the &quot;Installed&quot; status won&apos;t be updated.
+      </>
+    );
+  };
+
+  const getPendingIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          Fleet is running the script or will do
+          <br />
+          so when the host comes online.
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return (
+        <>
+          Software will be installed or configuration will
+          <br />
+          be applied the next time the host checks in.
+        </>
+      );
+    }
+    return (
+      <>
+        Fleet is installing/uninstalling or will
+        <br />
+        do so when the host comes online.
+      </>
+    );
+  };
+
+  const getFailedIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          These hosts failed to run the script.
+          <br />
+          Click on a host to view error(s).
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return <>Software failed to install or configuration failed to apply.</>;
+    }
+    return (
+      <>
+        These hosts failed to install/uninstall
+        <br />
+        software. Click on a host to view error(s).
+      </>
+    );
+  };
+
+  const installedIconTooltip = getInstalledIconTooltip();
+  const pendingIconTooltip = getPendingIconTooltip();
+  const failedIconTooltip = getFailedIconTooltip();
+  const statusCountsTooltip = getStatusCountTooltip();
 
   const renderLabelsBlock = () => {
     if (!hasLabelScope) return null;
@@ -486,7 +582,7 @@ const LibraryItemAccordion = ({
               {renderStatusCount(
                 "success",
                 installed,
-                "installed",
+                installedLabel,
                 installedIconTooltip,
                 installedPath,
                 <TooltipWrapper

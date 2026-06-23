@@ -1,5 +1,6 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
 
 import { renderWithSetup } from "test/test-utils";
 import { ILabelSoftwareTitle } from "interfaces/label";
@@ -212,6 +213,33 @@ describe("LibraryItemAccordion", () => {
       // The static span still displays the count.
       expect(screen.getByText("4")).toBeVisible();
     });
+
+    it("fires onLabelCountClick when the 'All hosts' badge is clicked", async () => {
+      const onLabelCountClick = jest.fn();
+      const { user } = renderAccordion({
+        badgeState: "latest",
+        labels: [],
+        onLabelCountClick,
+      });
+
+      // Exact name match — the outer header is also a `role="button"` whose
+      // accessible name contains "All hosts" via descendant text.
+      await user.click(screen.getByRole("button", { name: "All hosts" }));
+      expect(onLabelCountClick).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders 'All hosts' as static (non-button) when canEditSoftware is false", () => {
+      renderAccordion({
+        badgeState: "latest",
+        labels: [],
+        canEditSoftware: false,
+      });
+      expect(
+        screen.queryByRole("button", { name: "All hosts" })
+      ).not.toBeInTheDocument();
+      // The static span still displays the label.
+      expect(screen.getByText("All hosts")).toBeVisible();
+    });
   });
 
   describe("inactive row", () => {
@@ -393,6 +421,229 @@ describe("LibraryItemAccordion", () => {
         screen.getByRole("button", { name: "Delete this version" })
       );
       // The test passes if none of the above throw.
+    });
+  });
+
+  // The status-row label and the three icon tooltips switch between
+  // package / script / Android Play Store wording. One test per mode: each
+  // walks the full installed/pending/failed row so the whole presentation
+  // for that mode is visible at a glance.
+  describe("status row variants", () => {
+    type StatusName = "installed" | "pending" | "failed";
+
+    const STATUS_INDEX: Record<StatusName, number> = {
+      installed: 0,
+      pending: 1,
+      failed: 2,
+    };
+
+    const getStatusCell = (container: HTMLElement, status: StatusName) =>
+      container.querySelectorAll(".library-item-accordion__status-count")[
+        STATUS_INDEX[status]
+      ];
+
+    const hoverStatusIcon = async (
+      user: UserEvent,
+      container: HTMLElement,
+      status: StatusName
+    ) => {
+      const target = getStatusCell(container, status).querySelector(
+        ".component__tooltip-wrapper__element"
+      );
+      if (!target) {
+        throw new Error(`no tooltip wrapper found for status "${status}"`);
+      }
+      await user.hover(target);
+    };
+
+    const expectTooltipOnHover = async (
+      user: UserEvent,
+      container: HTMLElement,
+      status: StatusName,
+      expected: RegExp
+    ) => {
+      await hoverStatusIcon(user, container, status);
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+    };
+
+    // The info-outline icon trailing the "installed" count carries its own
+    // tooltip whose copy varies by installer source (package / tarball /
+    // Android). Hover it and assert the wording.
+    const expectInfoTooltip = async (
+      user: UserEvent,
+      container: HTMLElement,
+      expected: RegExp
+    ) => {
+      const wrapper = container.querySelector(
+        ".library-item-accordion__status-counts-info .component__tooltip-wrapper__element"
+      );
+      if (!wrapper) {
+        throw new Error("info-outline tooltip wrapper not found");
+      }
+      await user.hover(wrapper);
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+    };
+
+    it("renders the installed/pending/failed labels and tooltips for a package", async () => {
+      const { user, container } = renderAccordion();
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /Software is installed on these hosts/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is installing\/uninstalling/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to install\/uninstall/i
+      );
+
+      // Info-outline tooltip on the installed count: default (package) wording
+      // includes all three sources — policy automation, setup experience, and
+      // manual install.
+      await expectInfoTooltip(
+        user,
+        container,
+        /policy automation.*setup experience.*manual install/i
+      );
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for a tarball package", async () => {
+      const { user, container } = renderAccordion({ isTarballPackage: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Tarballs don't swap labels or per-status icon tooltips — only the
+      // info-outline tooltip changes (no setup-experience leg).
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /Software is installed on these hosts/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is installing\/uninstalling/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to install\/uninstall/i
+      );
+
+      await expectInfoTooltip(
+        user,
+        container,
+        /policy automation or manual install/i
+      );
+      // Setup-experience leg must be absent for tarballs.
+      expect(screen.queryByText(/setup experience/i)).not.toBeInTheDocument();
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for a script-only package", async () => {
+      const { user, container } = renderAccordion({ isScriptPackage: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Script-only swaps "installed" → "ran"; pending/failed labels are unchanged.
+      expect(screen.getByText("32 ran")).toBeVisible();
+      expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /script successfully/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is running the script/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to run the script/i
+      );
+    });
+
+    it("drops the policy-automation leg from the info tooltip for iOS/iPadOS apps", async () => {
+      const { user, container } = renderAccordion({ isIosOrIpadosApp: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      await expectInfoTooltip(
+        user,
+        container,
+        /setup experience or manual install/i
+      );
+      // Policy automation is macOS-only on Apple VPP — make sure that
+      // leg is gone from the iOS/iPadOS copy.
+      expect(screen.queryByText(/policy automation/i)).not.toBeInTheDocument();
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for an Android Play Store app", async () => {
+      const { user, container } = renderAccordion({
+        androidPlayStoreId: "com.example.app",
+      });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Android does NOT swap the installed label (only script does).
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      // The installed icon has no tooltip on Android — assert structurally
+      // since there's nothing to hover. Package/script modes wrap the success
+      // icon in a TooltipWrapper (`.component__tooltip-wrapper` is the cell's
+      // first child); Android leaves the bare Icon there.
+      const installedCell = getStatusCell(container, "installed");
+      expect(
+        installedCell?.firstElementChild?.classList.contains(
+          "component__tooltip-wrapper"
+        )
+      ).toBe(false);
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /next time the host checks in/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /configuration failed to apply/i
+      );
+
+      // Info-outline tooltip collapses to a Play Store one-liner on Android.
+      await expectInfoTooltip(
+        user,
+        container,
+        /latest status from the Google Play Store/i
+      );
     });
   });
 });
