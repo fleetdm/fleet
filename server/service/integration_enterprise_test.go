@@ -29012,6 +29012,8 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer10UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
 
 		// update manifest to 1.1, FleetMaintainedVersions should have 1.0, 1.1
 		// installer version should be 1.1, while still pinned to ^1
@@ -29030,6 +29032,9 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer11UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 
 		// pin version to 1.0? then pin to ^1, installer should be 1.1. if fleet keeps enough versions we need to test this.
 		// maybe unnecessary test, can remove to speed it up
@@ -29072,6 +29077,8 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, installer11UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 	})
 
 	// Test pinning ^1 for the first time when only 2.0 is available from manifest
