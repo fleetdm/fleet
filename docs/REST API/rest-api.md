@@ -1618,7 +1618,7 @@ None.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"],
-          "scope": "system"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         }
       ]
     },
@@ -1975,17 +1975,17 @@ Modifies the Fleet's configuration with the supplied information.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels_exclude_any": ["Label 1", "Label 2"],
-          "scope": "system"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"],
-          "scope": "system"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"],
-          "scope": "user"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -2724,12 +2724,12 @@ _Available in Fleet Premium._
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"],
-          "scope": "system"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"],
-          "scope": "user"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -6609,7 +6609,7 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 profile="Foo.mobileconfig"
 fleet_id="1"
 labels_include_all="Label name 1"
-scope="system"
+predicate="@status(device.model.family) == 'MacBookPro'"
 ```
 
 ##### Default response
@@ -12647,7 +12647,7 @@ _Available in Fleet Premium_
           {
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"],
-            "scope": "system"
+            "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },
@@ -13141,12 +13141,12 @@ Returned when the requested name only differs from another fleet's name by lette
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"],
-          "scope": "system"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
         {
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"],
-          "scope": "user"
+          "predicate": "@status(device.model.family) == 'MacBookPro'"
         },
       ]
     },
@@ -13293,7 +13293,7 @@ _Available in Fleet Premium_
           {
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"],
-           "scope": "system"
+           "predicate": "@status(device.model.family) == 'MacBookPro'"
           }
         ]
       },
