@@ -1,0 +1,1 @@
+* Fixed Docker cleanup workflow failing due to Quay.io credential issues by making the Quay.io step non-fatal.

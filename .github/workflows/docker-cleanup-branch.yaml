@@ -67,6 +67,7 @@ jobs:
           fi
 
       - name: Delete tag from Quay.io
+        continue-on-error: true
         if: steps.check_protected.outputs.skip == 'false'
         env:
           TAG: ${{ steps.sanitize.outputs.TAG }}
