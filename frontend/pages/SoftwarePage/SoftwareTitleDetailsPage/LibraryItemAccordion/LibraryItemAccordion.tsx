@@ -47,7 +47,7 @@ export interface ILibraryItemAccordionProps {
   isLatestFmaVersion?: boolean;
   /** Hide the version entirely (script-only packages). */
   isScriptPackage?: boolean;
-
+  isTarballPackage?: boolean;
   /** When false, the row is dimmed and the expand affordance is hidden. */
   isActive: boolean;
 
@@ -108,6 +108,7 @@ const LibraryItemAccordion = ({
   isFma = false,
   isLatestFmaVersion,
   isScriptPackage = false,
+  isTarballPackage = false,
   isActive,
   canEditSoftware,
   badgeState,
@@ -294,19 +295,29 @@ const LibraryItemAccordion = ({
     </div>
   );
 
-  const statusCountsTooltip = (
-    <>
-      Latest status from policy automation,
-      <br />
-      setup experience, or manual install.
-    </>
-  );
-
   // Mirrors `InstallerStatusTableConfig` on main — script-only packages swap
   // the "installed" label/tooltip for "ran" semantics; Android Play Store apps
   // swap pending/failed tooltip wording to match MDM check-in semantics.
   const isAndroidApp = !!androidPlayStoreId;
   const installedLabel = isScriptPackage ? "ran" : "installed";
+
+  const getStatusCountTooltip = () => {
+    if (isAndroidApp) {
+      return <>Latest status from the Google Play Store</>;
+    }
+
+    if (isTarballPackage) {
+      return <>Latest status from policy automation or manual install. </>;
+    }
+
+    return (
+      <>
+        Latest status from policy automation,
+        <br />
+        setup experience, or manual install.
+      </>
+    );
+  };
 
   const getInstalledIconTooltip = (): React.ReactNode => {
     if (isScriptPackage) {
@@ -387,6 +398,7 @@ const LibraryItemAccordion = ({
   const installedIconTooltip = getInstalledIconTooltip();
   const pendingIconTooltip = getPendingIconTooltip();
   const failedIconTooltip = getFailedIconTooltip();
+  const statusCountsTooltip = getStatusCountTooltip();
 
   const renderLabelsBlock = () => {
     if (!hasLabelScope) return null;

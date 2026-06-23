@@ -260,6 +260,7 @@ const SoftwareTitleDetailsPage = ({
             isFma={isFma}
             isLatestFmaVersion={isLatestFmaVersion}
             isScriptPackage={isScriptPackage}
+            isTarballPackage={title.source === "tgz_packages"}
             isActive
             badgeState="latest"
             labels={labels}

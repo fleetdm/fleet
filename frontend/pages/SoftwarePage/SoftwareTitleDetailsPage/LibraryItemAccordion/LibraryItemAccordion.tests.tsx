@@ -1,5 +1,6 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
 
 import { renderWithSetup } from "test/test-utils";
 import { ILabelSoftwareTitle } from "interfaces/label";
@@ -393,6 +394,144 @@ describe("LibraryItemAccordion", () => {
         screen.getByRole("button", { name: "Delete this version" })
       );
       // The test passes if none of the above throw.
+    });
+  });
+
+  // The status-row label and the three icon tooltips switch between
+  // package / script / Android Play Store wording. Mirrors the matrix
+  // implemented in `InstallerStatusTableConfig` on the SoftwareInstallerCard.
+  // One test per mode: each walks the full installed/pending/failed row so
+  // the whole presentation for that mode is visible at a glance.
+  describe("status row variants", () => {
+    type StatusName = "installed" | "pending" | "failed";
+
+    const STATUS_INDEX: Record<StatusName, number> = {
+      installed: 0,
+      pending: 1,
+      failed: 2,
+    };
+
+    const getStatusCell = (container: HTMLElement, status: StatusName) =>
+      container.querySelectorAll(".library-item-accordion__status-count")[
+        STATUS_INDEX[status]
+      ];
+
+    const hoverStatusIcon = async (
+      user: UserEvent,
+      container: HTMLElement,
+      status: StatusName
+    ) => {
+      const target = getStatusCell(container, status).querySelector(
+        ".component__tooltip-wrapper__element"
+      );
+      if (!target) {
+        throw new Error(`no tooltip wrapper found for status "${status}"`);
+      }
+      await user.hover(target);
+    };
+
+    const expectTooltipOnHover = async (
+      user: UserEvent,
+      container: HTMLElement,
+      status: StatusName,
+      expected: RegExp
+    ) => {
+      await hoverStatusIcon(user, container, status);
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+    };
+
+    it("renders the installed/pending/failed labels and tooltips for a package", async () => {
+      const { user, container } = renderAccordion();
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /Software is installed on these hosts/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is installing\/uninstalling/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to install\/uninstall/i
+      );
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for a script-only package", async () => {
+      const { user, container } = renderAccordion({ isScriptPackage: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Script-only swaps "installed" → "ran"; pending/failed labels are unchanged.
+      expect(screen.getByText("32 ran")).toBeVisible();
+      expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /script successfully/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is running the script/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to run the script/i
+      );
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for an Android Play Store app", async () => {
+      const { user, container } = renderAccordion({
+        androidPlayStoreId: "com.example.app",
+      });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Android does NOT swap the installed label (only script does).
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      // The installed icon has no tooltip on Android — assert structurally
+      // since there's nothing to hover. Package/script modes wrap the success
+      // icon in a TooltipWrapper (`.component__tooltip-wrapper` is the cell's
+      // first child); Android leaves the bare Icon there.
+      const installedCell = getStatusCell(container, "installed");
+      expect(
+        installedCell?.firstElementChild?.classList.contains(
+          "component__tooltip-wrapper"
+        )
+      ).toBe(false);
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /next time the host checks in/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /configuration failed to apply/i
+      );
     });
   });
 });
