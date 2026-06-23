@@ -5,7 +5,6 @@ import { useQuery } from "react-query";
 import deepDifference from "utilities/deep_difference";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import configAPI from "services/entities/config";
@@ -13,6 +12,7 @@ import configAPI from "services/entities/config";
 import { IConfig } from "interfaces/config";
 
 import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 
 import SideNav from "../components/SideNav";
 import getIntegrationSettingsNavItems from "./IntegrationNavItems";
@@ -29,7 +29,6 @@ const IntegrationsPage = ({
   router,
   params,
 }: IIntegrationSettingsPageProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
   let { section } = params;
@@ -74,17 +73,17 @@ const IntegrationsPage = ({
 
       try {
         await configAPI.update(diff);
-        renderFlash("success", "Successfully updated settings.");
+        notify.success("Successfully updated settings.");
         refetchConfig();
         return true;
       } catch (err: unknown) {
-        renderFlash("error", "Could not update settings");
+        notify.error("Could not update settings", { response: err });
         return false;
       } finally {
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig, renderFlash]
+    [appConfig, refetchConfig]
   );
 
   if (!appConfig) return <></>;

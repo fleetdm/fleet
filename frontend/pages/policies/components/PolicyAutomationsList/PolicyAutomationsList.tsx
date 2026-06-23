@@ -37,22 +37,19 @@ interface IPolicyAutomationsListProps {
   otherAutomationType?: OtherAutomationType;
 }
 
-/** Read-only summary of the automations currently configured on a policy:
- *  the "Automations" header, a row per active automation (or an empty state),
- *  and the footer text explaining when they run. */
-const PolicyAutomationsList = ({
-  storedPolicy,
-  currentAutomatedPolicies,
-  otherAutomationType,
-}: IPolicyAutomationsListProps): JSX.Element => {
-  const automationRows: IAutomationDisplayRow[] = [];
+export const mapAutomationRows = (
+  storedPolicy: IPolicy,
+  currentAutomatedPolicies: number[],
+  otherAutomationType?: OtherAutomationType
+): IAutomationDisplayRow[] => {
+  const rows: IAutomationDisplayRow[] = [];
 
   if (storedPolicy.install_software) {
     const displayedName = getDisplayedSoftwareName(
       storedPolicy.install_software.name,
       storedPolicy.install_software.display_name
     );
-    automationRows.push({
+    rows.push({
       name: displayedName,
       iconName: storedPolicy.install_software.name,
       type: "Software",
@@ -70,7 +67,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.run_script) {
-    automationRows.push({
+    rows.push({
       name: storedPolicy.run_script.name,
       type: "Script",
       graphicName: storedPolicy.run_script.name.endsWith(".sh")
@@ -82,7 +79,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.calendar_events_enabled) {
-    automationRows.push({
+    rows.push({
       name: "Maintenance window",
       type: "Calendar",
       graphicName: "calendar",
@@ -92,7 +89,7 @@ const PolicyAutomationsList = ({
   }
 
   if (storedPolicy.conditional_access_enabled) {
-    automationRows.push({
+    rows.push({
       name: "Block single sign-on",
       type: "Conditional access",
       graphicName: "lock",
@@ -105,7 +102,7 @@ const PolicyAutomationsList = ({
     const otherName = otherAutomationType
       ? OTHER_AUTOMATION_NAMES[otherAutomationType]
       : "Webhook or ticket";
-    automationRows.push({
+    rows.push({
       name: otherName,
       type: "Other",
       graphicName: "settings",
@@ -114,63 +111,60 @@ const PolicyAutomationsList = ({
     });
   }
 
-  automationRows.sort((a, b) => {
+  rows.sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.sortName.localeCompare(b.sortName);
   });
 
+  return rows;
+};
+
+/** Read-only list of the automations currently configured on a policy: one row
+ *  per active automation, or an empty state when there are none. */
+const PolicyAutomationsList = ({
+  storedPolicy,
+  currentAutomatedPolicies,
+  otherAutomationType,
+}: IPolicyAutomationsListProps): JSX.Element => {
+  const automationRows = mapAutomationRows(
+    storedPolicy,
+    currentAutomatedPolicies,
+    otherAutomationType
+  );
+
+  if (automationRows.length === 0) {
+    return <div className={`${baseClass}__empty-state`}>No automations</div>;
+  }
+
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header`}>Automations</div>
-      {automationRows.length > 0 ? (
-        <div className={`${baseClass}__list`}>
-          {automationRows.map((row) => (
-            <div
-              key={`${row.type}-${row.name}`}
-              className={`${baseClass}__row`}
-            >
-              <div className={`${baseClass}__row-name`}>
-                {row.isSoftware ? (
-                  <SoftwareIcon
-                    name={row.iconName ?? row.name}
-                    url={row.iconUrl}
-                    size="small"
-                  />
-                ) : (
-                  row.graphicName && (
-                    <Graphic
-                      name={row.graphicName}
-                      key={`${row.graphicName}-graphic`}
-                      className={`${baseClass}__row-graphic ${
-                        row.graphicName === "file-sh" ||
-                        row.graphicName === "file-ps1"
-                          ? "scale-40-24"
-                          : ""
-                      }`}
-                    />
-                  )
-                )}
-                {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
-              </div>
-            </div>
-          ))}
+      {automationRows.map((row) => (
+        <div key={`${row.type}-${row.name}`} className={`${baseClass}__row`}>
+          <div className={`${baseClass}__row-name`}>
+            {row.isSoftware ? (
+              <SoftwareIcon
+                name={row.iconName ?? row.name}
+                url={row.iconUrl}
+                size="small"
+              />
+            ) : (
+              row.graphicName && (
+                <Graphic
+                  name={row.graphicName}
+                  key={`${row.graphicName}-graphic`}
+                  className={`${baseClass}__row-graphic ${
+                    row.graphicName === "file-sh" ||
+                    row.graphicName === "file-ps1"
+                      ? "scale-40-24"
+                      : ""
+                  }`}
+                />
+              )
+            )}
+            {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
+          </div>
         </div>
-      ) : (
-        <div className={`${baseClass}__empty-state`}>No automations</div>
-      )}
-      <p className={`${baseClass}__footer-text`}>
-        {storedPolicy.continuous_automations_enabled ? (
-          <>
-            Software and script automations run <b>every time</b> Fleet receives
-            a failing response.
-            <br />
-            All other automations run on a host&apos;s first failure, or when a
-            host&apos;s response changes from pass to fail.
-          </>
-        ) : (
-          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
-        )}
-      </p>
+      ))}
     </div>
   );
 };

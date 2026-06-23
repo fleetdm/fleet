@@ -1,9 +1,8 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   getExtensionFromFileName,
@@ -16,6 +15,7 @@ import { ILabelSummary } from "interfaces/label";
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -179,7 +179,6 @@ const PackageForm = ({
   gitopsCompatible = false,
   teamId,
 }: IPackageFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
@@ -218,7 +217,7 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
@@ -226,7 +225,7 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
