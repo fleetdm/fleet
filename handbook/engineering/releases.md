@@ -102,7 +102,7 @@ Fleetd is composed of several components (Orbit, Fleet Desktop, osqueryd) delive
 Fleetd components are updated automatically by continuously polling the TUF server, whereas Fleet servers are updated manually by administrators. This difference requires strict compatibility discipline:
 
 - **Must rule**: New fleetd versions always support communication and operation with older Fleet servers. We never break on-premise Fleet deployments, and we never force users to update their servers when a new fleetd update is pushed. New agent features that require a newer server will not be available on hosts connected to an older server.
-- **Nice to have**: New Fleet server versions work with older fleetd agents. Communication is not broken, but new server features that require an updated agent will not be available on hosts still running the older version.
+- **Nice to have**: New Fleet server versions work with older fleetd agents. Communication is not broken, but new server features that require an updated agent will not be available on hosts still running the older version. This is generally maintained for relatively recent agent versions but may break with very old agents.
 
 
 ### Create a fleetd release candidate
