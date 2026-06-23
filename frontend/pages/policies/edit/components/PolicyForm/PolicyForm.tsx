@@ -9,7 +9,7 @@ import { size } from "lodash";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
@@ -169,7 +169,6 @@ const PolicyForm = ({
     excludeAll: lastEditedQueryLabelsExcludeAll,
   });
 
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const {
@@ -278,7 +277,7 @@ const PolicyForm = ({
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
-    onError: () => renderFlash("error", "Could not update policy automations."),
+    onError: () => notify.error("Could not update policy automations."),
   });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
@@ -375,9 +374,11 @@ const PolicyForm = ({
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
-      renderFlash("success", "Automation added.");
-    } catch {
-      renderFlash("error", "Couldn't set automation. Please try again.");
+      notify.success("Automation added.");
+    } catch (e) {
+      notify.error("Couldn't set automation. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsAddingAutomation(false);
     }

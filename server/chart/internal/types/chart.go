@@ -28,6 +28,24 @@ type HostFilter struct {
 	ExcludeHostIDs []uint
 }
 
+// CVEChartFilter narrows the CVE chart entity set to a resolved allow-set of
+// CVE IDs. All predicates AND together (intersect); ExcludeCVEs are subtracted
+// afterward. Excluding a CVE that isn't in the set is a harmless no-op.
+//
+// Categories empty means "all categories" (no narrowing). CVSSMin/CVSSMax are
+// always set by the service (forced to 9.0/10.0 this round — see the severity
+// TODO in the service). EPSSMin/EPSSMax are nil when no bound was requested;
+// values are 0.0–1.0 to match cve_meta.epss_probability.
+type CVEChartFilter struct {
+	Categories   []string
+	CVSSMin      float64
+	CVSSMax      float64
+	EPSSMin      *float64
+	EPSSMax      *float64
+	KnownExploit bool
+	ExcludeCVEs  []string
+}
+
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
 	// FindOnlineHostIDs returns host IDs that are "online right now" per the
@@ -46,14 +64,21 @@ type Datastore interface {
 	// stops matching.
 	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
 
-	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
-	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
-	// titles, unioned with all critical OS vulnerabilities. Returns a non-nil
-	// empty slice when nothing matches — callers pass this to GetSCDData's
-	// entityIDs parameter where nil vs empty have distinct semantics.
-	//
-	// TODO(iteration-2): replace with user-configurable filtering.
-	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
+	// CollectibleCVEs returns every CVE ID, at all severities, on the curated
+	// set of tracked software (trackedCVESoftwareMatchers) unioned with all
+	// operating-system vulnerabilities. This is the wide set the CVE collector
+	// records into host_scd_data; display-time narrowing happens at read time
+	// via ResolveCVEChartEntities. Returns a non-nil empty slice when nothing
+	// matches.
+	CollectibleCVEs(ctx context.Context) ([]string, error)
+
+	// ResolveCVEChartEntities resolves the read-time CVE allow-set for the chart
+	// by intersecting the curated universe with the filter's predicates
+	// (category, CVSS range, EPSS range, known-exploit) and subtracting any
+	// excluded CVEs. Returns a non-nil empty slice when the filter resolves to
+	// nothing — callers pass this to GetSCDData's entityIDs parameter, never
+	// nil, so lower-severity CVEs never leak into the chart.
+	ResolveCVEChartEntities(ctx context.Context, filter CVEChartFilter) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of

@@ -377,6 +377,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				}
 
 				appStoreApp.SelfService = true
+				if payload.Configuration != nil {
+					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
+						return nil, nil, err
+					}
+				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:

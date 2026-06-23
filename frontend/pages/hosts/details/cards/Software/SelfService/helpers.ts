@@ -14,6 +14,17 @@ const IN_PROGRESS_UI_STATUSES = new Set<string>([
   ...HOST_SOFTWARE_UI_PENDING_STATUSES,
 ]);
 
+/** Statuses that specifically indicate an install_all-style operation is in
+ * flight. Narrower than IN_PROGRESS_UI_STATUSES: updates and uninstalls aren't
+ * triggered by install_all, so they shouldn't keep the button visible after
+ * `uninstalledCount` drops to 0. */
+const INSTALL_ALL_IN_FLIGHT_UI_STATUSES = new Set<string>([
+  "installing",
+  "running_script",
+  "pending_install",
+  "pending_script",
+]);
+
 /** Statuses indicating the user cannot click "Install" — already done or in-flight. */
 const INSTALLED_OR_IN_FLIGHT_UI_STATUSES = new Set<string>([
   ...IN_PROGRESS_UI_STATUSES,
@@ -56,7 +67,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
   { id: 5, label: "🔐 Security", value: "Security" },
-  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
+  { id: 6, label: "🛟 Support", value: "Support" },
+  { id: 7, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 // Client-side category filter by name — both sides come from
@@ -96,9 +108,12 @@ export const countUninstalledForInstallAll = (
     (item) => !INSTALLED_OR_IN_FLIGHT_UI_STATUSES.has(item.ui_status)
   ).length;
 
-/** True if any item in the list is currently in-progress (install_all should
- * be disabled until they all leave that state). */
+/** True if any item in the list is currently being installed/scripted by an
+ * install_all-style operation. Updates and uninstalls don't count — those are
+ * orthogonal operations and shouldn't keep the install_all button visible. */
 export const hasInProgressInstallAllItems = (
   software: IDeviceSoftwareWithUiStatus[]
 ): boolean =>
-  software.some((item) => IN_PROGRESS_UI_STATUSES.has(item.ui_status));
+  software.some((item) =>
+    INSTALL_ALL_IN_FLIGHT_UI_STATUSES.has(item.ui_status)
+  );

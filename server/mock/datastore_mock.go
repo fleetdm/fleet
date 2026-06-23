@@ -676,7 +676,11 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type PolicyLiteFunc func(ctx context.Context, id uint) (*fleet.PolicyLite, error)
 
+type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
+
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
+
+type ResetPolicyFunc func(ctx context.Context, policyID uint) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -925,6 +929,8 @@ type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew 
 type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error)
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
+
+type HostPreviouslyOrbitEnrolledFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1260,6 +1266,8 @@ type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
+type GetABMTokenByUniqueTokenFunc func(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error)
+
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
 
 type InsertVPPTokenFunc func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
@@ -1307,6 +1315,8 @@ type GetABMTokenByIDFunc func(ctx context.Context, tokenID uint) (*fleet.ABMToke
 type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 
 type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
+
+type GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
@@ -1738,7 +1748,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep []string) error
 
@@ -2097,6 +2107,14 @@ type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamI
 type GetTraceSamplerSettingsFunc func(ctx context.Context) (*tracing.Settings, error)
 
 type SetTraceSamplerSettingsFunc func(ctx context.Context, settings *tracing.Settings) error
+
+type InsertADUEEnrollmentChallengeFunc func(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error)
+
+type GetADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
+
+type ConsumeADUEEnrollmentChallengeFunc func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error)
+
+type CleanupExpiredADUEEnrollmentChallengesFunc func(ctx context.Context) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3077,8 +3095,14 @@ type DataStore struct {
 	PolicyLiteFunc        PolicyLiteFunc
 	PolicyLiteFuncInvoked bool
 
+	ListPolicyAutomationActivitiesFunc        ListPolicyAutomationActivitiesFunc
+	ListPolicyAutomationActivitiesFuncInvoked bool
+
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
+
+	ResetPolicyFunc        ResetPolicyFunc
+	ResetPolicyFuncInvoked bool
 
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
@@ -3451,6 +3475,9 @@ type DataStore struct {
 
 	EnrollOrbitFunc        EnrollOrbitFunc
 	EnrollOrbitFuncInvoked bool
+
+	HostPreviouslyOrbitEnrolledFunc        HostPreviouslyOrbitEnrolledFunc
+	HostPreviouslyOrbitEnrolledFuncInvoked bool
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
@@ -3953,6 +3980,9 @@ type DataStore struct {
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
 
+	GetABMTokenByUniqueTokenFunc        GetABMTokenByUniqueTokenFunc
+	GetABMTokenByUniqueTokenFuncInvoked bool
+
 	SaveABMTokenFunc        SaveABMTokenFunc
 	SaveABMTokenFuncInvoked bool
 
@@ -4024,6 +4054,9 @@ type DataStore struct {
 
 	GetABMTokenOrgNamesAssociatedWithTeamFunc        GetABMTokenOrgNamesAssociatedWithTeamFunc
 	GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked bool
+
+	GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc        GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc
+	GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked bool
 
 	ClearMDMUpcomingActivitiesDBFunc        ClearMDMUpcomingActivitiesDBFunc
 	ClearMDMUpcomingActivitiesDBFuncInvoked bool
@@ -5209,6 +5242,18 @@ type DataStore struct {
 
 	SetTraceSamplerSettingsFunc        SetTraceSamplerSettingsFunc
 	SetTraceSamplerSettingsFuncInvoked bool
+
+	InsertADUEEnrollmentChallengeFunc        InsertADUEEnrollmentChallengeFunc
+	InsertADUEEnrollmentChallengeFuncInvoked bool
+
+	GetADUEEnrollmentChallengeFunc        GetADUEEnrollmentChallengeFunc
+	GetADUEEnrollmentChallengeFuncInvoked bool
+
+	ConsumeADUEEnrollmentChallengeFunc        ConsumeADUEEnrollmentChallengeFunc
+	ConsumeADUEEnrollmentChallengeFuncInvoked bool
+
+	CleanupExpiredADUEEnrollmentChallengesFunc        CleanupExpiredADUEEnrollmentChallengesFunc
+	CleanupExpiredADUEEnrollmentChallengesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7495,11 +7540,25 @@ func (s *DataStore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite,
 	return s.PolicyLiteFunc(ctx, id)
 }
 
+func (s *DataStore) ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListPolicyAutomationActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPolicyAutomationActivitiesFunc(ctx, policyID, filter, opts, status)
+}
+
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+}
+
+func (s *DataStore) ResetPolicy(ctx context.Context, policyID uint) error {
+	s.mu.Lock()
+	s.ResetPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyFunc(ctx, policyID)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -8368,6 +8427,13 @@ func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
 	return s.EnrollOrbitFunc(ctx, opts...)
+}
+
+func (s *DataStore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+	s.mu.Lock()
+	s.HostPreviouslyOrbitEnrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostPreviouslyOrbitEnrolledFunc(ctx, hostInfo, isMDMEnabled)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -9539,6 +9605,13 @@ func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*
 	return s.GetABMTokenByOrgNameFunc(ctx, orgName)
 }
 
+func (s *DataStore) GetABMTokenByUniqueToken(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.GetABMTokenByUniqueTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenByUniqueTokenFunc(ctx, uniqueToken)
+}
+
 func (s *DataStore) SaveABMToken(ctx context.Context, tok *fleet.ABMToken) error {
 	s.mu.Lock()
 	s.SaveABMTokenFuncInvoked = true
@@ -9705,6 +9778,13 @@ func (s *DataStore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, t
 	s.GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenOrgNamesAssociatedWithTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error) {
+	s.mu.Lock()
+	s.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc(ctx, teamID)
 }
 
 func (s *DataStore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
@@ -11212,7 +11292,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -12470,4 +12550,32 @@ func (s *DataStore) SetTraceSamplerSettings(ctx context.Context, settings *traci
 	s.SetTraceSamplerSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetTraceSamplerSettingsFunc(ctx, settings)
+}
+
+func (s *DataStore) InsertADUEEnrollmentChallenge(ctx context.Context, abmTokenID *uint, idpAccountUUID string, expiration time.Duration) (challenge string, err error) {
+	s.mu.Lock()
+	s.InsertADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertADUEEnrollmentChallengeFunc(ctx, abmTokenID, idpAccountUUID, expiration)
+}
+
+func (s *DataStore) GetADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.GetADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetADUEEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) ConsumeADUEEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
+	s.mu.Lock()
+	s.ConsumeADUEEnrollmentChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeADUEEnrollmentChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupExpiredADUEEnrollmentChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredADUEEnrollmentChallengesFunc(ctx)
 }

@@ -34,14 +34,14 @@ const DiscardDataOption = ({
     <>
       {isDisabled ? (
         <>
-          This setting is ignored because reports in Fleet have been{" "}
+          This setting is ignored since report results in Fleet have been{" "}
           <TooltipWrapper
             tipContent={
               <>
-                A Fleet administrator can enable reports under <br />
+                A Fleet administrator can enable report results under <br />
                 <b>
-                  Organization settings &gt; Advanced options &gt; Disable
-                  reports
+                  Organization settings &gt; Advanced options &gt; Store report
+                  results
                 </b>
                 .
               </>
@@ -70,7 +70,7 @@ const DiscardDataOption = ({
           </Button>
         </>
       ) : (
-        "The most recent results for each host will not be available in Fleet."
+        "When disabled, results will not be available in Fleet."
       )}
     </>
   );
@@ -79,18 +79,18 @@ const DiscardDataOption = ({
     <div className={baseClass}>
       {isReportsLoggingIgnored && (
         <InfoBanner>
-          The <b>Discard data</b> setting is ignored when differential logging
-          is enabled. This report&apos;s results will not be saved in Fleet.
+          The <b>Store data</b> setting is ignored when differential logging is
+          enabled. This report&apos;s results will not be saved in Fleet.
         </InfoBanner>
       )}
       <Checkbox
         name="discardData"
-        onChange={setDiscardData}
-        value={discardData}
+        onChange={() => setDiscardData(!discardData)}
+        value={!discardData}
         disabled={isDisabled}
         helpText={renderHelpText()}
       >
-        Discard data
+        Store data
       </Checkbox>
     </div>
   );

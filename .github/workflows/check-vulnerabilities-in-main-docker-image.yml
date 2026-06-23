@@ -1,0 +1,137 @@
+name: Check critical vulnerabilities in main docker image
+
+# Sibling to check-vulnerabilities-in-released-docker-images.yml. That workflow
+# scans the 5 most-recent shipped releases; this one builds the fleet image
+# from the current main branch and scans it. Together they cover both the
+# already-released attack surface and the in-flight one (e.g. new OS-package
+# CVEs that land in the Alpine base image before the next minor cut).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * *"
+
+# A newly queued run on the same ref interrupts an in-flight one. github.ref is
+# always defined (refs/heads/<default_branch> on schedule, the dispatched ref on
+# workflow_dispatch), so scheduled and dispatched runs share a deterministic group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Build fleet docker image
+        run: |
+          # OS-package CVE coverage doesn't need a real fleet binary; placeholder
+          # keeps the Dockerfile's COPY step happy without paying for a full Go build.
+          touch tools/fleet-docker/fleet
+          chmod +x tools/fleet-docker/fleet
+          docker build -f tools/fleet-docker/Dockerfile -t fleetdm/fleet:main-scan tools/fleet-docker/
+
+      - name: List fleet VEX files
+        id: generate_fleet_vex_files
+        run: |
+          # Trivy requires a separate --vex flag per source file; a comma-separated
+          # value is treated as one path. Emit the output pre-formatted as repeated
+          # `--vex=...` tokens so the trivy step can splat it directly.
+          VEX_FLAGS=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do printf -- '--vex=./security/vex/fleet/%s ' "$line"; done)
+          echo "$VEX_FLAGS"
+          echo "FLEET_VEX_FLAGS=$VEX_FLAGS" >> $GITHUB_OUTPUT
+
+      # We use the trivy command and not the github action because it doesn't support loading
+      # VEX files yet. Mirrors check-vulnerabilities-in-released-docker-images.yml.
+      - name: Run trivy vulnerability scanner on locally-built fleetdm/fleet image
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          FLEET_VEX_FLAGS: ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }}
+        run: |
+          mkdir trivy-download
+          cd trivy-download
+          curl -fsSL --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
+          tar -xf trivy_0.69.2_Linux-64bit.tar.gz
+          mv trivy ..
+          cd ..
+          chmod +x ./trivy
+          unset trivy_exit_code
+          # --pkg-types=os only: Go module CVEs in the real binary are already
+          # tracked separately (Dependabot, govulncheck, Aikido SCA). This scan
+          # exists to catch base-image OS-package CVEs between release cuts.
+          ./trivy image \
+            --exit-code=1 \
+            --pkg-types=os \
+            --severity=CRITICAL \
+            $FLEET_VEX_FLAGS \
+            --format=json \
+            --output=trivy-results-fleet-main.json \
+            fleetdm/fleet:main-scan || trivy_exit_code=$?
+          # Print a human-readable table to the job log for debugging.
+          ./trivy convert --format table trivy-results-fleet-main.json
+          if [ -n "${trivy_exit_code:-}" ]; then
+            exit "$trivy_exit_code"
+          fi
+
+      - name: Extract CVE list for Slack notification
+        id: extract_cves
+        if: failure()
+        run: |
+          shopt -s nullglob
+          files=(trivy-results-*.json)
+          shopt -u nullglob
+          if [ ${#files[@]} -gt 0 ]; then
+            # `safe` JSON-escapes string fields so they can be embedded inline in
+            # the Slack payload JSON (titles can contain quotes, backslashes, etc.).
+            # `\\n` (literal backslash-n) is used as the separator so the value
+            # stays on a single line in $GITHUB_OUTPUT and Slack renders it as a
+            # newline when parsing the JSON payload.
+            cve_list=$(jq -r -s '
+              def safe(s): (s // "") | tojson | .[1:-1];
+              [.[] | (.ArtifactName // "?") as $image | .Results[]?.Vulnerabilities[]? | . + {image: $image}]
+              | unique_by(.VulnerabilityID + "|" + (.PkgName // "") + "|" + .image)
+              | sort_by(.Severity, .VulnerabilityID, .image)
+              | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) in `\(safe(.image))` — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              | join("\\n")
+            ' "${files[@]}")
+          fi
+          echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
+
+      - name: Slack notification
+        if: github.event.schedule == '0 7 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ Check vulnerabilities in main docker image failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n\n*Detected CVEs:*\n${{ steps.extract_cves.outputs.cve_list }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

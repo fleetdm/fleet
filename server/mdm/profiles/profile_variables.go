@@ -83,16 +83,31 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (replacedContents string, replacedVariable bool, err error) {
-	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
+	value, rx, ok, err := ResolveHostEndUserIDPValue(ctx, ds, fleetVar, hostUUID, hostIDForUUIDCache, onError)
 	if err != nil {
 		return "", false, err
 	}
 	if !ok {
 		return "", false, nil
 	}
+	replacedContents = ReplaceFleetVariableInXML(rx, profileContents, value)
+	return replacedContents, true, nil
+}
 
-	var rx *regexp.Regexp
-	var value string
+// ResolveHostEndUserIDPValue resolves the raw string value for the given IDP fleet variable and host.
+func ResolveHostEndUserIDPValue(ctx context.Context, ds fleet.Datastore,
+	fleetVar string, hostUUID string,
+	hostIDForUUIDCache map[string]uint,
+	onError func(errMsg string) error,
+) (value string, rx *regexp.Regexp, ok bool, err error) {
+	user, userOK, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if !userOK {
+		return "", nil, false, nil
+	}
+
 	switch fleetVar {
 	case string(fleet.FleetVarHostEndUserIDPUsername):
 		rx = fleet.FleetVarHostEndUserIDPUsernameRegexp
@@ -109,10 +124,10 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
 		value = strings.TrimSpace(user.IdpFullName)
+	default:
+		return "", nil, false, nil
 	}
-	replacedContents = ReplaceFleetVariableInXML(rx, profileContents, value)
-
-	return replacedContents, true, nil
+	return value, rx, true, nil
 }
 
 func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,

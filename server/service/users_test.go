@@ -1854,7 +1854,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 
-	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+	t.Run("PerformRequiredPasswordReset clears reset tokens and sessions", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -1882,7 +1882,9 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil
 		}
 
+		var destroyedSessionsForUserID uint
 		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
 			return nil
 		}
 
@@ -1892,6 +1894,7 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
 		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
 
-		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called for required password reset")
+		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
 	})
 }

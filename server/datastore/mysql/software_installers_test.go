@@ -65,6 +65,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
 		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetSoftwareTitlesForInstallAll", testGetSoftwareTitlesForInstallAll},
+		{"SummaryUpcomingPerHostNoDropout", testSummaryUpcomingPerHostNoDropout},
 	}
 
 	for _, c := range cases {
@@ -5624,7 +5625,8 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 		ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
 	})
 
-	// skipped for various reasons
+	// previously installed/pending titles are skipped; failed_install and failed_uninstall
+	// are included so install_all re-queues them (matches per-row Retry).
 	installedID, _ := newInstaller("installed", true, nil, nil, noLabels)
 	installedUpdateID, _ := newInstaller("installed-update", true, nil, nil, noLabels)
 	failedID, _ := newInstaller("failed", true, nil, nil, noLabels)
@@ -5658,11 +5660,12 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, pendingID, fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 
-	// no category: only the available titles, returned in alphabetical order by name
+	// no category: only the available titles, returned in alphabetical order by name.
+	// failed_install and failed_uninstall are included so install_all re-queues them.
 	got, categoryName, err := ds.GetSoftwareTitlesForInstallAll(ctx, host, nil)
 	require.NoError(t, err)
 	require.Nil(t, categoryName)
-	require.Equal(t, []string{"available", "label-in", "uninstalled"}, names(got))
+	require.Equal(t, []string{"available", "failed", "failed-uninstall", "label-in", "uninstalled"}, names(got))
 
 	// scoped to a category: only the in-category title, and the name is returned
 	got, categoryName, err = ds.GetSoftwareTitlesForInstallAll(ctx, host, &cat.ID)
@@ -5738,4 +5741,60 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"chrome", "slack", "zoom"}, names(got))
+}
+
+// A host with two queued installs for the same installer (one lower priority,
+// the other later created_at) must still be counted once: the old OR-based
+// anti-join let each row dominate the other and dropped the host entirely.
+func testSummaryUpcomingPerHostNoDropout(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+	// Don't auto-activate; we want both rows to sit in upcoming_activities.
+	ds.testActivateSpecificNextActivities = []string{"-"}
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("install"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install",
+		UninstallScript: "uninstall",
+		InstallerFile:   tfr,
+		StorageID:       "dropout-storage",
+		Filename:        "dropout.pkg",
+		Title:           "Dropout App",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Insert two upcoming software_install rows for the same host+installer that
+	// cross-dominate under the old OR predicate: row B has the lower priority,
+	// row A has the later created_at.
+	insertUpcoming := func(execID string, priority int, createdOffsetMicros int) {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO upcoming_activities
+	(host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+VALUES
+	(?, ?, 1, 'software_install', ?, JSON_OBJECT('self_service', false), NOW(6) + INTERVAL ? MICROSECOND)`,
+			host.ID, priority, execID, createdOffsetMicros)
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `
+INSERT INTO software_install_upcoming_activities
+	(upcoming_activity_id, software_installer_id, software_title_id)
+VALUES (?, ?, ?)`, uaID, installerID, titleID)
+		require.NoError(t, err)
+	}
+	insertUpcoming("dropout-B", -1, 0)  // lower priority, earlier created_at
+	insertUpcoming("dropout-A", 0, 100) // higher priority, later created_at
+
+	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerID)
+	require.NoError(t, err)
+	// The host must be counted exactly once (not dropped, not double-counted).
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{PendingInstall: 1}, *summary)
 }
