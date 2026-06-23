@@ -297,11 +297,8 @@ func HostnamesMatch(a, b string) (bool, error) {
 	return ap.Hostname() == bp.Hostname(), nil
 }
 
-// SizeLimitTransport wraps a base RoundTripper and enforces a response size
-// limit. If base is nil, http.DefaultTransport is used.
 type SizeLimitTransport struct {
 	maxSizeBytes int64
-	Base         http.RoundTripper
 }
 
 var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
@@ -313,11 +310,7 @@ func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
 }
 
 func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	base := t.Base
-	if base == nil {
-		base = http.DefaultTransport
-	}
-	resp, err := base.RoundTrip(req)
+	resp, err := http.DefaultTransport.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}

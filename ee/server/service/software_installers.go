@@ -2524,9 +2524,7 @@ const (
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
 	client := fleethttp.NewClient()
-	slt := fleethttp.NewSizeLimitTransport(maxInstallerSize)
-	slt.Base = client.Transport // preserve the blocking DialContext
-	client.Transport = slt
+	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
