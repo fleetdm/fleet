@@ -70,8 +70,8 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 
 ## Notifications
 - Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from `components/ToastNotification`.
-- **Call `notify.*` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
-- Success auto-dismisses after 5s; errors are sticky.
+- **When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
+- Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
 
 ## XSS Prevention
 - ALWAYS sanitize user-generated HTML before `dangerouslySetInnerHTML`. Approved helpers:

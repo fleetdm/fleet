@@ -240,9 +240,9 @@ export const notify: INotify = {
   success: (message, options) => {
     const id = options?.id ?? nextToastId();
     // Defer one tick so the toast is created after the route-change
-    // dismiss above, landing it on the destination page. Call notify
-    // before router.push — the reverse order can break auto-dismiss
-    // on the destination page (#48088).
+    // dismiss above, landing it on the destination page. When a handler
+    // both navigates and shows a success toast, call notify.success
+    // before router.push — the reverse order can break auto-dismiss (#48088).
     setTimeout(() => {
       toast.custom(
         (sonnerId) => (

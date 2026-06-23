@@ -1068,11 +1068,10 @@ config with the response of your update call to make sure it has the latest.
 ### Toast notifications
 
 Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from
-`components/ToastNotification`. Success toasts auto-dismiss after 5s; error toasts are sticky.
-All toasts are dismissed automatically on URL change.
+`components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
+Visible toasts are dismissed automatically on URL change.
 
-**Call `notify.*` before `router.push` / `router.replace`** — the reverse order can break
-auto-dismiss on the destination page (#48088).
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
 
 ```tsx
 // first notify
