@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.m365copilot';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.m365copilot' AND version_compare(bundle_short_version, '1.2606.0801') < 0);"
       },
-      "installer_url": "https://res.cdn.office.net/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_365_Copilot_universal_1.2606.0801_Installer.pkg",
+      "installer_url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_365_Copilot_universal_1.2606.0801_Installer.pkg",
       "install_script_ref": "24e252f8",
       "uninstall_script_ref": "ff8e1cf4",
       "sha256": "334b47a40de9e2adddc225399a0335464a00a4f2059c2578e6e0ff2fb424733d",

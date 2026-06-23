@@ -33,6 +33,9 @@ export default {
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
+    `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
+  POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
