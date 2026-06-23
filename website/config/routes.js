@@ -925,7 +925,7 @@ module.exports.routes = {
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
   'GET /guides/queries': '/guides/reports',
-  'GET /guides/standard-query-library': '/reports',
+  'GET /guides/standard-query-library': '/guides/report-library',
   'GET /app-library': '/software-catalog',
   'GET /app-library/:appIdentifier': {
     fn: (req, res) => {
