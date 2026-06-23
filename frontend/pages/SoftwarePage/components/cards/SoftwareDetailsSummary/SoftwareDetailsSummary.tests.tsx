@@ -22,7 +22,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: false,
@@ -45,7 +44,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canAddPatchPolicy: false,
@@ -72,7 +70,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: true,
       canAddPatchPolicy: false,
@@ -95,11 +92,11 @@ describe("buildActionOptions", () => {
     });
   });
 
-  it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for vpp_apps", () => {
+  it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for Apple VPP", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
-      source: "vpp_apps",
+      isAppleVpp: true,
       canEditSoftware: true,
       canEditConfiguration: true,
       canAddPatchPolicy: false,
@@ -128,7 +125,7 @@ describe("buildActionOptions", () => {
       tooltipContent: expect.anything(),
     });
 
-    // For vpp_apps, Edit software also gets the gitops tooltip if present.
+    // For Apple VPP, Edit software also gets the gitops tooltip if present.
     expect(editSoftware).toMatchObject({
       isDisabled: true,
       tooltipContent: expect.anything(),
@@ -139,7 +136,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: true,
@@ -162,7 +158,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: true,
@@ -185,7 +180,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canAddPatchPolicy: true,
@@ -215,7 +209,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: false,
@@ -231,7 +224,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: false,
@@ -251,7 +243,6 @@ describe("buildActionOptions", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: false,
       repoURL: undefined,
-      source: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canAddPatchPolicy: false,

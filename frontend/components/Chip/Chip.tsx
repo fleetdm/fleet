@@ -43,7 +43,7 @@ const Chip = ({
   const chip = onClick ? (
     // use a button element so that the chip can be focused and clicked
     // with the keyboard
-    <button className={classNames} onClick={onClick}>
+    <button type="button" className={classNames} onClick={onClick}>
       {content}
     </button>
   ) : (

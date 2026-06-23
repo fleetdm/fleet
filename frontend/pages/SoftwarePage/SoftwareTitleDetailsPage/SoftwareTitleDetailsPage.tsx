@@ -45,6 +45,7 @@ import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordio
 import EditSoftwareModal from "./EditSoftwareModal";
 import { getDisplayedSoftwareName } from "../helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
+import ViewYamlModal from "./ViewYamlModal";
 
 const baseClass = "software-title-details-page";
 
@@ -318,6 +319,28 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
+  // Renders the YAML modal for custom (non-FMA) packages. Two flows open it:
+  // (1) `?gitops_yaml=true` redirect after add, and (2) editing a custom
+  // package in gitops mode — `EditSoftwareModal` calls `openViewYamlModal()`
+  // instead of flashing success. Previously hosted inside `SoftwareInstallerCard`;
+  // owned here now that the page no longer renders that card.
+  const renderViewYamlModal = (title: ISoftwareTitleDetails) => {
+    if (!showViewYamlModal) return null;
+    const pkg = title.software_package;
+    // FMA packages don't expose YAML editing — only custom packages do.
+    if (!pkg || pkg.fleet_maintained_app_id) return null;
+    return (
+      <ViewYamlModal
+        softwareTitleName={title.name}
+        iconUrl={title.icon_url}
+        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
+        softwarePackage={pkg}
+        onExit={onToggleViewYaml}
+        isScriptPackage={installerResult?.cardInfo.isScriptPackage}
+      />
+    );
+  };
+
   const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
     if (!showLibraryEditModal || !installerResult) return null;
     const { meta } = installerResult;
@@ -364,6 +387,7 @@ const SoftwareTitleDetailsPage = ({
           {renderLibrarySection(softwareTitle)}
           {renderInventorySection(softwareTitle)}
           {renderLibraryEditModal(softwareTitle)}
+          {renderViewYamlModal(softwareTitle)}
         </>
       );
     }

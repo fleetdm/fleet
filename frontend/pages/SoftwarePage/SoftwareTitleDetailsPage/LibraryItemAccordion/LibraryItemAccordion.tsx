@@ -295,9 +295,9 @@ const LibraryItemAccordion = ({
     </div>
   );
 
-  // Mirrors `InstallerStatusTableConfig` on main — script-only packages swap
-  // the "installed" label/tooltip for "ran" semantics; Android Play Store apps
-  // swap pending/failed tooltip wording to match MDM check-in semantics.
+  // Script-only packages swap the "installed" label/tooltip for "ran"
+  // semantics; Android Play Store apps swap pending/failed tooltip wording
+  // to match MDM check-in semantics.
   const isAndroidApp = !!androidPlayStoreId;
   const installedLabel = isScriptPackage ? "ran" : "installed";
 

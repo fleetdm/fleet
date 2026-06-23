@@ -286,6 +286,7 @@ const SoftwareSummaryCard = ({
           }
           patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
           headerPills={headerPills}
+          isAppleVpp={isAppleVpp}
         />
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (

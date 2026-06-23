@@ -398,10 +398,9 @@ describe("LibraryItemAccordion", () => {
   });
 
   // The status-row label and the three icon tooltips switch between
-  // package / script / Android Play Store wording. Mirrors the matrix
-  // implemented in `InstallerStatusTableConfig` on the SoftwareInstallerCard.
-  // One test per mode: each walks the full installed/pending/failed row so
-  // the whole presentation for that mode is visible at a glance.
+  // package / script / Android Play Store wording. One test per mode: each
+  // walks the full installed/pending/failed row so the whole presentation
+  // for that mode is visible at a glance.
   describe("status row variants", () => {
     type StatusName = "installed" | "pending" | "failed";
 
@@ -440,6 +439,24 @@ describe("LibraryItemAccordion", () => {
       expect(await screen.findByText(expected)).toBeInTheDocument();
     };
 
+    // The info-outline icon trailing the "installed" count carries its own
+    // tooltip whose copy varies by installer source (package / tarball /
+    // Android). Hover it and assert the wording.
+    const expectInfoTooltip = async (
+      user: UserEvent,
+      container: HTMLElement,
+      expected: RegExp
+    ) => {
+      const wrapper = container.querySelector(
+        ".library-item-accordion__status-counts-info .component__tooltip-wrapper__element"
+      );
+      if (!wrapper) {
+        throw new Error("info-outline tooltip wrapper not found");
+      }
+      await user.hover(wrapper);
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+    };
+
     it("renders the installed/pending/failed labels and tooltips for a package", async () => {
       const { user, container } = renderAccordion();
       await user.click(screen.getByRole("button", { expanded: false }));
@@ -466,6 +483,53 @@ describe("LibraryItemAccordion", () => {
         "failed",
         /failed to install\/uninstall/i
       );
+
+      // Info-outline tooltip on the installed count: default (package) wording
+      // includes all three sources — policy automation, setup experience, and
+      // manual install.
+      await expectInfoTooltip(
+        user,
+        container,
+        /policy automation.*setup experience.*manual install/i
+      );
+    });
+
+    it("renders the installed/pending/failed labels and tooltips for a tarball package", async () => {
+      const { user, container } = renderAccordion({ isTarballPackage: true });
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      // Tarballs don't swap labels or per-status icon tooltips — only the
+      // info-outline tooltip changes (no setup-experience leg).
+      expect(screen.getByText("32 installed")).toBeVisible();
+      expect(screen.getByText("5 pending")).toBeVisible();
+      expect(screen.getByText("3 failed")).toBeVisible();
+
+      await expectTooltipOnHover(
+        user,
+        container,
+        "installed",
+        /Software is installed on these hosts/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "pending",
+        /Fleet is installing\/uninstalling/i
+      );
+      await expectTooltipOnHover(
+        user,
+        container,
+        "failed",
+        /failed to install\/uninstall/i
+      );
+
+      await expectInfoTooltip(
+        user,
+        container,
+        /policy automation or manual install/i
+      );
+      // Setup-experience leg must be absent for tarballs.
+      expect(screen.queryByText(/setup experience/i)).not.toBeInTheDocument();
     });
 
     it("renders the installed/pending/failed labels and tooltips for a script-only package", async () => {
@@ -531,6 +595,13 @@ describe("LibraryItemAccordion", () => {
         container,
         "failed",
         /configuration failed to apply/i
+      );
+
+      // Info-outline tooltip collapses to a Play Store one-liner on Android.
+      await expectInfoTooltip(
+        user,
+        container,
+        /latest status from the Google Play Store/i
       );
     });
   });

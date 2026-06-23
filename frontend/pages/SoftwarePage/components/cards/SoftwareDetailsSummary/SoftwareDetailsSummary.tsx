@@ -45,7 +45,13 @@ export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
 export interface BuildActionOptionsArgs {
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
-  source?: string;
+  /** Apple VPP titles (App Store / iOS / iPadOS, not Android Play Store). VPP
+   * apps are GitOps-managed, so Edit software is locked behind the gitops
+   * tooltip when `gitOpsModeEnabled`. Compute as
+   * `installerType === "app-store" && !isAndroidPlayStoreApp` at the call
+   * site — `source` strings alone don't disambiguate, since both Apple VPP
+   * and Android Play Store use `apps`-family sources. */
+  isAppleVpp?: boolean;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
   canAddPatchPolicy: boolean;
@@ -57,7 +63,7 @@ export interface BuildActionOptionsArgs {
 export const buildActionOptions = ({
   gitOpsModeEnabled,
   repoURL,
-  source,
+  isAppleVpp = false,
   canEditSoftware,
   canEditConfiguration,
   canAddPatchPolicy,
@@ -83,7 +89,7 @@ export const buildActionOptions = ({
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
     disabledVersionsTooltipContent = gitOpsModeTooltipContent;
 
-    if (source === "vpp_apps") {
+    if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
   }
@@ -106,7 +112,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: gitOpsModeEnabled && source === "vpp_apps",
+      isDisabled: !!gitOpsModeEnabled && isAppleVpp,
       tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
@@ -194,6 +200,9 @@ interface ISoftwareDetailsSummaryProps {
   /** Optional pill row rendered between the title and the Actions dropdown
    * (e.g. Fleet-maintained, Self-service, Auto install). */
   headerPills?: React.ReactNode;
+  /** Apple VPP — gates Edit software behind the gitops tooltip. See
+   * `BuildActionOptionsArgs.isAppleVpp` for the canonical computation. */
+  isAppleVpp?: boolean;
 }
 
 const SoftwareDetailsSummary = ({
@@ -218,6 +227,7 @@ const SoftwareDetailsSummary = ({
   iconUploadedAt,
   patchPolicyId,
   headerPills,
+  isAppleVpp = false,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -281,7 +291,7 @@ const SoftwareDetailsSummary = ({
   const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
     repoURL,
-    source,
+    isAppleVpp,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
     canAddPatchPolicy: !!onClickAddPatchPolicy,
