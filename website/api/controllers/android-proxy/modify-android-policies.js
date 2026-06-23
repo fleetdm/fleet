@@ -26,7 +26,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
     policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
-    managementApiError: { description: 'The Android management API returned a 5xx error.' },
+    managementApiError: { description: 'The Android management API returned a transient 5xx error.' },
   },
 
 
@@ -97,7 +97,7 @@ module.exports = {
       return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept((err) => {
       if([502, 503, 504].includes(err.status)){
-        return {'managementApiError': `The Android management API returned a 5xx error: ${err}`};
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
       } else {
         return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
       }
