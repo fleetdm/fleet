@@ -911,6 +911,9 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{} // Reset end user auth
 
+	// ensure no Entra tenant leaks into the next test (it changes the Windows MDM discovery auth policy)
+	appCfg.MDM.WindowsEntraTenantIDs = optjson.SetSlice([]string{})
+
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
@@ -8270,6 +8273,11 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
+
+	// With no Entra tenant configured, discovery advertises the OnPremise auth policy and no authentication service url.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": [] } }`), http.StatusOK, &acResp)
+
 	// Preparing the Discovery Request message. We are testing all versions Fleet claims to support
 	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
 		requestBytes := []byte(`
@@ -8315,9 +8323,71 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		resSoapMsg := string(resBytes)
 		require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
 		require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+		require.True(t, s.checkIfXMLTagContains("AuthPolicy", syncml.AuthOnPremise, resSoapMsg))
 		require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
 		require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
 		require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+		require.False(t, s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+	}
+}
+
+// TestFederatedDiscoveryRequest verifies that when an Entra tenant is configured, the Windows MDM discovery endpoint
+// advertises the Federated auth policy together with Microsoft's LoginRedirect authentication service url, so that
+// device-initiated BYOD enrollment authenticates against Microsoft and returns an AAD JWT that Fleet can validate.
+func (s *integrationMDMTestSuite) TestFederatedDiscoveryRequest() {
+	t := s.T()
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b"] } }`), http.StatusOK, &acResp)
+
+	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
+		requestBytes := []byte(`
+		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+		   <s:Header>
+		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
+		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+		     <a:ReplyTo>
+		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		     </a:ReplyTo>
+		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
+		   </s:Header>
+		   <s:Body>
+		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
+		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
+		         <RequestVersion>` + requestVersion + `</RequestVersion>
+		         <DeviceType>CIMClient_Windows</DeviceType>
+		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
+		         <OSEdition>48</OSEdition>
+		         <AuthPolicies>
+		           <AuthPolicy>OnPremise</AuthPolicy>
+		           <AuthPolicy>Federated</AuthPolicy>
+		         </AuthPolicies>
+		       </request>
+		     </Discover>
+		   </s:Body>
+		 </s:Envelope>`)
+
+		resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+
+		resBytes, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+
+		var xmlType any
+		err = xml.Unmarshal(resBytes, &xmlType)
+		require.NoError(t, err)
+
+		resSoapMsg := string(resBytes)
+		require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+		require.True(t, s.checkIfXMLTagContains("AuthPolicy", syncml.AuthFederated, resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+		require.True(t, s.checkIfXMLTagContains("AuthenticationServiceUrl", regexp.QuoteMeta(syncml.AuthFederatedLoginRedirectURL), resSoapMsg))
 	}
 }
 
@@ -8375,6 +8445,10 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	t := s.T()
 
+	// With no Entra tenant configured, discovery advertises the OnPremise auth policy and no authentication service url.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": [] } }`), http.StatusOK, &acResp)
+
 	// Preparing the Discovery Request message
 	requestBytes := []byte(`
 		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
@@ -8419,6 +8493,7 @@ func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	resSoapMsg := string(resBytes)
 	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("AuthPolicy", syncml.AuthOnPremise, resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))

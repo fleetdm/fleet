@@ -191,6 +191,13 @@ const (
 
 	// Supported authentication types
 	AuthOnPremise = "OnPremise"
+	AuthFederated = "Federated"
+
+	// AuthFederatedLoginRedirectURL is the AuthenticationServiceUrl advertised in a Federated discovery response. It
+	// matches the LoginRedirect endpoint Microsoft's own EnterpriseEnrollment discovery returns for federated tenants. The
+	// Windows MDM client opens this URL in a webview, authenticates the user against Microsoft, and posts the resulting AAD
+	// JWT back as a BinarySecurityToken in the subsequent policy and enroll requests.
+	AuthFederatedLoginRedirectURL = "https://enrollment.manage.microsoft.com/EnrollmentServer/LoginRedirect"
 
 	// SOAP Fault codes
 	SoapFaultRecv = "s:receiver"

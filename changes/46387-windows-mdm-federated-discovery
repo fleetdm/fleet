@@ -1,0 +1,1 @@
+- Fixed Windows MDM discovery to advertise the `Federated` authentication policy (with Microsoft's enrollment LoginRedirect URL) when a Microsoft Entra tenant is configured, so device-initiated BYOD enrollment via "Access work or school" succeeds instead of failing with `0x80180027`.

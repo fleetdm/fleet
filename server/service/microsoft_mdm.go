@@ -234,20 +234,31 @@ func getUtcTime(minutes int) string {
 	return future.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
-// NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, and enrollment url
-func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string) (mdm_types.DiscoverResponse, error) {
+// NewDiscoverResponse creates a new DiscoverResponse struct based on the auth policy, policy url, enrollment url, and
+// (for the Federated auth policy) the authentication service url. authServiceUrl is required when authPolicy is
+// Federated and ignored (left empty) otherwise.
+func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl string, authServiceUrl string) (mdm_types.DiscoverResponse, error) {
 	if (len(authPolicy) == 0) || (len(policyUrl) == 0) || (len(enrollmentUrl) == 0) {
 		return mdm_types.DiscoverResponse{}, errors.New("invalid parameters")
 	}
 
+	if authPolicy == syncml.AuthFederated && len(authServiceUrl) == 0 {
+		return mdm_types.DiscoverResponse{}, errors.New("federated auth policy requires an authentication service url")
+	}
+
+	result := mdm_types.DiscoverResult{
+		AuthPolicy:                 authPolicy,
+		EnrollmentVersion:          syncml.EnrollmentVersionV4,
+		EnrollmentPolicyServiceUrl: policyUrl,
+		EnrollmentServiceUrl:       enrollmentUrl,
+	}
+	if len(authServiceUrl) > 0 {
+		result.AuthServiceUrl = &authServiceUrl
+	}
+
 	return mdm_types.DiscoverResponse{
-		XMLNS: syncml.DiscoverNS,
-		DiscoverResult: mdm_types.DiscoverResult{
-			AuthPolicy:                 authPolicy,
-			EnrollmentVersion:          syncml.EnrollmentVersionV4,
-			EnrollmentPolicyServiceUrl: policyUrl,
-			EnrollmentServiceUrl:       enrollmentUrl,
-		},
+		XMLNS:          syncml.DiscoverNS,
+		DiscoverResult: result,
 	}, nil
 }
 
@@ -1171,7 +1182,29 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
+	// The advertised auth policy must match what Fleet's WSTEP handlers actually accept. Fleet only validates a
+	// <wsse:BinarySecurityToken> (an orbit node key for programmatic enrollment, or an Entra AAD JWT for automatic and
+	// device-initiated enrollment); it has no handling for the <wsse:UsernameToken> that an OnPremise auth policy makes
+	// the Windows MDM client send.
+	//
+	// When an Entra tenant is configured, advertise Federated together with Microsoft's LoginRedirect endpoint. The
+	// Windows MDM client then opens that URL in a webview, authenticates the user against Microsoft, and posts the
+	// resulting AAD JWT as the BinarySecurityToken, which authBinarySecurityToken already validates. This is what makes
+	// device-initiated BYOD enrollment (Settings > Access work or school) work; advertising OnPremise instead leaves it
+	// stuck on the opaque 0x80180027 error.
+	//
+	// Without an Entra tenant Fleet has no auth scheme it can accept for a device-initiated enrollment, so we keep
+	// advertising OnPremise (the prior behavior). Programmatic fleetd enrollment performs this same discovery handshake
+	// via the Windows RegisterDeviceWithManagement API but supplies its own BinarySecurityToken (the orbit node key)
+	// regardless of the advertised policy, so it is unaffected in either case.
+	authPolicy := syncml.AuthOnPremise
+	var authServiceUrl string
+	if len(appCfg.MDM.WindowsEntraTenantIDs.Value) > 0 {
+		authPolicy = syncml.AuthFederated
+		authServiceUrl = syncml.AuthFederatedLoginRedirectURL
+	}
+
+	discoveryMsg, err := NewDiscoverResponse(authPolicy, urlPolicyEndpoint, urlEnrollEndpoint, authServiceUrl)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
