@@ -1001,6 +1001,10 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 >
 > The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
+> For ACME certificates, Fleet doesn't issue the certificate, so add the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable to the `Subject` of the ACME payload (in the OU or CN), and confirm your CA includes that value in the certificate it issues. Fleet substitutes the variable into the profile when it sends the profile, but the certificate the host reports must carry the value for Fleet to match and renew it. The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` also works, and both substitute to the same value. Automatic renewal of hardware-bound ACME certificates (Managed Device Attestation) is currently supported on macOS.
+>
+> Vendor-specific renewal keys in a profile, such as `RedeployProfileBeforeCertificateExpiresInDays`, aren't read by Fleet. Fleet uses the renewal timing described above.
+>
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
 
 ## Advanced
