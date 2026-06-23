@@ -25,10 +25,15 @@ extension AuthenticationViewController {
         guard let (data, resp) = try? await URLSession.shared.data(from: jwksURL),
               let http = resp as? HTTPURLResponse,
               (200...299).contains(http.statusCode),
-              let jwks = try? JSONDecoder().decode(JWKSet.self, from: data),
-              let jwk = jwks.keys.first(where: { $0.use == "enc" })
+              let jwks = try? JSONDecoder().decode(JWKSet.self, from: data)
         else { return nil }
-        return jwk.ecPublicSecKey()
+
+        for jwk in jwks.keys where jwk.use == "enc" {
+            if let key = jwk.ecPublicSecKey() {
+                return key
+            }
+        }
+        return nil
     }
 
     // postDeviceRegistration POSTs the registration payload to Fleet and

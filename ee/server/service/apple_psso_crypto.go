@@ -445,7 +445,7 @@ func decryptPSSOInboundJWE(compact []byte, recipientPriv *ecdsa.PrivateKey) ([]b
 	if !ok {
 		return nil, errors.New("psso inbound jwe: not a compact JWE")
 	}
-	protected, err := base64.RawURLEncoding.DecodeString(protectedB64)
+	protected, err := decodeJOSEB64(protectedB64)
 	if err != nil {
 		return nil, fmt.Errorf("psso inbound jwe: decode protected header: %w", err)
 	}
