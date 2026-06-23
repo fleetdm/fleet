@@ -61,7 +61,7 @@ import Icon from "components/Icon/Icon";
 import InputField from "components/forms/fields/InputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import PageDescription from "components/PageDescription";
 
 import {
@@ -736,7 +736,7 @@ const EditQueryForm = ({
               </Checkbox>
               {isExistingQuery && platformSelector.render()}
               {isPremiumTier && (
-                <TargetLabelSelector
+                <DropdownTargetLabelSelector
                   selectedTargetType={selectedTargetType}
                   selectedCustomTarget={selectedCustomTarget}
                   customTargetOptions={customTargetOptions}

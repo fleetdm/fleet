@@ -3,6 +3,8 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -35,6 +37,10 @@ const (
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 
 	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -175,7 +181,9 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte    `db:"token" json:"-"`
+	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -188,11 +196,13 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
 }
 
 type ABMTokenTeam struct {
@@ -1376,3 +1386,42 @@ const (
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
 )
+
+// ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
+// include mode may be set, no label may appear in both include and exclude lists, and the legacy
+// Labels field is normalised to LabelsIncludeAll. Errors are accumulated into invalid.
+func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, customSettings []MDMProfileSpec) {
+	for i, prof := range customSettings {
+		includeCount := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0} {
+			if b {
+				includeCount++
+			}
+		}
+		if includeCount > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+		}
+		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
+}
+
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
+	}
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
+}

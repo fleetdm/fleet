@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "4.1.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project' AND version_compare(version, '4.1.2') < 0);"
+      },
+      "installer_url": "https://github.com/transmission/transmission/releases/download/4.1.2/transmission-4.1.2-x64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "22a80967",
+      "sha256": "f36fd9c245f3c298597ac238b319c86f00eacfd1984881aa8eca3a0943f53008",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{1FB3C295-9BD4-4248-8C8B-B85CD11FE7C4}"
+    }
+  ],
+  "refs": {
+    "22a80967": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{1FB3C295-9BD4-4248-8C8B-B85CD11FE7C4}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

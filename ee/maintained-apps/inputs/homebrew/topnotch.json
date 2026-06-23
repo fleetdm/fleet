@@ -1,0 +1,10 @@
+{
+  "name": "TopNotch",
+  "unique_identifier": "pl.maketheweb.TopNotch",
+  "token": "topnotch",
+  "installer_format": "dmg",
+  "slug": "topnotch/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

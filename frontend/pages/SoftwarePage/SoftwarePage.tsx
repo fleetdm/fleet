@@ -13,7 +13,6 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareApiParams } from "services/entities/software";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   convertParamsToSnakeCase,
@@ -21,7 +20,9 @@ import {
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -147,8 +148,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const queryParams = location.query;
 
   // initial values for query params used on this page
@@ -234,23 +233,26 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
-  // Open manage automations modal via query param (e.g. from command palette)
+  // Open manage automations modal via deep-link (e.g. from the command
+  // palette). Mirror the in-page action's gate: software automations
+  // are global-admin only, and only available on All fleets (or the
+  // single fleet in Primo). Wait for config to load before deciding,
+  // then always strip the param so a team-scoped or unauthorized load
+  // doesn't leave it stuck in the URL.
   useEffect(() => {
-    if (
-      queryParams?.manage_automations === "1" &&
-      isSoftwareConfigLoaded &&
-      (isAllTeamsSelected || isPrimoMode)
-    ) {
+    if (queryParams?.manage_automations !== "1") return;
+    if (!isSoftwareConfigLoaded) return;
+    if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
-      // Clean up the query param from the URL
-      const { manage_automations, ...rest } = queryParams;
-      router.replace({ pathname: location.pathname, query: rest });
     }
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
   }, [
-    queryParams?.manage_automations,
+    queryParams,
     isSoftwareConfigLoaded,
     isAllTeamsSelected,
     isPrimoMode,
+    isGlobalAdmin,
     location.pathname,
     router,
   ]);
@@ -278,15 +280,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     try {
       const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
-        renderFlash(
-          "success",
-          "Successfully updated vulnerability automations."
-        );
+        notify.success("Successfully updated vulnerability automations.");
         refetchSoftwareConfig();
       });
     } catch {
-      renderFlash(
-        "error",
+      notify.error(
         "Could not update vulnerability automations. Please try again."
       );
     } finally {
@@ -395,16 +393,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
+            <AutomationsButton
               // TODO(Product) - Why not enable managing global automations when on any team like this
               // for everyone?
               disabled={!isAllTeamsSelected && !isPrimoMode}
               onClick={toggleManageAutomationsModal}
               className={`${baseClass}__manage-automations`}
-              variant="inverse"
-            >
-              Manage automations
-            </Button>
+            />
           </TooltipWrapper>
         )}
         {canAddSoftware && (

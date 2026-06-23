@@ -19,9 +19,9 @@ $shadow-transition-width: 16px;
       /* Shadows */ linear-gradient(
           to right,
           $core-fleet-white,
-          $transparent
+          $core-fleet-white-transparent
         ),
-        linear-gradient(to left, $core-fleet-white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $core-fleet-white-transparent),
         /* Shadow covers */
           linear-gradient(
             to right,
@@ -146,7 +146,12 @@ $shadow-transition-width: 16px;
           min-width: max-content;
           font-weight: $bold;
 
-          span {
+          // Targets only HeaderCell's wrapper span (direct child of
+          // `.header-cell`), not arbitrary descendant spans. Previously
+          // `.column-header span` matched every descendant, leaking
+          // `display: flex` onto nested suffix/decoration spans like
+          // `.resolved-suffix` and turning them block-level.
+          .header-cell > span {
             display: flex;
             align-items: center;
             gap: $gap-icon-text;
@@ -258,15 +263,15 @@ $shadow-transition-width: 16px;
         }
       }
 
-      // Round bottom corners on the last row so the row background doesn't
-      // overflow the wrapper's rounded corners (visible in dark mode where
-      // row and wrapper backgrounds differ).
+      // Round the last row's bottom corners so its background doesn't overflow
+      // the wrapper's rounded corners (visible in dark mode where row and
+      // wrapper backgrounds differ).
       tr:last-child {
         td:first-child {
-          border-bottom-left-radius: 6px;
+          border-bottom-left-radius: $border-radius-medium;
         }
         td:last-child {
-          border-bottom-right-radius: 6px;
+          border-bottom-right-radius: $border-radius-medium;
         }
       }
 
@@ -282,18 +287,6 @@ $shadow-transition-width: 16px;
       .clickable-row {
         &:hover {
           cursor: pointer;
-        }
-      }
-
-      // Match the wrapper's rounded corners so the last row's hover
-      // background doesn't bleed past them.
-      tr:last-child,
-      .single-row:last-child {
-        td:first-child {
-          border-bottom-left-radius: 6px;
-        }
-        td:last-child {
-          border-bottom-right-radius: 6px;
         }
       }
 

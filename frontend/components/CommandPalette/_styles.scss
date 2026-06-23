@@ -32,6 +32,17 @@
     overflow: hidden;
   }
 
+  // Below the supported breakpoint the UnsupportedScreenSize layout takes
+  // over the viewport. Hide the palette (overlay + content) without closing
+  // it so internal state, focus intent, and the current picker page survive
+  // a resize back up.
+  @media (max-width: ($break-xs - 1px)) {
+    &__overlay,
+    &__content {
+      display: none;
+    }
+  }
+
   &__input-wrapper {
     position: relative;
     display: flex;
@@ -163,12 +174,6 @@
     line-height: 1;
   }
 
-  &__shortcut-sep {
-    font-size: $xxx-small;
-    color: $ui-fleet-black-50;
-    user-select: none;
-  }
-
   &__list {
     // ~8 items visible before scrolling
     max-height: 320px;
@@ -176,6 +181,10 @@
     overflow-y: auto;
     padding: $pad-small;
     border-radius: $border-radius $border-radius 0 0;
+    // Give the highlighted row ~one item of breathing room when cmdk
+    // scrolls it into view ({ block: "nearest" }) — otherwise the new
+    // selection always parks flush against the top/bottom edge.
+    scroll-padding-block: 40px;
 
     &::-webkit-scrollbar {
       width: 6px;
@@ -296,6 +305,16 @@
     &--selected {
       font-weight: $bold;
     }
+  }
+
+  // Highlighted span over the characters the user actually typed (Best
+  // match rendering wraps matched ranges in <mark>). Subtle treatment —
+  // weight + color shift, no yellow background — so it reads as emphasis
+  // rather than a sticky-note.
+  &__item-label-match {
+    background: transparent;
+    color: inherit;
+    font-weight: $bold;
   }
 
   &__item-more {

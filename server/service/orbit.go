@@ -270,8 +270,19 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+					if err != nil {
+						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
+					}
+					if !previouslyEnrolled {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
+					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+						"host_uuid", hostInfo.HardwareUUID)
 				}
 			}
 		}
@@ -578,13 +589,37 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		host.Platform == "windows" &&
 		isConnectedToFleetMDM {
-		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		// One query returns the ESP awaiting-configuration value, whether the host has queued commands, and the persisted sync capability.
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows host config state")
 		}
-		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
-			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
-			notifs.RunSetupExperience = true
+		if state != nil {
+			// The live X-Fleet-Capabilities header is only present on this orbit-config request. Persist it (on change) so the OMA-DM
+			// management session, which has no such header, can gate poll relaxation on the stored value. Best-effort: a failed write
+			// self-heals on the next poll.
+			syncCapable := false
+			if mp, ok := capabilities.FromContext(ctx); ok {
+				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
+			}
+			if syncCapable != state.FleetdSyncCapable {
+				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
+					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			switch {
+			case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
+				state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
+				// During the Autopilot ESP, the setup experience flow delivers queued commands.
+				notifs.RunSetupExperience = true
+			case state.HasPendingCommands:
+				// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply
+				// without waiting for the poll.
+				if syncCapable {
+					notifs.WindowsMDMSyncRequest = true
+				}
+			}
 		}
 	}
 

@@ -182,9 +182,7 @@ Perform a quick visual scan of the UI and confirm:
 <td>
 
 1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
-2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
-4. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+2. Verify able to run MDM commands on macOS hosts from the CLI.
 
 </td>
 <td>pass/fail</td>
@@ -198,7 +196,6 @@ Perform a quick visual scan of the UI and confirm:
 1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
 2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 3. Turn off MDM on a non ADE-eligible macOS host.
-4. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 
 </td>
 <td>pass/fail</td>
@@ -209,7 +206,7 @@ Perform a quick visual scan of the UI and confirm:
 <td>Verify OS settings functionality.</td>
 <td>
 
-1. Verify Profiles upload/download/delete (macOS & Windows).
+1. Verify Profiles upload/download/delete.
 2. Verify Profiles are delivered to host and applied.
 
 </td>
@@ -251,21 +248,6 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
-<td>
-
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
 <td>Token & Certificate Renewals</td>
 <td>APNs cert and ABM token renewal workflow.</td>
 <td>
@@ -287,11 +269,103 @@ Run basic checks for the product group area while using a Fleet Free license.
 
 - Features documented as Free work normally:
    - Host enrollment
-   - Apple, Windows, Android MDM
+   - Apple and Android MDM
    - Configuration profile delivery
    - APNs Certificate renewal
 - Premium features are correctly restricted or hidden:
    - Setup experience
+- No UI, API, or workflow errors occur when using Free-only functionality.
+
+Reference: https://fleetdm.com/pricing
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>UI / UX</td>
+<td>Verify visual consistency and layout integrity across product group areas.</td>
+<td>
+
+Perform a quick visual scan of the UI and confirm:
+
+- No layout or alignment issues (misaligned, overlapping, or clipped elements).
+- Fonts, colors, and icons render correctly and match the design system.
+- UI components render correctly (buttons, inputs, tables).
+- No obvious visual regressions or broken UI states.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+</table>
+
+### Power to PC
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+
+<tr>
+<td>MDM enrollment flow</td>
+<td>Verify MDM enrollments, run MDM commands.</td>
+<td>
+
+1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
+2. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
+3. Verify able to run MDM commands on Windows hosts from the CLI.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>MDM migration flow</td>
+<td>Verify MDM migration for Windows hosts.</td>
+<td>
+
+1. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>OS settings</td>
+<td>Verify OS settings functionality.</td>
+<td>
+
+1. Verify Profiles upload/download/delete.
+2. Verify Profiles are delivered to host and applied.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Setup Experience</td>
+<td>Verify Windows Setup experience.</td>
+<td>
+
+1. Configure End user authentication.
+2. Add software (FMA, Custom pkg).
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Fleet Free</td>
+<td>Verify that product group features behave correctly on Fleet Free.</td>
+<td>
+
+Run basic checks for the product group area while using a Fleet Free license.
+
+- Features documented as Free work normally:
+   - Host enrollment
+   - Windows MDM
+   - Configuration profile delivery
+- Premium features are correctly restricted or hidden:
+   - Automatic MDM migration
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
@@ -483,6 +557,21 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
+<td>Android</td>
+<td>Verify enrollment, profiles, & software installs.</td>
+<td>
+
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify certificate delivery.
+5. Verify `Unenroll`.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
 <td>OS updates</td>
 <td>Verify OS updates flow.</td>
 <td>
@@ -643,239 +732,6 @@ Using [this GitHub action](https://github.com/fleetdm/confidential/actions/workf
 2. Review the scan results for any new high or critical severity vulnerabilities introduced by this RC.
 3. Attach a screenshot of the latest Trivy scan results to this issue as a comment.
 4. If new high/critical vulnerabilities are found, raise an alarm in the appropriate channels.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-</table>
-
-## Notes
-
-Issues found new to this version:
-
-Issues found that reproduce in last stable version:
-
-What has not been tested:
-
-Include any notes on whether issues should block release or not as needed:
-
-<br>
-<br>
-
-# `fleetd` agent
-
-Includes updates to:
-- Orbit: True / False
-- Desktop: True / False
-- Chrome extension: True / False
-
-List versions changes for any component updates below:
-<!-- Remove items without updates -->
-- Orbit `v1.xx.x` > `v1.xx.x`
-- Desktop `v1.xx.x` > `v1.xx.x`
-- Chrome extension `v1.xx.x` > `v1.xx.x`
-
-## Testing gates for new `fleetd` release
-
-### Goal
-
-Ensure new `fleetd` is tested and promoted from local > edge > stable channels.
-
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
-
-> IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
-
-<table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-
-<tr>
-<td><code>fleetd</code> local testing</td>
-<td>
-
-1. Following [Testing TUF](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md) instructions, create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.
-
-> IMPORTANT: Reminder to use an RC branch and not `main`.
-
-</td>
-<td>
-
-1. Confirm the hosts install with the updated version and are working correctly.
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td><code>fleetd</code> auto-update tests</td>
-<td>
-
-1. Conduct the [`fleetd` auto-update n+1 test](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md).
-2. QA certifies new release by commenting in issue.
-
-</td>
-<td>
-
-1. Agent successfully auto-updates.
-2. Issue is certified by QA.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td><code>fleetd</code> edge tests</td>
-<td>
-
-1. Set up a host in your instance to receive updates from the `edge` channels.
-2. Work with engineer leading the release to push changes to the `edge` channel.
-
-</td>
-<td>
-
-1. Confirm the hosts running on the edge channel receive the update and are working correctly.
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-</table>
-
-## New `fleetd` pushed to edge
-
-### Goal
-
-Ensure `fleetd` version pushed to edge is working with the current released version of Fleet.
-
-1. Fleet server is running the latest released version available on [Fleet Releases](https://github.com/fleetdm/fleet/releases) page.
-2. Set Agent options to use edge in the Fleet server configuration. For example:
-
-   ```yaml
-   update_channels:
-     osqueryd: edge
-     orbit: edge
-     desktop: edge
-   ```
-
-<table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-
-<tr>
-<td>Report flow</td>
-<td>Run reports.</td>
-<td>
-
-1. Queries can be run manually.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Host flow</td>
-<td>Verify a new host can be added using your own device.</td>
-<td>
-
-1. Hosts can enroll and report correct version of `fleetd` (orbit, osquery, desktop).
-2. Refetching host vitals completes and returns updated information.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>My device page</td>
-<td>Verify the end user's My device page loads successfully.</td>
-<td>
-
-1. Clicking the Fleet desktop item, then "My device" successfully loads the My device page.
-2. The "My device" page is populated correctly and as expected.
-3. Styling and padding appears correct.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Scripts</td>
-<td>Verify script execution.</td>
-<td>
-
-1. Verify able to run a script on all host types from CLI.
-2. From Host details (macOS, Windows, & Linux) run a script that should PASS, verify.
-3. From Host details (macOS, Windows, & Linux) run a script that should FAIL, verify.
-4. Verify script results display correctly in Activity feed.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Software</td>
-<td>Verify software install / download.</td>
-<td>
-
-1. From Host details (macOS, Windows, & Linux) run an install that should PASS, verify.
-2. From My Device (macOS, Windows, & Linux) software tab should have self-service items available, verify.
-3. Verify software installs display correctly in Activity feed.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>OS settings</td>
-<td>Verify OS settings functionality.</td>
-<td>
-
-1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
-2. Verify host enrolled with Disk encryption enforced successfully encrypts.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Packs flow</td>
-<td>Verify management, operation, and logging of ["2017 packs"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).</td>
-<td>
-
-1. Packs successfully run on host machines after migrations.
-2. New Packs can be created.
-3. Packs can be edited and deleted.
-4. Packs results information is logged.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Fleet Free</td>
-<td>Verify that Fleet Desktop works on Fleet Free.</td>
-<td>
-
-After repointing a Fleet Desktop install at a server running Fleet Free:
-
-1. Clicking the Fleet desktop item, then "My device" successfully loads the My device page.
-2. The "My device" page is populated correctly and as expected.
-3. Styling and padding appears correct.
-
-</td>
-<td>pass/fail</td>
-</tr>
-
-<tr>
-<td>Auto-updates disabled</td>
-<td>Verify that fleetd works when the installer package is built with <code>--disable-updates</code>.</td>
-<td>
-
-1. Generate package with `fleetctl package [...] --updates-disabled`.
-2. Install packages on macOS, Windows, and Linux.
-3. Smoke test orbit and Fleet Desktop functionality, and osquery tables.
 
 </td>
 <td>pass/fail</td>

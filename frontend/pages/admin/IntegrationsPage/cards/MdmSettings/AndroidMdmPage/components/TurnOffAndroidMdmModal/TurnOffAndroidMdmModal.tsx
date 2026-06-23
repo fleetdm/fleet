@@ -5,11 +5,11 @@ import { useQueryClient } from "react-query";
 import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
 
 const baseClass = "turn-off-android-mdm-modal";
 
@@ -22,7 +22,6 @@ const TurnOffAndroidMdmModal = ({
   onExit,
   router,
 }: ITurnOffAndroidMdmModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -34,7 +33,9 @@ const TurnOffAndroidMdmModal = ({
       await mdmAndroidAPI.turnOffAndroidMdm();
     } catch (e) {
       onExit();
-      renderFlash("error", "Couldn't turn off Android MDM. Please try again.");
+      notify.error("Couldn't turn off Android MDM. Please try again.", {
+        response: e,
+      });
       return;
     }
     // DELETE success means the backend has already cleared
@@ -49,11 +50,9 @@ const TurnOffAndroidMdmModal = ({
       setConfig(patched);
       queryClient.setQueryData(["config"], patched);
     }
-    renderFlash("success", "Android MDM turned off successfully.", {
-      persistOnPageChange: true,
-    });
+    notify.success("Android MDM turned off successfully.");
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  }, [onExit, queryClient, renderFlash, router, setConfig]);
+  }, [onExit, queryClient, router, setConfig]);
 
   return (
     <Modal title="Turn off Android MDM" className={baseClass} onExit={onExit}>

@@ -1,0 +1,10 @@
+{
+  "name": "Okta Advanced Server Access",
+  "unique_identifier": "com.scaleft.ScaleFT",
+  "token": "okta-advanced-server-access",
+  "installer_format": "pkg",
+  "slug": "okta-advanced-server-access/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

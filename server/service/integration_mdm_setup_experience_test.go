@@ -4369,8 +4369,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 
 	// activities got created as expected
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`
-	{"enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
-		host1.DisplayName(), host1.HardwareSerial, host1.Platform), 0)
+	{"host_id": %d, "enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
+		host1.ID, host1.DisplayName(), host1.HardwareSerial, host1.Platform), 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
 		"command_uuid":%q, "from_auto_update": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
 		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), 0)
@@ -5161,8 +5161,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	// device gets the regular MDM endpoints.
 	originalServerURL := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
-	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#")
+	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
 	loc, err := ssoResult.Location()
 	require.NoError(t, err)
 	require.NotNil(t, loc)
@@ -5259,7 +5260,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	enrollHostWithSEInstallers := func(t *testing.T, installers []struct {
 		Filename string
 		Title    string
-	}) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
+	},
+	) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
 		// unique per-subtest team name and ABM org so subtests don't collide
 		isoName := strings.ReplaceAll(t.Name(), "/", "_")
 		s.enableABM(isoName)
@@ -5645,5 +5647,98 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		}
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
 		require.Error(t, err, "orphan hsi row remains after GitOps delete")
+	})
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceMacOSScriptOnlyPackage() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "macos-sh-test"})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "script.sh",
+		Platform: "linux",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	shTitleID := getSoftwareTitleID(t, s.ds, "script", "sh_packages")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	macosTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+	t.Run("sh appears in macOS listing", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		names := make([]string, 0, len(resp.SoftwareTitles))
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage != nil {
+				names = append(names, title.SoftwarePackage.Name)
+			}
+		}
+		require.Contains(t, names, "script.sh")
+		require.Contains(t, names, "dummy_installer.pkg")
+	})
+
+	t.Run("saving sh for macOS succeeds", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID, macosTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("macOS listing shows sh as selected after save", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		var shSelected, macosSelected bool
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage == nil {
+				continue
+			}
+			if title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				shSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+			if title.SoftwarePackage.Name == "dummy_installer.pkg" && title.SoftwarePackage.InstallDuringSetup != nil {
+				macosSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, shSelected)
+		require.True(t, macosSelected)
+	})
+
+	t.Run("linux tab selection is independent", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "linux",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		var linuxResp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &linuxResp,
+			"platform", "linux", "team_id", fmt.Sprint(team.ID))
+		var linuxShSelected bool
+		for _, title := range linuxResp.SoftwareTitles {
+			if title.SoftwarePackage != nil && title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				linuxShSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, linuxShSelected)
 	})
 }

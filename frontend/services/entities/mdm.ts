@@ -1,4 +1,5 @@
 import {
+  EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
@@ -58,6 +59,7 @@ interface IUpdateSetupExperienceFormData {
   apple_enable_release_device_manually?: boolean;
   macos_manual_agent_install?: boolean;
   enable_managed_local_account?: boolean;
+  end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
@@ -76,7 +78,7 @@ export interface IDefaultAppleSetupEnrollmentProfileResponse {
 
 export interface IMDMSSOParams {
   deviceinfo: string;
-  initiator: string;
+  initiator?: string;
   // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
   // enrollments with end-user authentication.
   host_uuid?: string;
@@ -150,22 +152,17 @@ const mdmService = {
       formData.append("fleet_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
 
-      let labelKey = "";
-      if (labelsIncludeAll) {
-        labelKey = "labels_include_all";
-      } else if (labelsIncludeAny) {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
 
-      labels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
-    }
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },

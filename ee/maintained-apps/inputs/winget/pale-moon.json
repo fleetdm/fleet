@@ -1,0 +1,12 @@
+{
+  "name": "Pale Moon",
+  "slug": "pale-moon/windows",
+  "package_identifier": "MoonchildProductions.PaleMoon",
+  "unique_identifier": "Pale Moon",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/pale-moon_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/pale-moon_uninstall.ps1",
+  "default_categories": ["Browsers"]
+}

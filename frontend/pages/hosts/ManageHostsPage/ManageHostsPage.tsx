@@ -48,7 +48,6 @@ import {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
-import { NotificationContext } from "context/notification";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -84,6 +83,7 @@ import { getNextLocationPath } from "utilities/helpers";
 import getDeleteLabelErrorMessages from "pages/labels/helpers";
 import { strToBool } from "utilities/strings/stringUtils";
 
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import { SingleValue } from "react-select-5";
@@ -171,7 +171,6 @@ const ManageHostsPage = ({
     setFilteredSoftwarePath,
   } = useContext(AppContext);
   const isPrimoMode = config?.partnerships?.enable_primo;
-  const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
 
@@ -236,23 +235,50 @@ const ManageHostsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
 
-  // Open add hosts modal via query param (e.g. from command palette)
-  useEffect(() => {
-    if (queryParams?.add_hosts === "1") {
-      setShowAddHostsModal(true);
-      const { add_hosts, ...rest } = queryParams;
-      router.replace({ pathname: location.pathname, query: rest });
-    }
-  }, [queryParams?.add_hosts, location.pathname, router]);
+  // Hoisted above the deep-link effects so they share the same gate
+  // as the in-page Add hosts / Manage enroll secrets affordances.
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
-  // Open enroll secrets modal via query param (e.g. from command palette)
+  // Open add hosts modal via query param (e.g. from command palette).
+  // Wait until role flags and the team route have resolved before
+  // evaluating, so an authorized admin/maintainer landing directly on
+  // ?add_hosts=1 isn't denied while AppContext is still hydrating.
   useEffect(() => {
-    if (queryParams?.manage_enroll_secrets === "1") {
-      setShowEnrollSecretModal(true);
-      const { manage_enroll_secrets, ...rest } = queryParams;
-      router.replace({ pathname: location.pathname, query: rest });
+    if (queryParams?.add_hosts !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEnrollHosts) {
+      setShowAddHostsModal(true);
     }
-  }, [queryParams?.manage_enroll_secrets, location.pathname, router]);
+    const { add_hosts, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
+  // Open enroll secrets modal via query param (e.g. from command palette).
+  // Same hydration gate as the add-hosts effect above.
+  useEffect(() => {
+    if (queryParams?.manage_enroll_secrets !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEnrollHosts) {
+      setShowEnrollSecretModal(true);
+    }
+    const { manage_enroll_secrets, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
@@ -418,8 +444,7 @@ const ManageHostsPage = ({
   );
 
   // ========= derived permissions
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // canEnrollHosts is hoisted above the deep-link effects (see earlier)
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
     (isGlobalAdmin ||
@@ -1005,14 +1030,16 @@ const ManageHostsPage = ({
       await usersAPI.update(currentUser.id, {
         settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
       });
-      // No success renderFlash, to make column setting more seamless
+      // No success toast, to make column setting more seamless
       // only set state and close modal if server persist succeeds, keeping UI and server state in
       // sync.
       // Can also add local storage fallback behavior in next iteration if we want.
       setHiddenColumns(newHiddenColumns);
       setShowEditColumnsModal(false);
     } catch (response) {
-      renderFlash("error", "Couldn't save column settings. Please try again.");
+      notify.error("Couldn't save column settings. Please try again.", {
+        response,
+      });
     }
   };
 
@@ -1243,17 +1270,16 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      renderFlash(
-        "success",
+      notify.success(
         `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      renderFlash(
-        "error",
+      notify.error(
         `Could not ${
           selectedSecret ? "edit" : "add"
-        } enroll secret. Please try again.`
+        } enroll secret. Please try again.`,
+        { response: error }
       );
     } finally {
       setIsUpdating(false);
@@ -1295,10 +1321,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      renderFlash("success", `Successfully deleted enroll secret.`);
+      notify.success(`Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete enroll secret. Please try again.");
+      notify.error("Could not delete enroll secret. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1325,9 +1353,9 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
-      renderFlash("success", "Successfully deleted label.");
+      notify.success("Successfully deleted label.");
     } catch (error) {
-      renderFlash("error", getDeleteLabelErrorMessages(error));
+      notify.error(getDeleteLabelErrorMessages(error), { response: error });
     } finally {
       setIsUpdating(false);
     }
@@ -1392,14 +1420,16 @@ const ManageHostsPage = ({
           ? `Hosts successfully removed from fleets.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
       setResetSelectedRows(true);
       refetchHosts();
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      renderFlash("error", "Could not transfer hosts. Please try again.");
+      notify.error("Could not transfer hosts. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1439,7 +1469,7 @@ const ManageHostsPage = ({
 
       const successMessage = "Hosts successfully deleted.";
 
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
       setResetSelectedRows(true);
       refetchHosts();
       refetchLabels();
@@ -1447,7 +1477,9 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      renderFlash("error", "Could not delete hosts. Please try again.");
+      notify.error("Could not delete hosts. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1597,9 +1629,20 @@ const ManageHostsPage = ({
 
         const columnIds = tableColumns
           .map((column) => (column.id ? column.id : ""))
-          // "selection" colum does not include any relevent data for the CSV
+          // "selection" column does not include any relevant data for the CSV
           // so we filter it out.
-          .filter((element) => element !== "" && element !== "selection");
+          .filter((element) => element !== "" && element !== "selection")
+          // "agent" is a display-only column that coalesces orbit and osquery
+          // versions; it has no corresponding CSV field on the backend, so we
+          // substitute the real fields it's derived from.
+          .reduce((acc: string[], element) => {
+            if (element === "agent") {
+              acc.push("orbit_version", "osquery_version");
+            } else {
+              acc.push(element);
+            }
+            return acc;
+          }, []);
         visibleColumns = columnIds.join(",");
       }
 
@@ -1660,7 +1703,9 @@ const ManageHostsPage = ({
         FileSaver.saveAs(file);
       } catch (error) {
         console.error(error);
-        renderFlash("error", "Could not export hosts. Please try again.");
+        notify.error("Could not export hosts. Please try again.", {
+          response: error,
+        });
       }
     },
     [
@@ -1699,7 +1744,6 @@ const ManageHostsPage = ({
       depAssignProfileResponse,
       hiddenColumns,
       queryParams.fleet_id,
-      renderFlash,
     ]
   );
 
@@ -1956,6 +2000,7 @@ const ManageHostsPage = ({
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
+        totalCount={totalFilteredHostsCount}
         searchable
         disableSearch={isTrulyEmpty}
         renderCount={renderHostCountAndExport}

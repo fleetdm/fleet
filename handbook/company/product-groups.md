@@ -59,7 +59,6 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 - MDM protocol & configuration
 - Configuration profiles
 - New device onboarding
-- Scripts
 - Setup experience
 - OS configuration & updates
 
@@ -84,6 +83,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 - Apple Volume Purchasing Program (VPP) apps
 - Google Play apps
 - In-house apps (IPAs) 
+- Scripts
 - End user self-service
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
@@ -343,10 +343,10 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
 | Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
@@ -373,7 +373,6 @@ The goal of the Apple @ Work working group is to increase the number of Apple de
 - Apple device onboarding (ADE/DEP)
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
-- Scripts on Apple devices
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this working group is `#g-mdm`.
 
@@ -397,6 +396,7 @@ The goal of the Auto Patching working group is to reduce the amount of time befo
 - Google Play apps
 - In-house apps (IPAs)
 - End user self-service
+- Scripts
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this working group is `#g-software`.
 
@@ -407,7 +407,7 @@ The goal of the BYOD working group is to enable Fleet to manage personally-owned
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
+| Product Designer                  | [LeAnn Gove]([https://www.linkedin.com/in/leann-gove/](https://www.linkedin.com/in/leann-gove-61a750142/)) _([@leanngove](https://github.com/leanngove))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
@@ -825,7 +825,7 @@ Anyone in the company is invited to submit requests or simply listen in on the �
 
 To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `:product` label to it.
 
-New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
+New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
 > **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢 Drafting project.
 
@@ -849,11 +849,7 @@ If an issue has the `:product` and `story` label, then it's a user story that is
 
 ### How feature requests are prioritized
 
-Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting.
-
-Before the 🎁🗣 Feature Fest meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) adds customer requests to the 🎁🗣 Feature Fest board (`~feature fest` label) that are a high priority.
-
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that contribute to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1).
+Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting. Before the meeting, during the [🦢📊 Product design sprint review ritual](https://fleetdm.com/handbook/product-design#rituals), the [Feature prioritization DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and Product Designers add requests associated with upcoming user stories on Fleet's [release planning project](https://github.com/orgs/fleetdm/projects/87).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
@@ -915,21 +911,23 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
+> Working groups use the bug triage process below. For product groups (#g-mdm, #g-software, #g-orchestration, and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
+
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
+At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug, specify the expected behavior, and make sure reproduction steps are documented. If the expected behavior is unclear, ask the product group's Tech Lead for help.
+Then, it's the product group Engineer Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 
-If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
+If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The EM has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
-When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Product Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+When more information is needed, it's up to the EM to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the EM will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, triages the issue as a [new request](https://fleetdm.com/handbook/product-design#triage-new-requests), and @ mentions the reporter in the issue.
 
-For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the Product Designer should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
+For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed. For Apple and Microsoft bugs, the EM should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 
-If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the Product Designer verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
+If the partner responds and confirms that fixes from the partner are required, a screenshot of the response is added to the issue. The bug stays open until the partner confirms the fix is shipped. At that point, the EM verifies the fix and closes the issue. If fixes from the partner aren't required, the bug is moved to the [needs reproduction](#needs-reproduction) or [reproduced state](#reproduced).
 
 
 #### Needs reproduction
@@ -1192,7 +1190,7 @@ All participants are expected to review the user story and associated designs an
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI), REST API or YAML.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
 
-User stories in the current design sprint are always reviewed first during design reviews. Bugs are discussed in [Bug bash](#bug-bash) meetings.
+User stories in the current design sprint are always reviewed first during design reviews.
 
 For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
 
@@ -1213,10 +1211,6 @@ Here are some tips for making this meeting effective:
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
-
-### Bug bash
-
-Bug bash meetings are conducted semiweekly between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors, usually Product Designers.  These meetings concentrate on bug fixes. The goal is to review bug fixes and ensure that [new bugs are triaged](https://fleetdm.com/handbook/product-design#triage-new-bugs).
 
 ### User story reviews
 

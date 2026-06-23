@@ -6,3 +6,4 @@ paths-ignore:
   # `wails3 generate bindings` on every build, so the unused-import warnings
   # they carry can't be fixed in-tree (any edit is clobbered on regen).
   - tools/hangar/frontend/bindings/
+  - docs/Contributing/

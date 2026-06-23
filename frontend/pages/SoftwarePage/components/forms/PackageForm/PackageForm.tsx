@@ -1,9 +1,8 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   getExtensionFromFileName,
@@ -16,6 +15,7 @@ import { ILabelSummary } from "interfaces/label";
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -26,7 +26,7 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
@@ -152,6 +152,8 @@ interface IPackageFormProps {
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -175,8 +177,8 @@ const PackageForm = ({
   defaultCategories,
   className,
   gitopsCompatible = false,
+  teamId,
 }: IPackageFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   const initialFormData: IPackageFormData = {
@@ -215,7 +217,7 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
@@ -223,7 +225,7 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          renderFlash("error", `${e}`);
+          notify.error(`${e}`, { response: e });
           return;
         }
 
@@ -420,11 +422,12 @@ const PackageForm = ({
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }
+      teamId={teamId}
     />
   );
 
   const renderTargetLabelSelector = () => (
-    <TargetLabelSelector
+    <DropdownTargetLabelSelector
       selectedTargetType={formData.targetType}
       selectedCustomTarget={formData.customTarget}
       selectedLabels={formData.labelTargets}

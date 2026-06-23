@@ -83,18 +83,18 @@ const PlatformTabs = ({
         >
           <TabList>
             <Tab key="macOS" data-text="macOS">
-              <TabText showDot={isMacOSConfigured}>macOS</TabText>
+              <TabText showCheck={isMacOSConfigured}>macOS</TabText>
             </Tab>
             {isWindowsMdmEnabled && (
               <Tab key="Windows" data-text="Windows">
-                <TabText showDot={isWindowsConfigured}>Windows</TabText>
+                <TabText showCheck={isWindowsConfigured}>Windows</TabText>
               </Tab>
             )}
             <Tab key="iOS" data-text="iOS">
-              <TabText showDot={isIOSConfigured}>iOS</TabText>
+              <TabText showCheck={isIOSConfigured}>iOS</TabText>
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
-              <TabText showDot={isIPadOSConfigured}>iPadOS</TabText>
+              <TabText showCheck={isIPadOSConfigured}>iPadOS</TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">

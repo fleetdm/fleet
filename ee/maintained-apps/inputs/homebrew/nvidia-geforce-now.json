@@ -1,0 +1,11 @@
+{
+  "name": "NVIDIA GeForce NOW",
+  "unique_identifier": "com.nvidia.gfnpc.mall",
+  "token": "nvidia-geforce-now",
+  "installer_format": "dmg",
+  "slug": "nvidia-geforce-now/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "frozen": true
+}

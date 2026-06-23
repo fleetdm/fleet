@@ -348,7 +348,7 @@
             <p>
               <span>3.</span>
               <span>
-                Tap <b>Install</b>. You'll see a few warnings, which is
+                Tap <b>Install</b>. You'll see a red <b>Not Verified</b> warning, which is
                 expected. Tap <b>Install</b> again when prompted.
               </span>
             </p>
@@ -488,6 +488,7 @@
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
+      const IDP_UUID = "{{.IdpUUID}}";
       const isFullyManaged = new URLSearchParams(window.location.search).has(
         "fully_managed",
         true
@@ -679,6 +680,12 @@
 
         if (fullyManaged) {
           url = url.concat("&fully_managed=true");
+        }
+
+        if (IDP_UUID) {
+          url = url.concat(
+            `&idp_uuid=${encodeURIComponent(IDP_UUID)}`
+          );
         }
 
         const response = await fetch(url, {

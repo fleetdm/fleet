@@ -37,6 +37,22 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer, c.App.ErrWriter)
 }
 
+const ssoAuthInstructions = "SSO is enabled for this Fleet instance. Email/password login is not supported on SSO-enabled accounts.\n" +
+	"If your account isn't SSO-enabled, use fleetctl login.\n\n" +
+	"Learn how to authenticate with fleetctl for SSO-enabled accounts:\n" +
+	"https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-factor-authentication-2-fa"
+
+// printAuthError prints an authentication error message. If SSO is enabled on the server,
+// it directs the user to authenticate via API token instead of fleetctl login.
+func printAuthError(w io.Writer, client *service.Client, prefix string) {
+	ssoSettings, err := client.SSOSettings()
+	if err == nil && ssoSettings != nil && ssoSettings.SSOEnabled {
+		fmt.Fprintf(w, "%s %s\n", prefix, ssoAuthInstructions)
+		return
+	}
+	fmt.Fprintf(w, "%s Please log in with: fleetctl login\n", prefix)
+}
+
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleetClient, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
@@ -59,11 +75,11 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	token, ok := t.(string)
 	if !ok {
-		fmt.Fprintln(os.Stderr, "Token invalid. Please log in with: fleetctl login")
+		printAuthError(os.Stderr, fleetClient, "Token invalid.")
 		return nil, fmt.Errorf("token config value expected type %T, got %T: %+v", "", t, t)
 	}
 	if token == "" {
-		fmt.Fprintln(os.Stderr, "Token missing. Please log in with: fleetctl login")
+		printAuthError(os.Stderr, fleetClient, "Token missing.")
 		return nil, errors.New("token config value missing")
 	}
 	fleetClient.SetToken(token)
@@ -74,7 +90,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	serverInfo, err := fleetClient.Version()
 	if err != nil {
 		if errors.Is(err, service.ErrUnauthenticated) {
-			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
+			printAuthError(os.Stderr, fleetClient, "Token invalid or session expired.")
 		}
 		return nil, err
 	}

@@ -491,13 +491,21 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 		}
 	}
 
-	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
-
 	fullyManaged := false
 	fullyManagedParam := r.URL.Query().Get("fully_managed")
 	if fullyManagedParam == "true" || fullyManagedParam == "1" {
 		fullyManaged = true
 	}
+
+	if idpUUID := r.URL.Query().Get("idp_uuid"); idpUUID != "" {
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      idpUUID,
+			FullyManaged: fullyManaged,
+		}, nil
+	}
+
+	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
 
 	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
@@ -879,10 +887,10 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
 	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
-	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written so device_status reflects "wiping"
-	// while the work-profile wipe is in flight; the HostHeader badge overrides the label to "Unenroll pending" since the admin
-	// clicked Unenroll, not Wipe. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI
-	// sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, but
+	// the resulting transient "wiping" status is suppressed for BYO Android (see suppressAndroidBYODWipeStatus) so no pending badge is
+	// shown. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
+	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
 	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")

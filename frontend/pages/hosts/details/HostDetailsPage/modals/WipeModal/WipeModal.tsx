@@ -1,12 +1,13 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import hostAPI from "services/entities/hosts";
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import { NotificationContext } from "context/notification";
+import CustomLink from "components/CustomLink";
 import { isAndroid } from "interfaces/platform";
 
 const baseClass = "wipe-modal";
@@ -16,6 +17,7 @@ interface IWipeModalProps {
   hostName: string;
   hostPlatform: string;
   isWindowsHost: boolean;
+  isLinuxHost: boolean;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -25,10 +27,10 @@ const WipeModal = ({
   hostName,
   hostPlatform,
   isWindowsHost,
+  isLinuxHost,
   onSuccess,
   onClose,
 }: IWipeModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isWiping, setIsWiping] = React.useState(false);
   const isAndroidHost = isAndroid(hostPlatform);
@@ -38,20 +40,19 @@ const WipeModal = ({
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
-      renderFlash(
-        "success",
+      notify.success(
         isAndroidHost
           ? "Successfully sent request to wipe this host."
           : "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
       const errorReason = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         isAndroidHost
           ? errorReason ||
               "Couldn't send request to wipe this host. Please try again."
-          : errorReason
+          : errorReason,
+        { response: e }
       );
     }
     onClose();
@@ -61,16 +62,29 @@ const WipeModal = ({
   return (
     <Modal className={baseClass} title="Wipe" onExit={onClose}>
       <div className={`${baseClass}__modal-content`}>
-        <p>All content will be erased on this host.</p>
+        {!isLinuxHost && <p>All content will be erased on this host.</p>}
         {isWindowsHost && (
           <p>
             To use the host again, you will have to do a Windows reinstall from
             a USB drive.
           </p>
         )}
+        {isLinuxHost && (
+          <>
+            <p>
+              This will run a script to erase content from this host.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/linux-wipe"
+                text="Learn more"
+                newTab
+              />{" "}
+            </p>
+            <p>To use the host again, you will have to do an OS reinstall.</p>
+          </>
+        )}
         <div className={`${baseClass}__confirm-message`}>
           <span>
-            <b>Please check to confirm:</b>
+            <b>Confirm:</b>
           </span>
           <Checkbox
             wrapperClassName={`${baseClass}__wipe-checkbox`}

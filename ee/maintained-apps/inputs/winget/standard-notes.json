@@ -1,0 +1,13 @@
+{
+  "name": "Standard Notes",
+  "slug": "standard-notes/windows",
+  "package_identifier": "StandardNotes.StandardNotes",
+  "unique_identifier": "Standard Notes",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/standard-notes_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/standard-notes_uninstall.ps1",
+  "default_categories": ["Security"]
+}

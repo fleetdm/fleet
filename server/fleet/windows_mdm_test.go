@@ -11,10 +11,9 @@ import (
 
 func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
-		name                 string
-		profile              MDMWindowsConfigProfile
-		allowCustomOSUpdates bool
-		wantErr              string
+		name    string
+		profile MDMWindowsConfigProfile
+		wantErr string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -417,49 +416,12 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: `Profile name "Windows OS Updates" is not allowed`,
 		},
 		{
-			name: "Valid XML with reserved name but experimental allow custom OS updates flag enabled is still not allowed",
-			profile: MDMWindowsConfigProfile{
-				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              `Profile name "Windows OS Updates" is not allowed`,
-		},
-		{
-			name: "Valid XML with Windows Update LocURI without experimental allow custom OS updates flag enabled is blocked",
+			name: "Valid XML with Windows Update LocURI",
 			profile: MDMWindowsConfigProfile{
 				Name:   "FleetieUpdater",
 				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
 			},
-			allowCustomOSUpdates: false,
-			wantErr:              "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.",
-		},
-		{
-			name: "Valid XML with Windows Update LocURI but experimental allow custom OS updates flag enabled is allowed",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              "",
-		},
-		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: false,
-			wantErr:              "Couldn't add. The configuration profile can't include BitLocker settings.",
-		},
-		{
-			name: "Valid XML with Bitlocker LocURI without experimental allow custom OS updates flag enabled is blocked",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/something</LocURI></Target></Replace>`),
-			},
-			allowCustomOSUpdates: true,
-			wantErr:              "Couldn't add. The configuration profile can't include BitLocker settings.",
+			wantErr: "",
 		},
 		{
 			name: "XML with top level comment",
@@ -611,6 +573,53 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+		},
+		{
+			// Regression test for #46982: a non-SCEP LocURI before the SCEP LocURIs used to panic with
+			// index out of range instead of returning a validation error.
+			name: "SCEP profile with other LocURIs, non-SCEP LocURI first",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+				    </Target>
+				  </Replace>
+				  <Exec>
+				    <Item>
+				      <Target>
+				        <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+				      </Target>
+				    </Item>
+				  </Exec>
+				`),
+			},
+			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+		},
+		{
+			// Regression test for #46982: same non-SCEP-first ordering without an Exec block (e.g. a root CA
+			// cert install combined with SCEP nodes) also used to panic.
+			name: "SCEP profile with non-SCEP LocURI first and no Exec block",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/CA/ABCDEF/EncodedCertificate</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
 		},
 		{
 			name: "SCEP profile without Exec block",
@@ -923,7 +932,7 @@ func TestValidateUserProvided(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided(tt.allowCustomOSUpdates)
+			err := tt.profile.ValidateUserProvided()
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {

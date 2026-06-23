@@ -12,7 +12,7 @@ import { pick } from "lodash";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
@@ -34,6 +34,7 @@ import PATHS from "router/paths";
 
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -104,7 +105,6 @@ const ManageQueriesPage = ({
     QueryContext
   );
   const { setResetSelectedRows } = useContext(TableContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const {
     userTeams,
@@ -130,14 +130,7 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
-  // Open manage automations modal via query param (e.g. from command palette)
-  useEffect(() => {
-    if (location.query.manage_automations === "1") {
-      setShowManageAutomationsModal(true);
-      const { manage_automations, ...rest } = location.query;
-      router.replace({ pathname: location.pathname, query: rest });
-    }
-  }, [location.query.manage_automations, location.pathname, router]);
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -181,6 +174,34 @@ const ManageQueriesPage = ({
   const enhancedQueries = useMemo(() => {
     return queriesResponse?.queries.map(enhanceQuery) || [];
   }, [queriesResponse]);
+
+  const isManageAutomationsEnabled = isAnyTeamSelected
+    ? (queriesResponse?.count ?? 0) >
+      (queriesResponse?.inherited_query_count ?? 0)
+    : (queriesResponse?.count ?? 0) > 0;
+
+  // Open the Manage automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate the in-page button
+  // uses — the param alone must not surface a privileged modal to
+  // non-admins or when there's nothing to automate. Wait for
+  // queriesResponse so `isManageAutomationsEnabled` is meaningful;
+  // then always strip the param so a refresh doesn't reopen.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    if (!queriesResponse) return;
+    if (canManageAutomations && isManageAutomationsEnabled) {
+      setShowManageAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    canManageAutomations,
+    isManageAutomationsEnabled,
+    queriesResponse,
+  ]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -243,13 +264,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash("success", "Successfully deleted reports.");
+      notify.success("Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
-      renderFlash(
-        "error",
-        "There was an error deleting your reports. Please try again later."
+      notify.error(
+        "There was an error deleting your reports. Please try again later.",
+        { response: errorResponse }
       );
     } finally {
       toggleDeleteQueryModal();
@@ -344,20 +365,20 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          renderFlash("success", `Successfully updated report automations.`);
+          notify.success(`Successfully updated report automations.`);
           refetchQueries();
         });
       } catch (errorResponse) {
-        renderFlash(
-          "error",
-          `There was an error updating your report automations. Please try again later.`
+        notify.error(
+          `There was an error updating your report automations. Please try again later.`,
+          { response: errorResponse }
         );
       } finally {
         toggleManageAutomationsModal();
         setIsUpdatingAutomations(false);
       }
     },
-    [renderFlash, refetchQueries, toggleManageAutomationsModal]
+    [refetchQueries, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {
@@ -392,12 +413,6 @@ const ManageQueriesPage = ({
     );
   };
 
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
-  const isManageAutomationsEnabled = isAnyTeamSelected
-    ? (queriesResponse?.count ?? 0) >
-      (queriesResponse?.inherited_query_count ?? 0)
-    : (queriesResponse?.count ?? 0) > 0;
-
   return (
     <MainContent className={baseClass}>
       <>
@@ -410,13 +425,10 @@ const ManageQueriesPage = ({
               <div className={`${baseClass}__action-button-container`}>
                 {canManageAutomations &&
                   (isManageAutomationsEnabled ? (
-                    <Button
+                    <AutomationsButton
                       onClick={onManageAutomationsClick}
                       className={`${baseClass}__manage-automations button`}
-                      variant="inverse"
-                    >
-                      Manage automations
-                    </Button>
+                    />
                   ) : (
                     <TooltipWrapper
                       tipContent={
@@ -440,13 +452,10 @@ const ManageQueriesPage = ({
                       position="top"
                       showArrow
                     >
-                      <Button
+                      <AutomationsButton
                         disabled
                         className={`${baseClass}__manage-automations button`}
-                        variant="inverse"
-                      >
-                        Manage automations
-                      </Button>
+                      />
                     </TooltipWrapper>
                   ))}
                 {canCustomQuery && (

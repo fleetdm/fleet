@@ -1,13 +1,13 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
 import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
-import { NotificationContext } from "context/notification";
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -86,7 +86,6 @@ const OSSettingsResendCell = ({
   rotateRecoveryLockPassword,
   onProfileResent = noop,
 }: IOSSettingsResendCellProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isResending, setIsResending] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
 
@@ -102,17 +101,14 @@ const OSSettingsResendCell = ({
         profile.certificate_template_id !== undefined
       ) {
         await resendCertificateRequest(profile.certificate_template_id);
-        renderFlash(
-          "success",
-          "Successfully sent request to resend certificate."
-        );
+        notify.success("Successfully sent request to resend certificate.");
         onProfileResent();
       } else if (!isAndroidCertificate) {
         await resendRequest(profile.profile_uuid);
         onProfileResent();
       }
     } catch (e) {
-      renderFlash("error", "Couldn't resend. Please try again.");
+      notify.error("Couldn't resend. Please try again.", { response: e });
     }
     setIsResending(false);
   };
@@ -122,8 +118,7 @@ const OSSettingsResendCell = ({
     setIsRotating(true);
     try {
       await rotateRecoveryLockPassword();
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
     } catch (e) {
@@ -131,7 +126,7 @@ const OSSettingsResendCell = ({
         ? "Recovery lock password rotation is already in progress for this host."
         : "Couldn't send request to rotate Recovery Lock password. Please try again.";
 
-      renderFlash("error", msg);
+      notify.error(msg, { response: e });
     }
     setIsRotating(false);
   };

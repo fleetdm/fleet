@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble help
 
 export GO111MODULE=on
 
@@ -134,6 +134,11 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
+.help-short--dibble:
+	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
+dibble:
+	cd tools/dibble && go build -o dibble ./cmd/dibble
+
 .help-short--serve:
 	@echo "Start the fleet server"
 .help-short--up:
@@ -182,6 +187,7 @@ else
 serve:
 	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
 	$(call filter_args)
+	@mkdir -p ~/.fleet
 # If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
 # Unless NO_SAVE is set to true, save the command to the last invocation file.
 # IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.

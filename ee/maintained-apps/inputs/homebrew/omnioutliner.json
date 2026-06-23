@@ -1,0 +1,10 @@
+{
+  "name": "OmniOutliner",
+  "unique_identifier": "com.omnigroup.OmniOutliner6",
+  "token": "omnioutliner",
+  "installer_format": "dmg",
+  "slug": "omnioutliner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

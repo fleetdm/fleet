@@ -7,7 +7,13 @@ const buildPagesItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const { search, canAccessControls, canAccessSettings, withTeamId } = ctx;
+  const {
+    search,
+    canAccessControls,
+    canAccessSettings,
+    isPremiumTier,
+    withTeamId,
+  } = ctx;
   const {
     hasTeamOrUnassigned,
     switchesFromUnassigned,
@@ -21,7 +27,14 @@ const buildPagesItems = (
       group: "Pages" as const,
       path: withTeamId(paths.DASHBOARD),
       teamName: switchesFromUnassigned,
-      keywords: ["home", "hosts", "activity", "platform"],
+      keywords: [
+        "home",
+        "hosts",
+        "activity",
+        "platform",
+        "overview",
+        "landing",
+      ],
     },
     {
       id: "hosts",
@@ -38,7 +51,11 @@ const buildPagesItems = (
         "computers",
       ],
     },
-    ...(canAccessControls && hasTeamOrUnassigned
+    // Hidden on Free: /controls redirects to OS updates, which renders
+    // <PremiumFeatureMessage /> on Free. Free users still reach the
+    // tier-free Controls sub-pages via their own palette entries
+    // (OS settings, Scripts, Variables).
+    ...(canAccessControls && hasTeamOrUnassigned && isPremiumTier
       ? [
           {
             id: "controls-page",
@@ -96,7 +113,14 @@ const buildPagesItems = (
             label: "Settings",
             group: "Pages" as const,
             path: paths.ADMIN_SETTINGS,
-            keywords: ["admin", "organization", "integrations"],
+            keywords: [
+              "admin",
+              "organization",
+              "integrations",
+              "preferences",
+              "config",
+              "options",
+            ],
           },
         ]
       : []),
@@ -105,7 +129,15 @@ const buildPagesItems = (
       label: "Labels",
       group: "Pages" as const,
       path: paths.MANAGE_LABELS,
-      keywords: ["group hosts", "filter", "dynamic", "manual"],
+      keywords: [
+        "group hosts",
+        "filter",
+        "dynamic",
+        "manual",
+        "tag",
+        "group",
+        "category",
+      ],
     },
     // "Users" lives in the Settings group only — having it in Pages too
     // surfaced two items with identical destinations.
@@ -120,6 +152,9 @@ const buildPagesItems = (
         "api token",
         "settings",
         "change password",
+        "preferences",
+        "me",
+        "personal",
       ],
     },
 

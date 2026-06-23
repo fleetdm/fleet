@@ -16,8 +16,8 @@
             </h1>
             <p purpose="hero-subtitle">Open MDM, patching, and vuln management for every OS.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="/register">Try it yourself</a>
-              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+              <a purpose="cta-button" href="/contact">Get a demo</a>
+              <animated-arrow-button href="#compare-features">Compare features</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -170,7 +170,7 @@
   <div purpose="homepage-content" class="container">
     <div purpose="page-section">
       <div purpose="comparison-section">
-        <h2>Moving to Fleet?</h2>
+        <h2 id="compare-features">Moving to Fleet?</h2>
         <p>See how Fleet compares with your other options.</p>
         <% /*
           ╦╔╦╗  ╔═╗╔═╗╔╦╗╔═╗╔═╗╦═╗╦╔═╗╔═╗╔╗╔  ╔╦╗╔═╗╔╗ ╦  ╔═╗
@@ -178,20 +178,17 @@
           ╩ ╩   ╚═╝╚═╝╩ ╩╩  ╩ ╩╩╚═╩╚═╝╚═╝╝╚╝   ╩ ╩ ╩╚═╝╩═╝╚═╝
           */ %>
         <div purpose="desktop-comparison-table" class="d-none d-sm-block">
+          <div purpose="comparison-table-tabs">
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'jamf' ? 'active' : '']" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')"><strong>Jamf Pro</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'omnissa' ? 'active' : '']" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')"><strong>Workspace ONE</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'sccm' ? 'active' : '']" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')"><strong>SCCM</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'intune' ? 'active' : '']" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')"><strong>Intune</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'patchmypc' ? 'active' : '']" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')"><strong>PatchMyPC</strong></div>
+          </div>
           <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
             <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
             <div purpose="comparison-column" class="d-flex">
-              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
-              </div>
-              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
-                <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-                <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
-              </div>
+                <strong>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</strong>
             </div>
           </div>
           <div purpose="comparison-table" class="d-sm-flex d-none flex-column"> 
@@ -325,7 +322,7 @@
                 <p>On-prem only</p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>On-prem discouraged</p>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="comparison-column" v-else>
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -522,7 +519,7 @@
                 <p>On-prem only</p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>On-prem discouraged</p>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="feature-status" v-else>
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -599,6 +596,8 @@
         </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
+          <!-- <animated-arrow-button href="/gitops-workshop">Free workshop</animated-arrow-button>-->
+          <!-- <animated-arrow-button href="/pricing">View pricing</animated-arrow-button> -->
           <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
@@ -606,7 +605,7 @@
 
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city></parallax-city>
+  <cloud-city></cloud-city>
   <div purpose="homepage-content" class="container py-4 my-0 my-md-2">
     <div purpose="newsletter-banner">
        <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">

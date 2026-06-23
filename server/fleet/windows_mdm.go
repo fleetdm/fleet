@@ -74,9 +74,6 @@ type windowsProfileValidator struct {
 
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
-
-	// Whether to enable validation for custom OS updates loc URIs.
-	enableCustomOSUpdates bool
 }
 
 var validTopLevelElements = map[string]struct{}{
@@ -101,7 +98,7 @@ var validTopLevelElements = map[string]struct{}{
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -110,7 +107,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
+	validator := newWindowsProfileValidator(m.SyncML)
 	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
 	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
 	// acceptable.
@@ -118,16 +115,15 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 	return validator.validate()
 }
 
-func newWindowsProfileValidator(syncML []byte, enableCustomOSUpdates bool) *windowsProfileValidator {
+func newWindowsProfileValidator(syncML []byte) *windowsProfileValidator {
 	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
 	return &windowsProfileValidator{
-		scepValidator:         newWindowsSCEPProfileValidator(),
-		decoder:               dec,
-		enableCustomOSUpdates: enableCustomOSUpdates,
+		scepValidator: newWindowsSCEPProfileValidator(),
+		decoder:       dec,
 	}
 }
 
@@ -244,7 +240,7 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
 	// specific message.
-	if err := validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates); err != nil {
+	if err := validateFleetProvidedLocURI(locURI); err != nil {
 		return err
 	}
 
@@ -301,16 +297,12 @@ func (v *windowsProfileValidator) isInExec() bool {
 
 var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
-	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
+func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
-				continue
-			}
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
@@ -458,7 +450,10 @@ func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
 
 func (v *windowsSCEPProfileValidator) setLocURIArrays(locURI string) error {
 	switch {
-	case IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs == nil:
+	case IsWindowsSCEPLocURI(locURI) && (v.validExecSCEPProfileLocURIs == nil || len(*v.validExecSCEPProfileLocURIs) == 0):
+		// First SCEP LocURI seen. Earlier non-SCEP LocURIs may have set the empty placeholder arrays; replace them
+		// with the real ones so finalizeValidation rejects the mixed profile cleanly instead of indexing into an
+		// empty array below.
 		if strings.HasPrefix(locURI, "./User") {
 			v.requiredSCEPProfileLocURIs = &requiredUserSCEPProfileLocURIs
 			v.validSCEPProfileLocURIs = &validUserSCEPProfileLocURIs
@@ -591,6 +586,57 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 type MDMWindowsProfileContents struct {
 	SyncML   []byte `db:"syncml"`
 	Checksum []byte `db:"checksum"`
+}
+
+// WindowsHostReconcileInfo is a per-host record used by the batched Windows profile reconciler. It contains only the fields
+// needed to decide which profiles should be installed on the host given its team and label membership. Mirrors
+// AppleHostReconcileInfo
+type WindowsHostReconcileInfo struct {
+	HostID         uint      `db:"id"`
+	UUID           string    `db:"uuid"`
+	TeamID         *uint     `db:"team_id"`
+	LabelUpdatedAt time.Time `db:"label_updated_at"`
+}
+
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own team (the "no team" / global scope). Equality between
+// EffectiveTeamID and a profile's team_id is the correct match check. See AppleHostReconcileInfo.EffectiveTeamID.
+func (h *WindowsHostReconcileInfo) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
+// WindowsProfileForReconcile is the profile data needed by the batched Windows reconciler to compute desired state per host in
+// memory. The label-gating fields mirror AppleProfileForReconcile exactly so the same shared dispatcher and handlers
+// (server/mdm/reconcile) run against both platforms.
+//
+// Include and exclude labels are stored separately so a profile can carry both: applicability becomes (include gate passes) AND
+// (exclude gate passes), with each gate skipped when its slice is empty.
+type WindowsProfileForReconcile struct {
+	ProfileUUID      string
+	ProfileName      string
+	TeamID           uint // 0 means global
+	Checksum         []byte
+	SecretsUpdatedAt *time.Time
+	IncludeMode      MDMProfileIncludeMode
+	IncludeLabels    []MDMProfileLabelRef
+	ExcludeLabels    []MDMProfileLabelRef
+}
+
+func (p *WindowsProfileForReconcile) GetTeamID() uint                       { return p.TeamID }
+func (p *WindowsProfileForReconcile) GetIncludeMode() MDMProfileIncludeMode { return p.IncludeMode }
+func (p *WindowsProfileForReconcile) GetIncludeLabels() []MDMProfileLabelRef {
+	return p.IncludeLabels
+}
+func (p *WindowsProfileForReconcile) GetExcludeLabels() []MDMProfileLabelRef {
+	return p.ExcludeLabels
+}
+
+// HasBrokenLabel reports whether any include or exclude label on the profile references a deleted label. Used to keep
+// broken-label profiles exempt from removal. See AppleProfileForReconcile.HasBrokenLabel.
+func (p *WindowsProfileForReconcile) HasBrokenLabel() bool {
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
 // MDMWindowsWipeType specifies what type of remote wipe we want
