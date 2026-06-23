@@ -530,7 +530,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		{
 			name:    "no version",
 			version: "^",
-			wantErr: "no version number provided",
+			wantErr: errEmptyCaretVersion.Error(),
 		},
 		{
 			name:    "invalid version",
@@ -548,6 +548,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
 				require.NoError(t, err)
+				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
+				// survives downstream and is persisted to software_title_team_pins.
+				require.Equal(t, vt.version, payload.RollbackVersion)
 			}
 		})
 	}

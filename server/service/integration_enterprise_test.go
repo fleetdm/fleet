@@ -29012,6 +29012,8 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer10UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
 
 		// update manifest to 1.1, FleetMaintainedVersions should have 1.0, 1.1
 		// installer version should be 1.1, while still pinned to ^1
@@ -29030,6 +29032,9 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer11UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 
 		// pin version to 1.0? then pin to ^1, installer should be 1.1. if fleet keeps enough versions we need to test this.
 		// maybe unnecessary test, can remove to speed it up
@@ -29072,6 +29077,8 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
 		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.WithinDuration(t, installer11UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 	})
 
 	// Test pinning ^1 for the first time when only 2.0 is available from manifest
@@ -32826,4 +32833,262 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 	// Install endpoint rejects with label-scope error.
 	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
+	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
+	zoom := &fmaTestState{
+		version:        "1.0",
+		installerBytes: []byte("zoom-1.0"),
+		installerPath:  "/zoom.msi",
+		patchQuery:     "SELECT 1 FROM osquery_info;",
+	}
+	startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": zoom})
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		TeamPayload: fleet.TeamPayload{Name: new("fma_pin_" + t.Name())},
+	}, http.StatusOK, &teamResp)
+	team := *teamResp.Team
+
+	batchSet := func(software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			http.StatusAccepted, &resp, "team_name", team.Name)
+		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+	bumpVersion := func(version string, bytes []byte) {
+		zoom.version = version
+		zoom.installerBytes = bytes
+		zoom.ComputeSHA(bytes)
+	}
+
+	// Cache v1.0, then bump the manifest and cache v2.0 (GitOps applies, no pin).
+	pkgs := batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	require.NotEmpty(t, pkgs)
+	require.NotNil(t, pkgs[0].TitleID)
+	titleID := *pkgs[0].TitleID
+
+	bumpVersion("2.0", []byte("zoom-2.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+
+	getPkg := func() *fleet.SoftwareInstaller {
+		var resp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, resp.SoftwareTitle)
+		require.NotNil(t, resp.SoftwareTitle.SoftwarePackage)
+		return resp.SoftwareTitle.SoftwarePackage
+	}
+	policyInstallerID := func(policyID uint) uint {
+		var id *uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT software_installer_id FROM policies WHERE id = ?", policyID)
+		})
+		require.NotNilf(t, id, "policy %d has no software_installer_id", policyID)
+		return *id
+	}
+	// Patch policies are title-scoped (patch_software_title_id), not installer-scoped, so they don't carry a
+	// software_installer_id and aren't re-pointed on a version flip — they stay attached to the title.
+	patchPolicyTitleID := func(policyID uint) uint {
+		var id *uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT patch_software_title_id FROM policies WHERE id = ?", policyID)
+		})
+		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
+		return *id
+	}
+
+	// Two cached versions (1.0, 2.0); the no-version GitOps applies above left the title on Latest (active = newest,
+	// no pin).
+	p := getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+
+	// Dependencies on the title: an install-automation policy (carries software_installer_id, re-pointed to the
+	// active installer on a flip) and a patch policy (title-scoped via patch_software_title_id, never re-pointed).
+	var installPol fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name: "install zoom", Query: "SELECT 1 FROM osquery_info;", SoftwareTitleID: &titleID,
+	}, http.StatusOK, &installPol)
+	var patchPol fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPol)
+
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+
+	patchVersion := func(version string) {
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id": {fmt.Sprint(team.ID)},
+			"version": {version},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+	}
+
+	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---
+
+	// Rollback to an older cached version. The install policy is re-pointed to the now-active installer; the patch
+	// policy is title-scoped and stays put.
+	patchVersion("1.0")
+	p = getPkg()
+	require.Equal(t, "1.0", p.Version)
+	require.Equal(t, new("1.0"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+
+	// Caret resolves to the newest cached minor in that major.
+	patchVersion("^2")
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("^2"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
+	patchVersion("^9")
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("^9"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// Empty clears the pin row, back to Latest.
+	patchVersion("")
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// --- GitOps pins persist the pin expression as written ---
+
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}})
+	p = getPkg()
+	require.Equal(t, "1.0", p.Version)
+	require.Equal(t, new("1.0"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID)) // patch policy stays title-scoped across a GitOps flip
+
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^2"}})
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("^2"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// Last write wins: a GitOps apply with no version resets a prior UI pin back to Latest.
+	patchVersion("1.0")
+	p = getPkg()
+	require.Equal(t, "1.0", p.Version)
+	require.Equal(t, new("1.0"), p.PinnedVersion)
+
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// --- New versions released over time (each GitOps run can bring a newer manifest version) ---
+
+	// A caret pin tracks a newly released minor in the pinned major: releasing 2.5 under "^2" moves the active
+	// version forward to 2.5.
+	patchVersion("^2")
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("^2"), p.PinnedVersion)
+
+	bumpVersion("2.5", []byte("zoom-2.5"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^2"}})
+	p = getPkg()
+	require.Equal(t, "2.5", p.Version)
+	require.Equal(t, new("^2"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	// The cache caps at 2 versions per title, so caching 2.5 evicts the oldest (1.0).
+	require.Len(t, p.FleetMaintainedVersions, 2)
+	require.ElementsMatch(t, []string{"2.0", "2.5"},
+		[]string{p.FleetMaintainedVersions[0].Version, p.FleetMaintainedVersions[1].Version},
+		"caching a new minor evicts the oldest cached version")
+
+	// A caret pin ignores a newly released major: releasing 3.0 under "^2" leaves the active version on the newest
+	// cached in-major version, and 3.0 is never cached.
+	bumpVersion("3.0", []byte("zoom-3.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^2"}})
+	p = getPkg()
+	require.Equal(t, "2.5", p.Version)
+	require.Equal(t, new("^2"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Len(t, p.FleetMaintainedVersions, 2)
+	require.ElementsMatch(t, []string{"2.0", "2.5"},
+		[]string{p.FleetMaintainedVersions[0].Version, p.FleetMaintainedVersions[1].Version},
+		"a new major must not be cached under a caret pin")
+
+	// A literal pin holds across a new release: releasing 4.0 under a "2.0" pin keeps the active version on 2.0, and
+	// 4.0 is never cached (the literal pin fetches its exact cached version, not the latest manifest).
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "2.0"}})
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("2.0"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID)) // flip 2.5 -> 2.0 re-points the install policy
+
+	bumpVersion("4.0", []byte("zoom-4.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "2.0"}})
+	p = getPkg()
+	require.Equal(t, "2.0", p.Version)
+	require.Equal(t, new("2.0"), p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Len(t, p.FleetMaintainedVersions, 2)
+	require.ElementsMatch(t, []string{"2.0", "2.5"},
+		[]string{p.FleetMaintainedVersions[0].Version, p.FleetMaintainedVersions[1].Version},
+		"a literal pin must not cache a newer release")
+
+	// Clearing the pin lets Latest track the new release.
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	p = getPkg()
+	require.Equal(t, "4.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// Newest is determined by semantic version, not string order: 10.0 is newer than 4.0 even though it sorts
+	// earlier lexicographically.
+	bumpVersion("10.0", []byte("zoom-10.0"))
+	batchSet([]*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}})
+	p = getPkg()
+	require.Equal(t, "10.0", p.Version)
+
+	// Pin the older 4.0, then clear to Latest and confirm it resolves to 10.0, not the string-larger "4.0".
+	patchVersion("4.0")
+	p = getPkg()
+	require.Equal(t, "4.0", p.Version)
+	require.Equal(t, new("4.0"), p.PinnedVersion)
+
+	patchVersion("")
+	p = getPkg()
+	require.Equal(t, "10.0", p.Version)
+	require.Nil(t, p.PinnedVersion)
+	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+
+	// --- Validation ---
+
+	// "version" can't be changed in the same PATCH as another field.
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"team_id":        {fmt.Sprint(team.ID)},
+		"version":        {"2.0"},
+		"install_script": {"echo changed"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusBadRequest, headers)
+
+	// "version" is only valid for a Fleet-maintained app, not a custom package.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo install",
+		Filename:      "ruby.deb",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+	customTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"team_id": {fmt.Sprint(team.ID)},
+		"version": {"1.0"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", customTitleID), body.Bytes(), http.StatusBadRequest, headers)
 }

@@ -2669,8 +2669,21 @@ type Datastore interface {
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
-	// the versions will be sorted by the version string.
+	// the versions will be sorted by their version semver or string.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
+
+	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets other installers of the title
+	// to inactive, repoints policies, and records or clears the pinned version.
+	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
+
+	// GetPinnedVersion returns the pinned version for a team and software title.
+	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+
+	// SetPinnedVersion upserts the pinned version for the team and title.
+	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
+
+	// DeletePinnedVersion removes the pin for the given team and title.
+	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team.

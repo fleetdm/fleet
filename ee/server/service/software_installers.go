@@ -640,6 +640,68 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
+	// switch active installer to one that matches the pinned version
+	var activeInstallerID uint
+	if payload.PinnedVersion != nil {
+		if existingInstaller.FleetMaintainedAppID == nil {
+			return nil, &fleet.BadRequestError{
+				Message: `Couldn't update. "version" can be only specified for a software title that has a Fleet-maintained app.`,
+			}
+		}
+
+		if len(dirty) > 0 {
+			return nil, &fleet.BadRequestError{
+				Message: `Couldn't update. "version" can't be changed at the same time as other fields.`,
+			}
+		}
+
+		*payload.PinnedVersion = strings.TrimSpace(*payload.PinnedVersion)
+		majorVersionString, usesCaret, err := parsePinnedVersion(ctx, *payload.PinnedVersion)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
+		}
+
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, true)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
+		}
+		if len(versions) == 0 {
+			return nil, ctxerr.New(ctx, "no cached versions for Fleet-maintained app")
+		}
+
+		switch {
+		case *payload.PinnedVersion == "": // Latest
+			activeInstallerID = versions[0].ID
+		case usesCaret:
+			for _, v := range versions {
+				matches, err := versionMatchesMajor(v.Version, majorVersionString)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
+				}
+				if matches {
+					activeInstallerID = v.ID
+					break
+				}
+			}
+			if activeInstallerID == 0 {
+				activeInstallerID = versions[0].ID
+			}
+		default: // literal version
+			for _, v := range versions {
+				if v.Version == *payload.PinnedVersion {
+					activeInstallerID = v.ID
+					break
+				}
+			}
+			if activeInstallerID == 0 {
+				return nil, fleet.NewUserMessageError(errVersionNotFound, http.StatusNotFound)
+			}
+		}
+
+		// The active-installer flip is applied in the dirty section below.
+		dirty["PinnedVersion"] = true
+	}
+
 	fieldsShouldSideEffect := map[string]struct{}{
 		"InstallerFile":     {},
 		"InstallScript":     {},
@@ -652,11 +714,23 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
+		switch {
+		case len(dirty) == 1 && dirty["SelfService"]: // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
-		} else {
+		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
+			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+			}
+
+			// cancel pending installs of the version we pinned away from
+			if activeInstallerID != existingInstaller.InstallerID {
+				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
+				}
+			}
+		default:
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -2408,8 +2482,10 @@ func (svc *Service) BatchSetSoftwareInstallers(
 }
 
 var (
+	errEmptyCaretVersion    = errors.New("a major version must be specified after the caret (^). For example, \"^32\".")
 	errNonMajorVersion      = errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\".")
 	errMajorVersionNotFound = errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
+	errVersionNotFound      = errors.New("specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
 )
 
 func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
@@ -2433,35 +2509,31 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return err
 	}
 
-	majorVersionString, usesCaret := strings.CutPrefix(payload.RollbackVersion, "^")
-	if usesCaret {
-		if len(majorVersionString) == 0 {
-			return ctxerr.Wrap(ctx, errors.New("no version number provided"), "reading Fleet-maintained app pinned version")
-		}
-		if parts := strings.Split(payload.RollbackVersion, "."); len(parts) > 1 {
-			return fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
-		}
-		// unset rollback version to avoid getting a cached installer
-		payload.RollbackVersion = ""
+	payload.RollbackVersion = strings.TrimSpace(payload.RollbackVersion)
+	majorVersionString, usesCaret, err := parsePinnedVersion(ctx, payload.RollbackVersion)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 	}
 
-	_, err = maintained_apps.Hydrate(ctx, app, payload.RollbackVersion, teamID, svc.ds)
+	// use a temporary string for calling hydrate, so we download the latest manifest but keep the
+	// version in the db later for the auto update cron job
+	hydrateVersion := payload.RollbackVersion
+	if usesCaret {
+		hydrateVersion = ""
+	}
+
+	_, err = maintained_apps.Hydrate(ctx, app, hydrateVersion, teamID, svc.ds)
 	if err != nil {
 		return err
 	}
 
 	if usesCaret {
-		downloadedSemVer, err := fleet.VersionToSemverVersion(app.Version)
+		matches, err := versionMatchesMajor(app.Version, majorVersionString)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "extracting semver version")
+			return ctxerr.Wrap(ctx, err, "comparing Fleet-maintained app major version")
 		}
 
-		majorVersion, err := fleet.VersionToSemverVersion(majorVersionString)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "extracting pinnged major version")
-		}
-
-		if downloadedSemVer.Major() != majorVersion.Major() {
+		if !matches {
 			// We cannot use the FMA we just got the manifest for since it is on a different major
 			// version, so we try to find the latest cached version and use that instead.
 			if app.TitleID == nil {
@@ -3909,4 +3981,29 @@ func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *u
 		return nil, ctxerr.Wrap(ctx, err, "creating self-service categories")
 	}
 	return allCategories, nil
+}
+
+func parsePinnedVersion(ctx context.Context, version string) (majorVersion string, usesCaret bool, err error) {
+	majorVersion, usesCaret = strings.CutPrefix(version, "^")
+	if usesCaret {
+		if len(majorVersion) == 0 {
+			return "", false, fleet.NewUserMessageError(errEmptyCaretVersion, http.StatusBadRequest)
+		}
+		if parts := strings.Split(version, "."); len(parts) > 1 {
+			return "", false, fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
+		}
+	}
+	return majorVersion, usesCaret, nil
+}
+
+func versionMatchesMajor(version string, majorVersion string) (bool, error) {
+	v, err := fleet.VersionToSemverVersion(version)
+	if err != nil {
+		return false, err
+	}
+	major, err := fleet.VersionToSemverVersion(majorVersion)
+	if err != nil {
+		return false, err
+	}
+	return v.Major() == major.Major(), nil
 }

@@ -380,6 +380,8 @@ type FleetMaintainedVersion struct {
 	ID uint `json:"id" db:"id"`
 	// Version is the version string.
 	Version string `json:"version" db:"version"`
+	// UploadedAt is when this version was added to the database.
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.

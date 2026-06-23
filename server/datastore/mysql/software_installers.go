@@ -673,6 +673,44 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 	return nil
 }
 
+func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
+	if payload.PinnedVersion == nil {
+		return ctxerr.New(ctx, "pinned version is required to set the active Fleet-maintained app installer")
+	}
+	tmID := ptr.ValOrZero(payload.TeamID)
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE software_installers
+			SET is_active = (id = ?)
+			WHERE global_or_team_id = ? AND title_id = ?
+		`, activeInstallerID, tmID, payload.TitleID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting active fleet-maintained app installer")
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE policies SET software_installer_id = ?
+			WHERE software_installer_id IN (
+				SELECT id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+			)
+		`, activeInstallerID, tmID, payload.TitleID, activeInstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
+		}
+
+		// record the pin in the same transaction; an empty version clears it (Latest)
+		if *payload.PinnedVersion == "" {
+			if err := deletePinnedVersionDB(ctx, tx, tmID, payload.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing Fleet-maintained app pin")
+			}
+		} else if err := setPinnedVersionDB(ctx, tx, tmID, payload.TitleID, *payload.PinnedVersion); err != nil {
+			return ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
 		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")
@@ -2971,11 +3009,11 @@ WHERE
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
-				// Determine which installer should be "active" for this FMA+team.
-				// If RollbackVersion is specified, find the cached installer with that version;
-				// otherwise default to the newest (just inserted/updated).
+				// Determine which installer should be "active" for this FMA and team. A literal RollbackVersion pins
+				// that exact cached version; a "^major" caret or an empty value falls through to the newest just
+				// inserted version, which the slug resolver already chose, so the caret string must not be matched here.
 				activeInstallerID := installerID
-				if installer.RollbackVersion != "" {
+				if installer.RollbackVersion != "" && !strings.HasPrefix(installer.RollbackVersion, "^") {
 					var pinnedID uint
 					err := sqlx.GetContext(ctx, tx, &pinnedID, `
 						SELECT id FROM software_installers
@@ -3052,15 +3090,24 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
 				}
 
-				// Re-point policies from any non-FMA installers for this title to the active FMA installer.
+				// Write the pinned version so the auto update cron job keeps this information
+				if installer.RollbackVersion != "" {
+					if err := setPinnedVersionDB(ctx, tx, globalOrTeamID, titleID, installer.RollbackVersion); err != nil {
+						return ctxerr.Wrapf(ctx, err, "pinning version for %q", installer.Filename)
+					}
+				} else if err := deletePinnedVersionDB(ctx, tx, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clearing pin for %q", installer.Filename)
+				}
+
+				// Re-point this title's policies to the active FMA installer.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
 						SELECT id FROM software_installers
-						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+						WHERE global_or_team_id = ? AND title_id = ? AND id != ?
 					)
-				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
+				`, activeInstallerID, globalOrTeamID, titleID, activeInstallerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies to active FMA installer %q", installer.Filename)
 				}
 				// Mark previous custom package installers for this title for deletion.
 				for _, e := range existing {
@@ -3966,4 +4013,45 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 	}
 
 	return toInstall, categoryName, nil
+}
+
+func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `
+		SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
+	`, ptr.ValOrZero(teamID), titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+	}
+	return &version, nil
+}
+
+func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
+	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "set pinned version")
+	}
+	return nil
+}
+
+func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
+	if err := deletePinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pinned version")
+	}
+	return nil
+}
+
+func setPinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint, version string) error {
+	_, err := ex.ExecContext(ctx, `
+		INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)
+	`, globalOrTeamID, titleID, version)
+	return err
+}
+
+func deletePinnedVersionDB(ctx context.Context, ex sqlx.ExtContext, globalOrTeamID uint, titleID uint) error {
+	_, err := ex.ExecContext(ctx, `
+		DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?
+	`, globalOrTeamID, titleID)
+	return err
 }
