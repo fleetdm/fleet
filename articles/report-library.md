@@ -1,10 +1,10 @@
-# Standard query library
+# Report library
 
-Fleet's [standard query library](https://fleetdm.com/queries) includes a growing collection of useful policies and miscellaneous queries for organizations deploying Fleet and osquery.
+Fleet's [report library](https://fleetdm.com/reports) includes a growing collection of useful policies and miscellaneous reports for organizations deploying Fleet.
 
-## Importing the queries in Fleet
+## Importing the reports in Fleet
 
-After cloning the [fleetdm/fleet](https://github.com/fleetdm/fleet) repo, import the queries and policies found in `docs/01-Using-Fleet/standard-query-library/standard-query-library.yml` using [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli):
+After cloning the [fleetdm/fleet](https://github.com/fleetdm/fleet) repo, import the reports and policies found in `docs/01-Using-Fleet/standard-query-library/standard-query-library.yml` using [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli):
 
 ```sh
 fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
@@ -12,7 +12,7 @@ fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-libr
 
 ## Contributors
 
-Do you want to add your own query?
+Do you want to add your own policy or report?
 
 1. Please copy the following YAML section and paste it at the bottom of the [`standard-query-library.yml`](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml) file.
 
@@ -42,7 +42,7 @@ documentation.
 
 ## Additional resources
 
-Listed below are great resources that contain additional queries.
+Listed below are great resources that contain additional reports (queries).
 
 - Osquery (https://github.com/osquery/osquery/tree/master/packs)
 - Palantir osquery configuration (https://github.com/palantir/osquery-configuration/tree/master/Fleet)
@@ -51,5 +51,5 @@ Listed below are great resources that contain additional queries.
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-04-04">
-<meta name="articleTitle" value="Standard query library">
-<meta name="description" value="Learn how to use and contribute to Fleet's standard query library.">
+<meta name="articleTitle" value="Report library">
+<meta name="description" value="Learn how to use and contribute to Fleet's report library.">
