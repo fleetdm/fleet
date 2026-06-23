@@ -135,6 +135,7 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 		{"GetSoftwareCategoryNameToIDMap", testGetSoftwareCategoryNameToIDMap},
+		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -13023,6 +13024,51 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
 	require.NoError(t, err)
 	assert.Empty(t, got)
+}
+
+func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Teams auto-seed "🖥️ Productivity" with the U+FE0F variation selector. The
+	// utf8mb4_unicode_ci collation on the (team_id, name) unique index ignores that
+	// selector, so re-inserting the same category WITHOUT the selector — a common
+	// form in GitOps files — collides in the index even though the bytes differ.
+	// The batch insert must be idempotent (ON DUPLICATE KEY UPDATE) so this does
+	// not fail with a 1062 duplicate-entry error and does not create a second row.
+	const (
+		productivityCanonical = "\U0001F5A5\uFE0F Productivity" // seeded form, with VS-16
+		productivityNoVS      = "\U0001F5A5 Productivity"       // colliding form, no VS-16
+		customName            = "\U0001F195 Custom"             // a genuinely new category
+	)
+
+	countProductivity := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n,
+			`SELECT COUNT(*) FROM software_categories WHERE team_id = ? AND name = ?`, team.ID, productivityCanonical))
+		return n
+	}
+	require.Equal(t, 1, countProductivity(), "team should be seeded with exactly one Productivity category")
+
+	// Re-inserting the colliding form alongside a brand-new category must succeed.
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+
+	// The collision was absorbed (no second Productivity row) and the new category
+	// was created.
+	require.Equal(t, 1, countProductivity(), "colliding insert must not create a duplicate Productivity row")
+	cats, err := ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.True(t, slices.ContainsFunc(cats, func(c fleet.SoftwareCategory) bool { return c.Name == customName }),
+		"genuinely new category should have been inserted")
+
+	// Repeating the same batch remains a no-op: no error and no new rows.
+	before := len(cats)
+	require.NoError(t, ds.BatchNewSoftwareCategories(ctx, team.ID, []string{productivityNoVS, customName}))
+	cats, err = ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, cats, before)
 }
 
 // The next three tests guard the per-host software detail queries against the
