@@ -138,7 +138,32 @@ func parseOIDCIDTokenClaims(idToken string) (*fleet.PSSOClaims, error) {
 	if out.Subject == "" {
 		return nil, errors.New("id_token missing sub claim")
 	}
+	// Carry every other claim through in Extra so the PSSO login handler can
+	// forward the ones it allows into the minted id_token. Skip the registered
+	// claims Fleet sets itself when re-signing and the typed claims captured
+	// above, so Extra holds only the IdP's custom claims.
+	for k, v := range claims {
+		if _, reserved := oidcCapturedClaims[k]; reserved {
+			continue
+		}
+		if out.Extra == nil {
+			out.Extra = make(map[string]any, len(claims))
+		}
+		out.Extra[k] = v
+	}
 	return out, nil
+}
+
+// oidcCapturedClaims are id_token claims excluded from Extra so it carries only
+// the IdP's custom claims: the ones parseOIDCIDTokenClaims promotes to a typed
+// PSSOClaims field, the registered claims Fleet overwrites when re-signing, and
+// the standard OIDC session claims. None of these start with the account
+// prefix today, so excluding them is defense-in-depth against the forwarding
+// rule changing later.
+var oidcCapturedClaims = map[string]struct{}{
+	"sub": {}, "email": {}, "name": {}, "preferred_username": {},
+	"iss": {}, "aud": {}, "exp": {}, "iat": {}, "nbf": {}, "jti": {}, "nonce": {},
+	"auth_time": {}, "acr": {}, "amr": {}, "azp": {}, "at_hash": {}, "c_hash": {}, "sid": {},
 }
 
 func stringClaim(c jwt.MapClaims, key string) string {
