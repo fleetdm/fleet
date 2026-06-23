@@ -14,14 +14,14 @@ import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import {
+  aggregateInstallStatusCounts,
+  IAppStoreApp,
   isIpadOrIphoneSoftwareSource,
+  ISoftwarePackage,
   ISoftwareTitleDetails,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
-import {
-  APP_CONTEXT_ALL_TEAMS_ID,
-  APP_CONTEXT_NO_TEAM_ID,
-} from "interfaces/team";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { canWriteSoftware } from "utilities/permissions/permissions";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -38,7 +38,6 @@ import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
-import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import LibraryItemAccordion, {
   LibraryItemLabelKind,
 } from "./LibraryItemAccordion/LibraryItemAccordion";
@@ -48,6 +47,18 @@ import { getDisplayedSoftwareName } from "../helpers";
 import TitleVersionsTable from "./TitleVersionsTable";
 
 const baseClass = "software-title-details-page";
+
+const pickLabels = (
+  source: ISoftwarePackage | IAppStoreApp
+): { labels: ILabelSoftwareTitle[] | null; kind: LibraryItemLabelKind } => {
+  if (source.labels_include_all?.length) {
+    return { labels: source.labels_include_all, kind: "includeAll" };
+  }
+  if (source.labels_exclude_any?.length) {
+    return { labels: source.labels_exclude_any, kind: "excludeAny" };
+  }
+  return { labels: source.labels_include_any, kind: "includeAny" };
+};
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -63,16 +74,9 @@ const SoftwareTitleDetailsPage = ({
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const {
-    isPremiumTier,
-    isOnGlobalTeam,
-    isTeamAdmin,
-    isTeamMaintainer,
-    isTeamObserver,
-    isTeamTechnician,
-    currentUser,
-    config,
-  } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, currentUser, config } = useContext(
+    AppContext
+  );
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
@@ -170,39 +174,6 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  // TODO: Replace SoftwareInstallerCard with LibraryAccordionList once #47944
-  // is merged and this branch is rebased on top of it.
-  const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
-    const hasPermission = Boolean(
-      isOnGlobalTeam ||
-        isTeamAdmin ||
-        isTeamMaintainer ||
-        isTeamObserver ||
-        isTeamTechnician
-    );
-
-    const showInstallerCard =
-      currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
-      hasPermission &&
-      isAvailableForInstall;
-
-    if (!showInstallerCard) {
-      return null;
-    }
-
-    return (
-      <SoftwareInstallerCard
-        softwareTitle={title}
-        softwareId={softwareId}
-        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        onDelete={onDeleteInstaller}
-        isLoading={isSoftwareTitleLoading}
-        onToggleViewYaml={onToggleViewYaml}
-        showViewYamlModal={showViewYamlModal}
-      />
-    );
-  };
-
   const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
       <SoftwareSummaryCard
@@ -216,13 +187,14 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
-  // TODO #47622 preview — remove before merging into main.
-  // Renders a single LibraryItemAccordion from the active software_package or
-  // app_store_app so design can review with real data; multi-row rendering
-  // lands in #47623.
-  const renderLibraryItemAccordionPreview = (title: ISoftwareTitleDetails) => {
-    const pkg = title.software_package;
-    const appStore = title.app_store_app;
+  const renderLibrarySection = (title: ISoftwareTitleDetails) => {
+    // Library section is Premium-only
+    // Fleet Free should not see it even when an installer is present.
+    if (!isPremiumTier || !isAvailableForInstall) {
+      return null;
+    }
+
+    const openEditModal = () => setShowLibraryEditModal(true);
 
     const statusPath = (software_status: "installed" | "pending" | "failed") =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
@@ -231,164 +203,88 @@ const SoftwareTitleDetailsPage = ({
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
-    const installerMeta = installerResult?.meta;
-    const isFma = installerMeta?.isFleetMaintainedApp ?? false;
-    const isLatestFmaVersion = installerMeta?.isLatestFmaVersion ?? false;
-    const isScriptPackage = installerResult?.cardInfo.isScriptPackage ?? false;
+    // TODO #47623 multi-row rendering — render one accordion per version,
+    // and lift installer-meta lookup to per-row (only the latest is "active").
+    const libraryAccordionList = () => {
+      const pkg = title.software_package;
+      const appStore = title.app_store_app;
 
-    interface ILabeledSource {
-      labels_include_any: ILabelSoftwareTitle[] | null;
-      labels_include_all: ILabelSoftwareTitle[] | null;
-      labels_exclude_any: ILabelSoftwareTitle[] | null;
-    }
-    interface IPickedLabels {
-      labels: ILabelSoftwareTitle[] | null;
-      kind: LibraryItemLabelKind;
-    }
-    const pickLabels = (source: ILabeledSource): IPickedLabels => {
-      if (source.labels_include_all?.length) {
-        return { labels: source.labels_include_all, kind: "includeAll" };
+      if (appStore) {
+        const { labels, kind } = pickLabels(appStore);
+        const isAndroidPlayStoreApp = appStore.platform === "android";
+        return (
+          <LibraryItemAccordionList>
+            <LibraryItemAccordion
+              filename={appStore.name}
+              version={appStore.latest_version}
+              addedAt={appStore.created_at}
+              installerType="app-store"
+              androidPlayStoreId={
+                isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+              }
+              isActive
+              badgeState="latest"
+              labels={labels}
+              labelKind={kind}
+              canEditSoftware={canEditSoftware}
+              installed={appStore.status?.installed ?? 0}
+              pending={appStore.status?.pending ?? 0}
+              failed={appStore.status?.failed ?? 0}
+              installedPath={statusPath("installed")}
+              pendingPath={statusPath("pending")}
+              failedPath={statusPath("failed")}
+              onLabelCountClick={openEditModal}
+              onLabelsClick={openEditModal}
+            />
+          </LibraryItemAccordionList>
+        );
       }
-      if (source.labels_exclude_any?.length) {
-        return { labels: source.labels_exclude_any, kind: "excludeAny" };
-      }
-      return { labels: source.labels_include_any, kind: "includeAny" };
-    };
 
-    if (appStore) {
-      const { labels, kind } = pickLabels(appStore);
-      const isAndroidPlayStoreApp = appStore.platform === "android";
+      if (!pkg) return null;
+      const { labels, kind } = pickLabels(pkg);
+      const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
+      const isLatestFmaVersion =
+        installerResult?.meta.isLatestFmaVersion ?? false;
+      const isScriptPackage =
+        installerResult?.cardInfo.isScriptPackage ?? false;
+      const { installed, pending, failed } = aggregateInstallStatusCounts(
+        pkg.status
+      );
       return (
         <LibraryItemAccordionList>
           <LibraryItemAccordion
-            filename={appStore.name}
-            version={appStore.latest_version}
-            addedAt={appStore.created_at}
-            installerType="app-store"
-            androidPlayStoreId={
-              isAndroidPlayStoreApp ? appStore.app_store_id : undefined
-            }
+            filename={pkg.name}
+            version={pkg.version}
+            addedAt={pkg.uploaded_at}
+            installerType="package"
+            isFma={isFma}
+            isLatestFmaVersion={isLatestFmaVersion}
             isScriptPackage={isScriptPackage}
             isActive
             badgeState="latest"
             labels={labels}
             labelKind={kind}
             canEditSoftware={canEditSoftware}
-            installed={appStore.status?.installed ?? 0}
-            pending={appStore.status?.pending ?? 0}
-            failed={appStore.status?.failed ?? 0}
+            installed={installed}
+            pending={pending}
+            failed={failed}
             installedPath={statusPath("installed")}
             pendingPath={statusPath("pending")}
             failedPath={statusPath("failed")}
-            onLabelCountClick={() => setShowLibraryEditModal(true)}
-            onLabelsClick={() => setShowLibraryEditModal(true)}
+            hashSha256={pkg.hash_sha256 ?? null}
+            downloadUrl={pkg.url}
+            onLabelCountClick={openEditModal}
+            onLabelsClick={openEditModal}
           />
         </LibraryItemAccordionList>
       );
-    }
+    };
 
-    if (!pkg) return null;
-    const { labels, kind } = pickLabels(pkg);
-    return (
-      <LibraryItemAccordionList>
-        <LibraryItemAccordion
-          filename={pkg.name}
-          version={pkg.version}
-          addedAt={pkg.uploaded_at}
-          isFma={isFma}
-          isLatestFmaVersion={isLatestFmaVersion}
-          isScriptPackage={isScriptPackage}
-          isActive
-          badgeState="latest"
-          labels={labels}
-          labelKind={kind}
-          canEditSoftware={canEditSoftware}
-          installed={pkg.status?.installed ?? 0}
-          pending={
-            (pkg.status?.pending_install ?? 0) +
-            (pkg.status?.pending_uninstall ?? 0)
-          }
-          failed={
-            (pkg.status?.failed_install ?? 0) +
-            (pkg.status?.failed_uninstall ?? 0)
-          }
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
-          hashSha256={pkg.hash_sha256 ?? null}
-          downloadUrl={pkg.url}
-          onLabelCountClick={() => setShowLibraryEditModal(true)}
-          onLabelsClick={() => setShowLibraryEditModal(true)}
-        />
-        <LibraryItemAccordion
-          filename="example-package-v2-really-long-package-name-to-see-what-happens-responsive-design.pkg"
-          version="2.0.0"
-          addedAt="2024-01-01T12:00:00Z"
-          isFma={isFma}
-          isLatestFmaVersion={isLatestFmaVersion}
-          isScriptPackage={isScriptPackage}
-          isActive={false}
-          labels={labels}
-          labelKind={kind}
-          canEditSoftware={canEditSoftware}
-          installed={pkg.status?.installed ?? 0}
-          pending={
-            (pkg.status?.pending_install ?? 0) +
-            (pkg.status?.pending_uninstall ?? 0)
-          }
-          failed={
-            (pkg.status?.failed_install ?? 0) +
-            (pkg.status?.failed_uninstall ?? 0)
-          }
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
-          hashSha256={pkg.hash_sha256 ?? null}
-          downloadUrl={pkg.url}
-          onLabelCountClick={() => setShowLibraryEditModal(true)}
-          onLabelsClick={() => setShowLibraryEditModal(true)}
-        />
-      </LibraryItemAccordionList>
-    );
-  };
-
-  const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
-    if (!showLibraryEditModal || !installerResult) return null;
-    const { meta } = installerResult;
-    return (
-      <EditSoftwareModal
-        softwareId={softwareId}
-        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        softwareInstaller={meta.softwareInstaller}
-        refetchSoftwareTitle={refetchSoftwareTitle}
-        onExit={() => setShowLibraryEditModal(false)}
-        installerType={meta.installerType}
-        openViewYamlModal={onToggleViewYaml}
-        isFleetMaintainedApp={meta.isFleetMaintainedApp}
-        isIosOrIpadosApp={meta.isIosOrIpadosApp}
-        name={title.name}
-        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
-        source={title.source}
-        iconUrl={title.icon_url}
-      />
-    );
-  };
-
-  const renderLibrarySection = (title: ISoftwareTitleDetails) => {
-    // Library section is Premium-only per #47621 CoS — Fleet Free should not
-    // see it even when an installer is present.
-    if (!isPremiumTier) {
-      return null;
-    }
-    const installerCard = renderSoftwareInstallerCard(title);
-    if (!installerCard) {
-      return null;
-    }
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
         <PageDescription content="Software available to be installed" />
-        {installerCard}
+        {libraryAccordionList()}
       </section>
     );
   };
@@ -421,6 +317,28 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
+  const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
+    if (!showLibraryEditModal || !installerResult) return null;
+    const { meta } = installerResult;
+    return (
+      <EditSoftwareModal
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        softwareInstaller={meta.softwareInstaller}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onExit={() => setShowLibraryEditModal(false)}
+        installerType={meta.installerType}
+        openViewYamlModal={onToggleViewYaml}
+        isFleetMaintainedApp={meta.isFleetMaintainedApp}
+        isIosOrIpadosApp={meta.isIosOrIpadosApp}
+        name={title.name}
+        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
+        source={title.source}
+        iconUrl={title.icon_url}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
       return <Spinner />;
@@ -442,11 +360,9 @@ const SoftwareTitleDetailsPage = ({
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}
-          {renderLibraryItemAccordionPreview(softwareTitle)}
-          {renderSoftwareInstallerCard(softwareTitle)}
-          {renderLibraryEditModal(softwareTitle)}
           {renderLibrarySection(softwareTitle)}
           {renderInventorySection(softwareTitle)}
+          {renderLibraryEditModal(softwareTitle)}
         </>
       );
     }

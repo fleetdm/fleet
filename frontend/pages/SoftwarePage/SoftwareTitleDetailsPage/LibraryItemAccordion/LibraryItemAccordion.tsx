@@ -271,16 +271,20 @@ const LibraryItemAccordion = ({
     trailing?: React.ReactNode
   ) => (
     <div className={`${baseClass}__status-count`}>
-      <TooltipWrapper
-        tipContent={iconTooltip}
-        showArrow
-        underline={false}
-        position="top"
-        tipOffset={8}
-        clickable={false}
-      >
+      {iconTooltip ? (
+        <TooltipWrapper
+          tipContent={iconTooltip}
+          showArrow
+          underline={false}
+          position="top"
+          tipOffset={8}
+          clickable={false}
+        >
+          <Icon name={iconName} />
+        </TooltipWrapper>
+      ) : (
         <Icon name={iconName} />
-      </TooltipWrapper>
+      )}
       <CustomLink
         url={path}
         text={`${count} ${label}`}
@@ -298,33 +302,91 @@ const LibraryItemAccordion = ({
     </>
   );
 
-  const installedIconTooltip = (
-    <>
-      Software is installed on these hosts
-      <br />
-      (install script finished with exit code 0).
-      <br />
-      Currently, if the software is uninstalled,
-      <br />
-      the &quot;Installed&quot; status won&apos;t be updated.
-    </>
-  );
+  // Mirrors `InstallerStatusTableConfig` on main — script-only packages swap
+  // the "installed" label/tooltip for "ran" semantics; Android Play Store apps
+  // swap pending/failed tooltip wording to match MDM check-in semantics.
+  const isAndroidApp = !!androidPlayStoreId;
+  const installedLabel = isScriptPackage ? "ran" : "installed";
 
-  const pendingIconTooltip = (
-    <>
-      Fleet is installing/uninstalling or will
-      <br />
-      do so when the host comes online.
-    </>
-  );
+  const getInstalledIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          The script successfully
+          <br />
+          ran on these hosts.
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return null;
+    }
+    return (
+      <>
+        Software is installed on these hosts
+        <br />
+        (install script finished with exit code 0).
+        <br />
+        Currently, if the software is uninstalled,
+        <br />
+        the &quot;Installed&quot; status won&apos;t be updated.
+      </>
+    );
+  };
 
-  const failedIconTooltip = (
-    <>
-      These hosts failed to install/uninstall
-      <br />
-      software. Click on a host to view error(s).
-    </>
-  );
+  const getPendingIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          Fleet is running the script or will do
+          <br />
+          so when the host comes online.
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return (
+        <>
+          Software will be installed or configuration will
+          <br />
+          be applied the next time the host checks in.
+        </>
+      );
+    }
+    return (
+      <>
+        Fleet is installing/uninstalling or will
+        <br />
+        do so when the host comes online.
+      </>
+    );
+  };
+
+  const getFailedIconTooltip = (): React.ReactNode => {
+    if (isScriptPackage) {
+      return (
+        <>
+          These hosts failed to run the script.
+          <br />
+          Click on a host to view error(s).
+        </>
+      );
+    }
+    if (isAndroidApp) {
+      return <>Software failed to install or configuration failed to apply.</>;
+    }
+    return (
+      <>
+        These hosts failed to install/uninstall
+        <br />
+        software. Click on a host to view error(s).
+      </>
+    );
+  };
+
+  const installedIconTooltip = getInstalledIconTooltip();
+  const pendingIconTooltip = getPendingIconTooltip();
+  const failedIconTooltip = getFailedIconTooltip();
 
   const renderLabelsBlock = () => {
     if (!hasLabelScope) return null;
@@ -486,7 +548,7 @@ const LibraryItemAccordion = ({
               {renderStatusCount(
                 "success",
                 installed,
-                "installed",
+                installedLabel,
                 installedIconTooltip,
                 installedPath,
                 <TooltipWrapper
