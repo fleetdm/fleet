@@ -7,20 +7,19 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { stringToClipboard } from "utilities/copy_text";
 
-type CopyButtonVariant = "icon" | "text-icon" | "compact";
+type CopyButtonVariant = "icon" | "inverse" | "compact";
 
 interface ICopyButtonProps {
   copyText: string;
   /** Override the button's content. Defaults to `<Icon name="copy" />`. */
   children?: React.ReactNode;
   /** `"icon"` (default) — standard 36×36 icon button.
-   *  `"text-icon"` — icon next to text (use with children).
+   *  `"inverse"` — bordered icon-with-text button (use with children).
    *  `"compact"` — icon collapsed to its natural size, no extra vertical
    *  chrome. Use for inline-with-text copy actions so the surrounding row
    *  doesn't grow to button height. */
   variant?: CopyButtonVariant;
-  iconStroke?: boolean;
-  size?: "small" | "wide" | "default";
+  size?: "small" | "default";
   className?: string;
   ariaLabel?: string;
   /** Distance in px from the anchor to the tooltip. Defaults to `4` — tight
@@ -38,7 +37,6 @@ const CopyButton = ({
   copyText,
   children,
   variant = "icon",
-  iconStroke = true,
   size,
   className,
   ariaLabel = "Copy to clipboard",
@@ -96,7 +94,7 @@ const CopyButton = ({
       <Button
         variant={isCompact ? "icon" : variant}
         size={size}
-        iconStroke={iconStroke}
+        iconStroke
         onClick={onClick}
         className={classnames(
           `${baseClass}__button`,
