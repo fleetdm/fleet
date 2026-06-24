@@ -56,14 +56,13 @@ _Available in Fleet Premium_
 End users can install every app in a category in one click from the **My device > Self-service** page:
 
 1. Select a category from the dropdown above the software table.
-2. Select **Install all (n)** to install every app in the category, or **Install missing (n)** to install only the apps that aren't yet installed. The button label and count adjusts based on what's already installed on the device.
+2. Select **Install all** to install every app in the category. The count in the button adjusts based on what's already installed on the device.
 
-Fleet queues each install as a separate operation; end users can monitor progress in the **Status** column. Software is installed in alphabetical order.
+Fleet queues each install as a separate operation. End users can monitor progress in the **Status** column. Software is installed in alphabetical order.
 
 ## Deploy self-service on iOS and iPadOS
 
 Install this configuration profile to add the self-service web app to the home screen on iPhone and iPad.
-
 
 ### Create the self-service configuration profile
 

@@ -1,13 +1,13 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { size } from "lodash";
 
-import { NotificationContext } from "context/notification";
 import conditionalAccessAPI from "services/entities/conditional_access";
 
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -40,8 +40,6 @@ const EntraConditionalAccessModal = ({
   onCancel,
   onSuccess,
 }: IEntraConditionalAccessModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IFormData>({
     [MSETID]: "",
@@ -68,9 +66,9 @@ const EntraConditionalAccessModal = ({
       // Close modal and show banner on main page
       onSuccess();
     } catch (e) {
-      renderFlash(
-        "error",
-        "Could not update conditional access integration settings."
+      notify.error(
+        "Could not update conditional access integration settings.",
+        { response: e }
       );
       setIsUpdating(false);
     }
