@@ -2096,7 +2096,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 		ProfileUUID:       profUUID,
 		ProfileIdentifier: "NDES Fleet WIFI",
 		ProfileName:       "NDES Fleet WIFI",
-		OperationType:     ptr.String("install"),
+		OperationType:     new("install"),
 		Status:            nil,
 		Retries:           0,
 		CommandUUID:       "",
@@ -2121,7 +2121,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	prevChallenge, _ := challengeValue.Load().(string)
 
 	expectHostProf.CommandUUID = cmd.CommandUUID
-	expectHostProf.Status = ptr.String("pending")
+	expectHostProf.Status = new("pending")
 	expectHostProf.Retries = 0
 
 	gotHostProfs := listHostProfilesDB(host.UUID)
@@ -2132,7 +2132,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	// limit triggers a resend with a brand-new challenge (the core behavior the
 	// user asked about). When retries == MaxAppleProfileRetries, the next
 	// failure marks the profile failed.
-	for retries := 0; retries < servermdm.MaxAppleProfileRetries; retries++ {
+	for retries := range servermdm.MaxAppleProfileRetries {
 		// device reports failure for the current install command
 		cmd, err = mdmDevice.Err(prevCommandUUID, []mdm.ErrorChain{})
 		require.NoError(t, err)
@@ -2160,7 +2160,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 		prevCommandUUID = cmd.CommandUUID
 
 		expectHostProf.CommandUUID = cmd.CommandUUID
-		expectHostProf.Status = ptr.String("pending")
+		expectHostProf.Status = new("pending")
 		gotHostProfs = listHostProfilesDB(host.UUID)
 		require.Len(t, gotHostProfs, 1)
 		require.Equal(t, expectHostProf, gotHostProfs[0])
@@ -2172,7 +2172,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.Nil(t, cmd)
 
 	expectHostProf.CommandUUID = prevCommandUUID
-	expectHostProf.Status = ptr.String("failed")
+	expectHostProf.Status = new("failed")
 	expectHostProf.Retries = servermdm.MaxAppleProfileRetries
 	gotHostProfs = listHostProfilesDB(host.UUID)
 	require.Len(t, gotHostProfs, 1)
@@ -2192,7 +2192,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd))
 
 	expectHostProf.CommandUUID = cmd.CommandUUID
-	expectHostProf.Status = ptr.String("pending")
+	expectHostProf.Status = new("pending")
 	expectHostProf.Retries = servermdm.MaxAppleProfileRetries // manual resend doesn't reset retries
 	gotHostProfs = listHostProfilesDB(host.UUID)
 	require.Len(t, gotHostProfs, 1)
@@ -2257,7 +2257,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.NotEqual(t, prevCommandUUID, cmd.CommandUUID)
 	require.Equal(t, expectPayloadWithChallenge(), parseCommandPayload(cmd))
 
-	expectHostProf.Status = ptr.String("pending")
+	expectHostProf.Status = new("pending")
 	expectHostProf.Retries = 0
 	expectHostProf.CommandUUID = cmd.CommandUUID
 	gotHostProfs = listHostProfilesDB(host.UUID)
