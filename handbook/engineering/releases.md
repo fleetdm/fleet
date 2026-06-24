@@ -107,7 +107,7 @@ Fleetd components are updated automatically by continuously polling the TUF serv
 
 ### Create a fleetd release candidate
 
-The fleetd release candidate is cut at the same time as the Fleet server RC: on the first Monday of each sprint at 8:00 AM Pacific. The release candidate branch is created at `rc-minor-fleetd-v1.x.x` from `main`. No additional feature work is merged into the RC branch without EM and QA approval.
+The fleetd release candidate is cut at the same time as the Fleet server RC: on the first Monday of each sprint at 8:00 AM Pacific. The release candidate branch is created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
 
 1. Create the release candidate branch from `main` and push it.
 2. Create a release QA issue for the fleetd release.
