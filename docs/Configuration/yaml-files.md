@@ -484,7 +484,6 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
-- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
