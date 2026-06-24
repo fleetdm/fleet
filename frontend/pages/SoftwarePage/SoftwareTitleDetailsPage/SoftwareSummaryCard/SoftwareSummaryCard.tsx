@@ -37,6 +37,9 @@ interface ISoftwareSummaryCard {
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
   onToggleViewYaml: () => void;
+  /** Opens the page-owned Versions modal; the Actions item is gated here by
+   * `canManageVersions`. */
+  onClickVersions: () => void;
 }
 
 const baseClass = "software-summary-card";
@@ -48,6 +51,7 @@ const SoftwareSummaryCard = ({
   router,
   refetchSoftwareTitle,
   onToggleViewYaml,
+  onClickVersions,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
@@ -246,9 +250,6 @@ const SoftwareSummaryCard = ({
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
-  // Versions modal wiring lands in #47623; for now this is a no-op placeholder
-  // so the Actions item can render with proper gating.
-  const onClickVersions = () => undefined;
 
   return (
     <>
