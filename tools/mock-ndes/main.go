@@ -179,7 +179,7 @@ func main() {
 	if *tlsEnable {
 		scheme = "https"
 	}
-	printBanner(logger, scheme, *addr, admin, dir, caCert, *reqChal, *staticChal)
+	printBanner(ctx, logger, scheme, *addr, admin, dir, caCert, *reqChal, *staticChal)
 
 	if *tlsEnable {
 		certFile, keyFile := *tlsCert, *tlsKey
@@ -292,9 +292,12 @@ func (s *challengeStore) issue() string {
 
 // HasChallenge validates pw, consuming it when one-time mode is enabled.
 func (s *challengeStore) HasChallenge(pw string) (bool, error) {
+	// HasChallenge implements the fixed challenge.Validator interface (no ctx
+	// param), so we use a background context for the structured logger.
+	ctx := context.Background()
 	if s.static != "" {
 		valid := subtle.ConstantTimeCompare([]byte(pw), []byte(s.static)) == 1
-		s.logger.Info("validating SCEP challenge (static)", "valid", valid)
+		s.logger.InfoContext(ctx, "validating SCEP challenge (static)", "valid", valid)
 		return valid, nil
 	}
 
@@ -303,17 +306,17 @@ func (s *challengeStore) HasChallenge(pw string) (bool, error) {
 	issuedAt, ok := s.issued[pw]
 	switch {
 	case !ok:
-		s.logger.Warn("SCEP challenge rejected: unknown password", "challenge", pw)
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: unknown password", "challenge", pw)
 		return false, nil
 	case time.Since(issuedAt) > s.ttl:
 		delete(s.issued, pw)
-		s.logger.Warn("SCEP challenge rejected: expired", "challenge", pw, "age", time.Since(issuedAt).String())
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: expired", "challenge", pw, "age", time.Since(issuedAt).String())
 		return false, nil
 	}
 	if s.oneTime {
 		delete(s.issued, pw)
 	}
-	s.logger.Info("SCEP challenge accepted", "challenge", pw, "one_time", s.oneTime)
+	s.logger.InfoContext(ctx, "SCEP challenge accepted", "challenge", pw, "one_time", s.oneTime)
 	return true, nil
 }
 
@@ -473,13 +476,13 @@ func writeSelfSignedTLS(dir string) (string, string, error) {
 	return certPath, keyPath, nil
 }
 
-func printBanner(logger *slog.Logger, scheme, addr string, admin *adminHandler, caDir string, caCert *x509.Certificate, requireChallenge bool, staticChal string) {
+func printBanner(ctx context.Context, logger *slog.Logger, scheme, addr string, admin *adminHandler, caDir string, caCert *x509.Certificate, requireChallenge bool, staticChal string) {
 	host := addr
 	if len(addr) > 0 && addr[0] == ':' {
 		host = "localhost" + addr
 	}
 	base := fmt.Sprintf("%s://%s", scheme, host)
-	logger.Info("mock NDES server starting",
+	logger.InfoContext(ctx, "mock NDES server starting",
 		"scep_url", base+defaultSCEPPath,
 		"admin_url", base+defaultAdminPath,
 		"admin_username", admin.username,
