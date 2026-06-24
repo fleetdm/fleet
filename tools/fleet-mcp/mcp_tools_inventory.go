@@ -56,13 +56,17 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 		query := getOptionalString(request, "query")
 		perPage := parsePerPageArg(request, defaultEndpointsPerPage)
 
-		perHost := hostIDArg != "" || identifier != ""
+		hostID, err := parseHostIDArg(hostIDArg)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		perHost := hostID != 0 || identifier != ""
 		if err := validateGetSoftwareArgs(perHost, fleet, platform, vulnerable); err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		if perHost {
-			hostID, candidates, ambiguous, rErr := resolveHostIDFromArgs(ctx, fleetClient, hostIDArg, identifier)
+			host, candidates, ambiguous, rErr := resolveHost(ctx, fleetClient, hostID, identifier)
 			if rErr != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve host: %v", rErr)), nil
 			}
@@ -73,15 +77,9 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 				})
 			}
 
-			software, truncated, err := fleetClient.GetHostSoftware(ctx, hostID, query, vulnerable, source, perPage)
+			software, truncated, err := fleetClient.GetHostSoftware(ctx, host.ID, query, vulnerable, source, perPage)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to fetch host software: %v", err)), nil
-			}
-
-			// Best-effort: a name-lookup failure shouldn't drop the software result.
-			var hostName string
-			if h, hErr := fleetClient.GetHostByID(ctx, hostID); hErr == nil && h != nil {
-				hostName = h.Name
 			}
 
 			return jsonResult(struct {
@@ -93,8 +91,8 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 				Software  []HostSoftware `json:"software"`
 			}{
 				Scope:     "host",
-				HostID:    hostID,
-				HostName:  hostName,
+				HostID:    host.ID,
+				HostName:  host.Name,
 				Returned:  len(software),
 				Truncated: truncated,
 				Software:  software,
@@ -141,11 +139,15 @@ func registerGetHostUsers(s *server.MCPServer, fleetClient *FleetClient) {
 		identifier := getOptionalString(request, "host_identifier")
 		query := getOptionalString(request, "query")
 
-		if hostIDArg == "" && identifier == "" {
+		hostID, err := parseHostIDArg(hostIDArg)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if hostID == 0 && identifier == "" {
 			return mcp.NewToolResultError("either host_id or host_identifier is required"), nil
 		}
 
-		host, ambiguous, candidates, err := resolveHostWithUsers(ctx, fleetClient, hostIDArg, identifier)
+		host, ambiguous, candidates, err := resolveHostWithUsers(ctx, fleetClient, hostID, identifier)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get host users: %v", err)), nil
 		}
@@ -173,71 +175,49 @@ func registerGetHostUsers(s *server.MCPServer, fleetClient *FleetClient) {
 	})
 }
 
+// hostID is the validated host_id (0 means none — fall back to identifier).
 // Query-first so hostname collisions surface as candidates before the
-// identifier-endpoint fallback. Returns just the ID (the software endpoint
-// takes :id directly).
-func resolveHostIDFromArgs(ctx context.Context, fleetClient *FleetClient, hostIDArg, identifier string) (hostID uint, candidates []Endpoint, ambiguous bool, err error) {
-	if hostIDArg != "" {
-		id, parseErr := strconv.ParseUint(hostIDArg, 10, strconv.IntSize)
-		if parseErr != nil || id == 0 {
-			return 0, nil, false, fmt.Errorf("host_id must be a positive integer, got %q", hostIDArg)
+// identifier-endpoint fallback. Returns the resolved host so callers don't
+// re-fetch it just for the hostname.
+func resolveHost(ctx context.Context, fleetClient *FleetClient, hostID uint, identifier string) (host *Endpoint, candidates []Endpoint, ambiguous bool, err error) {
+	if hostID != 0 {
+		h, hErr := fleetClient.GetHostByID(ctx, hostID)
+		if hErr != nil {
+			return nil, nil, false, hErr
 		}
-		return uint(id), nil, false, nil
+		return h, nil, false, nil
 	}
 
 	const maxCandidates = 50
 	cands, qErr := fleetClient.GetEndpointsWithFilters(ctx, "", "", "", identifier, "", "", "", maxCandidates)
 
 	if qErr == nil && len(cands) == 1 {
-		return cands[0].ID, nil, false, nil
+		return &cands[0], nil, false, nil
 	}
 	if qErr == nil && len(cands) > 1 {
-		return 0, cands, true, nil
+		return nil, cands, true, nil
 	}
 
 	// Identifier fallback catches UUIDs the substring index misses.
-	host, idErr := fleetClient.GetHostByIdentifier(ctx, identifier)
+	h, idErr := fleetClient.GetHostByIdentifier(ctx, identifier)
 	if idErr != nil {
-		return 0, nil, false, fmt.Errorf("host not found by query or identifier: %s (substring search does NOT cover display_name — try host_id if you have it)", identifier)
+		return nil, nil, false, fmt.Errorf("host not found by query or identifier: %s (substring search does NOT cover display_name — try host_id if you have it)", identifier)
 	}
-	return host.ID, nil, false, nil
+	return h, nil, false, nil
 }
 
-// Query-first so hostname collisions surface as candidates before the
-// identifier-endpoint fallback.
-func resolveHostWithUsers(ctx context.Context, fleetClient *FleetClient, hostIDArg, identifier string) (host *HostWithUsers, ambiguous bool, candidates []Endpoint, err error) {
-	if hostIDArg != "" {
-		id, parseErr := strconv.ParseUint(hostIDArg, 10, strconv.IntSize)
-		if parseErr != nil || id == 0 {
-			return nil, false, nil, fmt.Errorf("host_id must be a positive integer, got %q", hostIDArg)
+func resolveHostWithUsers(ctx context.Context, fleetClient *FleetClient, hostID uint, identifier string) (*HostWithUsers, bool, []Endpoint, error) {
+	byIdentifier := func(ctx context.Context, ident string) (*HostWithUsers, error) {
+		ep, err := fleetClient.GetHostByIdentifier(ctx, ident)
+		if err != nil {
+			return nil, err
 		}
-		h, hErr := fleetClient.GetHostByIDWithUsers(ctx, uint(id))
-		if hErr != nil {
-			return nil, false, nil, hErr
-		}
-		return h, false, nil, nil
-	}
 
-	const maxCandidates = 50
-	cands, qErr := fleetClient.GetEndpointsWithFilters(ctx, "", "", "", identifier, "", "", "", maxCandidates)
-
-	if qErr == nil && len(cands) == 1 {
-		h, hErr := fleetClient.GetHostByIDWithUsers(ctx, cands[0].ID)
-		if hErr != nil {
-			return nil, false, nil, hErr
-		}
-		return h, false, nil, nil
+		// The identifier endpoint doesn't populate users, so the fallback resolves the
+		// id there and refetches by id (which does).
+		return fleetClient.GetHostByIDWithUsers(ctx, ep.ID)
 	}
-	if qErr == nil && len(cands) > 1 {
-		return nil, true, cands, nil
-	}
-
-	// Identifier fallback catches UUIDs the substring index misses.
-	h, idErr := fleetClient.GetHostByIdentifierWithUsers(ctx, identifier)
-	if idErr != nil {
-		return nil, false, nil, fmt.Errorf("host not found by query or identifier: %s (substring search does NOT cover display_name — try host_id if you have it)", identifier)
-	}
-	return h, false, nil, nil
+	return resolveHostDetail(ctx, fleetClient, hostID, identifier, fleetClient.GetHostByIDWithUsers, byIdentifier)
 }
 
 func filterHostUsers(users []HostUser, q string) []HostUser {

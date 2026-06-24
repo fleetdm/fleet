@@ -496,36 +496,37 @@ type HostWithUsers struct {
 	Users []HostUser `json:"users"`
 }
 
-// Vulnerabilities is RawMessage: Fleet returns either a []string of CVE IDs or
-// CVE objects depending on tier, so the MCP passes it through verbatim.
 type SoftwareVersion struct {
-	ID              uint            `json:"id"`
-	Version         string          `json:"version"`
-	Vulnerabilities json.RawMessage `json:"vulnerabilities,omitempty"`
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
 }
 
 type SoftwareTitle struct {
-	ID               uint              `json:"id"`
-	Name             string            `json:"name"`
-	Source           string            `json:"source"`
-	VersionsCount    int               `json:"versions_count"`
-	HostsCount       int               `json:"hosts_count"`
-	Versions         []SoftwareVersion `json:"versions,omitempty"`
-	BundleIdentifier string            `json:"bundle_identifier,omitempty"`
-	Browser          string            `json:"browser,omitempty"`
-	ExtensionFor     string            `json:"extension_for,omitempty"`
+	ID            uint              `json:"id"`
+	Name          string            `json:"name"`
+	Source        string            `json:"source"`
+	VersionsCount int               `json:"versions_count"`
+	HostsCount    int               `json:"hosts_count"`
+	Versions      []SoftwareVersion `json:"versions,omitempty"`
+	Browser       string            `json:"browser,omitempty"`
+	ExtensionFor  string            `json:"extension_for,omitempty"`
+}
+
+type HostSoftwareInstalledVersion struct {
+	Version         string   `json:"version"`
+	LastOpenedAt    string   `json:"last_opened_at,omitempty"`
+	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+	InstalledPaths  []string `json:"installed_paths,omitempty"`
 }
 
 type HostSoftware struct {
-	ID               uint            `json:"id"`
-	Name             string          `json:"name"`
-	Version          string          `json:"version"`
-	Source           string          `json:"source"`
-	BundleIdentifier string          `json:"bundle_identifier,omitempty"`
-	Vulnerabilities  json.RawMessage `json:"vulnerabilities,omitempty"`
-	InstalledPaths   []string        `json:"installed_paths,omitempty"`
-	LastOpenedAt     string          `json:"last_opened_at,omitempty"`
-	Browser          string          `json:"browser,omitempty"`
+	ID                uint                           `json:"id"`
+	Name              string                         `json:"name"`
+	Source            string                         `json:"source"`
+	BundleIdentifier  string                         `json:"bundle_identifier,omitempty"`
+	ExtensionFor      string                         `json:"extension_for,omitempty"`
+	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions,omitempty"`
 }
 
 func (fc *FleetClient) GetHostByIDWithUsers(ctx context.Context, hostID uint) (*HostWithUsers, error) {
@@ -552,32 +553,6 @@ func (fc *FleetClient) GetHostByIDWithUsers(ctx context.Context, hostID uint) (*
 	return &result.Host, nil
 }
 
-// This endpoint silently returns one host when several share a hostname;
-// collision-prone callers should disambiguate first (see resolveHostWithUsers).
-func (fc *FleetClient) GetHostByIdentifierWithUsers(ctx context.Context, identifier string) (*HostWithUsers, error) {
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", url.PathEscape(identifier))
-	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get host with users: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("host not found: %s", identifier)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get host with users: status code %d", resp.StatusCode)
-	}
-
-	var result struct {
-		Host HostWithUsers `json:"host"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode host with users response: %w", err)
-	}
-	return &result.Host, nil
-}
-
 // Bounds memory for a single software fetch. var (not const) so tests can lower it.
 var fetchSoftwareHardCap = 5000
 
@@ -591,10 +566,6 @@ func matchesSoftwareSource(rowSource, want string) bool {
 // source is filtered client-side (not a server-side param on this endpoint);
 // perPage caps the merged result.
 func (fc *FleetClient) GetHostSoftware(ctx context.Context, hostID uint, query, vulnerable, source string, perPage int) ([]HostSoftware, bool, error) {
-	if hostID == 0 {
-		return nil, false, fmt.Errorf("host_id is required")
-	}
-
 	const apiPerPage = 500
 	out := make([]HostSoftware, 0, perPage)
 	for page := 0; ; page++ {

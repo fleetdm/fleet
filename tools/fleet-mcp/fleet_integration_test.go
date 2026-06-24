@@ -759,7 +759,7 @@ func TestResolveHostWithUsers_AmbiguousCandidates(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	host, ambiguous, candidates, err := resolveHostWithUsers(context.Background(), fc, "", "mac")
+	host, ambiguous, candidates, err := resolveHostWithUsers(context.Background(), fc, 0, "mac")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -885,40 +885,58 @@ func TestMatchesSoftwareSource(t *testing.T) {
 	}
 }
 
-func TestResolveHostIDFromArgs_NumericSkipsLookup(t *testing.T) {
-	var calls atomic.Int32
+func TestResolveHost_NumericFetchesByID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
+		if r.URL.Path == "/api/v1/fleet/hosts/42" {
+			_ = json.NewEncoder(w).Encode(struct {
+				Host Endpoint `json:"host"`
+			}{Host: Endpoint{ID: 42, Name: "h42.local"}})
+			return
+		}
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
 	fc := newTestClient(srv.URL)
 
-	id, _, ambiguous, err := resolveHostIDFromArgs(context.Background(), fc, "42", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	// numeric host_id is verified via GetHostByID (confirms it exists, gets the name)
+	host, _, ambiguous, err := resolveHost(context.Background(), fc, 42, "")
+	if err != nil || ambiguous || host == nil || host.ID != 42 || host.Name != "h42.local" {
+		t.Fatalf("numeric: host=%+v ambiguous=%v err=%v, want id=42 with name", host, ambiguous, err)
 	}
-	if id != 42 || ambiguous {
-		t.Errorf("got id=%d ambiguous=%v, want 42/false", id, ambiguous)
+}
+
+func TestParseHostIDArg(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    uint
+		wantErr bool
+	}{
+		{"", 0, false},
+		{"42", 42, false},
+		{"abc", 0, true},
+		{"0", 0, true},
+		{"-1", 0, true},
 	}
-	if calls.Load() != 0 {
-		t.Errorf("numeric host_id should make no HTTP call, got %d", calls.Load())
-	}
-	// invalid values are rejected
-	for _, bad := range []string{"abc", "0", "-1"} {
-		if _, _, _, err := resolveHostIDFromArgs(context.Background(), fc, bad, ""); err == nil {
-			t.Errorf("host_id=%q: expected error, got nil", bad)
+	for _, tc := range cases {
+		got, err := parseHostIDArg(tc.in)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("parseHostIDArg(%q): expected error, got nil", tc.in)
+			}
+			continue
+		}
+		if err != nil || got != tc.want {
+			t.Errorf("parseHostIDArg(%q) = (%d, %v), want (%d, nil)", tc.in, got, err, tc.want)
 		}
 	}
 }
 
-func TestResolveHostIDFromArgs_IdentifierSingleAndFallback(t *testing.T) {
+func TestResolveHost_IdentifierSingleAndFallback(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/fleet/hosts":
-			q := r.URL.Query().Get("query")
 			hosts := []Endpoint{}
-			if q == "solo" { // single unambiguous match
+			if r.URL.Query().Get("query") == "solo" { // single unambiguous match
 				hosts = []Endpoint{{ID: 7, Name: "solo.local"}}
 			}
 			_ = json.NewEncoder(w).Encode(struct {
@@ -935,15 +953,15 @@ func TestResolveHostIDFromArgs_IdentifierSingleAndFallback(t *testing.T) {
 	defer srv.Close()
 	fc := newTestClient(srv.URL)
 
-	// single substring match -> that host's id, not ambiguous
-	id, _, ambiguous, err := resolveHostIDFromArgs(context.Background(), fc, "", "solo")
-	if err != nil || ambiguous || id != 7 {
-		t.Fatalf("single match: id=%d ambiguous=%v err=%v, want 7/false/nil", id, ambiguous, err)
+	// single substring match -> that host, not ambiguous
+	host, _, ambiguous, err := resolveHost(context.Background(), fc, 0, "solo")
+	if err != nil || ambiguous || host == nil || host.ID != 7 {
+		t.Fatalf("single match: host=%+v ambiguous=%v err=%v, want id=7", host, ambiguous, err)
 	}
 	// zero substring matches -> identifier-endpoint fallback
-	id, _, ambiguous, err = resolveHostIDFromArgs(context.Background(), fc, "", "ghost")
-	if err != nil || ambiguous || id != 9 {
-		t.Fatalf("fallback: id=%d ambiguous=%v err=%v, want 9/false/nil", id, ambiguous, err)
+	host, _, ambiguous, err = resolveHost(context.Background(), fc, 0, "ghost")
+	if err != nil || ambiguous || host == nil || host.ID != 9 {
+		t.Fatalf("fallback: host=%+v ambiguous=%v err=%v, want id=9", host, ambiguous, err)
 	}
 }
 
@@ -963,6 +981,12 @@ func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
 				Host HostWithUsers `json:"host"`
 			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 5, Name: "solo.local"}, Users: []HostUser{{UID: 501, Username: "alice"}}}})
 		case "/api/v1/fleet/hosts/identifier/ghost":
+			// identifier endpoint resolves the host but carries NO users
+			_ = json.NewEncoder(w).Encode(struct {
+				Host Endpoint `json:"host"`
+			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
+		case "/api/v1/fleet/hosts/9":
+			// users come from the by-id refetch
 			_ = json.NewEncoder(w).Encode(struct {
 				Host HostWithUsers `json:"host"`
 			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 9, Name: "ghost.local"}, Users: []HostUser{{UID: 0, Username: "root"}}}})
@@ -974,34 +998,38 @@ func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
 	fc := newTestClient(srv.URL)
 
 	// single match -> fetched by id, users populated
-	host, ambiguous, _, err := resolveHostWithUsers(context.Background(), fc, "", "solo")
+	host, ambiguous, _, err := resolveHostWithUsers(context.Background(), fc, 0, "solo")
 	if err != nil || ambiguous || host == nil || host.ID != 5 || len(host.Users) != 1 {
 		t.Fatalf("single match: host=%+v ambiguous=%v err=%v", host, ambiguous, err)
 	}
-	// zero matches -> identifier fallback
-	host, ambiguous, _, err = resolveHostWithUsers(context.Background(), fc, "", "ghost")
-	if err != nil || ambiguous || host == nil || host.ID != 9 || host.Users[0].Username != "root" {
+	// zero matches -> identifier endpoint (no users) then by-id refetch (users)
+	host, ambiguous, _, err = resolveHostWithUsers(context.Background(), fc, 0, "ghost")
+	if err != nil || ambiguous || host == nil || host.ID != 9 || len(host.Users) != 1 || host.Users[0].Username != "root" {
 		t.Fatalf("fallback: host=%+v ambiguous=%v err=%v", host, ambiguous, err)
 	}
 }
 
-func TestGetHostByIdentifierWithUsers_DecodesUsers(t *testing.T) {
+func TestGetHostSoftware_DecodesNestedInstalledVersions(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/fleet/hosts/identifier/host-uuid" {
+		if !strings.HasSuffix(r.URL.Path, "/software") {
 			http.NotFound(w, r)
 			return
 		}
-		_, _ = w.Write([]byte(`{"host":{"id":3,"hostname":"h3","users":[{"uid":501,"username":"alice","groupname":"staff","shell":"/bin/zsh"}]}}`))
+		_, _ = w.Write([]byte(`{"software":[{"id":1,"name":"curl","source":"deb_packages","installed_versions":[{"version":"7.88.1","vulnerabilities":["CVE-2026-1111"],"installed_paths":["/usr/bin/curl"]}]}]}`))
 	}))
 	defer srv.Close()
 	fc := newTestClient(srv.URL)
 
-	h, err := fc.GetHostByIdentifierWithUsers(context.Background(), "host-uuid")
+	out, _, err := fc.GetHostSoftware(context.Background(), 1, "", "", "", 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if h.ID != 3 || len(h.Users) != 1 || h.Users[0].UID != 501 || h.Users[0].Username != "alice" {
-		t.Errorf("decoded host = %+v, want id=3 with alice uid=501", h)
+	if len(out) != 1 || len(out[0].InstalledVersions) != 1 {
+		t.Fatalf("decoded = %+v, want 1 row with 1 installed version", out)
+	}
+	v := out[0].InstalledVersions[0]
+	if v.Version != "7.88.1" || len(v.Vulnerabilities) != 1 || v.Vulnerabilities[0] != "CVE-2026-1111" || len(v.InstalledPaths) != 1 {
+		t.Errorf("nested installed_version not decoded: %+v", v)
 	}
 }
 
