@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.6.5",
+      "version": "7.6.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mango3d.lychee';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mango3d.lychee' AND version_compare(bundle_short_version, '7.6.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mango3d.lychee' AND version_compare(bundle_short_version, '7.6.6') < 0);"
       },
-      "installer_url": "https://mango-lychee.nyc3.cdn.digitaloceanspaces.com/LycheeSlicer-7.6.5.dmg",
+      "installer_url": "https://mango-lychee.nyc3.cdn.digitaloceanspaces.com/LycheeSlicer-7.6.6.dmg",
       "install_script_ref": "a7c59496",
       "uninstall_script_ref": "5f02d539",
-      "sha256": "1d87013fb4e6757515b22d79d8cd4f480ca9c9788e895025a75675aa25a91ba7",
+      "sha256": "70fd494199795476e5c5feeaa9822e0253e13d93cdade2dd45d0a7ca14cf15c0",
       "default_categories": [
         "Productivity"
       ]

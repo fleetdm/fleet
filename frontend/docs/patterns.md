@@ -127,8 +127,7 @@ interface ISoftwareCountResponse {
 // *FormData instead, even for programmatic request bodies (e.g.
 // IDeleteQueriesFormData). One consistent suffix is easier to follow than
 // asking each dev to judge "is this form-driven enough?"
-// *PreviewPayload is fine for outgoing webhook shapes (matches the
-// "Preview payload" UI terminology).
+// *PreviewPayload is fine for outgoing webhook shapes.
 ```
 
 ## Utilities
@@ -228,11 +227,31 @@ as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
 
-We tend to use explicit assignment of prop values, instead of object spread syntax:
+We strongly prefer explicit assignment of prop values over object spread syntax. In almost all cases, list every prop by name:
 
 ```tsx
-<ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
+<ExampleComponent prop1={prop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+Spreading is hard to review (the reader can't see what's being passed), brittle under refactors (adding a key to the source bag silently changes the target), and on native DOM elements it's a real security footgun — anything in the bag (including `dangerouslySetInnerHTML`, `href`, `src`, event handlers) gets applied.
+
+#### Accepted exceptions
+
+Spread is acceptable in these cases:
+
+- **react-select 5 custom subcomponents** — the library contract requires forwarding the full internal props bag (`innerRef`, `innerProps`, `selectProps`, …) to `components.X`. The bag is library-generated, not user input.
+- **react-table v7 prop getters** (`getCellProps()`, `getRowProps()`, `getHeaderProps()`, `getToggleAllRowsSelectedProps()`) — the prop-getter pattern *is* the library's API. Cell data is rendered through `cell.render("Cell")`, never as attributes.
+- **react-markdown renderer overrides** (e.g. `code: ({...props}) => <code {...props}>`) — the bag is library-controlled HAST metadata, not raw markdown. Do not enable the `rehype-raw` plugin: it lets raw HTML from the markdown source pass through to the bag, and the spread would forward it straight to the DOM — author-controlled HTML rendering verbatim is an XSS sink.
+- **Typed SVG icon components** (`SVGProps<SVGSVGElement>` flowing into `<svg>`, as in `pages/SoftwarePage/components/icons/*`) — the `SVGProps` type constrains callers to valid SVG attributes. Do *not* widen the prop type to `any` or `Record<string, unknown>`; that removes the guard that makes this safe.
+- **Test helpers, factories, and Storybook stories** — non-production code. The bag is built locally in the same file by code that owns its shape.
+
+#### Not safe — never spread
+
+Never spread props (especially anything derived from API responses, URLs, markdown source, MDM payloads, host facts, software metadata, or other external data) onto:
+
+`<a>`, `<img>`, `<iframe>`, `<object>`, `<embed>`, `<source>`, `<link>`, `<script>`, `<form>`, `<video>`, `<audio>`.
+
+For those elements, pick out `href` / `src` / etc. explicitly and validate the value (scheme allowlist, no `javascript:` URIs, etc.) before passing it.
 
 ### Naming handlers
 

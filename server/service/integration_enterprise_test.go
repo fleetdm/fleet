@@ -62,6 +62,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -144,7 +145,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
-						cronLog,
+						cronLog, &fleetmock.MockActivityService{},
 					)
 					return calendarSchedule, err
 				}
@@ -12382,6 +12383,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
 	require.NoError(t, err)
 
+	// Add CVSS scores and exploit metadata so the severity filters have data to match against.
+	// "bar" has one critical, actively-exploited CVE and one low-severity CVE, so it should match
+	// both a critical filter and a low filter (matches if ANY CVE is in range).
+	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: "CVE-bar-1234", CVSSScore: new(float64(9.5)), CISAKnownExploit: new(true)},
+		{CVE: "CVE-bar-5678", CVSSScore: new(float64(3.0)), CISAKnownExploit: new(false)},
+	}))
+
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
 	require.Len(t, getHostSw.Software, 1)
@@ -12639,6 +12648,93 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
+
+	// =========================================
+	// vulnerability severity filters on the device-authenticated "My device" software endpoint
+	// =========================================
+	//
+	// "bar" has two CVEs: CVE-bar-1234 (CVSS 9.5, actively exploited) and CVE-bar-5678 (CVSS 3.0).
+	// "foo" has no vulnerabilities. The host also has the (not installed) "ruby" installer, which
+	// must never appear in the inventory-only device responses below.
+	deviceSoftware := func(t *testing.T, query string) getDeviceSoftwareResponse {
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+query, nil, http.StatusOK)
+		defer res.Body.Close()
+		var resp getDeviceSoftwareResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+
+	// vulnerable=true returns only software with vulnerabilities.
+	resp := deviceSoftware(t, "vulnerable=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	require.Equal(t, 1, resp.Count)
+
+	// min_cvss_score is inclusive: 9.5 is returned for min_cvss_score=9.5 (the critical band edge).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.5")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a min above all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.6")
+	require.Empty(t, resp.Software)
+	require.Equal(t, 0, resp.Count)
+
+	// max_cvss_score is inclusive: a low max still matches the low-severity CVE (3.0).
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// a max below all scores returns nothing.
+	resp = deviceSoftware(t, "vulnerable=true&max_cvss_score=2.9")
+	require.Empty(t, resp.Software)
+
+	// min + max together apply both bounds (range filter).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=1&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// min == max returns only CVEs scored exactly that value (3.0 matches, 5.0 does not).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=3.0&max_cvss_score=3.0")
+	require.Len(t, resp.Software, 1)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=5.0&max_cvss_score=5.0")
+	require.Empty(t, resp.Software)
+
+	// min > max yields an empty result, not a server error.
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=8&max_cvss_score=2")
+	require.Empty(t, resp.Software)
+
+	// a title with multiple CVEs of differing scores appears under BOTH a low and a critical
+	// filter (matches if ANY CVE is in range).
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=9.0&max_cvss_score=10")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+	resp = deviceSoftware(t, "vulnerable=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit=true returns only software with a CISA known-exploited CVE.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// exploit combined with a range that only covers the non-exploited CVE returns nothing,
+	// since the exploited CVE (9.5) is outside the 0.1-3.9 band.
+	resp = deviceSoftware(t, "vulnerable=true&exploit=true&min_cvss_score=0.1&max_cvss_score=3.9")
+	require.Empty(t, resp.Software)
+
+	// filters combine with the search query: "foo" has no vulnerabilities so it is filtered out.
+	resp = deviceSoftware(t, "vulnerable=true&query=foo")
+	require.Empty(t, resp.Software)
+	resp = deviceSoftware(t, "vulnerable=true&query=bar")
+	require.Len(t, resp.Software, 1)
+	require.Equal(t, "bar", resp.Software[0].Name)
+
+	// severity filters require vulnerable=true; otherwise the request is rejected with 422.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?"+premiumFilter, nil, http.StatusUnprocessableEntity)
+		require.NoError(t, res.Body.Close())
+	}
 }
 
 func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {
@@ -13462,7 +13558,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		expectedPayload := *payload
-		expectedPayload.Categories = []string{"🌎 Browsers", "💻 Productivity"}
+		expectedPayload.Categories = []string{"🌎 Browsers", "🖥️ Productivity"}
 		expectedPayload.SelfService = true
 		checkSoftwareInstaller(t, s.ds, payload)
 
@@ -18950,6 +19046,133 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 1, attemptCounts.NullCount, "should have exactly 1 row with attempt_number IS NULL (pending)")
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptActivitiesAcrossRetries() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Saved script on the team (darwin host => non-.ps1 name so it isn't skipped).
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "failing-policy-script.sh",
+		ScriptContents: "echo failing",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Team policy with the script as its failing-policy automation.
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	var modifyResp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+		},
+	}, http.StatusOK, &modifyResp)
+	policy, err = s.ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy.ScriptID)
+	require.Equal(t, script.ID, *policy.ScriptID)
+
+	submitPolicyResult := func(passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host, map[uint]*bool{policy.ID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+	// execution_id of the currently-pending (no exit code yet) script run, if any.
+	getPendingExecutionID := func() string {
+		var execIDs []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &execIDs, `
+				SELECT execution_id FROM host_script_results
+				WHERE host_id = ? AND policy_id = ? AND exit_code IS NULL
+				ORDER BY id ASC
+			`, host.ID, policy.ID)
+		})
+		if len(execIDs) == 0 {
+			return ""
+		}
+		return execIDs[0]
+	}
+	submitScriptResult := func(execID string, exitCode int) {
+		var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": %d, "output": "fail output"}`, *host.OrbitNodeKey, execID, exitCode)),
+			http.StatusOK, &orbitPostScriptResp)
+	}
+
+	// Drive MaxPolicyAutomationRetries failing attempts. Each failed result records
+	// a ran_script activity and queues the next retry (a NEW execution_id), up to the
+	// cap. The policy stays failing for the host, so retries keep firing.
+	submitPolicyResult(false)
+	var execIDs []string
+	for i := range fleet.MaxPolicyAutomationRetries {
+		var execID string
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			execID = getPendingExecutionID()
+			assert.NotEmpty(c, execID, "a script run should be queued for attempt %d", i+1)
+		}, 5*time.Second, 100*time.Millisecond)
+		require.NotContains(t, execIDs, execID, "each retry must be a distinct execution")
+		execIDs = append(execIDs, execID)
+		submitScriptResult(execID, 1) // non-zero exit = failure
+	}
+	require.Len(t, execIDs, fleet.MaxPolicyAutomationRetries)
+
+	ranScriptType := fleet.ActivityTypeRanScript{}.ActivityName()
+
+	// The automation activities endpoint returns one ran_script row per attempt for
+	// this host — multiple entries, not just the latest.
+	var listResp fleet.ListPolicyAutomationActivitiesResponse
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		listResp = fleet.ListPolicyAutomationActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d/automation_activities", policy.ID),
+			nil, http.StatusOK, &listResp)
+		ranScript := 0
+		for _, a := range listResp.Activities {
+			if a.Type == ranScriptType {
+				ranScript++
+			}
+		}
+		assert.Equal(c, fleet.MaxPolicyAutomationRetries, ranScript, "one ran_script activity per retry attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Every ran_script row is for this host, marked as an error outcome, and is a
+	// distinct activity (one per execution).
+	seen := make(map[uint]struct{})
+	for _, a := range listResp.Activities {
+		if a.Type != ranScriptType {
+			continue
+		}
+		require.Equal(t, host.ID, a.HostID)
+		require.Equal(t, "error", a.Status)
+		seen[a.ID] = struct{}{}
+	}
+	require.Len(t, seen, fleet.MaxPolicyAutomationRetries, "each retry attempt is a distinct activity")
+}
+
 func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	t := s.T()
 	ctx := context.Background()
@@ -20683,6 +20906,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
+	// Count is the total number of platform-specific maintained apps: an app's
+	// macOS and Windows entries are counted separately, even though the UI
+	// combines them into a single row. The full unfiltered list returns one row
+	// per app, so the count equals the number of rows returned.
+	require.Equal(t, len(expectedApps), listMAResp.Count)
+
 	sortFMAs := func(a, b fleet.MaintainedApp) int {
 		if c := cmp.Compare(a.Name, b.Name); c != 0 {
 			return c
@@ -20709,6 +20938,23 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
 	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
+
+	// The platform filter narrows the list to apps available on that platform.
+	// Fewer apps ship a Windows installer than a macOS one, so the Windows-only
+	// count is a non-empty strict subset of the full count.
+	var listMAWin listFleetMaintainedAppsResponse
+	s.DoJSON(
+		http.MethodGet,
+		"/api/latest/fleet/software/fleet_maintained_apps",
+		listFleetMaintainedAppsRequest{},
+		http.StatusOK,
+		&listMAWin,
+		"team_id", fmt.Sprint(team.ID),
+		"platform", "windows",
+	)
+	require.NoError(t, listMAWin.Err)
+	require.Positive(t, listMAWin.Count)
+	require.Less(t, listMAWin.Count, listMAResp.Count)
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse
@@ -20939,7 +21185,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, []string{"💻 Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
+	require.Equal(t, []string{"🖥️ Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -21236,7 +21482,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// verify WARP is in `fleet_maintained_apps` table but not in `software_installers`
 	var warpFmaId uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &warpFmaId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare WARP' AND platform = 'windows'")
+		return sqlx.GetContext(ctx, q, &warpFmaId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare One' AND platform = 'windows'")
 	})
 	require.NotNil(t, warpFmaId)
 
@@ -21254,7 +21500,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// Add WARP for Windows
 	var warpAppId uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &warpAppId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare WARP' and platform = 'windows'")
+		return sqlx.GetContext(ctx, q, &warpAppId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare One' and platform = 'windows'")
 	})
 
 	var addMAresp addFleetMaintainedAppResponse
@@ -22374,20 +22620,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		},
 		{
 			desc:       "valid categories 2",
-			categories: optjson.SetSlice([]string{"👬 Communication", "💻 Productivity"}),
+			categories: optjson.SetSlice([]string{"👬 Communication", "🖥️ Productivity"}),
 		},
 		{
-			desc:       "valid categories 3 - Security and Support",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🛟 Support"}),
+			desc:       "valid categories 3 - Security and Utilities",
+			categories: optjson.SetSlice([]string{"🔐 Security", "🛠️ Utilities"}),
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛟 Support"}),
+			categories: optjson.SetSlice([]string{"🔐 Security", "🧰 Developer tools", "🛠️ Utilities"}),
 		},
 		{
 			// omitted categories (unset) fall back to the FMA's manifest default
 			desc:                 "omitted categories use FMA default",
-			fmaDefaultCategories: []string{"💻 Productivity"},
+			fmaDefaultCategories: []string{"🖥️ Productivity"},
 		},
 		{
 			// an explicitly empty categories list sets zero categories (no manifest default)
@@ -26388,7 +26634,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
-		expectedPayload.Categories = []string{"💻 Productivity", "🌎 Browsers"}
+		expectedPayload.Categories = []string{"🖥️ Productivity", "🌎 Browsers"}
 
 		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
 		require.NoError(t, err)
@@ -31677,6 +31923,90 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	})
 }
 
+// TestOrbitReEnrollSkipsEndUserAuth covers issue #46300: once a host has orbit-enrolled, a subsequent re-enrollment (e.g. after a
+// service restart, node key file loss, or osquery DB rebuild) must not prompt for end user authentication again, even if End User
+// Authentication is enabled on the host's team and the host has no IdP association. This grandfathers hosts that enrolled before
+// EUA was enabled. A genuinely new device is still gated (covered by TestOrbitEnrollWithIdPPopulatesDeviceMapping).
+func (s *integrationEnterpriseTestSuite) TestOrbitReEnrollSkipsEndUserAuth() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team with End User Authentication DISABLED, so the first enrollment succeeds without an SSO prompt and the
+	// host gets an orbit node key (the "previously enrolled" state).
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	enrollSecret := t.Name() + "-secret"
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
+
+	var caps fleet.CapabilityMap
+	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
+	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
+
+	runFlow := func(t *testing.T, platform, platformLike string) {
+		hostUUID := uuid.New().String()
+		enrollBody, err := json.Marshal(fleet.EnrollOrbitRequest{
+			EnrollSecret:   enrollSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: uuid.New().String(),
+			Hostname:       strings.ReplaceAll(t.Name(), "/", "-") + ".local",
+			Platform:       platform,
+			PlatformLike:   platformLike,
+			HardwareModel:  "TestModel",
+		})
+		require.NoError(t, err)
+
+		// First enrollment with EUA disabled: succeeds and stores an orbit node key.
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		var orbitResp enrollOrbitResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotZero(t, hostLite.ID)
+
+		// Now enable End User Authentication on the team. EnrollOrbit reads team config via TeamLite (not in the cached
+		// layer), so this direct write is visible to the running server immediately.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		// Re-enroll the same host. There is no IdP association, so before the fix this returned END_USER_AUTH_REQUIRED. The
+		// host is already orbit-enrolled, so enrollment must now succeed without prompting.
+		res = s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		orbitResp = enrollOrbitResponse{}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey, "re-enrollment of an already-enrolled host must not be gated by EUA")
+
+		// The re-enrollment must reuse the existing host row, not create a duplicate.
+		reEnrolledHost, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, hostLite.ID, reEnrolledHost.ID, "re-enrollment must reuse the existing host row, not create a duplicate")
+
+		// Reset team EUA for the next subtest's first enrollment.
+		team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+	}
+
+	t.Run("linux", func(t *testing.T) {
+		runFlow(t, "ubuntu", "debian")
+	})
+
+	t.Run("windows", func(t *testing.T) {
+		runFlow(t, "windows", "")
+	})
+}
+
 // TestOrbitEnrollWithEUAToken covers the Windows MSI EUA-token branch in
 // EnrollOrbit (the `case platform == "windows" && euaToken != ""` arm of the
 // End User Auth switch in server/service/orbit.go). This is the flow Fleet
@@ -32708,4 +33038,130 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 	// Install endpoint rejects with label-scope error.
 	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
+}
+
+func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create all hosts upfront so each gets a unique osquery_host_id index.
+	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
+	globalHost, noTeamHost, teamHost := hosts[0], hosts[1], hosts[2]
+
+	// --- global policy ---
+	createGlobalResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  "reset-test-global",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createGlobalResp)
+	globalPolicy := createGlobalResp.Policy
+	require.NotZero(t, globalPolicy.ID)
+
+	// Record a failing result for the global policy.
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		globalHost,
+		map[uint]*bool{globalPolicy.ID: new(false)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	// Confirm the global policy now has a failing host count.
+	getGlobalResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(1), getGlobalResp.Policy.FailingHostCount)
+
+	// Reset the global policy.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", globalPolicy.ID), nil, http.StatusOK)
+
+	// Counts must be 0 immediately after reset.
+	getGlobalResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(0), getGlobalResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
+
+	// Counts remain 0 after re-aggregating (policy_membership was wiped).
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+	getGlobalResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicy.ID), nil, http.StatusOK, &getGlobalResp)
+	require.Equal(t, uint(0), getGlobalResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
+
+	// A reset_policy activity was recorded; global policies emit team_id/fleet_id: -1.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1,"fleet_id":-1}`, globalPolicy.ID), 0)
+
+	// --- no-team policy ---
+	createNoTeamResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		Name:  "reset-test-no-team",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createNoTeamResp)
+	noTeamPolicy := createNoTeamResp.Policy
+	require.NotZero(t, noTeamPolicy.ID)
+	require.NotNil(t, noTeamPolicy.TeamID)
+	require.Zero(t, *noTeamPolicy.TeamID)
+
+	// Seed a failing result.
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		noTeamHost,
+		map[uint]*bool{noTeamPolicy.ID: new(false)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getNoTeamResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicy.ID), nil, http.StatusOK, &getNoTeamResp)
+	require.Equal(t, uint(1), getNoTeamResp.Policy.FailingHostCount)
+
+	// Reset the no-team policy — must not error.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", noTeamPolicy.ID), nil, http.StatusOK)
+
+	getNoTeamResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicy.ID), nil, http.StatusOK, &getNoTeamResp)
+	require.Equal(t, uint(0), getNoTeamResp.Policy.FailingHostCount)
+	require.Equal(t, uint(0), getNoTeamResp.Policy.PassingHostCount)
+
+	// Activity emitted with team_id/fleet_id: 0 and no team_name.
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0,"fleet_id":0}`, noTeamPolicy.ID), 0)
+
+	// --- team policy ---
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-team"})
+	require.NoError(t, err)
+
+	createTeamResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name:  "reset-test-team",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &createTeamResp)
+	teamPolicy := createTeamResp.Policy
+	require.NotZero(t, teamPolicy.ID)
+
+	// Assign host to team and record a passing result.
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		teamHost,
+		map[uint]*bool{teamPolicy.ID: new(true)},
+	), http.StatusOK, new(submitDistributedQueryResultsResponse))
+
+	require.NoError(t, s.ds.UpdateHostPolicyCounts(ctx))
+
+	getTeamResp := fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getTeamResp)
+	require.Equal(t, uint(1), getTeamResp.Policy.PassingHostCount)
+
+	// Reset the team policy.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/policies/%d/reset", teamPolicy.ID), nil, http.StatusOK)
+
+	getTeamResp = fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicy.ID), nil, http.StatusOK, &getTeamResp)
+	require.Equal(t, uint(0), getTeamResp.Policy.PassingHostCount)
+	require.Equal(t, uint(0), getTeamResp.Policy.FailingHostCount)
+
+	// A reset_policy activity was recorded with team fields (both team_id/fleet_id and team_name/fleet_name).
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(
+		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"fleet_id":%d,"team_name":"reset-policy-team","fleet_name":"reset-policy-team"}`,
+		teamPolicy.ID, team.ID, team.ID,
+	), 0)
+
+	// 404 for a nonexistent policy.
+	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
 }

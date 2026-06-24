@@ -161,6 +161,8 @@ import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import Chatwise from "./Chatwise";
 import Cheetah3D from "./Cheetah3D";
+import ChefWorkstation from "./ChefWorkstation";
+import CherryKeys from "./CherryKeys";
 import CherryStudio from "./CherryStudio";
 import Chime from "./Chime";
 import Choosy from "./Choosy";
@@ -207,6 +209,7 @@ import Cork from "./Cork";
 import CotEditor from "./CotEditor";
 import CrashPlan from "./CrashPlan";
 import CreativeCloud from "./AdobeCreativeCloud";
+import CriblEdge from "./CriblEdge";
 import Crossover from "./Crossover";
 import Cryptomator from "./Cryptomator";
 import Crystalfetch from "./Crystalfetch";
@@ -822,6 +825,7 @@ import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
 import Sonobus from "./Sonobus";
+import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
 import Soulver from "./Soulver";
 import Soundanchor from "./Soundanchor";
@@ -835,6 +839,7 @@ import SpitfireAudio from "./SpitfireAudio";
 import SplashtopBusiness from "./SplashtopBusiness";
 import SplashtopStreamer from "./SplashtopStreamer";
 import Splice from "./Splice";
+import Spokenly from "./Spokenly";
 import Spotify from "./Spotify";
 import Spyder from "./Spyder";
 import Sqlectron from "./Sqlectron";
@@ -948,6 +953,7 @@ import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
 import Viz from "./Viz";
 import Vlc from "./Vlc";
@@ -1195,6 +1201,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "chatgpt atlas": ChatGptAtlas,
   chatwise: Chatwise,
   cheetah3d: Cheetah3D,
+  "chef workstation": ChefWorkstation,
+  "cherry keys": CherryKeys,
   "cherry studio": CherryStudio,
   chime: Chime,
   choosy: Choosy,
@@ -1239,6 +1247,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cork: Cork,
   coteditor: CotEditor,
   crashplan: CrashPlan,
+  "cribl edge": CriblEdge,
   crossover: Crossover,
   cryptomator: Cryptomator,
   crystalfetch: Crystalfetch,
@@ -1861,6 +1870,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
   sonobus: Sonobus,
+  sonos: Sonos,
   soulver: Soulver,
   "sound control": SoundControl,
   soundanchor: Soundanchor,
@@ -1873,6 +1883,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "splashtop business": SplashtopBusiness,
   "splashtop streamer": SplashtopStreamer,
   splice: Splice,
+  spokenly: Spokenly,
   spotify: Spotify,
   "sproutcube shortcat": Shortcat,
   spyder: Spyder,
@@ -1988,6 +1999,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
   vlc: Vlc,

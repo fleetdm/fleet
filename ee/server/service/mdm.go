@@ -1670,7 +1670,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return tokens, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -1687,6 +1687,8 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	token.IOSDefaultTeamID = nil
 	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
 	token.IPadOSDefaultTeamID = nil
+	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.BYODDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {
 		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
@@ -1728,8 +1730,57 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		token.IPadOSDefaultTeamID = iPadOSTeamID
 	}
 
+	if byodTeamID != nil && *byodTeamID != 0 {
+		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *byodTeamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
+			}
+		}
+		token.BYODTeam.Name = byodTeam.Name
+		token.BYODTeam.ID = *byodTeamID
+		token.BYODDefaultTeamID = byodTeamID
+	}
+
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
+	}
+
+	// Keep appconfig in sync
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
+		if appCfgToken.OrganizationName == token.OrganizationName {
+
+			// Clear no team names, so they are presented nicer in gitops.
+			appCfgToken.BYODTeam = token.BYODTeam.Name
+			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.BYODTeam = ""
+			}
+			appCfgToken.MacOSTeam = token.MacOSTeam.Name
+			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.MacOSTeam = ""
+			}
+			appCfgToken.IOSTeam = token.IOSTeam.Name
+			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IOSTeam = ""
+			}
+			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
+			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IpadOSTeam = ""
+			}
+
+			// update the app config with the new team names
+			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
+			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
+			}
+			break
+		}
 	}
 
 	return token, nil
