@@ -184,6 +184,15 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailTeamMemberWrite:  true,
 		},
 		{
+			name:                       "global gitops",
+			user:                       &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      false,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
+		},
+		{
 			name:                       "team gitops, belongs to team",
 			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			shouldFailTeamWrite:        false,
