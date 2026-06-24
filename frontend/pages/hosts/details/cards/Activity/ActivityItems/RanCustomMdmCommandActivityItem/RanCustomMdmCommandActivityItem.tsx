@@ -1,6 +1,6 @@
 import React from "react";
 
-import { formatMdmCommandNameForActivityItem } from "utilities/helpers";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 

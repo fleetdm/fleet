@@ -43,9 +43,8 @@ import { ICommand } from "interfaces/command";
 import {
   formatMdmCommandNameForActivityItem,
   getMdmCommandDisplayName,
-  normalizeEmptyValues,
-  wrapFleetHelper,
-} from "utilities/helpers";
+} from "utilities/activityHelpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,

@@ -25,8 +25,8 @@ import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
   formatMdmCommandNameForActivityItem,
   getMdmCommandDisplayName,
-  getPerformanceImpactDescription,
-} from "utilities/helpers";
+} from "utilities/activityHelpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
