@@ -36,6 +36,7 @@ The source docs branch is auto-detected from the PR's base branch.
    - `SOURCE_DOCS_BRANCH` = the PR's `baseRefName` (e.g., `docs-v4.89.0`)
    - `PR_STATE` = `state` — one of `OPEN`, `MERGED`, `CLOSED`
    - `MERGE_COMMIT` = `mergeCommit.oid` — null if the PR is not yet merged or was closed without merging
+   - `ALL_COMMITS` = all commit SHAs in `commits[].oid`, in order (oldest first)
    - `HEAD_COMMIT` = the last commit SHA in `commits[].oid`
    - `PR_TITLE` = the PR title
    - `UPSTREAM_REPO` = the org/repo from the PR URL (e.g., `fleetdm/fleet`):
@@ -63,9 +64,19 @@ The simplest and correct approach: retarget the original PR from the source docs
 
 The changes were never applied to the source branch, so no revert is needed. Only create the apply PR.
 
-- `WORKING_COMMIT = HEAD_COMMIT` (the individual commit to cherry-pick)
+**Check for an existing apply PR first:** search for any open PR against `<TARGET_DOCS_BRANCH>` that references `<PR_NUMBER>`:
+```
+gh pr list --repo <UPSTREAM_REPO> --state open --base <TARGET_DOCS_BRANCH> --search "<PR_NUMBER>" --json number,title,url
+```
+If one exists, **verify its diff before reusing it**:
+```
+gh pr diff <EXISTING_PR_NUMBER> --stat
+```
+Compare the file count and line count to the original PR's diff stat (`gh pr diff <PR_NUMBER> --stat`). If they match, retarget or use as-is. If the existing PR has significantly more files or lines, its branch was based on a stale upstream ref — discard it (let the user close it) and create a fresh branch below.
+
+- `WORKING_COMMITS = ALL_COMMITS` (cherry-pick all commits in order, not just HEAD_COMMIT — the first commit usually contains the bulk of the changes)
 - Skip Step 3 entirely.
-- Proceed to Step 4 only, cherry-picking `WORKING_COMMIT` as a single-parent commit.
+- Proceed to Step 4, cherry-picking all commits in `ALL_COMMITS` order.
 
 Note: You cannot retarget a closed PR via the API — GitHub returns a 422 error. A new PR must be created.
 
@@ -110,13 +121,19 @@ This PR adds the doc changes to the new release's docs branch.
    ```
    git checkout -b <username>/pr<N>-docs-to-<TARGET_DOCS_BRANCH> upstream/<TARGET_DOCS_BRANCH>
    ```
-2. Cherry-pick `WORKING_COMMIT`. Check parent count:
-   - Multiple parents (merged PR) → `git cherry-pick -m 1 <WORKING_COMMIT>`
-   - Single parent (closed PR or regular commit) → `git cherry-pick <WORKING_COMMIT>`
+2. Cherry-pick commits:
+   - **CLOSED path (multiple commits):** cherry-pick all commits in `ALL_COMMITS` order:
+     ```
+     git cherry-pick <sha1> <sha2> <sha3> ...
+     ```
+   - **MERGED path (merge commit):** check parent count first:
+     - Multiple parents → `git cherry-pick -m 1 <WORKING_COMMIT>`
+     - Single parent → `git cherry-pick <WORKING_COMMIT>`
 3. If there are conflicts, resolve them manually — the target branch may have received commits since the cherry-picked commit was authored. Keep all content: the new additions from the cherry-pick plus any new sections added by later commits on the target branch. After resolving: `git add <file> && git cherry-pick --continue --no-edit`.
-4. Push: `git push -u origin HEAD`
+4. **Verify the diff before pushing.** Run `git diff upstream/<TARGET_DOCS_BRANCH>...HEAD --stat` and confirm the file count and line count match the original PR's diff stat. If they don't, something went wrong with the cherry-pick or the upstream ref is stale.
+5. Push: `git push -u origin HEAD`
    - If you previously pushed this branch with a different base (e.g., after correcting a stale upstream ref), force-push: `git push --force origin HEAD`
-5. Open the PR:
+6. Open the PR:
    ```
    gh pr create --repo <UPSTREAM_REPO> --base <TARGET_DOCS_BRANCH> \
      --title "<PR_TITLE>" \
