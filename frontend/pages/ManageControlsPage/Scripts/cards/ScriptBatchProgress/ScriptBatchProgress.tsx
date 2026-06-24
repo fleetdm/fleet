@@ -184,8 +184,7 @@ const ScriptBatchProgress = ({
     );
   };
 
-  // Reset to first tab if status is invalid. Replace (don't push) so browser
-  // Back doesn't re-trigger this effect and trap the user (#47019).
+  // replace (not push) — pushing re-fires this effect on browser Back
   useEffect(() => {
     if (!isValidScriptBatchStatus(statusParam)) {
       router.replace(buildTabPath(0));

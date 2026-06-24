@@ -172,9 +172,7 @@ const ScriptBatchDetailsPage = ({
   );
 
   useEffect(() => {
-    // Replace (don't push) when defaulting an invalid/missing status — pushing
-    // here gets re-pushed by this same effect on browser Back, trapping the
-    // user on this page (#47019).
+    // replace (not push) — pushing re-fires this effect on browser Back
     if (!isValidScriptBatchHostStatus(selectedHostStatus)) {
       router.replace(buildTabPath(0));
     }
