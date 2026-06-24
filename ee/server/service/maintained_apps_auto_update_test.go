@@ -115,7 +115,9 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 				return nil
 			}
 
-			err := AutoUpdateFleetMaintainedApps(context.Background(), ds, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			// nil store: promote-only mode (no upstream download), exercising
+			// advancement among already-cached versions.
+			err := AutoUpdateFleetMaintainedApps(context.Background(), ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			require.NoError(t, err)
 
 			require.Equal(t, tc.wantFlip, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
@@ -160,7 +162,7 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	}
 
 	// The first candidate errors; the run must still process the second.
-	err := AutoUpdateFleetMaintainedApps(context.Background(), ds, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	err := AutoUpdateFleetMaintainedApps(context.Background(), ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	require.NoError(t, err)
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 	require.Equal(t, uint(2), flippedTitle)

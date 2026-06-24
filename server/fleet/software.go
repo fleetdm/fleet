@@ -392,6 +392,10 @@ type FMAAutoUpdateCandidate struct {
 	TeamID *uint `db:"global_or_team_id"`
 	// TitleID is the software_titles.id.
 	TitleID uint `db:"title_id"`
+	// FleetMaintainedAppID is the fleet_maintained_apps.id backing this title,
+	// used to hydrate the latest manifest and check the cache without a second
+	// lookup.
+	FleetMaintainedAppID uint `db:"fleet_maintained_app_id"`
 	// InstallerID is the currently active software_installers.id.
 	InstallerID uint `db:"installer_id"`
 	// Version is the currently active version (for logging).

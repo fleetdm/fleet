@@ -2677,6 +2677,15 @@ type Datastore interface {
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
+	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
+	// already-installed Fleet-maintained app, cloning the active installer's
+	// per-team config (self-service, labels, categories, pre-install query) and
+	// overriding only version-specific fields from the payload. The row is
+	// inserted inactive; the caller promotes it separately. The pin is never
+	// written. Versions beyond the cap are evicted, protecting activeInstallerID.
+	// Idempotent: returns the existing installer ID if the version is already cached.
+	InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *UploadSoftwareInstallerPayload) (installerID uint, err error)
+
 	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets other installers of the title
 	// to inactive, and repoints policies. A non-nil payload.PinnedVersion records ("" clears it to Latest)
 	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.

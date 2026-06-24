@@ -1568,6 +1568,8 @@ type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *u
 
 type ListFleetMaintainedAppActiveInstallersFunc func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error)
 
+type InsertFleetMaintainedAppVersionFunc func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error)
+
 type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
 type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
@@ -4434,6 +4436,9 @@ type DataStore struct {
 
 	ListFleetMaintainedAppActiveInstallersFunc        ListFleetMaintainedAppActiveInstallersFunc
 	ListFleetMaintainedAppActiveInstallersFuncInvoked bool
+
+	InsertFleetMaintainedAppVersionFunc        InsertFleetMaintainedAppVersionFunc
+	InsertFleetMaintainedAppVersionFuncInvoked bool
 
 	SetFleetMaintainedAppActiveInstallerFunc        SetFleetMaintainedAppActiveInstallerFunc
 	SetFleetMaintainedAppActiveInstallerFuncInvoked bool
@@ -10665,6 +10670,13 @@ func (s *DataStore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) 
 	s.ListFleetMaintainedAppActiveInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListFleetMaintainedAppActiveInstallersFunc(ctx)
+}
+
+func (s *DataStore) InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error) {
+	s.mu.Lock()
+	s.InsertFleetMaintainedAppVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertFleetMaintainedAppVersionFunc(ctx, activeInstallerID, payload)
 }
 
 func (s *DataStore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {

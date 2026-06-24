@@ -59,6 +59,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
+		{"InsertFleetMaintainedAppVersion", testInsertFleetMaintainedAppVersion},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
@@ -4764,11 +4765,144 @@ func testListFleetMaintainedAppActiveInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, team1.ID, *t1.TeamID)
 	require.Equal(t, "1.0", t1.Version)
 	require.Equal(t, "maintained1", t1.Slug)
+	require.Equal(t, maintainedApp.ID, t1.FleetMaintainedAppID)
 
 	nt := byInstallerID[fmaNoTeam]
 	require.Nil(t, nt.TeamID) // no-team scope maps to nil
 	require.Equal(t, "2.0", nt.Version)
 	require.Equal(t, "maintained1", nt.Slug)
+}
+
+func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-insert"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "lbl-fma", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	newFile := func(s string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(s), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	// Active v1 installer with per-team config the cron must carry forward.
+	activeID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "FooFMA", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install v1", UninstallScript: "echo uninstall v1",
+		PreInstallQuery: "SELECT pre", PostInstallScript: "echo post",
+		SelfService:   true,
+		InstallerFile: newFile("v1"), StorageID: "sha-v1", Filename: "foo-1.0.pkg", Extension: "pkg",
+		Version: "1.0", UserID: user.ID, TeamID: &team.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
+		},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Seed a caret pin that must survive the insert untouched.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)`,
+			team.ID, titleID, "^1")
+		return err
+	})
+
+	// Cache v2 (inactive), cloning v1's config.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2",
+		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, activeID, v2ID)
+
+	type row struct {
+		Active      bool   `db:"is_active"`
+		SelfService bool   `db:"self_service"`
+		Pre         string `db:"pre_install_query"`
+		Version     string `db:"version"`
+		Storage     string `db:"storage_id"`
+		InstallID   *uint  `db:"install_script_content_id"`
+		PostID      *uint  `db:"post_install_script_content_id"`
+	}
+	getRow := func(id uint) row {
+		var r row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &r,
+				`SELECT is_active, self_service, pre_install_query, version, storage_id, install_script_content_id, post_install_script_content_id
+				 FROM software_installers WHERE id = ?`, id)
+		})
+		return r
+	}
+	r1, r2 := getRow(activeID), getRow(v2ID)
+
+	// v1 stays active; v2 inactive.
+	require.True(t, r1.Active)
+	require.False(t, r2.Active)
+	// Config carried forward.
+	require.True(t, r2.SelfService)
+	require.Equal(t, "SELECT pre", r2.Pre)
+	require.Equal(t, "2.0", r2.Version)
+	require.Equal(t, "sha-v2", r2.Storage)
+	// New install script for the new version; post-install carried forward.
+	require.NotNil(t, r2.InstallID)
+	require.NotNil(t, r1.InstallID)
+	require.NotEqual(t, *r1.InstallID, *r2.InstallID)
+	require.NotNil(t, r2.PostID)
+	require.NotNil(t, r1.PostID)
+	require.Equal(t, *r1.PostID, *r2.PostID)
+
+	// Label cloned onto v2.
+	var labelCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &labelCount,
+			`SELECT COUNT(*) FROM software_installer_labels WHERE software_installer_id = ? AND label_id = ?`, v2ID, lbl.ID)
+	})
+	require.Equal(t, 1, labelCount)
+
+	// Pin untouched.
+	pin, err := ds.GetPinnedVersion(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.NotNil(t, pin)
+	require.Equal(t, "^1", *pin)
+
+	// Idempotent: re-caching v2 returns the same id, no new row.
+	again, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2",
+		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, v2ID, again)
+
+	// Force v2 to be the oldest non-active version so eviction is deterministic.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET uploaded_at = '2000-01-01 00:00:00' WHERE id = ?`, v2ID)
+		return err
+	})
+
+	// Eviction: caching v3 brings the count to 3; the oldest non-active (v2) is
+	// evicted while the active installer (v1) is always protected.
+	v3ID, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "sha-v3",
+		URL: "https://example.test/foo-3.0.pkg", InstallScript: "echo install v3", UninstallScript: "echo uninstall v3",
+	})
+	require.NoError(t, err)
+
+	var remaining []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ? ORDER BY id`, team.ID, titleID)
+	})
+	require.ElementsMatch(t, []uint{activeID, v3ID}, remaining, "v2 evicted, active protected")
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {

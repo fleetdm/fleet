@@ -722,6 +722,7 @@ func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context)
 		SELECT
 			NULLIF(si.global_or_team_id, 0) AS global_or_team_id,
 			si.title_id,
+			si.fleet_maintained_app_id,
 			si.id AS installer_id,
 			si.version,
 			fma.slug
@@ -733,6 +734,158 @@ func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context)
 		return nil, ctxerr.Wrap(ctx, err, "listing active fleet-maintained app installers")
 	}
 	return candidates, nil
+}
+
+// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
+// already-installed Fleet-maintained app. It clones the currently active
+// installer (activeInstallerID) so the team's per-installer configuration —
+// self-service, labels, categories, pre-install query, attribution — is carried
+// forward, overriding only the version-specific fields from the manifest
+// payload. The new row is inserted inactive (is_active = 0); the caller promotes
+// it separately via SetFleetMaintainedAppActiveInstaller. The team pin is never
+// written here. Versions beyond maxCachedFMAVersions are evicted, always
+// protecting the active installer, with policies on evicted rows re-pointed to
+// it. The call is idempotent: if the version is already cached, its existing
+// installer ID is returned without inserting.
+func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error) {
+	// Resolve script content IDs outside the transaction (matches MatchOrCreateSoftwareInstaller).
+	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.InstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
+	}
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.UninstallScript)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
+	// Read the scope (team, title) from the active installer so the cron
+	// doesn't need to pass them and they always agree with the row being cloned.
+	var src struct {
+		TitleID        uint `db:"title_id"`
+		GlobalOrTeamID uint `db:"global_or_team_id"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &src,
+		`SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?`,
+		activeInstallerID,
+	); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "load active installer scope")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, `
+INSERT INTO software_installers (
+	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
+	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
+	post_install_script_content_id,
+	storage_id, filename, extension, version,
+	install_script_content_id, uninstall_script_content_id,
+	url, upgrade_code, is_active, patch_query
+)
+SELECT
+	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
+	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
+	post_install_script_content_id,
+	?, ?, ?, ?,
+	?, ?,
+	?, ?, 0, ?
+FROM software_installers WHERE id = ?`,
+			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
+			installScriptID, uninstallScriptID,
+			payload.URL, payload.UpgradeCode, payload.PatchQuery,
+			activeInstallerID,
+		)
+		if err != nil {
+			if IsDuplicate(err) {
+				// Version already cached for this team/title; return the existing row.
+				return sqlx.GetContext(ctx, tx, &installerID, `
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND version = ?`,
+					src.GlobalOrTeamID, src.TitleID, payload.Version)
+			}
+			return ctxerr.Wrap(ctx, err, "insert fleet-maintained app version")
+		}
+		id, _ := res.LastInsertId()
+		installerID = uint(id) //nolint:gosec // dismiss G115
+
+		// Clone the active installer's labels and categories onto the new version.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all)
+			SELECT ?, label_id, exclude, require_all FROM software_installer_labels WHERE software_installer_id = ?`,
+			installerID, activeInstallerID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clone installer labels")
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO software_installer_software_categories (software_installer_id, software_category_id)
+			SELECT ?, software_category_id FROM software_installer_software_categories WHERE software_installer_id = ?`,
+			installerID, activeInstallerID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "clone installer categories")
+		}
+
+		// Evict versions beyond the cap, always protecting the active installer.
+		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, activeInstallerID)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return installerID, nil
+}
+
+// evictOldFMAVersions caps cached FMA versions for a (team, title) at
+// maxCachedFMAVersions, always keeping protectInstallerID (the active version)
+// and otherwise the most recently uploaded versions. Policies on evicted rows
+// are re-pointed to the protected installer before the rows are deleted. Mirrors
+// the eviction logic in BatchSetSoftwareInstallers.
+func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, protectInstallerID uint) error {
+	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
+	}
+	versions := fmaVersions[titleID]
+	if len(versions) <= maxCachedFMAVersions {
+		return nil
+	}
+
+	// Keep set: protected installer + most recent up to the cap.
+	keepSet := map[uint]bool{protectInstallerID: true}
+	for _, v := range versions {
+		if len(keepSet) >= maxCachedFMAVersions {
+			break
+		}
+		keepSet[v.ID] = true
+	}
+	keepIDs := slices.Collect(maps.Keys(keepSet))
+
+	// Re-point policies referencing soon-to-be-evicted versions to the protected one.
+	rePointStmt, rePointArgs, err := sqlx.In(
+		`UPDATE policies SET software_installer_id = ?
+		WHERE software_installer_id IN (
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
+		)`,
+		protectInstallerID, globalOrTeamID, titleID, keepIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build FMA policy re-point query")
+	}
+	if _, err := tx.ExecContext(ctx, rePointStmt, rePointArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "re-point policies for evicted FMA versions")
+	}
+
+	// Delete evicted rows (with side effects), skipping the kept ones.
+	for _, v := range versions {
+		if keepSet[v.ID] {
+			continue
+		}
+		if _, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, v.ID, true, true, false); err != nil {
+			return ctxerr.Wrapf(ctx, err, "side effects for evicted installer id %d", v.ID)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, v.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete evicted installer id %d", v.ID)
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {

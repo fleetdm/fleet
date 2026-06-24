@@ -2262,6 +2262,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2277,7 +2278,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
-			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, logger)
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
 

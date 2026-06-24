@@ -27173,6 +27173,200 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
+	t := s.T()
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	computeSHA := func(b []byte) string {
+		h := sha256.New()
+		h.Write(b)
+		return hex.EncodeToString(h.Sum(nil))
+	}
+
+	type fmaTestState struct {
+		version        string
+		installerBytes []byte
+		sha256         string
+	}
+	warpState := &fmaTestState{version: "1.0", installerBytes: []byte("abc")}
+	warpState.sha256 = computeSHA(warpState.installerBytes)
+
+	const slug = "cloudflare-warp/windows"
+	var downloadMu sync.Mutex
+	downloaded := false
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		if r.URL.Path == "/cloudflare-warp.msi" {
+			downloaded = true
+			_, _ = w.Write(warpState.installerBytes)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer installerServer.Close()
+
+	maintainedappstest.SyncApps(t, s.ds)
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+slug+".json" {
+			http.NotFound(w, r)
+			return
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            warpState.version,
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + "/cloudflare-warp.msi",
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             warpState.sha256,
+				DefaultCategories:  []string{"Productivity"},
+			}},
+			Refs: map[string]string{"foobaz": "Hello World!"},
+		}
+		_ = json.NewEncoder(w).Encode(manifest)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	// --- helpers ---
+	setManifest := func(version string, bytes []byte) {
+		warpState.version = version
+		warpState.installerBytes = bytes
+		warpState.sha256 = computeSHA(bytes)
+	}
+	runCron := func() {
+		require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, logger))
+	}
+	resetDownloaded := func() {
+		downloadMu.Lock()
+		downloaded = false
+		downloadMu.Unlock()
+	}
+	wasDownloaded := func() bool {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		return downloaded
+	}
+	activeTitle := func(teamID uint) fleet.SoftwareTitleListResult {
+		var resp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+			"per_page", "1", "order_key", "name", "order_direction", "desc",
+			"available_for_install", "true", "team_id", fmt.Sprintf("%d", teamID))
+		require.Equal(t, 1, resp.Count)
+		return resp.SoftwareTitles[0]
+	}
+	activeSelfService := func(teamID, titleID uint) bool {
+		var ss bool
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &ss,
+				`SELECT self_service FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`,
+				teamID, titleID)
+		})
+		return ss
+	}
+	setPin := func(teamID, titleID uint, pin string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)
+				 ON DUPLICATE KEY UPDATE pinned_version = VALUES(pinned_version)`, teamID, titleID, pin)
+			return err
+		})
+	}
+	clearPin := func(teamID, titleID uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM software_title_team_pins WHERE team_id = ? AND title_id = ?`, teamID, titleID)
+			return err
+		})
+	}
+
+	// --- setup: team with cloudflare-warp v1.0, self-service on ---
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())},
+	}, http.StatusOK, &teamResp)
+	team := *teamResp.Team
+
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new(slug), SelfService: true}}, TeamName: team.Name},
+		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
+
+	title := activeTitle(team.ID)
+	require.Equal(t, "1.0", title.SoftwarePackage.Version)
+	titleID := title.ID
+	require.True(t, activeSelfService(team.ID, titleID))
+
+	// === Section A: unpinned advances to the newly published version ===
+	setManifest("2.0", []byte("def"))
+	resetDownloaded()
+	runCron()
+	require.True(t, wasDownloaded(), "should download the new version")
+	title = activeTitle(team.ID)
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	// Per-team config is carried forward onto the new version.
+	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
+
+	// The cached bytes are real and installable: a host install serves v2.0 bytes.
+	host := createOrbitEnrolledHost(t, "windows", "orbit-autoupdate", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1`, host.ID)
+	})
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID, OrbitNodeKey: *host.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	require.Equal(t, []byte("def"), body, "auto-updated installer should serve v2.0 bytes")
+
+	// === Section B: a literal pin blocks auto-advance and any download ===
+	setPin(team.ID, titleID, "2.0")
+	setManifest("3.0", []byte("ghi"))
+	resetDownloaded()
+	runCron()
+	require.False(t, wasDownloaded(), "literal pin must not trigger a download")
+	require.Equal(t, "2.0", activeTitle(team.ID).SoftwarePackage.Version, "literal pin must not advance")
+
+	// === Section C: caret pin advances within major, never across ===
+	clearPin(team.ID, titleID)
+	resetDownloaded()
+	runCron() // unpinned: advance to the published 3.0
+	require.True(t, wasDownloaded())
+	require.Equal(t, "3.0", activeTitle(team.ID).SoftwarePackage.Version)
+
+	setPin(team.ID, titleID, "^3")
+	setManifest("3.1", []byte("j31"))
+	resetDownloaded()
+	runCron()
+	require.True(t, wasDownloaded(), "caret pin advances within its major")
+	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
+
+	setManifest("4.0", []byte("k40"))
+	resetDownloaded()
+	runCron()
+	require.False(t, wasDownloaded(), "caret pin must not download across majors")
+	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version, "caret pin must not cross major")
+
+	// === Section D: a re-run with nothing new is a no-op ===
+	resetDownloaded()
+	runCron()
+	require.False(t, wasDownloaded(), "idempotent re-run downloads nothing")
+	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
+}
+
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	t := s.T()
 	ctx := context.Background()
