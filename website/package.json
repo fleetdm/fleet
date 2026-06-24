@@ -5,13 +5,9 @@
   "description": "a Sails application",
   "keywords": [],
   "overrides": {
-    "@sailshq/request": {
-      "form-data": "2.5.6"
-    },
     "request": {
       "form-data": "2.5.6"
-    },
-    "ws@~8.20.1": "8.21.0"
+    }
   },
   "dependencies": {
     "@google-cloud/bigquery": "8.1.1",
