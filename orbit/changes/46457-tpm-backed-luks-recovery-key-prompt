@@ -1,1 +1,0 @@
-- Updated the Fleet Desktop disk encryption prompt on TPM-backed Linux hosts (e.g., Ubuntu 23.10+) to ask for the disk recovery key saved during installation, instead of a LUKS passphrase.

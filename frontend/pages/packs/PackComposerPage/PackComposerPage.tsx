@@ -49,8 +49,8 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
       const {
         pack: { id: packID },
       } = await create(formData);
-      router.push(PATHS.PACK(packID));
       notify.success("Pack successfully created. Add queries to your pack.");
+      router.push(PATHS.PACK(packID));
     } catch (e) {
       if (
         getErrorReason(e, {
