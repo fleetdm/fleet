@@ -881,7 +881,7 @@ func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
 		Mailer: &mail.MFAMailer{
 			FullName: user.Name,
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix), //nolint:gosec // dismiss G203
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
