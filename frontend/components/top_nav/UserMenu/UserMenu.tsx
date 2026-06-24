@@ -171,24 +171,32 @@ const UserMenu = ({
     const userAdminTeams = currentUser.teams.filter(
       (thisTeam: ITeam) => thisTeam.role === "admin"
     );
-    const settingsClickHandler = () => {
-      const currentTeamIsAdmin =
-        currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
-      if (currentTeamIsAdmin) {
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
-      } else {
-        // Not an admin of the current team — redirect to the first team the
-        // user is an admin of.
-        const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
-      }
-    };
+    const currentTeamIsAdmin =
+      currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
+    // Use the current team if the user is an admin of it, otherwise fall back
+    // to the first team the user is an admin of.
+    const targetTeamId = currentTeamIsAdmin
+      ? currentTeam.id
+      : getSortedTeamOptions(userAdminTeams)[0].value;
 
     dropdownItems.push({
-      label: "Settings",
-      value: "settings",
+      label: "Users",
+      value: "team-users",
       hasDividerBefore: true,
-      onClick: settingsClickHandler,
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeamId)),
+    });
+    dropdownItems.push({
+      label: "Agent options",
+      value: "team-agent-options",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_OPTIONS(targetTeamId)),
+    });
+    dropdownItems.push({
+      label: "Settings",
+      value: "team-settings",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_SETTINGS(targetTeamId)),
     });
   }
 
