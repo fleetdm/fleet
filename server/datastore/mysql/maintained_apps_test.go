@@ -937,6 +937,21 @@ func testReconcileSoftwareNames(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// The upsert itself must not rename; confirm the pre-reconcile state still has
+	// the osquery name in both the software and software_titles tables.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Code", softwareNames[0])
+	require.Equal(t, "Code", softwareNames[1])
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Code", titleName)
+
 	// The upsert doesn't rename; the reconcile pass does (unambiguous identifier).
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
@@ -1067,6 +1082,14 @@ func testReconcileSoftwareNamesSharedIdentifier(t *testing.T, ds *Datastore) {
 	// (Regression: the title used to flip to "Mozilla Firefox ESR" by sync order.)
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, "Firefox.app", titleName())
+	// Reconcile updates the software table with a separate statement, so assert it
+	// too: with an ambiguous identifier and no FMA link, that row is left alone.
+	var ambiguousSoftwareName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &ambiguousSoftwareName,
+			`SELECT name FROM software WHERE bundle_identifier = 'org.mozilla.firefox'`)
+	})
+	require.Equal(t, "Firefox.app", ambiguousSoftwareName)
 
 	// Add the Firefox (non-ESR) FMA, linking the existing title to a specific FMA.
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{

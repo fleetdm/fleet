@@ -124,7 +124,9 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 const fleetMaintainedAppsTeamJoin = `
 			FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform, si.fleet_maintained_app_id
+				-- COALESCE the platform so VPP-added titles (no installer row) still
+				-- carry a platform for the platform-scoped identifier fallback below.
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, COALESCE(si.platform, va.platform) AS platform, si.fleet_maintained_app_id
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -144,9 +146,12 @@ const fleetMaintainedAppsTeamJoin = `
 				-- Match the exact FMA the title was added with, so a shared bundle
 				-- identifier (Firefox vs Firefox ESR) doesn't mark the sibling added.
 				ON team_titles.fleet_maintained_app_id = fma.id
-				-- Not added via an FMA: fall back to the bundle identifier.
+				-- Not added via an FMA: fall back to the bundle identifier, scoped to
+				-- the same platform so a darwin title can't match a windows FMA (or
+				-- vice versa) when their identifiers happen to collide.
 				OR (
 					team_titles.fleet_maintained_app_id IS NULL
+					AND team_titles.platform = fma.platform
 					AND team_titles.unique_identifier = fma.unique_identifier
 				)
 				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
