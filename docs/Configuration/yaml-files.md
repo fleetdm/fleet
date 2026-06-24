@@ -398,8 +398,8 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
-      - path: ../lib/macos/declarations/my-declaration.json
-      - path: ../lib/macos/assets/my-asset.json
+      - path: ../lib/macos/profiles/my-declaration.json
+      - path: ../lib/macos/profiles/my-asset.json
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
