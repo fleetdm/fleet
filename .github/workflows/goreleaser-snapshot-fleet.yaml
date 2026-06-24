@@ -51,7 +51,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
           persist-credentials: false
           # Full history + tags so the Go toolchain embeds a real build-info
-          # version (e.g. v4.87.1-0.<commit>) instead of the v4.0.0 module base
+          # version (e.g. v4.87.1-0.<timestamp>-<commit>) instead of the v4.0.0 module base
           # that a shallow clone produces. Matches the release workflow.
           fetch-depth: 0
 
