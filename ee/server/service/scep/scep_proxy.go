@@ -385,7 +385,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
 			if err := svc.resendProfileForExpiredChallenge(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+				return "", ctxerr.Wrap(ctx, err, "resending host profile after expired challenge")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}

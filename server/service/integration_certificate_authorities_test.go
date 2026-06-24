@@ -1956,14 +1956,12 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 // profile with a fresh challenge, and not let the resulting (stale) command
 // failure corrupt the profile's DB state.
 //
-// NOTE: This test encodes the *correct/desired* behavior (mirroring the
-// Smallstep test). It currently FAILS against the NDES code path because the
-// expired-challenge branch for NDES calls Datastore.ResendHostMDMProfile
-// (ee/server/service/scep/scep_proxy.go), which only sets status = NULL and
-// leaves command_uuid and retries intact — unlike the Smallstep/custom-SCEP
-// branch, which calls ResendHostCertificateProfile (clears command_uuid and
-// resets retries). The divergent assertions are flagged inline with
-// "DIVERGENCE" comments.
+// This mirrors the Smallstep test: for an Apple profile, the expired-challenge
+// branch in ee/server/service/scep/scep_proxy.go routes through
+// ResendHostCertificateProfile, which clears command_uuid and resets the retry
+// counter (an expired challenge is a timing condition, not a host install
+// failure). The key invariants asserted below are flagged with "INVARIANT"
+// comments.
 func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	t := s.T()
 	ctx := context.Background()
@@ -2221,10 +2219,9 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.Contains(t, extractServerErrorText(resp.Body), "challenge password has expired")
 
-	// DIVERGENCE #1: the expired challenge should clear command_uuid and reset
-	// retries so the resend is clean and unbounded. NDES currently only sets
-	// status = NULL (ResendHostMDMProfile), so on the current code this row
-	// still has Retries == MaxAppleProfileRetries and CommandUUID == prevCommandUUID.
+	// INVARIANT: the expired challenge resends via ResendHostCertificateProfile,
+	// which clears command_uuid and resets retries so the resend is clean and
+	// unbounded (status back to NULL).
 	expectHostProf.Status = nil
 	expectHostProf.Retries = 0
 	expectHostProf.CommandUUID = ""
@@ -2240,10 +2237,9 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// DIVERGENCE #2 (the serious bug): on the current NDES code, command_uuid was
-	// NOT cleared, so this stale failure matches the row; with retries already at
-	// the max, HandleHostMDMProfileInstallResult marks the profile "failed",
-	// which blocks the resend entirely. The desired outcome is unchanged state.
+	// INVARIANT: because command_uuid was cleared above, this stale failure ACK
+	// matches no row and is a no-op — it must not flip the profile to "failed"
+	// or otherwise change the DB state, so the resend can still proceed.
 	gotHostProfs = listHostProfilesDB(host.UUID)
 	require.Len(t, gotHostProfs, 1)
 	require.Equal(t, expectHostProf, gotHostProfs[0])

@@ -833,7 +833,7 @@ func TestValidateIdentifier(t *testing.T) {
 		identifier := makeIdentifier("host-uuid", "a-profile-uuid", "NDES", "")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "resending host mdm profile")
+		assert.Contains(t, err.Error(), "resending host profile after expired challenge")
 	})
 
 	t.Run("default CA name is NDES", func(t *testing.T) {

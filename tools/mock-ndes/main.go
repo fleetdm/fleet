@@ -214,7 +214,9 @@ type adminHandler struct {
 func (h *adminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if h.username != "" || h.password != "" {
+	// Auth is enforced only when both credentials are set; emptying either one
+	// disables it, matching the -username/-password flag docs.
+	if h.username != "" && h.password != "" {
 		user, pass, ok := r.BasicAuth()
 		userMatch := subtle.ConstantTimeCompare([]byte(user), []byte(h.username)) == 1
 		passMatch := subtle.ConstantTimeCompare([]byte(pass), []byte(h.password)) == 1
@@ -245,8 +247,8 @@ func (h *adminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pw := h.store.issue()
-	h.logger.InfoContext(ctx, "admin page issued SCEP challenge password", "challenge", pw)
-	h.write(w, ctx, passwordPage(pw))
+	h.logger.InfoContext(ctx, "admin page issued SCEP challenge password")
+	h.write(w, ctx, passwordPage(pw, h.store.ttl))
 }
 
 func (h *adminHandler) write(w http.ResponseWriter, ctx context.Context, html string) {
@@ -306,17 +308,17 @@ func (s *challengeStore) HasChallenge(pw string) (bool, error) {
 	issuedAt, ok := s.issued[pw]
 	switch {
 	case !ok:
-		s.logger.WarnContext(ctx, "SCEP challenge rejected: unknown password", "challenge", pw)
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: unknown password")
 		return false, nil
 	case time.Since(issuedAt) > s.ttl:
 		delete(s.issued, pw)
-		s.logger.WarnContext(ctx, "SCEP challenge rejected: expired", "challenge", pw, "age", time.Since(issuedAt).String())
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: expired", "age", time.Since(issuedAt).String())
 		return false, nil
 	}
 	if s.oneTime {
 		delete(s.issued, pw)
 	}
-	s.logger.InfoContext(ctx, "SCEP challenge accepted", "challenge", pw, "one_time", s.oneTime)
+	s.logger.InfoContext(ctx, "SCEP challenge accepted", "one_time", s.oneTime)
 	return true, nil
 }
 
@@ -486,11 +488,11 @@ func printBanner(ctx context.Context, logger *slog.Logger, scheme, addr string, 
 		"scep_url", base+defaultSCEPPath,
 		"admin_url", base+defaultAdminPath,
 		"admin_username", admin.username,
-		"admin_password", admin.password,
+		"admin_password_set", admin.password != "",
 		"admin_mode", admin.mode,
 		"admin_charset", admin.charset,
 		"require_challenge", requireChallenge,
-		"static_challenge", staticChal,
+		"static_challenge_set", staticChal != "",
 		"ca_dir", caDir,
 		"ca_fingerprint_sha256", caFingerprint(caCert),
 	)
@@ -512,11 +514,11 @@ func htmlPage(body string) string {
 		`</Font></Body></HTML>`
 }
 
-func passwordPage(pw string) string {
+func passwordPage(pw string, ttl time.Duration) string {
 	return htmlPage(
 		`<P> The thumbprint (hash value) for the CA certificate is: <B> A656FA66 AB12B433 A2DA5CF7 CC153D9A </B> <P>` +
 			` The enrollment challenge password is: <B> ` + pw + ` </B> <P>` +
-			` This password can be used only once and will expire within 60 minutes. <P>` +
+			` This password can be used only once and will expire within ` + ttl.String() + `. <P>` +
 			` Each enrollment requires a new challenge password. You can refresh this web page to obtain a new challenge password. </P>`,
 	)
 }
