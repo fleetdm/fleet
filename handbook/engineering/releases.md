@@ -109,6 +109,10 @@ Fleetd components are updated automatically by continuously polling the TUF serv
 
 The fleetd release candidate is cut at the same time as the Fleet server RC: on the first Monday of each sprint at 8:00 AM Pacific. The release candidate branch is created at `rc-minor-fleetd-v1.x.x` from `main`. No additional feature work is merged into the RC branch without EM and QA approval.
 
+1. Create the release candidate branch from `main` and push it.
+2. Create a release QA issue for the fleetd release.
+3. Announce the release candidate in Slack.
+
 The same cherry-pick policy applies as for the Fleet server RC: if your work misses the cut, it goes in the next release. To merge a bug fix into the fleetd release candidate:
 
 1. Merge the fix into `main`.
@@ -116,7 +120,11 @@ The same cherry-pick policy applies as for the Fleet server RC: if your work mis
 3. `git cherry-pick` your commit from `main` into your new local branch.
 4. Create a pull request from your new branch to the fleetd release candidate.
 
-### Prepare and publish fleetd release
+### Qualify and release fleetd
+
+1. QA all milestoned tickets on `main` or the RC branch.
+2. Once QA approves, push to `edge` for 24 hours. QA runs smoke tests from the release issue during this period.
+3. If no issues are found, promote from `edge` to `stable`.
 
 For the full release steps (releasing to edge, promoting to stable, patch releases, and other TUF components), see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md#releasing).
 
