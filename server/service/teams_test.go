@@ -100,6 +100,7 @@ func TestTeamAuth(t *testing.T) {
 		shouldFailGlobalWrite      bool
 		shouldFailRead             bool
 		shouldFailTeamSecretsWrite bool
+		shouldFailTeamMemberWrite  bool
 	}{
 		{
 			name:                       "global admin",
@@ -108,6 +109,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      false,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  false,
 		},
 		{
 			name:                       "global maintainer",
@@ -116,6 +118,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "global observer",
@@ -124,6 +127,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team admin, belongs to team",
@@ -132,6 +136,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  false,
 		},
 		{
 			name:                       "team maintainer, belongs to team",
@@ -140,6 +145,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: false,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team observer, belongs to team",
@@ -148,6 +154,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             false,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team admin, DOES NOT belong to team",
@@ -156,6 +163,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team maintainer, DOES NOT belong to team",
@@ -164,6 +172,7 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 		{
 			name:                       "team observer, DOES NOT belong to team",
@@ -172,6 +181,16 @@ func TestTeamAuth(t *testing.T) {
 			shouldFailGlobalWrite:      true,
 			shouldFailRead:             true,
 			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
+		},
+		{
+			name:                       "team gitops, belongs to team",
+			user:                       &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailTeamWrite:        false,
+			shouldFailGlobalWrite:      true,
+			shouldFailRead:             true,
+			shouldFailTeamSecretsWrite: true,
+			shouldFailTeamMemberWrite:  true,
 		},
 	}
 	for _, tt := range testCases {
@@ -188,10 +207,10 @@ func TestTeamAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			_, err = svc.AddTeamUsers(ctx, 1, []fleet.TeamUser{})
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkAuthErr(t, tt.shouldFailTeamMemberWrite, err)
 
 			_, err = svc.DeleteTeamUsers(ctx, 1, []fleet.TeamUser{})
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkAuthErr(t, tt.shouldFailTeamMemberWrite, err)
 
 			_, err = svc.ListTeamUsers(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
