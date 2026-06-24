@@ -2213,6 +2213,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	// Fleet intercepts and returns an error rather than forwarding it.
 	resp, err := http.Get(scepProfileURL + "?operation=PKIOperation&message=" + base64.URLEncoding.EncodeToString([]byte("dummy")))
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.Contains(t, extractServerErrorText(resp.Body), "challenge password has expired")
 
