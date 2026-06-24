@@ -14,7 +14,7 @@
 //	    -domain qa.example.com -out fixture.json
 //
 //	# Serve the Admin SDK API from a fixture, hot-reloading it when the file changes.
-//	gw-directory-fake serve -fixture fixture.json -addr :8080
+//	gw-directory-fake serve -fixture fixture.json -addr :8091
 //
 // While serving, edit fixture.json (add/remove/rename users or groups) and the
 // server picks up the change automatically (it polls the file's modtime), so the
@@ -81,7 +81,7 @@ func main() {
 func usage() {
 	fmt.Fprintf(os.Stderr, `usage:
   gw-directory-fake generate -users N -groups M -members-per-group K -domain D -out FILE
-  gw-directory-fake serve -fixture FILE -addr :8080 [-latency 0s] [-error-rate 0.0]
+  gw-directory-fake serve -fixture FILE -addr :8091 [-latency 0s] [-error-rate 0.0]
 `)
 	os.Exit(2)
 }
@@ -160,7 +160,7 @@ func buildFixture(numUsers, numGroups, membersPerGroup int, domain string) fixtu
 func runServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	fixturePath := fs.String("fixture", "", "path to fixture JSON (required)")
-	addr := fs.String("addr", ":8080", "listen address")
+	addr := fs.String("addr", ":8091", "listen address")
 	latency := fs.Duration("latency", 0, "artificial latency added to each Directory API request")
 	errorRate := fs.Float64("error-rate", 0, "fraction [0..1] of Directory API requests to fail with 429/503")
 	reloadInterval := fs.Duration("reload-interval", 2*time.Second, "how often to check the fixture file for changes")
