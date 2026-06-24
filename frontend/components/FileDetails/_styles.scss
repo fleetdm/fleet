@@ -43,7 +43,7 @@
 
   &__progress-wrapper {
     display: flex;
-    width: 184px; // 144px bar + $pad-medium gap + 32px text
+    width: 184px; // 144px bar + $pad-small gap + 32px text
     flex-shrink: 0; // don't let the sibling __info collapse this wrapper to its min-content (#47539)
     justify-content: space-between;
     align-items: center;
