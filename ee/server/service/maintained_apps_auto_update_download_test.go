@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -34,13 +35,16 @@ type fakeManifestServer struct {
 	srv           *httptest.Server
 	sha           string
 	bytes         []byte
+	version       string // manifest version to advertise (default testFMALatest)
+	uninstall     string // uninstall script ref body (default "echo uninstall")
+	upgradeCode   string // manifest upgrade_code (default empty)
 	manifestHits  int
 	installerHits int
 	mu            sync.Mutex
 }
 
 func newFakeManifestServer(t *testing.T) *fakeManifestServer {
-	f := &fakeManifestServer{bytes: []byte("fake installer payload")}
+	f := &fakeManifestServer{bytes: []byte("fake installer payload"), version: testFMALatest, uninstall: "echo uninstall"}
 	sum := sha256.Sum256(f.bytes)
 	f.sha = hex.EncodeToString(sum[:])
 
@@ -51,15 +55,16 @@ func newFakeManifestServer(t *testing.T) *fakeManifestServer {
 		f.mu.Unlock()
 		manifest := ma.FMAManifestFile{
 			Versions: []*ma.FMAManifestApp{{
-				Version:            testFMALatest,
+				Version:            f.version,
 				InstallerURL:       f.srv.URL + "/installer.pkg",
 				SHA256:             f.sha,
+				UpgradeCode:        f.upgradeCode,
 				InstallScriptRef:   "i",
 				UninstallScriptRef: "u",
 				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2"},
 				DefaultCategories:  []string{"Browsers"},
 			}},
-			Refs: map[string]string{"i": "echo install", "u": "echo uninstall"},
+			Refs: map[string]string{"i": "echo install", "u": f.uninstall},
 		}
 		_ = json.NewEncoder(w).Encode(manifest)
 	})
@@ -121,6 +126,10 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 	}
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) {
 		return false, nil
+	}
+	// No existing same-content installer by default (byte-dedup package-ID lookup).
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
 	}
 	// After the insert, the new version is the newest cached one.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
@@ -236,6 +245,9 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Google Chrome", Slug: testFMASlug, Platform: "darwin"}, nil
 	}
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) { return false, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		return 13, nil
 	}
@@ -251,4 +263,64 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 
 	require.Equal(t, 1, srv.manifestHits, "manifest fetched once per slug across teams")
 	require.Equal(t, 1, srv.installerHits, "bytes downloaded once, reused across teams via the store")
+}
+
+// [5] A store.Put failure must NOT leave a DB row (which the caller would then
+// promote to byte-less storage). Bytes are stored before the row is inserted.
+func TestAutoUpdatePutFailureSkipsInsert(t *testing.T) {
+	_ = newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert the DB row when storing bytes fails")
+		return 0, nil
+	}
+	store := &mocksoftware.SoftwareInstallerStore{}
+	store.ExistsFunc = func(ctx context.Context, id string) (bool, error) { return false, nil }
+	store.PutFunc = func(ctx context.Context, id string, content io.ReadSeeker) error {
+		return errors.New("store unavailable")
+	}
+
+	// The candidate's download errors, but the run is isolated and returns nil.
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, store, discardLogger()))
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+// [4] The uninstall script's $PACKAGE_ID is substituted (here via the byte-dedup
+// path, where package IDs are recovered from the existing same-content installer).
+func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{0: {{PackageIDList: "ABC"}}}, nil
+	}
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	store := memStore(srv.sha) // byte-dedup: no download, package IDs come from the lookup
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, store, discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.NotContains(t, gotPayload.UninstallScript, "$PACKAGE_ID", "placeholder must be substituted")
+	require.Contains(t, gotPayload.UninstallScript, "ABC")
+}
+
+// [6] A caret pin with a "latest" manifest must not early-return before the real
+// version is resolved — it should proceed to download (then bail here because the
+// fake bytes can't be parsed).
+func TestAutoUpdateCaretLatestAttemptsDownload(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.version = "latest"
+	ds := baseDownloadStore(t, "150.0.0", 9)
+	pin := "^150"
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) { return &pin, nil }
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("fake bytes can't resolve a latest version; insert should not happen")
+		return 0, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.Equal(t, 1, srv.installerHits, "caret+latest must attempt the download, not early-return")
 }

@@ -776,7 +776,7 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 INSERT INTO software_installers (
 	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
-	post_install_script_content_id,
+	post_install_script_content_id, install_during_setup,
 	storage_id, filename, extension, version,
 	install_script_content_id, uninstall_script_content_id,
 	url, upgrade_code, is_active, patch_query
@@ -784,7 +784,7 @@ INSERT INTO software_installers (
 SELECT
 	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
-	post_install_script_content_id,
+	post_install_script_content_id, install_during_setup,
 	?, ?, ?, ?,
 	?, ?,
 	?, ?, 0, ?
@@ -823,8 +823,9 @@ FROM software_installers WHERE id = ?`,
 			return ctxerr.Wrap(ctx, err, "clone installer categories")
 		}
 
-		// Evict versions beyond the cap, always protecting the active installer.
-		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, activeInstallerID)
+		// Evict versions beyond the cap, protecting the live active row and the row
+		// we just inserted.
+		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, installerID)
 	})
 	if err != nil {
 		return 0, err
@@ -833,11 +834,27 @@ FROM software_installers WHERE id = ?`,
 }
 
 // evictOldFMAVersions caps cached FMA versions for a (team, title) at
-// maxCachedFMAVersions, always keeping protectInstallerID (the active version)
-// and otherwise the most recently uploaded versions. Policies on evicted rows
-// are re-pointed to the protected installer before the rows are deleted. Mirrors
-// the eviction logic in BatchSetSoftwareInstallers.
-func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, protectInstallerID uint) error {
+// maxCachedFMAVersions. It always keeps the row that is currently is_active=1
+// (an admin may have promoted a different cached version during the cron's
+// download window) and newInstallerID (the row just inserted, about to be
+// promoted), then the most recently uploaded versions. Policies on evicted rows
+// are re-pointed to the active installer before the rows are deleted. Mirrors the
+// eviction logic in BatchSetSoftwareInstallers.
+func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID uint) error {
+	// Resolve the live active row rather than trusting the caller's (possibly
+	// stale) view, so a concurrent admin promotion isn't evicted out from under us.
+	var activeID uint
+	err := sqlx.GetContext(ctx, tx, &activeID, `
+		SELECT id FROM software_installers
+		WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND is_active = 1
+		LIMIT 1`, globalOrTeamID, titleID)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "find active FMA installer for eviction")
+		}
+		activeID = newInstallerID
+	}
+
 	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")
@@ -847,8 +864,8 @@ func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext
 		return nil
 	}
 
-	// Keep set: protected installer + most recent up to the cap.
-	keepSet := map[uint]bool{protectInstallerID: true}
+	// Keep set: live active + newly inserted, then most recent up to the cap.
+	keepSet := map[uint]bool{newInstallerID: true, activeID: true}
 	for _, v := range versions {
 		if len(keepSet) >= maxCachedFMAVersions {
 			break
@@ -857,14 +874,14 @@ func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext
 	}
 	keepIDs := slices.Collect(maps.Keys(keepSet))
 
-	// Re-point policies referencing soon-to-be-evicted versions to the protected one.
+	// Re-point policies referencing soon-to-be-evicted versions to the active one.
 	rePointStmt, rePointArgs, err := sqlx.In(
 		`UPDATE policies SET software_installer_id = ?
 		WHERE software_installer_id IN (
 			SELECT id FROM software_installers
 			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)
 		)`,
-		protectInstallerID, globalOrTeamID, titleID, keepIDs,
+		activeID, globalOrTeamID, titleID, keepIDs,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build FMA policy re-point query")

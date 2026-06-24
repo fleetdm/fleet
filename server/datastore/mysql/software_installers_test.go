@@ -60,6 +60,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
 		{"InsertFleetMaintainedAppVersion", testInsertFleetMaintainedAppVersion},
+		{"InsertFleetMaintainedAppVersionProtectsLiveActive", testInsertFleetMaintainedAppVersionProtectsLiveActive},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
@@ -4809,11 +4810,15 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Seed a caret pin that must survive the insert untouched.
+	// Seed a caret pin that must survive the insert untouched, and mark v1 for the
+	// setup experience so we can assert the flag is carried forward.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
+		if _, err := q.ExecContext(ctx,
 			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)`,
-			team.ID, titleID, "^1")
+			team.ID, titleID, "^1"); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, activeID)
 		return err
 	})
 
@@ -4826,19 +4831,20 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, activeID, v2ID)
 
 	type row struct {
-		Active      bool   `db:"is_active"`
-		SelfService bool   `db:"self_service"`
-		Pre         string `db:"pre_install_query"`
-		Version     string `db:"version"`
-		Storage     string `db:"storage_id"`
-		InstallID   *uint  `db:"install_script_content_id"`
-		PostID      *uint  `db:"post_install_script_content_id"`
+		Active             bool   `db:"is_active"`
+		SelfService        bool   `db:"self_service"`
+		InstallDuringSetup bool   `db:"install_during_setup"`
+		Pre                string `db:"pre_install_query"`
+		Version            string `db:"version"`
+		Storage            string `db:"storage_id"`
+		InstallID          *uint  `db:"install_script_content_id"`
+		PostID             *uint  `db:"post_install_script_content_id"`
 	}
 	getRow := func(id uint) row {
 		var r row
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &r,
-				`SELECT is_active, self_service, pre_install_query, version, storage_id, install_script_content_id, post_install_script_content_id
+				`SELECT is_active, self_service, install_during_setup, pre_install_query, version, storage_id, install_script_content_id, post_install_script_content_id
 				 FROM software_installers WHERE id = ?`, id)
 		})
 		return r
@@ -4850,6 +4856,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	require.False(t, r2.Active)
 	// Config carried forward.
 	require.True(t, r2.SelfService)
+	require.True(t, r2.InstallDuringSetup, "install_during_setup must be carried forward")
 	require.Equal(t, "SELECT pre", r2.Pre)
 	require.Equal(t, "2.0", r2.Version)
 	require.Equal(t, "sha-v2", r2.Storage)
@@ -4903,6 +4910,60 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ? ORDER BY id`, team.ID, titleID)
 	})
 	require.ElementsMatch(t, []uint{activeID, v3ID}, remaining, "v2 evicted, active protected")
+}
+
+// testInsertFleetMaintainedAppVersionProtectsLiveActive verifies that eviction
+// keeps the row that is actually is_active=1 at eviction time (e.g. an admin
+// rollback during the cron's download window), not the caller's stale view.
+func testInsertFleetMaintainedAppVersionProtectsLiveActive(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-live-active"})
+	require.NoError(t, err)
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained2", Slug: "maintained2", Platform: "darwin", UniqueIdentifier: "fleet.maintained2",
+	})
+	require.NoError(t, err)
+	newFile := func(s string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(s), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	v1, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "FooFMA", Source: "apps", Platform: "darwin", InstallScript: "echo i", UninstallScript: "echo u",
+		InstallerFile: newFile("v1"), StorageID: "live-v1", Filename: "foo-1.0.pkg", Extension: "pkg",
+		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Cache v2, then promote it to active (simulating a concurrent admin rollback).
+	v2, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "live-v2",
+		URL: "https://example.test/2", InstallScript: "echo i2", UninstallScript: "echo u2",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = (id = ?) WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?`,
+			v2, team.ID, maintainedApp.ID)
+		return err
+	})
+
+	// Insert v3 passing the STALE active id (v1). Eviction must protect the live
+	// active (v2) and the new row (v3), evicting v1 — not evict v2.
+	v3, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "live-v3",
+		URL: "https://example.test/3", InstallScript: "echo i3", UninstallScript: "echo u3",
+	})
+	require.NoError(t, err)
+
+	var remaining []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &remaining,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ? ORDER BY id`, team.ID, titleID)
+	})
+	require.ElementsMatch(t, []uint{v2, v3}, remaining, "live active (v2) protected, stale v1 evicted")
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
