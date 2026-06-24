@@ -503,7 +503,7 @@ spec:
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
         - path: '/path/to/declaration.json'
-          predicate: "@status(device.model.family) == 'MacBookPro'"
+        - path: '/path/to/asset.json'
       enable_disk_encryption: true
     windows_settings:
       configuration_profiles:

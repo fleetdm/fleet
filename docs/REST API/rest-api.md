@@ -1618,16 +1618,32 @@ None.
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
+        }
+      ]
+    },
+    "apple_settings": {
+      "configuration_profiles": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/declaration.json",
-          "labels": ["Label 1", "Label 2"],
-          "predicate": "@status(device.model.family) == 'MacBookPro'"
+          "labels": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/asset.json"
         }
       ]
     },
     "windows_settings": {
       "custom_settings": [
+        {
+         "path": "path/to/profile2.xml",
+         "labels": ["Label 3", "Label 4"]
+        }
+      ],
+      "configuration_profiles": [
         {
          "path": "path/to/profile2.xml",
          "labels": ["Label 3", "Label 4"]
@@ -1982,13 +1998,14 @@ Modifies the Fleet's configuration with the supplied information.
         },
         {
           "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"],
-          "predicate": "@status(device.model.family) == 'MacBookPro'"
+          "labels_include_all": ["Label 3", "Label 4"]
         },
         {
           "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"],
-          "predicate": "@status(device.model.family) == 'MacBookPro'"
+          "labels_include_any": ["Label 5", "Label 6"]
+        },
+        {
+          "path": "path/to/asset.json"
         },
       ]
     },
@@ -2730,8 +2747,10 @@ _Available in Fleet Premium._
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"],
-          "predicate": "@status(device.model.family) == 'MacBookPro'"
+          "labels": ["Label 3", "Label 4"]
+        },
+        {
+          "path": "path/to/asset.json"
         },
       ]
     },
@@ -6586,12 +6605,11 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
+| profile                   | file     | body | **Required.** The .mobileconfig, JSON (DDM declaration or asset declaration), or XML for Windows file containing the profile or asset. |
 | fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
-| predicate | string | body | Only supported for Apple DDM (Declarative Device Management) declaration profiles. A predicate to control which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'`. Can be used in combination with labels or on its own. Not available for `.mobileconfig` or Windows `.xml` profiles. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -6600,19 +6618,18 @@ of duplicate payload display name or duplicate payload identifier (macOS profile
 
 #### Example
 
-Add a new DDM declaration profile to be applied to macOS hosts
+Add a new configuration profile to be applied to macOS hosts
 assigned to a fleet. Note that in this example the form data specifies `fleet_id` in addition to
-`profile`, and includes a `predicate` (only supported for DDM declaration profiles).
+`profile`.
 
 `POST /api/v1/fleet/configuration_profiles`
 
 ##### Request body
 
 ```http
-profile="Foo.json"
+profile="Foo.mobileconfig"
 fleet_id="1"
 labels_include_all="Label name 1"
-predicate="@status(device.model.family) == 'MacBookPro'"
 ```
 
 ##### Default response
@@ -6864,11 +6881,10 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 | Name                    | Type    | Description   |
 | -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
+| profile                | string   | Base64 encoded configuration profile (.mobileconfig), declaration (DDM) profile, or asset declaration (`com.apple.asset`) for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
-| predicate | string | Only supported for Apple DDM (Declarative Device Management) declaration profiles. A predicate to control which hosts receive the profile. For example, `@status(device.model.family) == 'MacBookPro'`. Can be used in combination with labels or on its own. Not available for `.mobileconfig`, Windows `.xml`, or Android `.json` profiles. |
 | display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
 
 For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
@@ -12654,8 +12670,10 @@ _Available in Fleet Premium_
           },
           {
             "path": "path/to/declaration.json",
-            "labels": ["Label 1", "Label 2"],
-            "predicate": "@status(device.model.family) == 'MacBookPro'"
+            "labels": ["Label 1", "Label 2"]
+          },
+          {
+            "path": "path/to/asset.json"
           }
         ]
       },
@@ -13152,8 +13170,10 @@ Returned when the requested name only differs from another fleet's name by lette
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"],
-          "predicate": "@status(device.model.family) == 'MacBookPro'"
+          "labels": ["Label 3", "Label 4"]
+        },
+        {
+          "path": "path/to/asset.json"
         },
       ]
     },
@@ -13303,8 +13323,10 @@ _Available in Fleet Premium_
           },
           {
            "path": "path/to/declaration.json",
-           "labels": ["Label 1", "Label 2"],
-           "predicate": "@status(device.model.family) == 'MacBookPro'"
+           "labels": ["Label 1", "Label 2"]
+          },
+          {
+           "path": "path/to/asset.json"
           }
         ]
       },
