@@ -227,3 +227,5 @@ github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertifica
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	BypassDisabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentSettings	fleet.AgentSettings
+github.com/fleetdm/fleet/v4/server/fleet/AgentSettings	FleetdBaseURL	string

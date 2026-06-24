@@ -159,10 +159,12 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	if isMacOS(args.Platform) {
 		var manualAgentInstall bool
+		appCfg, err = a.getAppConfig(ctx, appCfg)
+		if err != nil {
+			return err
+		}
+
 		if args.TeamID == nil {
-			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
-				return err
-			}
 			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
@@ -562,8 +564,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	return nil
 }
 
-func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string, cfg *fleet.AppConfig) (string, error) {
-	manifestURL := fleetdbase.GetPKGManifestURL(cfg.AgentSettings.FleetdBaseURL)
+func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string, appCfg *fleet.AppConfig) (string, error) {
+	manifestURL := fleetdbase.GetPKGManifestURL(appCfg.AgentSettings.FleetdBaseURL)
 	cmdUUID := uuid.New().String()
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
