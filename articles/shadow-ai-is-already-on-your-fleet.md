@@ -25,6 +25,25 @@ A few things that matter when you're inventorying developer machines specificall
 - **Answers come back in seconds.** Live queries let you ask a question right now and get results from every host, rather than waiting on a daily collection cycle. When a new extension CVE drops on a Friday, that difference is the whole game.
 - **It's API-first and GitOps-native.** Every policy and report can live in a Git repo as YAML, get reviewed in a pull request, and deployed through CI. Your AI governance posture becomes code you can audit and roll back, not clicks someone made in a console six months ago.
 
+
+## From "see it" to "govern it"
+
+Visibility is step one. The reason Fleet is useful here is that the same platform takes you the rest of the way.
+
+**Software detection.** Everything those reports surface — apps, packages, browser plugins, and IDE extensions — rolls up into Fleet's software inventory automatically. You get one searchable, cross-platform view of what's installed everywhere, with no separate collection tool to deploy and maintain.
+
+**Vulnerability management.** Fleet matches your installed software against published CVE data and surfaces which hosts are exposed to which vulnerabilities. And when a brand-new CVE is announced, you don't wait! You run a live query and get an answer across the fleet in seconds.
+
+**Patching and enforcement.** Detection without remediation is just a nicer-looking spreadsheet. Fleet lets you turn findings into action: deploy and update software through software installers and Fleet-maintained apps, enforce minimum OS versions with a grace period before enforcement kicks in, and run scripts on macOS, Windows, and Linux to remediate at scale. Pair a report that detects a disallowed AI tool with a policy that flags or remediates it, and you've closed the loop.
+
+**Policies as code.** Turn any of the reports above into a policy, store it in Git, and review changes in a pull request. Onboarding a new sanctioned AI tool, or retiring a risky one, becomes a reviewable, reversible change instead of an undocumented console edit.
+
+## Enable it, don't just block it
+
+Agentic development is genuinely worth adopting. The teams getting real leverage from it aren't the ones who blocked everything; they're the ones who got visibility first, set sane guardrails, and then said yes deliberately. You can't make that bet responsibly if you can't answer "what's already running, and what systems is it capable of accessing?"
+
+That's the role we think endpoint management should play in AI governance: give you a true, current, cross-platform picture of AI tooling on every device, and the controls to act on it, without a black box and without standing up yet another point solution.
+
 ## A starter pack: reports to find AI tooling on your fleet
 
 Here's a set of reports you can run today to get a picture of what's actually out there. Each one is a standard Fleet query that you can run live for an instant snapshot, or save it as a scheduled report or policy to keep watch over time.
@@ -161,24 +180,6 @@ WHERE path LIKE '/Users/%/.claude/%'
 Swap in the names and paths that matter to your environment.
 
 The point is that once a tool is on disk, Fleet can find it.
-
-## From "see it" to "govern it"
-
-Visibility is step one. The reason Fleet is useful here is that the same platform takes you the rest of the way.
-
-**Software detection.** Everything those reports surface — apps, packages, browser plugins, and IDE extensions — rolls up into Fleet's software inventory automatically. You get one searchable, cross-platform view of what's installed everywhere, with no separate collection tool to deploy and maintain.
-
-**Vulnerability management.** Fleet matches your installed software against published CVE data and surfaces which hosts are exposed to which vulnerabilities. And when a brand-new CVE is announced, you don't wait! You run a live query and get an answer across the fleet in seconds.
-
-**Patching and enforcement.** Detection without remediation is just a nicer-looking spreadsheet. Fleet lets you turn findings into action: deploy and update software through software installers and Fleet-maintained apps, enforce minimum OS versions with a grace period before enforcement kicks in, and run scripts on macOS, Windows, and Linux to remediate at scale. Pair a report that detects a disallowed AI tool with a policy that flags or remediates it, and you've closed the loop.
-
-**Policies as code.** Turn any of the reports above into a policy, store it in Git, and review changes in a pull request. Onboarding a new sanctioned AI tool, or retiring a risky one, becomes a reviewable, reversible change instead of an undocumented console edit.
-
-## Enable it, don't just block it
-
-Agentic development is genuinely worth adopting. The teams getting real leverage from it aren't the ones who blocked everything; they're the ones who got visibility first, set sane guardrails, and then said yes deliberately. You can't make that bet responsibly if you can't answer "what's already running, and what systems is it capable of accessing?"
-
-That's the role we think endpoint management should play in AI governance: give you a true, current, cross-platform picture of AI tooling on every device, and the controls to act on it, without a black box and without standing up yet another point solution.
 
 ## See it live
 
