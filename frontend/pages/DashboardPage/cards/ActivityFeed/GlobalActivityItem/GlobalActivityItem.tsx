@@ -18,6 +18,7 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -31,6 +32,7 @@ import { API_NO_TEAM_ID } from "interfaces/team";
 const baseClass = "global-activity-item";
 
 const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanCustomMdmCommand,
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
@@ -1091,6 +1093,16 @@ const TAGGED_TEMPLATES = {
         {" "}
         told Fleet to stop migrating Windows hosts connected to another MDM
         solution.
+      </>
+    );
+  },
+  ranCustomMdmCommand: (activity: IActivity) => {
+    const { request_type, host_display_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatMdmCommandNameForActivityItem(request_type)} on{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
@@ -2389,6 +2401,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
+    }
+    case ActivityType.RanCustomMdmCommand: {
+      return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
