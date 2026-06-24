@@ -235,17 +235,23 @@ func downloadNewVersionIfEligible(
 			}
 		}
 	} else {
-		// Bytes already cached: recover the package IDs from an existing installer
-		// with identical content so the uninstall script can still be substituted.
+		// Bytes already cached: recover the package IDs and upgrade code from an
+		// existing installer with identical content (same SHA ⇒ same metadata) so
+		// the uninstall script can still be substituted.
 		if existing, err := ds.GetTeamsWithInstallerByHash(ctx, storageID, ""); err == nil {
 			for _, installers := range existing {
+				done := false
 				for _, e := range installers {
 					if e.PackageIDList != "" {
 						packageIDs = strings.Split(e.PackageIDList, ",")
+						if e.UpgradeCode != "" {
+							upgradeCode = e.UpgradeCode
+						}
+						done = true
 						break
 					}
 				}
-				if len(packageIDs) > 0 {
+				if done {
 					break
 				}
 			}
@@ -291,6 +297,13 @@ func downloadNewVersionIfEligible(
 	// GitOps materialization path (no-op when there are no package IDs).
 	if err := preProcessUninstallScript(payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "processing uninstall script")
+	}
+	// Refuse to persist a row whose uninstall script still has unsubstituted
+	// template variables (e.g. metadata extraction failed and preProcess silently
+	// no-op'd): promoting it would record uninstalls as succeeding while the app
+	// stays installed. Skip this candidate; the next run retries.
+	if file.PackageIDRegex.MatchString(payload.UninstallScript) || file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
+		return ctxerr.Errorf(ctx, "uninstall script for %q still has unsubstituted template variables; skipping cache", c.Slug)
 	}
 
 	// Store the bytes before creating the DB row, so a Put failure can't leave a

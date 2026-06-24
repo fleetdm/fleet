@@ -655,6 +655,7 @@ type ExistingSoftwareInstaller struct {
 	Title                  string  `db:"title"`
 	PackageIDList          string  `db:"package_ids"`
 	PackageIDs             []string
+	UpgradeCode            string  `db:"upgrade_code"`
 	StorageID              string  `db:"storage_id"`
 	HTTPETag               *string `db:"http_etag"`
 	InstallScriptContentID uint    `db:"install_script_content_id"`

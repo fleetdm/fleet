@@ -4801,7 +4801,8 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 		PreInstallQuery: "SELECT pre", PostInstallScript: "echo post",
 		SelfService:   true,
 		InstallerFile: newFile("v1"), StorageID: "sha-v1", Filename: "foo-1.0.pkg", Extension: "pkg",
-		Version: "1.0", UserID: user.ID, TeamID: &team.ID,
+		PackageIDs: []string{"OLD-PKG"},
+		Version:    "1.0", UserID: user.ID, TeamID: &team.ID,
 		ValidatedLabels: &fleet.LabelIdentsWithScope{
 			LabelScope: fleet.LabelScopeIncludeAny,
 			ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
@@ -4822,10 +4823,12 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	// Cache v2 (inactive), cloning v1's config.
+	// Cache v2 (inactive), cloning v1's config; package_ids must come from the
+	// payload (version-specific MSI ProductCode), not be cloned from v1.
 	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
 		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2",
-		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+		PackageIDs: []string{"NEW-PKG"},
+		URL:        "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, activeID, v2ID)
@@ -4837,6 +4840,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 		Pre                string `db:"pre_install_query"`
 		Version            string `db:"version"`
 		Storage            string `db:"storage_id"`
+		PackageIDs         string `db:"package_ids"`
 		InstallID          *uint  `db:"install_script_content_id"`
 		PostID             *uint  `db:"post_install_script_content_id"`
 	}
@@ -4844,7 +4848,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 		var r row
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &r,
-				`SELECT is_active, self_service, install_during_setup, pre_install_query, version, storage_id, install_script_content_id, post_install_script_content_id
+				`SELECT is_active, self_service, install_during_setup, pre_install_query, version, storage_id, package_ids, install_script_content_id, post_install_script_content_id
 				 FROM software_installers WHERE id = ?`, id)
 		})
 		return r
@@ -4857,6 +4861,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	// Config carried forward.
 	require.True(t, r2.SelfService)
 	require.True(t, r2.InstallDuringSetup, "install_during_setup must be carried forward")
+	require.Equal(t, "NEW-PKG", r2.PackageIDs, "package_ids must be bound from payload, not cloned from v1")
 	require.Equal(t, "SELECT pre", r2.Pre)
 	require.Equal(t, "2.0", r2.Version)
 	require.Equal(t, "sha-v2", r2.Storage)

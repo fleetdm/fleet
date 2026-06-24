@@ -324,3 +324,22 @@ func TestAutoUpdateCaretLatestAttemptsDownload(t *testing.T) {
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
 	require.Equal(t, 1, srv.installerHits, "caret+latest must attempt the download, not early-return")
 }
+
+// [comment 1] When no package IDs can be recovered (e.g. metadata extraction
+// fails) and the uninstall script still contains template variables, the cron
+// must NOT persist/promote the version — otherwise uninstalls record success
+// while the app stays installed.
+func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not cache a version whose uninstall script still has $PACKAGE_ID")
+		return 0, nil
+	}
+
+	// Download path: the fake bytes can't be parsed, so no package IDs are recovered
+	// and the $PACKAGE_ID placeholder survives — the candidate must be skipped.
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}

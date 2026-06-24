@@ -774,24 +774,24 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, `
 INSERT INTO software_installers (
-	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
+	team_id, global_or_team_id, title_id, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
 	storage_id, filename, extension, version,
 	install_script_content_id, uninstall_script_content_id,
-	url, upgrade_code, is_active, patch_query
+	url, upgrade_code, is_active, patch_query, package_ids
 )
 SELECT
-	team_id, global_or_team_id, title_id, package_ids, pre_install_query, platform,
+	team_id, global_or_team_id, title_id, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
 	?, ?, ?, ?,
 	?, ?,
-	?, ?, 0, ?
+	?, ?, 0, ?, ?
 FROM software_installers WHERE id = ?`,
 			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
 			installScriptID, uninstallScriptID,
-			payload.URL, payload.UpgradeCode, payload.PatchQuery,
+			payload.URL, payload.UpgradeCode, payload.PatchQuery, strings.Join(payload.PackageIDs, ","),
 			activeInstallerID,
 		)
 		if err != nil {
@@ -3954,6 +3954,7 @@ SELECT
 	st.bundle_identifier,
 	st.name AS title,
 	si.package_ids,
+	si.upgrade_code,
 	si.install_script_content_id
 FROM
 	software_installers si
@@ -3976,6 +3977,7 @@ SELECT
 	st.bundle_identifier,
 	st.name AS title,
 	'' AS package_ids,
+	'' AS upgrade_code,
 	0 AS install_script_content_id
 FROM
 	in_house_apps iha
