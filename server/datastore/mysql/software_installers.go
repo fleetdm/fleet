@@ -772,6 +772,25 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Resolve the live active row inside the tx and use it as the clone source,
+		// so per-team config the admin edited on a row they promoted during the
+		// cron's download window isn't cloned from the caller's stale view. FOR
+		// UPDATE serializes against a concurrent promotion. Falls back to the
+		// caller-supplied id only if nothing is active.
+		cloneFromID := activeInstallerID
+		var liveActiveID uint
+		switch err := sqlx.GetContext(ctx, tx, &liveActiveID, `
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND is_active = 1
+			LIMIT 1 FOR UPDATE`, src.GlobalOrTeamID, src.TitleID); {
+		case err == nil:
+			cloneFromID = liveActiveID
+		case errors.Is(err, sql.ErrNoRows):
+			// no active row; keep caller-supplied id
+		default:
+			return ctxerr.Wrap(ctx, err, "resolve live active installer for clone")
+		}
+
 		res, err := tx.ExecContext(ctx, `
 INSERT INTO software_installers (
 	team_id, global_or_team_id, title_id, pre_install_query, platform,
@@ -792,7 +811,7 @@ FROM software_installers WHERE id = ?`,
 			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
 			installScriptID, uninstallScriptID,
 			payload.URL, payload.UpgradeCode, payload.PatchQuery, strings.Join(payload.PackageIDs, ","),
-			activeInstallerID,
+			cloneFromID,
 		)
 		if err != nil {
 			if IsDuplicate(err) {
@@ -811,21 +830,21 @@ FROM software_installers WHERE id = ?`,
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all)
 			SELECT ?, label_id, exclude, require_all FROM software_installer_labels WHERE software_installer_id = ?`,
-			installerID, activeInstallerID,
+			installerID, cloneFromID,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "clone installer labels")
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO software_installer_software_categories (software_installer_id, software_category_id)
 			SELECT ?, software_category_id FROM software_installer_software_categories WHERE software_installer_id = ?`,
-			installerID, activeInstallerID,
+			installerID, cloneFromID,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "clone installer categories")
 		}
 
-		// Evict versions beyond the cap, protecting the live active row and the row
-		// we just inserted.
-		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, installerID)
+		// Evict versions beyond the cap, protecting the live active row (the clone
+		// source) and the row we just inserted.
+		return ds.evictOldFMAVersions(ctx, tx, src.GlobalOrTeamID, src.TitleID, installerID, cloneFromID)
 	})
 	if err != nil {
 		return 0, err
@@ -834,27 +853,12 @@ FROM software_installers WHERE id = ?`,
 }
 
 // evictOldFMAVersions caps cached FMA versions for a (team, title) at
-// maxCachedFMAVersions. It always keeps the row that is currently is_active=1
-// (an admin may have promoted a different cached version during the cron's
-// download window) and newInstallerID (the row just inserted, about to be
-// promoted), then the most recently uploaded versions. Policies on evicted rows
-// are re-pointed to the active installer before the rows are deleted. Mirrors the
-// eviction logic in BatchSetSoftwareInstallers.
-func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID uint) error {
-	// Resolve the live active row rather than trusting the caller's (possibly
-	// stale) view, so a concurrent admin promotion isn't evicted out from under us.
-	var activeID uint
-	err := sqlx.GetContext(ctx, tx, &activeID, `
-		SELECT id FROM software_installers
-		WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND is_active = 1
-		LIMIT 1`, globalOrTeamID, titleID)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return ctxerr.Wrap(ctx, err, "find active FMA installer for eviction")
-		}
-		activeID = newInstallerID
-	}
-
+// maxCachedFMAVersions. It always keeps activeID (the live is_active=1 row,
+// resolved by the caller under FOR UPDATE) and newInstallerID (the row just
+// inserted, about to be promoted), then the most recently uploaded versions.
+// Policies on evicted rows are re-pointed to the active installer before the rows
+// are deleted. Mirrors the eviction logic in BatchSetSoftwareInstallers.
+func (ds *Datastore) evictOldFMAVersions(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID, newInstallerID, activeID uint) error {
 	fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list FMA installer versions for eviction")

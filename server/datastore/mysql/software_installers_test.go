@@ -61,6 +61,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
 		{"InsertFleetMaintainedAppVersion", testInsertFleetMaintainedAppVersion},
 		{"InsertFleetMaintainedAppVersionProtectsLiveActive", testInsertFleetMaintainedAppVersionProtectsLiveActive},
+		{"InsertFleetMaintainedAppVersionClonesLiveActive", testInsertFleetMaintainedAppVersionClonesLiveActive},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
@@ -4969,6 +4970,68 @@ func testInsertFleetMaintainedAppVersionProtectsLiveActive(t *testing.T, ds *Dat
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ? ORDER BY id`, team.ID, titleID)
 	})
 	require.ElementsMatch(t, []uint{v2, v3}, remaining, "live active (v2) protected, stale v1 evicted")
+}
+
+// testInsertFleetMaintainedAppVersionClonesLiveActive verifies the new version's
+// per-team config is cloned from the row that is actually is_active=1 at insert
+// time, not from the caller's (possibly stale) activeInstallerID — e.g. when an
+// admin promotes a different cached row and edits it during the download window.
+func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Carol", "carol@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-clone-live"})
+	require.NoError(t, err)
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained3", Slug: "maintained3", Platform: "darwin", UniqueIdentifier: "fleet.maintained3",
+	})
+	require.NoError(t, err)
+	newFile := func(s string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(s), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	// v1 active with self-service OFF.
+	v1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "FooFMA", Source: "apps", Platform: "darwin", InstallScript: "echo i", UninstallScript: "echo u",
+		SelfService: false, InstallerFile: newFile("v1"), StorageID: "clone-v1", Filename: "foo-1.0.pkg", Extension: "pkg",
+		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Cache v2, promote it, and turn ON self-service + setup-experience on it
+	// (simulating an admin rollback + edit during the cron's download window).
+	v2, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "clone-v2",
+		URL: "https://example.test/2", InstallScript: "echo i2", UninstallScript: "echo u2",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_installers SET is_active = (id = ?), self_service = (id = ?), install_during_setup = (id = ?)
+			 WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?`,
+			v2, v2, v2, team.ID, maintainedApp.ID)
+		return err
+	})
+
+	// Insert v3 with the STALE caller id (v1). Config must clone from live active (v2).
+	v3, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
+		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "clone-v3",
+		URL: "https://example.test/3", InstallScript: "echo i3", UninstallScript: "echo u3",
+	})
+	require.NoError(t, err)
+
+	var r struct {
+		SelfService        bool `db:"self_service"`
+		InstallDuringSetup bool `db:"install_during_setup"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &r,
+			`SELECT self_service, install_during_setup FROM software_installers WHERE id = ?`, v3)
+	})
+	require.True(t, r.SelfService, "self_service cloned from live active (v2), not stale v1")
+	require.True(t, r.InstallDuringSetup, "install_during_setup cloned from live active (v2), not stale v1")
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
