@@ -6525,9 +6525,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf(
-			"SELECT combined_results.* FROM (%s) AS combined_results LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = combined_results.id AND stdn.team_id = %d",
-			stmt, globalOrTeamID,
+			"SELECT combined_results.* FROM (%s) AS combined_results LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = combined_results.id AND stdn.team_id = ?",
+			stmt,
 		)
+		args = append(args, globalOrTeamID)
 		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
