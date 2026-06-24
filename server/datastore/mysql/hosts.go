@@ -632,16 +632,27 @@ var hostRefs = []string{
 // above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
 // and the map value is the column name to match to the host.uuid.
+//
+// Note on host_mdm_apple_enrollment_permissions: this row is hard-deleted here along
+// with the host_mdm row. If a still-MDM-enrolled device is deleted in Fleet and later
+// "comes back", both its stored access-rights row and host_mdm.is_personal_enrollment
+// are gone, so a SCEP/ACME renewal that fires before the device sends a fresh
+// Authenticate (which re-populates both, including byod=1 for BYOD) would fall back to
+// MDMAccessRightAll and widen the bitmask — Apple rejects that on profile replacement.
+// This is acceptable because re-enrollment runs Authenticate before renewal in practice,
+// and a rejected renewal leaves the existing (correctly narrowed) profile in place rather
+// than weakening it. If this ever needs to survive deletion, move the row to a soft-delete
+// (see additionalHostRefsSoftDelete) keyed by host_uuid.
 var additionalHostRefsByUUID = map[string]string{
-	"host_mdm_apple_profiles":                      "host_uuid",
-	"host_mdm_apple_bootstrap_packages":            "host_uuid",
-	"host_mdm_windows_profiles":                    "host_uuid",
-	"host_mdm_apple_declarations":                  "host_uuid",
-	"host_mdm_apple_awaiting_configuration":        "host_uuid",
-	"setup_experience_status_results":              "host_uuid",
-	"host_mdm_android_profiles":                    "host_uuid",
-	"host_certificate_templates":                   "host_uuid",
-	"host_mdm_apple_enrollment_permissions":        "host_uuid",
+	"host_mdm_apple_profiles":               "host_uuid",
+	"host_mdm_apple_bootstrap_packages":     "host_uuid",
+	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_apple_declarations":           "host_uuid",
+	"host_mdm_apple_awaiting_configuration": "host_uuid",
+	"setup_experience_status_results":       "host_uuid",
+	"host_mdm_android_profiles":             "host_uuid",
+	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which

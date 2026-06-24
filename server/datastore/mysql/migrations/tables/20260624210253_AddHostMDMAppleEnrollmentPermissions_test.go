@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260622163927(t *testing.T) {
+func TestUp_20260624210253(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed hosts: manually-enrolled Mac (should backfill), DEP-enrolled Mac

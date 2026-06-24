@@ -3626,7 +3626,7 @@ func (r getManualEnrollmentProfileResponse) Error() error { return r.Err }
 type getManualEnrollmentProfileRequest struct {
 	// Personal indicates the end user chose "Personal (BYOD)" on the /enroll page.
 	// Defaults to false (company-owned) when omitted to preserve backwards-compatibility.
-	Personal bool `query:"byod"`
+	Personal bool `query:"byod,optional"`
 }
 
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -5774,19 +5774,42 @@ func RenewSCEPCertificates(
 		}
 
 		if len(filteredAssocs) > 0 {
+			// Bucket the renewals by their (personal, rights) tuple. Every host in
+			// a bucket gets a byte-identical enrollment profile, so we can collapse
+			// them into a single InstallProfile command instead of one per host.
+			// The nano command tables are hot, and in practice there are only two
+			// distinct buckets (company-owned vs. BYOD), so this keeps renewal write
+			// traffic close to the pre-BYOD single-command behaviour.
+			type renewalBucket struct {
+				personal bool
+				rights   int
+			}
+			buckets := make(map[renewalBucket][]fleet.SCEPIdentityAssociation)
+			// Preserve a deterministic order so the commands we enqueue don't depend
+			// on Go's randomized map iteration.
+			bucketOrder := make([]renewalBucket, 0, 2)
 			for _, assoc := range filteredAssocs {
 				personal, rights, err := renewalEnrollmentParams(ctx, ds, assoc.HostUUID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting stored enrollment permissions for renewal")
 				}
+				key := renewalBucket{personal: personal, rights: rights}
+				if _, ok := buckets[key]; !ok {
+					bucketOrder = append(bucketOrder, key)
+				}
+				buckets[key] = append(buckets[key], assoc)
+			}
+
+			for _, key := range bucketOrder {
+				assocs := buckets[key]
 				// Apple rejects ServerURL changes on profile replacement, so the
 				// renewed URL must match the URL the device was enrolled with.
 				// BYOD devices carry byod=1 in their initial ServerURL (set by
 				// AddPersonalEnrollmentToFleetURL on the OTA/EE path); reapply
 				// the same flag for personal enrollments. Pre-feature and
-				// company-owned devices return personal=false here, leaving
+				// company-owned devices have personal=false here, leaving
 				// MDMUrl unchanged.
-				renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), personal)
+				renewURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), key.personal)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "building renewal URL with personal flag")
 				}
@@ -5796,12 +5819,12 @@ func RenewSCEPCertificates(
 					renewURL,
 					scepChallenge,
 					mdmPushCertTopic,
-					rights,
+					key.rights,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 				}
-				if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
+				if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, assocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 					return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 				}
 			}

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260622163928(t *testing.T) {
+func TestUp_20260624210311(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid, platform) VALUES (?, ?, ?, ?, ?)`,

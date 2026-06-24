@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260622163928, Down_20260622163928)
+	MigrationClient.AddMigration(Up_20260624210311, Down_20260624210311)
 }
 
 // Up_20260622163928 renames the enrollment_status VIRTUAL GENERATED column
@@ -15,7 +15,7 @@ func init() {
 //
 // Because enrollment_status is a VIRTUAL column (not stored), MySQL recomputes
 // its value at read time; there is no stored data to migrate.
-func Up_20260622163928(tx *sql.Tx) error {
+func Up_20260624210311(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE host_mdm
 		CHANGE COLUMN enrollment_status enrollment_status
@@ -38,6 +38,6 @@ func Up_20260622163928(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260622163928(tx *sql.Tx) error {
+func Down_20260624210311(tx *sql.Tx) error {
 	return nil
 }
