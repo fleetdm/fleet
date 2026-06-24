@@ -39,7 +39,7 @@ The following terms were recently renamed. Use the new terms in conversation and
 - **Endpoint registration**: `ue.POST("/api/_version_/fleet/resource", fn, reqType{})`
 - **Authorization**: `svc.authz.Authorize(ctx, entity, fleet.ActionX)` at start of service methods
 - **Logging**: slog with `DebugContext/InfoContext/WarnContext/ErrorContext` — never bare slog.Debug/Info/Warn/Error
-- **Pointers**: Use Go 1.26 `new(expression)` for pointer values (e.g., `new("value")`, `new(true)`, `new(42)`). Do NOT use the legacy `server/ptr` package in new code — it exists throughout the codebase but is superseded by `new(expr)`.
+- **Pointers**: Use Go 1.26 `new(expression)` (e.g., `new("value")`, `new(true)`, `new(42)`) — not `server/ptr`'s deprecated constructors. Non-deprecated helpers (e.g., `ptr.ValOrZero`) are still fine.
 - **Reference example**: `server/service/vulnerabilities.go`
 
 ## Before writing a fix
