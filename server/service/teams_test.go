@@ -186,7 +186,7 @@ func TestTeamAuth(t *testing.T) {
 		},
 		{
 			name:                       "global gitops",
-			user:                       &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			user:                       &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
 			shouldFailTeamWrite:        false,
 			shouldFailGlobalWrite:      false,
 			shouldFailRead:             true,
