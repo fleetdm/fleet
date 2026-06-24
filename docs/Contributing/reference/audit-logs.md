@@ -2807,6 +2807,25 @@ This activity contains the following fields:
 }
 ```
 
+## edited_windows_automatic_enrollment_default_fleet
+
+Generated when the default fleet for Windows automatic enrollments is edited.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the default fleet for Windows automatic enrollments, null if set to no fleet.
+- "fleet_name": The name of the default fleet for Windows automatic enrollments, null if set to no fleet.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
