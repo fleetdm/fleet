@@ -29,6 +29,25 @@ func TestUrlGeneration(t *testing.T) {
 		require.Equal(t, "https://test.com/prefix/test/path", bc.URL("test/path", "").String())
 		require.Equal(t, "https://test.com/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
 	})
+
+	t.Run("with subpath in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll?raw=query", bc.URL("/api/fleet/orbit/enroll", "raw=query").String())
+	})
+
+	t.Run("with subpath and trailing slash in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath/", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+	})
+
+	t.Run("with subpath and path without leading slash", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/test/path", bc.URL("test/path", "").String())
+	})
 }
 
 func TestParseResponseKnownErrors(t *testing.T) {
