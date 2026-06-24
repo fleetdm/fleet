@@ -24,8 +24,8 @@ extension AuthenticationViewController:
         completion: @escaping (ASAuthorizationProviderExtensionRegistrationResult) -> Void
     ) {
         self.loginManager = loginManager
-        guard let signKey = loginManager.key(for: .userDeviceSigning),
-              let encKey = loginManager.key(for: .userDeviceEncryption) else {
+        guard let signKey = loginManager.key(for: .sharedDeviceSigning),
+              let encKey = loginManager.key(for: .sharedDeviceEncryption) else {
             completion(.failed)
             return
         }
