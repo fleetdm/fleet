@@ -2203,10 +2203,14 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesNDES() {
 	// simulate challenge expiration by backdating challenge_retrieved_at past
 	// NDESChallengeInvalidAfter (57m). 2 hours is comfortably beyond that.
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, execErr := q.ExecContext(context.Background(),
-			"UPDATE host_mdm_managed_certificates SET challenge_retrieved_at = DATE_SUB(challenge_retrieved_at, INTERVAL 2 HOUR) WHERE host_uuid = ?",
-			host.UUID)
-		return execErr
+		res, execErr := q.ExecContext(t.Context(),
+			"UPDATE host_mdm_managed_certificates SET challenge_retrieved_at = DATE_SUB(challenge_retrieved_at, INTERVAL 2 HOUR) WHERE host_uuid = ? AND profile_uuid = ?",
+			host.UUID, profUUID)
+		require.NoError(t, execErr)
+		rows, err := res.RowsAffected()
+		require.NoError(t, err)
+		require.Equal(t, int64(1), rows, "expected to backdate exactly the NDES profile's managed certificate row")
+		return nil
 	})
 
 	// MDM client performs a SCEP PKIOperation after the challenge has expired;
