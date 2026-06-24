@@ -61,6 +61,10 @@ integrations:
   google_calendar:
     - api_key_json: ___GITOPS_COMMENT_0___
       domain: fleetdm.com
+  google_workspace:
+    - api_key_json: ___GITOPS_COMMENT_3___
+      domain: fleetdm.com
+      impersonated_user_email: admin@fleetdm.com
   jira:
     - api_token: ___GITOPS_COMMENT_1___
       enable_failing_policies: false
