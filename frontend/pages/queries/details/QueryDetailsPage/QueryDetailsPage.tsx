@@ -28,6 +28,7 @@ import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
@@ -246,9 +247,12 @@ const QueryDetailsPage = ({
         {!isLoading && !isApiError && (
           <>
             <div className={`${baseClass}__title-bar`}>
-              <div className="name-description">
+              <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__query-name`}>
-                  {storedQuery?.name}
+                  <TooltipTruncatedText
+                    value={storedQuery?.name}
+                    fixedPositionStrategy
+                  />
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
