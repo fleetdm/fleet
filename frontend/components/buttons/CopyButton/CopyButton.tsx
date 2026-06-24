@@ -60,17 +60,33 @@ const CopyButton = ({
     evt.preventDefault();
     // Fleet Button's --icon variant uses :focus (not :focus-visible) for its
     // hover-background, so a mouse click leaves the button visually "stuck"
-    // highlighted. Drop focus once the copy fires.
-    evt.currentTarget.blur();
+    // highlighted. Drop focus only for mouse activations — keyboard Enter/
+    // Space report `detail === 0` and must keep their tab position.
+    if (evt.detail !== 0) {
+      evt.currentTarget.blur();
+    }
 
-    stringToClipboard(copyText)
-      .then(() => setMessage(SUCCESS_MESSAGE))
-      .catch(() => setMessage(ERROR_MESSAGE));
-
+    // Cancel any previous click's hide timer so the new badge gets the full
+    // window — and so the hide doesn't race a slow `writeText()` (>1s would
+    // leave the message visible with no timer to clear it).
     if (timerRef.current) {
       clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-    timerRef.current = setTimeout(() => setMessage(null), HIDE_AFTER_MS);
+
+    const scheduleHide = () => {
+      timerRef.current = setTimeout(() => setMessage(null), HIDE_AFTER_MS);
+    };
+
+    stringToClipboard(copyText)
+      .then(() => {
+        setMessage(SUCCESS_MESSAGE);
+        scheduleHide();
+      })
+      .catch(() => {
+        setMessage(ERROR_MESSAGE);
+        scheduleHide();
+      });
   };
 
   const isCompact = variant === "compact";
