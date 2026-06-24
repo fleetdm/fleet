@@ -6130,7 +6130,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	c, err = ds.CountMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 4, c)
-	c, err = ds.CountPolicies(ctx, ptr.Uint(fleet.PolicyNoTeamID), "", "", "")
+	c, err = ds.CountPolicies(ctx, new(fleet.PolicyNoTeamID), "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	mergedTeamPolicies, err = ds.ListMergedTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, "", "")
@@ -8623,7 +8623,7 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
 	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 
-	mergedCount, err = ds.CountPolicies(ctx, ptr.Uint(0), "", "software", "")
+	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "software", "")
 	require.NoError(t, err)
 	assert.Equal(t, 3, mergedCount)
 }
