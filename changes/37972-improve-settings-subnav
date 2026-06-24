@@ -1,1 +1,2 @@
 - Improved the user menu to show individual settings sections for admins.
+- Fixed sorting of fleets on certain pages with non-global admins.

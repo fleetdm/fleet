@@ -15,7 +15,6 @@ import {
 } from "interfaces/team";
 import { IUser, IUserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
-import sort from "utilities/sort";
 
 type OnTeamChangeFuncShouldStripParam = (
   teamIdForApi: number | undefined
@@ -165,7 +164,7 @@ const filterUserTeamsByRole = (
     .filter(
       ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
     )
-    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
+    .sort((a, b) => a.id - b.id);
 };
 
 const getUserTeams = ({
