@@ -376,9 +376,9 @@ func withChaos(latency time.Duration, errorRate float64, next http.HandlerFunc) 
 		if latency > 0 {
 			time.Sleep(latency)
 		}
-		if errorRate > 0 && rand.Float64() < errorRate {
+		if errorRate > 0 && rand.Float64() < errorRate { //nolint:gosec // G404: non-crypto RNG is fine for test-only fault injection
 			code := http.StatusTooManyRequests
-			if rand.IntN(2) == 0 {
+			if rand.IntN(2) == 0 { //nolint:gosec // G404: non-crypto RNG is fine for test-only fault injection
 				code = http.StatusServiceUnavailable
 			}
 			w.Header().Set("Retry-After", "1")
