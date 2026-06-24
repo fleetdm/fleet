@@ -67,7 +67,7 @@ ORDER BY hosts DESC;
 
 This tells you in one shot what you're dealing with. In most environments, you'll see a big block of **Updated**, a long tail of **WaitingOnRollout**, and a smaller set of states with needs_action \= 1.
 
-For triage, this is the work queue:
+For triage, this is the next useful query to run:
 
 ```
 SELECT
