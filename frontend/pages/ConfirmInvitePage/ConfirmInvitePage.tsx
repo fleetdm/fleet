@@ -56,10 +56,10 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
 
       try {
         await usersAPI.create(dataForAPI);
-        router.push(paths.LOGIN);
         notify.success(
           "Registration successful! For security purposes, please log in."
         );
+        router.push(paths.LOGIN);
       } catch (error) {
         const reason = getErrorReason(error);
         console.error(reason);

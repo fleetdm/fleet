@@ -6763,17 +6763,15 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			hsi.policy_id,
 			hsi.self_service,
 			hsi.created_at,
-			si.title_id AS software_title_id,
-			si.filename AS software_package,
-			st.name AS software_title
+			hsi.software_title_id,
+			hsi.installer_filename AS software_package,
+			hsi.software_title_name AS software_title
 		FROM host_software_installs hsi
-		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
-		INNER JOIN software_titles st ON st.id = si.title_id
 		WHERE hsi.execution_id = ? AND hsi.host_id = ?
 	`
 
 	var details struct {
-		SoftwareInstallerID uint      `db:"software_installer_id"`
+		SoftwareInstallerID *uint     `db:"software_installer_id"`
 		UserID              *uint     `db:"user_id"`
 		PolicyID            *uint     `db:"policy_id"`
 		SelfService         bool      `db:"self_service"`
