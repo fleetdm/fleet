@@ -865,13 +865,14 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 
 	serverURL := appConfig.MDMUrl()
-	// Parse the URL and use JoinPath to avoid double slashes
+	// Construct the ACS callback URL. CallbackURL appends the url_prefix only when
+	// the server URL doesn't already include it, so the subpath is present exactly
+	// once whether or not the server URL was configured with the prefix.
 	parsedURL, err := url.Parse(serverURL)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "invalid MDM URL")
 	}
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
-	acsURL := parsedURL.String()
+	acsURL := sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback").String()
 
 	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
 		mdmSSOSettings.EntityID,
@@ -1019,11 +1020,14 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	serverURL := appConfig.MDMUrl()
-	acsURL, err := url.Parse(serverURL)
+	parsedServerURL, err := url.Parse(serverURL)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
-	acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+	// CallbackURL appends the url_prefix only when the server URL doesn't already
+	// include it, so the subpath is present exactly once whether or not the server
+	// URL was configured with the prefix.
+	acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
@@ -1050,11 +1054,13 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	var ssoErr error
 	if appConfig.MDM.AppleServerURL != "" {
 		// check for both apple server URL and default
-		acsURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+		parsedServerURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL with server URL")
 		}
-		acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+		// CallbackURL appends the url_prefix only when the server URL doesn't
+		// already include it, so the subpath is present exactly once.
+		acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
 		expectedAudiences = append(expectedAudiences,
 			appConfig.ServerSettings.ServerURL,
