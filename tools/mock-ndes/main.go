@@ -247,7 +247,10 @@ func (h *adminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pw := h.store.issue()
-	h.logger.InfoContext(ctx, "admin page issued SCEP challenge password")
+	// This is a local mock NDES server used only for debugging the SCEP/NDES
+	// challenge flow, so we intentionally log the challenge values (issued,
+	// accepted, rejected) to make correlating requests easy.
+	h.logger.InfoContext(ctx, "admin page issued SCEP challenge password", "challenge", pw)
 	h.write(w, ctx, passwordPage(pw, h.store.ttl))
 }
 
@@ -297,9 +300,10 @@ func (s *challengeStore) HasChallenge(pw string) (bool, error) {
 	// HasChallenge implements the fixed challenge.Validator interface (no ctx
 	// param), so we use a background context for the structured logger.
 	ctx := context.Background()
+	// Local mock NDES server: log challenge values to aid debugging (see issue()).
 	if s.static != "" {
 		valid := subtle.ConstantTimeCompare([]byte(pw), []byte(s.static)) == 1
-		s.logger.InfoContext(ctx, "validating SCEP challenge (static)", "valid", valid)
+		s.logger.InfoContext(ctx, "validating SCEP challenge (static)", "challenge", pw, "valid", valid)
 		return valid, nil
 	}
 
@@ -308,17 +312,17 @@ func (s *challengeStore) HasChallenge(pw string) (bool, error) {
 	issuedAt, ok := s.issued[pw]
 	switch {
 	case !ok:
-		s.logger.WarnContext(ctx, "SCEP challenge rejected: unknown password")
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: unknown password", "challenge", pw)
 		return false, nil
 	case time.Since(issuedAt) > s.ttl:
 		delete(s.issued, pw)
-		s.logger.WarnContext(ctx, "SCEP challenge rejected: expired", "age", time.Since(issuedAt).String())
+		s.logger.WarnContext(ctx, "SCEP challenge rejected: expired", "challenge", pw, "age", time.Since(issuedAt).String())
 		return false, nil
 	}
 	if s.oneTime {
 		delete(s.issued, pw)
 	}
-	s.logger.InfoContext(ctx, "SCEP challenge accepted", "one_time", s.oneTime)
+	s.logger.InfoContext(ctx, "SCEP challenge accepted", "challenge", pw, "one_time", s.oneTime)
 	return true, nil
 }
 
@@ -488,11 +492,13 @@ func printBanner(ctx context.Context, logger *slog.Logger, scheme, addr string, 
 		"scep_url", base+defaultSCEPPath,
 		"admin_url", base+defaultAdminPath,
 		"admin_username", admin.username,
-		"admin_password_set", admin.password != "",
+		// Local mock NDES debug tool: log the actual admin password and static
+		// challenge so they can be used directly when reproducing SCEP flows.
+		"admin_password", admin.password,
 		"admin_mode", admin.mode,
 		"admin_charset", admin.charset,
 		"require_challenge", requireChallenge,
-		"static_challenge_set", staticChal != "",
+		"static_challenge", staticChal,
 		"ca_dir", caDir,
 		"ca_fingerprint_sha256", caFingerprint(caCert),
 	)
