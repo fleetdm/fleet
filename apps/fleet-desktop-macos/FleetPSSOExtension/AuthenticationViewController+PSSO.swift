@@ -61,6 +61,23 @@ extension AuthenticationViewController:
         options: ASAuthorizationProviderExtensionRequestOptions,
         completion: @escaping (ASAuthorizationProviderExtensionRegistrationResult) -> Void
     ) {
+        // Persist the user login configuration. Without this the framework
+        // reports "no user configuration for user" and never finishes binding
+        // the PSSO user to the local account, so the unlock-key/SecureToken
+        // setup stays incomplete and key unwrap fails at login ("previous
+        // password required"). For password mode saving the config is all the
+        // extension needs to do.
+        guard let userName, !userName.isEmpty else {
+            completion(.failed)
+            return
+        }
+        let config = ASAuthorizationProviderExtensionUserLoginConfiguration(loginUserName: userName)
+        do {
+            try loginManager.saveUserLoginConfiguration(config)
+        } catch {
+            completion(.failed)
+            return
+        }
         completion(.success)
     }
 
