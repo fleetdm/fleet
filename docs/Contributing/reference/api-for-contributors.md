@@ -2208,7 +2208,7 @@ If the `name` is not already associated with an existing fleet, this API route c
               "labels_exclude_any": ["Label 3", "Label 4"]
             },
             {
-              "path": "path/to/asset.json"
+              "path": "path/to/assets/asset.json"
             },
           ],
           "enable_disk_encryption": true

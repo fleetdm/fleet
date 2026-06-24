@@ -1632,7 +1632,7 @@ None.
           "labels": ["Label 1", "Label 2"]
         },
         {
-          "path": "path/to/asset.json"
+          "path": "path/to/assets/asset.json"
         }
       ]
     },
@@ -2005,7 +2005,7 @@ Modifies the Fleet's configuration with the supplied information.
           "labels_include_any": ["Label 5", "Label 6"]
         },
         {
-          "path": "path/to/asset.json"
+          "path": "path/to/assets/asset.json"
         },
       ]
     },
@@ -2750,7 +2750,7 @@ _Available in Fleet Premium._
           "labels": ["Label 3", "Label 4"]
         },
         {
-          "path": "path/to/asset.json"
+          "path": "path/to/assets/asset.json"
         },
       ]
     },
@@ -12673,7 +12673,7 @@ _Available in Fleet Premium_
             "labels": ["Label 1", "Label 2"]
           },
           {
-            "path": "path/to/asset.json"
+            "path": "path/to/assets/asset.json"
           }
         ]
       },
@@ -13173,7 +13173,7 @@ Returned when the requested name only differs from another fleet's name by lette
           "labels": ["Label 3", "Label 4"]
         },
         {
-          "path": "path/to/asset.json"
+          "path": "path/to/assets/asset.json"
         },
       ]
     },
@@ -13326,7 +13326,7 @@ _Available in Fleet Premium_
            "labels": ["Label 1", "Label 2"]
           },
           {
-           "path": "path/to/asset.json"
+           "path": "path/to/assets/asset.json"
           }
         ]
       },
