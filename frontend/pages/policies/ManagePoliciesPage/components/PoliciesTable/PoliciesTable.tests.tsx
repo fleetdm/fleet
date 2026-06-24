@@ -468,6 +468,7 @@ describe("Policies table", () => {
         policiesList={[policyWithAllPlatforms, policyWithDarwin]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -501,6 +502,7 @@ describe("Policies table", () => {
         policiesList={[createMockPolicy({ platform: "darwin" })]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
