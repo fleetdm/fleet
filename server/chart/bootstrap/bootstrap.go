@@ -33,11 +33,12 @@ func New(
 	return svc, routesFn
 }
 
-// TrackedCriticalCVEs returns the curated set of CVE IDs that the chart
-// collector currently tracks. Exposed for development tools (e.g.
-// charts-backfill) that need to mirror the production CVE-selection logic
-// without constructing the full bounded context.
-func TrackedCriticalCVEs(ctx context.Context, db *sqlx.DB, logger *slog.Logger) ([]string, error) {
+// CollectibleCVEs returns the wide set of CVE IDs (all severities, on the
+// curated tracked software + OS vulnerabilities) that the chart collector
+// records. Exposed for development tools (e.g. charts-backfill) that need to
+// mirror the production CVE-selection logic without constructing the full
+// bounded context.
+func CollectibleCVEs(ctx context.Context, db *sqlx.DB, logger *slog.Logger) ([]string, error) {
 	ds := mysql.NewDatastore(&platform_mysql.DBConnections{Primary: db, Replica: db}, logger)
-	return ds.TrackedCriticalCVEs(ctx)
+	return ds.CollectibleCVEs(ctx)
 }

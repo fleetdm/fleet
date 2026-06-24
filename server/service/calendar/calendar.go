@@ -56,6 +56,13 @@ type PolicyLiteWithMeta struct {
 	mu  sync.Mutex
 }
 
+// ClassifyRemoteError reports whether err is a failure returned by the remote
+// calendar provider (rather than an internal Fleet error), along with the HTTP
+// status code (0 if none) and the response body or message to surface.
+func ClassifyRemoteError(err error) (isRemote bool, statusCode int, body string) {
+	return calendar.RemoteError(err)
+}
+
 func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger *slog.Logger) fleet.UserCalendar {
 	googleCalendarConfig := calendar.GoogleCalendarConfig{
 		Context:           ctx,

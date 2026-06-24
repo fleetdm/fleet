@@ -12,8 +12,6 @@ For the complete summary of all 15+ changes and release binaries [check out the 
 ## Team schedule
 **Available in Fleet Basic**
 
-![Team schedule](../website/assets/images/articles/fleet-4.2.0-1-600x337@2x.gif)
-
 In the previous release of Fleet 4.1.0, we introduced the Schedule feature that lets you add queries which are executed on your devices at regular intervals without having to understand osquery packs.
 
 Similarly, the Team Schedule allows you to schedule different queries against specific groups of hosts within a team.
@@ -22,8 +20,6 @@ A Global Schedule is also introduced alongside, so that users can run scheduled 
 
 ## Filter hosts by team
 **Available in Fleet Basic**
-
-![Filter hosts by team](../website/assets/images/articles/fleet-4.2.0-2-600x337@2x.gif)
 
 Fleet 4.2.0 also introduces the ability to filter your devices by team so that you can easily see which hosts belong to which team.
 

@@ -8,7 +8,6 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
   IHostPastActivitiesResponse,
@@ -60,6 +59,7 @@ import {
   isWindows,
 } from "interfaces/platform";
 
+import { notify } from "components/ToastNotification";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
@@ -210,7 +210,6 @@ const HostDetailsPage = ({
     currentTeam,
     isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
 
@@ -441,16 +440,14 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                renderFlash(
-                  "error",
+                notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
                 resetHostRefetchStates();
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              renderFlash(
-                "error",
+              notify.error(
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               resetHostRefetchStates();
@@ -725,17 +722,13 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
+        notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
-        renderFlash(
-          "success",
-          `Host "${host.display_name}" was successfully deleted.`
-        );
       } catch (error) {
         console.log(error);
-        renderFlash(
-          "error",
-          `Host "${host.display_name}" could not be deleted.`
-        );
+        notify.error(`Host "${host.display_name}" could not be deleted.`, {
+          response: error,
+        });
       } finally {
         setShowDeleteHostModal(false);
         setIsUpdating(false);
@@ -758,7 +751,9 @@ const HostDetailsPage = ({
           }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
         });
       } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name));
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
         resetHostRefetchStates();
       }
     }
@@ -953,11 +948,13 @@ const HostDetailsPage = ({
           ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
-      renderFlash("error", "Could not transfer host. Please try again.");
+      notify.error("Could not transfer host. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -1091,8 +1088,7 @@ const HostDetailsPage = ({
     // the previous check a false positive).
     const newWindow = window.open("about:blank", "_blank");
     if (!newWindow) {
-      renderFlash(
-        "error",
+      notify.error(
         "Couldn't open My device page. Please allow pop-ups and try again."
       );
       return;
@@ -1103,7 +1099,9 @@ const HostDetailsPage = ({
       newWindow.opener = null;
     } catch (e) {
       newWindow.close();
-      renderFlash("error", "Couldn't open My device page. Please try again.");
+      notify.error("Couldn't open My device page. Please try again.", {
+        response: e,
+      });
     }
   };
 
@@ -1112,15 +1110,17 @@ const HostDetailsPage = ({
     try {
       if (username === "") {
         await hostAPI.deleteHostIdp(hostIdFromURL);
-        renderFlash("success", "Removed end user.");
+        notify.success("Removed end user.");
       } else {
         await hostAPI.updateHostIdp(hostIdFromURL, username);
-        renderFlash("success", "Updated end user.");
+        notify.success("Updated end user.");
       }
       setShowUpdateEndUserModal(false);
       refetchHostDetails();
     } catch (e) {
-      renderFlash("error", "Could not update end user. Please try again.");
+      notify.error("Could not update end user. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsUpdating(false);
     }

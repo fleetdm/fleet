@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.12.2.2561",
+      "version": "6.12.3.2597",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'in.sinew.Enpass-Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'in.sinew.Enpass-Desktop' AND version_compare(bundle_short_version, '6.12.2.2561') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'in.sinew.Enpass-Desktop' AND version_compare(bundle_short_version, '6.12.3.2597') < 0);"
       },
-      "installer_url": "https://dl.enpass.io/stable/mac/package/6.12.2.2561/Enpass.pkg",
+      "installer_url": "https://dl.enpass.io/stable/mac/package/6.12.3.2597/Enpass.pkg",
       "install_script_ref": "fc5573f6",
       "uninstall_script_ref": "30b298ce",
-      "sha256": "3e36c258f4b9e5d8939d9e10abce4f735e309cb627eb88cac164dd28e80db0c8",
+      "sha256": "c17b6665ba84cb66d0d0547de8eeb3047ab937602d021262dcebe4fa5f507b63",
       "default_categories": [
         "Security"
       ]

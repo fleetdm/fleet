@@ -153,6 +153,68 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
+// vulnerability-exposure chart filter defaults: the premium gate and the
+// payload validation, both of which reject the apply before persisting. The
+// happy-path persist round-trip is covered by integration tests.
+func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
+	setup := func(t *testing.T, tier string) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: tier},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+		return svc, ctx, ds
+	}
+
+	payload := `{"features":{"vulnerability_exposure_historical_reporting":{%s}}}`
+
+	t.Run("free tier rejects the feature", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierFree)
+		body := fmt.Sprintf(payload, `"has_known_exploit":true`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vulnerability_exposure_historical_reporting")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an invalid software category", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":["os","bogus"]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects inverted EPSS bounds", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"epss_min":80,"epss_max":20`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "epss_min")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an empty software_filters list", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":[]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.Contains(t, err.Error(), "at least one")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+}
+
 // TestVersion tests that all users can access the version endpoint.
 func TestVersion(t *testing.T) {
 	ds := new(mock.Store)

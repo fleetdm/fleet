@@ -112,6 +112,44 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
 		},
+		// Fleet variable tests
+		{
+			name:        "valid - supported Fleet variable HOST_UUID",
+			config:      json.RawMessage(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - supported Fleet variable with braces",
+			config:      json.RawMessage(`{"managedConfiguration": {"deviceId": "${FLEET_VAR_HOST_UUID}"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - multiple supported Fleet variables",
+			config:      json.RawMessage(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - HOST_PLATFORM variable",
+			config:      json.RawMessage(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - all IDP variables",
+			config:      json.RawMessage(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "local": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "groups": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "dept": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "name": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME"}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - unsupported Fleet variable NDES_SCEP_CHALLENGE",
+			config:      json.RawMessage(`{"managedConfiguration": {"challenge": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE.",
+		},
+		{
+			name:        "invalid - unsupported Fleet variable CUSTOM_SCEP",
+			config:      json.RawMessage(`{"managedConfiguration": {"url": "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA"}}`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Unsupported variable $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA.",
+		},
 	}
 
 	for _, tt := range tests {
@@ -122,6 +160,78 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 				var badReqErr *BadRequestError
 				require.ErrorAs(t, err, &badReqErr)
 				require.Equal(t, tt.errorMsg, badReqErr.Message)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateUserProvided_FleetVariables(t *testing.T) {
+	tests := []struct {
+		name      string
+		rawJSON   string
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "supported variable HOST_UUID in string value",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID"}`,
+			wantErr: false,
+		},
+		{
+			name:    "supported variable with braces",
+			rawJSON: `{"name": "${FLEET_VAR_HOST_HARDWARE_SERIAL}"}`,
+			wantErr: false,
+		},
+		{
+			name:    "multiple supported variables",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`,
+			wantErr: false,
+		},
+		{
+			name:    "no variables at all",
+			rawJSON: `{"name": "plain-value"}`,
+			wantErr: false,
+		},
+		{
+			name:      "unsupported variable NDES_SCEP_CHALLENGE",
+			rawJSON:   `{"name": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}`,
+			wantErr:   true,
+			errSubstr: "Unsupported Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:      "unsupported variable CUSTOM_SCEP",
+			rawJSON:   `{"name": "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA"}`,
+			wantErr:   true,
+			errSubstr: "Unsupported Fleet variable",
+		},
+		{
+			name:      "variable not in JSON string value — in key",
+			rawJSON:   `{"$FLEET_VAR_HOST_UUID": "value"}`,
+			wantErr:   true,
+			errSubstr: "Unknown key",
+		},
+		{
+			// maximumTimeToLock expects a number; a string with a variable is
+			// caught by the Policy struct validation before our variable check.
+			name:      "variable in number field is rejected by policy validation",
+			rawJSON:   `{"name": "ok", "maximumTimeToLock": "$FLEET_VAR_HOST_UUID"}`,
+			wantErr:   true,
+			errSubstr: "Invalid JSON payload",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := &MDMAndroidConfigProfile{
+				Name:    "test-profile",
+				RawJSON: []byte(tt.rawJSON),
+			}
+			err := prof.ValidateUserProvided(true)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.errSubstr)
 			} else {
 				require.NoError(t, err)
 			}

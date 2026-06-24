@@ -409,11 +409,15 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 
 func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
-		TeamID *uint `db:"team_id"`
+		TeamID         *uint  `db:"team_id"`
+		Platform       string `db:"platform"`
+		HardwareSerial string `db:"hardware_serial"`
 		*android.Device
 	}
 	stmt := `SELECT
 		h.team_id,
+		h.platform,
+		h.hardware_serial,
 		ad.id,
 		ad.host_id,
 		ad.device_id,
@@ -433,9 +437,11 @@ func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID str
 	}
 	result := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			ID:     host.Device.HostID,
-			UUID:   hostUUID,
-			TeamID: host.TeamID,
+			ID:             host.Device.HostID,
+			UUID:           hostUUID,
+			TeamID:         host.TeamID,
+			Platform:       host.Platform,
+			HardwareSerial: host.HardwareSerial,
 		},
 		Device: host.Device,
 	}

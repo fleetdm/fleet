@@ -67,9 +67,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"Browsers":        "🌎 Browsers",
 		"Communication":   "👬 Communication",
 		"Developer tools": "🧰 Developer tools",
-		"Productivity":    "💻 Productivity",
+		"Productivity":    "🖥️ Productivity",
 		"Security":        "🔐 Security",
-		"Utilities":       "🛟 Support",
+		"Utilities":       "🛠️ Utilities",
 	}
 	for oldName, newName := range expectedRenames {
 		oldID, ok := preID[oldName]
@@ -86,9 +86,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		"🌎 Browsers",
 		"👬 Communication",
 		"🧰 Developer tools",
-		"💻 Productivity",
+		"🖥️ Productivity",
 		"🔐 Security",
-		"🛟 Support",
+		"🛠️ Utilities",
 	}
 
 	// Both teams have all 6 defaults in canonical order with sequential IDs.
@@ -139,8 +139,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	require.NoError(t, db.Get(&inHouseLinkedCatID,
 		`SELECT software_category_id FROM in_house_app_software_categories WHERE in_house_app_id = ?`,
 		inHouseAppA))
-	require.Equal(t, teamARows[3].ID, inHouseLinkedCatID, "team A in-house app should link to team A's 💻 Productivity")
-	require.Equal(t, "💻 Productivity", teamARows[3].Name)
+	require.Equal(t, teamARows[3].ID, inHouseLinkedCatID, "team A in-house app should link to team A's 🖥️ Productivity")
+	require.Equal(t, "🖥️ Productivity", teamARows[3].Name)
 
 	assertLinkGone := func(query string, parentID uint, label string) {
 		var dummy uint

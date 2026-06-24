@@ -1,0 +1,40 @@
+.policy-automation-activity-details-modal {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  .modal__content-wrapper,
+  .modal-cta-wrap {
+    margin-top: 0;
+  }
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    .textarea-wrapper {
+      gap: 0;
+    }
+  }
+
+  &__row {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__details-label {
+    font-weight: $bold;
+    color: $core-fleet-black;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+}

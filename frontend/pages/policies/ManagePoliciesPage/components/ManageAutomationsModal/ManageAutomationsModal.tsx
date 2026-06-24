@@ -1,6 +1,6 @@
-import React, { useContext, useRef } from "react";
+import React, { useRef } from "react";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IPolicyStats } from "interfaces/policy";
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
@@ -48,8 +48,6 @@ const ManageAutomationsModal = ({
   refetchPolicies,
   onExit,
 }: IManageAutomationsModalProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
 
   const { mutate: save, isLoading: isSaving } = useUpdatePolicyAutomations({
@@ -58,11 +56,11 @@ const ManageAutomationsModal = ({
     isGlobalPolicy,
     automationsConfig,
     onSuccess: () => {
-      renderFlash("success", SUCCESS_MSG);
+      notify.success(SUCCESS_MSG);
       refetchPolicies();
       onExit();
     },
-    onError: () => renderFlash("error", ERR_MSG),
+    onError: () => notify.error(ERR_MSG),
   });
 
   const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
