@@ -64,6 +64,8 @@ import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
 
+const NAME_MAX_LENGTH = 255;
+
 interface IPolicyFormProps {
   router: InjectedRouter;
   teamIdForApi?: number;
@@ -518,6 +520,7 @@ const PolicyForm = ({
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
       );
     }
