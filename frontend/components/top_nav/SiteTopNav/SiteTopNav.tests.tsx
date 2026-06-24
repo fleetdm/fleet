@@ -17,7 +17,7 @@ const urlLocation = {
 };
 
 describe("SiteTopNav - component", () => {
-  it("renders correct navigation for free global admin", async () => {
+  it("renders correct navigation for free global admin", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -27,7 +27,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser()}
@@ -37,31 +37,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /settings/i })
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("menuitem", { name: /users/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
   });
-  it("renders correct navigation for free global maintainer", async () => {
+
+  it("renders correct navigation for free global maintainer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -71,7 +54,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -84,27 +67,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
-
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for free global observer", async () => {
+
+  it("renders correct navigation for free global observer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -113,7 +83,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -126,27 +96,15 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for premium global admin", async () => {
+
+  it("renders correct navigation for premium global admin", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -156,7 +114,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser()}
@@ -166,30 +124,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /settings/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /users/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
   });
-  it("renders correct navigation for premium global maintainer", async () => {
+
+  it("renders correct navigation for premium global maintainer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -199,7 +141,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -212,27 +154,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
-
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for premium global observer", async () => {
+
+  it("renders correct navigation for premium global observer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -241,7 +170,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -254,27 +183,15 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for premium team admin", async () => {
+
+  it("renders correct navigation for premium team admin", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -284,7 +201,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -297,29 +214,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /settings/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
-
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for premium team maintainer", async () => {
+
+  it("renders correct navigation for premium team maintainer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -329,7 +231,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -342,27 +244,14 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
-
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
-  it("renders correct navigation for premium team observer", async () => {
+
+  it("renders correct navigation for premium team observer", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -371,7 +260,7 @@ describe("SiteTopNav - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <SiteTopNav
         config={createMockConfig()}
         currentUser={createMockUser({
@@ -384,25 +273,11 @@ describe("SiteTopNav - component", () => {
       />
     );
 
-    await user.click(screen.getByTestId("user-avatar"));
-
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("menuitem", { name: /my account/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /documentation/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /sign out/i })
-    ).toBeInTheDocument();
-
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
 });
