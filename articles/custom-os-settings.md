@@ -124,7 +124,7 @@ Hosts that applied all OS settings.
 
 For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declaration profiles (configurations, activations, and assets) are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
+macOS declaration profiles (configurations and assets) are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
