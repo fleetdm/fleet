@@ -29,7 +29,9 @@ For each bug found, please use the [bug report template](https://github.com/flee
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the milestone is set to the version that the feature will be released in. For example, if the feature will be released in v4.71.0 and the bug did not exist prior to that version, the milestone is set to `v4.71.0`. The engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
 
-## Create a release candidate
+## Fleet server releases
+
+### Create a release candidate
 
 All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
@@ -39,8 +41,7 @@ All minor releases go through the release candidate process before they are publ
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
-
-## Merge unreleased bug fixes into the release candidate
+### Merge unreleased bug fixes into the release candidate
 
 Only merge unreleased bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate:
 
@@ -53,14 +54,451 @@ This process ensures your bug fix is included in `main` for future releases, as 
 
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
-
-## Request release candidate feature merge exception
+### Request release candidate feature merge exception
 
 1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut and requires a feature merge exception.
 2. EM notifies QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
 3. EM, QA lead, and [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
 
 > This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
+
+### Prepare Fleet release
+
+See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md).
+
+### Deploy a new release to dogfood
+
+After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. Because dogfood is used for live sales demos, coordinate deploy timing as follows:
+
+- **During U.S. business hours (7am - 5pm Pacific, Monday - Friday):** `@mention` Allen Houchins (`@allenhouchins`) in Slack before deploying so he can confirm no demos are scheduled. Allen owns deploy approval during business hours.
+- **Outside U.S. business hours:** deploys are okay without coordination. We accept the risk of occasionally interrupting an international demo in exchange for unblocking releases.
+
+How to deploy a new release to dogfood:
+
+1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
+2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
+3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
+4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
+5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
+
+> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
+>
+> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
+
+
+## Fleetd releases (macOS, Windows, Linux)
+
+Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
+
+### Compatibility rules
+
+#### Why do we need a strategy?
+
+Fleetd and Fleet use different release strategies. Fleetd components are updated via "automatic updates" by continuously polling https://tuf.fleetctl.com/ for new versions, whereas on-premises Fleet servers are updated manually by administrators.
+For this reason we need a good release strategy to not break on-premise deployments when we release new versions of Fleetd components.
+
+#### Must rule
+
+"New Fleetd versions always support communication + operation with older Fleet servers."
+
+> Why is it a must?
+
+As mentioned before, Fleetd uses an auto-update mechanism, whereas Fleet does not.
+We don't want to break on-premise Fleet deployments, and we don't want to force Fleetd users to update their servers every time we push a new Fleetd update to Fleet's TUF server.
+
+#### Nice to have
+
+Nice to have, but not a must: "New Fleet server versions support old versions of Fleetd."
+
+> Why is it not a must?
+
+This allows some flexibility when developing new features in Fleetd and Fleet.
+
+#### Release process
+
+1. Fleetd components (Orbit, Fleet Desktop and osqueryd) must be released to FleetDM's TUF before new Fleet server releases are available in Github.
+2. When the new Fleet server version doesn't support older Fleetd versions (see [Nice to have](#nice-to-have)), the release notes must document their minimum supported Fleetd version. This is for users that use Fleetd with auto-updates disabled or they pin to a specific channel. These users would need to first update Fleetd on their devices and then proceed to upgrade Fleet server.
+
+### Prepare and publish fleetd release
+
+For one-time setup of credentials and tools needed to run the release script, see the [releaser.sh setup guide](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md#permissions-and-configuration).
+
+> When releasing fleetd you need to checkout the branch (e.g. `main`) you want to release.
+
+> NOTE: When releasing fleetd:
+> If there are only `orbit` changes on a release we still have to release the `desktop` component with its version string bumped
+> (even if there are no changes in it). This is due to the fact that we want users to see the new version in the tray icon,
+> e.g. `"Fleet Desktop v1.21.0"`. Technical debt: We could improve this process to reduce the complexity of releasing
+> fleetd when there are no Fleet Desktop changes.
+
+#### Releasing to `edge`
+
+##### Releasing fleetd `1.23.0` to `edge`
+
+1. Push to staging:
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=fleetd \
+ACTION=release-to-edge \
+VERSION=1.23.0 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+GITHUB_USERNAME=foobar \
+GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
+./tools/tuf/releaser.sh
+```
+2. Smoke test release on staging.
+3. Push to production:
+```sh
+ACTION=release-to-production \
+COMPONENT=fleetd \
+VERSION=1.23.0 \
+./tools/tuf/releaser.sh
+```
+4. Create PR with changelog against `main` (it may fail with conflicts when using patch branches):
+```sh
+ACTION=create-fleetd-release-pr \
+VERSION=1.23.0 \
+./tools/tuf/releaser.sh
+```
+4. Smoke test release on production.
+
+
+##### Releasing osquery `5.12.1` to `edge`
+
+1. Push to staging:
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=osqueryd \
+ACTION=release-to-edge \
+VERSION=5.12.1 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+GITHUB_USERNAME=foobar \
+GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
+./tools/tuf/releaser.sh
+```
+2. Smoke test release on staging.
+3. Push to production:
+```sh
+ACTION=release-to-production ./tools/tuf/releaser.sh
+```
+4. Smoke test release on production.
+
+#### Promoting from `edge` to `stable`
+
+##### Promoting fleetd `1.23.0` from `edge` to `stable`
+
+1. Push to staging:
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=fleetd \
+ACTION=promote-edge-to-stable \
+VERSION=1.23.0 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+./tools/tuf/releaser.sh
+```
+2. Smoke test release on staging.
+3. Push to production:
+```sh
+ACTION=release-to-production ./tools/tuf/releaser.sh
+```
+4. Smoke test release on production.
+
+##### Promoting osqueryd `5.12.1` from `edge` to `stable`
+
+1. Push to staging:
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=osqueryd \
+ACTION=promote-edge-to-stable \
+VERSION=5.12.1 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+./tools/tuf/releaser.sh
+```
+2. Smoke test release on staging.
+3. Push to production:
+```sh
+ACTION=release-to-production ./tools/tuf/releaser.sh
+```
+4. Smoke test release on production.
+5. Update osquery schema and flags:
+```sh
+ACTION=update-osquery-schema \
+VERSION=5.19.0 \
+./tools/tuf/releaser.sh
+```
+
+#### Releasing `swiftDialog` to `stable`
+
+> macOS only component
+
+1. Download `swiftDialog` from the desired run of https://github.com/fleetdm/fleet/actions/workflows/generate-swift-dialog-targets.yml.
+2. Extract the downloaded `.zip` to `/path/to/swiftDialog.app.tar.gz`
+3. Push to staging:  
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+ACTION=release-swiftDialog-to-stable \
+VERSION=2.5.6 \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+SWIFT_DIALOG_PATH=/path/to/swiftDialog.app.tar.gz \
+./tools/tuf/releaser.sh
+```
+4. Push to production:
+```sh
+ACTION=release-to-production ./tools/tuf/releaser.sh
+``` 
+
+#### Releasing `nudge` to `stable`
+
+> `releaser.sh` doesn't support `nudge` yet.
+> macOS only component
+
+The `nudge` executable can be generated from a macOS host by running:
+```sh
+make nudge-app-tar-gz version=1.1.10.81462 out-path=.
+```
+```sh
+fleetctl updates add --target /path/to/macos/nudge.app.tar.gz --platform macos --name nudge --version 1.1.10.81462 -t edge
+```
+
+#### Releasing `Escrow Buddy` to `stable`
+
+> `releaser.sh` doesn't support `Escrow Buddy` yet.
+> macOS only component
+
+The `Escrow Buddy` pkg installer can be generated by running:
+```sh
+make escrow-buddy-pkg version=1.0.0 out-path=.
+```
+```sh
+fleetctl updates add --target /path/to/escrowBuddy.pkg --platform macos --name escrowBuddy --version 1.0.0 -t stable
+```
+
+#### Updating timestamp
+
+1. Push to staging:
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+ACTION=update-timestamp \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+./tools/tuf/releaser.sh
+```
+2. Push to production:
+```sh
+ACTION=release-to-production ./tools/tuf/releaser.sh
+```
+
+#### Doing a patch release of fleetd
+
+Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of Fleet locally, you check out a patch branch of Fleet, e.g.:
+
+```
+git checkout rc-minor-fleetd-v1.41.1
+```
+
+As always, the `VERSION` env var used when running `releaser.sh` should match the version of the fleetd release, e.g.
+
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=fleetd \
+ACTION=release-to-edge \
+VERSION=1.41.1 # <-- note the patch version \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+GITHUB_USERNAME=foobar \
+GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
+./tools/tuf/releaser.sh
+```
+
+See https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md to find the latest released version.
+
+After following the rest of the "Releasing to edge" steps above, publish your release using the instructions in "Promoting from edge to stable" above as you would for a minor release, again remembering to set the `VERSION` accordingly.
+
+
+## Fleetd Android releases
+
+### 1. Create RC branch
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b rc-minor-fleetd-android-v1.X.X
+```
+
+### 2. Update version numbers
+
+In `app/build.gradle.kts`, update versionCode and versionName:
+
+```kotlin
+defaultConfig {
+    applicationId = "com.fleetdm.agent"
+    versionCode = 2          // Increment by 1 each release
+    versionName = "1.1.0"    // Semantic version for display
+}
+```
+
+- `versionCode`: Integer that must increase with each release (Google Play requirement)
+- `versionName`: Human-readable version string shown to users
+
+### 3. Update CHANGELOG.md
+
+From the repo root, run the changelog generator to pull entries from `android/changes/`:
+
+```bash
+make changelog-android version=1.X.X
+```
+
+This collects all entries from `android/changes/`, prepends them to `android/CHANGELOG.md` with a dated header, and stages the change files for deletion.
+
+Review the generated changelog and manually add any additional entries that are not covered by the `android/changes/` directory.
+
+### 4. Commit and push RC branch
+
+```bash
+git add android/app/build.gradle.kts android/CHANGELOG.md android/changes/
+git commit -m "Prepare release v1.X.X"
+git push origin rc-minor-fleetd-android-v1.X.X
+```
+
+### 5. Test the RC by releasing to the staging environment (com.fleetdm.agent.stage)
+
+Prerequisites:
+- Fleet server running with:
+  - `export FLEET_MDM_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.stage`
+  - `export FLEET_MDM_ANDROID_AGENT_SIGNING_SHA256=uxe8ynMUe36j7avGtA2F4wHeA+gnQn6UbPP+7D3AbQQ=`
+- In [Google Play Console](https://play.google.com/console) (using the "Google Play Admin" 1pass creds), add your Android MDM org ID to "Test and Release" --> "Advanced Settings" --> "Managed Google Play".
+- Get the staging signing key from a previous releaser
+
+#### Build signed release
+
+In `app/build.gradle.kts`, update the application ID:
+
+```kotlin
+defaultConfig {
+    applicationId = "com.fleetdm.agent.stage"
+}
+```
+
+Ensure `keystore.properties` is configured with the staging signing key:
+
+```
+storeFile=./qa-keystore.jks
+storePassword=<get-this-from-a-previous-releaser>
+keyAlias=fleet-android
+keyPassword=<get-this-from-a-previous-releaser>
+```
+
+```bash
+./gradlew clean bundleRelease
+```
+
+Output: `app/build/outputs/bundle/release/app-release.aab`
+
+#### Upload to Google Play
+
+1. Go to [Google Play Console](https://play.google.com/console).
+2. Select the Fleet staging app (`com.fleetdm.agent.stage`).
+3. Navigate to "Test and release" > Production.
+4. Select "Create new release"
+5. Upload the signed .aab file.
+6. Add release details at the bottom of the page.
+7. After the .aab file has been processed, select Next, then Save, then select **Go to overview** in the modal that pops up.
+8. You'll be redirected to **Publishing overview** page, where you need to select **Send 1 change for review**.
+9. After Google approves the app, they will send an email to the Google Play console account.
+
+#### Test the release
+
+Run through the testplans.
+
+### 6. Release to production
+
+Note: Only specific individuals have access to the release flow.
+
+#### Build signed release
+
+Ensure `keystore.properties` is configured with the release signing key/password.
+
+```bash
+./gradlew clean bundleRelease
+```
+
+Output: `app/build/outputs/bundle/release/app-release.aab`
+
+#### Upload to Google Play
+
+1. Go to [Google Play Console](https://play.google.com/console).
+2. Select the Fleet app (`com.fleetdm.agent`).
+3. Navigate to Release > Production.
+4. Upload the signed .aab file.
+5. Add release notes at the bottom of the page.
+6. Select save, then select **Go to overview** in the modal that pops up.
+7. You'll be redirected to **Publishing overview** page, where you need to select **Sent to review**.
+8. After Google approves the app, they will send an email to the main Google Play console account.
+
+### 7. Tag the release
+
+After the release is uploaded, tag the RC branch:
+
+```bash
+git checkout rc-minor-fleetd-android-v1.X.X
+git tag fleetd-android-v1.X.X
+git push origin rc-minor-fleetd-android-v1.X.X
+```
+
+### 8. Bring version bump and CHANGELOG to main
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b bring-fleetd-android-v1.X.X-to-main
+git checkout rc-minor-fleetd-android-v1.X.X -- android/app/build.gradle.kts android/CHANGELOG.md
+git diff --name-only --diff-filter=D main...rc-minor-fleetd-android-v1.X.X -- android/changes/ | xargs git rm --ignore-unmatch
+git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
+git push origin bring-fleetd-android-v1.X.X-to-main
+```
+
+Then open a PR to merge `bring-fleetd-android-v1.X.X-to-main` into `main`.
+
+This brings the version bump and CHANGELOG updates to main and removes only the changelog entries that were processed in the RC, preserving any new entries added to main after the RC branch was cut.
+
+### 9. Conclude the milestone
+
+After the release is published, close out the associated GitHub issues and milestone. For the canonical checklist, see [Conclude current milestone](#conclude-current-milestone):
+
+1. **Move associated stories to the Drafting board**: Stories may not be on the [Drafting](https://github.com/orgs/fleetdm/projects/67) board (project 67) yet. For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, apply the `:product` label and remove the `:release` label so it moves onto the product drafting board.
+
+2. **Move associated stories to "Confirm and celebrate"**: On the [Drafting](https://github.com/orgs/fleetdm/projects/67) board, filter by the `fleetd-android-v1.X.X` milestone, and move all stories to the "Confirm and celebrate" column. Product will close these issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+
+3. **Close associated bugs**: Close the remaining (non-story) issues in the `fleetd-android-v1.X.X` milestone.
+
+4. **Close the GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the `fleetd-android-v1.X.X` milestone.
+
+5. **Announce**: Announce that the release milestone has been closed in #help-engineering.
+
+
+## Fleetd ChromeOS releases
+
+The Chrome extension is released via [Google Admin](https://admin.google.com).
+For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
+For production releases, follow the [Chrome extension
+README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 
 ## Confirm latest versions of dependencies
@@ -111,50 +549,6 @@ We track these in a shared [Google Doc](https://docs.google.com/document/d/1jr8w
 
 Once coverage is agreed on, Fleet QA submits the request via [QA Wolf's Coverage Request form](https://app.qawolf.com/fleet/coverage-requests). The most recent sprints are prioritized first.
 This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs.
-
-
-## Prepare Fleet release
-
-See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md).
-
-
-## Prepare fleetd agent release
-
-### macOS, Windows, Linux
-
-Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
-For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
-
-### Android
-
-Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
-
-### ChromeOS
-
-The Chrome extension is released via [Google Admin](https://admin.google.com).
-For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
-For production releases, follow the [Chrome extension
-README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
-
-
-## Deploy a new release to dogfood
-
-After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. Because dogfood is used for live sales demos, coordinate deploy timing as follows:
-
-- **During U.S. business hours (7am - 5pm Pacific, Monday - Friday):** `@mention` Allen Houchins (`@allenhouchins`) in Slack before deploying so he can confirm no demos are scheduled. Allen owns deploy approval during business hours.
-- **Outside U.S. business hours:** deploys are okay without coordination. We accept the risk of occasionally interrupting an international demo in exchange for unblocking releases.
-
-How to deploy a new release to dogfood:
-
-1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
-2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
-3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
-4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
-5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-
-> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
->
-> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
 
 
 ## Conclude current milestone 
