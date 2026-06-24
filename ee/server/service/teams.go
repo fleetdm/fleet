@@ -1403,6 +1403,23 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	return idsByName, nil
 }
 
+// validateVulnExposureFilters validates a team's vulnerability-exposure chart
+// filter defaults (display-only defaults that seed the dashboard chart's
+// filter controls; they do not affect data collection). Sparse/PATCH
+// semantics: only present fields are checked. Teams are premium-only, so no
+// separate license gate is required here.
+func validateVulnExposureFilters(ctx context.Context, veFilters *fleet.VulnExposureFilterSettings) error {
+	if veFilters == nil {
+		return nil
+	}
+	invalid := &fleet.InvalidArgumentError{}
+	veFilters.Validate("team.settings.features", invalid)
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid)
+	}
+	return nil
+}
+
 func (svc *Service) createTeamFromSpec(
 	ctx context.Context,
 	spec *fleet.TeamSpec,
@@ -1424,6 +1441,9 @@ func (svc *Service) createTeamFromSpec(
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := validateVulnExposureFilters(ctx, features.VulnerabilityExposureHistoricalReporting); err != nil {
+		return nil, err
 	}
 
 	var macOSSettings fleet.MacOSSettings
@@ -1647,6 +1667,9 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	if err := validateVulnExposureFilters(ctx, team.Config.Features.VulnerabilityExposureHistoricalReporting); err != nil {
+		return err
+	}
 
 	// Check OS update settings.
 	var (
