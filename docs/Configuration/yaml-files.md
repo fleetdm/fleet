@@ -399,7 +399,7 @@ controls:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
       - path: ../lib/macos/profiles/my-declaration.json
-      - path: ../lib/macos/profiles/my-asset.json
+      - path: ../lib/macos/assets/my-asset.json
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
@@ -458,7 +458,7 @@ Each entry can use either `path:` or `paths:`:
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-In addition to configuration profiles, you can upload **assets** — `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets are uploaded alongside configuration profiles and follow the same `path:` / `paths:` syntax.
+In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets are uploaded alongside configuration profiles and follow the `path:` / `paths:` syntax.
 
 ### android_settings
 
