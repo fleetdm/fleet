@@ -34,8 +34,9 @@ Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Pay
 
 Optionally, you can set a **predicate** to control when configurations are applied for conditional deployment.
 
-To upload an asset declaration, use the same workflow (UI, API, or GitOps) as configuration profiles. Asset files are raw JSON following Apple's [DDM schema](https://developer.apple.com/documentation/devicemanagement).
+To upload an asset declaration, use the same workflow (UI, API, or GitOps) as configuration profiles. 
 
+For more complex workflows, such as deploying an in-house app package (`.ipa`), the recommended approach is to host the manifest and package on your own infrastructure and upload the corresponding asset declaration to Fleet. Asset files are raw JSON following Apple's [DDM schema](https://developer.apple.com/documentation/devicemanagement).
 
 ## Enforce
 
