@@ -21,12 +21,12 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 
 
-### Marketing assets
+## Marketing assets
 
 The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
 
-### Press boilerplate text
+## Press boilerplate text
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
@@ -37,8 +37,11 @@ Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep ful
 
 When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
 
+## Video recording standards
 
-### Website traffic Looker dashboard 
+The [Fleet video recording standards](https://fleetdm.com/handbook/marketing/video-recording-standards.md) define standards and best practices for anyone at Fleet to follow when recording content that is to be used publicly (eg. sprint demos, webinars, product demos, fireside chats, etc). Following the standards results in video that is far more efficient to use, more flexible in how we can use it, and results in higher quality final assets. 
+
+## Website traffic Looker dashboard 
 
 <!-- 2025-11-29 This heading doesn't follow the format of a responsibility (https://fleetdm.com/handbook/company/leadership#outline-of-departmental-page-structure). However, we will leave the title as is in preparation for moving it to a separate page, not yet created-->
 
@@ -46,17 +49,17 @@ This dashboard is the first iteration of a tracking website that monitors perfor
 
 **Dashboard Link:** [Website Traffic by Source](https://lookerstudio.google.com/reporting/612ee012-b35a-42d3-8806-3ff0728dde58)
 
-#### Simple summary
+### Simple summary
 
 The Website Traffic Dashboard provides a comprehensive view of how users interact with the Fleet website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
 
 
-#### Key views description
+### Key views description
 
 The dashboard is structured with a side navigation menu that allows you to dive into specific areas of performance:
 
 
-##### 1\. WebTraffic dashboard (overview)
+#### 1\. WebTraffic dashboard (overview)
 
 This is the main landing page, providing a high-level snapshot of website performance for the selected date range.
 
@@ -64,28 +67,28 @@ This is the main landing page, providing a high-level snapshot of website perfor
 * **Volume Chart:** Tracks the daily/monthly volume of Views, Total users, and Sessions.  
 * **Acquisition Table:** The table further down breaks down traffic by **Session / medium** (e.g., google / organic, google / cpc, (direct) / (none)), providing total users, engagement rate, and key event volume for each channel.
 
-##### 2\. Organic traffic
+#### 2\. Organic traffic
 
 This view isolates the performance of all non-paid traffic, which is a major focus for content and SEO efforts.
 
 * **Channel Trends:** The chart shows the total users over time broken down by specific organic channels: **Organic Search**, Organic Video, Organic Social, and Organic Shopping.  
 * **Usage:** Used to track the growth of our SEO efforts and the health of our overall content visibility.
 
-##### 3\. Traffic by landing page
+#### 3\. Traffic by landing page
 
 This view is crucial for understanding how specific pages on the site are performing in attracting and engaging users.
 
 * **Performance Table:** Lists the top-performing **Landing Pages** by **Total users** and displays their corresponding **Bounce rate**.  
 * **Key Pages:** Allows us to quickly identify our most popular entry points (e.g., the homepage /, /docs/get-started/why-fleet, /pricing) and assess content quality based on bounce rate.
 
-##### 4\. Key events
+#### 4\. Key events
 
 This section tracks the **volume** of our most important user actions on the website, allowing us to see how marketing activity correlates with goal completion.
 
 * **Events over time:** The chart tracks the total number of key events (e.g., form\_submit, purchase, fleet\_website\_contact\_forms, and fleet\_website\_swag\_request) completed over the time range.  
 * **Usage:** Helps identify peak periods for event completion and measure the absolute success of lead generation forms.
 
-##### 5\. Key event conversion rates
+#### 5\. Key event conversion rates
 
 This view displays the website's efficiency by tracking the rate at which users complete a key event. Conversion rate is generally a stronger indicator of performance than event volume alone.
 
@@ -399,7 +402,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 - Share video link on social media.
 
 
-## Post a blog article
+### Post a blog article
 
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
@@ -423,22 +426,22 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-#### Stubs
+## Stubs
 The following stubs are included only to make links backward compatible
 
-##### Programs
+### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
 
-##### Social media
+### Social media
 Please see [handbook/company/communications#social-media](https://fleetdm.com/handbook/company/communications#social-media)
 
-##### Ads
+### Ads
 Please see [handbook/company/communications#ads](https://fleetdm.com/handbook/company/communications#ads)
 
-##### Events
+### Events
 Please see [handbook/company/communications#events](https://fleetdm.com/handbook/company/communications#events)
 
-##### Video
+### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
 <meta name="maintainedBy" value="akuthiala">

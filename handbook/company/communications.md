@@ -478,34 +478,13 @@ Learn how to contribute to the handbook, documentation, and articles at Fleet on
 ## Social media 
 When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
 
+For more information see the marketing [Fleet social media page](https://fleetdm.com/handbook/marketing/socialmedia)
 
-### Create content for YouTube
+## Recording video
 
-#### Recording standards
-- Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
-- Add a few seconds of silence at the start and end of each recording.
-- Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
-- Make sure videos are shared as downloadable
+Fleet uses video for multiple purposes (YouTube, LinkedIn, our own website, etc.). A single recording can be used for multiple purposes. Following some video recording standards helps Fleet to get the most value out of recordings with the most efficiency. These especially pertain to sprint demos, and webinar recordings.
 
-#### Best practices
-**Browser and terminal:**
-- Zoom in so text is legible at 1080p (most viewers watch smaller than full screen).
-- Use a clean browser profile. Close unnecessary tabs.
-
-**Desktop:**
-- Pause notifications. Close or minimize anything that might expose private data.
-- Hide desktop icons or confirm no filenames contain sensitive info.
-
-**Mouse:**
-- Move deliberately. Pause briefly on important UI elements and wait for results to load before moving on.
-
-**Privacy:**
-- Don't show public IPs, passwords, tokens, or credentials.
-- Don't show or say customer names, codenames, or real email addresses.
-
-**Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
-
+For details on these standards see the [Fleet video recording standards](https://fleetdm.com/handbook/marketing/video-recording-standards).
 
 ## Feedback
 
