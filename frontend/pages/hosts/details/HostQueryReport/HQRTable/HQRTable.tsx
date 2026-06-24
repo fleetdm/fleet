@@ -176,7 +176,7 @@ const HQRTable = ({
       <div className={`${baseClass}__query-info`}>
         <div className={`${baseClass}__query-info-text`}>
           <h2>
-            <TooltipTruncatedText value={queryName} />
+            <TooltipTruncatedText value={queryName} fixedPositionStrategy />
           </h2>
           <h3>{queryDescription}</h3>
         </div>

@@ -368,7 +368,10 @@ const PolicyDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__policy-name`}>
-                  <TooltipTruncatedText value={storedPolicy?.name} />
+                  <TooltipTruncatedText
+                    value={storedPolicy?.name}
+                    fixedPositionStrategy
+                  />
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."

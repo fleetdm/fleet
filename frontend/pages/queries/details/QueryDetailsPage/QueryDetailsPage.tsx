@@ -249,7 +249,10 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__query-name`}>
-                  <TooltipTruncatedText value={storedQuery?.name} />
+                  <TooltipTruncatedText
+                    value={storedQuery?.name}
+                    fixedPositionStrategy
+                  />
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
