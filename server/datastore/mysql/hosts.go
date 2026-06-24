@@ -2244,6 +2244,20 @@ type enrolledHostInfo struct {
 	NodeKeySet bool
 	// Platform is the OS of the host.
 	Platform string
+	// TeamID is the team the host currently belongs to (nil means "no team").
+	TeamID *uint
+}
+
+// sameTeamID returns true if both team IDs represent the same team
+// (including both being nil, meaning "no team").
+func sameTeamID(a, b *uint) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
 
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
@@ -2275,6 +2289,7 @@ func matchHostDuringEnrollment(
 		NodeKeySet     bool      `db:"node_key_set"`
 		Priority       int
 		Platform       string `db:"platform"`
+		TeamID         *uint  `db:"team_id"`
 	}
 
 	var (
@@ -2290,7 +2305,7 @@ func matchHostDuringEnrollment(
 	}
 
 	if osqueryID != "" || uuid != "" {
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority, platform FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority, platform, team_id FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
 		osqueryHostID := osqueryID
 		if osqueryID == "" {
 			// special-case, if there's no osquery identifier, use the uuid
@@ -2307,7 +2322,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, team_id FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
@@ -2316,7 +2331,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 3 priority, platform FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 3 priority, platform, team_id FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, uuid)
 	}
 
@@ -2335,6 +2350,7 @@ func matchHostDuringEnrollment(
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
 		Platform:       rows[0].Platform,
+		TeamID:         rows[0].TeamID,
 	}, nil
 }
 
@@ -2397,6 +2413,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				*enrollConfig.IdentityCert.HostID != enrolledHostInfo.ID {
 				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
+			}
+
+			// For hosts without identity certs, prevent cross-team node-key replay:
+			// reject re-enrollment if the enroll secret's team doesn't match the host's current team.
+			if enrolledHostInfo.NodeKeySet && enrollConfig.IdentityCert == nil &&
+				!sameTeamID(teamID, enrolledHostInfo.TeamID) {
+				return ctxerr.New(ctx, "orbit re-enrollment denied: enrollment credential does not match the host's current team assignment")
 			}
 
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
@@ -2658,6 +2681,13 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				*enrollConfig.IdentityCert.HostID != hostID {
 				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+
+			// For hosts without identity certs, prevent cross-team node-key replay:
+			// reject re-enrollment if the enroll secret's team doesn't match the host's current team.
+			if enrolledHostInfo.NodeKeySet && enrollConfig.IdentityCert == nil &&
+				!sameTeamID(teamID, enrolledHostInfo.TeamID) {
+				return ctxerr.New(ctx, "osquery re-enrollment denied: enrollment credential does not match the host's current team assignment")
 			}
 
 			if err := deleteAllPolicyMemberships(ctx, tx, enrolledHostInfo.ID); err != nil {

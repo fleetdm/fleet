@@ -205,6 +205,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
+		{"EnrollCrossTeamReplayBlocked", testEnrollCrossTeamReplayBlocked},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2344,6 +2345,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		_, err = ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryTeamID(&team.ID),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
@@ -2352,6 +2354,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		_, err = ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryTeamID(&team.ID),
 			fleet.WithEnrollOsqueryCooldown(10*time.Second),
 		)
 		require.Error(t, err)
@@ -14353,4 +14356,160 @@ func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
 	require.True(t, got.OrbitDebugUntil.Equal(later))
+}
+
+func testEnrollCrossTeamReplayBlocked(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-a-" + t.Name()})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-b-" + t.Name()})
+	require.NoError(t, err)
+
+	// --- Orbit enrollment ---
+
+	// Create a host on team A and enroll it via Orbit.
+	hostUUID := uuid.New().String()
+	h, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Hostname:     "orbit-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(&teamA.ID),
+	)
+	require.NoError(t, err)
+	hostID := h.ID
+	// Assign the host to team A (enrollment INSERT sets team_id, but let's be explicit).
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamA.ID, []uint{hostID})))
+
+	// Same-team re-enrollment should succeed.
+	h, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Hostname:     "orbit-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(&teamA.ID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, hostID, h.ID, "same-team re-enrollment should match the existing host")
+
+	// Cross-team re-enrollment (team B secret for team A host) should be rejected.
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Hostname:     "orbit-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(&teamB.ID),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "re-enrollment denied")
+
+	// Cross-team re-enrollment (no-team/global secret for team A host) should be rejected.
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: hostUUID,
+			Hostname:     "orbit-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(nil),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "re-enrollment denied")
+
+	// New enrollment (unknown UUID) should still work regardless of team.
+	newUUID := uuid.New().String()
+	hNew, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: newUUID,
+			Hostname:     "new-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(&teamB.ID),
+	)
+	require.NoError(t, err)
+	require.NotEqual(t, hostID, hNew.ID)
+
+	// --- Osquery enrollment ---
+
+	// Create a host on team A and enroll it via osquery.
+	osqueryUUID := uuid.New().String()
+	hOsquery, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID(osqueryUUID),
+		fleet.WithEnrollOsqueryHardwareUUID(osqueryUUID),
+		fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
+		fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+	)
+	require.NoError(t, err)
+	osqueryHostID := hOsquery.ID
+	// Assign to team A.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamA.ID, []uint{osqueryHostID})))
+
+	// Same-team osquery re-enrollment should succeed.
+	hOsquery, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID(osqueryUUID),
+		fleet.WithEnrollOsqueryHardwareUUID(osqueryUUID),
+		fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
+		fleet.WithEnrollOsqueryTeamID(&teamA.ID),
+	)
+	require.NoError(t, err)
+	require.Equal(t, osqueryHostID, hOsquery.ID, "same-team osquery re-enrollment should match")
+
+	// Cross-team osquery re-enrollment should be rejected.
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID(osqueryUUID),
+		fleet.WithEnrollOsqueryHardwareUUID(osqueryUUID),
+		fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
+		fleet.WithEnrollOsqueryTeamID(&teamB.ID),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "re-enrollment denied")
+
+	// --- No-team host re-enrollment ---
+
+	// Create a host with no team.
+	noTeamUUID := uuid.New().String()
+	hNoTeam, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: noTeamUUID,
+			Hostname:     "no-team-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(nil),
+	)
+	require.NoError(t, err)
+
+	// Same no-team re-enrollment should succeed.
+	hNoTeam2, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: noTeamUUID,
+			Hostname:     "no-team-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(nil),
+	)
+	require.NoError(t, err)
+	require.Equal(t, hNoTeam.ID, hNoTeam2.ID, "no-team re-enrollment should match")
+
+	// Cross-team (team A secret for no-team host) should be rejected.
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID: noTeamUUID,
+			Hostname:     "no-team-host",
+			Platform:     "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitTeamID(&teamA.ID),
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "re-enrollment denied")
 }
