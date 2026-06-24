@@ -146,7 +146,7 @@ const ScriptBatchDetailsPage = ({
     }
   }, [batchExecutionId, pathToProgress, router]);
 
-  const handleTabChange = useCallback(
+  const buildTabPath = useCallback(
     (index: number) => {
       const newHostsStatus = HOSTS_STATUS_BY_INDEX[index];
 
@@ -155,22 +155,30 @@ const ScriptBatchDetailsPage = ({
       newParams.set("page", "0");
       const newQuery = newParams.toString();
 
-      router.push(
-        paths
-          .CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId)
-          .concat(newQuery ? `?${newQuery}` : "")
-      );
+      return paths
+        .CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId)
+        .concat(newQuery ? `?${newQuery}` : "");
+    },
+    [batchExecutionId, location?.search]
+  );
+
+  const handleTabChange = useCallback(
+    (index: number) => {
+      router.push(buildTabPath(index));
       // update page's summary data (e.g. pct hosts responded) whenever changing tabs
       refetchBatchDetails();
     },
-    [batchExecutionId, location?.search, refetchBatchDetails, router]
+    [buildTabPath, refetchBatchDetails, router]
   );
 
   useEffect(() => {
+    // Replace (don't push) when defaulting an invalid/missing status — pushing
+    // here gets re-pushed by this same effect on browser Back, trapping the
+    // user on this page (#47019).
     if (!isValidScriptBatchHostStatus(selectedHostStatus)) {
-      handleTabChange(0);
+      router.replace(buildTabPath(0));
     }
-  }, [handleTabChange, selectedHostStatus]);
+  }, [buildTabPath, router, selectedHostStatus]);
 
   const renderTabContent = ([hostStatus, hostStatusCount]: [
     ScriptBatchHostStatus,

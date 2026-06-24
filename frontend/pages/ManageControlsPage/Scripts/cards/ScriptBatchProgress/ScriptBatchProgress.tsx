@@ -105,7 +105,7 @@ const ScriptBatchProgress = ({
     keepPreviousData: true,
   });
 
-  const handleTabChange = useCallback(
+  const buildTabPath = useCallback(
     (index: number) => {
       const newStatus = STATUS_BY_INDEX[index];
 
@@ -113,14 +113,19 @@ const ScriptBatchProgress = ({
       newParams.set("status", newStatus);
       const newQuery = newParams.toString();
 
-      router.push(
-        PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
-          newQuery ? `?${newQuery}` : ""
-        )
+      return PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
+        newQuery ? `?${newQuery}` : ""
       );
+    },
+    [location?.search]
+  );
+
+  const handleTabChange = useCallback(
+    (index: number) => {
+      router.push(buildTabPath(index));
       setPageNumber(0);
     },
-    [location?.search, router]
+    [buildTabPath, router]
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
@@ -179,12 +184,14 @@ const ScriptBatchProgress = ({
     );
   };
 
-  // Reset to first tab if status is invalid.
+  // Reset to first tab if status is invalid. Replace (don't push) so browser
+  // Back doesn't re-trigger this effect and trap the user (#47019).
   useEffect(() => {
     if (!isValidScriptBatchStatus(statusParam)) {
-      handleTabChange(0);
+      router.replace(buildTabPath(0));
+      setPageNumber(0);
     }
-  }, [statusParam, handleTabChange]);
+  }, [buildTabPath, router, statusParam]);
 
   const renderTabContent = (status: ScriptBatchStatus) => {
     // If we're switching to a new tab, show the loading spinner
