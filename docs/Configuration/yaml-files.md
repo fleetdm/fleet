@@ -591,7 +591,6 @@ software:
 
 #### self_service, labels, categories, and setup_experience
 
-When adding [multiple packages](#multiple-versions-of-the-same-software) for the same software title, `self_service`, `categories`, and labels must be specified for each package inside the package YAML file, not on the fleet-level YAML file.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
@@ -671,7 +670,7 @@ software:
 
 ##### Multiple versions of the same software
 
-You can add multiple packages for the same software title by pointing a single `packages` entry at a package YAML file that lists more than one package. This way you can do a staged rollout of a new version or target different architectures (e.g. Arm vs. Intel) using labels.
+You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
 
 `self_service`, `categories`, and labels are defined per package inside the package YAML file, not on the fleet-level YAML file.
 
