@@ -2672,8 +2672,29 @@ type Datastore interface {
 	// the versions will be sorted by their version semver or string.
 	GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]FleetMaintainedVersion, error)
 
+	// ListFleetMaintainedAppActiveInstallers returns the active installer for
+	// every (team, title) backed by a Fleet-maintained app, across all teams.
+	// Used by the auto-update cron to decide whether to advance versions.
+	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
+
+	// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
+	// code of any cached installer (active or inactive) with the given storage_id.
+	// Used by the auto-update cron to recover uninstall-script substitution values
+	// on the byte-dedup path. Returns empty values (no error) when nothing matches.
+	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+
+	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
+	// already-installed Fleet-maintained app, cloning the active installer's
+	// per-team config (self-service, labels, categories, pre-install query) and
+	// overriding only version-specific fields from the payload. The row is
+	// inserted inactive; the caller promotes it separately. The pin is never
+	// written. Versions beyond the cap are evicted, protecting activeInstallerID.
+	// Idempotent: returns the existing installer ID if the version is already cached.
+	InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *UploadSoftwareInstallerPayload) (installerID uint, err error)
+
 	// SetFleetMaintainedAppActiveInstaller sets the active installer, sets other installers of the title
-	// to inactive, repoints policies, and records or clears the pinned version.
+	// to inactive, and repoints policies. A non-nil payload.PinnedVersion records ("" clears it to Latest)
+	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
 	// GetPinnedVersion returns the pinned version for a team and software title.
