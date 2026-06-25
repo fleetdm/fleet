@@ -21,6 +21,9 @@ const (
 	ActionResend = "resend"
 	// ActionReadSecrets refers to reading secrets/credentials of an entity (e.g. CA private keys, API tokens).
 	ActionReadSecrets = "read_secrets"
+	// ActionWriteMembers refers to adding/removing members of a team.
+	// This is more restrictive than ActionWrite to prevent non-admin roles from managing team membership.
+	ActionWriteMembers = "write_members"
 
 	//
 	// User specific actions
