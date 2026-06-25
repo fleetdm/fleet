@@ -2362,7 +2362,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, *hostResult.Error)
 		case hostTeam1.ID:
-			// Host is on a team that no longer matches the script's team
+			// Host is on a different team than the script
 			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
