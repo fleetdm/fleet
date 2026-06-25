@@ -11239,7 +11239,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and label (`labels_include_any`, `labels_exclude_any`, `labels_include_all`) targeting. `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
