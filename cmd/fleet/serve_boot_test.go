@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/stretchr/testify/assert"
@@ -89,7 +90,7 @@ func runServe(ctx context.Context, extraArgs ...string) <-chan error {
 }
 
 func waitHealthy(t *testing.T, serverAddr string) bool {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Second))
 	return assert.Eventually(t, func() bool {
 		resp, err := client.Get("http://" + serverAddr + "/healthz") //nolint:gosec
 		if err != nil {
