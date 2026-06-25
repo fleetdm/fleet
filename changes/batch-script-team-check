@@ -1,0 +1,1 @@
+* Fixed a bug where a script executed in a scheduled batch would still execute on hosts that had been transferred to a different fleet between the time the batch was scheduled and the time it later executed
