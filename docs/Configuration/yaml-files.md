@@ -930,7 +930,7 @@ org_settings:
     google_workspace:
       - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
         domain: fleetdm.com
-        impersonated_user_email: admin@fleetdm.com
+        impersonated_user_email: admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1
