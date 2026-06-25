@@ -97,10 +97,15 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		if err := ds.ConsumeChallenge(ctx, m.ChallengePassword); err != nil {
+		err := ds.ConsumeChallenge(ctx, m.ChallengePassword)
+		switch {
+		case err == nil:
+			return next.SignCSRContext(ctx, m)
+		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
+		default:
+			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
 		}
-		return next.SignCSRContext(ctx, m)
 	}
 }
 

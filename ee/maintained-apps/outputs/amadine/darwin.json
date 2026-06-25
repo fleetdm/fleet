@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.8.2",
+      "version": "1.8.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.belightsoft.Amadine';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.belightsoft.Amadine' AND version_compare(bundle_short_version, '1.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.belightsoft.Amadine' AND version_compare(bundle_short_version, '1.8.3') < 0);"
       },
       "installer_url": "https://belightsoft.s3.amazonaws.com/Amadine.dmg",
       "install_script_ref": "88bf1cb8",
