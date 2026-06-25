@@ -1,0 +1,1 @@
+* Fixed a bug where the MDM command results endpoint might not return hostnames for all returned hosts
