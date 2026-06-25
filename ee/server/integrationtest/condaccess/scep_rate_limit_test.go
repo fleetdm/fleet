@@ -27,10 +27,6 @@ func TestSCEPRateLimit(t *testing.T) {
 	t.Run("RateLimitSameHost", func(t *testing.T) {
 		ctx := t.Context()
 
-		// Create enrollment secret
-		err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
-		require.NoError(t, err)
-
 		// Create a test host
 		host, err := s.DS.NewHost(ctx, &fleet.Host{
 			OsqueryHostID:   ptr.String("test-host-rate-limit"),
@@ -43,12 +39,18 @@ func TestSCEPRateLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		// First certificate request - should succeed
-		cert1 := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+		challenge, err := s.DS.NewChallenge(ctx)
+		require.NoError(t, err)
+		cert1 := requestSCEPCertificate(t, s, host.UUID, challenge)
 		require.NotNil(t, cert1, "First certificate request should succeed")
 		assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert1.URIs[0].String())
 
-		// Second certificate request immediately after - should fail due to rate limit
-		httpResp, pkiMsgResp, cert2 := requestSCEPCertificateWithChallenge(t, s, host.UUID, testEnrollmentSecret)
+		// Second certificate request immediately after - should fail due to rate limit.
+		// Rate limiting short-circuits before the challenge is consumed, so a fresh,
+		// valid challenge keeps this assertion focused on the rate-limit behavior.
+		secondChallenge, err := s.DS.NewChallenge(ctx)
+		require.NoError(t, err)
+		httpResp, pkiMsgResp, cert2 := requestSCEPCertificateWithChallenge(t, s, host.UUID, secondChallenge)
 		require.Equal(t, http.StatusTooManyRequests, httpResp.StatusCode, "Should return HTTP 429 for rate limit")
 		require.Nil(t, pkiMsgResp, "PKI message not parsed for rate limit errors")
 		require.Nil(t, cert2, "Second certificate request should fail due to rate limit")
@@ -64,7 +66,9 @@ func TestSCEPRateLimit(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		certDifferent := requestSCEPCertificate(t, s, differentHost.UUID, testEnrollmentSecret)
+		differentChallenge, err := s.DS.NewChallenge(ctx)
+		require.NoError(t, err)
+		certDifferent := requestSCEPCertificate(t, s, differentHost.UUID, differentChallenge)
 		require.NotNil(t, certDifferent, "Different host should be able to get certificate")
 		assert.Equal(t, "urn:device:apple:uuid:"+differentHost.UUID, certDifferent.URIs[0].String())
 	})
