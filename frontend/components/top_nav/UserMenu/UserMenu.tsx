@@ -11,9 +11,8 @@ import { IUser } from "interfaces/user";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
-
+import { getSortedTeamOptions } from "utilities/helpers";
 import { AppContext } from "context/app";
-import { preferredOrLowestIdFleet } from "hooks/useTeamIdParam";
 
 import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
@@ -178,7 +177,7 @@ const UserMenu = ({
     // to the first team the user is an admin of.
     const targetTeamId = currentTeamIsAdmin
       ? currentTeam.id
-      : preferredOrLowestIdFleet(userAdminTeams)?.id;
+      : getSortedTeamOptions(userAdminTeams)[0].value;
 
     dropdownItems.push({
       label: "Users",
