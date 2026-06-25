@@ -10855,8 +10855,6 @@ Get a list of all software.
               "version": "4.50.128",
               "platform": "darwin",
               "self_service": false,
-              "last_install": null,
-              "last_uninstall": null,
               "package_url": ""
           },
           {
