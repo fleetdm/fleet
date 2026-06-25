@@ -884,7 +884,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 	// results for those hosts and add their hostnames. Also detect VPP app installs
 	// for enrichment below.
 	hasInstallApp := false
-	authorized := results[:0]
+	authorized := make([]*fleet.MDMCommandResult, 0, len(results))
 	for _, res := range results {
 		h := hostsByUUID[res.HostUUID]
 		if h == nil {

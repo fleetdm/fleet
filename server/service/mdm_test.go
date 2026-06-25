@@ -3638,16 +3638,16 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 	// Mimic the real datastore's team scoping: a non-global user only sees hosts
 	// on the teams they belong to.
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
-		allowed := make(map[uint]bool)
+		allowed := make(map[uint]struct{})
 		for _, ut := range filter.User.Teams {
-			allowed[ut.Team.ID] = true
+			allowed[ut.Team.ID] = struct{}{}
 		}
 		global := filter.User.GlobalRole != nil
 
 		var hosts []*fleet.Host
 		for _, u := range uuids {
 			tmID := hostUUIDToTeam[u]
-			if !global && !allowed[tmID] {
+			if _, ok := allowed[tmID]; !global && !ok {
 				continue
 			}
 			h := &fleet.Host{UUID: u, Hostname: u + "-name"}
