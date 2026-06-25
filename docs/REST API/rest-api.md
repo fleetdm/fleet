@@ -10848,6 +10848,28 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": [
+          {
+              "name": "Slack-4.50.128-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.50.128",
+              "platform": "darwin",
+              "self_service": false,
+              "last_install": null,
+              "last_uninstall": null,
+              "package_url": ""
+          },
+          {
+              "name": "Slack-4.51.133-macOS.pkg",
+              "automatic_install_policies": null,
+              "version": "4.51.133",
+              "platform": "darwin",
+              "self_service": true,
+              "last_install": null,
+              "last_uninstall": null,
+              "package_url": ""
+          }
+      ],
       "software_package": {
           "name": "Slack-4.50.128-macOS.pkg",
           "automatic_install_policies": null,
@@ -10879,6 +10901,7 @@ Get a list of all software.
               "vulnerabilities": null
           }
       ],
+      "packages": null,
       "software_package": null,
       "app_store_app": null,
       "bundle_identifier": "com.raycast.macos",
@@ -10893,6 +10916,8 @@ Get a list of all software.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
 
 ### List software versions
 
@@ -11099,6 +11124,79 @@ Returns information about the specified software. By default, `versions` are sor
         }
     ],
     "counts_updated_at": "2026-06-04T17:23:45Z",
+    "packages": [
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.50.128-macOS.pkg",
+            "icon_url": null,
+            "version": "4.50.128",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-04T17:29:09.155424Z",
+            "installer_id": 36817,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
+            "status": {
+                "installed": 0,
+                "pending_install": 1,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": false,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": null,
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        },
+        {
+            "team_id": 310,
+            "title_id": 2792,
+            "name": "Slack-4.51.133-macOS.pkg",
+            "icon_url": null,
+            "version": "4.51.133",
+            "platform": "darwin",
+            "uploaded_at": "2026-06-10T09:14:51.482217Z",
+            "installer_id": 36901,
+            "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
+            "pre_install_query": "",
+            "post_install_script": "",
+            "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n",
+            "hash_sha256": "a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f70819203a4b5c6d7e8f9",
+            "status": {
+                "installed": 0,
+                "pending_install": 0,
+                "failed_install": 0,
+                "pending_uninstall": 0,
+                "failed_uninstall": 0
+            },
+            "self_service": true,
+            "url": "",
+            "fleet_maintained_app_id": null,
+            "automatic_install_policies": null,
+            "labels_include_any": null,
+            "labels_exclude_any": null,
+            "labels_include_all": [
+                {
+                    "id": 12,
+                    "name": "IT test team"
+                }
+            ],
+            "categories": null,
+            "display_name": "",
+            "patch_policy": null,
+            "fleet_id": 310
+        }
+    ],
     "software_package": {
         "team_id": 310,
         "title_id": 2792,
@@ -11140,6 +11238,10 @@ Returns information about the specified software. By default, `versions` are sor
 ```
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and label (`labels_include_any`, `labels_exclude_any`, `labels_include_all`) targeting. `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+
+> Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
 For in-house iOS apps, the `software_package` field is populated with package information.
 
