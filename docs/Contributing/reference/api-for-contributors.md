@@ -1356,7 +1356,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business Manager. If there is an error communicating with the DEP APIs, dep_device will be null and dep_device_error will contain human readable error details.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business. If there is an error communicating with the DEP APIs, dep_device will be null and dep_device_error will contain human readable error details.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
