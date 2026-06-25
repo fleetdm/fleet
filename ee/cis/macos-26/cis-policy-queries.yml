@@ -253,7 +253,7 @@ spec:
       /usr/bin/sudo /bin/launchctl bootout system/com.apple.screensharing
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM launchd WHERE label = 'com.apple.screensharing'
+      SELECT 1 FROM listening_ports WHERE port = 5900
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
