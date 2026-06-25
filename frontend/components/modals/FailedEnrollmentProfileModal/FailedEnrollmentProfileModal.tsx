@@ -1,7 +1,7 @@
 import React from "react";
 import { ICommandResult } from "interfaces/command";
 import CommandResultsModal, {
-  GetIconName,
+  getIconName,
 } from "pages/hosts/components/CommandDetailsModal";
 import { formatDistanceToNow } from "date-fns";
 import IconStatusMessage from "components/IconStatusMessage";
@@ -33,7 +33,7 @@ const failedEnrollmentProfileContentBody = (
     <div>
       <IconStatusMessage
         className={`${baseClass}__status-message`}
-        iconName={GetIconName(result.status)}
+        iconName={getIconName(result.status)}
         message={messageText}
       />
       <p>

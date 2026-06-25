@@ -89,6 +89,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                       string

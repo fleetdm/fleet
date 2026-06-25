@@ -4,7 +4,6 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { getPathWithQueryParams } from "utilities/url";
 import selfServiceCategoriesAPI, {
@@ -12,6 +11,7 @@ import selfServiceCategoriesAPI, {
 } from "services/entities/self_service_categories";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
 
+import { notify } from "components/ToastNotification";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -53,7 +53,6 @@ const SelfServiceCategoriesPage = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
   const isPrimoMode = config?.partnerships?.enable_primo || false;
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const {
@@ -124,25 +123,25 @@ const SelfServiceCategoriesPage = ({
   const onAddSuccess = () => {
     invalidateList();
     setShowAddModal(false);
-    renderFlash("success", "Successfully added self-service category.");
+    notify.success("Successfully added self-service category.");
   };
 
   const onEditSuccess = () => {
     invalidateList();
     setCategoryToEdit(null);
-    renderFlash("success", "Successfully updated self-service category.");
+    notify.success("Successfully updated self-service category.");
   };
 
   const onDeleteSuccess = () => {
     invalidateList();
     setCategoryToDelete(null);
-    renderFlash("success", "Successfully deleted self-service category.");
+    notify.success("Successfully deleted self-service category.");
   };
 
   const renderHeader = () => (
     <>
       <BackButton text="Back to software library" path={backToLibraryPath} />
-      {!isPrimoMode && (
+      {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
           <TeamsDropdown
             currentUserTeams={userTeams ?? []}
@@ -152,6 +151,8 @@ const SelfServiceCategoriesPage = ({
             includeNoTeams
           />
         </div>
+      ) : (
+        <h1>Self-service categories</h1>
       )}
       <PageDescription
         content={

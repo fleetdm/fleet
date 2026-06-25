@@ -1,10 +1,9 @@
 /** TODO: This component is similar to other UI elements that can
  * be abstracted to use a shared base component (e.g. DetailsWidget) */
 
-import React, { useState } from "react";
+import React from "react";
 import classnames from "classnames";
 
-import { stringToClipboard } from "utilities/copy_text";
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -16,8 +15,7 @@ import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
@@ -92,21 +90,6 @@ const InstallerDetailsWidget = ({
   customDetails,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
-
-  const [copyMessage, setCopyMessage] = useState("");
-
-  const onCopySha256 = (evt: React.MouseEvent) => {
-    evt.preventDefault();
-
-    stringToClipboard(sha256)
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 1000);
-
-    return false;
-  };
 
   const renderIcon = () => {
     if (installerType === "app-store") {
@@ -221,23 +204,7 @@ const InstallerDetailsWidget = ({
             >
               {sha256.slice(0, 7)}&hellip;
             </TooltipWrapper>
-            <div className={`${baseClass}__sha-copy-button`}>
-              <Button
-                variant="icon"
-                size="small"
-                iconStroke
-                onClick={onCopySha256}
-              >
-                <Icon name="copy" />
-              </Button>
-            </div>
-            <div className={`${baseClass}__copy-overlay`}>
-              {copyMessage && (
-                <div
-                  className={`${baseClass}__copy-message`}
-                >{`${copyMessage} `}</div>
-              )}
-            </div>
+            <CopyButton copyText={sha256} variant="compact" />
           </span>
         </>
       ) : (

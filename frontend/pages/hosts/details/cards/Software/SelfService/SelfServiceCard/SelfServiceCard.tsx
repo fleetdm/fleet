@@ -232,12 +232,12 @@ const SelfServiceCard = ({
       })
     : softwareInSelectedCategory;
 
-  // The button shows in all four variants (including "All"). On "All",
-  // `categoryId` is undefined; the click posts to install_all without a
+  // The button is shown on desktop in the "All" filter and in any selected
+  // category. On
+  // "All", `categoryId` is undefined; the click posts to install_all without a
   // category_id query param and the BE installs every eligible (uninstalled,
-  // not-in-progress) self-service item. Disabled state is driven purely by
-  // hasInProgressInCategory || uninstalledCount === 0 — no special case for
-  // categoryId === undefined.
+  // not-in-progress) self-service item. Visibility, count, and disabled state
+  // are owned by InstallAllInCategoryButton — see #47855 for the full rules.
   const installAllButton = !isMobileView ? (
     <InstallAllInCategoryButton
       uninstalledCount={uninstalledCount}
