@@ -11,6 +11,8 @@ assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
 
 Easy-to-follow test steps for checking a release manually.
 
+> **How to check off:** Tick the checkbox in each **Progress** list as a test passes. GitHub tracks completion ("X of Y tasks") at the top of the issue. The tables below each list hold the step instructions and expected results for reference. For a **failure**, leave the box unchecked and record the details under [Notes](#notes).
+
 # Important reference data
 
 1. [fleetctl preview setup](https://fleetdm.com/fleetctl-preview)
@@ -34,9 +36,18 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 ### Orchestration
 
+**Progress**
+- [ ] Update flow
+- [ ] Login flow
+- [ ] Packs flow
+- [ ] Log destination flow
+- [ ] IdP Provisioning (SCIM)
+- [ ] GitOps and generate-gitops
+- [ ] Fleet Free
+- [ ] UI / UX
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>Update flow</td>
@@ -51,7 +62,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 </td>
 <td>All previously created hosts/queries are verified to still exist.</td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -71,7 +81,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 5. Valid SSO credentials result in a successful login.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -85,7 +94,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 4. Packs results information is logged.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -97,7 +105,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Software, report, policy, and packs logs are successfully sent to Filesystem log destinations.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -117,7 +124,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
     5. Android
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -129,7 +135,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Running GitOps either using the `gitops.sh` script directly (from the `fleet-gitops` repo) or by using the GitOps GitHub or GitLab workflow (attempting via one of these three is sufficient) succeeds.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -149,7 +154,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 Reference: https://fleetdm.com/pricing
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -165,16 +169,24 @@ Perform a quick visual scan of the UI and confirm:
 - No obvious visual regressions or broken UI states.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
 
 ### MDM
 
+**Progress**
+- [ ] MDM enrollment flow
+- [ ] MDM migration flow
+- [ ] OS settings
+- [ ] Setup experience
+- [ ] iOS/iPadOS
+- [ ] Token & Certificate Renewals
+- [ ] Fleet Free
+- [ ] UI / UX
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>MDM enrollment flow</td>
@@ -185,7 +197,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Verify able to run MDM commands on macOS hosts from the CLI.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -198,7 +209,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Turn off MDM on a non ADE-eligible macOS host.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -210,7 +220,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Verify Profiles are delivered to host and applied.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -228,7 +237,6 @@ Perform a quick visual scan of the UI and confirm:
 8. Verify software installs and script runs.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -244,7 +252,6 @@ Perform a quick visual scan of the UI and confirm:
 6. Verify `Turn Off MDM` for BYOD & ADE hosts.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -257,7 +264,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Ensure ADE hosts can enroll.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -279,7 +285,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 Reference: https://fleetdm.com/pricing
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -295,15 +300,22 @@ Perform a quick visual scan of the UI and confirm:
 - No obvious visual regressions or broken UI states.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
 
 ### Power to PC
+
+**Progress**
+- [ ] MDM enrollment flow
+- [ ] MDM migration flow
+- [ ] OS settings
+- [ ] Setup Experience
+- [ ] Fleet Free
+- [ ] UI / UX
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>MDM enrollment flow</td>
@@ -315,7 +327,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Verify able to run MDM commands on Windows hosts from the CLI.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -326,7 +337,6 @@ Perform a quick visual scan of the UI and confirm:
 1. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -338,7 +348,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Verify Profiles are delivered to host and applied.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -350,7 +359,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Add software (FMA, Custom pkg).
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -371,7 +379,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 Reference: https://fleetdm.com/pricing
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -387,16 +394,23 @@ Perform a quick visual scan of the UI and confirm:
 - No obvious visual regressions or broken UI states.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
 
 ### Software
 
+**Progress**
+- [ ] Report flow
+- [ ] Host flow
+- [ ] My device page
+- [ ] Scripts
+- [ ] Software
+- [ ] Fleet Free
+- [ ] UI / UX
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>Report flow</td>
@@ -408,7 +422,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Queries can be run manually.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -422,7 +435,6 @@ Perform a quick visual scan of the UI and confirm:
 4. Warning and informational modals show when expected and make sense.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -435,7 +447,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Styling and padding appears correct.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -452,7 +463,6 @@ Perform a quick visual scan of the UI and confirm:
 7. Verify scripts display correctly in Activity feed.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -467,7 +477,6 @@ Perform a quick visual scan of the UI and confirm:
 5. Verify software installs display correctly in Activity feed.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -490,7 +499,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 Reference: https://fleetdm.com/pricing
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -506,16 +514,24 @@ Perform a quick visual scan of the UI and confirm:
 - No obvious visual regressions or broken UI states.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
 
 ### Security & Compliance
 
+**Progress**
+- [ ] Disk encryption
+- [ ] Vulnerabilities
+- [ ] Certificate Authorities
+- [ ] Android
+- [ ] OS updates
+- [ ] Lock & Wipe
+- [ ] Fleet Free
+- [ ] UI / UX
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>Disk encryption</td>
@@ -526,7 +542,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Verify host enrolled with Disk encryption enforced successfully encrypts.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -539,7 +554,6 @@ Perform a quick visual scan of the UI and confirm:
 3. Verify that vulnerable software appears under "My device > Software" for affected hosts with expected CVEs.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -553,7 +567,6 @@ Perform a quick visual scan of the UI and confirm:
     3. SmallStep
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -568,7 +581,6 @@ Perform a quick visual scan of the UI and confirm:
 5. Verify `Unenroll`.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -580,7 +592,6 @@ Perform a quick visual scan of the UI and confirm:
 2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -594,7 +605,6 @@ Perform a quick visual scan of the UI and confirm:
 4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux).
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -617,7 +627,6 @@ Run basic checks for the product group area while using a Fleet Free license.
 Reference: https://fleetdm.com/pricing
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -633,16 +642,23 @@ Perform a quick visual scan of the UI and confirm:
 - No obvious visual regressions or broken UI states.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
 
 ### All product groups
 
+**Progress**
+- [ ] Release blockers
+- [ ] Baseline loadtest (minor releases only)
+- [ ] Migration loadtest (minor releases only)
+- [ ] Helm chart
+- [ ] Migration test
+- [ ] Cloud migration tests
+- [ ] Trivy scan
+
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
 <td>Release blockers</td>
@@ -653,22 +669,31 @@ Perform a quick visual scan of the UI and confirm:
 2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`) channels.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
-<td>Load tests - minor releases only unless otherwise specified</td>
-<td>Verify all load test metrics are within acceptable range on final build of RC.</td>
+<td>Baseline loadtest - minor releases only unless otherwise specified</td>
+<td>Verify load test metrics are within acceptable range on a fresh RC instance with no data.</td>
 <td>
 
 1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
-2. After all expected changes have been merged to the RC branch, two load tests will need to be run - a new instance with no data, and a migrated instance.
-3. For the new instance with no data, set up a load test environment using the RC branch and allow it at least 24hrs of run time.
-4. For the migrated instance, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch. Monitor the metrics post-migration to determine if any performance issues arise.
-5. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the two load test runs.
+2. After all expected changes have been merged to the RC branch, set up a load test environment using the RC branch (new instance, no data) and allow it at least 24hrs of run time.
+3. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the run.
 
 </td>
-<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Migration loadtest - minor releases only unless otherwise specified</td>
+<td>Verify load test metrics are within acceptable range after migrating from the previous minor release to the RC.</td>
+<td>
+
+1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
+2. After all expected changes have been merged to the RC branch, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch.
+3. Monitor the metrics post-migration to determine if any performance issues arise.
+4. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the run.
+
+</td>
 </tr>
 
 <tr>
@@ -688,7 +713,6 @@ Follow the [Test Fleet Helm Chart With Docker Desktop runbook](https://github.co
 8. Tear down with `helm uninstall` + `kubectl delete namespace fleet` + `docker compose stop mysql redis`.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -705,7 +729,6 @@ Using [this GitHub action](https://github.com/fleetdm/fleet/actions/workflows/db
 5. Action should complete successfully.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -720,7 +743,6 @@ Using [this GitHub action](https://github.com/fleetdm/confidential/actions/workf
 3. Action should complete successfully and the total time for each instance shouldn't be drastically different from previous releases.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 <tr>
@@ -734,7 +756,6 @@ Using [this GitHub action](https://github.com/fleetdm/confidential/actions/workf
 4. If new high/critical vulnerabilities are found, raise an alarm in the appropriate channels.
 
 </td>
-<td>pass/fail</td>
 </tr>
 
 </table>
