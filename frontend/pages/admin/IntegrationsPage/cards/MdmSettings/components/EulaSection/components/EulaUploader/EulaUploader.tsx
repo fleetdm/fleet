@@ -1,12 +1,12 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { AxiosResponse } from "axios";
 
 import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
 
 import FileUploader from "components/FileUploader/FileUploader";
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
@@ -17,7 +17,6 @@ interface IEulaUploaderProps {
 }
 
 const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
@@ -32,19 +31,19 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
 
     // quick exit if the file type is incorrect
     if (!file.name.includes(".pdf")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
+      notify.error(UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;
     }
 
     try {
       await mdmAPI.uploadEULA(file);
-      renderFlash("success", "Successfully updated end user authentication.");
+      notify.success("Successfully updated end user authentication.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
+      notify.error(errMessage, { response: e });
     } finally {
       setShowLoading(false);
     }

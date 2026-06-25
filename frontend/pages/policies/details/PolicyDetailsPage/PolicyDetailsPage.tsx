@@ -31,6 +31,7 @@ import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { getTicketOrWebhookInfo } from "pages/policies/helpers";
@@ -367,7 +368,10 @@ const PolicyDetailsPage = ({
             <div className={`${baseClass}__title-bar`}>
               <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__policy-name`}>
-                  {storedPolicy?.name}
+                  <TooltipTruncatedText
+                    value={storedPolicy?.name}
+                    fixedPositionStrategy
+                  />
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."

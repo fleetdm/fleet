@@ -1,4 +1,4 @@
-import React, { MouseEvent, ReactNode, useState, useCallback } from "react";
+import React, { ReactNode } from "react";
 
 import classnames from "classnames";
 import AceEditor from "react-ace";
@@ -8,11 +8,8 @@ import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/mode-xml";
 import { Ace } from "ace-builds";
 
-import { stringToClipboard } from "utilities/copy_text";
-
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
 
 const baseClass = "editor";
 
@@ -91,37 +88,10 @@ const Editor = ({
     [`${baseClass}__error`]: !!error,
   });
 
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
-
-  const onClickCopy = useCallback(
-    (e: MouseEvent) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        setShowCopiedMessage(true);
-        setTimeout(() => {
-          setShowCopiedMessage(false);
-        }, 2000);
-      });
-    },
-    [value]
-  );
-
   const renderCopyButton = () => {
-    const copyButtonValue = <Icon name="copy" />;
-    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
-
-    const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`
-    );
-
     return (
-      <div className={wrapperClasses}>
-        {showCopiedMessage && (
-          <span className={copiedConfirmationClasses}>Copied!</span>
-        )}
-        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
-          {copyButtonValue}
-        </Button>
+      <div className={`${baseClass}__copy-wrapper`}>
+        <CopyButton copyText={value ?? ""} />
       </div>
     );
   };

@@ -1,14 +1,14 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { NotificationContext } from "context/notification";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import { notify } from "components/ToastNotification";
 
 import {
   generateDefaultFormData,
@@ -36,7 +36,6 @@ const EditCertAuthorityModal = ({
   certAuthority,
   onExit,
 }: IEditCertAuthorityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [formData, setFormData] = useState<ICertFormData | undefined>();
@@ -76,10 +75,10 @@ const EditCertAuthorityModal = ({
         certAuthority.id,
         editPatchData
       );
-      renderFlash("success", "Successfully edited certificate authority.");
+      notify.success("Successfully edited certificate authority.");
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
     setIsUpdating(false);
   };

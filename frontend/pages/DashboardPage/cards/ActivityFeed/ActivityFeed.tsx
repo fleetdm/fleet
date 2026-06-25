@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -21,6 +22,10 @@ import {
 } from "interfaces/activity";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -41,6 +46,11 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
+import MdmCommandDetailsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -146,6 +156,11 @@ const ActivityFeed = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
+    host_uuid?: string;
+    command_uuid: string;
+    actor_full_name?: string;
+  } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -314,6 +329,17 @@ const ActivityFeed = ({
           },
         });
         break;
+      case ActivityType.RanCustomMdmCommand: {
+        if (!details?.command_uuid) {
+          break;
+        }
+        setMdmCommandActivityDetails({
+          command_uuid: details.command_uuid,
+          host_uuid: details?.host_uuid,
+          actor_full_name,
+        });
+        break;
+      }
       default:
         break;
     }
@@ -481,6 +507,58 @@ const ActivityFeed = ({
         <FailedEnrollmentProfileModal
           command={enrollmentProfileFailedDetails.command}
           onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {!!mdmCommandActivityDetails && (
+        <MdmCommandDetailsModal
+          command={mdmCommandActivityDetails}
+          contentBody={(cls, result) => {
+            const isPending = getIconName(result.status) === "pending-outline";
+            const cmdDisplayName = getMdmCommandDisplayName(
+              result.request_type
+            );
+            const timeAgo = result.updated_at
+              ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+                  addSuffix: true,
+                })})`
+              : "";
+            return (
+              <IconStatusMessage
+                className={`${cls}__status-message`}
+                iconName={getIconName(result.status)}
+                message={
+                  isPending ? (
+                    <span>
+                      {cmdDisplayName ? (
+                        <>
+                          {"The "}
+                          <b>{cmdDisplayName}</b>
+                          {" custom MDM command"}
+                        </>
+                      ) : (
+                        "A custom MDM command"
+                      )}
+                      {" is pending on "}
+                      <b>{result.hostname}</b>
+                      {`${timeAgo}.`}
+                    </span>
+                  ) : (
+                    <span>
+                      {mdmCommandActivityDetails.actor_full_name && (
+                        <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      )}
+                      {` ${getVerbForCommandStatus(result.status)} `}
+                      {formatMdmCommandNameForActivityItem(result.request_type)}
+                      {" on "}
+                      <b>{result.hostname}</b>
+                      {"."}
+                    </span>
+                  )
+                }
+              />
+            );
+          }}
+          onDone={() => setMdmCommandActivityDetails(null)}
         />
       )}
     </div>
