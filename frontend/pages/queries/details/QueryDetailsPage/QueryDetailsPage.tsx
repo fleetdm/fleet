@@ -128,7 +128,6 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
       select: (data) => data.query,
       onError: (error) => handlePageError(error),
     }
@@ -170,7 +169,7 @@ const QueryDetailsPage = ({
       }),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
+      refetchInterval: (data) => (data?.results?.length === 0 ? 5000 : false),
       onError: (error) => handlePageError(error),
     }
   );
