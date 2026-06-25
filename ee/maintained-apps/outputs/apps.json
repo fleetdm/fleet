@@ -8206,18 +8206,18 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncviewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "unique_identifier": "com.realvnc.rvncconnect",
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/windows",
       "platform": "windows",
       "unique_identifier": "RealVNC Connect Viewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "VoiceInk",

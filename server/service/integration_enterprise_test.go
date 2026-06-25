@@ -7357,7 +7357,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete a user, should fail.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), deleteUserRequest{}, http.StatusForbidden, &deleteUserResponse{})
 
-	// Attempt to add users to team, should allow.
+	// Attempt to add users to team, should fail (gitops cannot manage team membership).
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
@@ -7365,9 +7365,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 				Role: "admin",
 			},
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusForbidden, &teamResponse{})
 
-	// Attempt to delete users from team, should allow.
+	// Attempt to delete users from team, should fail (gitops cannot manage team membership).
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
@@ -7375,7 +7375,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 				Role: "admin",
 			},
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to create a team, should allow.
 	tr := teamResponse{}
@@ -7634,7 +7634,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		}
 	}`), http.StatusForbidden, &teamResponse{})
 
-	// Attempt to add users from team it owns to another team it owns, should allow.
+	// Attempt to add users from team it owns to another team it owns, should fail (gitops cannot manage team membership).
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
@@ -7642,16 +7642,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 				Role: "maintainer",
 			},
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusForbidden, &teamResponse{})
 
-	// Attempt to delete users from team it owns, should allow.
+	// Attempt to delete users from team it owns, should fail (gitops cannot manage team membership).
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
 			},
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to add users to another team it doesn't own, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{

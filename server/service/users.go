@@ -1382,9 +1382,23 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password, true)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
+	}
+
+	// Destroy all other sessions but keep the current one so the user
+	// completing the reset is not logged out.
+	sessions, err := svc.ds.ListSessionsForUser(ctx, user.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing user sessions")
+	}
+	for _, s := range sessions {
+		if s.ID != vc.Session.ID {
+			if err := svc.ds.DestroySession(ctx, s); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "destroying session")
+			}
+		}
 	}
 
 	return user, nil
