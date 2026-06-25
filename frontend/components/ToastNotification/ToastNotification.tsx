@@ -31,12 +31,20 @@ const ToastNotification = ({
     : `${baseClass} ${baseClass}__wrapper`;
 
   // Dismiss visible toasts on route change, matching 4.86 flash behavior.
-  // The listener fires synchronously during router.push; because `notify`
-  // defers creation by a tick (see below), a toast triggered alongside a
-  // navigation is created afterward and lands on the destination page.
+  // Only fires when the pathname actually changes — query-param `replace`s
+  // (e.g. TableContainer's onQueryChange URL sync on initial render) are
+  // ignored so they don't kill a toast that just landed on the destination
+  // page (#48180). The listener fires synchronously during router.push;
+  // because `notify` defers creation by a tick (see below), a toast
+  // triggered alongside a navigation is created afterward and lands on the
+  // destination page.
   useEffect(() => {
-    const unlisten = browserHistory.listen(() => {
-      toast.dismiss();
+    let prevPathname = window.location.pathname;
+    const unlisten = browserHistory.listen((location) => {
+      if (location.pathname !== prevPathname) {
+        prevPathname = location.pathname;
+        toast.dismiss();
+      }
     });
     return unlisten;
   }, []);
