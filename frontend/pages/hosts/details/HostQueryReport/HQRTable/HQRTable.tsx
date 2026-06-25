@@ -13,6 +13,7 @@ import FileSaver from "file-saver";
 import Spinner from "components/Spinner";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
@@ -173,8 +174,10 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <div>
-          <h2>{queryName}</h2>
+        <div className={`${baseClass}__query-info-text`}>
+          <h2>
+            <TooltipTruncatedText value={queryName} fixedPositionStrategy />
+          </h2>
           <h3>{queryDescription}</h3>
         </div>
         <PerformanceImpact queryStats={queryStats} queryId={queryId} />

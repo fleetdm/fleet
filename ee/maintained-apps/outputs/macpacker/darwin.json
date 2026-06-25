@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.15.3",
+      "version": "0.15.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker' AND version_compare(bundle_short_version, '0.15.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker' AND version_compare(bundle_short_version, '0.15.4') < 0);"
       },
-      "installer_url": "https://macpacker-releases.s3.amazonaws.com/MacPacker_v0.15.3.zip",
+      "installer_url": "https://macpacker-releases.s3.amazonaws.com/MacPacker_v0.15.4.zip",
       "install_script_ref": "a8350ac7",
       "uninstall_script_ref": "fd696a74",
-      "sha256": "c1e4fb89822bdc1ff2eaf34f2d4a60ea5ad7c9e3b6f94a7c87f74f8d8f8db10a",
+      "sha256": "3cf0544874936346ca94f44d6ba2434976d48cad0766694ebab9f0ed9ba6b88d",
       "default_categories": [
         "Productivity"
       ]
