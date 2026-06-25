@@ -104,7 +104,7 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
 		default:
-			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+			return nil, fmt.Errorf("consuming SCEP challenge: %w", err)
 		}
 	}
 }
