@@ -53,7 +53,7 @@ const CreateUserButton = ({
       onClick={toggleCreateMemberModal}
       disabled={disabled}
     >
-      Create user
+      Add user
     </Button>
   );
 };

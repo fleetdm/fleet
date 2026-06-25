@@ -591,7 +591,7 @@ describe("CommandPalette helpers", () => {
       expect(items.map((i) => i.id)).toContain("manage-report-automations");
     });
 
-    it("shows Create fleet only for admins", () => {
+    it("shows Add fleet only for admins", () => {
       const adminItems = buildPaletteItems(BASE_CONTEXT);
       expect(adminItems.map((i) => i.id)).toContain("create-fleet");
 

@@ -173,7 +173,7 @@ const SelectReportModal = ({
             canCreateReport ? (
               <>
                 <Button variant="link" onClick={onRunCustomReport}>
-                  Create a report
+                  Add a report
                 </Button>{" "}
                 to run.
               </>
