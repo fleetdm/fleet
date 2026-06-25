@@ -672,7 +672,7 @@ software:
 
 You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
 
-`self_service`, `categories`, and labels are defined per package inside the package YAML file, not on the fleet-level YAML file.
+`self_service`, `categories`, and labels are defined per package inside the package YAML file.
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
