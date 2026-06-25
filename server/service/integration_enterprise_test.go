@@ -16990,7 +16990,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	err = shFile.Rewind()
 	require.NoError(t, err)
 
-	// Test .sh file with unsupported params (should be ignored/cleared)
+	// .sh script package with advanced options, which should persist.
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename:          "install-app.sh",
 		TeamID:            &team.ID,
@@ -17007,7 +17007,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.NotZero(t, titleID)
 
-	// Verify unsupported params were cleared (script contents should be empty)
+	// Verify advanced options persisted (pre_install_query has its trailing ; trimmed).
 	var scriptContents struct {
 		UninstallScript   string `db:"uninstall_script"`
 		PostInstallScript string `db:"post_install_script"`
@@ -17024,21 +17024,20 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
 			WHERE si.title_id = ?`, titleID)
 	})
-	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should be empty")
-	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should be empty")
-	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should be empty")
+	require.Equal(t, "echo 'uninstall'", scriptContents.UninstallScript)
+	require.Equal(t, "echo 'post'", scriptContents.PostInstallScript)
+	require.Equal(t, "SELECT 1;", scriptContents.PreInstallQuery)
 
-	// Test editing script package with unsupported params (should be ignored)
+	// Editing a script package updates its advanced options.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		Filename:          "install-app.sh",
-		UninstallScript:   new("should be cleared"),
-		PostInstallScript: new("should be cleared"),
-		PreInstallQuery:   new("should be cleared"),
+		UninstallScript:   new("echo 'updated uninstall'"),
+		PostInstallScript: new("echo 'updated post'"),
+		PreInstallQuery:   new("SELECT 2"),
 		TitleID:           titleID,
 		TeamID:            &team.ID,
 	}, http.StatusOK, "")
 
-	// Verify unsupported params are still cleared after update
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &scriptContents, `
 			SELECT
@@ -17050,9 +17049,9 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
 			WHERE si.title_id = ?`, titleID)
 	})
-	require.Empty(t, scriptContents.UninstallScript, "uninstall_script should still be empty")
-	require.Empty(t, scriptContents.PostInstallScript, "post_install_script should still be empty")
-	require.Empty(t, scriptContents.PreInstallQuery, "pre_install_query should still be empty")
+	require.Equal(t, "echo 'updated uninstall'", scriptContents.UninstallScript)
+	require.Equal(t, "echo 'updated post'", scriptContents.PostInstallScript)
+	require.Equal(t, "SELECT 2", scriptContents.PreInstallQuery)
 }
 
 // 1. host reports software
@@ -22075,9 +22074,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 }
 
 // TestScriptPackageUploadValidation tests that script packages (.sh and .ps1)
-// properly ignore unsupported fields (install_script, post_install_script,
-// uninstall_script, pre_install_query) when uploaded via the API. These fields
-// are not supported because the file contents themselves become the install script.
+// persist post_install_script, uninstall_script, and pre_install_query when
+// uploaded via the API. The install_script field stays the uploaded file's
+// contents (file-driven) and any provided install_script value is ignored.
 func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	t := s.T()
 
@@ -22093,16 +22092,16 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
-	t.Run("sh script package ignores unsupported fields", func(t *testing.T) {
+	t.Run("sh script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
 		require.NoError(t, err)
 		defer installerFile.Close()
 
-		// Upload with unsupported fields populated
+		// install_script is ignored (the file is the install script); the rest persist.
 		payload := &fleet.UploadSoftwareInstallerPayload{
-			InstallScript:     "echo 'This should be ignored'",
-			PostInstallScript: "echo 'Post-install should be ignored'",
-			UninstallScript:   "echo 'Uninstall should be ignored'",
+			InstallScript:     "echo 'install_script is ignored'",
+			PostInstallScript: "echo 'post-install'",
+			UninstallScript:   "echo 'uninstall'",
 			PreInstallQuery:   "SELECT 1",
 			Filename:          "test-script.sh",
 			InstallerFile:     installerFile,
@@ -22110,7 +22109,6 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
@@ -22132,24 +22130,24 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
 		require.Equal(t, string(shScriptContent), installer.InstallScript, ".sh script package should have install_script from file contents")
-		require.NotEqual(t, "echo 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
-		require.Empty(t, installer.PostInstallScript, ".sh script package should not have post_install_script")
-		require.Empty(t, installer.UninstallScript, ".sh script package should not have uninstall_script")
-		require.Empty(t, installer.PreInstallQuery, ".sh script package should not have pre_install_query")
+		require.NotEqual(t, "echo 'install_script is ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "echo 'post-install'", installer.PostInstallScript, ".sh script package should persist post_install_script")
+		require.Equal(t, "echo 'uninstall'", installer.UninstallScript, ".sh script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".sh script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})
 
-	t.Run("ps1 script package ignores unsupported fields", func(t *testing.T) {
+	t.Run("ps1 script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(ps1ScriptPath)
 		require.NoError(t, err)
 		defer installerFile.Close()
 
-		// Upload with unsupported fields populated
+		// install_script is ignored (the file is the install script); the rest persist.
 		payload := &fleet.UploadSoftwareInstallerPayload{
-			InstallScript:     "Write-Host 'This should be ignored'",
-			PostInstallScript: "Write-Host 'Post-install should be ignored'",
-			UninstallScript:   "Write-Host 'Uninstall should be ignored'",
+			InstallScript:     "Write-Host 'install_script is ignored'",
+			PostInstallScript: "Write-Host 'post-install'",
+			UninstallScript:   "Write-Host 'uninstall'",
 			PreInstallQuery:   "SELECT 1",
 			Filename:          "test-script.ps1",
 			InstallerFile:     installerFile,
@@ -22157,7 +22155,6 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		// Verify fields were cleared
 		var listResp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 
@@ -22179,10 +22176,10 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		installer := titleResp.SoftwareTitle.SoftwarePackage
 
 		require.Equal(t, string(ps1ScriptContent), installer.InstallScript, ".ps1 script package should have install_script from file contents")
-		require.NotEqual(t, "Write-Host 'This should be ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
-		require.Empty(t, installer.PostInstallScript, ".ps1 script package should not have post_install_script")
-		require.Empty(t, installer.UninstallScript, ".ps1 script package should not have uninstall_script")
-		require.Empty(t, installer.PreInstallQuery, ".ps1 script package should not have pre_install_query")
+		require.NotEqual(t, "Write-Host 'install_script is ignored'", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "Write-Host 'post-install'", installer.PostInstallScript, ".ps1 script package should persist post_install_script")
+		require.Equal(t, "Write-Host 'uninstall'", installer.UninstallScript, ".ps1 script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".ps1 script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})
