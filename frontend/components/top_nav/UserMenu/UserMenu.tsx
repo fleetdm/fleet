@@ -170,34 +170,38 @@ const UserMenu = ({
       });
     }
   } else if (currentUser && isAnyTeamAdmin) {
-    const currentTeamIsAdmin =
-      currentTeam && permissions.isTeamAdmin(currentUser, currentTeam.id);
-    // Use the current team if the user is an admin of it, otherwise fall back
-    // to the first team (alphabetical) the user is an admin of.
-    // availableTeams is pre-sorted alphabetically by AppContext.
-    const targetTeamId = currentTeamIsAdmin
-      ? currentTeam.id
-      : availableTeams?.find((t) => permissions.isTeamAdmin(currentUser, t.id))
-          ?.id;
+    // Resolved at click time so availableTeams is guaranteed to be loaded.
+    const getTargetTeamId = () => {
+      const currentTeamIsAdmin =
+        currentTeam && permissions.isTeamAdmin(currentUser, currentTeam.id);
+      // Use the current team if the user is an admin of it, otherwise fall back
+      // to the first team (alphabetical) the user is an admin of.
+      // availableTeams is pre-sorted alphabetically by AppContext.
+      return currentTeamIsAdmin
+        ? currentTeam.id
+        : availableTeams?.find((t) =>
+            permissions.isTeamAdmin(currentUser, t.id)
+          )?.id;
+    };
 
     dropdownItems.push({
       label: "Users",
       value: "team-users",
       hasDividerBefore: true,
       onClick: () =>
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeamId)),
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(getTargetTeamId())),
     });
     dropdownItems.push({
       label: "Agent options",
       value: "team-agent-options",
       onClick: () =>
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_OPTIONS(targetTeamId)),
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_OPTIONS(getTargetTeamId())),
     });
     dropdownItems.push({
       label: "Settings",
       value: "team-settings",
       onClick: () =>
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_SETTINGS(targetTeamId)),
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_SETTINGS(getTargetTeamId())),
     });
   }
 
