@@ -336,9 +336,6 @@ type IInstallStatusCellProps = {
   isHostOnline?: boolean;
 };
 
-const getSoftwarePackageName = (software: IHostSoftware) =>
-  software.display_name || software.name;
-
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],
   isSelfService: boolean,
@@ -403,7 +400,10 @@ const InstallStatusCell = ({
     !!software.app_store_app && isAndroid(software.app_store_app.platform);
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
-  const softwarePackageName = getSoftwarePackageName(software);
+  const softwarePackageName = getDisplayedSoftwareName(
+    software.name,
+    software.display_name
+  );
   const displayStatus = software.ui_status;
 
   if (displayStatus === "uninstalled" || displayStatus === "never_ran_script") {
