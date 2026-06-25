@@ -1,8 +1,9 @@
 {
-  "name": "VNC Viewer",
+  "name": "RealVNC Connect Viewer",
   "unique_identifier": "com.realvnc.vncviewer",
   "token": "vnc-viewer",
   "installer_format": "dmg",
   "slug": "vnc-viewer/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 } 
