@@ -722,11 +722,19 @@ spec:
       8. Set Encrypt Backup to enabled
       9. Enter a password in the New Password and the same password in the Re-enter Password fields
   query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/com.apple.TimeMachine.plist'
-        AND value = 'NotEncrypted'
-    );
+    SELECT 1 WHERE
+      NOT EXISTS (
+        SELECT 1 FROM preferences
+        WHERE domain = 'com.apple.TimeMachine'
+          AND key = 'AutoBackup'
+          AND value = 'true'
+      )
+      OR EXISTS (
+        SELECT 1 FROM disk_encryption de
+        JOIN mounts m ON m.device = de.name
+        WHERE de.encrypted = 1
+          AND m.path LIKE '/Volumes/%'
+      );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
