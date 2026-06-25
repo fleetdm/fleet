@@ -325,9 +325,8 @@ func (ds *Datastore) BatchDeleteCertificateTemplates(ctx context.Context, certif
 }
 
 // setCertTemplateVariableAssociations replaces the variable associations for a
-// certificate template in mdm_configuration_profile_variables. It extracts
-// variables from the combined subject_name + subject_alternative_name using
-// variables.Find, then deletes old rows and inserts fresh ones.
+// certificate template in mdm_configuration_profile_variables. It deletes
+// existing rows and inserts fresh ones for the given fleetVars.
 func setCertTemplateVariableAssociations(ctx context.Context, tx sqlx.ExtContext, certTemplateID uint, fleetVars []fleet.FleetVarName) error {
 	// Always clear existing associations first.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE certificate_template_id = ?`, certTemplateID); err != nil {

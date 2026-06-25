@@ -30,7 +30,7 @@ func TestUp_20260624152755(t *testing.T) {
 
 	// --- Certificate template variable tracking ---
 
-	_, err = db.Exec(`INSERT INTO certificate_authorities (name, type) VALUES ('test_ca', 'custom_scep_proxy')`)
+	_, err = db.Exec(`INSERT INTO certificate_authorities (name, type, url) VALUES ('test_ca', 'custom_scep_proxy', 'https://ca.example.com')`)
 	require.NoError(t, err)
 
 	var caID uint
