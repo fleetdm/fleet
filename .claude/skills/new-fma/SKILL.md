@@ -129,9 +129,18 @@ go run cmd/maintained-apps/main.go --slug="<app>/<platform>" --debug
 | `program_publisher` (winget) | Overrides the exists-query publisher when registry Publisher ≠ winget locale Publisher. |
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`. A string → `name LIKE '<that string>'` verbatim (e.g. `"Mozilla Firefox % ESR %"`, `"IntelliJ IDEA 20%"`). |
 | `exists_query` (winget) | Replaces the generated exists query verbatim. The patched query is DERIVED from it (appends `AND version_compare(...) < 0`). |
-| `installer_scope` | Must match the winget manifest's Scope — you can't pick machine if only user exists. |
+| `installer_scope` | Selects the winget installer AND documents intent — **always set it** (`machine`/`user`), never leave unset. Must match a scope the manifest actually offers (can't pick machine if only user exists; an **exe with no declared Scope → ingester leaves scope empty**, so the input also matches empty). Prefer `machine` (Fleet installs as SYSTEM). See *Install scope & patch-policy correctness* below. |
 
 `patch_policy_path` exists in the input struct but is **dead code** (unused since the patched query became auto-generated). Don't use it; there is no patched-query override other than shaping `exists_query` or a hard-coded per-app branch in the ingester (Docker Desktop precedent).
+
+## Install scope & patch-policy correctness
+
+A Windows FMA's **patch policy is its `exists` query plus a version check** — the same `WHERE` clause, wrapped in `NOT EXISTS` (`pkg/patch_policy/patch_policy.go` derives `patched` from `exists`). Detection scope and "is it patched?" scope are therefore the *same predicate*. Consequences when choosing scope:
+
+- **Keep the `exists` query scope-blind.** It runs against osquery `programs`, which already spans `HKLM` *and* per-user hives. Do NOT narrow it to one scope (e.g. via `install_location`) to "target the system app": because `patched` is derived from `exists`, that makes the policy report **patched while a stale opposite-scope copy remains** (false green — the worst outcome). Fix scope mismatches in the **install/uninstall scripts**, never in the detection query.
+- **Pick one canonical scope and make install + uninstall + detection agree.** Fleet installs as SYSTEM, so prefer **machine** (Pitfall 5). If the host already has the app at the *other* scope, a single-scope install leaves a second, stale copy and the (scope-blind) policy stays red forever — so remediation must update/remove the copy that's actually present, not blindly install one scope.
+- **Always set `installer_scope`** (`machine`/`user`) — never leave it unset. The ingester only defaults MSI→machine and MSIX/zip→user; an **exe with no winget Scope stays empty**, so confirm the real scope yourself and treat a per-user-only installer as a SYSTEM-context risk (Pitfall 5).
+- **MSIX is special — don't "fix" the scope.** MSIX packages are **user-scoped artifacts** (winget offers no machine variant, so `installer_scope: user` is correct), but the install script provisions them **machine-wide** via `Add-AppxProvisionedPackage`. That declared-vs-deployed difference is expected; setting `installer_scope: machine` only breaks ingestion (no installer to select). Also verify on a Windows host that the MSIX shows up in osquery `programs` at all — if it doesn't, the exists/patched query can't see what we installed.
 
 ## Pitfalls (each one cost a validation cycle in practice)
 
@@ -168,5 +177,6 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 - [ ] Version reconciles with osquery (or a documented validator exception applies — not a blanket skip).
 - [ ] Generated SHA matches the manifest; exists/patched queries reviewed; `apps.json` valid + description filled.
 - [ ] Icon exists or is generated.
+- [ ] `installer_scope` set explicitly (never unset); detection query left scope-blind (no per-scope narrowing); install/uninstall/detection agree on scope. (MSIX: `user` artifact provisioned machine-wide is expected — don't set `machine`.)
 - [ ] Bootstrapper / per-user / latest-URL risks flagged in the PR if present.
 - [ ] If you changed shared code (`cmd/maintained-apps/validate/*.go`, ingesters), call it out in the PR and run `GOOS=windows go build ./cmd/maintained-apps/validate/` + `go test ./cmd/maintained-apps/...`.
