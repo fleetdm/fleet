@@ -105,6 +105,11 @@ const SoftwareSummaryCard = ({
   // patch-only policies live under `software_package.patch_policy` (not in
   // `automatic_install_policies`), so we key off the merged set.
   const hasLinkedPolicies = mergedPolicies.length > 0;
+  // If every linked policy is patch-only, surface a "Patch policy" pill
+  // instead of "Auto install". When at least one policy is dynamic, the
+  // Auto install pill wins (it's the stronger statement).
+  const isPatchPolicyOnly =
+    hasLinkedPolicies && mergedPolicies.every((p) => !p.type.has("dynamic"));
 
   // VPP / App Store distinguishes by installer source (app-store vs package),
   // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
@@ -143,8 +148,8 @@ const SoftwareSummaryCard = ({
         )}
         {hasLinkedPolicies && (
           <Chip
-            icon="refresh"
-            text="Auto install"
+            icon={isPatchPolicyOnly ? "policy" : "refresh"}
+            text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
               // would just show a one-item list with that same link.
@@ -183,6 +188,7 @@ const SoftwareSummaryCard = ({
     installerKindLabel,
     isSelfService,
     hasLinkedPolicies,
+    isPatchPolicyOnly,
     mergedPolicies,
     softwareTitle.source,
     router,
