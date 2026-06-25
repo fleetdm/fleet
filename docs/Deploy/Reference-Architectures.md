@@ -190,7 +190,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.t4g.small | 3     |
+| Redis        | 8.x                     | cache.t4g.small | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
 ###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
@@ -201,7 +201,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |
-| Redis        | 7.x                     | cache.t4g.medium | 3     |
+| Redis        | 8.x                     | cache.t4g.medium | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.large     | 2     |
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
@@ -212,7 +212,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.large | 3     |
+| Redis        | 8.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
 ###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
@@ -223,7 +223,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.large | 3     |
+| Redis        | 8.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.xlarge   | 3     |
 
 ###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
@@ -234,7 +234,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.large | 3     |
+| Redis        | 8.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
@@ -245,7 +245,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.large | 3     |
+| Redis        | 8.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
@@ -256,7 +256,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ |-------------------------| --------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.large | 3     |
+| Redis        | 8.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 3     |
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
@@ -267,7 +267,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 
 | Dependencies | Version                 | Instance type    | Nodes |
 | ------------ |-------------------------| ---------------- | ----- |
-| Redis        | 7.x                     | cache.r6g.xlarge | 3     |
+| Redis        | 8.x                     | cache.r6g.xlarge | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.8xlarge   | 3     |
 
 
