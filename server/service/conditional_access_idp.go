@@ -360,17 +360,11 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	}
 	scepURL := parsedServerURL.JoinPath("/api/fleet/conditional_access/scep").String()
 
-	// Get global enroll secrets
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	// Generate a short-lived, single-use SCEP challenge
+	challenge, err := svc.ds.NewChallenge(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to get enroll secrets")
+		return nil, ctxerr.Wrap(ctx, err, "failed to generate SCEP challenge")
 	}
-	if len(secrets) == 0 {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "global enroll secret is not configured"})
-	}
-
-	// Use the first global enroll secret as the challenge
-	challenge := secrets[0].Secret
 
 	// Get mTLS URL using ConditionalAccessIdPSSOURL
 	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)

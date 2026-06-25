@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -44,8 +45,8 @@ func TestConditionalAccessGetIdPSigningCertAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},
@@ -118,10 +119,8 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 		}, nil
 	}
 
-	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{
-			{Secret: "test-secret-123"},
-		}, nil
+	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+		return "short-lived-challenge-token", nil
 	}
 
 	testCases := []struct {
@@ -131,8 +130,8 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	}{
 		{"global admin", test.UserAdmin, false},
 		{"global maintainer", test.UserMaintainer, false},
-		{"global observer", test.UserObserver, false},
-		{"global observer+", test.UserObserverPlus, false},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
 		{"global gitops", test.UserGitOps, false},
 		{"team admin", test.UserTeamAdminTeam1, true},
 		{"team maintainer", test.UserTeamMaintainerTeam1, true},
@@ -230,10 +229,8 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{
-				{Secret: "test-secret-456"},
-			}, nil
+		ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+			return "short-lived-challenge-456", nil
 		}
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
@@ -249,8 +246,8 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Contains(t, profileStr, "https://fleet.example.com:8080/api/fleet/conditional_access/scep")
 		require.Contains(t, profileStr, "https://okta.fleet.example.com:8080")
 
-		// Verify challenge secret
-		require.Contains(t, profileStr, "test-secret-456")
+		// Verify short-lived challenge is embedded (not the enroll secret)
+		require.Contains(t, profileStr, "short-lived-challenge-456")
 
 		// Verify payload identifiers
 		require.Contains(t, profileStr, "com.fleetdm.conditional-access-ca")
@@ -343,7 +340,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Nil(t, profileData)
 	})
 
-	t.Run("no enroll secrets", func(t *testing.T) {
+	t.Run("challenge generation failure", func(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
@@ -367,14 +364,13 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{}, nil
+		ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+			return "", errors.New("database error")
 		}
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
-		var badReqErr *fleet.BadRequestError
-		require.ErrorAs(t, err, &badReqErr)
-		require.Contains(t, err.Error(), "global enroll secret is not configured")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to generate SCEP challenge")
 		require.Nil(t, profileData)
 	})
 
@@ -463,10 +459,10 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{
-				{Secret: "test-secret"},
-			}, nil
+		// Use a fixed challenge so profiles are comparable (UUIDs are
+		// deterministic based on server URL, not the challenge).
+		ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+			return "fixed-challenge", nil
 		}
 
 		// Generate profile twice with same server URL

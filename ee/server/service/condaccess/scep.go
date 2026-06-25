@@ -86,8 +86,9 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret.
-// Unlike host identity SCEP, this does NOT support renewal (no renewal extension check).
+// challengeMiddleware validates the SCEP ChallengePassword against short-lived,
+// single-use challenges stored in the challenges table. Unlike host identity
+// SCEP, this does NOT support renewal (no renewal extension check).
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// No renewal support for conditional access SCEP
@@ -96,12 +97,8 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		_, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
-		switch {
-		case fleet.IsNotFound(err):
+		if err := ds.ConsumeChallenge(ctx, m.ChallengePassword); err != nil {
 			return nil, errors.New("invalid challenge")
-		case err != nil:
-			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
 		}
 		return next.SignCSRContext(ctx, m)
 	}
