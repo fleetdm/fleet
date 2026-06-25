@@ -571,7 +571,7 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("Auto install")).toBeInTheDocument();
     });
 
-    it("renders the Auto install pill when only a patch_policy is linked", () => {
+    it("renders the Patch policy pill when only a patch_policy is linked", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -588,7 +588,32 @@ describe("Software Summary Card", () => {
         />
       );
 
+      expect(screen.getByText("Patch policy")).toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+    });
+
+    it("renders the Auto install pill when both auto-install and patch policies are linked", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+              ],
+              patch_policy: { id: 42, name: "Outdated Postman" },
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
       expect(screen.getByText("Auto install")).toBeInTheDocument();
+      expect(screen.queryByText("Patch policy")).not.toBeInTheDocument();
     });
 
     it("does not render the Auto install pill when no policies are linked", () => {

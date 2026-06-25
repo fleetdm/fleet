@@ -75,7 +75,6 @@ export const buildActionOptions = ({
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
   let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
-  let disabledVersionsTooltipContent: TooltipContent | undefined;
 
   // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
   // below); the tooltip is only populated when `repoURL` is also available,
@@ -87,7 +86,6 @@ export const buildActionOptions = ({
 
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
-    disabledVersionsTooltipContent = gitOpsModeTooltipContent;
 
     if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
@@ -137,13 +135,13 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show versions option only for Fleet-maintained apps on Premium.
+  // Show versions option only for Fleet-maintained apps on Premium. Stays
+  // clickable in gitops mode — the modal itself disables Save with the gitops
+  // tooltip, matching the in-row Latest/Pinned badge behavior.
   if (canManageVersions) {
     options.push({
       label: "Versions",
       value: ACTION_VERSIONS,
-      isDisabled: gitOpsModeEnabled,
-      tooltipContent: disabledVersionsTooltipContent,
     });
   }
 

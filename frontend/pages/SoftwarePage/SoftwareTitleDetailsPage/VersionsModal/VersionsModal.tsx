@@ -5,7 +5,6 @@ import softwareAPI from "services/entities/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { notify } from "components/ToastNotification";
-import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
@@ -91,26 +90,22 @@ const VersionsModal = ({
   return (
     <Modal className={baseClass} title="Versions" onExit={onExit}>
       <>
-        <div className={`${baseClass}__form`}>
-          <Card paddingSize="medium" borderRadiusSize="medium">
-            <fieldset className="form-field">
-              {options.map((option) => {
-                const optionId = option.value || "latest";
-                return (
-                  <Radio
-                    key={optionId}
-                    name="versionPin"
-                    id={`version-pin-${optionId}`}
-                    label={option.label}
-                    value={option.value}
-                    checked={selectedValue === option.value}
-                    onChange={setSelectedValue}
-                  />
-                );
-              })}
-            </fieldset>
-          </Card>
-        </div>
+        <fieldset className={`${baseClass}__form form-field`}>
+          {options.map((option) => {
+            const optionId = option.value || "latest";
+            return (
+              <Radio
+                key={optionId}
+                name="versionPin"
+                id={`version-pin-${optionId}`}
+                label={option.label}
+                value={option.value}
+                checked={selectedValue === option.value}
+                onChange={setSelectedValue}
+              />
+            );
+          })}
+        </fieldset>
         <ModalFooter
           primaryButtons={
             <>
@@ -119,7 +114,7 @@ const VersionsModal = ({
               </Button>
               <GitOpsModeTooltipWrapper
                 entityType="software"
-                position="right"
+                position="top"
                 tipOffset={8}
                 renderChildren={(disableChildren) => (
                   <Button

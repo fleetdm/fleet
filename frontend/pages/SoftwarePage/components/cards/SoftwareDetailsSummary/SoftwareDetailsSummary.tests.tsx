@@ -200,8 +200,6 @@ describe("buildActionOptions", () => {
     expect(versions).toEqual({
       label: "Versions",
       value: ACTION_VERSIONS,
-      isDisabled: false,
-      tooltipContent: undefined,
     });
   });
 
@@ -220,7 +218,7 @@ describe("buildActionOptions", () => {
     expect(result.find((o) => o.value === ACTION_VERSIONS)).toBeUndefined();
   });
 
-  it("disables Versions option with a tooltip when GitOps mode is enabled", () => {
+  it("keeps Versions option enabled in GitOps mode (modal disables Save itself)", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
@@ -233,9 +231,9 @@ describe("buildActionOptions", () => {
     });
 
     const versions = result.find((opt) => opt.value === ACTION_VERSIONS);
-    expect(versions).toMatchObject({
-      isDisabled: true,
-      tooltipContent: expect.anything(),
+    expect(versions).toEqual({
+      label: "Versions",
+      value: ACTION_VERSIONS,
     });
   });
 
