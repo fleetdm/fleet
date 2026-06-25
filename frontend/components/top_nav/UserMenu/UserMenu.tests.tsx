@@ -167,6 +167,53 @@ describe("UserMenu - component", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders correct menu items for a global admin in sandbox mode", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isSandboxMode: true,
+        },
+      },
+    });
+
+    const { user } = render(
+      <UserMenu
+        onLogout={noop}
+        onUserMenuItemClick={noop}
+        isGlobalAdmin
+        isAnyTeamAdmin={false}
+        currentUser={createMockUser()}
+        currentTeam={undefined}
+      />
+    );
+
+    await user.click(screen.getByTestId("user-avatar"));
+
+    expect(
+      screen.getByRole("menuitem", { name: /labels/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /integrations/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("menuitem", { name: /organization settings/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /users/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders correct menu items for a non-admin", async () => {
     const render = createCustomRenderer({
       context: {
