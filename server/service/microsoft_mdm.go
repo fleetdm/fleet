@@ -826,14 +826,22 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 // rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
-// carried a <wsse:Security> header but no <wsse:BinarySecurityToken>. That is the signature of a device following the
-// advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext password). Fleet only accepts a
-// BinarySecurityToken (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined /
+// is a device following the advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext
+// password): a <wsse:Security> header that carries a UsernameToken and no <wsse:BinarySecurityToken>. Fleet only accepts
+// a BinarySecurityToken (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined /
 // Autopilot devices), so username/password enrollment is unsupported. Returning a clear reason here replaces the opaque
-// "binarySecurityToken is empty" error that otherwise surfaces on the device as 0x80180027. For any other token error
-// (a malformed or wrong-type BinarySecurityToken, or no Security header at all) the original error is returned.
+// "binarySecurityToken is empty" error that otherwise surfaces on the device as 0x80180027.
+//
+// The BinarySecurityToken element must be truly absent before we rewrite: a present-but-empty
+// <wsse:BinarySecurityToken ValueType="..." EncodingType="..."></wsse:BinarySecurityToken> sets ValueType/EncodingType
+// (parsed into Value/Encoding) even with empty Content, and must keep its original "binarySecurityToken is empty" error.
+// Any other token error (a malformed or wrong-type BinarySecurityToken, or no Security header) also returns err.
 func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
-	if req != nil && req.Header.Security != nil && len(req.Header.Security.Security.Content) == 0 {
+	if req != nil && req.Header.Security != nil &&
+		len(req.Header.Security.Security.Content) == 0 &&
+		len(req.Header.Security.Security.Value) == 0 &&
+		len(req.Header.Security.Security.Encoding) == 0 &&
+		bytes.Contains(req.Raw, []byte("UsernameToken")) {
 		return errors.New("Username and password (OnPremise) enrollment is not supported. " +
 			"Join the device to Microsoft Entra ID, or enroll it with fleetd.")
 	}

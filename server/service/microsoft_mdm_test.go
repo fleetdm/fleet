@@ -313,6 +313,12 @@ func TestRejectUnsupportedAuth(t *testing.T) {
 				<wsse:Security s:mustUnderstand="1">
 					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">dG9rZW4=</wsse:BinarySecurityToken>
 				</wsse:Security>`
+	// A present-but-empty BinarySecurityToken element (ValueType/EncodingType set, no content) is a genuine empty-token
+	// error, not OnPremise auth, so it must keep the original "binarySecurityToken is empty" error.
+	emptyBinarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"></wsse:BinarySecurityToken>
+				</wsse:Security>`
 
 	testCases := []struct {
 		name              string
@@ -321,13 +327,16 @@ func TestRejectUnsupportedAuth(t *testing.T) {
 	}{
 		{name: "username/password (OnPremise) is rejected with actionable message", security: usernameToken, wantActionableMsg: true},
 		{name: "binary security token passes the original error through", security: binarySecurityToken, wantActionableMsg: false},
+		{name: "present-but-empty binary security token passes the original error through", security: emptyBinarySecurityToken, wantActionableMsg: false},
 		{name: "missing security header passes the original error through", security: "", wantActionableMsg: false},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := NewSoapRequest(header(tc.security))
+			raw := header(tc.security)
+			req, err := NewSoapRequest(raw)
 			require.NoError(t, err)
+			req.Raw = raw // DecodeBody populates Raw in production; the NewSoapRequest test helper does not.
 
 			got := rejectUnsupportedAuth(&req, sentinel)
 			require.Error(t, got)
