@@ -461,7 +461,7 @@ func TestRunMultiHostCampaign_AggregatesResults(t *testing.T) {
 
 	fc := newTestClient(srv.URL)
 	nameByID := map[uint]Endpoint{10: {ID: 10, Name: "host-10"}, 20: {ID: 20, Name: "host-20"}}
-	res, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20}, "SELECT 1;", nameByID)
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", nameByID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -502,7 +502,7 @@ func TestRunMultiHostCampaign_StopsWhenOnlineHostsRespond(t *testing.T) {
 	fc := newTestClient(srv.URL)
 	nameByID := map[uint]Endpoint{10: {ID: 10}, 20: {ID: 20}, 30: {ID: 30}}
 	start := time.Now()
-	res, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20, 30}, "SELECT 1;", nameByID)
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20, 30}, "SELECT 1;", nameByID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestRunMultiHostCampaign_HostErrorRow(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	res, err := fc.runMultiHostCampaign(context.Background(), []uint{10}, "SELECT * FROM bogus;", map[uint]Endpoint{10: {ID: 10}})
+	res, err := fc.runMultiHostCampaign(t.Context(), []uint{10}, "SELECT * FROM bogus;", map[uint]Endpoint{10: {ID: 10}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -559,7 +559,7 @@ func TestRunMultiHostCampaign_CreateFails(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	_, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
 	if err == nil {
 		t.Fatal("expected error on failed campaign creation, got nil")
 	}
@@ -575,7 +575,7 @@ func TestRunMultiHostCampaign_ServerErrorFrame(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	_, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{})
 	if err == nil {
 		t.Fatal("expected error from server error frame, got nil")
 	}
@@ -593,10 +593,10 @@ func TestRunMultiHostCampaign_RejectsInvalidInput(t *testing.T) {
 	defer srv.Close()
 	fc := newTestClient(srv.URL)
 
-	if _, err := fc.runMultiHostCampaign(context.Background(), nil, "SELECT 1;", map[uint]Endpoint{}); err == nil {
+	if _, err := fc.runMultiHostCampaign(t.Context(), nil, "SELECT 1;", map[uint]Endpoint{}); err == nil {
 		t.Error("expected error for empty hostIDs, got nil")
 	}
-	if _, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20}, "   ", map[uint]Endpoint{}); err == nil {
+	if _, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "   ", map[uint]Endpoint{}); err == nil {
 		t.Error("expected error for blank sql, got nil")
 	}
 }
@@ -617,7 +617,7 @@ func TestRunMultiHostCampaign_StreamReadError(t *testing.T) {
 	defer srv.Close()
 
 	fc := newTestClient(srv.URL)
-	_, err := fc.runMultiHostCampaign(context.Background(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{10: {ID: 10}, 20: {ID: 20}})
+	_, err := fc.runMultiHostCampaign(t.Context(), []uint{10, 20}, "SELECT 1;", map[uint]Endpoint{10: {ID: 10}, 20: {ID: 20}})
 	if err == nil {
 		t.Fatal("expected error on abrupt stream drop, got nil")
 	}
