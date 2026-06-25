@@ -1,7 +1,9 @@
 import { size } from "lodash";
-import validateEquality from "components/forms/validators/validate_equality";
-import validEmail from "components/forms/validators/valid_email";
-import validPassword from "components/forms/validators/valid_password";
+import {
+  isEqual,
+  isValidEmail,
+  validatePassword,
+} from "components/forms/validators";
 
 const validate = (formData) => {
   const errors = {};
@@ -14,7 +16,7 @@ const validate = (formData) => {
 
   if (!email) {
     errors.email = "Email must be present";
-  } else if (!validEmail(email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = "Email must be a valid email";
   }
 
@@ -22,7 +24,7 @@ const validate = (formData) => {
     errors.name = "Full name must be present";
   }
 
-  const { isValid, error } = validPassword(password);
+  const { isValid, error } = validatePassword(password);
   if (password && passwordConfirmation && !isValid) {
     errors.password = error;
   }
@@ -30,7 +32,7 @@ const validate = (formData) => {
   if (
     password &&
     passwordConfirmation &&
-    !validateEquality(password, passwordConfirmation)
+    !isEqual(password, passwordConfirmation)
   ) {
     errors.password_confirmation =
       "Password confirmation does not match password";

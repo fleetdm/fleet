@@ -7,8 +7,7 @@ import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
+import { validateYaml } from "components/forms/validators";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
@@ -52,7 +51,9 @@ const Agents = ({
     const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
-      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
+      const { error: yamlError, isValid: yamlValid } = validateYaml(
+        agentOptions
+      );
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }

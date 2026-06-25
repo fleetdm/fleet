@@ -20,7 +20,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import FileUploader from "components/FileUploader";
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { notify } from "components/ToastNotification";
 
 const baseClass = "okta-conditional-access-modal";
@@ -66,7 +66,7 @@ const validate = (formData: IFormData) => {
       OKTA_ACS_URL
     ] = `Assertion consumer service URL must be ${maxURLLength} characters or less`;
   } else if (
-    !valid_url({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
+    !isValidURL({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
   ) {
     errs[OKTA_ACS_URL] =
       "Assertion consumer service URL must be a valid URL with http or https scheme and a host";

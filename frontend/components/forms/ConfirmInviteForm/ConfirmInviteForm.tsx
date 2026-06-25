@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 
-import validateEquality from "components/forms/validators/validate_equality";
+import { isEqual } from "components/forms/validators";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
@@ -38,7 +38,7 @@ const validate = (formData: IConfirmInviteFormData) => {
   if (
     password &&
     passwordConfirmation &&
-    !validateEquality(password, passwordConfirmation)
+    !isEqual(password, passwordConfirmation)
   ) {
     errors.password_confirmation =
       "Password confirmation does not match password";

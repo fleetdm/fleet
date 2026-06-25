@@ -12,7 +12,7 @@ import { ApplePlatform } from "interfaces/platform";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isPresent } from "components/forms/validators";
 import CustomLink from "components/CustomLink";
 import { AppContext } from "context/app";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -42,20 +42,17 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   const errors: IAppleOSTargetFormErrors = {};
 
   // Both fields may be cleared out and saved
-  if (
-    !validatePresence(formData.minOsVersion) &&
-    !validatePresence(formData.deadline)
-  ) {
+  if (!isPresent(formData.minOsVersion) && !isPresent(formData.deadline)) {
     return errors;
   }
 
-  if (!validatePresence(formData.minOsVersion)) {
+  if (!isPresent(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
   } else if (!validateMinVersion(formData.minOsVersion)) {
     errors.minOsVersion = "Minimum version must meet criteria below.";
   }
 
-  if (!validatePresence(formData.deadline)) {
+  if (!isPresent(formData.deadline)) {
     errors.deadline = "The deadline is required.";
   } else if (!validateDeadline(formData.deadline)) {
     errors.deadline = "Deadline must meet criteria below.";

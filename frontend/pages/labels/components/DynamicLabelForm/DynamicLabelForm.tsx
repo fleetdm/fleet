@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Ace } from "ace-builds";
 
-import { validateQuery } from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";

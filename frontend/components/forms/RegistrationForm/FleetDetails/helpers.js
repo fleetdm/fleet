@@ -1,6 +1,6 @@
 import { size } from "lodash";
 
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
@@ -11,7 +11,7 @@ const validate = (formData) => {
   if (!fleetWebAddress) {
     errors.server_url = "Fleet web address must be completed";
   } else if (
-    !validUrl({
+    !isValidURL({
       url: fleetWebAddress,
       protocols: ["http", "https"],
       allowLocalHost: true,

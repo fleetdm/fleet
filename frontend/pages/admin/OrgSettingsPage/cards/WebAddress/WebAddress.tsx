@@ -6,7 +6,7 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
@@ -27,7 +27,7 @@ const validateFormData = ({ serverURL }: IWebAddressFormData) => {
   if (!serverURL) {
     errors.server_url = "Fleet server URL must be present";
   } else if (
-    !validUrl({
+    !isValidURL({
       url: serverURL,
       protocols: ["http", "https"],
       allowLocalHost: true,

@@ -8,7 +8,7 @@ import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isPresent } from "components/forms/validators";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 
@@ -94,7 +94,7 @@ const ApiUserForm = ({
 
   const getErrors = (): IUserFormErrors => {
     const errors: IUserFormErrors = {};
-    if (!validatePresence(name)) {
+    if (!isPresent(name)) {
       errors.name = "Name is required";
     }
     if (!isGlobalUser && fleets.length === 0) {
@@ -108,7 +108,7 @@ const ApiUserForm = ({
 
   const onInputChange = (value: string) => {
     setName(value);
-    if (formErrors.name && validatePresence(value)) {
+    if (formErrors.name && isPresent(value)) {
       setFormErrors((prev) => {
         const { name: _n, ...rest } = prev;
         return rest;
@@ -117,7 +117,7 @@ const ApiUserForm = ({
   };
 
   const onInputBlur = () => {
-    if (!validatePresence(name)) {
+    if (!isPresent(name)) {
       setFormErrors((prev) => ({ ...prev, name: "Name is required" }));
     }
   };

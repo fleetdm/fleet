@@ -11,8 +11,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import validEmail from "components/forms/validators/valid_email";
+import { isValidEmail } from "components/forms/validators";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -60,7 +59,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
   if (enableSMTP) {
     if (!smtpSenderAddress) {
       errors.sender_address = "SMTP sender address must be present";
-    } else if (!validEmail(smtpSenderAddress)) {
+    } else if (!isValidEmail(smtpSenderAddress)) {
       errors.sender_address = "SMTP sender address is not a valid email";
     }
 
@@ -83,7 +82,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
         errors.password = "SMTP password must be present";
       }
     }
-  } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
+  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress)) {
     // validations for valid submissions even when smtp not enabled, i.e., updating what will be
     // used once it IS enabled
     errors.sender_address = "SMTP sender address is not a valid email";

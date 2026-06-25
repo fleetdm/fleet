@@ -18,7 +18,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import ExampleTicket from "./ExampleTicket";
@@ -159,7 +159,7 @@ const OtherWorkflowsModal = forwardRef<
         if (isWebhookEnabled) {
           if (!destinationUrl) {
             newErrors.url = "Please add a destination URL";
-          } else if (!validUrl({ url: destinationUrl })) {
+          } else if (!isValidURL({ url: destinationUrl })) {
             newErrors.url = "Destination URL is not a valid URL";
           }
         }

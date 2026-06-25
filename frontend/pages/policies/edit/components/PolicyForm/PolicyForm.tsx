@@ -32,10 +32,7 @@ import {
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
-import {
-  validateQuery,
-  EMPTY_QUERY_ERR,
-} from "components/forms/validators/validate_query";
+import { validateQuery, EMPTY_QUERY_ERR } from "components/forms/validators";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -96,7 +93,7 @@ interface IPolicyFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: any } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     errors.query = queryError;

@@ -6,9 +6,11 @@ import { IResetPasswordForm, IResetPasswordFormErrors } from "interfaces/user";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePresence from "components/forms/validators/validate_presence";
-import validatePassword from "components/forms/validators/valid_password";
-import validateEquality from "components/forms/validators/validate_equality";
+import {
+  isEqual,
+  isPresent,
+  validatePassword,
+} from "components/forms/validators";
 
 const baseClass = "reset-password-form";
 
@@ -46,7 +48,7 @@ const ResetPasswordForm = ({
     const noMatch =
       newPassword &&
       newPasswordConfirmation &&
-      !validateEquality(newPassword, newPasswordConfirmation);
+      !isEqual(newPassword, newPasswordConfirmation);
 
     const validationErrors: { [key: string]: string } = {};
 
@@ -55,12 +57,12 @@ const ResetPasswordForm = ({
       validationErrors.new_password = error;
     }
 
-    if (!validatePresence(newPasswordConfirmation)) {
+    if (!isPresent(newPasswordConfirmation)) {
       validationErrors.new_password_confirmation =
         "New password confirmation field must be completed";
     }
 
-    if (!validatePresence(newPassword)) {
+    if (!isPresent(newPassword)) {
       validationErrors.new_password = "New password field must be completed";
     }
 
