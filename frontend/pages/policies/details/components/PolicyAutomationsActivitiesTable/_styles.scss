@@ -6,6 +6,12 @@
     margin: $pad-medium 0;
   }
 
+  &__header--inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   &__title {
     margin: 0;
     font-size: $medium;
