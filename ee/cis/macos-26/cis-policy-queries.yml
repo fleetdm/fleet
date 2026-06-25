@@ -420,10 +420,7 @@ spec:
       - Key: forceInternetSharingOff, Value: <true/>
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM plist
-      WHERE path = '/Library/Preferences/SystemConfiguration/com.apple.nat'
-        AND key = 'Enabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE internet_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -534,10 +531,7 @@ spec:
       /usr/bin/sudo -u <username> /usr/bin/defaults -currentHost write com.apple.Bluetooth PrefKeyServicesEnabled -bool false
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM preferences
-      WHERE domain = 'com.apple.Bluetooth'
-        AND key = 'PrefKeyServicesEnabled'
-        AND value = '1'
+      SELECT 1 FROM sharing_preferences WHERE bluetooth_sharing = 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
