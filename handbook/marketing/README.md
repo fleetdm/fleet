@@ -6,7 +6,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Chief Marketing Officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([*@akuthiala*](https://github.com/akuthiala))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
 | Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) · [@danbgordon](https://github.com/danbgordon) · Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
 | Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) · [*@miskaek*](https://github.com/miskaek) · Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
@@ -28,7 +27,7 @@ The complete list of all marketing assets is listed on [this handbook page](http
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
 Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 

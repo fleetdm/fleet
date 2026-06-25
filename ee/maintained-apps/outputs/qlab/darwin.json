@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.6",
+      "version": "5.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figure53.QLab.5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.figure53.QLab.5' AND version_compare(bundle_short_version, '5.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.figure53.QLab.5' AND version_compare(bundle_short_version, '5.6.2') < 0);"
       },
-      "installer_url": "https://qlab.app/downloads/archive/QLab-5.6.zip",
+      "installer_url": "https://qlab.app/downloads/archive/QLab-5.6.2.zip",
       "install_script_ref": "00ad3e5d",
       "uninstall_script_ref": "a60a2320",
-      "sha256": "ef35e5243cf6931157fbba9a1022d487beed8c61dfdeb7f2524d9916d648eec1",
+      "sha256": "923df9c0ef8c0b659439fdfb0111b022dd841692e4b0672a34a56b7e439436fa",
       "default_categories": [
         "Developer tools"
       ]

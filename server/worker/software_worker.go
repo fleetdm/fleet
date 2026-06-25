@@ -36,6 +36,7 @@ func (v *SoftwareWorker) Name() string {
 const (
 	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
 	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	makeAndroidAppAvailableBatchTask        SoftwareWorkerTask = "make_android_app_available_batch"
 	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
@@ -97,6 +98,14 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			makeAndroidAppAvailableTask,
 		)
 
+	case makeAndroidAppAvailableBatchTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppAvailableBatch(ctx, args.ApplicationID, args.AppTeamID, args.HostUUIDToPolicyID, args.EnterpriseName, args.AppConfigChanged),
+			"running %s task",
+			makeAndroidAppAvailableBatchTask,
+		)
+
 	case makeAndroidAppUnavailableTask:
 		return ctxerr.Wrapf(
 			ctx,
@@ -144,53 +153,103 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: getting android hosts in scope")
 	}
+	if len(hosts) == 0 {
+		return nil
+	}
 
+	// Queue staggered batch jobs. The phase-2 handler handles per-host
+	// variable substitution within each batch, so we always chunk the same way.
+	batchSize := v.AndroidBatchSize
+	if batchSize <= 0 {
+		batchSize = defaultAndroidBatchSize
+	}
+	batches := splitHostMap(hosts, batchSize)
+	for i, batch := range batches {
+		delay := time.Duration(i) * androidSoftwareInstallStaggerInterval
+		if err := queueMakeAndroidAppAvailableBatch(ctx, v.Datastore, applicationID, appTeamID, batch, enterpriseName, appConfigChanged, delay); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue batch for make android app available")
+		}
+	}
+
+	return nil
+}
+
+func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool) error {
 	config, err := v.Datastore.GetAndroidAppConfigurationByAppTeamID(ctx, appTeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 	var configByAppID map[string][]byte
 	if config != nil {
-		configByAppID = map[string][]byte{
-			applicationID: config,
-		}
+		configByAppID = map[string][]byte{applicationID: config}
 	}
 
 	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
 
 	if needsPerHostSubstitution {
-		return v.makeAndroidAppAvailablePerHost(ctx, applicationID, configByAppID, hosts, enterpriseName, appConfigChanged)
-	}
-
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building application policies with config")
-	}
-
-	// Process hosts in batches to avoid overwhelming the AMAPI. ~10K hosts max
-	batches := splitHostMap(hosts, v.AndroidBatchSize)
-	for i, batch := range batches {
-		if i > 0 {
-			timer := time.NewTimer(androidSoftwareInstallStaggerInterval)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctxerr.Wrap(ctx, ctx.Err(), "context done between batches")
-			case <-timer.C:
-			}
+		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
+		for uuid := range hostUUIDToPolicyID {
+			hostUUIDs = append(hostUUIDs, uuid)
+		}
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}
+		hostDetails, err := v.Datastore.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch fetch host details for variable substitution")
+		}
+		hostByUUID := make(map[string]*fleet.Host, len(hostDetails))
+		for _, h := range hostDetails {
+			hostByUUID[h.UUID] = h
 		}
 
-		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, batch)
+		for hostUUID := range hostUUIDToPolicyID {
+			h, ok := hostByUUID[hostUUID]
+			if !ok {
+				continue // host deleted since the job was queued
+			}
+
+			subHost := profiles.AndroidAppConfigSubstitutionHost{
+				UUID:           h.UUID,
+				HardwareSerial: h.HardwareSerial,
+				Platform:       h.Platform,
+			}
+			substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "substitute fleet vars for host %s", hostUUID)
+			}
+
+			appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, substituted, "AVAILABLE")
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "building application policies with config for host %s", hostUUID)
+			}
+
+			singleHost := map[string]string{hostUUID: hostUUIDToPolicyID[hostUUID]}
+			policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, singleHost)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "add app to android policy for host %s", hostUUID)
+			}
+
+			if appConfigChanged {
+				for uuid, policyRequest := range policyRequestsByHost {
+					if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, uuid, applicationID, policyRequest.PolicyVersion.V); err != nil {
+						return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", uuid, applicationID)
+					}
+				}
+			}
+		}
+	} else {
+		appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, configByAppID, "AVAILABLE")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
+		}
+
+		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, hostUUIDToPolicyID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 		}
 
-		// if this is called from an UPDATE (config changed), mark existing installs
-		// as "pending" (unless already "failed") and with the correct policy version to verify
 		if appConfigChanged {
 			for hostUUID, policyRequest := range policyRequestsByHost {
-				err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V)
-				if err != nil {
+				if err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, hostUUID, applicationID, policyRequest.PolicyVersion.V); err != nil {
 					return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", hostUUID, applicationID)
 				}
 			}
@@ -200,70 +259,17 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	return nil
 }
 
-// makeAndroidAppAvailablePerHost handles the case where the app config
-// contains $FLEET_VAR_HOST_* tokens that must be substituted per-host.
-func (v *SoftwareWorker) makeAndroidAppAvailablePerHost(
-	ctx context.Context,
-	applicationID string,
-	configByAppID map[string][]byte,
-	hosts map[string]string,
-	enterpriseName string,
-	appConfigChanged bool,
-) error {
-	// Batch-fetch host details for substitution.
-	hostUUIDs := make([]string, 0, len(hosts))
-	for uuid := range hosts {
-		hostUUIDs = append(hostUUIDs, uuid)
+func queueMakeAndroidAppAvailableBatch(ctx context.Context, ds fleet.Datastore, applicationID string, appTeamID uint, hostUUIDToPolicyID map[string]string, enterpriseName string, appConfigChanged bool, delay time.Duration) error {
+	args := &softwareWorkerArgs{
+		Task:               makeAndroidAppAvailableBatchTask,
+		ApplicationID:      applicationID,
+		AppTeamID:          appTeamID,
+		HostUUIDToPolicyID: hostUUIDToPolicyID,
+		EnterpriseName:     enterpriseName,
+		AppConfigChanged:   appConfigChanged,
 	}
-	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}
-	hostDetails, err := v.Datastore.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list hosts lite by uuids for fleet var substitution")
-	}
-	hostByUUID := make(map[string]*fleet.Host, len(hostDetails))
-	for _, h := range hostDetails {
-		hostByUUID[h.UUID] = h
-	}
-
-	for hostUUID := range hosts {
-		h, ok := hostByUUID[hostUUID]
-		if !ok {
-			continue // host may have been deleted since the job was queued
-		}
-
-		subHost := profiles.AndroidAppConfigSubstitutionHost{
-			UUID:           h.UUID,
-			HardwareSerial: h.HardwareSerial,
-			Platform:       h.Platform,
-		}
-
-		substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "substitute fleet vars for host %s", hostUUID)
-		}
-
-		appPolicies, err := buildApplicationPolicyWithConfig(ctx, []string{applicationID}, substituted, "AVAILABLE")
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "building application policies with config for host %s", hostUUID)
-		}
-
-		singleHost := map[string]string{hostUUID: hosts[hostUUID]}
-		policyRequestsByHost, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, singleHost)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "add app to android policy for host %s", hostUUID)
-		}
-
-		if appConfigChanged {
-			for uuid, policyRequest := range policyRequestsByHost {
-				err := v.Datastore.SetAndroidAppInstallPendingApplyConfig(ctx, uuid, applicationID, policyRequest.PolicyVersion.V)
-				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "set android app install pending apply config for host %s and app %s", uuid, applicationID)
-				}
-			}
-		}
-	}
-
-	return nil
+	_, err := QueueJobWithDelay(ctx, ds, softwareWorkerJobName, args, delay)
+	return err
 }
 
 // this is called when an app is removed from Fleet.
@@ -742,7 +748,10 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 	return nil
 }
 
-const androidSoftwareInstallStaggerInterval = 60 * time.Second
+const (
+	androidSoftwareInstallStaggerInterval = 60 * time.Second
+	defaultAndroidBatchSize               = 100
+)
 
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,

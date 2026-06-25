@@ -16,7 +16,7 @@ import { getNextLocationPath } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import {
@@ -123,7 +123,6 @@ const ManagePolicyPage = ({
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
 
-  const { renderFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
     setLastEditedQueryName,
@@ -564,11 +563,13 @@ const ManagePolicyPage = ({
       }
 
       await Promise.all(responses);
-      renderFlash("success", "Successfully deleted policies.");
+      notify.success("Successfully deleted policies.");
       setResetSelectedRows(true);
       refetchPolicies(teamIdForApi);
-    } catch {
-      renderFlash("error", "Unable to delete policies. Please try again.");
+    } catch (e) {
+      notify.error("Unable to delete policies. Please try again.", {
+        response: e,
+      });
     } finally {
       toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
@@ -577,7 +578,6 @@ const ManagePolicyPage = ({
     isAllTeamsSelected,
     isPrimoMode,
     refetchPolicies,
-    renderFlash,
     selectedPolicyIds,
     setResetSelectedRows,
     teamIdForApi,

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "3.0.5",
+      "version": "3.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'software.micropixels.BatFi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'software.micropixels.BatFi' AND version_compare(bundle_short_version, '3.0.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'software.micropixels.BatFi' AND version_compare(bundle_short_version, '3.1.1') < 0);"
       },
       "installer_url": "https://files.micropixels.software/batfi/BatFi-latest.zip",
       "install_script_ref": "818757b8",

@@ -1,0 +1,34 @@
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundlePackageType</key>
+            <string>APPL</string>
+        <key>CFBundleName</key>
+            <string>Fleet Hangar</string>
+        <key>CFBundleDisplayName</key>
+            <string>Fleet Hangar</string>
+        <key>CFBundleExecutable</key>
+            <string>fleet-hangar</string>
+        <key>CFBundleIdentifier</key>
+            <string>com.fleetdm.fleet-hangar</string>
+        <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+        <key>CFBundleGetInfoString</key>
+            <string>Desktop control panel for the Fleet dev environment</string>
+        <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+        <key>CFBundleIconFile</key>
+            <string>icons</string>
+        <key>LSMinimumSystemVersion</key>
+            <string>12.0.0</string>
+        <key>NSHighResolutionCapable</key>
+            <true/>
+        <key>NSHumanReadableCopyright</key>
+            <string>© 2026, Fleet Device Management</string>
+        <key>NSAppTransportSecurity</key>
+        <dict>
+            <key>NSAllowsLocalNetworking</key>
+            <true/>
+        </dict>
+    </dict>
+</plist>

@@ -68,7 +68,7 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
-	type jsonObj map[string]interface{}
+	type jsonObj map[string]any
 	var profileKeyMap jsonObj
 	err := json.Unmarshal(m.RawJSON, &profileKeyMap)
 	if err != nil {
@@ -98,6 +98,10 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return parseAndroidProfileValidationError(err)
 	}
 
+	if err := validateAndroidProfileFleetVariables(m.RawJSON, profileKeyMap); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -115,6 +119,53 @@ func parseAndroidProfileValidationError(err error) error {
 
 	// Fallback for any other unexpected errors
 	return errors.New("Invalid JSON payload.")
+}
+
+func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
+	found := variables.Find(string(rawJSON))
+	if len(found) == 0 {
+		return nil
+	}
+
+	if name := FindUnsupportedAndroidFleetVar(string(rawJSON)); name != "" {
+		return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
+	}
+
+	keyVars := make(map[string]struct{})
+	stringVars := make(map[string]struct{})
+	walkJSONForVars(decoded, keyVars, stringVars)
+	for _, name := range found {
+		if _, inKey := keyVars[name]; inKey {
+			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+		}
+		if _, inStr := stringVars[name]; !inStr {
+			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+		}
+	}
+
+	return nil
+}
+
+// walkJSONForVars recursively walks a decoded JSON value and collects fleet
+// variable names found in string values and in map keys separately.
+func walkJSONForVars(v any, keyVars, stringVars map[string]struct{}) {
+	switch t := v.(type) {
+	case string:
+		for _, name := range variables.Find(t) {
+			stringVars[name] = struct{}{}
+		}
+	case map[string]any:
+		for k, val := range t {
+			for _, name := range variables.Find(k) {
+				keyVars[name] = struct{}{}
+			}
+			walkJSONForVars(val, keyVars, stringVars)
+		}
+	case []any:
+		for _, val := range t {
+			walkJSONForVars(val, keyVars, stringVars)
+		}
+	}
 }
 
 type MDMAndroidProfilePayload struct {
@@ -196,8 +247,20 @@ func IsAndroidPolicyFieldValid(fieldName string) bool {
 	return policyFieldsCache[fieldName]
 }
 
+// FindUnsupportedAndroidFleetVar returns the name of the first $FLEET_VAR_*
+// token in content that is not in the Android allow-list, or "" if all are
+// supported.
+func FindUnsupportedAndroidFleetVar(content string) string {
+	for _, name := range variables.Find(content) {
+		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
+			return name
+		}
+	}
+	return ""
+}
+
 // FleetVarsSupportedInAndroidAppConfig is the allow-list of Fleet variables that
-// can appear in an Android managed app configuration JSON.
+// can appear in an Android managed app configuration or configuration profile JSON.
 var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
@@ -248,11 +311,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
 	}
 
-	for _, name := range variables.Find(string(config)) {
-		if !slices.Contains(FleetVarsSupportedInAndroidAppConfig, FleetVarName(name)) {
-			return &BadRequestError{
-				Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
-			}
+	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
+		return &BadRequestError{
+			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
 		}
 	}
 
