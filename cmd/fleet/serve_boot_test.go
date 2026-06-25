@@ -103,7 +103,7 @@ func waitHealthy(t *testing.T, serverAddr string) bool {
 func waitShutdown(t *testing.T, done <-chan error) {
 	select {
 	case err := <-done:
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	case <-time.After(60 * time.Second):
 		t.Fatal("server did not shut down within 60s of context cancellation")
 	}
@@ -163,9 +163,9 @@ func TestRunServeCmd(t *testing.T) {
 		t.Setenv("FLEET_REDIS_HOST_CACHE_ENABLED", "true")
 		t.Setenv("FLEET_REDIS_HOST_CACHE_TTL", "0")
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		done := runServe(ctx)
+		// The server fails fast on the invalid config and returns on its own, so
+		// no manual cancellation is needed; t.Context() is canceled at cleanup.
+		done := runServe(t.Context())
 
 		select {
 		case <-done:
