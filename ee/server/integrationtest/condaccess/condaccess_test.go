@@ -112,10 +112,6 @@ func testGetCACert(t *testing.T, s *Suite) {
 func testSCEPEnrollment(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
-	// Create enrollment secret
-	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
-	require.NoError(t, err)
-
 	// Create a test host
 	host, err := s.DS.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:   ptr.String("test-host-scep-1"),
@@ -127,8 +123,12 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	})
 	require.NoError(t, err)
 
+	// Generate a single-use SCEP challenge
+	challenge, err := s.DS.NewChallenge(ctx)
+	require.NoError(t, err)
+
 	// Request certificate via SCEP
-	cert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	cert := requestSCEPCertificate(t, s, host.UUID, challenge)
 	require.NotNil(t, cert)
 
 	// Verify certificate attributes
@@ -156,10 +156,6 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 func testInvalidChallenge(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
-	// Create enrollment secret
-	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
-	require.NoError(t, err)
-
 	// Create a test host
 	host, err := s.DS.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:   ptr.String("test-host-invalid-1"),
@@ -181,12 +177,12 @@ func testInvalidChallenge(t *testing.T, s *Suite) {
 func testMissingUUID(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
-	// Create enrollment secret
-	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
+	// Generate a single-use SCEP challenge so the request reaches UUID validation
+	challenge, err := s.DS.NewChallenge(ctx)
 	require.NoError(t, err)
 
 	// Try to enroll without UUID in SAN URI
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithoutUUID(t, s, testEnrollmentSecret)
+	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithoutUUID(t, s, challenge)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP returns HTTP 200 even for failures")
 	require.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail without UUID")
 	require.Nil(t, cert, "Certificate should not be issued without UUID in SAN URI")
@@ -200,12 +196,12 @@ func testMissingUUID(t *testing.T, s *Suite) {
 func testNonExistentHost(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
-	// Create enrollment secret
-	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
+	// Generate a single-use SCEP challenge so the request reaches host validation
+	challenge, err := s.DS.NewChallenge(ctx)
 	require.NoError(t, err)
 
 	// Try to enroll with UUID for a host that doesn't exist
-	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", testEnrollmentSecret)
+	httpResp, pkiMsgResp, cert := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", challenge)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "SCEP returns HTTP 200 even for failures")
 	require.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail for non-existent host")
 	require.Nil(t, cert, "Certificate should not be issued for non-existent host")
@@ -360,10 +356,6 @@ func requestSCEPCertificateWithOptions(t *testing.T, s *Suite, uris []*url.URL, 
 func testCertificateRotation(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
-	// Create enrollment secret
-	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
-	require.NoError(t, err)
-
 	// Create a test host
 	host, err := s.DS.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:   ptr.String("test-host-rotation"),
@@ -375,8 +367,10 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	})
 	require.NoError(t, err)
 
-	// Request first certificate via SCEP (old cert)
-	oldCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	// Request first certificate via SCEP (old cert) using a single-use challenge
+	oldChallenge, err := s.DS.NewChallenge(ctx)
+	require.NoError(t, err)
+	oldCert := requestSCEPCertificate(t, s, host.UUID, oldChallenge)
 	require.NotNil(t, oldCert)
 
 	// Make HTTP request to IdP SSO endpoint with old cert serial to verify authentication
@@ -393,8 +387,10 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 	// StatusSeeOther (303) redirect indicates cert authentication succeeded, SAML parse failed, and user redirected to error page
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode, "old cert should authenticate (303 = auth success, SAML parse fail, redirect to error page)")
 
-	// Request new certificate via SCEP (certificate rotation)
-	newCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
+	// Request new certificate via SCEP (certificate rotation) using a fresh single-use challenge
+	newChallenge, err := s.DS.NewChallenge(ctx)
+	require.NoError(t, err)
+	newCert := requestSCEPCertificate(t, s, host.UUID, newChallenge)
 	require.NotNil(t, newCert)
 	require.NotEqual(t, oldCert.SerialNumber, newCert.SerialNumber, "new cert should have different serial")
 
