@@ -388,8 +388,8 @@ type FleetMaintainedVersion struct {
 // by a Fleet-maintained app. The auto-update cron uses it to decide whether to
 // advance the active version among the team's cached versions.
 type FMAAutoUpdateCandidate struct {
-	// TeamID is nil for the no-team scope (global_or_team_id = 0).
-	TeamID *uint `db:"global_or_team_id"`
+	// TeamID is nil for the no-team scope (the team_id column is NULL there).
+	TeamID *uint `db:"team_id"`
 	// TitleID is the software_titles.id.
 	TitleID uint `db:"title_id"`
 	// FleetMaintainedAppID is the fleet_maintained_apps.id backing this title,

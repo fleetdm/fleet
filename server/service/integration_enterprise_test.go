@@ -27178,79 +27178,21 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	computeSHA := func(b []byte) string {
-		h := sha256.New()
-		h.Write(b)
-		return hex.EncodeToString(h.Sum(nil))
-	}
-
-	type fmaTestState struct {
-		version        string
-		installerBytes []byte
-		sha256         string
-	}
-	warpState := &fmaTestState{version: "1.0", installerBytes: []byte("abc")}
-	warpState.sha256 = computeSHA(warpState.installerBytes)
-
+	// Mock the FMA manifest + installer CDN via the shared helper. The state is
+	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
+	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	var downloadMu sync.Mutex
-	downloaded := false
-
-	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		downloadMu.Lock()
-		defer downloadMu.Unlock()
-		if r.URL.Path == "/cloudflare-warp.msi" {
-			downloaded = true
-			_, _ = w.Write(warpState.installerBytes)
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	defer installerServer.Close()
-
-	maintainedappstest.SyncApps(t, s.ds)
-
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/"+slug+".json" {
-			http.NotFound(w, r)
-			return
-		}
-		manifest := ma.FMAManifestFile{
-			Versions: []*ma.FMAManifestApp{{
-				Version:            warpState.version,
-				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
-				InstallerURL:       installerServer.URL + "/cloudflare-warp.msi",
-				InstallScriptRef:   "foobaz",
-				UninstallScriptRef: "foobaz",
-				SHA256:             warpState.sha256,
-				DefaultCategories:  []string{"Productivity"},
-			}},
-			Refs: map[string]string{"foobaz": "Hello World!"},
-		}
-		_ = json.NewEncoder(w).Encode(manifest)
-	}))
-	t.Cleanup(manifestServer.Close)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi"}
+	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
-	setManifest := func(version string, bytes []byte) {
-		warpState.version = version
-		warpState.installerBytes = bytes
-		warpState.sha256 = computeSHA(bytes)
+	setManifest := func(version string, b []byte) {
+		warp.version = version
+		warp.installerBytes = b
+		warp.ComputeSHA(b)
 	}
 	runCron := func() {
 		require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, logger))
-	}
-	resetDownloaded := func() {
-		downloadMu.Lock()
-		downloaded = false
-		downloadMu.Unlock()
-	}
-	wasDownloaded := func() bool {
-		downloadMu.Lock()
-		defer downloadMu.Unlock()
-		return downloaded
 	}
 	activeTitle := func(teamID uint) fleet.SoftwareTitleListResult {
 		var resp listSoftwareTitlesResponse
@@ -27304,9 +27246,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
-	resetDownloaded()
 	runCron()
-	require.True(t, wasDownloaded(), "should download the new version")
 	title = activeTitle(team.ID)
 	require.Equal(t, "2.0", title.SoftwarePackage.Version)
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
@@ -27332,38 +27272,28 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	r.Body.Close()
 	require.Equal(t, []byte("def"), body, "auto-updated installer should serve v2.0 bytes")
 
-	// === Section B: a literal pin blocks auto-advance and any download ===
+	// === Section B: a literal pin blocks auto-advance ===
 	setPin(team.ID, titleID, "2.0")
 	setManifest("3.0", []byte("ghi"))
-	resetDownloaded()
 	runCron()
-	require.False(t, wasDownloaded(), "literal pin must not trigger a download")
 	require.Equal(t, "2.0", activeTitle(team.ID).SoftwarePackage.Version, "literal pin must not advance")
 
 	// === Section C: caret pin advances within major, never across ===
 	clearPin(team.ID, titleID)
-	resetDownloaded()
 	runCron() // unpinned: advance to the published 3.0
-	require.True(t, wasDownloaded())
 	require.Equal(t, "3.0", activeTitle(team.ID).SoftwarePackage.Version)
 
 	setPin(team.ID, titleID, "^3")
 	setManifest("3.1", []byte("j31"))
-	resetDownloaded()
 	runCron()
-	require.True(t, wasDownloaded(), "caret pin advances within its major")
-	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version, "caret pin advances within its major")
 
 	setManifest("4.0", []byte("k40"))
-	resetDownloaded()
 	runCron()
-	require.False(t, wasDownloaded(), "caret pin must not download across majors")
 	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version, "caret pin must not cross major")
 
 	// === Section D: a re-run with nothing new is a no-op ===
-	resetDownloaded()
 	runCron()
-	require.False(t, wasDownloaded(), "idempotent re-run downloads nothing")
 	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
 }
 

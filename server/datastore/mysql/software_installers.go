@@ -716,11 +716,10 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 
 func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
 	var candidates []fleet.FMAAutoUpdateCandidate
-	// NULLIF maps the no-team scope (global_or_team_id = 0) to NULL so it scans
-	// into a nil *uint, matching the no-team convention used elsewhere.
+	// team_id is NULL for the no-team scope, so it scans straight into the nil *uint.
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidates, `
 		SELECT
-			NULLIF(si.global_or_team_id, 0) AS global_or_team_id,
+			si.team_id,
 			si.title_id,
 			si.fleet_maintained_app_id,
 			si.id AS installer_id,
