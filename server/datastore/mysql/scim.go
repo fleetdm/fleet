@@ -1441,7 +1441,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, affec
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 		JOIN vpp_apps_teams vat
-			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
+			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
 	WHERE
 		fv.name IN (?)
 `
