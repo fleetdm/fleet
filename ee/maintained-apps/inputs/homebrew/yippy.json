@@ -1,0 +1,10 @@
+{
+  "name": "Yippy",
+  "unique_identifier": "MatthewDavidson.Yippy",
+  "token": "yippy",
+  "installer_format": "zip",
+  "slug": "yippy/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

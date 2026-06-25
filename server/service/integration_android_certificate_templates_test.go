@@ -20,7 +20,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	scep_server "github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -1398,8 +1397,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	caID := ca.ID
 
 	// Login as team admin
-	var loginResp loginResponse
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+	var loginResp fleet.LoginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 		Email:    teamAdminEmail,
 		Password: teamAdminPassword,
 	}, http.StatusOK, &loginResp)
@@ -1668,7 +1667,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 
 	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
 	t.Run("automatic retry", func(t *testing.T) {
-
 		// Reset the certificate to pending with retry_count=0 for a fresh retry test
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,

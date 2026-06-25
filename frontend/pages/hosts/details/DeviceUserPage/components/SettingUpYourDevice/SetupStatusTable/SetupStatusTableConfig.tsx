@@ -3,6 +3,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 
 import { ISetupStep } from "interfaces/setup";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
@@ -22,7 +23,8 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
       if (type === "software_install") {
         return (
           <SetupSoftwareProcessCell
-            name={display_name || name || "Unknown software"}
+            name={getDisplayedSoftwareName(name, display_name)}
+            iconName={name ?? ""}
             url={icon_url}
           />
         );

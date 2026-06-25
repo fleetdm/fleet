@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import certAPI, { ICertificate } from "services/entities/certificates";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -19,7 +19,6 @@ const DeleteCertificateModal = ({
   onSuccess,
   onExit,
 }: IDeleteCertModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { name, id } = cert;
@@ -28,13 +27,15 @@ const DeleteCertificateModal = ({
     setIsUpdating(true);
     try {
       await certAPI.deleteCert(id);
-      renderFlash("success", "Successfully deleted certificate.");
+      notify.success("Successfully deleted certificate.");
       setIsUpdating(false);
       onSuccess();
       onExit();
     } catch (e) {
       setIsUpdating(false);
-      renderFlash("error", "Couldn't delete certificate. Please try again.");
+      notify.error("Couldn't delete certificate. Please try again.", {
+        response: e,
+      });
     }
   };
 

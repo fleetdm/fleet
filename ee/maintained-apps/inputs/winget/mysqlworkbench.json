@@ -1,0 +1,11 @@
+{
+  "name": "MySQL Workbench",
+  "slug": "mysqlworkbench/windows",
+  "package_identifier": "Oracle.MySQLWorkbench",
+  "unique_identifier": "MySQL Workbench",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

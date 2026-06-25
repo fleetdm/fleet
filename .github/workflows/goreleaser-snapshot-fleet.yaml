@@ -41,12 +41,19 @@ jobs:
     environment: Docker Hub
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
+          # Full history + tags so the Go toolchain embeds a real build-info
+          # version (e.g. v4.87.1-0.<timestamp>-<commit>) instead of the v4.0.0 module base
+          # that a shallow clone produces. Matches the release workflow.
+          fetch-depth: 0
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
@@ -58,6 +65,8 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
+          # Security best practice to disable caching in release/publish workflows
+          cache: false
 
       # Set the Node.js version
       - name: Set up Node.js
@@ -65,6 +74,8 @@ jobs:
         with:
           node-version-file: package.json
           check-latest: true
+          # Security best practice to disable caching in release/publish workflows
+          package-manager-cache: false
 
       - name: Install Dependencies
         run: make deps

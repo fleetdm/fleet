@@ -381,6 +381,9 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label D",
 					}},
+					LabelsExcludeAll: []fleet.LabelIdent{{
+						LabelName: "Label E",
+					}},
 					Type: fleet.PolicyTypeDynamic,
 				},
 			},
@@ -1955,6 +1958,10 @@ func TestGeneratePolicies(t *testing.T) {
 			2: {
 				AppStoreId: "1234567890",
 			},
+			8: {
+				MaintainedAppID: 1,
+				Slug:            "fma1/darwin",
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
@@ -2141,7 +2148,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	require.NoError(t, err)
 	// Verify all keys are set to empty.
 	for _, key := range []string{
-		"apple_business_manager",
+		"apple_business",
 		"apple_server_url",
 		"end_user_authentication",
 		"end_user_license_agreement",
@@ -2575,4 +2582,33 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// The team patch policy (title ID 8) references a software installer whose
+	// fleet_maintained_app_id was nulled when the app was removed from the
+	// catalog (the FK is ON DELETE SET NULL). The installer is still present as
+	// a custom package, so it appears in the software list with a zero
+	// MaintainedAppID.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: map[uint]Software{
+			8: {
+				Hash:            "demoted-installer-hash",
+				MaintainedAppID: 0,
+			},
+		},
+	}
+
+	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Team patch policy")
 }

@@ -384,8 +384,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			if err := svc.resendProfileForExpiredChallenge(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host profile after expired challenge")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
@@ -452,6 +452,23 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	return scepURL, nil
 }
 
+// resendProfileForExpiredChallenge resends a SCEP profile whose challenge has expired so the
+// reconcile cron regenerates it with a fresh challenge.
+//
+// For Apple profiles we use ResendHostCertificateProfile, which additionally clears the stale
+// in-flight command and resets the retry counter. This matters because an expired challenge is a
+// timing condition, not a host install failure, so it must not consume the host's limited Apple
+// profile retries (and a late failure ACK for the superseded command must not strand the profile
+// as "failed"). ResendHostCertificateProfile only operates on Apple tables, so Windows/Android
+// profiles fall back to the platform-aware ResendHostMDMProfile to avoid silently dropping the
+// resend.
+func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
+	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		return svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID)
+	}
+	return svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID)
+}
+
 func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 	// NDES on Windows Server 2022 does not support this, as advertised via GetCACaps
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
@@ -508,10 +525,13 @@ func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy 
 
 func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
-	// Get the challenge from NDES
+	// Get the challenge from NDES. AllowBasicAuth: true opts into the
+	// upstream Negotiator's Basic-auth fallback, which is currently
+	// opt-in.
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
+		RoundTripper:   fleethttp.NewTransport(),
+		AllowBasicAuth: true,
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -524,12 +544,17 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "sending request")
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		s.logger.WarnContext(ctx, "NDES admin URL returned non-200",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", resp.StatusCode,
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
 	}
-	defer resp.Body.Close()
 
 	// Read raw bytes first to detect encoding
 	rawBody, err := io.ReadAll(resp.Body)
@@ -554,8 +579,12 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."))
 		}
 
-		// If we can't find a specific error, we log more context in terms of the request to further diagnose
-		s.logger.DebugContext(ctx, "failed to parse NDES challenge from admin URL response", "ca_type", fleet.CATypeNDESSCEPProxy, "raw_response", htmlString, "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+		s.logger.WarnContext(ctx, "failed to parse NDES challenge from admin URL response",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", http.StatusOK,
+			"raw_response_length", len(htmlString),
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx,
 			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
 	}

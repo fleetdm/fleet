@@ -66,8 +66,8 @@ We test each browser on Windows whenever possible, because our engineering team 
 - Mobile Chrome on Android
 
 ### Note
-> - Mobile web is not yet supported in the Fleet product.
-> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
+> - Not every feature in the Fleet admin UI is easy to use from mobile browsers, though you can now access many features of Fleet via mobile browser.
+> - The Fleet admin user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
 
 ## What host operating systems does Fleet support?
 
@@ -84,17 +84,15 @@ Fleet supports the following operating system versions on hosts.
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
+### Linux support
 
-### Note
+Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
 
-> - Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information.
->   - If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
-> - On Linux, Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments.
->   - Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
-> - On Linux, enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
-> - Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-> - The `fleetctl package` command is not supported on DISA-STIG distribution.
+Enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
+Fleet's default install/uninstall scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
 
@@ -137,6 +135,8 @@ It's common for security products to be falsely flagged as malicious because the
 <!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
 
 Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
+
+If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/orbit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
 
 ### SLSA provenance attestation 🌶️
 
@@ -188,15 +188,15 @@ If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git m
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
-### What MySQL versions are supported?
+## What MySQL versions are supported?
 
 Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
-### What Redis versions are supported?
+## What Redis versions are supported?
 
 Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 on AWS ElastiCache). Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
 
-### What version of the Mac Admins osquery extension is supported?
+## What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 

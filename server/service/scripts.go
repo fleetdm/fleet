@@ -1108,6 +1108,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", err
 	}
 
+	// Authorize the actual execution with the script's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
 	var userId *uint
 	ctxUser := authz.UserFromContext(ctx)
 	if ctxUser != nil {
@@ -1276,10 +1281,77 @@ func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, _ uint, _ *fleet.MDMWipeMetadata) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeMetadata) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
 
-	return fleet.ErrMissingLicense
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement and is what happens for macOS platforms.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// On Fleet Free, Wipe is only available for Android (COBO) hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS
+	// remains a Fleet Premium feature, implemented by the ee WipeHost method which shadows this one on Premium
+	// deployments (so Android-on-Premium also goes through ee, not here).
+	if host.FleetPlatform() != "android" {
+		return fleet.ErrMissingLicense
+	}
+
+	if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "validate android wipe request")
+	}
+
+	// the wipe command requires the host to be MDM-enrolled in Fleet
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
+	}
+
+	// validations based on host's actions status (pending lock, unlock, wipe)
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	switch {
+	case lockWipe.IsPendingLock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
+	case lockWipe.IsPendingUnlock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
+	case lockWipe.IsPendingWipe():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
+	case lockWipe.IsLocked():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
+	case lockWipe.IsWiped():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	}
+
+	// all good, go ahead with queuing the wipe request.
+	if err := svc.androidSvc.WipeAndroidHost(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing wipe request for android")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeWipedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.FleetPlatform(),
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
+	}
+	return nil
 }

@@ -12,12 +12,12 @@
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
             <h1>
-              Manage, update, and secure all your devices like it's 2026
+              Manage your devices like it's 2026
             </h1>
             <p purpose="hero-subtitle">Open MDM, patching, and vuln management for every OS.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="/register">Try it yourself</a>
-              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+              <a purpose="cta-button" href="/contact">Get a demo</a>
+              <animated-arrow-button href="#compare-features">Compare features</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -170,117 +170,34 @@
   <div purpose="homepage-content" class="container">
     <div purpose="page-section">
       <div purpose="comparison-section">
-        <h2>Moving to Fleet?</h2>
+        <h2 id="compare-features">Moving to Fleet?</h2>
         <p>See how Fleet compares with your other options.</p>
-        <div purpose="comparison-table-switch" class="d-flex d-sm-none">
-          <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'it' ? 'selected' : '']"  @click="clickSwitchComparisonMode('it')">IT</div>
-          <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'security' ? 'selected' : '']"  @click="clickSwitchComparisonMode('security')">Security</div>
-        </div>
-        <div purpose="comparison-table-switch" class="d-none d-sm-flex">
-          <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'it' ? 'selected' : '']"  @click="clickSwitchComparisonMode('it')">For IT admins</div>
-          <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'security' ? 'selected' : '']"  @click="clickSwitchComparisonMode('security')">For security engineers</div>
-        </div>
         <% /*
           ╦╔╦╗  ╔═╗╔═╗╔╦╗╔═╗╔═╗╦═╗╦╔═╗╔═╗╔╗╔  ╔╦╗╔═╗╔╗ ╦  ╔═╗
           ║ ║   ║  ║ ║║║║╠═╝╠═╣╠╦╝║╚═╗║ ║║║║   ║ ╠═╣╠╩╗║  ║╣
           ╩ ╩   ╚═╝╚═╝╩ ╩╩  ╩ ╩╩╚═╩╚═╝╚═╝╝╚╝   ╩ ╩ ╩╚═╝╩═╝╚═╝
           */ %>
-        <div purpose="desktop-comparison-table" class="d-none d-sm-block" v-if="comparisonTableMode === 'it'">
+        <div purpose="desktop-comparison-table" class="d-none d-sm-block">
+          <div purpose="comparison-table-tabs">
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'jamf' ? 'active' : '']" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')"><strong>Jamf Pro</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'omnissa' ? 'active' : '']" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')"><strong>Workspace ONE</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'sccm' ? 'active' : '']" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')"><strong>SCCM</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'intune' ? 'active' : '']" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')"><strong>Intune</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'patchmypc' ? 'active' : '']" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')"><strong>PatchMyPC</strong></div>
+          </div>
           <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
             <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
             <div purpose="comparison-column" class="d-flex">
-              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
-              </div>
-              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
-                <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-                <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <!-- <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div> -->
-                <!-- <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div> -->
-                <!-- <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div> -->
-                <!-- <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div> -->
-                <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
-              </div>
+                <strong>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</strong>
             </div>
           </div>
-          <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Cloud or self-host with no restrictions</p></div>
-              <div purpose="fleet-column">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'jamf'">
-                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
-                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
-                <p>Cloud-only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>On-prem only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>On-prem discouraged</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Zero-touch setup</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="['omnissa', 'intune', 'ansible'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>iOS/iPadOS management</p></div>
-              <div purpose="fleet-column">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-if="['tanium', 'chef', 'sccm', 'patchmypc'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'puppet'">
-                <p>Community module</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
+          <div purpose="comparison-table" class="d-sm-flex d-none flex-column"> 
             <div purpose="table-row">
               <div purpose="feature-name">
-                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
+                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you complete software inventory and hardware data down to the chip level on Apple, Linux, Windows, and ChromeOS devices."></p>
 
               </div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
               <div purpose="comparison-column" v-if="comparisonModeForIt === 'tanium'">
                 <p>Mobile not supported</p>
               </div>
@@ -290,12 +207,9 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Operating system updates</p></div>
+              <div purpose="feature-name"><p>Software updates <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Auto-patch policies keep software and OS versions up to date across macOS, Windows, Linux, iOS, and iPadOS. Deploy from a catalog of Fleet-maintained apps, upload custom packages, or let end users self-serve."></p></div>
               <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
                 <p>Windows only</p>
@@ -315,13 +229,9 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Configuration management and scripting</p></div>
+              <div purpose="feature-name"><p>Configuration, scripting, and diagnostics</p></div>
               <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
                 <p>Windows only</p>
@@ -341,51 +251,24 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Remote lock and wipe</p></div>
+              <div purpose="feature-name">
+                <p>
+                  Device reporting (&lt;30 seconds)
+                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional systems that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
+                </p>
+
+              </div>
               <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>No built-in Linux</p>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'tanium'">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                <p>6 hours</p>
               </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name" class="d-flex align-items-center"><p>App management</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="['sccm', 'patchmypc'].includes(comparisonModeForIt)">
-                <p>Windows only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['intune', 'omnissa', 'ansible'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              <div purpose="comparison-column" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
+                <p>One-off scripts</p>
               </div>
               <div purpose="comparison-column" v-else>
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
@@ -394,33 +277,7 @@
 
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>Automated device compliance</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['intune', 'omnissa', 'ansible'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>REST API</p></div>
+              <div purpose="feature-name"><p>Single API</p></div>
               <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
               <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -448,68 +305,33 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>
-                  Device reporting (&lt;30 seconds)
-                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional system that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
-                </p>
-
-              </div>
+              <div purpose="feature-name"><p>Cloud or self-host</p></div>
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'tanium'">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'jamf'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
-                <p>6 hours</p>
+                <p>Cloud-only</p>
               </div>
-              <div purpose="comparison-column" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
-                <p>One-off scripts</p>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'sccm'">
+                <p>On-prem only</p>
               </div>
-              <div purpose="comparison-column" v-else>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>Import / export</p>
-              </div>
-              <div purpose="fleet-column">
-                <p>Interoperable</p>
-              </div>
-              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'patchmypc'">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="['tanium', 'intune', 'omnissa'].includes(comparisonModeForIt)">
-                <p>Proprietary</p>
               </div>
               <div purpose="comparison-column" v-else>
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Open source</p></div>
-              <div purpose="fleet-column"><p>Free and paid version</p></div>
-              <div purpose="comparison-column" v-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
-                <p>Only free version</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
             </div>
           </div>
         </div>
 
-        <div purpose="mobile-comparison-table" class="d-block d-sm-none" v-if="comparisonTableMode === 'it'">
+        <div purpose="mobile-comparison-table" class="d-block d-sm-none">
           <p class="mt-5 mb-2 font-weight-bold">Compare with:</p>
           <div purpose="mobile-comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
             id="mobileDropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -520,103 +342,19 @@
             <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
             <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
             <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-            <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-            <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-            <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-            <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
             <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
           </div>
 
           <div purpose="feature-table">
-            <div purpose="feature-name"><p>Cloud or self-host with no restrictions</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
-                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
-                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'intune'">
-                <p>Cloud-only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>On-prem only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>On-prem discouraged</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Zero-touch setup</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="['omnissa', 'intune'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>iOS/iPadOS management</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="['tanium', 'chef', 'sccm', 'ansible', 'patchmypc'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'puppet'">
-                <p>Community module</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
             <div purpose="feature-name">
               <p>Complete device inventory </p>
-              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint. Access over 300 tables of system state data. Use presets or create your own reports.">
+              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you complete software inventory and hardware data down to the chip level on Apple, Linux, Windows, and ChromeOS devices.">
             </div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">              </div>
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">              
+              </div>
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
@@ -629,14 +367,14 @@
             </div>
           </div>
           <div purpose="feature-table">
-            <div purpose="feature-name"><p>Operating system updates</p></div>
+            <div purpose="feature-name">
+              <p>Software updates</p>
+              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Auto-patch policies keep software and OS versions up to date across macOS, Windows, Linux, iOS, and iPadOS. Deploy from a catalog of Fleet-maintained apps, upload custom packages, or let end users self-serve.">
+            </div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
             <div purpose="feature-table-row">
@@ -659,15 +397,11 @@
             </div>
           </div>
           <div purpose="feature-table">
-            <div purpose="feature-name"><p purpose="long-feature-name">Configuration management & scripting</p></div>
+            <div purpose="feature-name"><p purpose="long-feature-name">Configuration, scripting, and diagnostics</p></div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
             <div purpose="feature-table-row">
@@ -689,63 +423,28 @@
               </div>
             </div>
           </div>
+
           <div purpose="feature-table">
-            <div purpose="feature-name"><p>Remote lock and wipe</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
-                <p>No built-in Linux</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['intune'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>App management </p>
+            <div purpose="feature-name">
+              <p>Device reporting (&lt;30 seconds)</p>
+              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional system that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
             </div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['patchmypc', 'sccm'].includes(comparisonModeForIt)">
-                <p>Windows only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['intune', 'omnissa', 'ansible'].includes(comparisonModeForIt)">
+              <div purpose="feature-status" v-if="comparisonModeForIt === 'tanium'">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'intune'">
+                <p>6 Hours</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
+                <p>One-off scripts</p>
               </div>
               <div purpose="feature-status" v-else>
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
@@ -754,39 +453,7 @@
           </div>
 
           <div purpose="feature-table">
-            <div purpose="feature-name"><p>Automated device compliance</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['intune', 'omnissa', 'ansible'].includes(comparisonModeForIt)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>REST API</p></div>
+            <div purpose="feature-name"><p>Single API</p></div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
@@ -830,10 +497,7 @@
           </div>
 
           <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>Device reporting (&lt;30 seconds)</p>
-              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional system that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
-            </div>
+            <div purpose="feature-name"><p>Cloud or self-host</p></div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
@@ -842,607 +506,27 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'tanium'">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'intune'">
-                <p>6 Hours</p>
+                <p>Cloud-only</p>
               </div>
-              <div purpose="feature-status" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
-                <p>One-off scripts</p>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
+                <p>On-prem only</p>
               </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>Import / export</p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>Interoperable</p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForIt === 'sccm'">
-                <p>Windows only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'jamf'">
-                <p>Apple only</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['tanium', 'intune', 'omnissa'].includes(comparisonModeForIt)">
-                <p>Proprietary</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'patchmypc'">
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="feature-status" v-else>
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Open source</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
-                <p>Only free version</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
             </div>
           </div>
         </div>
-        <% /*
-          ╔═╗╔═╗╔═╗╦ ╦╦═╗╦╔╦╗╦ ╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╦═╗╦╔═╗╔═╗╔╗╔  ╔╦╗╔═╗╔╗ ╦  ╔═╗
-          ╚═╗║╣ ║  ║ ║╠╦╝║ ║ ╚╦╝  ║  ║ ║║║║╠═╝╠═╣╠╦╝║╚═╗║ ║║║║   ║ ╠═╣╠╩╗║  ║╣
-          ╚═╝╚═╝╚═╝╚═╝╩╚═╩ ╩  ╩   ╚═╝╚═╝╩ ╩╩  ╩ ╩╩╚═╩╚═╝╚═╝╝╚╝   ╩ ╩ ╩╚═╝╩═╝╚═╝
-          */ %>
-        <div purpose="desktop-comparison-table" class="d-none d-sm-block" v-if="comparisonTableMode === 'security'">
-          <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
-            <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
-            <div purpose="comparison-column" class="d-flex">
-              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-                id="dropdownMenuSelectPurposeForSecurity" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
-              </div>
-              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
-                <div class="dropdown-item" data-compare-with="defender" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
-                <div class="dropdown-item" data-compare-with="rapid-7" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
-                <!-- <div class="dropdown-item" data-compare-with="crowdstrike" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
-                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" data-compare-with="qualys" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
-                <div class="dropdown-item" data-compare-with="tenable" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
-              </div>
-            </div>
-          </div>
-
-
-
-          <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Threat intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate threat intelligence sources to detect, enrich, or investigate suspicious activity on devices."></p></div>
-              <div purpose="fleet-column">
-                <p>Bring your own</p>
-              </div>
-              <div purpose="comparison-column" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
-                <p>Proprietary</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Threat hunting</p></div>
-              <div purpose="fleet-column">
-                <p>Instant</p>
-              </div>
-              <div purpose="comparison-column" v-if="['rapid'].includes(comparisonModeForSecurity)">
-                <p>Only in MDR</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['defender'].includes(comparisonModeForSecurity)">
-                <p>1-6 hour delay</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>Vulnerability intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet uses data from NVD, EPSS, CISA KEVs, OVAL, and Microsoft MSRC to assess and prioritize vulnerabilities."></p>
-              </div>
-              <div purpose="fleet-column">
-                <p>KEVs, EPSS, NVD, <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet uses data from NVD, EPSS, CISA KEVs, OVAL, and Microsoft MSRC to assess and prioritize vulnerabilities.">etc</a></p>
-              </div>
-              <div purpose="comparison-column" v-if="['rapid', 'crowdstrike'].includes(comparisonModeForSecurity)">
-                <p>Proprietary</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
-                <p>KEVs, NVD / proprietary</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>Vulnerability reporting</p>
-              </div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="['crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Malware detection</p></div>
-              <div purpose="fleet-column">
-                <p>YARA (custom IoCs)</p>
-              </div>
-              <div purpose="comparison-column" v-if="['tanium'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>MITRE ATT&CK <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate tools to map activity and detections to MITRE ATT&CK tactics and techniques."></p></div>
-              <div purpose="fleet-column">
-                <p>Bring your own</p>
-              </div>
-              <div purpose="comparison-column">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
-
-              </div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="['qualys'].includes(comparisonModeForSecurity)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else>
-                <p>Mobile not supported</p>
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name">
-                <p>
-                  Device reporting (&lt;30 seconds)
-                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional system that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
-                </p>
-
-              </div>
-              <div purpose="fleet-column">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-if="['tanium', 'crowdstrike'].includes(comparisonModeForSecurity)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Enforce minimum operating system version</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
-                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name" class="d-flex align-items-center"><p>Automated device compliance</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
-                <p>Mobile partially supported</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>CIS benchmarking</p></div>
-              <div purpose="fleet-column">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-              </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'crowdstrike'">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="comparison-column" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>Custom logging</p></div>
-              <div purpose="fleet-column">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="['qualys'].includes(comparisonModeForSecurity)">
-                <p>Limited</p>
-              </div>
-              <div purpose="comparison-column" v-else>
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-
-            <div purpose="table-row">
-              <div purpose="feature-name"><p>REST API</p></div>
-              <div purpose="fleet-column">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="comparison-column">
-                <p>Multiple APIs required</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="mobile-comparison-table" class="d-block d-sm-none" v-if="comparisonTableMode === 'security'">
-          <p class="mt-5 mb-2 font-weight-bold">Compare with:</p>
-          <div purpose="mobile-comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-            id="mobileDropdownMenuSelectPurposeForSecurity" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
-          </div>
-          <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
-            <div class="dropdown-item" data-compare-with="defender" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
-            <div class="dropdown-item" data-compare-with="rapid-7" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
-            <!-- <div class="dropdown-item" data-compare-with="" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
-            <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-            <div class="dropdown-item" data-compare-with="qualys" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
-            <div class="dropdown-item" data-compare-with="tenable" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Threat intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate threat intelligence sources to detect, enrich, or investigate suspicious activity on devices."></p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>Bring your own</p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
-                <p>Proprietary</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Threat hunting</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>Instant</p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['rapid'].includes(comparisonModeForSecurity)">
-                <p>Only in MDR</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['defender'].includes(comparisonModeForSecurity)">
-                <p>1-6 hour delay</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>Vulnerability intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet uses data from NVD, EPSS, CISA KEVs, OVAL, and Microsoft MSRC to assess and prioritize vulnerabilities."></p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>KEVs, EPSS, NVD, <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="left" title="Fleet uses data from NVD, EPSS, CISA KEVs, OVAL, and Microsoft MSRC to assess and prioritize vulnerabilities.">etc</a></p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['rapid', 'crowdstrike'].includes(comparisonModeForSecurity)">
-                <p>Proprietary</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
-                <p>KEVs, NVD / proprietary</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>Vulnerability reporting</p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Malware detection</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>YARA (custom IoCs)</p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['tanium'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>MITRE ATT&CK <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate tools to map activity and detections to MITRE ATT&CK tactics and techniques."></p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <p>Bring your own</p>
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status">
-                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['qualys'].includes(comparisonModeForSecurity)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <p>Mobile not supported</p>
-              </div>
-            </div>
-          </div>
-          <div purpose="feature-table">
-            <div purpose="feature-name">
-              <p>
-                  Device reporting (&lt;30 seconds)
-                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" title="Unlike traditional system that can take from 1 - 6 hours to respond. Fleet can talk to thousands of devices in seconds.">
-                </p>
-            </div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['tanium', 'crowdstrike'].includes(comparisonModeForSecurity)">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Enforce minimum operating system version</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="feature-status" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Automated device compliance</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-                <img src="/images/icon-android-16x16@2x.png" alt="Android" >
-                <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
-                <p>Mobile partially supported</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>CIS benchmarking</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForSecurity === 'crowdstrike'">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
-              </div>
-              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
-                <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <p>Additional purchase</p>
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>Custom logging</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
-                <p>Additional purchase</p>
-              </div>
-              <div purpose="feature-status" v-else-if="['qualys'].includes(comparisonModeForSecurity)">
-                <p>Limited</p>
-              </div>
-              <div purpose="feature-status" v-else>
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-          </div>
-
-          <div purpose="feature-table">
-            <div purpose="feature-name"><p>REST API</p></div>
-            <div purpose="feature-table-row">
-              <div>Fleet</div>
-              <div purpose="feature-status">
-                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
-            <div purpose="feature-table-row">
-              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status">
-                <p>Multiple APIs required</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
 
         <div purpose="button-row">
           <a purpose="cta-button" href="/pricing">Compare all features</a>
@@ -1512,6 +596,8 @@
         </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
+          <!-- <animated-arrow-button href="/gitops-workshop">Free workshop</animated-arrow-button>-->
+          <!-- <animated-arrow-button href="/pricing">View pricing</animated-arrow-button> -->
           <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
@@ -1519,7 +605,7 @@
 
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city></parallax-city>
+  <cloud-city></cloud-city>
   <div purpose="homepage-content" class="container py-4 my-0 my-md-2">
     <div purpose="newsletter-banner">
        <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">

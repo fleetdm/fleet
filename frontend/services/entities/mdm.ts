@@ -1,9 +1,10 @@
 import {
+  EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
   IMdmProfile,
-  IMdmSSOReponse,
+  IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -51,13 +52,14 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
 
-interface IUpdateSetupExperienceBody {
+interface IUpdateSetupExperienceFormData {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
   lock_end_user_info?: boolean;
   apple_enable_release_device_manually?: boolean;
   macos_manual_agent_install?: boolean;
   enable_managed_local_account?: boolean;
+  end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
@@ -76,7 +78,7 @@ export interface IDefaultAppleSetupEnrollmentProfileResponse {
 
 export interface IMDMSSOParams {
   deviceinfo: string;
-  initiator: string;
+  initiator?: string;
   // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
   // enrollments with end-user authentication.
   host_uuid?: string;
@@ -150,22 +152,17 @@ const mdmService = {
       formData.append("fleet_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
 
-      let labelKey = "";
-      if (labelsIncludeAll) {
-        labelKey = "labels_include_all";
-      } else if (labelsIncludeAny) {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
 
-      labels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
-    }
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -193,7 +190,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOResponse> => {
     const { MDM_APPLE_SSO } = endpoints;
     return sendRequest("POST", MDM_APPLE_SSO, params);
   },
@@ -276,7 +273,9 @@ const mdmService = {
     });
   },
 
-  updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
+  updateSetupExperienceSettings: (
+    updateData: IUpdateSetupExperienceFormData
+  ) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {
       ...updateData,
@@ -292,7 +291,7 @@ const mdmService = {
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
 
-    const body: IUpdateSetupExperienceBody = {
+    const body: IUpdateSetupExperienceFormData = {
       fleet_id: teamId,
       apple_enable_release_device_manually: isEnabled,
     };

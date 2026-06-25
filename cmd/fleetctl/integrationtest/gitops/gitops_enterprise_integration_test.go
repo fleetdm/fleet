@@ -5006,6 +5006,142 @@ org_settings:
 	require.Len(t, labels, 0)
 }
 
+// TestGitOpsPolicyLabelScopes verifies that policies applied via GitOps can combine
+// one include scope (any/all) with one exclude scope (any/all) — including the premium
+// labels_exclude_all scope — and that conflicting include/exclude scopes are rejected.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPolicyLabelScopes() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	tempDir := t.TempDir()
+	fleetName := "Label Scopes " + uuid.NewString()
+
+	// The global file defines the labels referenced by both the global and team
+	// policies, plus a global policy that combines an include scope (any) with the
+	// premium exclude scope (all).
+	globalConfig := `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: label_scopes_secret
+agent_options:
+controls:
+reports:
+labels:
+  - name: Label A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label B
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label C
+    label_membership_type: dynamic
+    query: SELECT 1
+policies:
+  - name: Global Combined Scope
+    query: SELECT 1;
+    labels_include_any:
+      - Label A
+    labels_exclude_all:
+      - Label B
+      - Label C
+`
+	globalFile := filepath.Join(tempDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644)) //nolint:gosec
+
+	// The team file defines a team policy that combines an include scope (all) with
+	// an exclude scope (any), referencing the globally-defined labels.
+	teamConfig := fmt.Sprintf(`
+name: %s
+controls:
+software:
+reports:
+agent_options:
+settings:
+  secrets:
+    - secret: label_scopes_team_secret
+policies:
+  - name: Team Combined Scope
+    query: SELECT 1;
+    labels_include_all:
+      - Label A
+      - Label B
+    labels_exclude_any:
+      - Label C
+`, fleetName)
+	teamFile := filepath.Join(tempDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamConfig), 0o644)) //nolint:gosec
+
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
+
+	// The global policy persisted both its include_any and exclude_all scopes.
+	globalPolicies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, globalPolicies, 1)
+	gp := globalPolicies[0]
+	require.Equal(t, "Global Combined Scope", gp.Name)
+	require.Len(t, gp.LabelsIncludeAny, 1)
+	require.Equal(t, "Label A", gp.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, gp.LabelsIncludeAll)
+	require.Empty(t, gp.LabelsExcludeAny)
+	require.Len(t, gp.LabelsExcludeAll, 2)
+	require.ElementsMatch(t, []string{"Label B", "Label C"}, []string{gp.LabelsExcludeAll[0].LabelName, gp.LabelsExcludeAll[1].LabelName})
+
+	// The team policy persisted both its include_all and exclude_any scopes.
+	tm, err := s.DS.TeamByName(ctx, fleetName)
+	require.NoError(t, err)
+	teamPolicies, _, err := s.DS.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	tp := teamPolicies[0]
+	require.Equal(t, "Team Combined Scope", tp.Name)
+	require.Empty(t, tp.LabelsIncludeAny)
+	require.Len(t, tp.LabelsIncludeAll, 2)
+	require.ElementsMatch(t, []string{"Label A", "Label B"}, []string{tp.LabelsIncludeAll[0].LabelName, tp.LabelsIncludeAll[1].LabelName})
+	require.Len(t, tp.LabelsExcludeAny, 1)
+	require.Equal(t, "Label C", tp.LabelsExcludeAny[0].LabelName)
+	require.Empty(t, tp.LabelsExcludeAll)
+
+	// A policy that specifies two include scopes is rejected.
+	conflictConfig := `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: label_scopes_secret
+agent_options:
+controls:
+reports:
+labels:
+  - name: Label A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label B
+    label_membership_type: dynamic
+    query: SELECT 1
+policies:
+  - name: Conflicting Scope
+    query: SELECT 1;
+    labels_include_any:
+      - Label A
+    labels_include_all:
+      - Label B
+`
+	conflictFile := filepath.Join(tempDir, "conflict.yml")
+	require.NoError(t, os.WriteFile(conflictFile, []byte(conflictConfig), 0o644)) //nolint:gosec
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", conflictFile, "--dry-run"})
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
+}
+
 // TestOmittedTopLevelKeysFleet verifies that omitting top-level keys from a fleet
 // gitops file clears the corresponding settings (e.g. policies, agent_options, settings).
 func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedTopLevelKeysFleet() {
@@ -5589,4 +5725,88 @@ software:
 			"-f", globalFile.Name(), "-f", noTeamFilePath,
 		}, "macos_manual_agent_install")
 	})
+}
+
+// test vpp apps and packages dont validate labels on a dry run (issue #45844)
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelAndSoftwareSameApply() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	vppTokens, err := s.DS.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, vppTokens)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+	_, err = s.DS.UpdateVPPTokenTeams(ctx, vppTokens[0].ID, []uint{team.ID})
+	require.NoError(t, err)
+
+	globalTemplate := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+reports:
+`, teamName)
+
+	teamTemplate := `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      labels_include_any:
+        - new-team-label
+  app_store_apps:
+    - app_store_id: "1"
+      platform: darwin
+      labels_include_any:
+        - new-team-label
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+  - name: new-team-label
+    label_membership_type: manual
+    hosts: []
+`
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, teamName))
+	require.NoError(t, err)
+	require.NoError(t, teamFile.Close())
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartAndServeVPPServer(t)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	dryRunOutput := fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	require.Contains(t, dryRunOutput, "gitops dry run succeeded")
+
+	realRunOutput := fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.Contains(t, realRunOutput, "gitops succeeded")
 }

@@ -1,0 +1,10 @@
+{
+  "name": "XnViewMP",
+  "unique_identifier": "com.xnview.XnView",
+  "token": "xnviewmp",
+  "installer_format": "dmg",
+  "slug": "xnviewmp/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,1 +1,0 @@
-- Fixed Android agent to send the issued certificate's serial number to Fleet as hexadecimal.

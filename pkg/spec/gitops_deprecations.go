@@ -12,7 +12,7 @@ import (
 // Examples:
 //   - "team_settings" -> "settings"
 //   - "queries" -> "reports"
-//   - "org_settings.mdm.apple_business_manager[].macos_team" -> "org_settings.mdm.apple_business_manager[].macos_fleet"
+//   - "org_settings.mdm.apple_business[].macos_team" -> "org_settings.mdm.apple_business[].macos_fleet"
 type DeprecatedKeyMapping struct {
 	OldPath string
 	NewPath string
@@ -58,10 +58,16 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"org_settings.org_info.org_logo_url", "org_settings.org_info.org_logo_url_dark_mode"},
 	{"org_settings.org_info.org_logo_url_light_background", "org_settings.org_info.org_logo_url_light_mode"},
 
-	// Nested keys in org_settings.mdm.apple_business_manager[]
-	{"org_settings.mdm.apple_business_manager[].macos_team", "org_settings.mdm.apple_business_manager[].macos_fleet"},
-	{"org_settings.mdm.apple_business_manager[].ios_team", "org_settings.mdm.apple_business_manager[].ios_fleet"},
-	{"org_settings.mdm.apple_business_manager[].ipados_team", "org_settings.mdm.apple_business_manager[].ipados_fleet"},
+	// org_settings.mdm.apple_business_manager -> apple_business (parent rename
+	// runs before the nested children below so they resolve against the new
+	// parent name).
+	{"org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"},
+
+	// Nested keys in org_settings.mdm.apple_business[]
+	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
+	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
+	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
+	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
 
 	// Nested keys in org_settings.mdm.volume_purchasing_program[]
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -181,6 +184,7 @@ type GitOpsControls struct {
 	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
+	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
@@ -203,7 +207,7 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
@@ -476,7 +480,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
+			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
@@ -650,15 +654,96 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
+			// Anchor relative paths from a nested org_settings file to its own directory;
+			// otherwise they'd later resolve against the main file's baseDir and fail.
+			if orgSettingsTop.Path != nil {
+				orgSettingsDir := filepath.Dir(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
+				reanchorOrgSettingsPaths(result.OrgSettings, orgSettingsDir)
+			}
+
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return multiError
+}
+
+// absPathFrom resolves a relative file path to an absolute one anchored at baseDir.
+// Absolute paths are independent of any baseDir, so a later resolveApplyRelativePath
+// is a guaranteed no-op — this lets paths authored in one gitops file survive being
+// applied under a different file's baseDir.
+func absPathFrom(baseDir, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	if abs, err := filepath.Abs(filepath.Join(baseDir, p)); err == nil {
+		return abs
+	}
+	return filepath.Join(baseDir, p) // fallback: at least anchored
+}
+
+// ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
+// APPLY time to absolute paths against baseDir. Used when controls from
+// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// under a different (global) baseDir — making these paths absolute means the
+// apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
+// the no-team file (e.g. ../lib/...) keep working.
+//
+// Only fields resolved at apply time are touched. Deliberately excluded:
+//   - controls.scripts and macos_settings/windows_settings profiles are already
+//     resolved at parse time against the file's own dir (see parseControls), so
+//     re-resolving here would double-anchor them.
+func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
+	if c.MacOSSetup == nil {
+		return
+	}
+	c.MacOSSetup.MacOSSetupAssistant.Value = absPathFrom(baseDir, c.MacOSSetup.MacOSSetupAssistant.Value)
+	c.MacOSSetup.Script.Value = absPathFrom(baseDir, c.MacOSSetup.Script.Value)
+	for _, sw := range c.MacOSSetup.Software.Value {
+		if sw != nil {
+			sw.PackagePath = absPathFrom(baseDir, sw.PackagePath)
+		}
+	}
+}
+
+// reanchorOrgSettingsPaths rewrites the relative path-bearing fields inside org_settings
+// to be absolute against orgSettingsDir. Without this, paths authored in a nested
+// org_settings file are later resolved against the main file's baseDir.
+func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string) {
+	anchor := func(v string) string {
+		return absPathFrom(orgSettingsDir, v)
+	}
+
+	if orgInfo, ok := orgSettings["org_info"].(map[string]any); ok {
+		for _, key := range []string{"org_logo_path_light_mode", "org_logo_path_dark_mode"} {
+			if s, ok := orgInfo[key].(string); ok && s != "" {
+				orgInfo[key] = anchor(s)
+			}
+		}
+	}
+
+	if rules, ok := orgSettings["yara_rules"].([]any); ok {
+		for _, r := range rules {
+			rule, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := rule["path"].(string); ok && p != "" {
+				rule["path"] = anchor(p)
+			}
+		}
+	}
+
+	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
+		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
+			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+	}
 }
 
 // validateOrgInfoLogo rejects org_info configurations that specify both a path
@@ -681,6 +766,40 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Verify that if SSO is enabled, the IdP is completely configured: idp_name,
+// entity_id, and at least one of metadata/metadata_url must all be set. This
+// mirrors the server-side complete-IdP predicate enforced by
+// validateSSOProviderSettings in overwrite (gitops) mode, so the user gets the
+// same rejection early at parse time. One error is emitted per missing piece.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		if !enabled {
+			return multiError
+		}
+		idpName, _ := sso["idp_name"].(string)
+		entityID, _ := sso["entity_id"].(string)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if idpName == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, idp_name must be set",
+			))
+		}
+		if entityID == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, entity_id must be set",
+			))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
 	return multiError
 }
 
@@ -1168,7 +1287,84 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		result.Controls.AndroidSettings = androidSettings
 	}
 
+	if err := validateOSUpdatesProfileConflict(result.Controls); err != nil {
+		multiError = multierror.Append(multiError, err)
+	}
+
 	return multiError
+}
+
+// validateOSUpdatesProfileConflict rejects a config that both configures managed
+// OS updates and includes a custom configuration profile that enforces OS
+// updates. The server checks it for non-dry runs; we replicate it here against
+// the incoming payload so dry-runs fail too.
+func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
+	macOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.MacOSUpdates)
+	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
+	iPadOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IPadOSUpdates)
+	if macOSConfigured || iOSConfigured || iPadOSConfigured {
+		macOSSettings, _ := controls.MacOSSettings.(fleet.MacOSSettings)
+		for _, profile := range macOSSettings.CustomSettings {
+			contains, err := profileFileContains(profile.Path, apple_mdm.DeclarationTypeSoftwareUpdate)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.apple_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	windowsConfigured := osUpdatesConfigured[fleet.WindowsUpdates](controls.WindowsUpdates)
+	if windowsConfigured {
+		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
+		for _, profile := range windowsSettings.CustomSettings.Value {
+			contains, err := profileFileContains(profile.Path, syncml.FleetOSUpdateTargetLocURI)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.windows_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	return nil
+}
+
+// osUpdatesSettings is implemented by the OS update settings types that report
+// whether managed OS updates are configured.
+type osUpdatesSettings interface {
+	Configured() bool
+}
+
+// osUpdatesConfigured unmarshals the raw controls value (e.g. controls.macos_updates)
+// into T and reports whether it configures managed OS updates.
+func osUpdatesConfigured[T osUpdatesSettings](v any) bool {
+	if v == nil {
+		return false
+	}
+	data, err := json.Marshal(v)
+	if err != nil {
+		return false
+	}
+	var settings T
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return false
+	}
+	return settings.Configured()
+}
+
+// profileFileContains reports whether the profile file at path contains needle.
+func profileFileContains(path, needle string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return bytes.Contains(fileBytes, []byte(needle)), nil
 }
 
 func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {
@@ -1769,7 +1965,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
-		policy.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
+		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
 
 	return errs
@@ -1903,6 +2099,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
+
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))

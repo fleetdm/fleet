@@ -4,7 +4,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
@@ -29,6 +28,7 @@ import TabText from "components/TabText";
 import BackButton from "components/BackButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import DeleteFleetModal from "../components/DeleteFleetModal";
 import RenameFleetModal from "../components/RenameFleetModal";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
@@ -92,7 +92,6 @@ const TeamDetailsWrapper = ({
   children,
   location,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
@@ -252,17 +251,16 @@ const TeamDetailsWrapper = ({
 
       toggleSecretEditorModal();
       isPremiumTier && refetchTeams();
-      renderFlash(
-        "success",
+      notify.success(
         `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
       );
     } catch (error) {
       console.error(error);
-      renderFlash(
-        "error",
+      notify.error(
         `Could not ${
           selectedSecret ? "edit" : "add"
-        } enroll secret. Please try again.`
+        } enroll secret. Please try again.`,
+        { response: error }
       );
     } finally {
       setIsUpdatingSecret(false);
@@ -282,10 +280,12 @@ const TeamDetailsWrapper = ({
       refetchTeamSecrets();
       toggleDeleteSecretModal();
       refetchTeams();
-      renderFlash("success", `Successfully deleted enroll secret.`);
+      notify.success(`Successfully deleted enroll secret.`);
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete enroll secret. Please try again.");
+      notify.error("Could not delete enroll secret. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdatingSecret(false);
     }
@@ -300,16 +300,16 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
+      notify.success(`Successfully deleted ${currentTeamName}.`);
       router.push(PATHS.ADMIN_FLEETS);
-      renderFlash("success", "Fleet removed");
     } catch (response) {
-      renderFlash("error", "Something went wrong removing the fleet");
+      notify.error("Something went wrong removing the fleet", { response });
       console.error(response);
     } finally {
       toggleDeleteFleetModal();
       setIsUpdatingTeams(false);
     }
-  }, [teamIdForApi, renderFlash, router, toggleDeleteFleetModal]);
+  }, [teamIdForApi, currentTeamName, router, toggleDeleteFleetModal]);
 
   const onEditSubmit = useCallback(
     async (formData: ITeamFormData) => {
@@ -326,8 +326,7 @@ const TeamDetailsWrapper = ({
       setIsUpdatingTeams(true);
       try {
         await teamsAPI.update(updatedAttrs, teamIdForApi);
-        renderFlash(
-          "success",
+        notify.success(
           `Successfully updated fleet name to ${updatedAttrs?.name}`
         );
         setBackendValidators({});
@@ -350,7 +349,9 @@ const TeamDetailsWrapper = ({
             name: `"Unassigned" is a reserved fleet name. Please try another name.`,
           });
         } else {
-          renderFlash("error", "Could not create fleet. Please try again.");
+          notify.error("Could not create fleet. Please try again.", {
+            response,
+          });
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -360,7 +361,6 @@ const TeamDetailsWrapper = ({
       currentTeamDetails,
       toggleRenameFleetModal,
       teamIdForApi,
-      renderFlash,
       refetchTeams,
       refetchMe,
     ]

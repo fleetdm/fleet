@@ -30,6 +30,26 @@
   }
 
   .host-software-table {
+    // When the macOS /Applications dropdown is shown, lay the controls out as
+    // search (left) ... dropdown, filters button (right). The dropdown and
+    // filters render in that DOM order; the search is rendered last by
+    // TableContainer, so pull it to the front of the flex row. Keep the search
+    // a fixed size at the start of the line rather than stretching, and push
+    // the dropdown + filters button to the end of the line.
+    &--with-applications-filter {
+      .top-shift-header {
+        .table-container__search {
+          order: -1;
+          flex: 0 0 auto;
+          width: auto;
+        }
+
+        .host-software-table__software-filter {
+          margin-left: auto;
+        }
+      }
+    }
+
     &__software-filter {
       min-width: 240px;
       width: 240px; // Override .form-field 100%
