@@ -2181,4 +2181,29 @@ describe("Activity Feed", () => {
       screen.getByText(/installed all the software in self-service/i)
     ).toBeInTheDocument();
   });
+
+  it("renders a ran_custom_mdm_command activity with a command name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanCustomMdmCommand,
+      details: {
+        request_type: "./Device/Vendor/MSFT/DMClient/Provider/DEMO/EntDMID",
+        host_display_name: "Huck's MacBook Pro",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(".../EntDMID")).toBeInTheDocument();
+    expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a ran_custom_mdm_command activity without a command name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanCustomMdmCommand,
+      details: { host_display_name: "Huck's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/a custom MDM command/i)).toBeInTheDocument();
+    expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
+  });
 });

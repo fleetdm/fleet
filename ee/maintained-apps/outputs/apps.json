@@ -3971,18 +3971,18 @@
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
-      "name": "kiro",
+      "name": "Kiro",
       "slug": "kiro/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.kiro.desktop",
-      "description": "kiro is an agent-centric IDE with spec-driven development."
+      "description": "Kiro is an agent-centric IDE with spec-driven development."
     },
     {
       "name": "Kiro",
       "slug": "kiro/windows",
       "platform": "windows",
       "unique_identifier": "Kiro (User)",
-      "description": "kiro is an agent-centric IDE with spec-driven development."
+      "description": "Kiro is an agent-centric IDE with spec-driven development."
     },
     {
       "name": "kitty",
@@ -8206,18 +8206,18 @@
       "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.realvnc.vncviewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "unique_identifier": "com.realvnc.rvncconnect",
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
-      "name": "VNC Viewer",
+      "name": "RealVNC Connect Viewer",
       "slug": "vnc-viewer/windows",
       "platform": "windows",
-      "unique_identifier": "RealVNC Viewer",
-      "description": "VNC Viewer is a remote desktop application focusing on security."
+      "unique_identifier": "RealVNC Connect Viewer",
+      "description": "RealVNC Connect Viewer is a remote desktop application focusing on security."
     },
     {
       "name": "VoiceInk",

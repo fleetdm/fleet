@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.2.1",
+      "version": "1.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.clipy-app.Clipy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clipy-app.Clipy' AND version_compare(bundle_short_version, '1.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clipy-app.Clipy' AND version_compare(bundle_short_version, '1.3.0') < 0);"
       },
-      "installer_url": "https://github.com/Clipy/Clipy/releases/download/1.2.1/Clipy_1.2.1.dmg",
+      "installer_url": "https://github.com/Clipy/Clipy/releases/download/1.3.0/Clipy_1.3.0.dmg",
       "install_script_ref": "752c85ec",
       "uninstall_script_ref": "9b4876b0",
-      "sha256": "dfbb66ce3135fbaa2d64eaeea99a63e63485e322c9746045a1098b1696a1ecd5",
+      "sha256": "80e67266f220d4e63cccfc185a5f3f800eadafa123e25e5f9791351ad13cb593",
       "default_categories": [
         "Utilities"
       ]

@@ -1,7 +1,7 @@
 package mysql
 
 import (
-	"encoding/binary"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/chart/api"
@@ -11,9 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// swCounter feeds unique software checksums (binary(16) UNIQUE NOT NULL).
-var swCounter uint64
-
 // seedSoftware inserts a `software` row and a linking `software_cve` row, so a
 // CVE is attributed to software of the given name+source. Returns nothing — the
 // resolver/collector queries match on name/source, not id.
@@ -21,9 +18,10 @@ func seedSoftware(t *testing.T, tdb *testutils.TestDB, name, source, cve string)
 	t.Helper()
 	ctx := t.Context()
 
-	swCounter++
-	checksum := make([]byte, 16)
-	binary.BigEndian.PutUint64(checksum[8:], swCounter)
+	// checksum is binary(16) UNIQUE NOT NULL; derive it from the row's own
+	// identifying inputs so each seeded row is unique.
+	sum := sha256.Sum256([]byte(name + "\x00" + source + "\x00" + cve))
+	checksum := sum[:16]
 
 	res, err := tdb.DB.ExecContext(ctx,
 		`INSERT INTO software (name, version, source, checksum) VALUES (?, '1.0', ?, ?)`,

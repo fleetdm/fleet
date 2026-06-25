@@ -50,7 +50,7 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
 	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil,
-		"host_scd_data", "hosts", "host_seen_times", "nano_enrollments", "teams",
+		"host_scd_data", "hosts", "host_seen_times", "nano_devices", "nano_enrollments", "teams",
 		"software", "software_cve", "cve_meta", "operating_system_vulnerabilities")
 }
 

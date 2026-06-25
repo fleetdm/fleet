@@ -1,9 +1,9 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { IVariable } from "interfaces/variables";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import formatErrorResponse from "utilities/format_error_response";
 import variablesAPI from "services/entities/variables";
@@ -23,8 +23,6 @@ const DeleteCustomVariableModal = ({
 }: DeleteCustomVariableModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { renderFlash } = useContext(NotificationContext);
-
   const onClickDelete = async () => {
     if (!variable) {
       return;
@@ -32,7 +30,7 @@ const DeleteCustomVariableModal = ({
     setIsDeleting(true);
     try {
       await variablesAPI.deleteVariable(variable.id);
-      renderFlash("success", "Variable successfully deleted.");
+      notify.success("Variable successfully deleted.");
       onDeleteVariable();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
@@ -43,7 +41,7 @@ const DeleteCustomVariableModal = ({
         isInUseError && typeof errorObject?.base === "string"
           ? errorObject.base
           : "An error occurred while deleting the custom variable. Please try again.";
-      renderFlash("error", message);
+      notify.error(message, { response: error });
       onExit();
     } finally {
       setIsDeleting(false);

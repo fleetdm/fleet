@@ -2,7 +2,7 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
-Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and run `fleetctl new` to generate a starter repository. [Learn how](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
@@ -537,11 +537,6 @@ Currently, when a `.ipa` file is added in `packages`, Fleet adds software for bo
 
 ```yaml
 software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "👬 Communication"
-    - "🧰 Developer tools"
-    - "💻 Productivity"
   packages:
     - path: ../lib/software-name.package.yml
       categories:
@@ -593,20 +588,13 @@ software:
         - Engineering
 ```
 
-#### self_service_categories
-
-_Available in Fleet Premium_
-
-- `self_service_categories` is a list of custom self-service category names available on this fleet. End users can browse and install self-service software by category on the **My device > Self-service** page. Custom categories replace Fleet's previous fixed list and are managed per fleet.
-- Each category name must be unique within the fleet (case-insensitive) and is limited to 255 characters. Emojis are supported and are part of the name (e.g. `"🌎 Browsers"`).
-- When a fleet is created, Fleet seeds the following default categories that admins can rename or delete: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**.
-- `self_service_categories` is an optional key. When the key is included, the listed categories fully replace the fleet's existing self-service categories — any category not listed is deleted. When the key is omitted, existing categories are left unchanged. Software assigned to a deleted category is removed from that category but otherwise unaffected.
-
 #### self_service, labels, categories, and setup_experience
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
-- `categories` is a list of [self-service category names](#self-service-categories) on the fleet. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once. Each value must match a category defined in the fleet's `self_service_categories`. If `categories` is empty, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) (creating them on the fleet if needed) and all other software only appears in the **All** group.
+- `categories` is a list of self-service category names. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once.
+  - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
+  - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
@@ -714,7 +702,7 @@ If the fields below are omitted, they default to values specified in [the app's 
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
-- `categories` is an array of categories, from [supported categories](#labels-and-categories).
+- `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
 ## org_settings and settings
 
@@ -731,6 +719,12 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
 
   A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+- `vulnerability_exposure_historical_reporting` (Fleet Premium) sets the **default** filters applied to the **Vulnerability exposure** dashboard chart when the page loads. These are display defaults only — they do not change which data Fleet collects. A user can adjust the filters in the UI, but those changes are not saved; GitOps is the only way to persist them. Each key is optional; an omitted key uses the chart's built-in default.
+  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system and kernel), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player). Omit the key to include all categories; if the key is present it must list at least one category (an empty list is rejected).
+  - `cvss_min` / `cvss_max` filter by CVSS v3 base score (`0`–`10`). (Accepted and stored now; takes effect in a future release that adds the severity control.)
+  - `epss_min` / `epss_max` filter by probability of exploit (EPSS) score, expressed as `0`–`100`.
+  - `has_known_exploit`, when `true`, shows only vulnerabilities with a known exploit (CISA KEV).
+  - `exclude_vulnerabilities` is a list of CVE identifiers to exclude.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -747,6 +741,20 @@ org_settings:
     historical_data:
       uptime: true
       vulnerabilities: false
+    vulnerability_exposure_historical_reporting:
+      software_filters:
+        - os
+        - browsers
+        - office
+        - adobe
+      has_known_exploit: true
+      epss_min: 0
+      epss_max: 100
+      cvss_min: 9
+      cvss_max: 10
+      exclude_vulnerabilities:
+        - CVE-2025-50897
+        - CVE-2025-76306
 ```
 
 ### fleet_desktop

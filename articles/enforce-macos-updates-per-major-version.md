@@ -57,11 +57,13 @@ SELECT 1 FROM os_version WHERE major = 26 AND minor < 5;
 
 Repeat for any other major versions you need to cover.
 
-> If you deploy a profile that targets a version that a device is already at or above, then the profile will fail to apply to the device. The error will look similar to this:
+> **Note:** If you deploy a profile that targets a version that a device is already at or above, then the profile will fail to apply to the device. The error will look similar to this:
 > 
 > ```
-> [Error:[kSUCoreErrorDDMInvalidDeclarationFailure] Invalid declaration: target OS version (15.7) is older than current version (15.7.7)]
+> Error.ConfigurationCannotBeApplied: Configuration cannot be applied map[Error:[kSUCoreErrorDDMInvalidDeclarationFailure] Invalid declaration: target OS version (15.7) is older than current version (15.7.7)]
 > ```
+> 
+> This means that the device is already compliant and no update is needed, but Fleet will show the profile status as "Failed".
 
 ## Step 2: Create a DDM declaration for each major OS version
 
