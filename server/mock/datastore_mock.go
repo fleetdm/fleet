@@ -1568,6 +1568,8 @@ type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *u
 
 type ListFleetMaintainedAppActiveInstallersFunc func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error)
 
+type GetSoftwareInstallerMetadataByStorageIDFunc func(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+
 type InsertFleetMaintainedAppVersionFunc func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error)
 
 type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error
@@ -4436,6 +4438,9 @@ type DataStore struct {
 
 	ListFleetMaintainedAppActiveInstallersFunc        ListFleetMaintainedAppActiveInstallersFunc
 	ListFleetMaintainedAppActiveInstallersFuncInvoked bool
+
+	GetSoftwareInstallerMetadataByStorageIDFunc        GetSoftwareInstallerMetadataByStorageIDFunc
+	GetSoftwareInstallerMetadataByStorageIDFuncInvoked bool
 
 	InsertFleetMaintainedAppVersionFunc        InsertFleetMaintainedAppVersionFunc
 	InsertFleetMaintainedAppVersionFuncInvoked bool
@@ -10670,6 +10675,13 @@ func (s *DataStore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) 
 	s.ListFleetMaintainedAppActiveInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListFleetMaintainedAppActiveInstallersFunc(ctx)
+}
+
+func (s *DataStore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerMetadataByStorageIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerMetadataByStorageIDFunc(ctx, storageID)
 }
 
 func (s *DataStore) InsertFleetMaintainedAppVersion(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, err error) {

@@ -235,26 +235,16 @@ func downloadNewVersionIfEligible(
 			}
 		}
 	} else {
-		// Bytes already cached: recover the package IDs and upgrade code from an
-		// existing installer with identical content (same SHA ⇒ same metadata) so
-		// the uninstall script can still be substituted.
-		if existing, err := ds.GetTeamsWithInstallerByHash(ctx, storageID, ""); err == nil {
-			for _, installers := range existing {
-				done := false
-				for _, e := range installers {
-					if e.PackageIDList != "" {
-						packageIDs = strings.Split(e.PackageIDList, ",")
-						if e.UpgradeCode != "" {
-							upgradeCode = e.UpgradeCode
-						}
-						done = true
-						break
-					}
-				}
-				if done {
-					break
-				}
-			}
+		// Bytes already cached (possibly only on an inactive row after a rollback):
+		// recover the package IDs and upgrade code from any installer with the same
+		// content hash so the uninstall script can still be substituted.
+		pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, storageID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "recovering cached installer metadata")
+		}
+		packageIDs = pids
+		if ucode != "" {
+			upgradeCode = ucode
 		}
 	}
 

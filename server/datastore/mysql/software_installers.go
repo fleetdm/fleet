@@ -852,6 +852,36 @@ FROM software_installers WHERE id = ?`,
 	return installerID, nil
 }
 
+// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
+// code of any cached installer (active or inactive) with the given storage_id.
+// A content hash uniquely identifies the bytes, so the metadata is the same
+// regardless of which row is currently active — the auto-update cron uses this to
+// recover uninstall-script substitution values on the byte-dedup path without
+// re-downloading. Returns empty values (no error) when nothing matches.
+func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error) {
+	var row struct {
+		PackageIDs  string `db:"package_ids"`
+		UpgradeCode string `db:"upgrade_code"`
+	}
+	// Prefer a row that actually carries package IDs (the MSI/EXE row).
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT package_ids, upgrade_code FROM software_installers
+		WHERE storage_id = ?
+		ORDER BY (package_ids = '') ASC, id ASC
+		LIMIT 1`, storageID)
+	switch {
+	case err == nil:
+		if row.PackageIDs != "" {
+			packageIDs = strings.Split(row.PackageIDs, ",")
+		}
+		return packageIDs, row.UpgradeCode, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, "", nil
+	default:
+		return nil, "", ctxerr.Wrap(ctx, err, "get software installer metadata by storage id")
+	}
+}
+
 // evictOldFMAVersions caps cached FMA versions for a (team, title) at
 // maxCachedFMAVersions. It always keeps activeID (the live is_active=1 row,
 // resolved by the caller under FOR UPDATE) and newInstallerID (the row just
@@ -3958,7 +3988,6 @@ SELECT
 	st.bundle_identifier,
 	st.name AS title,
 	si.package_ids,
-	si.upgrade_code,
 	si.install_script_content_id
 FROM
 	software_installers si
@@ -3981,7 +4010,6 @@ SELECT
 	st.bundle_identifier,
 	st.name AS title,
 	'' AS package_ids,
-	'' AS upgrade_code,
 	0 AS install_script_content_id
 FROM
 	in_house_apps iha

@@ -127,9 +127,9 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) {
 		return false, nil
 	}
-	// No existing same-content installer by default (byte-dedup package-ID lookup).
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
-		return nil, nil
+	// No recoverable metadata by default (byte-dedup path).
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
+		return nil, "", nil
 	}
 	// After the insert, the new version is the newest cached one.
 	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
@@ -245,8 +245,8 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Google Chrome", Slug: testFMASlug, Platform: "darwin"}, nil
 	}
 	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) { return false, nil }
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
-		return nil, nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
+		return nil, "", nil
 	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		return 13, nil
@@ -291,8 +291,8 @@ func TestAutoUpdateSubstitutesUninstallScript(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	srv.uninstall = "msiexec /x $PACKAGE_ID /qn"
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
-		return map[uint][]*fleet.ExistingSoftwareInstaller{0: {{PackageIDList: "ABC"}}}, nil
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
+		return []string{"ABC"}, "", nil
 	}
 	var gotPayload *fleet.UploadSoftwareInstallerPayload
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {

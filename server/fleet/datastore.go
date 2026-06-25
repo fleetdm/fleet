@@ -2677,6 +2677,12 @@ type Datastore interface {
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
+	// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
+	// code of any cached installer (active or inactive) with the given storage_id.
+	// Used by the auto-update cron to recover uninstall-script substitution values
+	// on the byte-dedup path. Returns empty values (no error) when nothing matches.
+	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+
 	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
 	// already-installed Fleet-maintained app, cloning the active installer's
 	// per-team config (self-service, labels, categories, pre-install query) and

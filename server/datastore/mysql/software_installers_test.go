@@ -62,6 +62,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"InsertFleetMaintainedAppVersion", testInsertFleetMaintainedAppVersion},
 		{"InsertFleetMaintainedAppVersionProtectsLiveActive", testInsertFleetMaintainedAppVersionProtectsLiveActive},
 		{"InsertFleetMaintainedAppVersionClonesLiveActive", testInsertFleetMaintainedAppVersionClonesLiveActive},
+		{"GetSoftwareInstallerMetadataByStorageID", testGetSoftwareInstallerMetadataByStorageID},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
@@ -5032,6 +5033,52 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 	})
 	require.True(t, r.SelfService, "self_service cloned from live active (v2), not stale v1")
 	require.True(t, r.InstallDuringSetup, "install_during_setup cloned from live active (v2), not stale v1")
+}
+
+// testGetSoftwareInstallerMetadataByStorageID verifies metadata recovery works
+// for any row with the content hash — including an inactive one (e.g. after a
+// rollback) — so the cron's byte-dedup path isn't locked out when no team has the
+// version active.
+func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Dave", "dave@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-meta-hash"})
+	require.NoError(t, err)
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained4", Slug: "maintained4", Platform: "windows", UniqueIdentifier: "fleet.maintained4",
+	})
+	require.NoError(t, err)
+	newFile := func(s string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(s), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "FooFMA", Source: "programs", Platform: "windows", InstallScript: "echo i", UninstallScript: "echo u",
+		PackageIDs: []string{"PROD-CODE"}, UpgradeCode: "UP-CODE",
+		InstallerFile: newFile("v1"), StorageID: "hash-meta-1", Filename: "foo.msi", Extension: "msi",
+		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Make it inactive — the is_active=1-filtered lookups would miss it.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = 0 WHERE id = ?`, id)
+		return err
+	})
+
+	pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"PROD-CODE"}, pids, "recovers package IDs from an inactive row")
+	require.Equal(t, "UP-CODE", ucode)
+
+	// Unknown hash → empty, no error.
+	pids, ucode, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
+	require.NoError(t, err)
+	require.Empty(t, pids)
+	require.Empty(t, ucode)
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
