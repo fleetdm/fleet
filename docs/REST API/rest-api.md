@@ -6552,6 +6552,7 @@ Deletes the label specified by ID.
 - [Create configuration profile](#create-configuration-profile)
 - [List configuration profiles](#list-configuration-profiles)
 - [Get or download configuration profile](#get-or-download-configuration-profile)
+- [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Update disk encryption](#update-disk-encryption)
@@ -6785,6 +6786,59 @@ solely on the response status code returned by this endpoint.
   <integer>1</integer>
 </dict>
 </plist>
+```
+
+### Update configuration profile
+
+_Available in Fleet Premium._
+
+Update an existing configuration profile. Use this endpoint to change which hosts a profile is applied to (labels/custom targets) and/or to upload a new profile file.
+
+`PATCH /api/v1/fleet/configuration_profiles/:profile_uuid`
+
+#### Parameters
+
+| Name                      | Type    | In   | Description                                                                                                   |
+| ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
+| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
+
+Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
+
+##### Uploading a new profile file
+
+You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+
+- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** and **file name** as the existing profile.
+- **v1 .mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** and **PayloadDisplayName** as the existing profile.
+
+If the new profile does not match the required identifiers, the request will be rejected.
+
+#### Example
+
+Update a configuration profile to target hosts with specific labels.
+
+`PATCH /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+
+##### Request body
+
+```json
+{
+  "labels_include_all": ["Label name 1", "Label name 2"]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9"
+}
 ```
 
 ### Delete configuration profile
