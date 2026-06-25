@@ -129,9 +129,11 @@ func TestIngestValidations(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
 			i := &brewIngester{
-				logger:  slog.New(slog.DiscardHandler),
-				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-				baseURL: srv.URL + "/",
+				logger:           slog.New(slog.DiscardHandler),
+				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				baseURL:          srv.URL + "/",
+				retryInterval:    time.Millisecond,
+				retryMaxAttempts: 3,
 			}
 
 			out, err := i.ingestOne(ctx, c.inputApp)
@@ -165,6 +167,88 @@ func TestIngestValidations(t *testing.T) {
 
 		})
 	}
+}
+
+// TestIngestRetriesTransientErrors verifies that transient brew API failures
+// (e.g. the 503s GitHub Pages intermittently returns for formulae.brew.sh) are
+// retried instead of aborting the whole ingestion run, while permanent failures
+// still return after exhausting attempts.
+func TestIngestRetriesTransientErrors(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("recovers after transient 503s", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hits++
+			// Fail the first two attempts, then succeed.
+			if hits < 3 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(brewCask{
+				Token:   "ok",
+				Name:    []string{"ok"},
+				URL:     "https://example.com",
+				Version: "1.0",
+			})
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		out, err := i.ingestOne(ctx, inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+		require.Equal(t, 3, hits, "should have retried until success")
+	})
+
+	t.Run("gives up after exhausting attempts", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 3,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "brew API returned status 503")
+		require.Equal(t, 3, hits, "should have attempted exactly retryMaxAttempts times")
+	})
+
+	t.Run("does not retry 404", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "app not found in brew API")
+		require.Equal(t, 1, hits, "404 is permanent and must not be retried")
+	})
 }
 
 // TestIngestCaskPath verifies that when an input app sets cask_path, the
