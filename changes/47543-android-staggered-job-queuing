@@ -1,0 +1,1 @@
+- Refactored `makeAndroidAppAvailable` to use staggered job queuing instead of sleeping between batches inside a single worker job.
