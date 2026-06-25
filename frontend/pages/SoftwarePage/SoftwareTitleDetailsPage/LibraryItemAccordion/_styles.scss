@@ -183,31 +183,6 @@
     flex: 0 1 auto;
   }
 
-  // Wraps the copy button so the absolute "Copied!" message can anchor to
-  // its left edge and float over the truncated hash. Same pattern as
-  // `InputField.__action-button-wrapper`.
-  &__copy-wrapper {
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  &__copy-button {
-    flex-shrink: 0;
-  }
-
-  &__copy-message {
-    @include copy-message;
-    // Mixin's `margin: -4px 0` is for inline alignment; zero it out so the
-    // absolute chip centers cleanly against the copy button.
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    right: calc(100% + #{$pad-xsmall});
-    transform: translateY(-50%);
-    pointer-events: none;
-    white-space: nowrap;
-  }
-
   &__actions-column {
     display: flex;
     align-items: flex-start;

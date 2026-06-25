@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
@@ -11,7 +12,6 @@ import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType } from "interfaces/software";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
-import { stringToClipboard } from "utilities/copy_text";
 
 const baseClass = "library-item-accordion";
 
@@ -134,7 +134,6 @@ const LibraryItemAccordion = ({
   onTrashClick,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
-  const [copyMessage, setCopyMessage] = useState("");
 
   const labelCount = labels?.length ?? 0;
   const hasLabelScope = labelCount > 0;
@@ -147,16 +146,6 @@ const LibraryItemAccordion = ({
   const toggleExpanded = () => {
     if (!canExpand) return;
     setExpanded((prev) => !prev);
-  };
-
-  const handleCopyHash = () => {
-    if (!hashSha256) return;
-    stringToClipboard(hashSha256)
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 1000);
   };
 
   const inactiveTooltip = (
@@ -450,22 +439,10 @@ const LibraryItemAccordion = ({
             className={`${baseClass}__hash`}
             value={hashSha256}
           />
-          <div className={`${baseClass}__copy-wrapper`}>
-            {copyMessage && (
-              <span className={`${baseClass}__copy-message`}>
-                {copyMessage}
-              </span>
-            )}
-            <Button
-              variant="icon"
-              iconStroke
-              onClick={handleCopyHash}
-              ariaLabel="Copy hash to clipboard"
-              className={`${baseClass}__copy-button`}
-            >
-              <Icon name="copy" />
-            </Button>
-          </div>
+          <CopyButton
+            copyText={hashSha256}
+            ariaLabel="Copy hash to clipboard"
+          />
         </div>
       </div>
     );
