@@ -9,7 +9,18 @@ import {
 import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
+import { notify } from "components/ToastNotification";
+
 import VersionsModal from "./VersionsModal";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const fmaPackage = (overrides?: Partial<ISoftwarePackage>) =>
   createMockSoftwarePackage({
@@ -25,7 +36,6 @@ const fmaPackage = (overrides?: Partial<ISoftwarePackage>) =>
 const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
   const onExit = jest.fn();
   const refetchSoftwareTitle = jest.fn();
-  const renderFlash = jest.fn();
   const render = createCustomRenderer({
     context: {
       app: {
@@ -35,7 +45,6 @@ const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
           gitops: { gitops_mode_enabled: false, repository_url: "" } as any,
         },
       },
-      notification: { renderFlash },
     },
   });
   const title = createMockSoftwareTitle({
@@ -50,7 +59,7 @@ const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
       onExit={onExit}
     />
   );
-  return { ...utils, onExit, refetchSoftwareTitle, renderFlash };
+  return { ...utils, onExit, refetchSoftwareTitle };
 };
 
 describe("VersionsModal", () => {
@@ -103,7 +112,7 @@ describe("VersionsModal", () => {
     const editSpy = jest
       .spyOn(softwareAPI, "editSoftwarePackage")
       .mockResolvedValue({} as never);
-    const { user, onExit, refetchSoftwareTitle, renderFlash } = renderModal({
+    const { user, onExit, refetchSoftwareTitle } = renderModal({
       pinned_version: null,
     });
 
@@ -122,7 +131,7 @@ describe("VersionsModal", () => {
         teamId: 1,
       });
     });
-    expect(renderFlash).toHaveBeenCalledWith("success", expect.anything());
+    expect(notify.success).toHaveBeenCalledWith(expect.anything());
     expect(refetchSoftwareTitle).toHaveBeenCalled();
     expect(onExit).toHaveBeenCalled();
   });
@@ -131,14 +140,13 @@ describe("VersionsModal", () => {
     jest
       .spyOn(softwareAPI, "editSoftwarePackage")
       .mockRejectedValue(new Error("boom"));
-    const { user, onExit, renderFlash } = renderModal({ pinned_version: null });
+    const { user, onExit } = renderModal({ pinned_version: null });
 
     await user.click(screen.getByRole("radio", { name: "Pin to 149.0.2" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "error",
+      expect(notify.error).toHaveBeenCalledWith(
         expect.stringContaining("Couldn't update version")
       );
     });

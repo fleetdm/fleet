@@ -1,10 +1,10 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { NotificationContext } from "context/notification";
 import { ISoftwareTitleDetails } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
+import { notify } from "components/ToastNotification";
 import Card from "components/Card";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -37,8 +37,6 @@ const VersionsModal = ({
   refetchSoftwareTitle,
   onExit,
 }: IVersionsModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const pkg = softwareTitle.software_package;
   const initialValue = getPreselectedVersionValue(pkg?.pinned_version);
 
@@ -70,8 +68,7 @@ const VersionsModal = ({
         softwareId,
         teamId,
       });
-      renderFlash(
-        "success",
+      notify.success(
         <>
           Successfully updated{" "}
           <b>
@@ -86,7 +83,7 @@ const VersionsModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (error) {
-      renderFlash("error", "Couldn't update version. Please try again.");
+      notify.error("Couldn't update version. Please try again.");
       setIsSaving(false);
     }
   };

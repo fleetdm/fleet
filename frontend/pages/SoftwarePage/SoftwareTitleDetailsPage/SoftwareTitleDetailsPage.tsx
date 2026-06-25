@@ -11,7 +11,6 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import {
@@ -34,6 +33,7 @@ import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import { notify } from "components/ToastNotification";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
@@ -84,7 +84,6 @@ const SoftwareTitleDetailsPage = ({
   const { isPremiumTier, isOnGlobalTeam, currentUser, config } = useContext(
     AppContext
   );
-  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
   const queryClient = useQueryClient();
 
@@ -198,9 +197,9 @@ const SoftwareTitleDetailsPage = ({
       a.click();
       a.remove();
     } catch (e) {
-      renderFlash("error", "Couldn't download. Please try again.");
+      notify.error("Couldn't download. Please try again.");
     }
-  }, [renderFlash, softwareId, softwareTitle, teamIdForApi]);
+  }, [softwareId, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
