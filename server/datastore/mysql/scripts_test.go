@@ -2358,17 +2358,17 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Len(t, upcomingScripts, 1)
 		case hostWindows.ID:
 			// Bad platform
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, *hostResult.Error)
 		case hostTeam1.ID:
 			// Host is on a team that no longer matches the script's team
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
 		case hostNoScripts.ID:
 			// Host doesn't support scripts
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleFleetd, *hostResult.Error)
 		case 0xbeef:
@@ -2459,7 +2459,7 @@ func testBatchScriptScheduleTeamTransfer(t *testing.T, ds *Datastore) {
 			require.Nil(t, hostResult.HostExecutionID)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
-			require.Len(t, upcomingScripts, 0)
+			require.Empty(t, upcomingScripts)
 		default:
 			require.Failf(t, "unexpected host in batch", "host_id: %d", hostResult.HostID)
 		}
