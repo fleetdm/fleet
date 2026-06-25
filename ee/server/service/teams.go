@@ -358,9 +358,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 			macOSManagedLocalAccountUpdated = payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set &&
 				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value
-			endUserLocalAccountTypeUpdated := payload.MDM.MacOSSetup.EndUserLocalAccountType.Set &&
-				team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != payload.MDM.MacOSSetup.EndUserLocalAccountType.Value
-			if (macOSManagedLocalAccountUpdated || endUserLocalAccountTypeUpdated) && !appCfg.MDM.EnabledAndConfigured {
+			if macOSManagedLocalAccountUpdated && payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value && !appCfg.MDM.EnabledAndConfigured {
 				return nil, fleet.NewInvalidArgumentError("setup_experience.enable_managed_local_account",
 					`Couldn't update setup_experience because MDM features aren't turned on in Fleet.`)
 			}
