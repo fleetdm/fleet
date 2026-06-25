@@ -424,6 +424,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 ## network_interface_unix
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin
+
 - Query:
 ```sql
 SELECT
