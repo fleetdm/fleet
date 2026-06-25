@@ -16,8 +16,9 @@ interface IGitOpsModeTooltipWrapper {
   // When specified, the wrapper checks the exception for this entity type.
   // If the entity is excepted, children remain enabled even in GitOps mode.
   entityType?: keyof IGitOpsExceptions;
-  /** Set to true when wrapping an input field or other block-level form element
-   *  so the tooltip wrapper stretches to full width. */
+  /** Set to true when wrapping an input/dropdown or a group of them that must stretch to the
+   *  full form width. By default the wrapper hugs its content so the tooltip centers on the
+   *  control; inputs opt back into full width. */
   isInputField?: boolean;
 }
 
@@ -42,7 +43,6 @@ const GitOpsModeTooltipWrapper = ({
 
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const [hasSingleFieldRow, setHasSingleFieldRow] = useState(false);
-  const [wrapsField, setWrapsField] = useState(true);
   // Prefix makes this a valid CSS id selector (lodash uniqueId returns a bare number).
   const wrapperId = useMemo(() => uniqueId(`${baseClass}-`), []);
 
@@ -57,10 +57,6 @@ const GitOpsModeTooltipWrapper = ({
       FIRST_ROW_PARTS.join(", ")
     );
     setHasSingleFieldRow(!!root?.matches(".form-field") && rows?.length === 1);
-    // Field content (a single field or a group of them) keeps full width so the disabled
-    // row stays the hover target; only non-field content (buttons, icon rows) hugs its
-    // content so the tooltip centers on the button rather than the full form row.
-    setWrapsField(!!wrapperRef.current?.querySelector(".form-field"));
   }, []);
 
   if (!gitOpsModeEnabled) {
@@ -73,9 +69,11 @@ const GitOpsModeTooltipWrapper = ({
     </div>
   );
 
+  // Hug the wrapped content (buttons, checkboxes, groups) so the tooltip centers on the visible
+  // control instead of the full-width form row. Inputs/dropdowns opt back into full width.
   const wrapperClass = classnames(baseClass, {
     [`${baseClass}--inputfield`]: isInputField,
-    [`${baseClass}--hug`]: !wrapsField && !isInputField,
+    [`${baseClass}--hug`]: !isInputField,
   });
 
   // Anchor to the field's first row so the arrow points at the label regardless of input,

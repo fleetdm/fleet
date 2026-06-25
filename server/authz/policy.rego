@@ -19,6 +19,7 @@ cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
+write_members := "write_members"
 
 # User specific actions
 write_role := "write_role"
@@ -88,10 +89,10 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, technician, observer_plus and observer can read Okta IdP assets.
+# Global admin, gitops, maintainer, and technician can read Okta IdP assets.
 allow {
   object.type == "conditional_access_idp_assets"
-  subject.global_role == [admin, gitops, maintainer, technician, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, technician][_]
   action == read
 }
 
@@ -136,6 +137,22 @@ allow {
   object.type == "team"
   team_role(subject, object.id) == [admin, gitops][_]
   action == write
+}
+
+# Global admins can manage team membership.
+allow {
+  object.type == "team"
+  object.id != 0
+  subject.global_role == admin
+  action == write_members
+}
+
+# Team admins can manage membership of their teams.
+allow {
+  object.type == "team"
+  object.id != 0
+  team_role(subject, object.id) == admin
+  action == write_members
 }
 
 ##

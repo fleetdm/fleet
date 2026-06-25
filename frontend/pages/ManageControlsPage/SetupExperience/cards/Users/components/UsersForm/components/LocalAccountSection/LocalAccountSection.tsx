@@ -76,6 +76,7 @@ const LocalAccountSection = ({
         <GitOpsModeTooltipWrapper
           position="left"
           tipOffset={8}
+          isInputField
           renderChildren={(gitopsEnabled) => {
             return (
               <div className={`${baseClass}__field-group`}>

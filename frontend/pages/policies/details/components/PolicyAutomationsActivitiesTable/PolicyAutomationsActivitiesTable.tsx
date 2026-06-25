@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Row } from "react-table";
 import { AxiosError } from "axios";
+import classnames from "classnames";
 
 import { notify } from "components/ToastNotification";
 import {
@@ -201,7 +202,11 @@ const PolicyAutomationsActivitiesTable = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header`}>
+      <div
+        className={classnames(`${baseClass}__header`, {
+          [`${baseClass}__header--inline`]: !showControls,
+        })}
+      >
         <h2 className={`${baseClass}__title`}>Automation runs</h2>
         <div className={`${baseClass}__controls-row`}>
           {showControls && (

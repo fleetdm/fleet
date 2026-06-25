@@ -21,10 +21,12 @@
     width: 100%;
   }
 
-  // Non-field content (buttons, icon rows) hugs its content so the tooltip centers on the
-  // button. Without this, the global `form > * { width: 100% }` rule (_global.scss) stretches
-  // the span to the full form width and the arrow drifts to the form center. Field wrappers
-  // deliberately keep full width so the disabled row stays the hover target.
+  // Hug the wrapped content so the tooltip arrow centers on the visible control (a button,
+  // checkbox row, or group) rather than drifting to the center of the full form row. Without
+  // this, the global `form > * { width: 100% }` rule (_global.scss) — or a checkbox's own
+  // full-width label row — stretches the anchor wider than the control. Inputs/dropdowns opt
+  // back into full width via `--inputfield`. (In GitOps mode the control is disabled, so the
+  // narrower hover area is moot.)
   &--hug {
     width: fit-content;
   }
