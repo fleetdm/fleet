@@ -612,6 +612,46 @@ software:
 
 #### Example
 
+##### Multiple versions of the same software
+
+You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
+
+`self_service`, `categories`, and labels are defined per package. `setup_experience` is defined on the fleet-level.
+
+If multiple packages target the same host, Fleet will install the one that was added first.
+
+> In GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run doesn't change which package was added first. 
+>
+> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
+
+`fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+
+```yaml
+software:
+  packages:
+    - path: ../lib/software/santa.package.yml
+```
+
+`lib/software/santa.package.yml`
+
+```yaml
+- url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  self_service: true
+  labels_include_all:
+    - macOS
+- url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  self_service: true
+  categories:
+    - "💻 Productivity"
+  labels_include_all:
+    - macOS
+    - IT test team
+```
+
 ##### URL
 
 `lib/software-name.package.yml`:
@@ -665,46 +705,6 @@ software:
       labels_include_any:
       - Engineering
       - Customer Support
-```
-
-##### Multiple versions of the same software
-
-You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
-
-`self_service`, `categories`, and labels are defined per package inside the package YAML file.
-
-If multiple packages target the same host, Fleet will install the one that was added first.
-
-In GitOps, the first package added is the first one in the package YAML file's list on the run that first adds the title's packages. Reordering the list on a later run doesn't change which package was added first. To change it, remove the package from the YAML and re-add it on a later run.
-
-You can always preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
-
-`fleets/fleet-name.yml`, or `fleets/unassigned.yml`
-
-```yaml
-software:
-  packages:
-    - path: ../lib/software/santa.package.yml
-```
-
-`lib/software/santa.package.yml`
-
-```yaml
-- url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
-  install_script:
-    path: ../lib/software/santa-install-script.sh
-  self_service: true
-  labels_include_all:
-    - macOS
-- url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
-  install_script:
-    path: ../lib/software/santa-install-script.sh
-  self_service: true
-  categories:
-    - "💻 Productivity"
-  labels_include_all:
-    - macOS
-    - IT test team
 ```
 
 ### app_store_apps
