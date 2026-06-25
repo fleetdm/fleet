@@ -58,7 +58,7 @@ To view the password for a host's managed account, head to **Host details > Acti
 
 ## Platform SSO
 
-Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. PSSO can be used with or without [end user authentication](#end-user-authentication) enabled.
+Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. Fleet's Apple account provisioning setup works with any OAuth ROPG-compatible IdP (including Okta's free tier). For Okta-specific setup instructions, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet). This can be used with or without [end user authentication](#end-user-authentication) enabled.
 
 ## End user license agreement (EULA)
 
@@ -67,11 +67,13 @@ To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 ## Managed local account
+
 Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
 
 Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
 
 ### Password rotation
+
 Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
 
 > Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
